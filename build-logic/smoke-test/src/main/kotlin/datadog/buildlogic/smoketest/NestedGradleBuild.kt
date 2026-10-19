@@ -43,6 +43,8 @@ import javax.inject.Inject
  * from the root build can be forwarded via [projectJar]; each entry is passed as
  * `-P<propertyName>=<absolute-path>` and tracked as a task input so the nested build re-runs
  * when the upstream jar changes.
+ *
+ * The temporary Gradle user home is preserved when daemon shutdown cannot be confirmed.
  */
 @CacheableTask
 abstract class NestedGradleBuild @Inject constructor(
@@ -137,7 +139,11 @@ abstract class NestedGradleBuild @Inject constructor(
   @get:Input
   abstract val buildCacheEnabled: Property<Boolean>
 
-  /** Timeout, in seconds, for stopping the nested Gradle daemon after the build. */
+  /**
+   * Timeout, in seconds, applied separately to the `--stop` command and the subsequent daemon
+   * exit wait. The two waits can take up to twice this value in total. When unset, `--stop`
+   * waits indefinitely and daemon exit waits up to 30 seconds.
+   */
   @get:Input
   @get:Optional
   abstract val stopTimeoutSeconds: Property<Long>
@@ -356,6 +362,12 @@ abstract class NestedGradleBuild @Inject constructor(
   private fun createGradleUserHome(): File {
     val directory = temporaryDir.resolve("gradle-user-home")
     deleteGradleUserHome(directory)
+    if (directory.exists()) {
+      throw GradleException(
+        "Could not clean up existing nested Gradle user home: ${directory.absolutePath}. " +
+          "Check the preceding daemon shutdown and cleanup warnings.",
+      )
+    }
     if (!directory.mkdirs()) {
       throw GradleException(
         "Could not create nested Gradle user home: ${directory.absolutePath}",
@@ -364,6 +376,7 @@ abstract class NestedGradleBuild @Inject constructor(
     return directory
   }
 
+  // Gradle's internal log naming also drives buildSrc's GradleFixture.stopDaemonsIn.
   private fun findGradleDaemons(directory: File): List<ProcessHandle> =
     directory.resolve("daemon").walkTopDown()
       .filter { it.isFile && it.name.startsWith("daemon-") && it.name.endsWith(".out.log") }

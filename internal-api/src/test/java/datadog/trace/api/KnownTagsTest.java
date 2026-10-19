@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.tabletest.junit.TableTest;
 
 /**
  * Checks the generated registry's name resolution and tag ID encoding. Datadog and OpenTelemetry
@@ -41,7 +42,6 @@ class KnownTagsTest {
         Arguments.of(Tags.PEER_HOSTNAME, KnownTags.PEER_HOSTNAME_ID),
         Arguments.of(Tags.PEER_HOST_IPV4, KnownTags.PEER_IPV4_ID),
         Arguments.of(Tags.PEER_HOST_IPV6, KnownTags.PEER_IPV6_ID),
-        Arguments.of(Tags.PEER_PORT, KnownTags.PEER_PORT_ID),
         Arguments.of(Tags.COMPONENT, KnownTags.COMPONENT_ID),
         Arguments.of(Tags.SPAN_KIND, KnownTags.SPAN_KIND_ID),
         Arguments.of(DDTags.LANGUAGE_TAG_KEY, KnownTags.LANGUAGE_ID),
@@ -159,6 +159,42 @@ class KnownTagsTest {
     assertEquals(0L, KnownTagCodec.keyOf(""));
   }
 
+  /**
+   * {@code peer.port} is declared once per direction, but it is one tag with one id: only its
+   * OpenTelemetry name depends on the span's direction ({@code client.port} inbound, {@code
+   * server.port} outbound).
+   */
+  @Test
+  void aNameDeclaredPerDirectionIsOneTag() {
+    assertEquals(KnownTags.PEER_PORT_ID, KnownTagCodec.keyOf(Tags.PEER_PORT));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_ID));
+    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.PEER_PORT_ID));
+    assertEquals(Tags.PEER_PORT, KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID));
+    assertEquals(
+        "client.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_INBOUND));
+    assertEquals(
+        "server.port",
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_OUTBOUND));
+    assertEquals(
+        Tags.PEER_PORT,
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_NONE));
+  }
+
+  @TableTest({
+    "scenario | kind     | direction",
+    "server   | server   | 0        ",
+    "consumer | consumer | 0        ",
+    "client   | client   | 1        ",
+    "producer | producer | 1        ",
+    "internal | internal | 2        ",
+    "broker   | broker   | -1       ",
+    "custom   | custom   | -1       "
+  })
+  void theDirectionOfASpanFollowsItsKind(String kind, int direction) {
+    assertEquals(direction, KnownTagCodec.directionOfKind(kind));
+  }
+
   @Test
   void unknownIdsResolveToNullName() {
     assertNull(KnownTagCodec.nameOf(0L));
@@ -223,5 +259,59 @@ class KnownTagsTest {
     long id = KnownTagCodec.makeTagId(263);
     assertEquals(263, KnownTagCodec.serialNum(id));
     assertFalse(KnownTagCodec.isTraceLevel(id));
+  }
+
+  @Test
+  void theInterceptedBitMarksTheTracerOverlayTags() {
+    assertTrue(KnownTagCodec.isIntercepted(KnownTags.SPAN_KIND_ID));
+    assertFalse(KnownTagCodec.isIntercepted(KnownTags.HTTP_ROUTE_ID));
+  }
+
+  @Test
+  void isKnownRejectsTheNoTagSerialAndSerialsPastTheLimit() {
+    assertTrue(KnownTagCodec.isKnown(KnownTags.HTTP_ROUTE_ID));
+    assertFalse(KnownTagCodec.isKnown(0L));
+    assertFalse(KnownTagCodec.isKnown(KnownTagCodec.makeTagId(KnownTagCodec.serialLimit())));
+  }
+
+  @Test
+  void canonicalTagNameMapsAnOpenTelemetryRenameToItsDatadogName() {
+    assertEquals(Tags.HTTP_METHOD, KnownTagCodec.canonicalTagName(KnownTags.HTTP_METHOD_OTEL_NAME));
+    assertEquals(Tags.HTTP_METHOD, KnownTagCodec.canonicalTagName(Tags.HTTP_METHOD));
+    assertEquals("my.custom.tag", KnownTagCodec.canonicalTagName("my.custom.tag"));
+  }
+
+  @TableTest({
+    "scenario | kind       | direction",
+    "no kind  |            | -1       ",
+    "server   | 'server'   | 0        ",
+    "consumer | 'consumer' | 0        ",
+    "client   | 'client'   | 1        ",
+    "producer | 'producer' | 1        ",
+    "internal | 'internal' | 2        ",
+    "broker   | 'broker'   | -1       "
+  })
+  void directionOfKind(String kind, int direction) {
+    assertEquals(direction, KnownTagCodec.directionOfKind(kind));
+  }
+
+  @Test
+  void directionOfReadsTheMapsSpanKind() {
+    TagMap tags = TagMap.create();
+    assertEquals(KnownTagCodec.DIRECTION_UNKNOWN, KnownTagCodec.directionOf(tags));
+
+    tags.set(KnownTags.SPAN_KIND_ID, Tags.SPAN_KIND_CLIENT);
+    assertEquals(KnownTagCodec.DIRECTION_OUTBOUND, KnownTagCodec.directionOf(tags));
+  }
+
+  @Test
+  void anEntrysDirectionalOpenTelemetryTagFallsBackToItsNameForACustomTag() {
+    TagMap.Entry custom = TagMap.Entry.newAnyEntry("my.custom.tag", "value");
+    assertEquals("my.custom.tag", custom.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
+
+    TagMap.Entry peerPort = TagMap.Entry.newAnyEntry(KnownTags.PEER_PORT_ID, 443);
+    assertEquals(
+        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_OUTBOUND),
+        peerPort.openTelemetryTag(KnownTagCodec.DIRECTION_OUTBOUND));
   }
 }

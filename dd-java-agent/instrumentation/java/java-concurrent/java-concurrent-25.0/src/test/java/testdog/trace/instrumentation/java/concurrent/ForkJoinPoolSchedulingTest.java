@@ -4,6 +4,7 @@ import static datadog.context.Context.current;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -11,6 +12,7 @@ import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -18,6 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.agent.test.scopediag.ContinuationRecord;
+import datadog.trace.agent.test.scopediag.ScopeDiagnostics;
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsReport;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -26,6 +31,7 @@ import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -379,5 +385,68 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
       }
       assertTraces(trace(span().root().operationName("parent")));
     }
+  }
+
+  @Test
+  void virtualThreadParkTimeoutDoesNotCaptureRequestContext() throws Exception {
+    CountDownLatch readyToPark = new CountDownLatch(1);
+    AgentSpan parent = startSpan("test", "parent");
+    Object expectedParent = parent;
+    Thread virtualThread;
+    try (ContextScope ignored = current().with(parent).attach()) {
+      virtualThread =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try (ContextScope ignoredScope = activateSpan((AgentSpan) expectedParent)) {
+                      readyToPark.countDown();
+                      LockSupport.parkNanos(DAYS.toNanos(1));
+                    }
+                  });
+    }
+
+    try {
+      assertTrue(readyToPark.await(10, SECONDS));
+      awaitTimedWaiting(virtualThread);
+
+      ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+      assertFalse(
+          report.records().stream()
+              .anyMatch(ForkJoinPoolSchedulingTest::capturedByVirtualThreadTimer),
+          "JDK virtual-thread timeout tasks do not consume request context:\n"
+              + report.renderTimeline());
+    } finally {
+      LockSupport.unpark(virtualThread);
+      virtualThread.join(10_000);
+      assertFalse(virtualThread.isAlive(), "Virtual thread did not terminate after unpark");
+      parent.finish();
+    }
+
+    ScopeDiagnostics.assertNoViolations(ScopeDiagnostics.report());
+    assertTraces(trace(span().root().operationName("parent")));
+  }
+
+  private static boolean capturedByVirtualThreadTimer(ContinuationRecord record) {
+    if (record.capture() == null || record.capture().stack == null) {
+      return false;
+    }
+    for (StackTraceElement frame : record.capture().stack) {
+      if (frame.getClassName().equals("java.lang.VirtualThread")
+          && frame.getMethodName().equals("schedule")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static void awaitTimedWaiting(Thread thread) throws InterruptedException {
+    long deadline = System.nanoTime() + SECONDS.toNanos(10);
+    while (thread.getState() != Thread.State.TIMED_WAITING && thread.isAlive()) {
+      if (System.nanoTime() >= deadline) {
+        throw new AssertionError("Virtual thread did not enter timed park");
+      }
+      Thread.yield();
+    }
+    assertEquals(Thread.State.TIMED_WAITING, thread.getState());
   }
 }

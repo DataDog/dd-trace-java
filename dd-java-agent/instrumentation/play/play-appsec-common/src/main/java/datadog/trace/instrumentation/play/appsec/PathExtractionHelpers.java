@@ -50,9 +50,14 @@ public class PathExtractionHelpers {
 
     Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
     BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-    if (brf != null) {
-      brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+    if (brf == null) {
+      // nothing can commit the blocking response, so the request must not be blocked
+      return null;
     }
+    // never call TraceSegment#effectivelyBlocked() here: the BlockResponseFunction implementation
+    // owns marking the segment, synchronously or (e.g. Netty off the event loop, Akka HTTP) once
+    // the response is actually committed
+    brf.tryCommitBlockingResponse(reqCtx, rba);
     return new BlockingException("Blocked request (for " + origin + ")");
   }
 }
