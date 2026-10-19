@@ -143,6 +143,45 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     TestTransformedNativeRetry.executions == 2
   }
 
+  def "test automation exclusions use effective inherited groups"() {
+    given:
+    TestInheritedGroupsExcluded.executions = 0
+    def id = new TestFQN(TestInheritedGroupsExcluded.name, "inherited_groups")
+    givenDisabledTests([id])
+
+    when:
+    runTests([TestInheritedGroupsExcluded])
+
+    then:
+    TestInheritedGroupsExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "inherited_groups" }
+    testSpan.getTag("test.status").toString() == "pass"
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+  }
+
+  def "test automation exclusions use effective transformed groups"() {
+    given:
+    TestTransformedGroupsExcluded.executions = 0
+    def id = new TestFQN(TestTransformedGroupsExcluded.name, "transformed_groups")
+    givenDisabledTests([id])
+    def transformer = [transform: { annotation, testClass, constructor, method ->
+        if (method?.name == "transformed_groups") {
+          annotation.setGroups(["datadog_prevent_failure_suppression"] as String[])
+        }
+      }] as IAnnotationTransformer
+
+    when:
+    runTests([TestTransformedGroupsExcluded], null, true, { TestNG testNG -> testNG.addListener(transformer) })
+
+    then:
+    TestTransformedGroupsExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "transformed_groups" }
+    testSpan.getTag("test.status").toString() == "pass"
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+  }
+
   def "test #testcaseName"() {
     runTests(tests, null, success)
 
