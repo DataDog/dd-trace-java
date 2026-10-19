@@ -29,6 +29,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
@@ -44,15 +45,19 @@ import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
+import datadog.trace.test.logging.TestLogCollector;
+import datadog.trace.test.logging.TestLogbackAppender;
 import datadog.trace.test.util.PollingConditions;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
@@ -60,8 +65,46 @@ import okio.Buffer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 class FlagEvaluationWriterImplTest {
+
+  @Test
+  void unavailableRouteDoesNotLogAnErrorForEachEvaluationFlush() {
+    final FeatureFlagRouteSelector selector = new FeatureFlagRouteSelector();
+    selector.initialize(() -> null, false);
+    final BackendApi api =
+        new AgentlessFeatureFlagBackendApi(
+            null, () -> null, endpoint -> null, () -> null, "flag evaluation", selector);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(api);
+    final Logger logger = (Logger) LoggerFactory.getLogger(FlagEvaluationWriterImpl.class);
+    final TestLogbackAppender appender = new TestLogbackAppender();
+    appender.setContext(logger.getLoggerContext());
+    appender.start();
+    logger.addAppender(appender);
+    TestLogCollector.enable();
+    try {
+      logger.error("log-capture-positive-control");
+      assertEquals(1, TestLogCollector.drainCapturedLogs().size());
+      for (int i = 0; i < 3; i++) {
+        setup.handler.add(simpleEvent("flag", "on"));
+        setup.handler.drainAndAggregate();
+        setup.handler.flush();
+      }
+      assertEquals(
+          0,
+          TestLogCollector.drainCapturedLogs().stream()
+              .filter(
+                  log ->
+                      log.level.equals("ERROR")
+                          && log.message.contains("Could not submit flag evaluations"))
+              .count());
+    } finally {
+      TestLogCollector.disable();
+      logger.detachAppender(appender);
+      appender.stop();
+    }
+  }
 
   private static final String DIRECT_FLAG_EVALUATION_ENDPOINT = "/api/v2/flagevaluation";
   private static final String API_KEY = "test-api-key";
@@ -117,6 +160,37 @@ class FlagEvaluationWriterImplTest {
     writer.start();
 
     assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
+  }
+
+  @Test
+  void unavailableBackendClosesWriterFromItsOwnWorker() throws Exception {
+    final AtomicReference<Thread> worker = new AtomicReference<>();
+    final CompletableFuture<Throwable> failure = new CompletableFuture<>();
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(
+            16,
+            Long.MAX_VALUE,
+            TimeUnit.NANOSECONDS,
+            () -> {
+              worker.set(Thread.currentThread());
+              worker.get().setUncaughtExceptionHandler((thread, error) -> failure.complete(error));
+              return null;
+            },
+            cfg());
+    try {
+      writer.start();
+      final Throwable error = failure.get(5, TimeUnit.SECONDS);
+      assertEquals(IllegalArgumentException.class, error.getClass());
+      assertEquals("EVP Proxy not available", error.getMessage());
+      worker.get().join(5000);
+      assertFalse(worker.get().isAlive());
+      assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
+
+      writer.startForTest();
+      assertEquals(Thread.State.TERMINATED, worker.get().getState());
+    } finally {
+      writer.close();
+    }
   }
 
   @Test
@@ -371,9 +445,9 @@ class FlagEvaluationWriterImplTest {
 
   @Test
   void finalFlushRunsWithoutTheInterruptFlagSet() throws Exception {
-    // close() interrupts the worker to break it out of poll(). The final flush does socket I/O,
-    // and OkHttp fails fast on an interrupted thread, so the flag must be clear by the time the
-    // publisher is called. A mock publisher ignores the flag, so assert on it directly.
+    // close() signals shutdown without interrupting the worker. The final flush does socket I/O,
+    // and OkHttp fails fast on an interrupted thread. A mock publisher ignores the flag, so assert
+    // on it directly.
     final java.util.concurrent.CountDownLatch posted = new java.util.concurrent.CountDownLatch(1);
     final boolean[] interruptedDuringPost = {true};
     final BackendApi mockEvp = mock(BackendApi.class);
@@ -666,7 +740,8 @@ class FlagEvaluationWriterImplTest {
   @Test
   void scoConstructorCreatesUsableWriter() {
     final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(new SharedCommunicationObjects(), cfg());
+        new FlagEvaluationWriterImpl(
+            new SharedCommunicationObjects(), cfg(), new FeatureFlagRouteSelector());
     writer.enqueue(simpleEvent("sco-flag", "on"));
     assertNotNull(writer.pollQueuedEventForTest());
     writer.close();

@@ -42,13 +42,12 @@
 # abstract type, a plain mixin) it applies in every direction; in a directional scope, only in that
 # direction.
 # A tag whose MEANING flips with direction, like peer.port (the server's port on an outbound span, the
-# client's on an inbound one), is declared once per direction, each in a directional mixin. Each
-# declaration becomes its own tag, with fixed names in both namespaces; the Datadog name is shared.
-# (The generator labels these tags `<dd-name>@<direction>` in its reports; that label is not YAML
-# syntax.) Any other repeated declaration is still an error.
-# Until name resolution knows a span's direction, only renames that apply in every direction are used.
-# A directional rename, including one under `span-kind: internal` (spans with no direction), is
-# listed in tag-assignment.txt but not yet applied.
+# client's on an inbound one), is declared once per direction, each in a directional mixin. The
+# declarations merge into ONE tag with one id; only its OpenTelemetry name depends on the span's
+# direction. Any other repeated declaration is still an error.
+# Name resolution does not yet know a span's direction, so only renames that apply in every direction
+# resolve a name to a tag. A directional rename, including one under `span-kind: internal` (spans with
+# no direction), is applied only when a span's tags are emitted under OpenTelemetry names.
 # `span-kind-neutral: true` widens a directional rename to every direction -- the author's assertion
 # that OTel only uses that name for this tag (db.system, say, only ever names a database). It is
 # interim, and goes away once resolution is direction-aware. A rename on a concrete type with no
@@ -162,9 +161,9 @@ mixins:
       - { dd-name: peer.ipv4, type: string }
       - { dd-name: peer.ipv6, type: string }
 
-  # outbound_peer / inbound_peer declare peer.port once per direction. `peer.port` is then a SHARED
-  # Datadog name for two tags (reported as peer.port@outbound and peer.port@inbound): emitting it needs no context,
-  # but resolving the bare name needs the span's direction.
+  # outbound_peer / inbound_peer declare peer.port once per direction. It is still one tag
+  # (PEER_PORT_ID); only its OpenTelemetry name depends on the span's direction: client.port on
+  # inbound spans, server.port on outbound ones.
 
   # outbound_peer — the other end of an outbound connection: the server.
   outbound_peer:
@@ -200,8 +199,9 @@ mixins:
 # - span.kind enumerates: server | client | producer | consumer | internal | broker.
 # - Some keys (resource.name, error, sampling.priority, ...) are accepted by setTag but routed to a
 #   span field or a trace directive instead of tag storage. That routing is a per-language tracer
-#   concern, so it is NOT modelled here; such a key appears above only when it also needs an id and
-#   a name (service does, for OpenTelemetry's service.name).
+#   concern, so it is NOT modelled here: dd-trace-java declares those keys, and marks every tag it
+#   intercepts, in its own overlay (tag-conventions-java.yaml). Such a key appears above only when it
+#   also needs an id and a name across tracers (service does, for OpenTelemetry's service.name).
 # - Tags with no otel-name pass through under their Datadog name (RFC "retain"). A `# TODO(otel)` note
 #   marks a pending OpenTelemetry-team review of a mapping that is not yet a settled rename.
 # - db.statement/db.query.text is deliberately never re-exposed as a stored tag once consumed into

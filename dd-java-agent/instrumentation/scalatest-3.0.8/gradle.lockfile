@@ -158,6 +158,7 @@ org.scala-sbt:core-macros_2.13:1.11.5=zinc
 org.scala-sbt:io_2.13:1.10.5=zinc
 org.scala-sbt:launcher-interface:1.4.4=zinc
 org.scala-sbt:sbinary_2.13:0.5.1=zinc
+org.scala-sbt:test-interface:1.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.scala-sbt:util-control_2.13:1.11.5=zinc
 org.scala-sbt:util-interface:1.11.5=zinc
 org.scala-sbt:util-logging_2.13:1.11.5=zinc

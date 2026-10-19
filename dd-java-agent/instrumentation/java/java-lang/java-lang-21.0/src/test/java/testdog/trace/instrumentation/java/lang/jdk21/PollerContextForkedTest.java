@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores;
-import datadog.trace.bootstrap.FieldBackedContextStores;
+import datadog.trace.bootstrap.ContextStores;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Field;
 import java.util.Set;
@@ -61,10 +61,10 @@ class PollerContextForkedTest extends AbstractInstrumentationTest {
 
   static Object virtualThreadState(Thread thread) {
     int storeId =
-        FieldBackedContextStores.getContextStoreId(
+        ContextStores.getContextStoreId(
             "java.lang.VirtualThread",
             "datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState");
-    return FieldBackedContextStores.getContextStore(storeId).get(thread);
+    return ContextStores.getContextStore(storeId).get(thread);
   }
 
   static Field field(Class<?> type, String name) throws NoSuchFieldException {

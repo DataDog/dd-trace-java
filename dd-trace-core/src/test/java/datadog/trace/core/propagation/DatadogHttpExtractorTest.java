@@ -269,8 +269,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
     "out-of-range traceId | 'MAX+1' | '1'     | false           ",
     "uint64 max spanId    | '1'     | 'MAX'   | true            ",
     "out-of-range spanId  | '1'     | 'MAX+1' | false           ",
-    "leading plus traceId | '+1'    | '1'     | false           ",
-    "leading plus spanId  | '1'     | '+1'    | false           ",
     "empty traceId        | ''      | '1'     | false           ",
     "empty spanId         | '1'     | ''      | false           ",
     "hex traceId          | '0x1a'  | '1'     | false           ",

@@ -5,7 +5,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha '454a97647cbc16ab7fd20e917aa31532ba7532eb' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
+    ref: &apm_sdks_benchmarks_sha 'bffc4e99f65d0accac069b87162891742c555efa' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -306,7 +306,7 @@ maven-central-pre-release-check:
       # See https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
       # Use the staging API search endpoint to validate the tokens without relying on a specific deployment
       AUTHORIZATION_HEADER="Authorization: Bearer $(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64)"
-      if ! curl --silent --show-error --fail \
+      if ! curl --silent --show-error --fail --retry 5 --retry-delay 2 --retry-connrefused \
         "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any" \
         --header "$AUTHORIZATION_HEADER" \
         > /dev/null; then
