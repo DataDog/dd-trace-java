@@ -35,3 +35,9 @@ Use the same method annotations with `org.junit.jupiter.api.Test`,
 `ParameterizedTest`, repeated tests and test templates. Every generated
 invocation resolves the declaration on its source method. Native JUnit tags can
 also reference `TestAutomationExclusions` constants.
+
+## TestNG
+
+Apply the public annotations to `org.testng.annotations.Test` methods, including
+data providers. TestNG groups can also reference `TestAutomationExclusions`
+constants. User-supplied retry analyzers retain their existing behavior.

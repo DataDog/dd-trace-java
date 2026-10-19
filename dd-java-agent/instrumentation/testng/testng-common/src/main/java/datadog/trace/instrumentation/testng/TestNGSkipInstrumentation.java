@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -58,7 +59,11 @@ public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
         @Advice.Argument(2) final Object[] parameters) {
       TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(method, instance, parameters);
       SkipReason skipReason =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(testIdentifier);
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(
+              testIdentifier,
+              new TestSourceData(
+                  instance != null ? instance.getClass() : method.getDeclaringClass(), method),
+              TestNGUtils.getGroups(method));
       if (skipReason == null) {
         return;
       }

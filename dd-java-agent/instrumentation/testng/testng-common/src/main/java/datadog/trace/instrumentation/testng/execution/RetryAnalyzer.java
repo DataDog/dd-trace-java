@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.testng.execution;
 
+import datadog.trace.api.civisibility.config.TestExclusions;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
@@ -8,12 +9,17 @@ import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
+import org.testng.annotations.Test;
 
 public class RetryAnalyzer implements IRetryAnalyzer {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(RetryAnalyzer.class);
   private volatile TestExecutionPolicy executionPolicy;
+  private IRetryAnalyzer frameworkRetryAnalyzer;
 
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
@@ -27,6 +33,21 @@ public class RetryAnalyzer implements IRetryAnalyzer {
           TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(result);
           TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
           Collection<String> testTags = TestNGUtils.getGroups(result);
+          if (TestExclusions.noAutoRetry(testSourceData, testTags)
+              && testSourceData.getTestMethod() != null) {
+            Test declaration = testSourceData.getTestMethod().getAnnotation(Test.class);
+            if (declaration != null
+                && IRetryAnalyzer.class.isAssignableFrom(declaration.retryAnalyzer())
+                && !RetryAnalyzer.class.equals(declaration.retryAnalyzer())) {
+              try {
+                frameworkRetryAnalyzer =
+                    (IRetryAnalyzer)
+                        declaration.retryAnalyzer().getDeclaredConstructor().newInstance();
+              } catch (Exception e) {
+                LOGGER.debug("Could not instantiate explicit framework retry analyzer", e);
+              }
+            }
+          }
           executionPolicy =
               TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
                   testIdentifier, testSourceData, testTags);
@@ -41,7 +62,10 @@ public class RetryAnalyzer implements IRetryAnalyzer {
       return false;
     }
     createExecutionPolicy(result);
-    return executionPolicy.applicable();
+    return frameworkRetryAnalyzer != null
+            && !result.isSuccess()
+            && frameworkRetryAnalyzer.retry(result)
+        || executionPolicy.applicable();
   }
 
   public void setSuppressFailures(ITestResult result) {
