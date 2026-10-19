@@ -41,3 +41,9 @@ also reference `TestAutomationExclusions` constants.
 Apply the public annotations to `org.testng.annotations.Test` methods, including
 data providers. TestNG groups can also reference `TestAutomationExclusions`
 constants. User-supplied retry analyzers retain their existing behavior.
+
+## Spock
+
+Apply the public annotations directly to a Spock feature method. They apply
+to every data-driven iteration. Spec-level skip aggregation inspects the
+feature declaration before deciding whether the whole spec can be skipped.
