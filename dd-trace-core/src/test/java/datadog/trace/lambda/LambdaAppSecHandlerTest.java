@@ -2468,6 +2468,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertEquals("GET", tags.get(Tags.HTTP_METHOD));
     assertEquals("https://api.example.com/users/42", tags.get(Tags.HTTP_URL));
     assertEquals("q=hello", tags.get(DDTags.HTTP_QUERY));
+    assertNull(tags.get(DDTags.HTTP_QUERY_OTEL_NAME));
     assertEquals("curl/8.1", tags.get(Tags.HTTP_USER_AGENT));
     assertEquals("/users/{id}", tags.get(Tags.HTTP_ROUTE));
     assertEquals("api.example.com", tags.get(Tags.HTTP_HOSTNAME));
@@ -2562,7 +2563,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     // API Gateway comma-joins repeats into queryStringParameters, so rebuilding from that map
     // would report a=1%2C2
-    assertEquals("a=1&a=2", tagsOf(context).get(DDTags.HTTP_QUERY));
+    Map<String, Object> tags = tagsOf(context);
+    assertEquals("a=1&a=2", tags.get(DDTags.HTTP_QUERY));
+    assertNull(tags.get(DDTags.HTTP_QUERY_OTEL_NAME));
   }
 
   @Test

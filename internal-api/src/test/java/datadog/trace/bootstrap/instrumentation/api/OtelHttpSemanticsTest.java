@@ -101,6 +101,25 @@ class OtelHttpSemanticsTest {
     verify(span).setTag(KnownTags.URL_QUERY_ID, "token=secret");
   }
 
+  @TableTest({
+    "Scenario               | Raw URL                                | Expected query        ",
+    "Plain name             | http://host/a?token=secret             | token=secret          ",
+    "Encoded name           | http://host/a?t%6fken=secret           | token=secret          ",
+    "Leading encoded name   | http://host/a?%74oken=secret           | token=secret          ",
+    "Encoded name and value | http://host/a?t%6fken=s%65cret         | token=secret          ",
+    "Encoded space in value | http://host/a?q=a%20b                  | q=a b                 ",
+    "Multiple parameters    | http://host/a?view=full&t%6fken=secret | view=full&token=secret"
+  })
+  void setClientUrlDecodesQuerySoTheObfuscatorCanMatchEncodedNames(
+      String rawUrl, String expectedQuery) {
+    AgentSpan span = mock(AgentSpan.class);
+
+    OtelHttpSemantics.setClientUrl(span, URI.create(rawUrl));
+
+    // The obfuscator matches literal parameter names, so the query it receives must be decoded.
+    verify(span).setTag(KnownTags.URL_QUERY_ID, expectedQuery);
+  }
+
   @Test
   void setClientUrlOmitsQueryTagWhenAbsent() {
     AgentSpan span = mock(AgentSpan.class);

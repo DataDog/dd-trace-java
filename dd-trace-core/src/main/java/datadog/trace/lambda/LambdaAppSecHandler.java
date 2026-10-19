@@ -55,6 +55,8 @@ public class LambdaAppSecHandler {
 
   private static final Logger log = LoggerFactory.getLogger(LambdaAppSecHandler.class);
   private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, TimeUnit.MINUTES);
+  private static final String HTTP_QUERY_TAG =
+      Config.get().isTraceOtelSemanticsEnabled() ? DDTags.HTTP_QUERY_OTEL_NAME : DDTags.HTTP_QUERY;
 
   /**
    * Marks an invocation AppSec did not process because the trigger is not HTTP, or if the event is
@@ -334,14 +336,14 @@ public class LambdaAppSecHandler {
     }
 
     if (req.host != null) {
-      // No query string: QueryObfuscator obfuscates DDTags.HTTP_QUERY and re-appends it here.
+      // QueryObfuscator sanitizes the separate query tag before appending it to this URL.
       ctx.putTag(
           Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), url.path()));
     }
 
     String query = url.rawQuery();
     if (query != null && !query.isEmpty() && Config.get().isHttpServerTagQueryString()) {
-      ctx.putTag(DDTags.HTTP_QUERY, query);
+      ctx.putTag(HTTP_QUERY_TAG, query);
     }
 
     String userAgent = findHeader(req.headers, "user-agent");

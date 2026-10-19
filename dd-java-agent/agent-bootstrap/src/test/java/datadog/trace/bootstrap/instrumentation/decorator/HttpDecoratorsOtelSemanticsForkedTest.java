@@ -5,18 +5,29 @@ import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
+import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.core.MetadataConsumer.NO_OP;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.json.JsonMapper;
+import datadog.json.JsonWriter;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.gateway.InferredProxySpan;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -24,11 +35,21 @@ import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.otlp.trace.OtlpTraceJson;
+import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.test.junit.utils.config.WithConfig;
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 @WithConfig(key = TRACE_OTEL_SEMANTICS_ENABLED, value = "true")
@@ -275,18 +296,196 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals(9443, span.getTag(KnownTags.SERVER_PORT_NAME));
   }
 
-  private static final class ClientRequest {
+  @ParameterizedTest
+  @ValueSource(strings = {"elasticsearch", "opensearch"})
+  void databaseRestClientsKeepEndpointResourceNames(String spanType) {
+    DDSpan span = (DDSpan) tracer.startSpan("test", "database.query");
+    span.setSpanType(spanType);
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+
+    // Both REST client decorators use this helper to name their database spans.
+    HTTP_RESOURCE_DECORATOR.withClientPath(span, "GET", "/index/_search");
+    span.finish();
+
+    assertEquals("GET /index/_search", span.getResourceName().toString());
+  }
+
+  @TableTest({
+    "Scenario      | URL                             | Expected port",
+    "HTTP default  | http://example.com/orders       | 80           ",
+    "HTTPS default | https://example.com/orders      | 443          ",
+    "Explicit port | https://example.com:8443/orders | 8443         "
+  })
+  void clientDestinationPortUsesPeerIdentity(String url, int expectedPort) {
+    DDSpan span = (DDSpan) tracer.startSpan("test", "http.request");
+    TestClientDecorator decorator = new TestClientDecorator();
+
+    decorator.afterStart(span);
+    decorator.onRequest(span, new ClientRequest("GET", URI.create(url)));
+    span.finish();
+
+    assertEquals(expectedPort, span.getTag(Tags.PEER_PORT));
+  }
+
+  @Test
+  void clientConnectionDoesNotExportDuplicateServerPorts() throws IOException {
+    DDSpan span = (DDSpan) tracer.startSpan("test", "http.request");
+    TestClientDecorator decorator = new TestClientDecorator();
+    decorator.afterStart(span);
+    decorator.onRequest(
+        span, new ClientRequest("GET", URI.create("https://example.com:8443/orders")));
+    // Netty decorates the connection after the request, including when it connects to a proxy.
+    decorator.onPeerConnection(span, InetSocketAddress.createUnresolved("proxy.example.com", 3128));
+    span.finish();
+
+    List<Object> ports = exportedAttributeValues(span, "server.port");
+
+    assertEquals(singletonList(String.valueOf(span.getTag(Tags.PEER_PORT))), ports);
+  }
+
+  /**
+   * The query is decoded before obfuscation so that a percent-encoded parameter name cannot hide a
+   * secret from QueryObfuscator, which matches literal names. The trade-off is that url.full does
+   * not round-trips: encoded delimiters in a value come back decoded, so {@code view=a%26b%3Dc}
+   * reads back as two parameters. This matches the query that non-OpenTelemetry client spans
+   * already carry in http.url.
+   */
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  @WithConfig(key = HTTP_CLIENT_TAG_QUERY_STRING, value = "true")
+  void clientQueriesAreDecodedBeforeObfuscating(boolean urlConnection) {
+    DDSpan span = (DDSpan) tracer.startSpan("test", "http.request");
+    URI uri =
+        URI.create(
+            "https://user:password@example.com/orders"
+                + "?t%6fken=secret&view=a%26b%3Dc&space=hello%20world&plus=%2B#fragment");
+
+    if (urlConnection) {
+      UrlConnectionDecorator.DECORATE.afterStart(span);
+      UrlConnectionDecorator.DECORATE.onURI(span, uri);
+    } else {
+      TestClientDecorator decorator = new TestClientDecorator();
+      decorator.afterStart(span);
+      decorator.onRequest(span, new ClientRequest("GET", uri));
+    }
+    span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
+
+    // The encoded 'token' name is redacted, at the cost of decoding the safe parameters.
+    assertEquals(
+        "https://REDACTED:REDACTED@example.com/orders"
+            + "?<redacted>&view=a&b=c&space=hello world&plus=+#fragment",
+        span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
+  }
+
+  @TableTest({
+    "Scenario        | Propagation headers                                                     ",
+    "Datadog headers | [x-datadog-trace-id: '1', x-datadog-parent-id: '2']                     ",
+    "W3C headers     | [traceparent: '00-00000000000000000000000000000001-0000000000000002-01']"
+  })
+  @WithConfig(key = "appsec.enabled", value = "false")
+  @WithConfig(key = "ai_guard.enabled", value = "false")
+  @WithConfig(key = CLIENT_IP_ENABLED, value = "false")
+  @WithConfig(key = "trace.propagation.style.extract", value = "datadog,tracecontext")
+  void serverOriginUsesHeadersFromRealPropagationWithoutIpOptIn(
+      Map<String, String> propagationHeaders) {
+    Map<String, String> headers = new HashMap<>(propagationHeaders);
+    headers.put("x-forwarded-proto", "https, http");
+    headers.put("x-forwarded-host", "public.example.com:8443, internal.example.com:8080");
+    headers.put("x-forwarded-port", "9443, 8080");
+    headers.put("x-forwarded-for", "203.0.113.7");
+    boolean originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
+    ActiveSubsystems.APPSEC_ACTIVE = false;
+    HttpCodec.Extractor extractor =
+        HttpCodec.createExtractor(Config.get(), tracer::captureTraceConfig);
+    try {
+      TagContext extracted = extractor.extract(headers, stringValuesMap());
+      assertNotNull(extracted);
+      assertNull(extracted.getXForwardedFor());
+      DDSpan span = (DDSpan) tracer.startSpan("test", "servlet.request", extracted);
+      TestServerDecorator decorator = new TestServerDecorator();
+
+      decorator.afterStart(span);
+      decorator.onRequest(
+          span,
+          new Connection("192.0.2.10", 32100),
+          new ServerRequest("GET", URI.create("http://internal.example.com:8080/orders")),
+          AgentSpan.fromSpanContext(extracted));
+      span.finish();
+
+      assertEquals("https", span.getTag(KnownTags.URL_SCHEME_NAME));
+      assertEquals("public.example.com", span.getTag(KnownTags.HTTP_HOSTNAME_NAME));
+      assertEquals(9443, span.getTag(KnownTags.SERVER_PORT_NAME));
+      assertNull(span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME));
+      assertNull(span.getTag(Tags.NETWORK_CLIENT_IP));
+      assertNull(span.getTag(Tags.HTTP_FORWARDED_IP));
+    } finally {
+      extractor.cleanup();
+      ActiveSubsystems.APPSEC_ACTIVE = originalAppSecActive;
+    }
+  }
+
+  @TableTest({
+    "Scenario                 | Proxy system   | Domain          | Expected port",
+    "API Gateway HTTPS        | aws-apigateway | api.example.com | 443          ",
+    "HTTP API HTTPS           | aws-httpapi    | api.example.com | 443          ",
+    "API Gateway without host | aws-apigateway |                 |              ",
+    "HTTP API without host    | aws-httpapi    |                 |              "
+  })
+  void inferredProxyUsesKnownHttpsPort(String proxySystem, String domain, Integer expectedPort) {
+    Map<String, String> headers = new HashMap<>();
+    headers.put("x-dd-proxy", proxySystem);
+    headers.put("x-dd-proxy-request-time-ms", Long.toString(System.currentTimeMillis()));
+    headers.put("x-dd-proxy-httpmethod", "GET");
+    headers.put("x-dd-proxy-path", "/orders");
+    if (domain != null) {
+      headers.put("x-dd-proxy-domain-name", domain);
+    }
+    InferredProxySpan inferred = InferredProxySpan.fromHeaders(headers);
+    AgentTracer.TracerAPI originalTracer = AgentTracer.get();
+    AgentTracer.forceRegister(tracer);
+    try {
+      AgentSpanContext parent = inferred.start(null);
+      assertNotNull(parent);
+      DDSpan child = (DDSpan) tracer.startSpan("test", "servlet.request", parent);
+      AgentSpan proxy = child.getLocalRootSpan();
+      child.finish();
+
+      assertEquals(domain, proxy.getTag(KnownTags.HTTP_HOSTNAME_NAME));
+      assertEquals(domain == null ? null : "https", proxy.getTag(KnownTags.URL_SCHEME_NAME));
+      assertEquals(expectedPort, proxy.getTag(KnownTags.SERVER_PORT_NAME));
+    } finally {
+      inferred.finish();
+      AgentTracer.forceRegister(originalTracer);
+    }
+  }
+
+  private static List<Object> exportedAttributeValues(DDSpan span, String key) throws IOException {
+    Map<String, Object> exportedSpan;
+    try (JsonWriter writer = new JsonWriter()) {
+      OtlpTraceJson.writeSpan(writer, span, new OtlpTraceJson.MetaWriter(writer), emptyList());
+      exportedSpan = JsonMapper.fromJsonToMap(writer.toString());
+    }
+    List<Object> values = new ArrayList<>();
+    for (Object item : (List<?>) exportedSpan.get("attributes")) {
+      Map<?, ?> attribute = (Map<?, ?>) item;
+      if (key.equals(attribute.get("key"))) {
+        values.add(((Map<?, ?>) attribute.get("value")).values().iterator().next());
+      }
+    }
+    return values;
+  }
+
+  static final class ClientRequest {
     private final String method;
     private final URI uri;
 
-    private ClientRequest(String method, URI uri) {
+    ClientRequest(String method, URI uri) {
       this.method = method;
       this.uri = uri;
     }
   }
 
-  private static final class TestClientDecorator
-      extends HttpClientDecorator<ClientRequest, Integer> {
+  static final class TestClientDecorator extends HttpClientDecorator<ClientRequest, Integer> {
     @Override
     protected String[] instrumentationNames() {
       return new String[] {"test-http-client"};
