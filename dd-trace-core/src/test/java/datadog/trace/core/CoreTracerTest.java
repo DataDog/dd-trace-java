@@ -601,10 +601,17 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   /**
    * Remote config {@code tracing_tags} overrides the global tags ({@code DD_TAGS}), and removing
    * the override restores them, matching system-tests' {@code
-   * TestDynamicConfigV2.test_tracing_client_tracing_tags}.
+   * TestDynamicConfigV2.test_tracing_client_tracing_tags}. Span tags ({@code DD_SPAN_TAGS}) are
+   * separate local config, so they're kept alongside the override.
    */
-  @Test
-  void remoteConfigTracingTagsOverrideGlobalTags() throws Exception {
+  @TableTest({
+    "scenario     | localTagsKey    | expectedWithOverride                  ",
+    "DD_TAGS      | tags            | [rc_key: rc_val]                      ",
+    "DD_SPAN_TAGS | trace.span.tags | [local_key: local_val, rc_key: rc_val]"
+  })
+  void remoteConfigTracingTagsOverrideGlobalTags(
+      String scenario, String localTagsKey, Map<String, String> expectedWithOverride)
+      throws Exception {
     ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
     ConfigurationPoller poller = mock(ConfigurationPoller.class);
     SharedCommunicationObjects sco = createScoWithPoller(poller);
@@ -619,7 +626,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
         .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
     Properties properties = new Properties();
-    properties.setProperty(GeneralConfig.TAGS, "local_key:local_val");
+    properties.setProperty(localTagsKey, "local_key:local_val");
     CoreTracer tracer =
         CoreTracer.builder()
             .withProperties(properties)
@@ -636,13 +643,80 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
       capturedUpdater[0].commit(null);
 
-      assertEquals(
-          buildStringMap("rc_key", "rc_val"), tracer.captureTraceConfig().mergedTracerTags);
+      assertEquals(expectedWithOverride, tracer.captureTraceConfig().mergedTracerTags);
 
       capturedUpdater[0].remove(key, null);
       capturedUpdater[0].commit(null);
 
       assertEquals(localTags, tracer.captureTraceConfig().mergedTracerTags);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /**
+   * The config snapshot keeps the global tags apart from the span defaults, so an OTLP export can
+   * carry the global tags as resource attributes; remote config replaces only the global tags.
+   */
+  @Test
+  void configSnapshotSeparatesGlobalTagsFromSpanDefaults() throws Exception {
+    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+    ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+    ProductListener[] capturedUpdater = {null};
+    doAnswer(
+            inv -> {
+              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+              return null;
+            })
+        .when(poller)
+        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+    Properties properties = new Properties();
+    properties.setProperty(GeneralConfig.TAGS, "global_key:global_val,shared_key:global_val");
+    properties.setProperty(TracerConfig.SPAN_TAGS, "span_key:span_val,shared_key:span_val");
+    properties.setProperty(GeneralConfig.ENV, "prod");
+    CoreTracer tracer =
+        CoreTracer.builder()
+            .withProperties(properties)
+            .sharedCommunicationObjects(sco)
+            .pollForTracingConfiguration()
+            .build();
+    unclosedTracers.add(tracer);
+
+    try {
+      Map<String, String> spanDefaults =
+          buildStringMap("span_key", "span_val", "shared_key", "span_val", "env", "prod");
+
+      ConfigSnapshot config = tracer.captureTraceConfig();
+      // Config adds DD_ENV to the global tags
+      assertEquals(
+          buildStringMap("global_key", "global_val", "shared_key", "global_val", "env", "prod"),
+          config.globalTags);
+      assertEquals(spanDefaults, config.spanDefaultTags);
+      assertEquals(
+          buildStringMap(
+              "global_key", "global_val",
+              "span_key", "span_val",
+              "shared_key", "span_val",
+              "env", "prod"),
+          config.mergedTracerTags);
+
+      String json = "{\"lib_config\":{\"tracing_tags\": [\"rc_key:rc_val\"]}}";
+      capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+      capturedUpdater[0].commit(null);
+
+      config = tracer.captureTraceConfig();
+      assertEquals(buildStringMap("rc_key", "rc_val"), config.globalTags);
+      assertEquals(spanDefaults, config.spanDefaultTags);
+      assertEquals(
+          buildStringMap(
+              "rc_key", "rc_val",
+              "span_key", "span_val",
+              "shared_key", "span_val",
+              "env", "prod"),
+          config.mergedTracerTags);
     } finally {
       tracer.close();
     }
