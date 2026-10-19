@@ -23,8 +23,10 @@ public class RetryAnnotationTransformer implements IAnnotationTransformer {
       ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
     // TestNG 6 has no Datadog execution-policy instrumentation. Keep explicit native retries.
     Test declaration = testMethod != null ? testMethod.getAnnotation(Test.class) : null;
+    String frameworkVersion = TestNGUtils.getTestNGVersion();
     boolean preserveFrameworkRetry =
-        TestNGUtils.getTestNGVersion().startsWith("6.")
+        frameworkVersion != null
+            && frameworkVersion.startsWith("6.")
             && declaration != null
             && IRetryAnalyzer.class.isAssignableFrom(declaration.retryAnalyzer())
             && TestExclusions.noAutoRetry(
