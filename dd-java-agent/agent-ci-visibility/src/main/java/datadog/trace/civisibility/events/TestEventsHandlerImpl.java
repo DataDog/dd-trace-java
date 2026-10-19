@@ -5,6 +5,7 @@ import datadog.trace.api.DisableTestTrace;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.config.TestExclusions;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
@@ -186,6 +187,13 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     TestImpl test =
         testSuite.testStart(testName, testParameters, testSourceData.getTestMethod(), startTime);
 
+    if (TestExclusions.noAutoRetry(testSourceData, categories)) {
+      test.setTag("test.test_management.no_auto_retry", true);
+    }
+    if (TestExclusions.preventFailureSuppression(testSourceData, categories)) {
+      test.setTag("test.test_management.prevent_failure_suppression", true);
+    }
+
     TestIdentifier thisTest = test.getIdentifier();
     if (testModule.isNew(thisTest)) {
       test.setTag(Tags.TEST_IS_NEW, true);
@@ -356,6 +364,12 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Nullable
+  @Override
+  public SkipReason skipReason(
+      TestIdentifier test, TestSourceData source, Collection<String> tags) {
+    return getOrCreateTestModule().skipReason(test, source, tags);
+  }
+
   @Override
   public SkipReason skipReason(TestIdentifier test) {
     return getOrCreateTestModule().skipReason(test);
