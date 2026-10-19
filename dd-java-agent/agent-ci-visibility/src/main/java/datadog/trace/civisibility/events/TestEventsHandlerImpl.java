@@ -25,6 +25,7 @@ import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.domain.TestImpl;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
+import datadog.trace.civisibility.execution.AttemptToFix;
 import java.util.Collection;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -311,7 +312,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
           test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
         }
 
-        if (testModule.isAttemptToFix(test.getIdentifier())) {
+        if (testExecutionTracker instanceof AttemptToFix) {
           test.setTag(
               Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED,
               outcome.aggregation() == ExecutionAggregation.ONLY_PASSED);
