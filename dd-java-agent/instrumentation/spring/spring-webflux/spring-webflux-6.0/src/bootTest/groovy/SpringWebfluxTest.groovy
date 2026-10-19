@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.base.OkHttpWebsocketClient
-import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics
 import dd.trace.instrumentation.springwebflux.server.WsHandler
 import net.bytebuddy.utility.RandomString
 import org.springframework.beans.factory.annotation.Autowired
