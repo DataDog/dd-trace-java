@@ -22,6 +22,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 public abstract class AbstractMavenTest {
   private static final int MAVEN_BUILD_ATTEMPTS = 3;
+  private static final long MAVEN_BUILD_RETRY_DELAY_MILLIS = 5_000;
 
   @TempDir static Path WORKING_DIRECTORY;
 
@@ -62,30 +63,38 @@ public abstract class AbstractMavenTest {
     }
     addAll(arguments, additionalArgs);
 
-    MojoStartedSpy spy;
-    int attempt = 0;
-    do {
-      spy = new MojoStartedSpy(mojoStartedHandler);
-      MojoStartedSpy attemptSpy = spy;
-      MavenCli mavenCli =
-          new MavenCli() {
-            @Override
-            protected void customizeContainer(PlexusContainer container) {
-              container.addComponent(attemptSpy, EventSpy.class, null);
-            }
-          };
-      mavenCli.doMain(
-          arguments.toArray(new String[0]),
-          WORKING_DIRECTORY.toAbsolutePath().toString(),
-          stdOut,
-          stderr);
-    } while (spy.artifactTransferFailed && ++attempt < MAVEN_BUILD_ATTEMPTS);
+    MojoStartedSpy spy = runMaven(mojoStartedHandler, arguments, stdOut, stderr);
+    for (int attempt = 1; attempt < MAVEN_BUILD_ATTEMPTS && spy.artifactTransferFailed; attempt++) {
+      Thread.sleep(MAVEN_BUILD_RETRY_DELAY_MILLIS);
+      spy = runMaven(mojoStartedHandler, arguments, stdOut, stderr);
+    }
 
     Exception error = spy.handlerError.get();
     if (error != null) {
       throw error;
     }
     assertTrue(spy.handlerRan.get());
+  }
+
+  private static MojoStartedSpy runMaven(
+      Function<ExecutionEvent, Boolean> mojoStartedHandler,
+      List<String> arguments,
+      PrintStream stdOut,
+      PrintStream stderr) {
+    MojoStartedSpy spy = new MojoStartedSpy(mojoStartedHandler);
+    MavenCli mavenCli =
+        new MavenCli() {
+          @Override
+          protected void customizeContainer(PlexusContainer container) {
+            container.addComponent(spy, EventSpy.class, null);
+          }
+        };
+    mavenCli.doMain(
+        arguments.toArray(new String[0]),
+        WORKING_DIRECTORY.toAbsolutePath().toString(),
+        stdOut,
+        stderr);
+    return spy;
   }
 
   private static boolean hasArtifactTransferFailure(MavenExecutionResult result) {
