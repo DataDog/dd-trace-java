@@ -58,6 +58,31 @@ public class OpenTelemetry14DirectionalAttributesTest extends AbstractOpenTeleme
   }
 
   @TableTest({
+    "scenario | kind   | tag          ",
+    "client   | CLIENT | peer.hostname",
+    "server   | SERVER | http.hostname"
+  })
+  void aWriteAfterTheKindWinsOverOneHeldBeforeIt(String kind, String tag) {
+    Span span =
+        this.otelTracer
+            .spanBuilder("some-name")
+            .setAttribute("server.address", "old.example.com")
+            .setSpanKind(SpanKind.valueOf(kind))
+            .setAttribute("server.address", "new.example.com")
+            .startSpan();
+    span.end();
+
+    assertTraces(
+        trace(
+            span()
+                .root()
+                .tags(
+                    defaultTags(),
+                    tag(SPAN_KIND, is(OtelConventions.toSpanKindTagValue(SpanKind.valueOf(kind)))),
+                    tag(tag, is("new.example.com")))));
+  }
+
+  @TableTest({
     "scenario           | kind   | tag        ",
     "client server.port | CLIENT | peer.port  ",
     "server server.port | SERVER | server.port"
