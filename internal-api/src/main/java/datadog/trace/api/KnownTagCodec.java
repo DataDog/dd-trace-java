@@ -19,9 +19,10 @@ public final class KnownTagCodec {
    * identity — nameOf/openTelemetryNameOf switch on it, and the generator emits each id as a
    * literal. Bits [47-32] hold the tag's slot ({@link #slotOf}), or {@link #NO_SLOT} for a tag on
    * no modeled span type. Graph coloring gives tags that appear together on a span type distinct
-   * slots; trace-level tags are colored separately and reuse the span-level slots. Of the low 32 flag bits, bit 2 is the trace/span
-   * LEVEL bit (set ⟹ trace-level), and bit 1 is the INTERCEPTED bit. Unknown (string-only) custom
-   * tags are NOT known ids — {@code keyOf} returns 0 for them.
+   * slots (see {@link #slotOf} for the overflow exception); trace-level tags are colored separately
+   * and reuse the span-level slots. Of the low 32 flag bits, bit 2 is the trace/span LEVEL bit (set
+   * ⟹ trace-level), and bit 1 is the INTERCEPTED bit. Unknown (string-only) custom tags are NOT
+   * known ids — {@code keyOf} returns 0 for them.
    *
    * <p>There is one id per Datadog name. A tag the conventions declare once per direction, such as
    * {@code peer.port}, is still one tag: only its OpenTelemetry name depends on the span's
@@ -76,9 +77,10 @@ public final class KnownTagCodec {
   /**
    * The tag's slot, or {@link #NO_SLOT}. The generator colors tags that appear together on a span
    * type with distinct slots, so when instrumentation follows its span type, {@code 1L <<
-   * slotOf(id)} gives each of a span's tags its own presence bit. A span can still hold two tags
-   * that share a slot, so a clear bit means the tag is absent, but a set bit only means it may be
-   * present. Every tag without a slot shares bit 63, which no real slot uses.
+   * slotOf(id)} gives each of a span's tags its own presence bit -- except that on a span type with
+   * more tags than slots, its optional tags share slots with each other. A span can still hold two
+   * tags that share a slot, so a clear bit means the tag is absent, but a set bit only means it may
+   * be present. Every tag without a slot shares bit 63, which no real slot uses.
    */
   public static int slotOf(long tagId) {
     return (int) (tagId >>> SLOT_SHIFT) & 0xFFFF;
@@ -103,10 +105,10 @@ public final class KnownTagCodec {
   }
 
   /**
-   * Builds a tagId from its {@code serialNum} (globally unique per known tag). The reserved [47-32]
-   * window and the low 32 bits are zero, so the id is fully determined by the serial — the
-   * generator emits it as a literal. Inverse of {@link #serialNum}. Intended for the code generator
-   * and tests.
+   * Builds an id carrying only {@code serialNum}: slot 0 and no flags, so it equals a tag's real id
+   * only when that tag has neither. Enough for serial-keyed lookups such as {@link #nameOf};
+   * compare against a {@code KnownTags} constant, never against this. Inverse of {@link
+   * #serialNum}. Intended for tests and serial-keyed lookups.
    */
   public static long makeTagId(int serialNum) {
     return (long) serialNum << 48;

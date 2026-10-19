@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -108,23 +109,40 @@ class TagStoresTest {
     assertEquals(KnownTags.HTTP_ROUTE_NAME, first.tag());
   }
 
+  /** A span-level known tag colored into {@code traceLevelId}'s slot, or 0 if there is none. */
+  private static long spanLevelTagInSlotOf(long traceLevelId) throws IllegalAccessException {
+    for (java.lang.reflect.Field field : KnownTags.class.getFields()) {
+      if (field.getType() != long.class) continue;
+      long id = field.getLong(null);
+      if (KnownTagCodec.isKnown(id)
+          && IdStore.levelOf(id) == IdStore.SPAN_LEVEL
+          && KnownTagCodec.slotOf(id) == KnownTagCodec.slotOf(traceLevelId)) {
+        return id;
+      }
+    }
+    return 0L;
+  }
+
   @Test
-  void aSpanLevelReadSkipsAParentHoldingOnlyTraceLevelTagsInItsSlot() {
-    // runtime-id (trace level) and http.method (span level) are colored into the same slot
-    assertEquals(IdStore.slotBit(KnownTags.RUNTIME_ID), IdStore.slotBit(KnownTags.HTTP_METHOD_ID));
+  void aSpanLevelReadSkipsAParentHoldingOnlyTraceLevelTagsInItsSlot() throws Exception {
+    // Span-level and trace-level tags are colored independently, so their slots overlap: find a
+    // span-level tag that shares runtime-id's slot (the coloring decides which one).
+    long spanLevelId = spanLevelTagInSlotOf(KnownTags.RUNTIME_ID);
+    assumeTrue(spanLevelId != 0L, "no span-level tag shares runtime-id's slot");
     assertEquals(IdStore.TRACE_LEVEL, IdStore.levelOf(KnownTags.RUNTIME_ID));
-    assertEquals(IdStore.SPAN_LEVEL, IdStore.levelOf(KnownTags.HTTP_METHOD_ID));
 
     HashIdStore traceLevel = new HashIdStore(null);
     traceLevel.set(KnownTags.RUNTIME_ID, "abc");
     HashIdStore span = new HashIdStore(traceLevel);
-    span.set(KnownTags.HTTP_ROUTE_ID, "/a");
+    long other =
+        spanLevelId == KnownTags.HTTP_ROUTE_ID ? KnownTags.COMPONENT_ID : KnownTags.HTTP_ROUTE_ID;
+    span.set(other, "/a");
 
-    long bit = IdStore.slotBit(KnownTags.HTTP_METHOD_ID);
-    assertFalse(span.mayInherit(bit, IdStore.levelOf(KnownTags.HTTP_METHOD_ID)));
-    assertTrue(span.mayInherit(bit, IdStore.levelOf(KnownTags.RUNTIME_ID)));
+    long bit = IdStore.slotBit(spanLevelId);
+    assertFalse(span.mayInherit(bit, IdStore.SPAN_LEVEL));
+    assertTrue(span.mayInherit(bit, IdStore.TRACE_LEVEL));
     assertFalse(traceLevel.mayHaveLocal(bit, IdStore.SPAN_LEVEL));
-    assertNull(span.getEntryReader(KnownTags.HTTP_METHOD_ID));
+    assertNull(span.getEntryReader(spanLevelId));
     assertEquals("abc", span.getValue(KnownTags.RUNTIME_ID));
   }
 

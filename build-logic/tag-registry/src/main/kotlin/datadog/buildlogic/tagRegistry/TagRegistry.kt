@@ -11,9 +11,11 @@ package datadog.buildlogic.tagRegistry
  * resolved tags appear together on one span, so they form a clique and need distinct slots; the
  * trace-level tier is its own clique (it lives in a separate TagMap). Tags that never share a clique
  * may share a slot, so the slot count stays bounded by the largest clique, small enough for one
- * occupancy `long`. Every tag resolved onto a span type, or trace-level, is slotted whatever its
- * requirement level; a tag on no modeled span type (the tracer overlay's routing-only keys, tags of
- * unmodeled span types) gets [NO_SLOT]. Nothing in the tracer reads slots yet: they are for
+ * occupancy `long`. A span type with more tags than slots fits as long as its tags at a
+ * `required`, `conditional` or `recommended` level do: on overflow, its `optional` and `opt_in` tags
+ * share slots with each other. Every tag resolved onto a span type, or trace-level, is slotted; a
+ * tag on no modeled span type (the tracer overlay's routing-only keys, tags of unmodeled span types)
+ * gets [NO_SLOT]. Nothing in the tracer reads slots yet: they are for
  * per-span structures that want an exact, compact presence word, such as a dense tag store or a
  * span builder's tag ledger.
  *
@@ -41,6 +43,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val otelName: String? = null,
     /** The tag's OpenTelemetry name on spans of each direction that renames it, when [otelName] is null. */
     val scopedOtelNames: Map<TagConventions.Direction, String> = emptyMap(),
+    /** The tag's slot is shared with another optional tag on one of its span types, after an overflow. */
+    val sharesSlot: Boolean = false,
   ) {
     /** The tag as reports and generated constant names show it. */
     val name: String
@@ -57,26 +61,10 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     const val MAX_SLOTS = 63 // fits one occupancy long; bit 63 is left for unslotted tags to share
 
     /**
-     * Serials stay below 2^15, so bit 63 of an id is never set: every id is positive, clear of 0
-     * (unknown) and of KnownTagCodec's negative lookup sentinels.
-     */
-    const val SERIAL_CAPACITY = 1 shl 15
-
-    /**
      * Mirrors KnownTagCodec's layout -- must stay in sync: serial at [63-48], slot at [47-32],
-     * INTERCEPTED at bit 1, LEVEL_TRACE at bit 2, other low bits zero. Every id is made here, and the
-     * range check makes each one positive by construction.
+     * INTERCEPTED at bit 1, LEVEL_TRACE at bit 2, other low bits zero.
      */
-    fun encode(
-      serial: Int,
-      traceLevel: Boolean,
-      intercepted: Boolean,
-      slot: Int = NO_SLOT,
-    ): Long {
-      require(serial in FIRST_SERIAL until SERIAL_CAPACITY) {
-        "serial $serial is outside [$FIRST_SERIAL, $SERIAL_CAPACITY): more tags would make tag ids " +
-          "negative, where KnownTagCodec's lookup sentinels live"
-      }
+    fun encode(serial: Int, traceLevel: Boolean, intercepted: Boolean, slot: Int = NO_SLOT): Long {
       require(slot == NO_SLOT || slot in 0 until MAX_SLOTS) { "slot $slot is outside [0, $MAX_SLOTS)" }
       var id = (serial.toLong() shl 48) or (slot.toLong() shl SLOT_SHIFT)
       if (traceLevel) id = id or LEVEL_TRACE
@@ -87,7 +75,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     fun build(conv: TagConventions): TagRegistry {
       val traceLevel = conv.traceLevelTags().map { it.ddName }.toSet()
       val renames = conv.otelMappings().groupBy { it.tag.ddName }
-      val slots = colorSlots(conv)
+      val (slots, sharing) = colorSlots(conv)
 
       // One tag per Datadog name, in a stable order (by name) so serials -- and therefore ids -- are
       // a pure function of the input. A name's declarations per direction merge into its one tag.
@@ -113,6 +101,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             id = encode(serial, isTraceLevel, isIntercepted, slot),
             otelName = otelName,
             scopedOtelNames = scoped,
+            sharesSlot = first.ddName in sharing,
           )
         }
 
@@ -145,39 +134,69 @@ class TagRegistry private constructor(val tags: List<Tag>) {
       }
     }
 
+    /** Requirement levels whose tags may share a slot with each other when a span type overflows. */
+    private val OCCASIONAL = setOf("optional", "opt_in")
+
     /**
      * Colors the co-occurrence graph of slotted tags: tags resolved onto one concrete span type, or
-     * both trace-level, must get distinct slots. Greedy, most-constrained first (by clique count,
-     * then name), so the result is a pure function of the conventions. A name declared per direction
-     * is one tag, so it is one vertex.
+     * both trace-level, get distinct slots while the slots last. Tags that are `required`,
+     * `conditional` or `recommended` on some span type are colored first, most-constrained first (by
+     * clique count, then name), so they take the low slots and always get exact ones. Only on a span
+     * type with more tags than slots may two tags that are both `optional` or `opt_in` there share a
+     * slot, and only once the free slots run out, on the slot the fewest of them already hold; a span
+     * type that fits never has two tags on one slot. Returns the slots, and
+     * the tags that share one. The result is a pure function of the conventions.
      */
-    private fun colorSlots(conv: TagConventions): Map<String, Int> {
-      val cliques = ArrayList<Set<String>>()
-      for (type in conv.concreteTypes()) {
-        cliques.add(conv.resolve(type).map { it.ddName }.toSet())
-      }
-      cliques.add(conv.traceLevelTags().map { it.ddName }.toSet())
+    private fun colorSlots(conv: TagConventions): Pair<Map<String, Int>, Set<String>> {
+      val cliques = ArrayList<List<TagConventions.Tag>>()
+      for (type in conv.concreteTypes()) cliques.add(conv.resolve(type))
+      cliques.add(conv.traceLevelTags())
 
-      val neighbors = HashMap<String, MutableSet<String>>()
+      // Hard edges keep two tags apart; soft edges, between two occasional tags on a span type that
+      // overflows, are kept while the slots last.
+      val hard = HashMap<String, MutableSet<String>>()
+      val soft = HashMap<String, MutableSet<String>>()
+      val core = HashSet<String>()
       for (clique in cliques) {
+        val overflows = clique.size > MAX_SLOTS
         for (a in clique) {
-          val adjacent = neighbors.getOrPut(a) { HashSet() }
-          for (b in clique) if (a != b) adjacent.add(b)
+          if (a.required !in OCCASIONAL) core.add(a.ddName)
+          val hardAdjacent = hard.getOrPut(a.ddName) { HashSet() }
+          val softAdjacent = soft.getOrPut(a.ddName) { HashSet() }
+          for (b in clique) {
+            if (a.ddName == b.ddName) continue
+            if (overflows && a.required in OCCASIONAL && b.required in OCCASIONAL) {
+              softAdjacent.add(b.ddName)
+            } else {
+              hardAdjacent.add(b.ddName)
+            }
+          }
         }
       }
-      val cliqueCount = neighbors.keys.associateWith { tag -> cliques.count { tag in it } }
-      val order = neighbors.keys.sortedWith(compareByDescending<String> { cliqueCount.getValue(it) }.thenBy { it })
+      for ((tag, adjacent) in soft) adjacent.removeAll(hard.getValue(tag))
+      val cliqueCount = hard.keys.associateWith { tag -> cliques.count { c -> c.any { it.ddName == tag } } }
+      val order =
+        hard.keys.sortedWith(
+          compareBy<String> { it !in core }.thenByDescending { cliqueCount.getValue(it) }.thenBy { it }
+        )
       val slots = HashMap<String, Int>()
+      val sharing = HashSet<String>()
       for (tag in order) {
-        val taken = neighbors.getValue(tag).mapNotNull { slots[it] }.toSet()
-        var slot = 0
-        while (slot in taken) slot++
-        require(slot < MAX_SLOTS) {
-          "coloring needs more than $MAX_SLOTS slots at '$tag'; one occupancy long holds $MAX_SLOTS"
+        val taken = hard.getValue(tag).mapNotNull { slots[it] }.toSet()
+        val softTaken = soft.getValue(tag).mapNotNull { slots[it] }
+        val free = (0 until MAX_SLOTS).filter { it !in taken }
+        require(free.isNotEmpty()) {
+          "coloring needs more than $MAX_SLOTS slots at '$tag'; one occupancy long holds $MAX_SLOTS. " +
+            "Only tags that are optional or opt_in on a span type may share slots there."
+        }
+        val slot = free.minBy { s -> softTaken.count { it == s } * MAX_SLOTS + s }
+        if (slot in softTaken) {
+          sharing.add(tag)
+          soft.getValue(tag).filter { slots[it] == slot }.forEach { sharing.add(it) }
         }
         slots[tag] = slot
       }
-      return slots
+      return slots to sharing
     }
 
     /**

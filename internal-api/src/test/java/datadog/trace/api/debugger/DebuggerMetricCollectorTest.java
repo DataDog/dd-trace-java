@@ -59,7 +59,7 @@ class DebuggerMetricCollectorTest {
     DebuggerMetric metric = metrics.iterator().next();
     assertEquals("events.skipped", metric.metricName);
     assertEquals(1L, metric.value);
-    assertEquals(Collections.singletonList("reason:evaluationTimeOut"), metric.tags);
+    assertEquals(Collections.singletonList("reason:evaluationTimeout"), metric.tags);
   }
 
   @Test
