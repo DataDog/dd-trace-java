@@ -16,7 +16,7 @@ Use when the rule is “never call this method/class” with **no location quali
 3. Verify:
 
    ```bash
-   ./gradlew forbiddenApisMain -PskipTests
+   ./gradlew forbiddenApis -PskipTests
    ```
 
 Escape hatch already in the codebase: `@SuppressForbidden`. Do not invent a second one.
