@@ -84,7 +84,7 @@ docs/                     Developer documentation (see below)
 
 ## CI scripts
 
-Every `curl` that runs in CI (`.gitlab-ci.yml`, `.gitlab/`, GitHub Actions, the scripts they call, and the Dockerfiles they build) must:
+Every `curl` that runs in CI (`.gitlab-ci.yml`, `.gitlab/`, GitHub Actions, the scripts they call, and the Dockerfiles they build) should:
 
 - **Fail on HTTP errors**: pass `-f`/`--fail`. Without it, a 4xx/5xx exits 0 and the error page is used as if it were the real response (e.g. piped into `bash` or `jq`).
 - **Retry transient errors**: pass `--retry 5 --retry-delay 2` (add `--retry-connrefused` for remote endpoints).
