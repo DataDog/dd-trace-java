@@ -36,9 +36,8 @@ public class DatadogWeaverReporter {
       new ConcurrentHashMap<>();
 
   /** Takes a fresh snapshot per execution and retains only names and strings. */
-  public static void registerTestTags(Object suite) {
+  public static void registerTestTags(String suiteName, Object suite) {
     try {
-      String suiteName = (String) suite.getClass().getMethod("name").invoke(suite);
       scala.collection.Iterable<?> plan =
           (scala.collection.Iterable<?>) suite.getClass().getMethod("plan").invoke(suite);
       Map<String, Collection<String>> tagsByName = new HashMap<>();
