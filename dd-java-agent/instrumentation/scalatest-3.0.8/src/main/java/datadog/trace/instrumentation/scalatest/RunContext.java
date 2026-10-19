@@ -116,7 +116,7 @@ public class RunContext {
     String testName = testNameAndSkipStatus._1();
     TestIdentifier test = new TestIdentifier(suiteId, testName, null);
 
-    SkipReason skipReason = eventHandler.skipReason(test);
+    SkipReason skipReason = eventHandler.skipReason(test, TestSourceData.UNKNOWN, tags(test));
     if (skipReason == null || skipReason == SkipReason.ITR && itrUnskippable(test)) {
       return testNameAndSkipStatus;
     }
@@ -138,7 +138,7 @@ public class RunContext {
   }
 
   public boolean skip(TestIdentifier test, Map<String, Set<String>> tags) {
-    SkipReason skipReason = eventHandler.skipReason(test);
+    SkipReason skipReason = eventHandler.skipReason(test, TestSourceData.UNKNOWN, tags(test));
     if (skipReason == null) {
       return false;
     }

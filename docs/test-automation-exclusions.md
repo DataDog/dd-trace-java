@@ -61,3 +61,9 @@ Tag the Scenario or Scenario Outline with `@datadog_no_auto_retry` and/or
 `@datadog_prevent_failure_suppression` (the names from the public
 `TestAutomationExclusions` constants). Both Karate 1.x and 2.x resolve these
 scenario tags before Datadog skipping and retry policy selection.
+
+## ScalaTest
+
+Declare ScalaTest `Tag` instances from `TestAutomationExclusions.NO_AUTO_RETRY`
+and `PREVENT_FAILURE_SUPPRESSION`, then pass them to the test declaration.
+Native ignored tests remain ignored and carry their known exclusion tags.
