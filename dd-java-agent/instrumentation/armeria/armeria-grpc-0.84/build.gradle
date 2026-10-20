@@ -1,6 +1,7 @@
 plugins {
   id 'com.google.protobuf' version '0.10.0'
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
   id 'idea'
 }
 
@@ -56,7 +57,6 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-3.8')
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.0')
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
 
   latestDepTestImplementation sourceSets.test.output // include the protobuf generated classes
   latestDepTestImplementation group: 'com.linecorp.armeria', name: 'armeria-grpc', version: '1.+'

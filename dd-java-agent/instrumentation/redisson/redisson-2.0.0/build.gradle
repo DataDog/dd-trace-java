@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
   id 'dd-trace-java.testcontainers'
 }
 
@@ -20,7 +21,6 @@ dependencies {
   compileOnly group: 'org.redisson', name: 'redisson', version: '2.0.0'
   testContainerImage(image('redis:6.2.6', 'test.redis.image'))
 
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
   testImplementation libs.testcontainers
   testImplementation group: 'org.redisson', name: 'redisson', version: '2.0.0'
