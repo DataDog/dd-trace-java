@@ -10,14 +10,14 @@ class AntPathMatcherTest {
 
   @TableTest({
     "pattern             | path                                                | expected",
-    "// test exact matching                                                              ",
+    // test exact matching
     "test                | test                                                | true    ",
     "/test               | /test                                               | true    ",
     "https://example.org | https://example.org                                 | true    ",
     "/test.jpg           | test.jpg                                            | false   ",
     "test                | /test                                               | false   ",
     "/test               | test                                                | false   ",
-    "// test matching with ?'s                                                           ",
+    // test matching with ?'s
     "t?st                | test                                                | true    ",
     "??st                | test                                                | true    ",
     "tes?                | test                                                | true    ",
@@ -26,7 +26,7 @@ class AntPathMatcherTest {
     "tes?                | tes                                                 | false   ",
     "tes?                | testt                                               | false   ",
     "tes?                | tsst                                                | false   ",
-    "// test matching with *'s                                                           ",
+    // test matching with *'s
     "*                   | test                                                | true    ",
     "test*               | test                                                | true    ",
     "test*               | testTest                                            | true    ",
@@ -49,14 +49,14 @@ class AntPathMatcherTest {
     "*.*                 | tsttst                                              | false   ",
     "test*aaa            | test                                                | false   ",
     "test*aaa            | testblaaab                                          | false   ",
-    "// test matching with ?'s and /'s                                                   ",
+    // test matching with ?'s and /'s
     "/?                  | /a                                                  | true    ",
     "/?/a                | /a/a                                                | true    ",
     "/a/?                | /a/b                                                | true    ",
     "/??/a               | /aa/a                                               | true    ",
     "/a/??               | /a/bb                                               | true    ",
     "/?                  | /a                                                  | true    ",
-    "// test matching with **'s                                                          ",
+    // test matching with **'s
     "/**                 | /testing/testing                                    | true    ",
     "/*/**               | /testing/testing                                    | true    ",
     "/**/*               | /testing/testing                                    | true    ",
