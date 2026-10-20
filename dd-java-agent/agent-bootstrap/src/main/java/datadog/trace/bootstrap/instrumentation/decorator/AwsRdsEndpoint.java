@@ -71,9 +71,8 @@ public final class AwsRdsEndpoint {
       return null;
     }
     String hostnameString = hostname.toString();
-    // Every RDS endpoint ends in a known AWS partition DNS suffix (commercial and GovCloud
-    // amazonaws.com, China amazonaws.com.cn, ISO c2s.ic.gov, ISO-B sc2s.sgov.gov). Reject
-    // everything else before touching the cache so the handful of real RDS hostnames are never
+    // Every RDS endpoint ends in a known AWS partition DNS suffix. Reject everything else before
+    // touching the cache so the handful of real RDS hostnames are never
     // evicted by the unbounded stream of non-AWS database hosts, and so those hosts never pay for
     // the label split.
     if (!isPlausibleRdsHostname(hostnameString)) {
@@ -83,13 +82,15 @@ public final class AwsRdsEndpoint {
     return endpoint == NOT_RDS ? null : endpoint;
   }
 
-  // AWS partition DNS suffixes that carry RDS endpoints, from the AWS SDK endpoint partition data:
-  //   aws / aws-us-gov -> amazonaws.com
-  //   aws-cn           -> amazonaws.com.cn
-  //   aws-iso          -> c2s.ic.gov
-  //   aws-iso-b        -> sc2s.sgov.gov
+  // AWS partition DNS suffixes that carry RDS endpoints, from the AWS SDK endpoint partition data.
   private static final String[] DNS_SUFFIXES = {
-    ".amazonaws.com", ".amazonaws.com.cn", ".c2s.ic.gov", ".sc2s.sgov.gov"
+    ".amazonaws.com",
+    ".amazonaws.com.cn",
+    ".c2s.ic.gov",
+    ".sc2s.sgov.gov",
+    ".cloud.adc-e.uk",
+    ".csp.hci.ic.gov",
+    ".amazonaws.eu"
   };
   // The shortest suffix (".c2s.ic.gov"), used as a cheap length floor before any work.
   private static final String SHORTEST_DNS_SUFFIX = ".c2s.ic.gov";
@@ -97,7 +98,13 @@ public final class AwsRdsEndpoint {
   // The same suffixes ordered longest first, so doParse strips ".amazonaws.com.cn" rather than
   // shortening it to ".amazonaws.com" and misreading the labels.
   private static final String[] LONGEST_FIRST_DNS_SUFFIXES = {
-    ".amazonaws.com.cn", ".sc2s.sgov.gov", ".amazonaws.com", ".c2s.ic.gov"
+    ".amazonaws.com.cn",
+    ".cloud.adc-e.uk",
+    ".csp.hci.ic.gov",
+    ".sc2s.sgov.gov",
+    ".amazonaws.com",
+    ".amazonaws.eu",
+    ".c2s.ic.gov"
   };
 
   /**
@@ -174,10 +181,9 @@ public final class AwsRdsEndpoint {
       end = Math.min(end, colon);
     }
 
-    // Strip the partition DNS suffix (.amazonaws.com, .amazonaws.com.cn, .c2s.ic.gov,
-    // .sc2s.sgov.gov) so the remaining labels are the same shape in every partition: the leading
-    // identifier, the account hash, the Region and the literal "rds". The suffix is matched
-    // longest first so .amazonaws.com.cn is not shortened to .amazonaws.com.
+    // Strip the partition DNS suffix so the remaining labels are the same shape in every
+    // partition. The suffix is matched longest first so one suffix cannot be mistaken for a
+    // shorter suffix.
     String prefix = null;
     for (String suffix : LONGEST_FIRST_DNS_SUFFIXES) {
       if (end >= suffix.length()

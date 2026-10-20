@@ -40,10 +40,25 @@ class AwsRdsEndpointTest {
             INSTANCE,
             "us-gov-west-1"),
         Arguments.of(
-            "orders-db.c9akciq32bzq.eu-isoe-west-1.rds.amazonaws.com",
+            "orders-db.c9akciq32bzq.eu-isoe-west-1.rds.cloud.adc-e.uk",
             "orders-db",
             INSTANCE,
             "eu-isoe-west-1"),
+        Arguments.of(
+            "orders-db.c9akciq32bzq.us-isof-east-1.rds.csp.hci.ic.gov",
+            "orders-db",
+            INSTANCE,
+            "us-isof-east-1"),
+        Arguments.of(
+            "orders-proxy.proxy-c9akciq32bzq.us-isof-south-1.rds.csp.hci.ic.gov",
+            "orders-proxy",
+            PROXY,
+            "us-isof-south-1"),
+        Arguments.of(
+            "orders-db.c9akciq32bzq.eusc-de-east-1.rds.amazonaws.eu",
+            "orders-db",
+            INSTANCE,
+            "eusc-de-east-1"),
         Arguments.of(
             "orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn",
             "orders-db",
@@ -182,6 +197,9 @@ class AwsRdsEndpointTest {
         "orders-db.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov",
         "orders-db.c9akciq32bzq.us-iso-east-1.rds.C2S.IC.GOV",
         "orders-db.c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov",
+        "orders-db.c9akciq32bzq.eu-isoe-west-1.rds.cloud.adc-e.uk",
+        "orders-db.c9akciq32bzq.us-isof-east-1.rds.csp.hci.ic.gov",
+        "orders-db.c9akciq32bzq.eusc-de-east-1.rds.amazonaws.eu",
         "ORDERS-DB.C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM",
         "orders-db.c9akciq32bzq.us-east-1.rds.AmazonAWS.com",
         // shaped like an AWS host, so it may reach the cache; doParse rejects it structurally
@@ -205,6 +223,9 @@ class AwsRdsEndpointTest {
         // ISO suffixes present but followed by further labels: rejected before the cache
         "orders-db.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov.evil.example",
         "orders-db.c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov.evil.example",
+        "orders-db.c9akciq32bzq.eu-isoe-west-1.rds.cloud.adc-e.uk.evil.example",
+        "orders-db.c9akciq32bzq.us-isof-east-1.rds.csp.hci.ic.gov.evil.example",
+        "orders-db.c9akciq32bzq.eusc-de-east-1.rds.amazonaws.eu.evil.example",
         // port must be all digits and at most five of them
         RDS + ":54x2",
         RDS + ":543210",
