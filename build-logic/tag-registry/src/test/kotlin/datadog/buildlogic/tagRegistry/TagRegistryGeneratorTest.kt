@@ -624,17 +624,87 @@ class TagRegistryGeneratorTest {
       )
   }
 
+  @Test
+  fun `a tracer overlay mixin applies its tags to shared span types`() {
+    val mapper = ObjectMapper(YAMLFactory())
+    val type = object : TypeReference<Map<String, Any?>>() {}
+    val root: Map<String, Any?> =
+      mapper.readValue(
+        """
+        span_types:
+          base: {abstract: true, tags: [{dd-name: service}]}
+          http.server: {extends: base, span-kind: server, tags: [{dd-name: http.route}]}
+          db.client: {extends: base, span-kind: client, tags: [{dd-name: db.type}]}
+        """,
+        type
+      )
+    val overlay: Map<String, Any?> =
+      mapper.readValue(
+        """
+        mixins:
+          servlet: {applies: [http.server], tags: [{dd-name: servlet.context}, {dd-name: servlet.path}]}
+        intercepted: [servlet.context]
+        """,
+        type
+      )
+
+    val conv = TagConventions.parse(root, overlay)
+
+    assertThat(conv.resolve("http.server").map { it.ddName })
+      .containsExactlyInAnyOrder("service", "http.route", "servlet.context", "servlet.path")
+    assertThat(conv.resolve("db.client").map { it.ddName }).containsExactlyInAnyOrder("service", "db.type")
+    assertThat(conv.interceptedNames).contains("servlet.context")
+  }
+
+  @Test
+  fun `a tracer overlay span type extends a shared one`() {
+    val mapper = ObjectMapper(YAMLFactory())
+    val type = object : TypeReference<Map<String, Any?>>() {}
+    val root: Map<String, Any?> =
+      mapper.readValue(
+        """
+        span_types:
+          base: {abstract: true, tags: [{dd-name: service}]}
+          http.server: {extends: base, span-kind: server, tags: [{dd-name: http.route}]}
+        """,
+        type
+      )
+    val overlay: Map<String, Any?> =
+      mapper.readValue(
+        """
+        span_types:
+          servlet.request: {extends: http.server, tags: [{dd-name: servlet.context}, {dd-name: servlet.path}]}
+        intercepted: [servlet.context]
+        """,
+        type
+      )
+
+    val conv = TagConventions.parse(root, overlay)
+
+    assertThat(conv.concreteTypes()).contains("http.server", "servlet.request")
+    assertThat(conv.resolve("servlet.request").map { it.ddName })
+      .containsExactlyInAnyOrder("service", "http.route", "servlet.context", "servlet.path")
+    assertThat(conv.resolve("http.server").map { it.ddName }).containsExactlyInAnyOrder("service", "http.route")
+  }
+
   @TableTest(
     """
           scenario           | overlay                      | message
           undeclared name    | 'intercepted: [missing]'     | is not declared
           ref in overlay     | 'tags: [{ref: service}]'     | must be declarations, not refs
-          unknown section    | 'span_types: {}'             | may only declare
+          unknown section    | 'trace_level: {}'            | may only declare
           duplicate of a tag | 'tags: [{dd-name: service}]' | declared in both
+          mixin with no applies | 'mixins: {servlet: {tags: [{dd-name: servlet.path}]}}' | must say which span types
+          mixin reusing a shared name | 'mixins: {peer: {applies: [base], tags: [{dd-name: x.y}]}}' | reuses the name
+          type with no extends | 'span_types: {servlet.request: {tags: [{dd-name: servlet.path}]}}' | must extend a span type
+          type reusing a shared name | 'span_types: {base: {extends: base}}' | reuses the name of a shared span type
           """
   )
   fun `invalid tracer overlays are rejected`(overlay: String, message: String) {
-    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: service}]}}")
+    val yaml =
+      directory.conventionsFile(
+        "span_types: {base: {tags: [{dd-name: service}]}}\nmixins: {peer: {tags: [{dd-name: peer.service}]}}"
+      )
     val overlayFile = directory.writeFile("overlay.yaml", overlay)
 
     assertThatIllegalArgumentException()

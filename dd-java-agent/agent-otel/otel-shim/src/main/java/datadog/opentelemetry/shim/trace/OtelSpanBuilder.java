@@ -246,8 +246,24 @@ public class OtelSpanBuilder implements SpanBuilder {
       this.delegate.withTag(SPAN_KIND, kind);
       this.spanKindSet = true;
       this.direction = KnownTagCodec.directionOfKind(kind);
+      resolveHeldAttributes();
     }
     return this;
+  }
+
+  /**
+   * Writes the attributes held until the kind was known. Done as soon as the kind is set, so a
+   * later write to the same attribute lands after them and wins, and again at start for anything
+   * still held.
+   */
+  private void resolveHeldAttributes() {
+    if (this.heldUntilKind != null) {
+      for (int i = 0; i < this.heldUntilKind.size(); i += 2) {
+        String key = (String) this.heldUntilKind.get(i);
+        this.delegate.withTag(attributeTag(key, this.direction), this.heldUntilKind.get(i + 1));
+      }
+      this.heldUntilKind = null;
+    }
   }
 
   @Override
@@ -262,12 +278,7 @@ public class OtelSpanBuilder implements SpanBuilder {
     if (!this.spanKindSet) {
       setSpanKind(INTERNAL);
     }
-    if (this.heldUntilKind != null) {
-      for (int i = 0; i < this.heldUntilKind.size(); i += 2) {
-        String key = (String) this.heldUntilKind.get(i);
-        this.delegate.withTag(attributeTag(key, this.direction), this.heldUntilKind.get(i + 1));
-      }
-    }
+    resolveHeldAttributes();
     if (!this.ignoreActiveSpan) {
       setParent(Context.current());
     }

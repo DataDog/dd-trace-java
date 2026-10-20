@@ -6,6 +6,8 @@ public class FeatureFlaggingConfig {
   public static final String CONFIGURATION_SOURCE_REMOTE_CONFIG = "remote_config";
 
   public static final String FEATURE_FLAGS_ENABLED = "feature.flags.enabled";
+  public static final String FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED =
+      "feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
   public static final String EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED =
       "experimental.flagging.provider.enabled";
 
