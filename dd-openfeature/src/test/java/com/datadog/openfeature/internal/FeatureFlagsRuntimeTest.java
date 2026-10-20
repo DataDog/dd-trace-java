@@ -15,6 +15,7 @@ import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.bridge.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.EventTransport;
 import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
@@ -240,6 +241,46 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
+  void agentShutdownFlushesPendingExposuresOnce() {
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final List<Map<String, Object>> requests = new CopyOnWriteArrayList<>();
+    final TestAgentBridge bridge =
+        new TestAgentBridge(source, (route, json) -> requests.add(JsonReading.readObject(json)))
+            .withAgentShutdown();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.acquire(
+            bridge,
+            TestSettings.of(
+                "feature.flags.configuration.source", "remote_config",
+                "flagging.evaluation.counts.enabled", "false"));
+    try {
+      assertNotNull(bridge.shutdownFlush, "the runtime registers its flush with the agent");
+      runtime.recordExposure(exposure());
+
+      bridge.shutdownFlush.run();
+
+      assertTrue(source.closed);
+      assertTrue(bridge.shutdownUnregistered);
+      assertEquals(1, requests.size());
+    } finally {
+      FeatureFlagsRuntime.release();
+    }
+    assertEquals(1, requests.size(), "a release after the agent shutdown does not flush again");
+  }
+
+  @Test
+  void releaseUnregistersTheAgentShutdownFlush() {
+    final TestAgentBridge bridge =
+        new TestAgentBridge(new TestConfigurationSource(), null).withAgentShutdown();
+    FeatureFlagsRuntime.acquire(
+        bridge, TestSettings.of("feature.flags.configuration.source", "remote_config"));
+
+    FeatureFlagsRuntime.release();
+
+    assertTrue(bridge.shutdownUnregistered);
+  }
+
+  @Test
   void failedStartDoesNotCacheTheSharedRuntime() {
     final ConfigurationSource failing =
         listener -> {
@@ -280,6 +321,16 @@ class FeatureFlagsRuntimeTest {
             null));
   }
 
+  private static com.datadog.openfeature.internal.exposure.ExposureEvent exposure() {
+    return new com.datadog.openfeature.internal.exposure.ExposureEvent(
+        1L,
+        new com.datadog.openfeature.internal.exposure.Allocation("a"),
+        new com.datadog.openfeature.internal.exposure.Flag("f"),
+        new com.datadog.openfeature.internal.exposure.Variant("v"),
+        new com.datadog.openfeature.internal.exposure.Subject("s", emptyMap()),
+        null);
+  }
+
   private static final class TestConfigurationSource implements ConfigurationSource {
     volatile Consumer<byte[]> listener;
     volatile boolean closed;
@@ -294,6 +345,9 @@ class FeatureFlagsRuntimeTest {
   private static final class TestAgentBridge implements AgentBridge {
     private final ConfigurationSource remoteConfiguration;
     private final EventTransport eventProxy;
+    private boolean agentShutdown;
+    volatile Runnable shutdownFlush;
+    volatile boolean shutdownUnregistered;
 
     TestAgentBridge(
         final ConfigurationSource remoteConfiguration, final EventTransport eventProxy) {
@@ -324,6 +378,22 @@ class FeatureFlagsRuntimeTest {
     @Override
     public SpanEnricher spanEnricher() {
       return SpanEnricher.NOOP;
+    }
+
+    @Override
+    public ShutdownSource shutdown() {
+      if (!this.agentShutdown) {
+        return AgentBridge.super.shutdown();
+      }
+      return listener -> {
+        this.shutdownFlush = listener;
+        return () -> this.shutdownUnregistered = true;
+      };
+    }
+
+    TestAgentBridge withAgentShutdown() {
+      this.agentShutdown = true;
+      return this;
     }
   }
 }
