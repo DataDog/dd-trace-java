@@ -50,6 +50,7 @@ Settings are read from the Datadog Java agent configuration when attached, then 
 | `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS` | `5` | CDN request timeout. |
 | `DD_FLAGGING_EVALUATION_COUNTS_ENABLED` | `true` | Sends aggregated flag evaluation counts. |
 | `DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED` | `true` | Sends exposures to Datadog. See [Stop sending exposures to Datadog](#stop-sending-exposures-to-datadog). |
+| `DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED` | `false` | Lets the `dd_evaluation_telemetry_opt_out` context attribute opt subjects out of evaluation telemetry. See [Per-subject evaluation telemetry opt-out](#per-subject-evaluation-telemetry-opt-out). |
 | `DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED` | `false` | Adds flag evaluations to the local root span. Requires `dd-java-agent`. |
 | `DD_API_KEY`, `DD_SITE`, `DD_ENV`, `DD_SERVICE`, `DD_VERSION` | | Credentials and event context. |
 | `DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED` | | Deprecated: `true` selects `remote_config`, `false` disables Feature Flags. An explicit source wins. |
@@ -129,6 +130,57 @@ DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 The provider then sends no exposures to Datadog. `ExposureHook` callbacks still receive every evaluation, and `shouldSend()` gives the same result as before. The default is `true`.
 
 This setting stops exposures only. Flag evaluation events have their own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`. The Java provider does not read dd-trace-py's `DD_FFE_INTAKE_ENABLED`.
+
+## Per-subject evaluation telemetry opt-out
+
+Applications can keep flag evaluation enabled while excluding selected subjects from evaluation
+telemetry. Configure the provider once, then pass the decision with each evaluation:
+
+```java
+import com.datadog.openfeature.Provider;
+import dev.openfeature.sdk.Client;
+import dev.openfeature.sdk.ImmutableContext;
+import dev.openfeature.sdk.OpenFeatureAPI;
+import dev.openfeature.sdk.Value;
+import java.util.Collections;
+
+OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+api.setProviderAndWait(new Provider(
+    new Provider.Options().enableEvaluationTelemetryOptOutParameter(true)));
+Client client = api.getClient();
+
+// In a request handler, the application owns its consent and eligibility rules.
+boolean optedOut = user.hasDeclinedEvaluationTelemetry();
+boolean enabled = client.getBooleanValue("my-feature", false,
+    new ImmutableContext(user.getId(), Collections.singletonMap(
+        "dd_evaluation_telemetry_opt_out", new Value(optedOut))));
+```
+
+Use the per-evaluation context for concurrent requests. Do not replace the global context for each
+subject. The key is exactly `dd_evaluation_telemetry_opt_out`, as in other Datadog SDKs.
+
+Alternatively, enable support through deployment configuration and use `new Provider()`:
+
+```shell
+DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED=true
+```
+
+The equivalent JVM property is `-Ddd.feature.flags.evaluation.telemetry.per.subject.opt.out.enabled=true`.
+The provider reads the normal Datadog configuration sources at construction. The default is `false`.
+An explicit provider option overrides these sources, including an explicit `false`.
+This setting only enables support for the subject attribute. It does not suppress telemetry for all subjects.
+
+Only boolean `true` suppresses telemetry. Missing, false, null, and other types preserve telemetry.
+The provider suppresses telemetry only when the option is enabled before provider construction.
+
+The attribute remains available for targeting and exposure reporting with either activation setting.
+Existing privacy and reporting settings apply. Targeting rules can use the attribute to select
+assignments. Normal exposure deduplication applies when its value changes.
+
+Opt-out suppresses new evaluation EVP events and counts, OpenTelemetry evaluation metrics, and
+automatic flag-related span enrichment. It does not change flag values, evaluation details,
+application defaults, experiment assignment, or exposure logging. Application hooks and unrelated
+tracing remain active. Previously recorded or queued data is not removed.
 
 ## Migrating from earlier versions
 

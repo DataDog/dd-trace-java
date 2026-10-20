@@ -20,5 +20,13 @@ public final class FeatureFlaggingConfig {
   public static final String FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED =
       "feature.flags.exposures.datadog.logging.enabled";
 
+  /**
+   * Lets the {@code dd_evaluation_telemetry_opt_out} evaluation context attribute opt subjects out
+   * of evaluation telemetry. Default: disabled. Maps to {@code
+   * DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED}.
+   */
+  public static final String FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED =
+      "feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
+
   private FeatureFlaggingConfig() {}
 }
