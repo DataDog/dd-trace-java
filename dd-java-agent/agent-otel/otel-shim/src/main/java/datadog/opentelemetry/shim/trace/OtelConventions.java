@@ -18,6 +18,7 @@ import static java.lang.Boolean.parseBoolean;
 import static java.util.Collections.emptyMap;
 import static java.util.Locale.ROOT;
 
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -47,6 +48,18 @@ public final class OtelConventions {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelConventions.class);
 
   private OtelConventions() {}
+
+  /**
+   * The tag to store an attribute under on spans of {@code direction}. A direction-scoped
+   * OpenTelemetry name is stored as the Datadog tag it denotes there: {@code server.address} is
+   * {@code peer.hostname} on a client span and {@code http.hostname} on a server span. Every other
+   * name, and a direction-scoped one that denotes no tag in {@code direction}, is stored as
+   * written.
+   */
+  static String attributeTag(String key, int direction) {
+    long tagId = KnownTagCodec.directionalKeyOf(key, direction);
+    return tagId == 0 ? key : KnownTagCodec.nameOf(tagId);
+  }
 
   /**
    * Convert OpenTelemetry {@link SpanKind} to {@link Tags#SPAN_KIND} value.

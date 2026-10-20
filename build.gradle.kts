@@ -1,5 +1,4 @@
 import com.diffplug.gradle.spotless.GroovyExtension
-import com.diffplug.gradle.spotless.SpotlessExtension
 import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.ci.testAggregate
 
@@ -32,12 +31,7 @@ val isCI = providers.environmentVariable("CI")
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
 apply(from = rootDir.resolve("gradle/ddprof-override.gradle"))
 
-spotless {
-  // only resolve the spotless dependencies once in the build
-  predeclareDeps()
-}
-
-with(extensions["spotlessPredeclare"] as SpotlessExtension) {
+spotlessPredeclare {
   // these need to align with the types and versions in gradle/spotless.gradle
   java {
     removeUnusedImports()
