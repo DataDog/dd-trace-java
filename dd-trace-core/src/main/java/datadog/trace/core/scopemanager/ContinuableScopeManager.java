@@ -360,13 +360,32 @@ public final class ContinuableScopeManager {
     return activate(context);
   }
 
+  /** Creates a stack whose scope changes are visible before the next worker resumes execution. */
+  public Context forkContext(@Nonnull Context context) {
+    MovableScopeContext stack = new MovableScopeContext(profilingContextIntegration);
+    if (context != Context.root()) {
+      stack.top = new ContinuableScope(this, context, CONTEXT, true, createScopeState(context));
+    }
+    return stack;
+  }
+
   public Context swap(@Nonnull Context context) {
     ScopeStack oldStack = tlsScopeStack.get();
-    ContinuableScope oldScope = oldStack.top;
+    if (context == oldStack) {
+      // Scoped coroutines can reinstall the same stack, including during a late restore.
+      return context;
+    }
+    boolean moving = oldStack instanceof MovableScopeContext;
+    // A moving stack may already be in use by the next worker. Only detach it here.
+    ContinuableScope oldScope = moving ? null : oldStack.top;
 
     ScopeStack newStack;
     ContinuableScope newScope;
-    if (context instanceof ScopeContext) {
+    if (context instanceof MovableScopeContext) {
+      // The execution unit owns this stack; a departing worker must not copy or mutate it.
+      newStack = (MovableScopeContext) context;
+      newScope = newStack.top;
+    } else if (context instanceof ScopeContext) {
       // restore previously swapped context stack
       newStack = ((ScopeContext) context).restore(profilingContextIntegration);
       newScope = newStack.top;
@@ -382,12 +401,12 @@ public final class ContinuableScopeManager {
     }
 
     tlsScopeStack.set(newStack);
-    if (oldScope != newScope && newScope != null) {
+    if (oldStack != newStack && oldScope != newScope && newScope != null) {
       newScope.beforeActivated();
       newScope.afterActivated();
     }
 
-    return new ScopeContext(oldStack);
+    return moving ? (MovableScopeContext) oldStack : new ScopeContext(oldStack);
   }
 
   public ContextContinuation capture(@Nonnull Context context) {

@@ -2684,6 +2684,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
+  public Context forkContext(Context context) {
+    return scopeManager.forkContext(context);
+  }
+
+  @Override
   public ContextContinuation capture(Context context) {
     return scopeManager.capture(context);
   }

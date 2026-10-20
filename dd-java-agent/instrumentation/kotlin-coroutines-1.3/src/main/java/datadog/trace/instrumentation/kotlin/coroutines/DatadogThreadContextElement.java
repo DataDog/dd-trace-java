@@ -4,6 +4,7 @@ import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -99,9 +100,6 @@ public final class DatadogThreadContextElement
       }
       if (datadog.context == null) {
         datadog.captureInitialContext();
-      } else if (datadog.owner != coroutine && datadog.isScopedBy(coroutine)) {
-        // preserve active span changes when a scoped coroutine reinstalls this element
-        datadog.context = Context.current();
       }
     }
   }
@@ -125,7 +123,7 @@ public final class DatadogThreadContextElement
           }
         }
       }
-      context = initial;
+      context = AgentTracer.get().forkContext(initial);
       parentLocalRootSpan = null;
     }
   }
@@ -168,7 +166,8 @@ public final class DatadogThreadContextElement
   @Override
   public void restoreThreadContext(
       @Nonnull CoroutineContext coroutineContext, Context originalContext) {
-    context = originalContext.swap();
+    // The next worker may already be executing against the coroutine's stack.
+    originalContext.swap();
   }
 
   @Nonnull

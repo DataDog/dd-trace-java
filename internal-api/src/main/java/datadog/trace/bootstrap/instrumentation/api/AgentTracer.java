@@ -401,6 +401,15 @@ public class AgentTracer {
 
     void addShutdownListener(Runnable listener);
 
+    /**
+     * Creates an isolated scope stack for an execution unit that moves between threads. Execution
+     * must be handed off serially with a happens-before edge, but restoration of a previous worker
+     * may overlap the next activation. The returned context is a live view of that stack.
+     */
+    default Context forkContext(Context context) {
+      return context;
+    }
+
     // these methods are only used for legacy context manager migration
 
     @Deprecated

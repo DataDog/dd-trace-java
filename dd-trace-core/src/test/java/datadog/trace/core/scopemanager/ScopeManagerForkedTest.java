@@ -1055,6 +1055,40 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void forkedContextsIsolateScopeChangesAndPreserveContextValues() {
+    ContextKey<String> key = ContextKey.named("forked-context-test");
+    Context parent = Context.root().with(key, "parent");
+    ContextScope parentScope = scopeManager.attach(parent);
+    Context first = scopeManager.forkContext(parent);
+    Context second = scopeManager.forkContext(parent);
+
+    Context previous = scopeManager.swap(first);
+    ContextScope firstScope = scopeManager.attach(parent.with(key, "first"));
+    assertEquals("first", first.get(key));
+    assertEquals("parent", second.get(key));
+    assertEquals("detached", first.with(key, "detached").get(key));
+    assertEquals("first", first.get(key));
+
+    scopeManager.swap(second);
+    assertEquals("parent", scopeManager.currentContext().get(key));
+    ContextScope secondScope = scopeManager.attach(parent.with(key, "second"));
+
+    scopeManager.swap(first);
+    assertSame(firstScope, scopeManager.active());
+    firstScope.close();
+    assertEquals("parent", first.get(key));
+    assertEquals("second", second.get(key));
+
+    scopeManager.swap(second);
+    assertSame(secondScope, scopeManager.active());
+    secondScope.close();
+    scopeManager.swap(previous);
+    assertSame(parentScope, scopeManager.active());
+    parentScope.close();
+    assertNull(scopeManager.active());
+  }
+
+  @Test
   void contextsCanBeSwappedOutAndBack() {
     ContextKey<String> testKey = ContextKey.named("test");
     Context context1 = Context.root().with(testKey, "first-value");

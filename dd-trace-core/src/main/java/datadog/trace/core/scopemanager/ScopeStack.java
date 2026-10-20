@@ -10,7 +10,7 @@ import java.util.ArrayDeque;
  * The invariant is that the top of a non-empty stack is always active. Anytime a scope is closed,
  * cleanup() is called to ensure the invariant
  */
-final class ScopeStack {
+class ScopeStack {
 
   private final ProfilingContextIntegration profilingContextIntegration;
   private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
