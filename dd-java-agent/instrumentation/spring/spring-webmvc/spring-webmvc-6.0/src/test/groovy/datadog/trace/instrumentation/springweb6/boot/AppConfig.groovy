@@ -2,13 +2,16 @@ package datadog.trace.instrumentation.springweb6.boot
 
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.web.util.UrlPathHelper
 
 // Component scan defeats the purpose of configuring with specific classes
-@SpringBootApplication(exclude = [ErrorMvcAutoConfiguration])
+// excludeName works across Boot 3 (autoconfigure.web.servlet.error) and Boot 4 (webmvc.autoconfigure.error)
+@SpringBootApplication(excludeName = [
+  'org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration',
+  'org.springframework.boot.webmvc.autoconfigure.error.ErrorMvcAutoConfiguration'
+])
 class AppConfig implements WebMvcConfigurer {
 
   @Override

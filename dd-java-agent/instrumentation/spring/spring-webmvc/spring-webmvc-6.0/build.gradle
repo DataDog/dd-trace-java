@@ -57,10 +57,23 @@ dependencies {
 
   testImplementation(libs.spock.spring)
 
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+'
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.+'
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '4.+'
+}
+
+// Reject milestone/RC versions so latestDepTest resolves GA releases only
+configurations.matching { it.name.startsWith('latestDep') }.configureEach {
+  resolutionStrategy {
+    componentSelection {
+      all { selection ->
+        if (selection.candidate.version ==~ /.*[-.](?i)(M|RC|Alpha|Beta)\d+.*/) {
+          selection.reject('Only GA releases for latestDep tests')
+        }
+      }
+    }
+  }
 }
 
 
