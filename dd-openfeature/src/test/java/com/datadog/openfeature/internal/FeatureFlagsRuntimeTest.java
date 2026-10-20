@@ -320,6 +320,22 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
+  void failingAgentShutdownSubscriptionFallsBackToTheJvmShutdownHook() {
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final TestAgentBridge bridge =
+        new TestAgentBridge(source, null)
+            .withFailingAgentShutdown(new IllegalStateException("Shutdown in progress"));
+
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.acquire(
+            bridge, TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    assertNotNull(runtime);
+    FeatureFlagsRuntime.release();
+
+    assertTrue(source.closed, "the started runtime is stopped on release");
+  }
+
+  @Test
   void failedStartDoesNotCacheTheSharedRuntime() {
     final ConfigurationSource failing =
         listener -> {
@@ -385,6 +401,7 @@ class FeatureFlagsRuntimeTest {
     private final ConfigurationSource remoteConfiguration;
     private final EventTransport eventProxy;
     private boolean agentShutdown;
+    private RuntimeException shutdownFailure;
     volatile Runnable shutdownFlush;
     volatile boolean shutdownUnregistered;
 
@@ -425,6 +442,9 @@ class FeatureFlagsRuntimeTest {
         return null;
       }
       return listener -> {
+        if (this.shutdownFailure != null) {
+          throw this.shutdownFailure;
+        }
         this.shutdownFlush = listener;
         return () -> this.shutdownUnregistered = true;
       };
@@ -433,6 +453,11 @@ class FeatureFlagsRuntimeTest {
     TestAgentBridge withAgentShutdown() {
       this.agentShutdown = true;
       return this;
+    }
+
+    TestAgentBridge withFailingAgentShutdown(final RuntimeException failure) {
+      this.shutdownFailure = failure;
+      return withAgentShutdown();
     }
   }
 }

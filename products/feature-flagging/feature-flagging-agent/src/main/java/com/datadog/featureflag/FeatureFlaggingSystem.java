@@ -86,7 +86,12 @@ public class FeatureFlaggingSystem {
       return;
     }
     final Thread hook = newAgentThread(FEATURE_FLAG_SHUTDOWN, FeatureFlaggingSystem::stop);
-    Runtime.getRuntime().addShutdownHook(hook);
+    try {
+      Runtime.getRuntime().addShutdownHook(hook);
+    } catch (final IllegalStateException | SecurityException e) {
+      LOGGER.debug("Could not register the Feature Flagging shutdown hook", e);
+      return;
+    }
     SHUTDOWN_HOOK = hook;
   }
 
