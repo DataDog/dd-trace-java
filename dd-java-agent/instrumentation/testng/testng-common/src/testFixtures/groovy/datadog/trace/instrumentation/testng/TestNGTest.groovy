@@ -7,6 +7,7 @@ import datadog.trace.civisibility.diff.LineDiff
 import org.example.*
 import org.junit.jupiter.api.Assumptions
 import org.testng.TestNG
+import org.testng.IAnnotationTransformer
 import org.testng.xml.SuiteXmlParser
 import org.testng.xml.XmlSuite
 
@@ -15,6 +16,203 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   static testOutputDir = "build/tmp/test-output"
 
   static currentTestNGVersion = TestNGUtils.getTestNGVersion()
+
+  def "test automation exclusions preserve a blocking failure and execute once"() {
+    given:
+    TestAutomationExcluded.executions = 0
+    def id = new TestFQN("org.example.TestAutomationExcluded", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcluded], null, false)
+
+    then:
+    TestAutomationExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_failure" }
+    testSpan != null
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+  }
+
+
+  def "test automation exclusions preserve explicit framework retries"() {
+    given:
+    TestExplicitRetryExcluded.executions = 0
+    givenFlakyRetryEnabled(true)
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestExplicitRetryExcluded], null, !currentTestNGVersion.startsWith("6."))
+
+    then:
+    TestExplicitRetryExcluded.executions == 2
+    def testSpans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "explicit_retry" }
+    testSpans.size() == 2
+    testSpans.every { it.getTag("test.test_management.no_auto_retry") == true }
+    testSpans.every { it.getTag("test.is_retry") == null }
+  }
+
+  def "test automation exclusions preserve class-level retry analyzers"() {
+    given:
+    TestClassRetryExcluded.executions = 0
+    givenFlakyRetryEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestClassRetryExcluded], null, !currentTestNGVersion.startsWith("6."))
+
+    then:
+    TestClassRetryExcluded.executions == 2
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "class_retry" }
+    spans.size() == 2
+    spans.every { it.getTag("test.test_management.no_auto_retry") == true }
+  }
+
+  def "test automation exclusions preserve object-factory retry analyzers"() {
+    given:
+    TestFactoryRetryExcluded.executions = 0
+    givenFlakyRetryEnabled(true)
+    givenKnownTests([])
+    def factoryType = Class.forName("org.testng.ITestObjectFactory", false, TestNG.classLoader)
+    Assumptions.assumeTrue(factoryType.methods.any { it.name == "newInstance" && it.parameterTypes[0] == Class },
+    "Requires TestNG object factory API with class-based construction")
+    def factory = [newInstance: { Object type, Object[] arguments ->
+        if (type == TestFactoryRetryExcluded.ConfiguredRetry) {
+          return new TestFactoryRetryExcluded.ConfiguredRetry("configured")
+        }
+        type instanceof Class ? type.getDeclaredConstructor().newInstance() : type.newInstance(arguments)
+      }].asType(factoryType)
+
+    when:
+    runTests([TestFactoryRetryExcluded], null, true, { TestNG testNG -> testNG.setObjectFactory(factory) })
+
+    then:
+    TestFactoryRetryExcluded.executions == 2
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "factory_retry" }
+    spans.size() == 2
+    spans.every { it.getTag("test.test_management.no_auto_retry") == true }
+  }
+
+  def "test automation exclusions preserve quarantine with native retries"() {
+    given:
+    TestNativeQuarantinedExcluded.executions = 0
+    def id = new TestFQN("org.example.TestNativeQuarantinedExcluded", "native_quarantined")
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestNativeQuarantinedExcluded], null, TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
+
+    then:
+    TestNativeQuarantinedExcluded.executions == 2
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "native_quarantined" }
+    spans.size() == 2
+    spans.every { it.getTag("test.test_management.no_auto_retry") == true }
+    spans.every { it.getTag("test.test_management.is_quarantined") == true }
+    spans.every { it.getTag("test.test_management.attempt_to_fix_passed") == null }
+  }
+
+  def "test automation exclusions preserve explicit disabled transformer overrides with #retryFeature"() {
+    given:
+    Assumptions.assumeTrue(TestNG.getResource("/org/testng/internal/annotations/DisabledRetryAnalyzer.class") != null,
+      "Requires class-based disabled retry analyzer")
+    Assumptions.assumeTrue(retryFeature != "EFD" || TestNGUtils.isEFDSupported(currentTestNGVersion),
+      "Requires EFD support")
+    TestTransformedDisabledRetry.executions = 0
+    givenFlakyRetryEnabled(retryFeature == "ATR")
+    givenEarlyFlakinessDetectionEnabled(retryFeature == "EFD")
+    givenKnownTests([])
+    def disabledAnalyzer = Class.forName("org.testng.internal.annotations.DisabledRetryAnalyzer", false, TestNG.classLoader)
+    def transformer = [transform: { annotation, testClass, constructor, method ->
+        if (method?.name == "transformed_disabled_retry") {
+          annotation.setRetryAnalyzer(disabledAnalyzer)
+        }
+      }] as IAnnotationTransformer
+
+    when:
+    runTests([TestTransformedDisabledRetry], null, false,
+    { TestNG testNG -> testNG.addListener(transformer) })
+
+    then:
+    TestTransformedDisabledRetry.executions == 1
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "transformed_disabled_retry" }
+    spans.size() == 1
+    spans[0].getTag("test.is_retry") == null
+    spans[0].getTag("test.retry_reason") == null
+
+    where:
+    retryFeature << ["ATR", "EFD"]
+  }
+
+  def "test automation exclusions preserve unexcluded transformer retry overrides"() {
+    given:
+    TestTransformedNativeRetry.executions = 0
+    givenFlakyRetryEnabled(false)
+    def transformer = [transform: { annotation, testClass, constructor, method ->
+        if (method?.name == "transformed_native_retry") {
+          annotation.setRetryAnalyzer(TestExplicitRetryExcluded.RetryOnce)
+        }
+      }] as IAnnotationTransformer
+
+    when:
+    runTests([TestTransformedNativeRetry], null, !currentTestNGVersion.startsWith("6."),
+    { TestNG testNG -> testNG.addListener(transformer) })
+
+    then:
+    TestTransformedNativeRetry.executions == 2
+  }
+
+  def "test automation exclusions use effective inherited groups"() {
+    given:
+    TestInheritedGroupsExcluded.executions = 0
+    def id = new TestFQN(TestInheritedGroupsExcluded.name, "inherited_groups")
+    givenDisabledTests([id])
+
+    when:
+    runTests([TestInheritedGroupsExcluded])
+
+    then:
+    TestInheritedGroupsExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "inherited_groups" }
+    testSpan.getTag("test.status").toString() == "pass"
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+  }
+
+  def "test automation exclusions use effective transformed groups"() {
+    given:
+    TestTransformedGroupsExcluded.executions = 0
+    def id = new TestFQN(TestTransformedGroupsExcluded.name, "transformed_groups")
+    givenDisabledTests([id])
+    def transformer = [transform: { annotation, testClass, constructor, method ->
+        if (method?.name == "transformed_groups") {
+          annotation.setGroups(["datadog_prevent_failure_suppression"] as String[])
+        }
+      }] as IAnnotationTransformer
+
+    when:
+    runTests([TestTransformedGroupsExcluded], null, true, { TestNG testNG -> testNG.addListener(transformer) })
+
+    then:
+    TestTransformedGroupsExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "transformed_groups" }
+    testSpan.getTag("test.status").toString() == "pass"
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+  }
 
   def "test #testcaseName"() {
     runTests(tests, null, success)
@@ -281,13 +479,14 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-capabilities-ordering-efd-suppression" | TestNGUtils.capabilities("7.5") | (TestNGUtils.isTestOrderingSupported(currentTestNGVersion) && TestNGUtils.isEFDSupported(currentTestNGVersion) && TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
   }
 
-  protected void runTests(List<Class> testClasses, String parallelMode = null, boolean expectSuccess = true) {
+  protected void runTests(List<Class> testClasses, String parallelMode = null, boolean expectSuccess = true, Closure configure = null) {
     TestEventsHandlerHolder.start()
 
     def testNG = new TestNG()
     testNG.setOutputDirectory(testOutputDir)
     Class[] testClassesArray = testClasses.toArray(new Class[0])
     testNG.setTestClasses(testClassesArray)
+    configure?.call(testNG)
     if (parallelMode != null) {
       testNG.setParallel(parallelMode)
     }

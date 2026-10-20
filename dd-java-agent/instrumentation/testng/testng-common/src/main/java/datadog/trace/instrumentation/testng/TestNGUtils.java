@@ -2,9 +2,12 @@ package datadog.trace.instrumentation.testng;
 
 import datadog.json.JsonWriter;
 import datadog.trace.api.civisibility.config.LibraryCapability;
+import datadog.trace.api.civisibility.config.TestExclusions;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.instrumentation.testng.execution.RetryAnalyzer;
+import datadog.trace.instrumentation.testng.execution.RetryAnnotationTransformer;
 import datadog.trace.util.ComparableVersion;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
@@ -26,9 +29,11 @@ import org.testng.ITestListener;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.TestNG;
+import org.testng.annotations.ITestAnnotation;
 import org.testng.annotations.Test;
 import org.testng.internal.ConstructorOrMethod;
 import org.testng.internal.ITestResultNotifier;
+import org.testng.internal.annotations.IAnnotationFinder;
 import org.testng.xml.XmlTest;
 
 public abstract class TestNGUtils {
@@ -47,6 +52,51 @@ public abstract class TestNGUtils {
       METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzer", ITestResult.class);
   private static final MethodHandle TEST_METHOD_GET_RETRY_ANALYZER_LEGACY =
       METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzer");
+
+  private static final MethodHandle TEST_METHOD_GET_RETRY_ANALYZER_CLASS =
+      METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzerClass");
+  private static final MethodHandle TEST_METHOD_SET_RETRY_ANALYZER_CLASS =
+      METHOD_HANDLES.method(ITestNGMethod.class, "setRetryAnalyzerClass", Class.class);
+  private static final MethodHandle TEST_METHOD_SET_RETRY_ANALYZER_LEGACY =
+      METHOD_HANDLES.method(ITestNGMethod.class, "setRetryAnalyzer", IRetryAnalyzer.class);
+
+  /** Apply Datadog policy after TestNG resolves annotations and native analyzer construction. */
+  public static void configureRetryAnalyzer(
+      ITestNGMethod method, IAnnotationFinder annotationFinder) {
+    TestSourceData source =
+        new TestSourceData(method.getRealClass(), method.getConstructorOrMethod().getMethod());
+    ITestAnnotation annotation =
+        (ITestAnnotation)
+            annotationFinder.findAnnotation(source.getTestMethod(), ITestAnnotation.class);
+    if (annotation == null) {
+      annotation =
+          (ITestAnnotation)
+              annotationFinder.findAnnotation(
+                  source.getTestMethod().getDeclaringClass(), ITestAnnotation.class);
+    }
+    if (RetryAnnotationTransformer.hasFrameworkOverride(annotation)) {
+      return;
+    }
+    if (TestExclusions.noAutoRetry(source, Arrays.asList(method.getGroups()))) {
+      if (TEST_METHOD_GET_RETRY_ANALYZER_CLASS != null) {
+        Class<?> nativeAnalyzer =
+            METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER_CLASS, method);
+        if (nativeAnalyzer != null
+            && !nativeAnalyzer
+                .getName()
+                .equals("org.testng.internal.annotations.DisabledRetryAnalyzer")) {
+          return;
+        }
+      } else if (METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER_LEGACY, method) != null) {
+        return;
+      }
+    }
+    if (TEST_METHOD_SET_RETRY_ANALYZER_CLASS != null) {
+      METHOD_HANDLES.invoke(TEST_METHOD_SET_RETRY_ANALYZER_CLASS, method, RetryAnalyzer.class);
+    } else {
+      METHOD_HANDLES.invoke(TEST_METHOD_SET_RETRY_ANALYZER_LEGACY, method, new RetryAnalyzer());
+    }
+  }
 
   private static final ComparableVersion testNGv75 = new ComparableVersion("7.5");
   private static final ComparableVersion testNGv70 = new ComparableVersion("7.0");
@@ -233,11 +283,17 @@ public abstract class TestNGUtils {
       return null;
     }
     IRetryAnalyzer analyzer = METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER, method, result);
-    if (analyzer != null) {
-      return analyzer;
-    } else {
-      return METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER_LEGACY, method);
+    if (analyzer == null) {
+      analyzer = METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER_LEGACY, method);
     }
+    if (analyzer != null
+        && !(analyzer instanceof RetryAnalyzer)
+        && TestExclusions.noAutoRetry(toTestSourceData(result), getGroups(result))) {
+      // TestNG invokes its own analyzer. Keep a separate Datadog policy for reporting and
+      // quarantine.
+      return RetryAnalyzer.forFrameworkMethod(method, toTestIdentifier(result));
+    }
+    return analyzer;
   }
 
   @Nonnull

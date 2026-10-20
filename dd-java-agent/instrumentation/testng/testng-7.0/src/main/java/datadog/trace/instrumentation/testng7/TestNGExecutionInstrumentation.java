@@ -57,6 +57,7 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
       commonPackageName + ".TestEventsHandlerHolder",
       commonPackageName + ".TestNGClassListener",
       commonPackageName + ".execution.RetryAnalyzer",
+      commonPackageName + ".execution.RetryAnnotationTransformer",
       commonPackageName + ".TracingListener",
     };
   }
