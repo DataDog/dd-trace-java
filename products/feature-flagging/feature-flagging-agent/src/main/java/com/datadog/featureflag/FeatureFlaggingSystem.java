@@ -37,7 +37,12 @@ public class FeatureFlaggingSystem {
       LOGGER.debug("Feature Flagging system disabled");
       return;
     }
-    final FeatureFlagsBackend backend = new FeatureFlagsBackend(sco, config);
+    // Tracing owns the shutdown path running before the JVM shutdown hooks. Without it, stop from a
+    // shutdown hook once the SDK subscribes to the shutdown, so it still flushes its pending
+    // events.
+    final FeatureFlagsBackend backend =
+        new FeatureFlagsBackend(
+            sco, config, config.isTraceEnabled() ? null : FeatureFlaggingSystem::addShutdownHook);
     try {
       backend.start();
     } catch (final RuntimeException | Error e) {
@@ -46,13 +51,6 @@ public class FeatureFlaggingSystem {
     }
     BACKEND = backend;
     FeatureFlaggingGateway.register(backend);
-    if (!config.isTraceEnabled()) {
-      // Tracing owns the shutdown path running before the JVM shutdown hooks. Without it, stop
-      // from a shutdown hook so the SDK still flushes its pending events.
-      final Thread hook = newAgentThread(FEATURE_FLAG_SHUTDOWN, FeatureFlaggingSystem::stop);
-      Runtime.getRuntime().addShutdownHook(hook);
-      SHUTDOWN_HOOK = hook;
-    }
     LOGGER.debug("Feature Flagging system started");
   }
 
@@ -77,6 +75,19 @@ public class FeatureFlaggingSystem {
       backend.close();
     }
     LOGGER.debug("Feature Flagging system stopped");
+  }
+
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
+  private static synchronized void addShutdownHook() {
+    if (BACKEND == null || SHUTDOWN_HOOK != null) {
+      return;
+    }
+    final Thread hook = newAgentThread(FEATURE_FLAG_SHUTDOWN, FeatureFlaggingSystem::stop);
+    Runtime.getRuntime().addShutdownHook(hook);
+    SHUTDOWN_HOOK = hook;
   }
 
   static boolean isShutdownHookRegistered() {

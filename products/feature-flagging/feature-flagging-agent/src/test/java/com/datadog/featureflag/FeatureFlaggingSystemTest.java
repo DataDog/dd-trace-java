@@ -70,8 +70,12 @@ class FeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = TRACE_ENABLED, value = "false")
-  void stopsFromAShutdownHookWhenTracingIsDisabled() {
+  void stopsFromAShutdownHookOnceTheSdkSubscribesWhenTracingIsDisabled() {
     FeatureFlaggingSystem.start(mock(SharedCommunicationObjects.class));
+    assertFalse(
+        FeatureFlaggingSystem.isShutdownHookRegistered(), "no hook while the SDK is unused");
+
+    FeatureFlaggingGateway.backend().subscribeShutdown(() -> {});
     assertTrue(FeatureFlaggingSystem.isShutdownHookRegistered());
 
     FeatureFlaggingSystem.stop();
@@ -81,6 +85,7 @@ class FeatureFlaggingSystemTest {
   @Test
   void leavesTheShutdownToTracingWhenEnabled() {
     FeatureFlaggingSystem.start(mock(SharedCommunicationObjects.class));
+    FeatureFlaggingGateway.backend().subscribeShutdown(() -> {});
     assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
   }
 

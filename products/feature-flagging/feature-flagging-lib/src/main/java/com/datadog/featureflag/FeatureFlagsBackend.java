@@ -12,6 +12,7 @@ import datadog.trace.api.telemetry.CoreMetricCollector;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -32,9 +33,20 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
   private final SpanEnrichmentWriter spanEnrichmentWriter;
   private final CoreMetricCollector metrics;
   private final List<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
+  @Nullable private final Runnable onFirstShutdownSubscription;
+  private final AtomicBoolean shutdownSubscribed = new AtomicBoolean();
   private RemoteConfigServiceImpl remoteConfig;
 
-  public FeatureFlagsBackend(final SharedCommunicationObjects sco, final Config config) {
+  /**
+   * @param sco the shared communication objects.
+   * @param config the agent configuration.
+   * @param onFirstShutdownSubscription the action to run when the SDK first subscribes to the
+   *     shutdown, or {@code null} for none.
+   */
+  public FeatureFlagsBackend(
+      final SharedCommunicationObjects sco,
+      final Config config,
+      @Nullable final Runnable onFirstShutdownSubscription) {
     this(
         sco,
         config,
@@ -45,7 +57,8 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
                 && config.getApiKey() != null
                 && !config.getApiKey().isEmpty()),
         SpanEnrichmentWriter.getInstance(),
-        CoreMetricCollector.getInstance());
+        CoreMetricCollector.getInstance(),
+        onFirstShutdownSubscription);
   }
 
   FeatureFlagsBackend(
@@ -53,12 +66,14 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
       final Config config,
       final EventProxy eventProxy,
       final SpanEnrichmentWriter spanEnrichmentWriter,
-      final CoreMetricCollector metrics) {
+      final CoreMetricCollector metrics,
+      @Nullable final Runnable onFirstShutdownSubscription) {
     this.sco = sco;
     this.config = config;
     this.eventProxy = eventProxy;
     this.spanEnrichmentWriter = spanEnrichmentWriter;
     this.metrics = metrics;
+    this.onFirstShutdownSubscription = onFirstShutdownSubscription;
   }
 
   /** Registers the Remote Configuration product early when it is the configuration source. */
@@ -139,6 +154,10 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
   @Override
   public AutoCloseable subscribeShutdown(final Runnable listener) {
     this.shutdownListeners.add(listener);
+    if (this.onFirstShutdownSubscription != null
+        && this.shutdownSubscribed.compareAndSet(false, true)) {
+      this.onFirstShutdownSubscription.run();
+    }
     return () -> this.shutdownListeners.remove(listener);
   }
 

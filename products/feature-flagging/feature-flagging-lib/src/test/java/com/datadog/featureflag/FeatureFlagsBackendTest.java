@@ -25,6 +25,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -39,7 +40,7 @@ class FeatureFlagsBackendTest {
   private final CoreMetricCollector metrics = mock(CoreMetricCollector.class);
   private final FeatureFlagsBackend backend =
       new FeatureFlagsBackend(
-          this.sco, this.config, this.eventProxy, this.spanEnrichmentWriter, this.metrics);
+          this.sco, this.config, this.eventProxy, this.spanEnrichmentWriter, this.metrics, null);
 
   private static AgentSpan rootSpan() {
     final AgentSpan root = mock(AgentSpan.class);
@@ -96,9 +97,27 @@ class FeatureFlagsBackendTest {
     when(this.config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
     when(this.config.getApiKey()).thenReturn(apiKey);
 
-    final FeatureFlagsBackend created = new FeatureFlagsBackend(this.sco, this.config);
+    final FeatureFlagsBackend created = new FeatureFlagsBackend(this.sco, this.config, null);
 
     assertEquals(apiKey, created.setting("api-key"));
+  }
+
+  @Test
+  void runsTheFirstShutdownSubscriptionActionOnce() {
+    final AtomicInteger firstSubscriptions = new AtomicInteger();
+    final FeatureFlagsBackend backend =
+        new FeatureFlagsBackend(
+            this.sco,
+            this.config,
+            this.eventProxy,
+            this.spanEnrichmentWriter,
+            this.metrics,
+            firstSubscriptions::incrementAndGet);
+
+    backend.subscribeShutdown(() -> {});
+    backend.subscribeShutdown(() -> {});
+
+    assertEquals(1, firstSubscriptions.get());
   }
 
   @Test
