@@ -84,7 +84,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     TestFactoryRetryExcluded.executions = 0
     givenFlakyRetryEnabled(true)
     givenKnownTests([])
-    def factoryType = Class.forName("org.testng.ITestObjectFactory")
+    def factoryType = Class.forName("org.testng.ITestObjectFactory", false, TestNG.classLoader)
     Assumptions.assumeTrue(factoryType.methods.any { it.name == "newInstance" && it.parameterTypes[0] == Class },
     "Requires TestNG object factory API with class-based construction")
     def factory = [newInstance: { Object type, Object[] arguments ->
