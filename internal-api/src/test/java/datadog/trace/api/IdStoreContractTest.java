@@ -369,6 +369,46 @@ class IdStoreContractTest {
 
   @ParameterizedTest
   @MethodSource("stores")
+  void getStringFormatsTheVisibleValue(Function<IdStore, IdStore> newStore) {
+    IdStore parent = newStore.apply(null);
+    parent.set(KnownTags.HTTP_ROUTE_ID, "/inherited");
+    parent.set(KnownTags.COMPONENT_ID, "hidden");
+    IdStore store = newStore.apply(parent);
+    store.set(KnownTags.PEER_PORT_ID, 5432);
+    store.set(KnownTags.DB_INSTANCE_ID, 1.5d);
+    store.remove(KnownTags.COMPONENT_ID);
+
+    assertEquals("5432", store.getString(KnownTags.PEER_PORT_ID));
+    assertEquals("1.5", store.getString(KnownTags.DB_INSTANCE_ID));
+    assertEquals("/inherited", store.getString(KnownTags.HTTP_ROUTE_ID));
+    assertNull(store.getString(KnownTags.COMPONENT_ID), "hidden by the removal");
+    assertNull(store.getString(KnownTags.HTTP_METHOD_ID));
+    assertThrows(
+        IllegalArgumentException.class, () -> store.getString(KnownTagCodec.makeTagId(9999)));
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
+  void aViewReadsValuesFromEitherStore(Function<IdStore, IdStore> newStore) {
+    IdStore store = newStore.apply(null);
+    store.set(KnownTags.HTTP_ROUTE_ID, "/a");
+    store.set(KnownTags.PEER_PORT_ID, 5432);
+    HashStore names = HashStore.create(null);
+    names.set("my.tag", 7);
+
+    TagMap view = TagMap.viewOf(store, names, false);
+    assertEquals("/a", view.getObject(KnownTags.HTTP_ROUTE_NAME));
+    assertEquals(5432, view.getObject("peer.port"));
+    assertEquals("5432", view.getString("peer.port"));
+    assertEquals(7, view.getObject("my.tag"));
+    assertEquals("7", view.getString("my.tag"));
+    assertNull(view.getObject(KnownTags.HTTP_METHOD_NAME));
+    assertNull(view.getString("other.tag"));
+    assertNull(TagMap.viewOf(store, null, false).getString("my.tag"), "no custom store");
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
   void aReaderWithNoEntryIsANoOp(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
     store.set(KnownTags.HTTP_ROUTE_ID, "/a");

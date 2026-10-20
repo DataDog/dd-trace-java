@@ -222,6 +222,12 @@ final class DenseIdStore extends IdStore {
     return this.getVisible((char) KnownTagCodec.serialNum(tagId), slotBit(tagId), levelOf(tagId));
   }
 
+  @Override
+  public String getString(long tagId) {
+    Object value = this.getValue(tagId);
+    return value == null ? null : value.toString();
+  }
+
   /**
    * The visible value of the tag {@code serial} in the slot {@code bit} of {@code level}, or null.
    */

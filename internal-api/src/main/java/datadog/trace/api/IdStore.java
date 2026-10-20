@@ -165,6 +165,13 @@ public abstract class IdStore {
    */
   public abstract Object getValue(long tagId);
 
+  /**
+   * {@link #getValue} as a String, or null. A store that keeps an Entry per tag answers with the
+   * Entry's cached string, so a numeric tag read repeatedly, as the serializer does, is formatted
+   * once.
+   */
+  public abstract String getString(long tagId);
+
   /*
    * Sets a known tag without validating its id: the caller has checked KnownTagCodec.isKnown.
    */

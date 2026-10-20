@@ -1384,15 +1384,31 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return this.getObject((String) tag);
   }
 
-  /** Provides the corresponding entry value as an Object - boxing if necessary */
+  /**
+   * Provides the corresponding entry value as an Object - boxing if necessary. A known tag is read
+   * straight from its store, so a store without an Entry per tag builds none.
+   */
   public Object getObject(String tag) {
-    Entry entry = this.getEntry(tag);
+    long key = KnownTagCodec.keyOf(tag);
+    if (key != 0) {
+      return this.knownStore.getValue(key);
+    }
+    HashStore nameStore = this.nameStore;
+    Entry entry = nameStore == null ? null : nameStore.get(tag);
     return entry == null ? null : entry.objectValue();
   }
 
-  /** Provides the corresponding entry value as a String - calling toString if necessary */
+  /**
+   * Provides the corresponding entry value as a String - calling toString if necessary. Like {@link
+   * #getObject}, a known tag is read straight from its store.
+   */
   public String getString(String tag) {
-    Entry entry = this.getEntry(tag);
+    long key = KnownTagCodec.keyOf(tag);
+    if (key != 0) {
+      return this.knownStore.getString(key);
+    }
+    HashStore nameStore = this.nameStore;
+    Entry entry = nameStore == null ? null : nameStore.get(tag);
     return entry == null ? null : entry.stringValue();
   }
 

@@ -110,6 +110,12 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
+  public String getString(long tagId) {
+    Entry entry = this.getEntry(tagId);
+    return entry == null ? null : entry.stringValue();
+  }
+
+  @Override
   public void set(long tagId, Object value) {
     this.put(Entry.newAnyEntry(tagId, value));
   }
