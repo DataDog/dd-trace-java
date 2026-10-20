@@ -104,11 +104,14 @@ public final class FeatureFlagsRuntime {
     final EventTransport transport;
     if (remoteConfig) {
       // TODO Support Remote Configuration without the Datadog Java agent.
-      final ConfigurationSource remoteConfiguration = bridge.remoteConfiguration();
+      final ConfigurationSource remoteConfiguration;
+      try {
+        remoteConfiguration = bridge.remoteConfiguration();
+      } catch (final LinkageError e) {
+        throw new RemoteConfigurationUnavailableException(e);
+      }
       if (remoteConfiguration == null) {
-        throw new IllegalStateException(
-            "Feature Flags Remote Configuration source requires the Datadog Java agent with"
-                + " Remote Configuration enabled");
+        throw new RemoteConfigurationUnavailableException(null);
       }
       source = new RemoteConfigurationService(remoteConfiguration);
       // Remote Configuration never falls back to direct intake.
@@ -147,6 +150,17 @@ public final class FeatureFlagsRuntime {
                 services)
             : null;
     return new FeatureFlagsRuntime(source, exposures, evaluations);
+  }
+
+  /** Signals an unavailable RC connector before any runtime resources have been started. */
+  public static final class RemoteConfigurationUnavailableException extends IllegalStateException {
+    private RemoteConfigurationUnavailableException(@Nullable final LinkageError cause) {
+      super(
+          "Feature Flags Remote Configuration requires a compatible Datadog Java agent with"
+              + " Remote Configuration enabled; attach a compatible agent or configure"
+              + " DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless for CDN delivery",
+          cause);
+    }
   }
 
   private static Map<String, String> eventContext(final Settings settings) {
