@@ -1221,7 +1221,8 @@ test_smoke_semeru8_debugger:
     testJvm: "semeru8"
 
 aggregate_test_counts:
-  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  # The default builder image is heavy; use a lightweight image to start aggregation faster.
+  image: registry.ddbuild.io/images/toolbox:0.1.16
   stage: test-summary
   # Keep stage ordering, but prevent GitLab from downloading all previous-stage artifacts.
   dependencies: []
