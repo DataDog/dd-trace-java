@@ -18,6 +18,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   @BeforeEach
   public void beforeEach() {
     removableJvmArgs.add("-Ddd.dynamic.instrumentation.enabled=true");
+    removableJvmArgs.add("-Ddd.trace.enabled=false");
   }
 
   @Test
