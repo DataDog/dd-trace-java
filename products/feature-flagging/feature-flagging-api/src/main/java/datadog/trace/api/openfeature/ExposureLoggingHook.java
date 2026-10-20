@@ -1,0 +1,92 @@
+package datadog.trace.api.openfeature;
+
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.FlagEvaluationDetails;
+import dev.openfeature.sdk.Hook;
+import dev.openfeature.sdk.HookContext;
+import dev.openfeature.sdk.ImmutableMetadata;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Sends the exposure for a logged allocation to the agent once the evaluation has succeeded.
+ *
+ * <p>It runs at the finally stage because OpenFeature runs provider hooks first: an after hook
+ * added by the application could still throw and turn the result into the default value. At the
+ * finally stage the details carry that error, so a failed evaluation sends no exposure and does not
+ * mark the subject as exposed.
+ */
+class ExposureLoggingHook<T> implements Hook<T> {
+
+  private static final Logger log = LoggerFactory.getLogger(ExposureLoggingHook.class);
+  private static final AtomicBoolean WARNED = new AtomicBoolean();
+
+  static final ExposureLoggingHook<Object> INSTANCE =
+      new ExposureLoggingHook<>(
+          ExposureDeduplicationCache.INSTANCE, DatadogExposureLoggingGate.isEnabled());
+
+  private final ExposureDeduplicationCache cache;
+  // When false the hook still records exposures, so customer ExposureHooks see the same cache
+  // verdicts whether or not exposures go to Datadog.
+  private final boolean sendToDatadog;
+
+  ExposureLoggingHook(final ExposureDeduplicationCache cache, final boolean sendToDatadog) {
+    this.cache = cache;
+    this.sendToDatadog = sendToDatadog;
+  }
+
+  @Override
+  public void finallyAfter(
+      final HookContext<T> ctx,
+      final FlagEvaluationDetails<T> details,
+      final Map<String, Object> hints) {
+    try {
+      if (details == null || details.getErrorCode() != null) {
+        return;
+      }
+      final ImmutableMetadata metadata = details.getFlagMetadata();
+      if (metadata == null) {
+        return;
+      }
+      // The ImmutableMetadata getters build a debug message for every absent key.
+      final Map<String, Object> values = metadata.asUnmodifiableMap();
+      if (!Boolean.TRUE.equals(values.get(DDEvaluator.METADATA_DO_LOG))
+          || !Boolean.FALSE.equals(values.get(DDEvaluator.METADATA_EXPOSURE_CACHE_HIT))) {
+        return;
+      }
+      final String flag = details.getFlagKey();
+      final Object allocationValue = values.get("allocationKey");
+      final String allocationKey =
+          allocationValue instanceof String ? (String) allocationValue : null;
+      final String variantKey = details.getVariant();
+      final EvaluationContext context = ctx == null ? null : ctx.getCtx();
+      if (allocationKey == null || variantKey == null || context == null) {
+        return;
+      }
+      final Object serialValue = values.get(DDEvaluator.METADATA_SPLIT_SERIAL_ID);
+      final Integer serialId =
+          DDEvaluator.exposureSerialId(
+              serialValue instanceof Integer ? (Integer) serialValue : null);
+      cache.record(flag, context.getTargetingKey(), allocationKey, variantKey, serialId);
+      if (sendToDatadog) {
+        FeatureFlaggingGateway.dispatch(
+            DDEvaluator.exposureEvent(
+                flag,
+                allocationKey,
+                variantKey,
+                context,
+                serialId,
+                SplitFeatureMetadata.featuresWithPrefix(
+                    metadata, DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX)));
+      }
+    } catch (LinkageError e) {
+      // Never let exposure reporting break flag evaluation.
+      if (WARNED.compareAndSet(false, true)) {
+        log.warn("Could not send a feature flag exposure; later failures are not logged", e);
+      }
+    }
+  }
+}

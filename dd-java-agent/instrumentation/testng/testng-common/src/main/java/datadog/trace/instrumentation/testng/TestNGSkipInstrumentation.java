@@ -50,15 +50,6 @@ public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
         TestNGSkipInstrumentation.class.getName() + "$InvokeMethodAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TestNGUtils",
-      packageName + ".TestNGClassListener",
-      packageName + ".TestEventsHandlerHolder",
-    };
-  }
-
   public static class InvokeMethodAdvice {
     @Advice.OnMethodEnter
     public static void invokeMethod(

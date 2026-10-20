@@ -8,6 +8,7 @@ import org.example.TestFailedParameterized
 import org.example.TestFailedSuite
 import org.example.TestFailedThenSucceed
 import org.example.TestIgnored
+import org.example.TestIgnoredAsync
 import org.example.TestIgnoredCanceled
 import org.example.TestIgnoredPending
 import org.example.TestSucceed
@@ -17,7 +18,17 @@ import org.example.TestSucceedParameterized
 import org.example.TestSucceedSkipEfd
 import org.example.TestSucceedSlow
 import org.example.TestSucceedUnskippable
+import org.scalatest.tools.Framework
 import org.scalatest.tools.Runner
+import sbt.testing.Event
+import sbt.testing.EventHandler
+import sbt.testing.Logger
+import sbt.testing.Selector
+import sbt.testing.Status
+import sbt.testing.SubclassFingerprint
+import sbt.testing.SuiteSelector
+import sbt.testing.Task
+import sbt.testing.TaskDef
 
 class ScalatestTest extends CiVisibilityInstrumentationTest {
 
@@ -67,6 +78,18 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
       new TestFQN("org.example.TestFailedParameterized", "addition should correctly add two numbers")
     ]
     "test-failed-then-succeed" | true    | [TestFailedThenSucceed]   | [new TestFQN("org.example.TestFailedThenSucceed", "Example.add adds two numbers")]
+  }
+
+  def "test flaky retries with sbt framework #testcaseName"() {
+    givenFlakyRetryEnabled(true)
+
+    runTestsWithSbtFramework(tests, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                          | success | tests
+    "test-sbt-async-ignored-then-succeed" | true    | [TestIgnoredAsync, TestSucceed]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -202,6 +225,28 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     }
 
     def result = Runner.run((String[]) runnerArguments.toArray(new String[0]))
+    if (result != expectSuccess) {
+      throw new AssertionError("Expected $expectSuccess execution status, got $result")
+    }
+  }
+
+  void runTestsWithSbtFramework(List<Class<?>> tests, boolean expectSuccess = true) {
+    def framework = new Framework()
+    def fingerprint = framework.fingerprints().find { it instanceof SubclassFingerprint }
+    def taskDefs = tests.collect {
+      new TaskDef(it.name, fingerprint, false, [new SuiteSelector()] as Selector[])
+    } as TaskDef[]
+
+    def runner = framework.runner([] as String[], [] as String[], getClass().classLoader)
+    def events = []
+    EventHandler eventHandler = { Event event -> events << event }
+    Deque<Task> tasks = new ArrayDeque<>(Arrays.asList(runner.tasks(taskDefs)))
+    while (!tasks.isEmpty()) {
+      tasks.addAll(tasks.poll().execute(eventHandler, [] as Logger[]))
+    }
+    runner.done()
+
+    def result = events.every { it.status() != Status.Failure && it.status() != Status.Error }
     if (result != expectSuccess) {
       throw new AssertionError("Expected $expectSuccess execution status, got $result")
     }

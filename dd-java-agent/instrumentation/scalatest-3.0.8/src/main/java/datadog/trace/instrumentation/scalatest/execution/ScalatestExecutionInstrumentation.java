@@ -50,17 +50,6 @@ public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisi
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      parentPackageName + ".ScalatestUtils",
-      parentPackageName + ".RunContext",
-      parentPackageName + ".DatadogReporter",
-      packageName + ".SuppressedTestFailedException",
-      packageName + ".TestExecutionWrapper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("runTestImpl")

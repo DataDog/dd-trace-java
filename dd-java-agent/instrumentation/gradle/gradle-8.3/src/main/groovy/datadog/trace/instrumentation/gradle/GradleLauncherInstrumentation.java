@@ -42,13 +42,6 @@ public class GradleLauncherInstrumentation extends InstrumenterModule.CiVisibili
         GradleLauncherInstrumentation.class.getName() + "$PropertiesAugmentationAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GradleDaemonInjectionUtils",
-    };
-  }
-
   public static class PropertiesAugmentationAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addJavaagentToGradleDaemonProperties(

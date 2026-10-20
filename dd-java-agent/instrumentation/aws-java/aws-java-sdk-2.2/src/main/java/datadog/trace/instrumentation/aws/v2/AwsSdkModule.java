@@ -17,16 +17,6 @@ public final class AwsSdkModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator",
-      "datadog.trace.instrumentation.aws.v2.TracingExecutionInterceptor",
-      "datadog.trace.instrumentation.aws.AwsAccountIdentity",
-      "datadog.trace.instrumentation.aws.AwsArn"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");

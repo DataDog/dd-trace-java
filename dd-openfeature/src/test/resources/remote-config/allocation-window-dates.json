@@ -1,0 +1,35 @@
+{
+  "createdAt": "2024-04-17T19:40:53.716Z",
+  "format": "SERVER",
+  "environment": {
+    "name": "Test"
+  },
+  "flags": {
+    "dated-flag": {
+      "key": "dated-flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {
+        "expected": {
+          "key": "expected",
+          "value": "expected"
+        }
+      },
+      "allocations": [
+        {
+          "key": "dated-allocation",
+          "rules": [],
+          "startAt": "2023-01-01T01:00:00.123456+01:00",
+          "endAt": "2023-01-02T00:00:00.987654Z",
+          "splits": [
+            {
+              "variationKey": "expected",
+              "shards": []
+            }
+          ],
+          "doLog": true
+        }
+      ]
+    }
+  }
+}

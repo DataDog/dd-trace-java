@@ -22,20 +22,6 @@ public class AwsSdkModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AwsSdkClientDecorator",
-      packageName + ".GetterAccess",
-      packageName + ".GetterAccess$1",
-      packageName + ".TracingRequestHandler",
-      packageName + ".AwsNameCache",
-      packageName + ".OnErrorDecorator",
-      "datadog.trace.instrumentation.aws.AwsAccountIdentity",
-      "datadog.trace.instrumentation.aws.AwsArn",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     Map<String, String> map = new java.util.HashMap<>();
     map.put(namespace + ".services.sqs.model.ReceiveMessageResult", "java.lang.String");

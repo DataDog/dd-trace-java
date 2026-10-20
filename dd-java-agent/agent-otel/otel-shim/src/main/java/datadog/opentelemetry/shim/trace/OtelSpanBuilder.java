@@ -3,14 +3,17 @@ package datadog.opentelemetry.shim.trace;
 import static datadog.opentelemetry.shim.trace.OtelConventions.ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES;
 import static datadog.opentelemetry.shim.trace.OtelConventions.HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE;
 import static datadog.opentelemetry.shim.trace.OtelConventions.OPERATION_NAME_SPECIFIC_ATTRIBUTE;
+import static datadog.opentelemetry.shim.trace.OtelConventions.attributeTag;
 import static datadog.opentelemetry.shim.trace.OtelConventions.toSpanKindTagValue;
 import static datadog.opentelemetry.shim.trace.OtelExtractedContext.extract;
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.KnownTagCodec.DIRECTION_UNKNOWN;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;
 
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -21,6 +24,7 @@ import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -29,6 +33,16 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class OtelSpanBuilder implements SpanBuilder {
   private final AgentTracer.SpanBuilder delegate;
   private boolean spanKindSet;
+
+  /** The direction of the span's kind once set; it decides direction-scoped attribute names. */
+  private int direction = DIRECTION_UNKNOWN;
+
+  /**
+   * Direction-scoped attributes ({@code server.address}) set before the span kind, as name/value
+   * pairs, stored once the kind is known ({@code null} if none).
+   */
+  private List<Object> heldUntilKind;
+
   private boolean ignoreActiveSpan;
 
   /**
@@ -103,7 +117,7 @@ public class OtelSpanBuilder implements SpanBuilder {
       return this;
     }
     // Store as object to prevent delegate to remove tag when value is empty
-    this.delegate.withTag(key, (Object) value);
+    withAttribute(key, (Object) value);
     return this;
   }
 
@@ -114,13 +128,23 @@ public class OtelSpanBuilder implements SpanBuilder {
       this.overriddenHttpStatusCode = (int) value;
       return this;
     }
-    this.delegate.withTag(key, value);
+    String tag = tagOf(key);
+    if (tag == null) {
+      holdUntilKind(key, value);
+    } else {
+      this.delegate.withTag(tag, value);
+    }
     return this;
   }
 
   @Override
   public SpanBuilder setAttribute(String key, double value) {
-    this.delegate.withTag(key, value);
+    String tag = tagOf(key);
+    if (tag == null) {
+      holdUntilKind(key, value);
+    } else {
+      this.delegate.withTag(tag, value);
+    }
     return this;
   }
 
@@ -131,7 +155,12 @@ public class OtelSpanBuilder implements SpanBuilder {
       this.overriddenAnalyticsSampleRate = value ? 1 : 0;
       return this;
     }
-    this.delegate.withTag(key, value);
+    String tag = tagOf(key);
+    if (tag == null) {
+      holdUntilKind(key, value);
+    } else {
+      this.delegate.withTag(tag, value);
+    }
     return this;
   }
 
@@ -176,19 +205,65 @@ public class OtelSpanBuilder implements SpanBuilder {
         }
         break;
       default:
-        this.delegate.withTag(name, value);
+        withAttribute(name, value);
         break;
     }
     return this;
   }
 
+  private void withAttribute(String key, Object value) {
+    String tag = tagOf(key);
+    if (tag == null) {
+      holdUntilKind(key, value);
+    } else {
+      this.delegate.withTag(tag, value);
+    }
+  }
+
+  /**
+   * The tag to store attribute {@code key} under, or {@code null} when it depends on the span's
+   * direction and the kind is not set yet.
+   */
+  private String tagOf(String key) {
+    if (this.direction == DIRECTION_UNKNOWN && KnownTagCodec.isDirectionScoped(key)) {
+      return null;
+    }
+    return attributeTag(key, this.direction);
+  }
+
+  private void holdUntilKind(String key, Object value) {
+    if (this.heldUntilKind == null) {
+      this.heldUntilKind = new ArrayList<>(2);
+    }
+    this.heldUntilKind.add(key);
+    this.heldUntilKind.add(value);
+  }
+
   @Override
   public SpanBuilder setSpanKind(SpanKind spanKind) {
     if (spanKind != null) {
-      this.delegate.withTag(SPAN_KIND, toSpanKindTagValue(spanKind));
+      String kind = toSpanKindTagValue(spanKind);
+      this.delegate.withTag(SPAN_KIND, kind);
       this.spanKindSet = true;
+      this.direction = KnownTagCodec.directionOfKind(kind);
+      resolveHeldAttributes();
     }
     return this;
+  }
+
+  /**
+   * Writes the attributes held until the kind was known. Done as soon as the kind is set, so a
+   * later write to the same attribute lands after them and wins, and again at start for anything
+   * still held.
+   */
+  private void resolveHeldAttributes() {
+    if (this.heldUntilKind != null) {
+      for (int i = 0; i < this.heldUntilKind.size(); i += 2) {
+        String key = (String) this.heldUntilKind.get(i);
+        this.delegate.withTag(attributeTag(key, this.direction), this.heldUntilKind.get(i + 1));
+      }
+      this.heldUntilKind = null;
+    }
   }
 
   @Override
@@ -203,6 +278,7 @@ public class OtelSpanBuilder implements SpanBuilder {
     if (!this.spanKindSet) {
       setSpanKind(INTERNAL);
     }
+    resolveHeldAttributes();
     if (!this.ignoreActiveSpan) {
       setParent(Context.current());
     }

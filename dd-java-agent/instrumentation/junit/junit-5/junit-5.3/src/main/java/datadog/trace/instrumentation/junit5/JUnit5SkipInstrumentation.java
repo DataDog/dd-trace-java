@@ -55,13 +55,6 @@ public class JUnit5SkipInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JUnitPlatformUtils", packageName + ".TestEventsHandlerHolder",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("shouldBeSkipped").and(takesArguments(1)),

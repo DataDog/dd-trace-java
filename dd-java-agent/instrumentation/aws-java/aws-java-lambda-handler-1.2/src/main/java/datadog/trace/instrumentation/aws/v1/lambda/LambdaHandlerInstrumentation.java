@@ -56,13 +56,6 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".LambdaHandlerDecorator",
-    };
-  }
-
-  @Override
   protected boolean defaultEnabled() {
     return ConfigHelper.env(HANDLER_ENV_NAME) != null;
   }

@@ -1,5 +1,4 @@
 import com.diffplug.gradle.spotless.GroovyExtension
-import com.diffplug.gradle.spotless.SpotlessExtension
 import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.ci.testAggregate
 
@@ -13,10 +12,12 @@ plugins {
   id("dd-trace-java.gradle-debug")
   id("dd-trace-java.tracer-version")
 
+  // Keep the shared image resolver in one classloader across subproject plugin combinations.
+  id("dd-trace-java.testcontainers") apply false
+
   alias(libs.plugins.shadow) apply false
   alias(libs.plugins.spotless)
   id("com.github.spotbugs") version "6.5.11"
-  id("de.thetaphi.forbiddenapis") version "3.11"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("me.champeau.gradle.japicmp") version "0.4.3"
   id("me.champeau.jmh") version "0.7.3" apply false
@@ -30,12 +31,7 @@ val isCI = providers.environmentVariable("CI")
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
 apply(from = rootDir.resolve("gradle/ddprof-override.gradle"))
 
-spotless {
-  // only resolve the spotless dependencies once in the build
-  predeclareDeps()
-}
-
-with(extensions["spotlessPredeclare"] as SpotlessExtension) {
+spotlessPredeclare {
   // these need to align with the types and versions in gradle/spotless.gradle
   java {
     removeUnusedImports()

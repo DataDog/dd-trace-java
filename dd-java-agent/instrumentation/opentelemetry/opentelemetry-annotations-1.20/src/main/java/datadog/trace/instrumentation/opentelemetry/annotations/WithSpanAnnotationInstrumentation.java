@@ -39,16 +39,6 @@ public final class WithSpanAnnotationInstrumentation extends InstrumenterModule.
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      this.packageName + ".WithSpanDecorator",
-      this.packageName + ".WithSpanDecorator$1", // Switch over enum generated class
-      "datadog.opentelemetry.shim.trace.OtelConventions",
-      "datadog.opentelemetry.shim.trace.OtelConventions$1",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     ElementMatcher.Junction<MethodDescription> annotatedMethodMatcher =
         isAnnotatedWith(named(hierarchyMarkerType()));

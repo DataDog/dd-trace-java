@@ -54,6 +54,7 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
       packageName + ".TomcatDecorator",
       packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
       packageName + ".TomcatBlockingHelper",
+      packageName + ".BlockFailureReporter",
       packageName + ".RequestURIDataAdapter",
     };
   }

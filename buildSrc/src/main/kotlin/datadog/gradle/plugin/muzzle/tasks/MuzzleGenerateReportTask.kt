@@ -1,52 +1,67 @@
 package datadog.gradle.plugin.muzzle.tasks
 
+import datadog.gradle.plugin.muzzle.MuzzleDirective
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils
+import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.highest
+import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.lowest
+import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.resolveInstrumentationAndJarVersions
 import datadog.gradle.plugin.muzzle.TestedArtifact
-import org.eclipse.aether.util.version.GenericVersionScheme
+import datadog.gradle.plugin.muzzle.pathSlug
+import org.eclipse.aether.RepositorySystem
+import org.eclipse.aether.RepositorySystemSession
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
+import java.net.URL
+import java.net.URLClassLoader
 import java.util.TreeMap
+import java.util.function.BiFunction
 
 abstract class MuzzleGenerateReportTask : AbstractMuzzleReportTask() {
+  @get:Input
+  abstract val reportDirectives: ListProperty<MuzzleDirective>
+
+  @get:Classpath
+  abstract val instrumentationClasspath: ConfigurableFileCollection
+
+  @get:Internal
+  val reportingDirectives: Provider<List<MuzzleDirective>> = reportDirectives.map { directives ->
+    directives.filter { !it.isCoreJdk && !it.skipFromReport }
+  }
+
   init {
-    description = "Print instrumentation version report"
+    description = "Generate this instrumentation's dependency range report"
+    reportDirectives.convention(emptyList())
+    versionsFile.convention(project.layout.buildDirectory.file("$MUZZLE_DEPS_RESULTS/${project.pathSlug}.csv"))
+    // Repository metadata can change without any local task input changing.
+    outputs.upToDateWhen { false }
   }
 
-  private val versionReports = project.fileTree(project.rootProject.layout.buildDirectory.dir(MUZZLE_DEPS_RESULTS)) {
-    include("*.csv")
-  }
-
-  /**
-   * Merges all muzzle report CSVs in the build directory into a single map and writes the merged results to a CSV.
-   */
   @TaskAction
-  fun mergeReports() {
-    val map = TreeMap<String, TestedArtifact>()
-    val versionScheme = GenericVersionScheme()
-    versionReports.forEach {
-      project.logger.info("Processing muzzle report: $it")
-      it.useLines { lines ->
-        lines.forEachIndexed { idx, line ->
-          if (idx == 0) return@forEachIndexed // skip header
-          val split = line.split(",")
-          val parsed = TestedArtifact(
-            split[0],
-            split[1],
-            split[2],
-            versionScheme.parseVersion(split[3]),
-            versionScheme.parseVersion(split[4])
+  fun dumpVersionRanges() {
+    val system: RepositorySystem = MuzzleMavenRepoUtils.newRepositorySystem()
+    val session: RepositorySystemSession = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
+    val versions = TreeMap<String, TestedArtifact>()
+    reportingDirectives.get().forEach { directive ->
+      val range = MuzzleMavenRepoUtils.resolveVersionRange(directive, system, session)
+      val cp = instrumentationClasspath.map { it.toURI().toURL() }.toTypedArray<URL>()
+      val partials = URLClassLoader(cp, null).use { cl ->
+        resolveInstrumentationAndJarVersions(directive, cl, range.lowestVersion, range.highestVersion)
+      }
+      partials.forEach { (key, value) ->
+        versions.merge(key, value, BiFunction { x, y ->
+          TestedArtifact(
+            x.instrumentation, x.group, x.module,
+            lowest(x.lowVersion, y.lowVersion),
+            highest(x.highVersion, y.highVersion)
           )
-          map.merge(parsed.key(), parsed) { x, y ->
-            TestedArtifact(
-              x.instrumentation,
-              x.group,
-              x.module,
-              MuzzleMavenRepoUtils.lowest(x.lowVersion, y.lowVersion),
-              MuzzleMavenRepoUtils.highest(x.highVersion, y.highVersion)
-            )
-          }
-        }
+        })
       }
     }
-    dumpVersionsToCsv(map)
+    dumpVersionsToCsv(versions)
   }
 }

@@ -1,15 +1,15 @@
 package datadog.gradle.plugin.muzzle
 
+import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlannerService
 import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
-import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
-import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlanner
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
@@ -27,8 +27,7 @@ class MuzzlePlugin : Plugin<Project> {
    *
    * This function sets up the necessary configurations, dependencies, and tasks for muzzle validation.
    * It registers the muzzle extension, configures bootstrap/tooling dependencies, and sets up tasks for
-   * compiling, running, printing, and reporting muzzle checks. It also optimizes configuration overhead
-   * by only proceeding if relevant muzzle tasks are requested.
+   * compiling, running, printing, and reporting muzzle checks. Validation tasks are registered lazily.
    *
    * @param project The Gradle project to apply the plugin to.
    */
@@ -69,13 +68,14 @@ class MuzzlePlugin : Plugin<Project> {
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     val compileMuzzle = project.tasks.register("compileMuzzle") {
-      inputs.files(project.providers.provider { project.allMainSourceSet })
+      inputs.files(project.providers.provider { project.allMainSourceSet.map { it.output } })
       dependsOn(bootstrapProject.tasks.named("compileJava"))
       dependsOn(bootstrapProject.tasks.named("compileMain_java11Java"))
       dependsOn(toolingProject.tasks.named("compileJava"))
     }
 
     val muzzleTask = project.tasks.register<MuzzleTask>("muzzle") {
+      description = "Check instrumentation compatibility against the configured dependency versions"
       this.muzzleBootstrap.set(muzzleBootstrap)
       this.muzzleTooling.set(muzzleTooling)
       dependsOn(compileMuzzle)
@@ -92,44 +92,30 @@ class MuzzlePlugin : Plugin<Project> {
       it.configure { finalizedBy(printReferencesTask) }
     }
 
-    project.tasks.register<MuzzleGenerateReportTask>("generateMuzzleReport") {
+    val extension = project.extensions.getByType<MuzzleExtension>()
+    val runtimeClasspath = project.mainSourceSet.runtimeClasspath
+    val report = project.tasks.register<MuzzleGenerateReportTask>("generateMuzzleReport") {
+      reportDirectives.convention(project.providers.provider { extension.directives })
+      instrumentationClasspath.from(reportingDirectives.map { if (it.isEmpty()) emptyList<Any>() else runtimeClasspath })
       dependsOn(compileMuzzle)
     }
+    project.publishMuzzleReport(report.flatMap { it.versionsFile })
 
-    project.tasks.register<MuzzleMergeReportsTask>("mergeMuzzleReports")
-
-    val hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
-      val taskProjectPath = taskName.substringBeforeLast(":", "")
-      val taskNameOnly = taskName.substringAfterLast(":")
-      val isRelevantForProject = taskProjectPath.isEmpty() || taskProjectPath == project.path
-
-      isRelevantForProject && taskNameOnly.endsWith("muzzle", ignoreCase = true)
-    }
-    if (!hasRelevantTask) {
-      // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.
-      project.logger.info("No muzzle tasks invoked for ${project.path}, skipping muzzle task planification")
-      return
-    }
-
-    // We only get here if we are running muzzle, so let's start timing things
-    val startTime = System.currentTimeMillis()
-
-    val system = MuzzleMavenRepoUtils.newRepositorySystem()
-    val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
-    val taskPlanner = MuzzleTaskPlanner.from(system, session)
-    project.afterEvaluate {
-      // use runAfter to set up task finalizers in version order
-      var runAfter: TaskProvider<MuzzleTask> = muzzleTask
-      val muzzleReportTasks = mutableListOf<TaskProvider<MuzzleTask>>()
+    val validationTasks = MuzzleValidationTasks(project.providers) {
+      val startTime = System.currentTimeMillis()
       val directives = project.extensions.getByType<MuzzleExtension>().directives
-      taskPlanner.plan(directives).forEach { plan ->
-        runAfter = registerMuzzleTask(plan.directive, plan.artifact, project, runAfter, muzzleBootstrap, muzzleTooling)
-        muzzleReportTasks.add(runAfter)
+      val planner = project.gradle.sharedServices
+        .registerIfAbsent("datadogMuzzleTaskPlanners", MuzzleTaskPlannerService::class.java)
+      val checks = planner.get().plan(directives).map { plan ->
+        val check = registerMuzzleTask(plan.directive, plan.artifact, project, muzzleBootstrap, muzzleTooling)
         project.logger.info("configured ${plan.directive}")
+        check
       }
 
-      if (muzzleReportTasks.isEmpty() && !directives.any { it.assertPass }) {
-        muzzleReportTasks.add(muzzleTask)
+      val muzzleReportTasks = if (checks.isEmpty() && !directives.any { it.assertPass }) {
+        listOf(muzzleTask)
+      } else {
+        checks
       }
 
       val timingTask = project.tasks.register<MuzzleEndTask>("muzzle-end") {
@@ -141,10 +127,17 @@ class MuzzlePlugin : Plugin<Project> {
         )
         muzzleResultFiles.from(muzzleReportTasks.map { it.flatMap { task -> task.result } })
       }
-      // last muzzle task to run
-      runAfter.configure {
-        finalizedBy(timingTask)
+
+      val executionChain: List<TaskProvider<out Task>> = checks + timingTask
+      executionChain.zipWithNext { current, next ->
+        current.configure { finalizedBy(next) }
       }
+
+      // Note this is a set, but only the first task of the chain is passed.
+      setOf(executionChain.first().get())
+    }
+    muzzleTask.configure {
+      finalizedBy(validationTasks.tasks)
     }
   }
 
@@ -158,7 +151,6 @@ class MuzzlePlugin : Plugin<Project> {
      * @param muzzleDirective The directive describing the dependency and test parameters.
      * @param versionArtifact The artifact representing the dependency version to test (may be null when `muzzleDirective.coreJdk` is true).
      * @param instrumentationProject The Gradle project to register the task in.
-     * @param runAfterTask The task provider for the task that this muzzle task should run after.
      * @param muzzleBootstrap The configuration provider for agent bootstrap dependencies.
      * @param muzzleTooling The configuration provider for agent tooling dependencies.
      * @return The muzzle task provider.
@@ -167,7 +159,6 @@ class MuzzlePlugin : Plugin<Project> {
       muzzleDirective: MuzzleDirective,
       versionArtifact: Artifact?,
       instrumentationProject: Project,
-      runAfterTask: TaskProvider<MuzzleTask>,
       muzzleBootstrap: NamedDomainObjectProvider<Configuration>,
       muzzleTooling: NamedDomainObjectProvider<Configuration>
     ): TaskProvider<MuzzleTask> {
@@ -235,9 +226,6 @@ class MuzzlePlugin : Plugin<Project> {
         this.muzzleTooling.set(muzzleTooling)
       }
 
-      runAfterTask.configure {
-        finalizedBy(muzzleTask)
-      }
       return muzzleTask
     }
   }

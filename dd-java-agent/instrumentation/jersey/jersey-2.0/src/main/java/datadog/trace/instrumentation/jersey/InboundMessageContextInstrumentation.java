@@ -54,13 +54,6 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
     return "org.glassfish.jersey.message.internal.InboundMessageContext";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JerseyTaintHelper",
-    };
-  }
-
   /** This advice tries to skip tainting the headers before they are ready */
   public static class SetHeadersAdvice {
 

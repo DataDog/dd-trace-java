@@ -34,16 +34,6 @@ public final class LettuceClientInstrumentation extends InstrumenterModule.Traci
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".LettuceClientDecorator",
-      packageName + ".LettuceInstrumentationUtil",
-      packageName + ".LettuceAsyncBiConsumer",
-      packageName + ".ConnectionContextBiConsumer"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

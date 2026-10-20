@@ -29,6 +29,7 @@ interface CommonTags {
 
   String ENV = TAG_PREFIX + "env";
   String SERVICE = TAG_PREFIX + "service";
+  String TRACE_ID = TAG_PREFIX + "trace_id";
   String PARENT_ID = TAG_PREFIX + "parent_id";
   String SESSION_ID = TAG_PREFIX + LLMObsTags.SESSION_ID;
   String AGENT_VERSION = TAG_PREFIX + LLMObsTags.AGENT_VERSION;

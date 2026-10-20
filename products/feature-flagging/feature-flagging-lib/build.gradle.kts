@@ -30,6 +30,7 @@ dependencies {
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
+  testImplementation(libs.okhttp3.mockwebserver)
   testImplementation(project(":products:feature-flagging:feature-flagging-config"))
   testImplementation(project(":utils:test-utils"))
   testImplementation(project(":dd-java-agent:testing"))

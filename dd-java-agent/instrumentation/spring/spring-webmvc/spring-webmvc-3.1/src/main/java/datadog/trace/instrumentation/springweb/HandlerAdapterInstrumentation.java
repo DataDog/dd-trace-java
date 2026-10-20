@@ -47,13 +47,6 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpringWebHttpServerDecorator", packageName + ".ServletRequestURIAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

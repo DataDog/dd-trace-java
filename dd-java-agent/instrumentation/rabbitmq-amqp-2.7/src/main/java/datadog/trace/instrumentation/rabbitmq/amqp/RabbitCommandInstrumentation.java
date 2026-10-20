@@ -38,15 +38,6 @@ public class RabbitCommandInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RabbitDecorator",
-      // These are only used by muzzleCheck:
-      packageName + ".TracedDelegatingConsumer"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(),
