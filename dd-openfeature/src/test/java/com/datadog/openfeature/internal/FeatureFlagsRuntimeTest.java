@@ -56,7 +56,7 @@ class FeatureFlagsRuntimeTest {
                     AgentBridge.NONE,
                     TestSettings.of("feature.flags.configuration.source", "remote_config")));
 
-    assertTrue(error.getMessage().contains("requires the Datadog Java agent"));
+    assertTrue(error.getMessage().contains("requires a compatible Datadog Java agent"));
   }
 
   @Test

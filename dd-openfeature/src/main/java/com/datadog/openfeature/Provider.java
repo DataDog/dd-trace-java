@@ -3,6 +3,7 @@ package com.datadog.openfeature;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
+import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationUnavailableException;
 import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.bridge.AgentBridges;
 import com.datadog.openfeature.internal.config.Settings;
@@ -150,6 +151,14 @@ public class Provider extends EventProvider implements Metadata {
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
+    } catch (final RemoteConfigurationUnavailableException e) {
+      // No RC connector means no configuration can arrive in this JVM. Complete registration
+      // without waiting or switching sources. The evaluator has no runtime/configuration and
+      // returns caller defaults with PROVIDER_NOT_READY, never successful flag assignments.
+      // OpenFeature marks the completed registration READY; that does not imply RC is available.
+      initializationState.set(InitializationState.FALLBACK);
+      log.warn("{}; returning caller defaults", e.getMessage());
+      log.debug("Feature Flags Remote Configuration connector unavailable", e);
     } catch (final OpenFeatureError e) {
       markInitializationError();
       throw e;
@@ -316,7 +325,8 @@ public class Provider extends EventProvider implements Metadata {
     INITIALIZING,
     INITIAL_CONFIG_RECEIVED,
     READY,
-    ERROR
+    ERROR,
+    FALLBACK
   }
 
   /** The provider options. */
