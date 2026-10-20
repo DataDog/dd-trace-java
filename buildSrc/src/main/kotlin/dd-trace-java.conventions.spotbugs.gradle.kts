@@ -7,38 +7,47 @@ plugins {
 
 spotbugs {
   ignoreFailures = false
-  excludeFilter = rootProject.layout.projectDirectory.file("gradle/spotbugFilters/exclude.xml")
+  // Exclude known types and packages
+  excludeFilter = rootDir.resolve("gradle/spotbugFilters/exclude.xml")
   showProgress = !providers.environmentVariable("CI").isPresent
-  omitVisitors = listOf(
-    "ConstructorThrow",
-    "DefaultEncodingDetector",
-    "DoInsideDoPrivileged",
-    "DontUseEnum",
-    "DroppedException",
-    "FindDeadLocalStores",
-    "FindHEmismatch",
-    "FindNullDeref",
-    "FindReturnRef",
-    "FindRunInvocations",
-    "FindUselessControlFlow",
-    "InitializationChain",
-    "LazyInit",
-    "LoadOfKnownNullValue",
-    "LostLoggerDueToWeakReference",
-    "MethodReturnCheck",
-    "MutableStaticFields",
-    "Naming",
-    "RuntimeExceptionCapture",
-    "SerializableIdiom",
-    "UnreadFields",
-  )
 }
 
+val productionTaskName = Regex("spotbugsMain(?:_java\\d+)?")
+
 tasks.withType<SpotBugsTask>().configureEach {
-  if (project.path.startsWith(":dd-smoke-tests") ||
-    !(name.endsWith("Main") || name.endsWith("Main_java11"))) {
-    enabled = false
-    return@configureEach
+  when {
+    project.path.startsWith(":dd-smoke-tests") -> {
+      enabled = false
+    }
+    productionTaskName.matches(name) -> {
+      omitVisitors = listOf(
+        "ConstructorThrow",
+        "DefaultEncodingDetector",
+        "DoInsideDoPrivileged",
+        "DontUseEnum",
+        "DroppedException",
+        "FindDeadLocalStores",
+        "FindHEmismatch",
+        "FindNullDeref",
+        "FindReturnRef",
+        "FindRunInvocations",
+        "FindUselessControlFlow",
+        "InitializationChain",
+        "LazyInit",
+        "LoadOfKnownNullValue",
+        "LostLoggerDueToWeakReference",
+        "MethodReturnCheck",
+        "MutableStaticFields",
+        "Naming",
+        "RuntimeExceptionCapture",
+        "SerializableIdiom",
+        "UnreadFields",
+        )
+    }
+    else -> {
+      // static-analysis-rules skill: enable selected test tasks here with their own detector configuration.
+      enabled = false
+    }
   }
 
   launcher = javaToolchains.launcherFor {

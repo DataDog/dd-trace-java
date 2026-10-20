@@ -95,7 +95,7 @@ forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbidden
 gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "gradle-tooling-api" }
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
-spotbugs = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs-gradle-plugin" }
+spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs-gradle-plugin" }
 
 # DataDog libs and forks
 datadog-okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "datadog-okhttp" }

@@ -96,9 +96,8 @@ repositories {
 dependencies {
   implementation(gradleApi())
   implementation(libs.forbiddenapis)
-  implementation(libs.spotbugs) {
-    // buildSrc targets Java 8 for muzzle workers, but the SpotBugs plugin requires Java 11.
-    // This is fine because the spotbugs plugin runs in the Gradle Daemon JVM (Java 25).
+  implementation(libs.spotbugs.gradle.plugin) {
+    // Select the plugin's Java 11 variant while buildSrc still has to targets Java 8 for muzzle workers.
     attributes {
       attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 11)
     }
