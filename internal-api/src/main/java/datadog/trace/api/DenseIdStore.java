@@ -251,12 +251,19 @@ final class DenseIdStore extends IdStore {
 
   @Override
   public EntryReader put(EntryReader entryReader) {
+    Object value = entryReader.objectValue();
+    if (value == null) {
+      return null; // a reader with nothing to store is a no-op, as for TagMap.set
+    }
     long tagId = entryReader.tagId();
-    return this.readerOf(tagId, this.store(tagId, entryReader.objectValue()));
+    return this.readerOf(tagId, this.store(tagId, value));
   }
 
   @Override
   public EntryReader getAndPut(EntryReader entryReader) {
+    if (entryReader.objectValue() == null) {
+      return null; // a reader with nothing to store is a no-op
+    }
     long tagId = entryReader.tagId();
     char serial = (char) KnownTagCodec.serialNum(tagId);
     long bit = slotBit(tagId);

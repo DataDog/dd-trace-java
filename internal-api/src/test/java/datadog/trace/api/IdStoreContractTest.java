@@ -369,10 +369,114 @@ class IdStoreContractTest {
 
   @ParameterizedTest
   @MethodSource("stores")
+  void aReaderWithNoEntryIsANoOp(Function<IdStore, IdStore> newStore) {
+    IdStore store = newStore.apply(null);
+    store.set(KnownTags.HTTP_ROUTE_ID, "/a");
+    NoEntryReader empty = new NoEntryReader("http.route", KnownTags.HTTP_ROUTE_ID);
+
+    assertNull(store.put(empty));
+    assertNull(store.getAndPut(empty));
+    assertEquals("/a", store.getValue(KnownTags.HTTP_ROUTE_ID), "left as it was");
+    assertEquals(1, store.size());
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
   void anUnknownIdIsRejected(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
     long unknown = KnownTagCodec.makeTagId(9999);
     assertThrows(IllegalArgumentException.class, () -> store.getValue(unknown));
     assertThrows(IllegalArgumentException.class, () -> store.remove(unknown));
+  }
+
+  /** An EntryReader with no entry and no value, as a caller outside the tracer may pass. */
+  static final class NoEntryReader implements TagMap.EntryReader {
+    private final String tag;
+    private final long tagId;
+
+    NoEntryReader(String tag, long tagId) {
+      this.tag = tag;
+      this.tagId = tagId;
+    }
+
+    @Override
+    public String tag() {
+      return tag;
+    }
+
+    @Override
+    public long tagId() {
+      return tagId;
+    }
+
+    @Override
+    public byte type() {
+      return TagMap.EntryReader.OBJECT;
+    }
+
+    @Override
+    public boolean is(byte type) {
+      return false;
+    }
+
+    @Override
+    public boolean isNumericPrimitive() {
+      return false;
+    }
+
+    @Override
+    public boolean isNumber() {
+      return false;
+    }
+
+    @Override
+    public boolean isObject() {
+      return true;
+    }
+
+    @Override
+    public Object objectValue() {
+      return null;
+    }
+
+    @Override
+    public String stringValue() {
+      return null;
+    }
+
+    @Override
+    public boolean booleanValue() {
+      return false;
+    }
+
+    @Override
+    public int intValue() {
+      return 0;
+    }
+
+    @Override
+    public long longValue() {
+      return 0;
+    }
+
+    @Override
+    public float floatValue() {
+      return 0;
+    }
+
+    @Override
+    public double doubleValue() {
+      return 0;
+    }
+
+    @Override
+    public java.util.Map.Entry<String, Object> mapEntry() {
+      return null;
+    }
+
+    @Override
+    public TagMap.Entry entry() {
+      return null;
+    }
   }
 }

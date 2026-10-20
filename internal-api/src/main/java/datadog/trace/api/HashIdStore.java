@@ -141,6 +141,9 @@ final class HashIdStore extends IdStore {
   @Override
   public Entry put(EntryReader entryReader) {
     Entry entry = entryReader.entry();
+    if (entry == null) {
+      return null; // a reader with no entry is a no-op, as for TagMap.set
+    }
     Entry replaced = HashSupport.put(this.buckets, entry);
     this.markLocal(slotBit(entry.tagHash), levelOf(entry.tagHash));
     if (replaced == null || replaced.tombstone) {
@@ -153,6 +156,9 @@ final class HashIdStore extends IdStore {
   @Override
   public Entry getAndPut(EntryReader entryReader) {
     Entry entry = entryReader.entry();
+    if (entry == null) {
+      return null; // a reader with no entry is a no-op
+    }
     long tagId = entry.tagHash;
     long bit = slotBit(tagId);
     int level = levelOf(tagId);

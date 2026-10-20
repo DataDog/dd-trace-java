@@ -105,13 +105,13 @@ public final class KnownTagCodec {
   }
 
   /**
-   * Builds an id carrying only {@code serialNum}: slot 0 and no flags, so it equals a tag's real id
-   * only when that tag has neither. Enough for serial-keyed lookups such as {@link #nameOf};
-   * compare against a {@code KnownTags} constant, never against this. Inverse of {@link
-   * #serialNum}. Intended for tests and serial-keyed lookups.
+   * The id of the known tag with {@code serialNum}, slot and flag bits included, so it equals the
+   * tag's {@code KnownTags} constant and stores and looks up exactly like it. A serial outside the
+   * known range gets an id carrying only the serial, which is not a known tag. Inverse of {@link
+   * #serialNum}.
    */
   public static long makeTagId(int serialNum) {
-    return (long) serialNum << 48;
+    return serialNum > 0 && serialNum < serialLimit() ? idOf(serialNum) : (long) serialNum << 48;
   }
 
   /*

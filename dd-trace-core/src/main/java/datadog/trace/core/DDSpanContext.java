@@ -1204,7 +1204,10 @@ public class DDSpanContext
     if (entryReader.tagId() != 0) {
       knownTags.put(entryReader); // no Entry built for a dense store, or for a flyweight from one
     } else {
-      customTagsForWrite().put(entryReader.entry());
+      TagMap.Entry entry = entryReader.entry();
+      if (entry != null) { // a reader with no entry is a no-op, as for TagMap.set
+        customTagsForWrite().put(entry);
+      }
     }
   }
 

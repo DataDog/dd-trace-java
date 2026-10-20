@@ -41,6 +41,24 @@ class DDSpanContextStoresTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void aReaderWithNoEntryIsANoOp() {
+    DDSpan span = start();
+    try {
+      span.setTag("http.route", "/users");
+      span.setTag("custom.kept", "kept");
+      span.spanContext().setTag(new NoEntryReader("http.route", KnownTags.HTTP_ROUTE_ID));
+      span.spanContext().setTag(new NoEntryReader("custom.kept", 0L));
+      span.spanContext().setMetric(new NoEntryReader("custom.metric", 0L));
+
+      assertEquals("/users", span.getTag("http.route"));
+      assertEquals("kept", span.getTag("custom.kept"));
+      assertNull(span.getTag("custom.metric"));
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
   void customTagsKeepEveryValueType() {
     DDSpan span = start();
     try {
@@ -183,6 +201,97 @@ class DDSpanContextStoresTest extends DDCoreJavaSpecification {
       assertEquals("seeded", span.getTag("proto.custom"));
     } finally {
       span.finish();
+    }
+  }
+
+  /** An EntryReader with no entry and no value, as a caller outside the tracer may pass. */
+  static final class NoEntryReader implements datadog.trace.api.TagMap.EntryReader {
+    private final String tag;
+    private final long tagId;
+
+    NoEntryReader(String tag, long tagId) {
+      this.tag = tag;
+      this.tagId = tagId;
+    }
+
+    @Override
+    public String tag() {
+      return tag;
+    }
+
+    @Override
+    public long tagId() {
+      return tagId;
+    }
+
+    @Override
+    public byte type() {
+      return datadog.trace.api.TagMap.EntryReader.OBJECT;
+    }
+
+    @Override
+    public boolean is(byte type) {
+      return false;
+    }
+
+    @Override
+    public boolean isNumericPrimitive() {
+      return false;
+    }
+
+    @Override
+    public boolean isNumber() {
+      return false;
+    }
+
+    @Override
+    public boolean isObject() {
+      return true;
+    }
+
+    @Override
+    public Object objectValue() {
+      return null;
+    }
+
+    @Override
+    public String stringValue() {
+      return null;
+    }
+
+    @Override
+    public boolean booleanValue() {
+      return false;
+    }
+
+    @Override
+    public int intValue() {
+      return 0;
+    }
+
+    @Override
+    public long longValue() {
+      return 0;
+    }
+
+    @Override
+    public float floatValue() {
+      return 0;
+    }
+
+    @Override
+    public double doubleValue() {
+      return 0;
+    }
+
+    @Override
+    public java.util.Map.Entry<String, Object> mapEntry() {
+      return null;
+    }
+
+    @Override
+    public datadog.trace.api.TagMap.Entry entry() {
+      return null;
     }
   }
 }
