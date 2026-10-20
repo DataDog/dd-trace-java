@@ -134,14 +134,16 @@ public class SpockUtils {
     }
 
     try {
-      for (Method declaredMethod : testClass.getDeclaredMethods()) {
-        FeatureMetadata featureMetadata = declaredMethod.getAnnotation(FeatureMetadata.class);
-        if (featureMetadata == null) {
-          continue;
-        }
+      for (Class<?> current = testClass; current != null; current = current.getSuperclass()) {
+        for (Method declaredMethod : current.getDeclaredMethods()) {
+          FeatureMetadata featureMetadata = declaredMethod.getAnnotation(FeatureMetadata.class);
+          if (featureMetadata == null) {
+            continue;
+          }
 
-        if (methodName.equals(featureMetadata.name())) {
-          return declaredMethod;
+          if (methodName.equals(featureMetadata.name())) {
+            return declaredMethod;
+          }
         }
       }
 

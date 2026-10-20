@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import org.example.TestFailedParameterizedSpock
 import org.example.TestAutomationExcluded
+import org.example.TestAutomationExcludedInherited
 import org.example.TestFailedSpock
 import org.example.TestFailedThenSucceedParameterizedSpock
 import org.example.TestFailedThenSucceedSpock
@@ -62,6 +63,36 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
   }
 
+
+  def "test automation exclusions honor inherited feature declarations with attempt to fix #attemptToFix"() {
+    given:
+    TestAutomationExcluded.executions = 0
+    def id = new TestFQN("org.example.TestAutomationExcludedInherited", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests(attemptToFix ? [id] : [])
+    givenFlakyRetryEnabled(true)
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcludedInherited], false)
+
+    then:
+    TestAutomationExcluded.executions == 1
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "protected_failure" }
+    spans.size() == 1
+    spans[0].getTag("test.suite") == "org.example.TestAutomationExcludedInherited"
+    spans[0].getTag("test.test_management.no_auto_retry") == true
+    spans[0].getTag("test.test_management.prevent_failure_suppression") == true
+    spans[0].getTag("test.test_management.is_test_disabled") == true
+    spans[0].getTag("test.test_management.is_quarantined") == true
+    spans[0].getTag("test.test_management.is_attempt_to_fix") == (attemptToFix ? true : null)
+    spans[0].getTag("test.test_management.attempt_to_fix_passed") == null
+
+    where:
+    attemptToFix << [false, true]
+  }
 
   def "test #testcaseName"() {
     runTests(tests)
