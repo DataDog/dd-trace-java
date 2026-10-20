@@ -11,28 +11,251 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ThreadContextElement
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.slf4j.MDCContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import org.slf4j.MDC
 import java.util.concurrent.CancellationException
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
+
+  @Trace
+  open fun scopedSpanSurvivesSuspension(mdc: Boolean, differentDispatcher: Boolean): Int {
+    setAsyncPropagationEnabled(true)
+    val outer = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    val inner = if (differentDispatcher) Executors.newSingleThreadExecutor().asCoroutineDispatcher() else outer
+    try {
+      runBlocking(outer + MDCContext(mapOf("request-id" to "request"))) {
+        val outerContext = coroutineContext
+        childSpan("seed").activateAndUse {
+          val requested = (if (mdc) MDCContext() else CoroutineName("scoped")) +
+            (if (differentDispatcher) inner else EmptyCoroutineContext)
+          withContext(requested) {
+            check(MDC.get("request-id") == "request")
+            val innerContext = coroutineContext
+            val scoped = childSpan("scoped-span")
+            scoped.activateAndUse {
+              // Queue behind both dispatchers' restores before resuming the scoped body.
+              suspendCoroutine<Unit> { continuation ->
+                outer.dispatch(
+                  outerContext,
+                  Runnable {
+                    inner.dispatch(innerContext, Runnable { continuation.resume(Unit) })
+                  }
+                )
+              }
+              check(MDC.get("request-id") == "request")
+              check(activeSpan() === scoped) { "Scoped span was lost across suspension" }
+              launch { childSpan("child").finish() }.join()
+            }
+          }
+          childSpan("after-context").activateAndUse {
+            delay(10)
+            childSpan("after-child").finish()
+          }
+        }
+      }
+    } finally {
+      if (inner !== outer) inner.close()
+      outer.close()
+    }
+    return 6
+  }
+
+  fun emptyWithContextPreservesFastPath() {
+    val updates = AtomicInteger()
+    val restores = AtomicInteger()
+    val hook = object :
+      AbstractCoroutineContextElement(object : CoroutineContext.Key<ThreadContextElement<Unit>> {}),
+      ThreadContextElement<Unit> {
+      override fun updateThreadContext(context: CoroutineContext) {
+        updates.incrementAndGet()
+      }
+      override fun restoreThreadContext(context: CoroutineContext, oldState: Unit) {
+        restores.incrementAndGet()
+      }
+    }
+    runBlocking(hook) {
+      val original = coroutineContext
+      val beforeUpdates = updates.get()
+      val beforeRestores = restores.get()
+      withContext(EmptyCoroutineContext) {
+        check(updates.get() == beforeUpdates)
+        check(restores.get() == beforeRestores)
+        // withContext creates a scoped Job even on its unchanged-context fast path.
+        check(coroutineContext[hook.key] === original[hook.key])
+      }
+      check(updates.get() == beforeUpdates)
+      check(restores.get() == beforeRestores)
+    }
+  }
+
+  fun flowWithLocallyActivatedRoot(unchangedContext: Boolean, suspendFlow: Boolean) = runTest {
+    childSpan("flow-root").activateAndUse {
+      val original = coroutineContext
+      flow<Int> {
+        if (unchangedContext) {
+          check(kotlin.coroutines.coroutineContext === original) { "flowOn lost the unchanged-context fast path" }
+        }
+        if (suspendFlow) delay(10)
+        childSpan("flow-child").finish()
+        emit(1)
+      }.flowOn(if (unchangedContext) jobName("test") else jobName("producer")).collect {
+        if (suspendFlow) delay(10)
+        childSpan("collect-child").finish()
+      }
+      childSpan("after-flow").finish()
+    }
+  }
+
+  fun flowEmissionInContext(kind: String, suspendFlow: Boolean) = runTest {
+    childSpan("flow-root").activateAndUse {
+      withContext(jobName("outer")) {
+        flow<Int> {
+          val inherited = kotlin.coroutines.coroutineContext
+          if (kind == "launch") {
+            coroutineScope { launch { emit(1) }.join() }
+          } else {
+            val requested = when (kind) {
+              "full" -> inherited
+              "without-job" -> inherited.minusKey(Job)
+              "dispatcher" -> inherited[ContinuationInterceptor]!!
+              "name" -> inherited[CoroutineName]!!
+              "equal-name" -> jobName("outer")
+              "changed-name" -> jobName("changed")
+              "changed-dispatcher" -> Dispatchers.IO
+              "mdc" -> MDCContext()
+              else -> error("Unknown emission context: $kind")
+            }
+            withContext(requested) {
+              val span = childSpan("emission")
+              span.activateAndUse {
+                if (suspendFlow) delay(10)
+                check(activeSpan() === span) { "Emission span was lost across suspension" }
+                emit(1)
+                check(activeSpan() === span) { "Collector changed the active emission span" }
+              }
+            }
+          }
+        }.collect {
+          if (suspendFlow) delay(10)
+          childSpan("collect-child").finish()
+        }
+      }
+      childSpan("after-flow").finish()
+    }
+  }
+
+  fun flowWithFailedEmission() = runTest {
+    withContext(jobName("outer")) {
+      flow<Int> {
+        withContext(kotlin.coroutines.coroutineContext) {
+          try {
+            emit(1)
+          } catch (expected: IllegalArgumentException) {
+            check(expected.message == "collector failure")
+          }
+          emit(2)
+        }
+      }.collect { throw IllegalArgumentException("collector failure") }
+    }
+  }
+
+  fun equalWithContextSpanSurvivesSuspension() {
+    val singleThread = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    try {
+      runBlocking(singleThread + jobName("same")) {
+        childSpan("root").activateAndUse {
+          withContext(jobName("same")) {
+            childSpan("scoped").activateAndUse {
+              val span = activeSpan()
+              delay(10)
+              check(activeSpan() === span) { "Equal-context scoped span was lost across suspension" }
+              childSpan("child").finish()
+            }
+          }
+        }
+      }
+    } finally {
+      singleThread.close()
+    }
+  }
+
+  fun withContextKeepsEarlyFinishedRootOpen() {
+    runTest {
+      childSpan("early-root").activateAndUse {
+        val root = activeSpan()
+        withContext(MDCContext()) {
+          root.finish()
+          launch { childSpan("late-child").finish() }.join()
+        }
+      }
+    }
+  }
+
+  fun withContextWithReplacedJobKeepsEarlyFinishedRootOpen(nonCancellable: Boolean) = runTest {
+    childSpan("early-root").activateAndUse {
+      val root = activeSpan()
+      // The caller captures the root before withContext replaces its Job.
+      launch(start = CoroutineStart.UNDISPATCHED) {
+        withContext(if (nonCancellable) NonCancellable else Job()) {
+          root.finish()
+          delay(10)
+          check(activeSpan() === root) { "Replacing Job lost the root across suspension" }
+          childSpan("late-child").finish()
+        }
+        childSpan("after-context").finish()
+      }.join()
+    }
+  }
+
+  fun withContextChildInheritsEarlyFinishedRoot() = runTest {
+    childSpan("early-root").activateAndUse {
+      val root = activeSpan()
+      launch(start = CoroutineStart.UNDISPATCHED) {
+        // Only the caller's continuation can keep the root open across the fresh context merge.
+        root.finish()
+        withContext(MDCContext()) {
+          delay(10)
+          launch(coroutineContext + jobName("late-child")) {
+            delay(10)
+            check(activeSpan() === root) { "Child lost the inherited finished root" }
+            childSpan("late-child").finish()
+          }.join()
+        }
+        childSpan("after-context").finish()
+      }.join()
+    }
+  }
 
   fun launchWithCancelledParent() {
     val queuedDispatcher = object : CoroutineDispatcher() {
