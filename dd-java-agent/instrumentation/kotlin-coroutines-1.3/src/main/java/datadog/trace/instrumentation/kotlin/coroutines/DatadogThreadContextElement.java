@@ -3,7 +3,10 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,6 +32,9 @@ public final class DatadogThreadContextElement
 
   private static final Object COMPLETED = new Object();
 
+  private static final boolean LEGACY_CONTEXT_MANAGER =
+      InstrumenterConfig.get().isLegacyContextManagerEnabled();
+
   /** Coroutines built by coroutineScope, withContext, etc. that their caller waits for. */
   private static final ClassValue<Boolean> SCOPED_COROUTINE =
       GenericClassValue.of(
@@ -51,15 +57,20 @@ public final class DatadogThreadContextElement
   public static CoroutineContext addDatadogElement(CoroutineContext coroutineContext) {
     DatadogThreadContextElement existing = coroutineContext.get(DATADOG_KEY);
     if (existing == null) {
-      return coroutineContext.plus(new DatadogThreadContextElement(null));
+      return coroutineContext.plus(new DatadogThreadContextElement(null, null));
     }
     return replaceDatadogElement(
-        coroutineContext, existing.localRootFor(coroutineContext.get(Job.Key)));
+        coroutineContext, existing.context, existing.localRootFor(coroutineContext.get(Job.Key)));
   }
 
   private static CoroutineContext replaceDatadogElement(
-      CoroutineContext coroutineContext, @Nullable AgentSpan parentLocalRootSpan) {
-    DatadogThreadContextElement fresh = new DatadogThreadContextElement(parentLocalRootSpan);
+      CoroutineContext coroutineContext,
+      @Nullable Context seed,
+      @Nullable AgentSpan parentLocalRootSpan) {
+    // Only legacy mode inherits a live stack. Non-legacy mode captures Context.current()
+    // later on during child initialization because the parent's saved context may be stale.
+    DatadogThreadContextElement fresh =
+        new DatadogThreadContextElement(LEGACY_CONTEXT_MANAGER ? seed : null, parentLocalRootSpan);
     if (!Boolean.TRUE.equals(coroutineContext.fold(null, HAS_LATER_HOOK))) {
       return coroutineContext.plus(fresh);
     }
@@ -76,22 +87,26 @@ public final class DatadogThreadContextElement
     DatadogThreadContextElement caller = original.get(DATADOG_KEY);
     // Scoped coroutines can borrow the caller's hold even when the requested context replaces Job.
     // Flow merges may install this element without constructing a coroutine to own it.
+    // An explicit context swap can make the active context differ from the caller's shared stack.
     return replaceDatadogElement(
-        merged, caller == null ? null : caller.localRootFor(original.get(Job.Key)));
+        merged,
+        LEGACY_CONTEXT_MANAGER ? Context.current() : null,
+        caller == null ? null : caller.localRootFor(original.get(Job.Key)));
   }
 
   /** Separates upstream flow state while retaining the caller's active context for downstream. */
   public static CoroutineContext forFlowCollection(
       CoroutineContext upstream, CoroutineContext downstream) {
     DatadogThreadContextElement caller = downstream.get(DATADOG_KEY);
-    if (caller != null) {
+    // legacy callers share a live scope stack, which a snapshot would replace
+    if (!LEGACY_CONTEXT_MANAGER && caller != null) {
       // Downstream reinstalls the caller's element without constructing a coroutine.
       caller.context = Context.current();
     }
     DatadogThreadContextElement element = upstream.get(DATADOG_KEY);
     if (element == null || element == caller) {
       // Before 1.7.2, flowOn merges with plus and shares this mutable element with its caller.
-      return replaceDatadogElement(upstream, null);
+      return replaceDatadogElement(upstream, null, null);
     }
     // Newer releases already received a fresh element from the context merge advice.
     return upstream;
@@ -113,7 +128,17 @@ public final class DatadogThreadContextElement
     return rebuilt.plus(element.getKey() == DATADOG_KEY ? this : element);
   }
 
+  // only needed until the initial context is captured; cleared so a long-lived child doesn't keep
+  // its parent's scope stack and trace alive
+  @Nullable private Context seed;
   @Nullable private AgentSpan parentLocalRootSpan;
+
+  @SuppressFBWarnings(
+      value = "IS2_INCONSISTENT_SYNC",
+      justification =
+          "Written once before publishing volatile context; updateThreadContext reads context before restoration")
+  private boolean legacySharedStack;
+
   private volatile Context context;
   private volatile ContextContinuation continuation;
 
@@ -123,7 +148,9 @@ public final class DatadogThreadContextElement
   /** The local root of the trace kept open by this coroutine or its parent. */
   @Nullable private volatile AgentSpan localRootSpan;
 
-  private DatadogThreadContextElement(@Nullable AgentSpan parentLocalRootSpan) {
+  private DatadogThreadContextElement(
+      @Nullable Context seed, @Nullable AgentSpan parentLocalRootSpan) {
+    this.seed = seed;
     this.parentLocalRootSpan = parentLocalRootSpan;
   }
 
@@ -156,7 +183,9 @@ public final class DatadogThreadContextElement
       }
       if (datadog.context == null) {
         datadog.captureInitialContext(true);
-      } else if (datadog.owner != coroutine && datadog.isScopedBy(coroutine)) {
+      } else if (!LEGACY_CONTEXT_MANAGER
+          && datadog.owner != coroutine
+          && datadog.isScopedBy(coroutine)) {
         // scoped coroutines (coroutineScope, withTimeout, or withContext before 1.6.1) share their
         // caller's element, so refresh it with the active context
         datadog.context = Context.current();
@@ -166,7 +195,14 @@ public final class DatadogThreadContextElement
 
   private synchronized void captureInitialContext(boolean owned) {
     if (context == null) {
-      Context initial = Context.current();
+      Context initial = seed != null ? seed : Context.current();
+      if (LEGACY_CONTEXT_MANAGER) {
+        // workers share this coroutine's scope stack, rather than copying it between them
+        Context shared = AgentTracer.get().sharedContextStack(initial);
+        // the noop tracer returns initial unchanged, without creating a shared stack
+        legacySharedStack = shared != initial;
+        initial = shared;
+      }
       // Initialize before the first context installation; later swaps update the stored context.
       AgentSpan rootSpan = localRootOf(initial);
       if (rootSpan != null) {
@@ -184,6 +220,7 @@ public final class DatadogThreadContextElement
         }
       }
       context = initial;
+      seed = null;
       parentLocalRootSpan = null;
     }
   }
@@ -232,7 +269,13 @@ public final class DatadogThreadContextElement
   @Override
   public void restoreThreadContext(
       @Nonnull CoroutineContext coroutineContext, Context originalContext) {
-    context = originalContext.swap();
+    Context coroutineContextAfter = originalContext.swap();
+    // legacy workers share the coroutine's scope stack, so it never needs saving; writing it back
+    // would usually store that same stack, but after an unbalanced swap on this thread it would
+    // rebind the coroutine to the wrong stack
+    if (!legacySharedStack) {
+      context = coroutineContextAfter;
+    }
   }
 
   /** Tracing state does not change the logical coroutine context used by flow equality checks. */
