@@ -1165,6 +1165,23 @@ plugins {
 }
 ```
 
+### Netty Instrumentation Tests
+
+Instrumentation modules whose tests use Netty 4 or shaded Netty should apply the Netty test convention:
+
+```Gradle
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
+}
+```
+
+This opt-in convention lives in `build-logic/conventions/src/main/kotlin/` and configures the module
+when `dd-trace-java.module.instrumentation` is applied. It adds the `netty-concurrent-4.0`
+instrumentation to the test classpath so that Netty tasks captured
+by `java-concurrent` can activate and release their context. Additional test suites inherit this
+dependency. It does not add a Netty library dependency or change production dependencies.
+
 ### Module Convention Plugins
 
 Module convention plugins are the preferred entry points for module build files. They are a stable facade over shared
