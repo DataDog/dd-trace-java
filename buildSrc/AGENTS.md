@@ -3,9 +3,7 @@
 Use `gradle-best-practices` before changing Gradle code here. If it is missing or incomplete,
 follow the [skill setup](../docs/how_to_work_with_gradle.md#gradle-skills) before editing.
 
-New project-facing conventions usually belong in `build-logic`. This folder still holds
-plugins and shared types that need the `buildSrc` classloader. Keep changes to existing
-plugins where they are unless the task includes moving them.
+For new conventions, follow the [build logic placement advice](../docs/how_to_work_with_gradle.md#build-logic-location).
 
 The Java 8 target in `build.gradle.kts` is needed by build-time instrumentation and Muzzle
 workers. A newer Gradle daemon or compiler JVM does not remove that requirement.

@@ -219,6 +219,10 @@ In a well-organized Gradle project, build logic lives in specific places:
 `buildSrc` and included builds have their own settings and dependencies. Repositories and
 version catalogs from the main build are not inherited; configure or import them explicitly.
 
+New project-facing conventions usually belong in `build-logic`. `buildSrc` still holds
+plugins and shared types that need its classloader. Keep changes to existing plugins
+where they are unless the task includes moving them.
+
 > [!CAUTION]
 > Script plugins are not recommended. The best practice for developing our build logic in plugins is 
 > to create _convention plugins_ or _binary plugins_.
