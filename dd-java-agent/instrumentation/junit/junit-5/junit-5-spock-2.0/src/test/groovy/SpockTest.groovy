@@ -12,6 +12,9 @@ import java.util.concurrent.CopyOnWriteArrayList
 import org.example.TestFailedParameterizedSpock
 import org.example.TestAutomationExcluded
 import org.example.TestAutomationExcludedInherited
+import org.example.TestAutomationExcludedCollisionBase
+import org.example.TestAutomationExcludedCollisionMiddle
+import org.example.TestAutomationExcludedCollisionLeaf
 import org.example.TestFailedSpock
 import org.example.TestFailedThenSucceedParameterizedSpock
 import org.example.TestFailedThenSucceedSpock
@@ -92,6 +95,31 @@ class SpockTest extends CiVisibilityInstrumentationTest {
 
     where:
     attemptToFix << [false, true]
+  }
+
+  def "test automation exclusions distinguish inherited features with the same name when disabled #disabled"() {
+    given:
+    TestAutomationExcludedCollisionBase.normalExecutions = 0
+    TestAutomationExcludedCollisionMiddle.protectedExecutions = 0
+    def id = new TestFQN("org.example.TestAutomationExcludedCollisionLeaf", "same_named_feature")
+    givenDisabledTests(disabled ? [id] : [])
+    givenFlakyRetryEnabled(!disabled)
+    givenFlakyTests([id])
+
+    when:
+    runTests([TestAutomationExcludedCollisionLeaf], false)
+
+    then:
+    disabled ? TestAutomationExcludedCollisionBase.normalExecutions == 0 : TestAutomationExcludedCollisionBase.normalExecutions > 1
+    TestAutomationExcludedCollisionMiddle.protectedExecutions == 1
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "same_named_feature" }
+    spans.every { it.getTag("test.suite") == "org.example.TestAutomationExcludedCollisionLeaf" }
+    spans.count { it.getTag("test.test_management.no_auto_retry") == true } == 1
+    spans.count { it.getTag("test.test_management.prevent_failure_suppression") == true } == 1
+    disabled ? spans.any { it.getTag("test.status")?.toString() == "skip" } : spans.any { it.getTag("test.is_retry") == true }
+
+    where:
+    disabled << [false, true]
   }
 
   def "test #testcaseName"() {
