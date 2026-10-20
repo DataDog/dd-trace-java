@@ -2,6 +2,7 @@ package datadog.trace.api.openfeature;
 
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.Value;
 import java.time.DateTimeException;
@@ -44,13 +45,18 @@ final class ExperimentationOptOut {
           .getString(FeatureFlaggingConfig.FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE, "disabled");
     } catch (final NoClassDefFoundError unavailableAgent) {
       // The provider can be constructed without an agent. Initialization still reports its absence.
-      final String property = System.getProperty("dd.feature.flags.experimentation.opt.out.mode");
-      if (property != null) {
-        return property;
-      }
-      final String environment = System.getenv("DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE");
-      return environment != null ? environment : "disabled";
+      return configuredModeWithoutAgent();
     }
+  }
+
+  @SuppressForbidden // ConfigHelper and ConfigProvider are not present without the Java agent.
+  private static String configuredModeWithoutAgent() {
+    final String property = System.getProperty("dd.feature.flags.experimentation.opt.out.mode");
+    if (property != null) {
+      return property;
+    }
+    final String environment = System.getenv("DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE");
+    return environment != null ? environment : "disabled";
   }
 
   static boolean exclude(final ExperimentationOptOutMode mode, final EvaluationContext context) {
