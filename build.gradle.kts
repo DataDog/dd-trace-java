@@ -13,6 +13,9 @@ plugins {
   id("dd-trace-java.gradle-debug")
   id("dd-trace-java.tracer-version")
 
+  // Keep the shared image resolver in one classloader across subproject plugin combinations.
+  id("dd-trace-java.testcontainers") apply false
+
   alias(libs.plugins.shadow) apply false
   alias(libs.plugins.spotless)
   id("com.github.spotbugs") version "6.5.11"

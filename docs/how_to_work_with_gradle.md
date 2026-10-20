@@ -1135,6 +1135,11 @@ common configuration patterns and can be applied like any other plugin.
 
 Files ending in `.gradle.kts` placed in `buildSrc/src/main/kotlin/` target `Project` and can configure tasks, dependencies, and extensions. The `buildSrc/` directory is automatically included by Gradle before the main build.
 
+> [!IMPORTANT]
+> Prefer build logic that is independent of concrete project paths. Referring to repository projects
+> from `build-logic` or `buildSrc` couples the plugin to the project layout; keep such dependencies
+> deliberate and limited to conventions that need them.
+
 In this project, convention plugins use the `dd-trace-java.` prefix. For example, `dd-trace-java.configure-tests.gradle.kts` configures test tasks across all subprojects:
 
 ```Gradle Kotlin DSL
@@ -1164,23 +1169,6 @@ plugins {
     id("dd-trace-java.configure-tests")
 }
 ```
-
-### Netty Instrumentation Tests
-
-Instrumentation modules whose tests use Netty 4 or shaded Netty should apply the Netty test convention:
-
-```Gradle
-plugins {
-  id 'dd-trace-java.module.instrumentation'
-  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
-}
-```
-
-This opt-in convention lives in `build-logic/conventions/src/main/kotlin/` and configures the module
-when `dd-trace-java.module.instrumentation` is applied. It adds the `netty-concurrent-4.0`
-instrumentation to the test classpath so that Netty tasks captured
-by `java-concurrent` can activate and release their context. Additional test suites inherit this
-dependency. It does not add a Netty library dependency or change production dependencies.
 
 ### Module Convention Plugins
 
