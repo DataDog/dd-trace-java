@@ -283,9 +283,9 @@ class QueryObfuscatorTest extends DDJavaSpecification {
 
     assertEquals(
         "http://site.com/index?<redacted>&otel_value=retained#fragment", tags.get(Tags.HTTP_URL));
-    assertEquals("<redacted>&otel_value=retained", tags.get(DDTags.HTTP_QUERY));
+    assertEquals("<redacted>&dd_value=not_kept", tags.get(DDTags.HTTP_QUERY));
     if (retainQuery) {
-      assertEquals("<redacted>", tags.get(KnownTags.URL_QUERY_NAME));
+      assertEquals("<redacted>&otel_value=retained", tags.get(KnownTags.URL_QUERY_NAME));
       return;
     }
     assertNull(tags.get(KnownTags.URL_QUERY_NAME));
