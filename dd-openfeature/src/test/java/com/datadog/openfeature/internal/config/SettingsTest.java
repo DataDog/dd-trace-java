@@ -9,6 +9,7 @@ import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.bridge.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.EventTransport;
 import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import java.util.HashMap;
 import java.util.Map;
@@ -229,6 +230,11 @@ class SettingsTest {
     @Override
     public SpanEnricher spanEnricher() {
       return SpanEnricher.NOOP;
+    }
+
+    @Override
+    public ShutdownSource shutdown() {
+      return null;
     }
   }
 }

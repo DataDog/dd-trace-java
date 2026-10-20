@@ -44,7 +44,5 @@ public interface AgentBridge {
    *     null} if not available, so the SDK must flush from its own JVM shutdown hook.
    */
   @Nullable
-  default ShutdownSource shutdown() {
-    return null;
-  }
+  ShutdownSource shutdown();
 }
