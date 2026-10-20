@@ -125,6 +125,38 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     spans.every { it.getTag("test.test_management.attempt_to_fix_passed") == null }
   }
 
+  def "test automation exclusions preserve explicit disabled transformer overrides with #retryFeature"() {
+    given:
+    Assumptions.assumeTrue(TestNG.getResource("/org/testng/internal/annotations/DisabledRetryAnalyzer.class") != null,
+      "Requires class-based disabled retry analyzer")
+    Assumptions.assumeTrue(retryFeature != "EFD" || TestNGUtils.isEFDSupported(currentTestNGVersion),
+      "Requires EFD support")
+    TestTransformedDisabledRetry.executions = 0
+    givenFlakyRetryEnabled(retryFeature == "ATR")
+    givenEarlyFlakinessDetectionEnabled(retryFeature == "EFD")
+    givenKnownTests([])
+    def disabledAnalyzer = Class.forName("org.testng.internal.annotations.DisabledRetryAnalyzer", false, TestNG.classLoader)
+    def transformer = [transform: { annotation, testClass, constructor, method ->
+        if (method?.name == "transformed_disabled_retry") {
+          annotation.setRetryAnalyzer(disabledAnalyzer)
+        }
+      }] as IAnnotationTransformer
+
+    when:
+    runTests([TestTransformedDisabledRetry], null, false,
+    { TestNG testNG -> testNG.addListener(transformer) })
+
+    then:
+    TestTransformedDisabledRetry.executions == 1
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "transformed_disabled_retry" }
+    spans.size() == 1
+    spans[0].getTag("test.is_retry") == null
+    spans[0].getTag("test.retry_reason") == null
+
+    where:
+    retryFeature << ["ATR", "EFD"]
+  }
+
   def "test automation exclusions preserve unexcluded transformer retry overrides"() {
     given:
     TestTransformedNativeRetry.executions = 0

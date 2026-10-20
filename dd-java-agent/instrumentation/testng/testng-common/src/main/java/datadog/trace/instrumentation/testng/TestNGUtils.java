@@ -74,8 +74,10 @@ public abstract class TestNGUtils {
               annotationFinder.findAnnotation(
                   source.getTestMethod().getDeclaringClass(), ITestAnnotation.class);
     }
-    if (TestExclusions.noAutoRetry(source, Arrays.asList(method.getGroups()))
-        || RetryAnnotationTransformer.hasFrameworkOverride(annotation)) {
+    if (RetryAnnotationTransformer.hasFrameworkOverride(annotation)) {
+      return;
+    }
+    if (TestExclusions.noAutoRetry(source, Arrays.asList(method.getGroups()))) {
       if (TEST_METHOD_GET_RETRY_ANALYZER_CLASS != null) {
         Class<?> nativeAnalyzer =
             METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER_CLASS, method);
