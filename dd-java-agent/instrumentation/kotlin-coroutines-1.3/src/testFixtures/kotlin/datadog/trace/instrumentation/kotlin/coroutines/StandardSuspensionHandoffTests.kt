@@ -11,10 +11,13 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ThreadContextElement
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
@@ -47,6 +50,51 @@ private val BASE_KEY = ContextKey.named<String>("scope-touching-base")
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class StandardSuspensionHandoffTests {
+  fun runLazyChildWithInheritedContext(builder: String, automatic: Boolean, tracedStarter: Boolean) = runBlocking {
+    val creator = get().buildSpan("kotlin_coroutine", "creator").start()
+    val creatorScope = get().activateManualSpan(creator)
+    val starter = if (tracedStarter) get().buildSpan("kotlin_coroutine", "starter").ignoreActiveSpan().start() else null
+    val worker = Executors.newSingleThreadExecutor()
+    try {
+      val block: suspend CoroutineScope.() -> Unit = {
+        check(activeSpan() === starter) { "Lazy child did not inherit the starting thread's context" }
+        delay(1)
+        check(activeSpan() === starter) { "Lazy child lost its starting context after suspension" }
+      }
+      val child = when (builder) {
+        "async" -> async(coroutineContext, CoroutineStart.LAZY, block)
+        "launch" -> launch(coroutineContext, CoroutineStart.LAZY, block)
+        else -> error("Unknown lazy builder: $builder")
+      }
+      val started = worker.submit {
+        // Isolate the starter from executor instrumentation's capture of the creator's context.
+        val original = Context.root().swap()
+        val scope = starter?.let { get().activateManualSpan(it) }
+        try {
+          if (automatic) {
+            runBlocking {
+              if (child is Deferred<*>) child.await() else child.join()
+            }
+          } else {
+            child.start()
+          }
+        } finally {
+          scope?.close()
+          original.swap()
+        }
+      }
+      // Let the creator's dispatcher run its child while the starter waits for it.
+      withContext(Dispatchers.IO) { started.get(10, SECONDS) }
+      child.join()
+    } finally {
+      worker.shutdownNow()
+      check(worker.awaitTermination(5, SECONDS)) { "Lazy starter did not terminate" }
+      creatorScope.close()
+      creator.finish()
+      starter?.finish()
+    }
+  }
+
   fun runContextSwapAcrossMerge() {
     runBlocking {
       val parent = get().buildSpan("kotlin_coroutine", "parent").start()

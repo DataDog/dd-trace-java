@@ -65,12 +65,13 @@ public final class DatadogThreadContextElement
 
   private static CoroutineContext replaceDatadogElement(
       CoroutineContext coroutineContext,
-      @Nullable Context seed,
+      @Nullable Context legacySeed,
       @Nullable AgentSpan parentLocalRootSpan) {
     // Only legacy mode inherits a live stack. Non-legacy mode captures Context.current()
     // later on during child initialization because the parent's saved context may be stale.
     DatadogThreadContextElement fresh =
-        new DatadogThreadContextElement(LEGACY_CONTEXT_MANAGER ? seed : null, parentLocalRootSpan);
+        new DatadogThreadContextElement(
+            LEGACY_CONTEXT_MANAGER ? legacySeed : null, parentLocalRootSpan);
     if (!Boolean.TRUE.equals(coroutineContext.fold(null, HAS_LATER_HOOK))) {
       return coroutineContext.plus(fresh);
     }
@@ -130,7 +131,7 @@ public final class DatadogThreadContextElement
 
   // only needed until the initial context is captured; cleared so a long-lived child doesn't keep
   // its parent's scope stack and trace alive
-  @Nullable private Context seed;
+  @Nullable private volatile Context legacySeed;
   @Nullable private AgentSpan parentLocalRootSpan;
 
   @SuppressFBWarnings(
@@ -149,8 +150,8 @@ public final class DatadogThreadContextElement
   @Nullable private volatile AgentSpan localRootSpan;
 
   private DatadogThreadContextElement(
-      @Nullable Context seed, @Nullable AgentSpan parentLocalRootSpan) {
-    this.seed = seed;
+      @Nullable Context legacySeed, @Nullable AgentSpan parentLocalRootSpan) {
+    this.legacySeed = legacySeed;
     this.parentLocalRootSpan = parentLocalRootSpan;
   }
 
@@ -174,6 +175,15 @@ public final class DatadogThreadContextElement
     return DATADOG_KEY;
   }
 
+  /** Lazy children inherit the starting thread's context rather than their creation-time seed. */
+  public static void captureLazyDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
+    DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
+    if (datadog != null) {
+      datadog.legacySeed = null;
+    }
+    captureDatadogContext(coroutine);
+  }
+
   public static void captureDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
     DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
     if (datadog != null) {
@@ -195,7 +205,10 @@ public final class DatadogThreadContextElement
 
   private synchronized void captureInitialContext(boolean owned) {
     if (context == null) {
-      Context initial = seed != null ? seed : Context.current();
+      Context initial = legacySeed;
+      if (initial == null) {
+        initial = Context.current();
+      }
       if (LEGACY_CONTEXT_MANAGER) {
         // workers share this coroutine's scope stack, rather than copying it between them
         Context shared = AgentTracer.get().sharedContextStack(initial);
@@ -220,7 +233,7 @@ public final class DatadogThreadContextElement
         }
       }
       context = initial;
-      seed = null;
+      legacySeed = null;
       parentLocalRootSpan = null;
     }
   }

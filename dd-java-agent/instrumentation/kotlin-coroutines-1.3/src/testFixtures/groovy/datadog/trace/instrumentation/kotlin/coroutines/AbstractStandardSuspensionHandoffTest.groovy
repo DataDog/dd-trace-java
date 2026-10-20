@@ -3,6 +3,25 @@ package datadog.trace.instrumentation.kotlin.coroutines
 import datadog.trace.agent.test.InstrumentationSpecification
 
 abstract class AbstractStandardSuspensionHandoffTest extends InstrumentationSpecification {
+  def "lazy #builder inherits starting context with automatic start #automatic and active span #tracedStarter"() {
+    when:
+    new StandardSuspensionHandoffTests().runLazyChildWithInheritedContext(builder, automatic, tracedStarter)
+
+    then:
+    noExceptionThrown()
+
+    where:
+    builder  | automatic | tracedStarter
+    'async'  | false     | false
+    'async'  | false     | true
+    'async'  | true      | false
+    'async'  | true      | true
+    'launch' | false     | false
+    'launch' | false     | true
+    'launch' | true      | false
+    'launch' | true      | true
+  }
+
   def "#kind child wait refreshes scope closed inside block #closeInside on #outcome"() {
     when:
     new StandardSuspensionHandoffTests().runScopedChildWait(kind, closeInside, outcome)
