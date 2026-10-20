@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -39,6 +40,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
@@ -145,6 +147,56 @@ class OtlpTraceJsonCollectorTest {
 
       assertTrue(attrKeys.contains(otelName), "expected " + otelName + "; got " + attrKeys);
       assertFalse(attrKeys.contains(tag), "expected no " + tag + "; got " + attrKeys);
+    }
+  }
+
+  @TableTest({
+    "scenario   | kind     | tag         | expectedPort",
+    "server tag | server   | server.port | 8080        ",
+    "client tag | client   | peer.port   | 8080        ",
+    "internal   | internal | server.port | 8080        "
+  })
+  void serverPortIsEmittedOnceInEveryDirection(String kind, String tag, long expectedPort)
+      throws IOException {
+    List<Object> ports = exportedServerPorts(kind, span -> span.setTag(tag, 8080));
+
+    assertEquals(1, ports.size(), "server.port must be emitted once; got " + ports);
+    assertEquals(String.valueOf(expectedPort), String.valueOf(ports.get(0)));
+  }
+
+  /**
+   * Ids are trusted: the server's own port written by id on a client span, beside peer.port (which
+   * is server.port there too), is exported twice rather than reconciled.
+   */
+  @Test
+  void aTagWrittenByIdOnTheWrongSideIsExportedAsWritten() throws IOException {
+    List<Object> ports =
+        exportedServerPorts(
+            "client",
+            span -> {
+              span.setTag(KnownTags.SERVER_PORT_ID, 8080);
+              span.setTag(KnownTags.PEER_PORT_ID, 443);
+            });
+
+    assertEquals(2, ports.size(), "got " + ports);
+  }
+
+  private static List<Object> exportedServerPorts(String kind, Consumer<AgentSpan> tagger)
+      throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
+      configMock.when(Config::get).thenReturn(config);
+
+      AgentSpan agentSpan = TRACER.startSpan("test", "op.serverPort");
+      agentSpan.setTag(SPAN_KIND, kind);
+      tagger.accept(agentSpan);
+      agentSpan.finish();
+
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList((CoreSpan<?>) agentSpan));
+      return attributeValues(onlySpan(collector.collectTraces()), "server.port");
     }
   }
 
@@ -498,6 +550,18 @@ class OtlpTraceJsonCollectorTest {
     List<Object> links = (List<Object>) span.get("links");
     assertEquals(1, links.size());
     return (Map<String, Object>) links.get(0);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Object> attributeValues(Map<String, Object> span, String key) {
+    List<Object> values = new ArrayList<>();
+    for (Object attribute : (List<Object>) span.get("attributes")) {
+      Map<String, Object> entry = (Map<String, Object>) attribute;
+      if (key.equals(entry.get("key"))) {
+        values.add(((Map<String, Object>) entry.get("value")).values().iterator().next());
+      }
+    }
+    return values;
   }
 
   @SuppressWarnings("unchecked")
