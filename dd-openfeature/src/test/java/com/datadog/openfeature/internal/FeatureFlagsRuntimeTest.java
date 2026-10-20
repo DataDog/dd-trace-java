@@ -1,6 +1,8 @@
 package com.datadog.openfeature.internal;
 
 import static java.util.Collections.emptyMap;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -18,11 +20,13 @@ import com.datadog.openfeature.internal.bridge.HealthMetrics;
 import com.datadog.openfeature.internal.bridge.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
@@ -278,6 +282,41 @@ class FeatureFlagsRuntimeTest {
     FeatureFlagsRuntime.release();
 
     assertTrue(bridge.shutdownUnregistered);
+  }
+
+  @Test
+  void stopFlushesBothPipelinesWithinOneShutdownBudget() throws Exception {
+    final CountDownLatch exposuresPosted = new CountDownLatch(1);
+    final CountDownLatch evaluationsPosted = new CountDownLatch(1);
+    final CountDownLatch releasePosts = new CountDownLatch(1);
+    final EventTransport stalledTransport =
+        (route, json) -> {
+          ("exposures".equals(route) ? exposuresPosted : evaluationsPosted).countDown();
+          try {
+            releasePosts.await(10, SECONDS);
+          } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        };
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(new TestConfigurationSource(), stalledTransport),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    runtime.start();
+    try {
+      runtime.recordExposure(exposure());
+      runtime.evaluations().enqueue(new FlagEvalEvent("f", "v", "a", "s", 1L, emptyMap()));
+
+      final long started = System.nanoTime();
+      runtime.stop();
+      final long elapsedMillis = NANOSECONDS.toMillis(System.nanoTime() - started);
+
+      assertEquals(0, evaluationsPosted.getCount(), "the evaluations final flush started");
+      assertEquals(0, exposuresPosted.getCount(), "the exposures final flush started");
+      assertTrue(elapsedMillis < 1300, "Both pipeline waits took " + elapsedMillis + " ms");
+    } finally {
+      releasePosts.countDown();
+    }
   }
 
   @Test

@@ -219,12 +219,20 @@ public final class FeatureFlagsRuntime {
         // The JVM is already shutting down, or the agent backend is gone.
       }
     }
-    this.source.close();
+    // Signal both pipelines before waiting for either, so they flush in parallel within one budget.
+    final long deadline = EventPipeline.shutdownDeadline();
     if (this.evaluations != null) {
-      this.evaluations.close();
+      this.evaluations.requestShutdown();
     }
     if (this.exposures != null) {
-      this.exposures.close();
+      this.exposures.requestShutdown();
+    }
+    this.source.close();
+    if (this.evaluations != null) {
+      this.evaluations.awaitTermination(deadline);
+    }
+    if (this.exposures != null) {
+      this.exposures.awaitTermination(deadline);
     }
   }
 
