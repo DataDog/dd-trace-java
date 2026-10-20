@@ -1,13 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import static datadog.trace.api.CompletableResultCode.ofSuccess;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextListener;
 import datadog.context.ContextManager;
 import datadog.context.ContextScope;
-import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -404,8 +401,6 @@ public class AgentTracer {
 
     void addShutdownListener(Runnable listener);
 
-    CompletableResultCode shutdownOtelMetrics();
-
     // these methods are only used for legacy context manager migration
 
     @Deprecated
@@ -572,11 +567,6 @@ public class AgentTracer {
 
     @Override
     public void flushMetrics() {}
-
-    @Override
-    public CompletableResultCode shutdownOtelMetrics() {
-      return ofSuccess();
-    }
 
     @Override
     public void flushLogs() {}

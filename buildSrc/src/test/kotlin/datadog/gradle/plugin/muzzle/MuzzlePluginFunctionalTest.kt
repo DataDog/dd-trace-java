@@ -1,10 +1,18 @@
 package datadog.gradle.plugin.muzzle
 
+import datadog.gradle.plugin.MavenRepoFixture
+import okhttp3.mockwebserver.Dispatcher
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
+import okio.Buffer
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.net.InetAddress
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.readText
 
 class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
@@ -29,6 +37,110 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     val result = run(taskName)
     assertThat(result.output).contains("BUILD SUCCESSFUL")
     assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
+  @Test
+  fun `planning sees directives configured after project evaluation`() {
+    writeProject(
+      """
+      plugins {
+        id("java")
+        id("dd-trace-java.muzzle")
+      }
+      """
+    )
+    writeNoopScanPlugin()
+    writeRootProject(
+      """
+      plugins { id("dd-trace-java.muzzle") apply false }
+      gradle.projectsEvaluated {
+        project(":dd-java-agent:instrumentation:demo").extensions.configure<datadog.gradle.plugin.muzzle.MuzzleExtension> {
+          pass { coreJdk() }
+        }
+      }
+      """
+    )
+    val result = run(":dd-java-agent:instrumentation:demo:muzzle")
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
+  }
+
+  @Test
+  fun `matching modules share Maven metadata within each build`() {
+    val repository = createMavenRepoFixture()
+    repository.publishVersions("com.example.test", "shared-lib", listOf("1.0.0", "2.0.0"))
+    val metadataRequests = AtomicInteger()
+    MockWebServer().use { server ->
+      server.setDispatcher(object : Dispatcher() {
+        override fun dispatch(request: RecordedRequest): MockResponse {
+          val path = request.path.orEmpty().removePrefix("/")
+          if (path == "com/example/test/shared-lib/maven-metadata.xml") {
+            metadataRequests.incrementAndGet()
+          }
+          val file = repository.repoDir.resolve(path)
+          return if (file.isFile) {
+            MockResponse().setBody(Buffer().write(file.readBytes()))
+          } else {
+            MockResponse().setResponseCode(404)
+          }
+        }
+      })
+      server.start(InetAddress.getByName("127.0.0.1"), 0)
+      val script = """
+        plugins { id("java"); id("dd-trace-java.muzzle") }
+        muzzle {
+          pass { group = "com.example.test"; module = "shared-lib"; versions = "[1.0,3.0)" }
+        }
+      """
+      writeProject(script)
+      addSubproject("dd-java-agent:instrumentation:other", script)
+      val env = mapOf("MAVEN_REPOSITORY_PROXY" to "http://127.0.0.1:${server.port}/")
+
+      val unrelated = run(":dd-java-agent:instrumentation:demo:tasks", "--all", env = env)
+      assertThat(unrelated.output).contains("BUILD SUCCESSFUL").doesNotContain("muzzle-end")
+      assertThat(metadataRequests.get()).isZero()
+
+      repeat(2) { build ->
+        val result = run("muzzle", "--dry-run", "--parallel", env = env)
+        assertThat(result.output).contains("BUILD SUCCESSFUL")
+        for (module in listOf("demo", "other")) {
+          for (version in listOf("1.0.0", "2.0.0")) {
+            assertThat(result.output)
+              .contains(":dd-java-agent:instrumentation:$module:muzzle-AssertPass-com.example.test-shared-lib-$version SKIPPED")
+          }
+        }
+        assertThat(metadataRequests.get()).isEqualTo(build + 1)
+      }
+    }
+  }
+
+  @Test
+  fun `shared planning keeps module repositories separate`() {
+    val empty = createMavenRepoFixture()
+    val first = MavenRepoFixture(projectDir.resolve("first-repository"))
+    val second = MavenRepoFixture(projectDir.resolve("second-repository"))
+    first.publishVersions("com.example.test", "shared-lib", listOf("1.0.0"))
+    second.publishVersions("com.example.test", "shared-lib", listOf("2.0.0"))
+    fun script(url: String) = """
+      plugins { id("java"); id("dd-trace-java.muzzle") }
+      repositories { maven { url = uri("$url") } }
+      muzzle {
+        extraRepository("fixture", "$url")
+        pass { group = "com.example.test"; module = "shared-lib"; versions = "[1.0,3.0)" }
+      }
+    """
+    writeProject(script(first.repoUrl))
+    addSubproject("dd-java-agent:instrumentation:other", script(second.repoUrl))
+    writeNoopScanPlugin()
+
+    val result = run("muzzle", env = mapOf("MAVEN_REPOSITORY_PROXY" to empty.repoUrl))
+
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    for ((module, version) in listOf("demo" to "1.0.0", "other" to "2.0.0")) {
+      val prefix = ":dd-java-agent:instrumentation:$module:muzzle-AssertPass-com.example.test-shared-lib-"
+      assertThat(result.task("$prefix$version")?.outcome).isEqualTo(SUCCESS)
+      assertThat(result.tasks.filter { it.path.startsWith(prefix) }).hasSize(1)
+    }
   }
 
   @ParameterizedTest

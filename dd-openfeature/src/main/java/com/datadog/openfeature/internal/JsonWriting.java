@@ -34,7 +34,8 @@ public final class JsonWriting {
 
   /**
    * Writes an arbitrary value: maps, collections, strings, numbers, booleans and {@code null}.
-   * Other values are written with their string representation.
+   * Null-valued map entries are omitted; null collection elements are preserved. Other values are
+   * written with their string representation.
    *
    * @param generator the generator to write to.
    * @param value the value to write.
@@ -55,8 +56,11 @@ public final class JsonWriting {
     } else if (value instanceof Map) {
       generator.writeStartObject();
       for (final Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
-        generator.writeFieldName(String.valueOf(entry.getKey()));
-        writeValue(generator, entry.getValue());
+        final Object entryValue = entry.getValue();
+        if (entryValue != null) {
+          generator.writeFieldName(String.valueOf(entry.getKey()));
+          writeValue(generator, entryValue);
+        }
       }
       generator.writeEndObject();
     } else if (value instanceof Collection) {

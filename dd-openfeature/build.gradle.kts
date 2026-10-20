@@ -6,6 +6,7 @@ plugins {
   idea
   id("dd-trace-java.conventions.java")
   id("dd-trace-java.version-file")
+  id("dd-trace-java.jmh-conventions")
 }
 
 description = "Datadog OpenFeature provider SDK."
@@ -36,4 +37,8 @@ dependencies {
 
 tasks.withType<JavaCompile>().configureEach {
   configureCompiler(JavaVersion.VERSION_11)
+}
+
+jmh {
+  jmhVersion = libs.versions.jmh.get()
 }
