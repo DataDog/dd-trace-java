@@ -67,3 +67,21 @@ scenario tags before Datadog skipping and retry policy selection.
 Declare ScalaTest `Tag` instances from `TestAutomationExclusions.NO_AUTO_RETRY`
 and `PREVENT_FAILURE_SUPPRESSION`, then pass them to the test declaration.
 Native ignored tests remain ignored and carry their known exclusion tags.
+
+## MUnit
+
+Apply native MUnit tags using the public constants:
+
+```scala
+import datadog.trace.api.civisibility.TestAutomationExclusions
+
+test("critical behavior"
+  .tag(new munit.Tag(TestAutomationExclusions.NO_AUTO_RETRY))
+  .tag(new munit.Tag(TestAutomationExclusions.PREVENT_FAILURE_SUPPRESSION))) {
+  assert(false)
+}
+```
+
+MUnit's existing category bridge passes these declarations to the shared policy
+and reporter. Ignored tests retain their known tags. MUnit currently has no
+Datadog disabling capability; exclusions do not enable unsupported automation.
