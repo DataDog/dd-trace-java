@@ -1,7 +1,5 @@
 package com.datadog.openfeature;
 
-import static java.util.Arrays.asList;
-
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
@@ -24,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -34,9 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
-
-  private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
-      new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
