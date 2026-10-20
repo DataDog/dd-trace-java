@@ -42,11 +42,15 @@ class FallbackTransportTest {
   }
 
   @Test
-  void doesNotReplayAmbiguousProxyFailures() throws IOException {
+  void switchesToDirectIntakeForGoodWithoutReplayingAmbiguousProxyFailures() throws IOException {
     doThrow(new IOException("timeout")).when(this.proxy).post("exposures", PAYLOAD);
 
     assertThrows(IOException.class, () -> this.transport.post("exposures", PAYLOAD));
-
     verify(this.direct, never()).post("exposures", PAYLOAD);
+
+    this.transport.post("exposures", PAYLOAD);
+
+    verify(this.proxy, times(1)).post("exposures", PAYLOAD);
+    verify(this.direct, times(1)).post("exposures", PAYLOAD);
   }
 }

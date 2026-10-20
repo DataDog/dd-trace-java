@@ -33,9 +33,11 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
         sco,
         config,
         new EventProxy(
-            new BackendApiFactory(config, sco),
+            new BackendApiFactory(config, sco, true),
+            config.getFeatureFlaggingConfigurationSource() == AGENTLESS,
             config.getFeatureFlaggingConfigurationSource() == AGENTLESS
-                && config.getApiKey() != null),
+                && config.getApiKey() != null
+                && !config.getApiKey().isEmpty()),
         SpanEnrichmentWriter.getInstance(),
         CoreMetricCollector.getInstance());
   }
