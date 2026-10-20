@@ -38,16 +38,73 @@ public final class DatadogThreadContextElement
                   || (AbstractCoroutine.class.isAssignableFrom(type)
                       && "kotlinx.coroutines.TimeoutCoroutine".equals(type.getName())));
 
-  /** Adds a fresh Datadog element, replacing any inherited element in place. */
+  /** null before the Datadog element, false after it, true once a later hook is found. */
+  private static final Function2<Boolean, CoroutineContext.Element, Boolean> HAS_LATER_HOOK =
+      (seen, element) -> {
+        if (element.getKey() == DATADOG_KEY) {
+          return Boolean.FALSE;
+        }
+        return seen != null && element instanceof ThreadContextElement ? Boolean.TRUE : seen;
+      };
+
+  /** Adds a fresh Datadog element, retaining its order relative to other thread context hooks. */
   public static CoroutineContext addDatadogElement(CoroutineContext coroutineContext) {
     DatadogThreadContextElement existing = coroutineContext.get(DATADOG_KEY);
     if (existing == null) {
       return coroutineContext.plus(new DatadogThreadContextElement(null));
     }
-    DatadogThreadContextElement fresh =
-        new DatadogThreadContextElement(existing.localRootFor(coroutineContext.get(Job.Key)));
-    // keep the element's position, so elements added after it can still update scopes on top
+    return replaceDatadogElement(
+        coroutineContext, existing.localRootFor(coroutineContext.get(Job.Key)));
+  }
+
+  private static CoroutineContext replaceDatadogElement(
+      CoroutineContext coroutineContext, @Nullable AgentSpan parentLocalRootSpan) {
+    DatadogThreadContextElement fresh = new DatadogThreadContextElement(parentLocalRootSpan);
+    if (!Boolean.TRUE.equals(coroutineContext.fold(null, HAS_LATER_HOOK))) {
+      return coroutineContext.plus(fresh);
+    }
+    // Rebuild only when appending would move us past another thread context hook.
     return coroutineContext.fold(EmptyCoroutineContext.INSTANCE, fresh);
+  }
+
+  /** Preserves Kotlin's identity fast path and native copy/merge semantics. */
+  public static CoroutineContext forContextMerge(
+      CoroutineContext merged, CoroutineContext original) {
+    if (merged == original) {
+      return merged;
+    }
+    DatadogThreadContextElement caller = original.get(DATADOG_KEY);
+    // Scoped coroutines can borrow the caller's hold even when the requested context replaces Job.
+    // Flow merges may install this element without constructing a coroutine to own it.
+    return replaceDatadogElement(
+        merged, caller == null ? null : caller.localRootFor(original.get(Job.Key)));
+  }
+
+  /** Separates upstream flow state while retaining the caller's active context for downstream. */
+  public static CoroutineContext forFlowCollection(
+      CoroutineContext upstream, CoroutineContext downstream) {
+    DatadogThreadContextElement caller = downstream.get(DATADOG_KEY);
+    if (caller != null) {
+      // Downstream reinstalls the caller's element without constructing a coroutine.
+      caller.context = Context.current();
+    }
+    DatadogThreadContextElement element = upstream.get(DATADOG_KEY);
+    if (element == null || element == caller) {
+      // Before 1.7.2, flowOn merges with plus and shares this mutable element with its caller.
+      return replaceDatadogElement(upstream, null);
+    }
+    // Newer releases already received a fresh element from the context merge advice.
+    return upstream;
+  }
+
+  /** Ignores tracing element identity only while Kotlin validates the emission context. */
+  public static CoroutineContext forFlowContextCheck(
+      CoroutineContext emitted, CoroutineContext collected) {
+    DatadogThreadContextElement expected = collected.get(DATADOG_KEY);
+    if (emitted.get(DATADOG_KEY) == expected) {
+      return emitted;
+    }
+    return expected == null ? emitted.minusKey(DATADOG_KEY) : emitted.plus(expected);
   }
 
   /** Rebuilds the context using this replacement element, avoiding a capturing fold lambda. */
@@ -98,24 +155,25 @@ public final class DatadogThreadContextElement
         datadog.owner = coroutine;
       }
       if (datadog.context == null) {
-        datadog.captureInitialContext();
+        datadog.captureInitialContext(true);
       } else if (datadog.owner != coroutine && datadog.isScopedBy(coroutine)) {
-        // preserve active span changes when a scoped coroutine reinstalls this element
+        // scoped coroutines (coroutineScope, withTimeout, or withContext before 1.6.1) share their
+        // caller's element, so refresh it with the active context
         datadog.context = Context.current();
       }
     }
   }
 
-  private synchronized void captureInitialContext() {
+  private synchronized void captureInitialContext(boolean owned) {
     if (context == null) {
       Context initial = Context.current();
-      // this coroutine isn't running yet, so its context can't change under us
+      // Initialize before the first context installation; later swaps update the stored context.
       AgentSpan rootSpan = localRootOf(initial);
       if (rootSpan != null) {
         if (rootSpan == parentLocalRootSpan) {
           // the parent keeps this trace open until after this child completes
           localRootSpan = rootSpan;
-        } else {
+        } else if (owned) {
           // stop enclosing trace from finishing early
           ContextContinuation captured = initial.capture();
           continuation = captured;
@@ -156,10 +214,16 @@ public final class DatadogThreadContextElement
     Context current = context;
     if (current == null) {
       if (owner == null) {
-        // an already-cancelled coroutine can skip constructor capture but still install context
-        owner = coroutineContext.get(Job.Key);
+        Job job = coroutineContext.get(Job.Key);
+        // Only the coroutine whose context contains this element can release its continuation.
+        // flowOn can install a merged context while retaining the collector's original Job.
+        if (job instanceof AbstractCoroutine
+            && ((AbstractCoroutine<?>) job).getContext().get(DATADOG_KEY) == this) {
+          owner = job;
+        }
       }
-      captureInitialContext();
+      // An already-cancelled owner can skip constructor capture but still install its context.
+      captureInitialContext(owner instanceof AbstractCoroutine);
       current = context;
     }
     return current.swap();
@@ -169,6 +233,17 @@ public final class DatadogThreadContextElement
   public void restoreThreadContext(
       @Nonnull CoroutineContext coroutineContext, Context originalContext) {
     context = originalContext.swap();
+  }
+
+  /** Tracing state does not change the logical coroutine context used by flow equality checks. */
+  @Override
+  public boolean equals(Object other) {
+    return other instanceof DatadogThreadContextElement;
+  }
+
+  @Override
+  public int hashCode() {
+    return DATADOG_KEY.hashCode();
   }
 
   @Nonnull
