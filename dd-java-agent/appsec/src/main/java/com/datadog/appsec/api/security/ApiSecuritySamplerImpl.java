@@ -219,12 +219,20 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       return;
     }
     AgentSpan activeSpan = AgentTracer.get().activeSpan();
-    log.debug(
-        "API security sampling skipped, no post-processing permit available (max={}): hash={}, traceId={}, spanId={}",
-        MAX_POST_PROCESSING_TASKS,
-        hash,
-        activeSpan != null ? activeSpan.getTraceId() : null,
-        activeSpan != null ? activeSpan.getSpanId() : null);
+
+    if (activeSpan != null) {
+      log.debug(
+          "API security sampling skipped, no post-processing permit available (max={}): hash={}, traceId={}, spanId={}",
+          MAX_POST_PROCESSING_TASKS,
+          hash,
+          activeSpan.getTraceId(),
+          activeSpan.getSpanId());
+    } else {
+      log.debug(
+          "API security sampling skipped, no post-processing permit available (max={}): hash={}, traceId=null, spanId=null",
+          MAX_POST_PROCESSING_TASKS,
+          hash);
+    }
   }
 
   private void logSamplingDecision(final String method, final long hash) {
