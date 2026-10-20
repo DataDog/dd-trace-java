@@ -283,8 +283,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       try {
         excludeExperiments = ExperimentationOptOut.exclude(experimentationOptOutMode, context);
       } catch (final IllegalArgumentException e) {
-        return error(
-            defaultValue, ErrorCode.INVALID_CONTEXT, e.getMessage(), observeFullEvaluationData);
+        // This diagnostic is fixed SDK text. It contains no customer context values.
+        return ProviderEvaluation.<T>builder()
+            .value(defaultValue)
+            .reason(Reason.ERROR.name())
+            .errorCode(ErrorCode.INVALID_CONTEXT)
+            .errorMessage(ExperimentationOptOut.INVALID_TIMESTAMP)
+            .flagMetadata(consentMetadata(observeFullEvaluationData))
+            .build();
       }
 
       final Flag flag = config.flags.get(key);

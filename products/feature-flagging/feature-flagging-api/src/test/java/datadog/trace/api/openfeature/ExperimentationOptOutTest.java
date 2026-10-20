@@ -7,6 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.Value;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -54,7 +57,7 @@ class ExperimentationOptOutTest {
   @ValueSource(
       strings = {
         "2026-10-19T15:30:00Z",
-        "2026-10-19T15:30:00.123456789123Z",
+        "2026-10-19T15:30:00.123456789Z",
         "2026-10-19T15:30:00+05:30",
         "2026-10-19T15:30:00-04:00",
         "9999-12-31T23:59:59Z",
@@ -89,9 +92,11 @@ class ExperimentationOptOutTest {
   void invalidValuesAreRejectedOnlyWhenEnabled(final Value value) {
     final MutableContext context =
         new MutableContext(Collections.singletonMap(ExperimentationOptOut.ATTRIBUTE, value));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> ExperimentationOptOut.exclude(ExperimentationOptOutMode.IMMEDIATE, context));
+    final IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> ExperimentationOptOut.exclude(ExperimentationOptOutMode.IMMEDIATE, context));
+    assertEquals(ExperimentationOptOut.INVALID_TIMESTAMP, error.getMessage());
     assertFalse(ExperimentationOptOut.exclude(ExperimentationOptOutMode.DISABLED, context));
   }
 
@@ -99,6 +104,40 @@ class ExperimentationOptOutTest {
   void missingAttributePreservesParticipation() {
     assertFalse(
         ExperimentationOptOut.exclude(ExperimentationOptOutMode.IMMEDIATE, new MutableContext()));
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "2026-10-19T15:30:00Z",
+        "2026-10-19T15:30:00.123456789Z",
+        "2026-10-19T15:30:00.123456789123Z",
+        "2026-10-19T15:30:00+05:30",
+        "2026-10-19T15:30:00+24:00",
+        "2026-10-19T15:30:00+00:60",
+        "2026-10-19T15:30:60Z",
+        "2026-02-30T00:00:00Z",
+        "2026-10-19t15:30:00z",
+        "2026-10-19T5:30:00Z",
+        "2026-10-19"
+      })
+  void timestampValidationMatchesAllocationTimestamps(final String timestamp) {
+    boolean accepted;
+    try {
+      DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(timestamp, Instant::from);
+      accepted = true;
+    } catch (final DateTimeException e) {
+      accepted = false;
+    }
+    final MutableContext context =
+        new MutableContext().add(ExperimentationOptOut.ATTRIBUTE, timestamp);
+    if (accepted) {
+      assertTrue(ExperimentationOptOut.exclude(ExperimentationOptOutMode.IMMEDIATE, context));
+    } else {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> ExperimentationOptOut.exclude(ExperimentationOptOutMode.IMMEDIATE, context));
+    }
   }
 
   @Test

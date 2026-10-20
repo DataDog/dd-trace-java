@@ -273,6 +273,7 @@ boolean enabled = client.getBooleanValue("new-route-planner", false, context);
 ```
 
 The default mode is `disabled`. In `immediate` mode, a valid RFC3339 timestamp excludes the subject from exposure-logging allocations.
+Timestamp validation uses the same parser as allocation `startAt` and `endAt` timestamps.
 Evaluation continues through ordinary feature allocations. If none match, the SDK returns the application's default value.
 A future timestamp also excludes immediately. It does not schedule exclusion.
 Invalid, null, empty, or non-string attribute values return `INVALID_CONTEXT` and the application's default value.

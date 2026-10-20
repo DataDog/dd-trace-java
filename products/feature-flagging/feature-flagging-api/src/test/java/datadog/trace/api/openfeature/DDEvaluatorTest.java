@@ -640,6 +640,30 @@ public class DDEvaluatorTest {
   }
 
   @Test
+  public void invalidOptOutReportsFixedDiagnosticWithoutCustomerValues() {
+    final String suppliedValue = "private-customer-preference";
+    for (final boolean observeFullEvaluationData : new boolean[] {false, true}) {
+      final DDEvaluator evaluator =
+          new DDEvaluator(mock(Runnable.class), ExperimentationOptOutMode.IMMEDIATE);
+      evaluator.accept(
+          new ServerConfiguration("", "", observeFullEvaluationData, null, emptyMap()));
+      final ProviderEvaluation<?> details =
+          evaluator.evaluate(
+              Boolean.class,
+              "unknown-flag",
+              false,
+              new MutableContext("subject").add(ExperimentationOptOut.ATTRIBUTE, suppliedValue));
+      assertEquals(ErrorCode.INVALID_CONTEXT, details.getErrorCode());
+      assertEquals(false, details.getValue());
+      assertEquals(ExperimentationOptOut.INVALID_TIMESTAMP, details.getErrorMessage());
+      assertFalse(details.getErrorMessage().contains(suppliedValue));
+      assertEquals(
+          observeFullEvaluationData,
+          details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA));
+    }
+  }
+
+  @Test
   public void testAllocationDateAbiAndInstantAccessors() throws Exception {
     final Date startAt = Date.from(Instant.parse("2024-01-01T00:00:00Z"));
     final Date endAt = Date.from(Instant.parse("2024-12-31T23:59:59Z"));
@@ -1032,7 +1056,7 @@ public class DDEvaluatorTest {
         canonicalTestCases().stream()
             .filter(testCase -> testCase.capabilities.containsKey("experimentationOptOutImmediate"))
             .collect(Collectors.toList());
-    assertEquals(18, cases.size(), "The immediate opt-out capability fixtures must execute");
+    assertEquals(26, cases.size(), "The immediate opt-out capability fixtures must execute");
     return cases;
   }
 
@@ -1047,8 +1071,14 @@ public class DDEvaluatorTest {
     final Class<?> targetType = targetType(testCase.variationType);
     final Object defaultValue = mapFixtureValue(targetType, testCase.defaultValue);
     final Object expectedValue = mapFixtureValue(targetType, expected.value);
-    final ProviderEvaluation<?> details =
-        evaluate(evaluator, targetType, testCase.flag, defaultValue, context(testCase));
+    final Provider provider =
+        new Provider(new Provider.Options().experimentationOptOutMode(mode), evaluator, false);
+    final ProviderEvaluation<?> details;
+    try {
+      details = evaluate(provider, targetType, testCase.flag, defaultValue, context(testCase));
+    } finally {
+      provider.shutdown();
+    }
 
     assertThat(details.getValue(), equalTo(expectedValue));
     assertThat(details.getReason(), equalTo(expected.reason));
@@ -1057,6 +1087,9 @@ public class DDEvaluatorTest {
     }
     if (expected.errorCode != null) {
       assertThat(details.getErrorCode(), equalTo(ErrorCode.valueOf(expected.errorCode)));
+      if ("INVALID_CONTEXT".equals(expected.errorCode)) {
+        assertEquals(ExperimentationOptOut.INVALID_TIMESTAMP, details.getErrorMessage());
+      }
     } else if (!"ERROR".equals(expected.reason)) {
       assertNull(details.getErrorCode());
     }
@@ -1067,14 +1100,25 @@ public class DDEvaluatorTest {
     }
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
   private static ProviderEvaluation<?> evaluate(
-      final DDEvaluator evaluator,
+      final Provider provider,
       final Class<?> targetType,
       final String flag,
       final Object defaultValue,
       final EvaluationContext context) {
-    return evaluator.evaluate((Class) targetType, flag, defaultValue, context);
+    if (targetType == Boolean.class) {
+      return provider.getBooleanEvaluation(flag, (Boolean) defaultValue, context);
+    }
+    if (targetType == Integer.class) {
+      return provider.getIntegerEvaluation(flag, (Integer) defaultValue, context);
+    }
+    if (targetType == Double.class) {
+      return provider.getDoubleEvaluation(flag, (Double) defaultValue, context);
+    }
+    if (targetType == String.class) {
+      return provider.getStringEvaluation(flag, (String) defaultValue, context);
+    }
+    return provider.getObjectEvaluation(flag, (Value) defaultValue, context);
   }
 
   private static ServerConfiguration loadCanonicalConfiguration() throws IOException {
@@ -1235,7 +1279,23 @@ public class DDEvaluatorTest {
   }
 
   private static Object mapFixtureValue(final Class<?> targetType, final Object value) {
-    return DDEvaluator.mapValue(targetType, value);
+    // Keep expected values independent of production conversion and preserve JSON types.
+    if (targetType == Value.class) {
+      return Value.objectToValue(value);
+    }
+    if (targetType == Integer.class) {
+      assertTrue(value instanceof Number);
+      final double number = ((Number) value).doubleValue();
+      assertEquals(number, Math.rint(number));
+      assertTrue(number >= Integer.MIN_VALUE && number <= Integer.MAX_VALUE);
+      return ((Number) value).intValue();
+    }
+    if (targetType == Double.class) {
+      assertTrue(value instanceof Number);
+      return ((Number) value).doubleValue();
+    }
+    assertTrue(targetType.isInstance(value));
+    return value;
   }
 
   private static Map<String, Object> mapOf(final Object... props) {
