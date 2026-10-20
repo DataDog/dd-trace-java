@@ -213,11 +213,18 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
 
   private final Runnable configCallback;
+  private final ExperimentationOptOutMode experimentationOptOutMode;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
 
   public DDEvaluator(final Runnable configCallback) {
+    this(configCallback, ExperimentationOptOutMode.DISABLED);
+  }
+
+  public DDEvaluator(
+      final Runnable configCallback, final ExperimentationOptOutMode experimentationOptOutMode) {
     this.configCallback = configCallback;
+    this.experimentationOptOutMode = experimentationOptOutMode;
   }
 
   @Override
@@ -272,6 +279,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         return error(defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData);
       }
 
+      final boolean excludeExperiments;
+      try {
+        excludeExperiments = ExperimentationOptOut.exclude(experimentationOptOutMode, context);
+      } catch (final IllegalArgumentException e) {
+        return error(
+            defaultValue, ErrorCode.INVALID_CONTEXT, e.getMessage(), observeFullEvaluationData);
+      }
+
       final Flag flag = config.flags.get(key);
       if (flag == null) {
         if (config.invalidFlags != null && config.invalidFlags.containsKey(key)) {
@@ -305,6 +320,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final String targetingKey = context.getTargetingKey();
 
       for (final Allocation allocation : flag.allocations) {
+        if (excludeExperiments && !Boolean.FALSE.equals(allocation.doLog)) {
+          continue;
+        }
         if (!isAllocationActive(allocation, now)) {
           continue;
         }

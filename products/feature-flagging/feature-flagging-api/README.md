@@ -202,3 +202,38 @@ This setting stops exposures only. Flag evaluation events have their own setting
   Configuration path. `offline` is reserved for startup-provided UFC bytes;
   until those bytes are implemented, no network source starts and evaluations
   use defaults.
+
+## Per-subject experimentation opt-out
+
+Set the mode before constructing the provider:
+
+```sh
+DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE=immediate
+```
+
+Pass the subject's stored preference time with each evaluation. Omit the attribute for subjects who can participate.
+
+```java
+OpenFeatureAPI.getInstance().setProviderAndWait(new Provider());
+Client client = OpenFeatureAPI.getInstance().getClient();
+MutableContext context = new MutableContext(athleteId);
+context.add("dd_experimentation_opt_out_at", "2026-10-19T15:30:00Z");
+boolean enabled = client.getBooleanValue("new-route-planner", false, context);
+```
+
+The default mode is `disabled`. In `immediate` mode, a valid RFC3339 timestamp excludes the subject from exposure-logging allocations.
+Evaluation continues through ordinary feature allocations. If none match, the SDK returns the application's default value.
+A future timestamp also excludes immediately. It does not schedule exclusion.
+Invalid, null, empty, or non-string attribute values return `INVALID_CONTEXT` and the application's default value.
+Disabled mode ignores the attribute, including invalid values.
+
+Provider options override the environment setting:
+
+```java
+Provider provider = new Provider(new Provider.Options()
+    .experimentationOptOutMode(ExperimentationOptOutMode.DISABLED));
+```
+
+`DEFAULT` uses central SDK configuration. The provider resolves the mode at construction.
+Unsupported configuration values throw `IllegalArgumentException`. Evaluation telemetry remains independent.
+Immediate withdrawal can change an enrolled subject's experience. Account for this change in experiment analysis.

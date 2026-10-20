@@ -2,6 +2,9 @@ package datadog.trace.api.featureflag.config;
 
 public class FeatureFlaggingConfig {
 
+  public static final String FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE =
+      "feature.flags.experimentation.opt.out.mode";
+
   public static final String CONFIGURATION_SOURCE_AGENTLESS = "agentless";
   public static final String CONFIGURATION_SOURCE_REMOTE_CONFIG = "remote_config";
 

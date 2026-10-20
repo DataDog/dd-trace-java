@@ -1015,28 +1015,55 @@ public class DDEvaluatorTest {
   @MethodSource("canonicalTestCases")
   @ParameterizedTest(name = "{0}")
   public void testEvaluateCanonicalFixture(final FixtureCase testCase) throws IOException {
-    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluateCanonicalFixture(testCase, testCase.result, ExperimentationOptOutMode.DISABLED);
+  }
+
+  @MethodSource("immediateOptOutTestCases")
+  @ParameterizedTest(name = "immediate: {0}")
+  public void testImmediateOptOutCanonicalFixture(final FixtureCase testCase) throws IOException {
+    evaluateCanonicalFixture(
+        testCase,
+        testCase.capabilities.get("experimentationOptOutImmediate"),
+        ExperimentationOptOutMode.IMMEDIATE);
+  }
+
+  private static List<FixtureCase> immediateOptOutTestCases() throws IOException {
+    final List<FixtureCase> cases =
+        canonicalTestCases().stream()
+            .filter(testCase -> testCase.capabilities.containsKey("experimentationOptOutImmediate"))
+            .collect(Collectors.toList());
+    assertEquals(18, cases.size(), "The immediate opt-out capability fixtures must execute");
+    return cases;
+  }
+
+  private void evaluateCanonicalFixture(
+      final FixtureCase testCase,
+      final FixtureResult expected,
+      final ExperimentationOptOutMode mode)
+      throws IOException {
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class), mode);
     evaluator.accept(loadCanonicalConfiguration());
 
     final Class<?> targetType = targetType(testCase.variationType);
     final Object defaultValue = mapFixtureValue(targetType, testCase.defaultValue);
-    final Object expectedValue = mapFixtureValue(targetType, testCase.result.value);
+    final Object expectedValue = mapFixtureValue(targetType, expected.value);
     final ProviderEvaluation<?> details =
         evaluate(evaluator, targetType, testCase.flag, defaultValue, context(testCase));
 
     assertThat(details.getValue(), equalTo(expectedValue));
-    assertThat(details.getReason(), equalTo(testCase.result.reason));
-    if (testCase.result.variant != null) {
-      assertThat(details.getVariant(), equalTo(testCase.result.variant));
+    assertThat(details.getReason(), equalTo(expected.reason));
+    if (expected.variant != null) {
+      assertThat(details.getVariant(), equalTo(expected.variant));
     }
-    if (testCase.result.errorCode != null) {
-      assertThat(details.getErrorCode(), equalTo(ErrorCode.valueOf(testCase.result.errorCode)));
+    if (expected.errorCode != null) {
+      assertThat(details.getErrorCode(), equalTo(ErrorCode.valueOf(expected.errorCode)));
+    } else if (!"ERROR".equals(expected.reason)) {
+      assertNull(details.getErrorCode());
     }
-    if (testCase.result.flagMetadata != null
-        && testCase.result.flagMetadata.get("allocationKey") != null) {
+    if (expected.flagMetadata != null && expected.flagMetadata.get("allocationKey") != null) {
       assertThat(
           details.getFlagMetadata().getString("allocationKey"),
-          equalTo(String.valueOf(testCase.result.flagMetadata.get("allocationKey"))));
+          equalTo(String.valueOf(expected.flagMetadata.get("allocationKey"))));
     }
   }
 
@@ -1227,6 +1254,7 @@ public class DDEvaluatorTest {
     Object defaultValue;
     String flag;
     FixtureResult result;
+    Map<String, FixtureResult> capabilities = emptyMap();
     String targetingKey;
     String variationType;
     transient String fileName;
