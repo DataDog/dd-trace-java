@@ -22,7 +22,6 @@ import org.spockframework.runtime.IterationNode;
 import org.spockframework.runtime.ParameterizedFeatureNode;
 import org.spockframework.runtime.SpockNode;
 import org.spockframework.runtime.model.FeatureInfo;
-import org.spockframework.runtime.model.FeatureMetadata;
 import org.spockframework.runtime.model.SpecElementInfo;
 
 public class SpockUtils {
@@ -106,7 +105,7 @@ public class SpockUtils {
     if (testSource instanceof MethodSource) {
       MethodSource methodSource = (MethodSource) testSource;
       Class<?> testClass = methodSource.getJavaClass();
-      Method testMethod = getTestMethod(methodSource);
+      Method testMethod = getTestMethod(testDescriptor);
       String testMethodName = methodSource.getMethodName();
       return new TestSourceData(testClass, testMethod, testMethodName);
     } else {
@@ -122,31 +121,17 @@ public class SpockUtils {
         || testDescriptor.getParent().map(c -> c instanceof ParameterizedFeatureNode).orElse(false);
   }
 
-  private static Method getTestMethod(MethodSource methodSource) {
-    String methodName = methodSource.getMethodName();
-    if (methodName == null) {
+  private static Method getTestMethod(TestDescriptor testDescriptor) {
+    if (!(testDescriptor instanceof SpockNode)) {
       return null;
     }
-
-    Class<?> testClass = methodSource.getJavaClass();
-    if (testClass == null) {
-      return null;
-    }
-
     try {
-      for (Method declaredMethod : testClass.getDeclaredMethods()) {
-        FeatureMetadata featureMetadata = declaredMethod.getAnnotation(FeatureMetadata.class);
-        if (featureMetadata == null) {
-          continue;
-        }
-
-        if (methodName.equals(featureMetadata.name())) {
-          return declaredMethod;
-        }
+      SpecElementInfo<?, ?> nodeInfo = ((SpockNode<?>) testDescriptor).getNodeInfo();
+      if (nodeInfo instanceof FeatureInfo) {
+        return ((FeatureInfo) nodeInfo).getFeatureMethod().getReflection();
       }
-
     } catch (Throwable e) {
-      LOGGER.warn("Could not get test method from method source", e);
+      LOGGER.warn("Could not get test method from Spock node", e);
     }
     return null;
   }
