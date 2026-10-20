@@ -383,7 +383,7 @@ class FeatureFlagsRuntimeTest {
     @Override
     public ShutdownSource shutdown() {
       if (!this.agentShutdown) {
-        return AgentBridge.super.shutdown();
+        return null;
       }
       return listener -> {
         this.shutdownFlush = listener;
