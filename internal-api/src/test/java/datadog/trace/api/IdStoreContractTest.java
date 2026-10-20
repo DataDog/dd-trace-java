@@ -409,6 +409,37 @@ class IdStoreContractTest {
 
   @ParameterizedTest
   @MethodSource("stores")
+  void aViewReadsPrimitivesThroughAReader(Function<IdStore, IdStore> newStore) {
+    IdStore store = newStore.apply(null);
+    store.set(KnownTags.PEER_PORT_ID, 5432);
+    store.set(KnownTags.DB_INSTANCE_ID, 1.5d);
+    store.set(KnownTags.DD_MEASURED_ID, true);
+    HashStore names = HashStore.create(null);
+    names.set("my.count", 7L);
+
+    TagMap view = TagMap.viewOf(store, names, false);
+    assertEquals(5432, view.getInt("peer.port"));
+    assertEquals(5432L, view.getLong("peer.port"));
+    assertEquals(1.5d, view.getDouble("db.instance"));
+    assertEquals(1.5f, view.getFloat("db.instance"));
+    assertTrue(view.getBoolean(KnownTags.DD_MEASURED_NAME));
+    assertEquals(7L, view.getLong("my.count"));
+    assertEquals(-1, view.getIntOrDefault(KnownTags.HTTP_METHOD_NAME, -1));
+    assertEquals(-1L, view.getLongOrDefault("other.tag", -1L));
+    assertTrue(view.containsKey("peer.port"));
+    assertTrue(view.containsKey("my.count"));
+    assertFalse(view.containsKey("other.tag"));
+
+    EntryReader port = view.getEntryReader(KnownTags.PEER_PORT_ID);
+    assertEquals(5432, port.intValue());
+    assertEquals(KnownTags.PEER_PORT_ID, port.tagId());
+    assertEquals(7L, view.getEntryReader("my.count").longValue());
+    assertNull(view.getEntryReader(KnownTags.HTTP_METHOD_ID));
+    assertNull(TagMap.viewOf(store, null, false).getEntryReader("my.count"), "no custom store");
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
   void aReaderWithNoEntryIsANoOp(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
     store.set(KnownTags.HTTP_ROUTE_ID, "/a");

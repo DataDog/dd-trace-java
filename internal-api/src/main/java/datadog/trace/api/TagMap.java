@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import datadog.apicontract.Restricted;
+import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.util.AbstractCollection;
@@ -1417,8 +1418,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public boolean getBooleanOrDefault(String tag, boolean defaultValue) {
-    Entry entry = this.getEntry(tag);
-    return entry == null ? defaultValue : entry.booleanValue();
+    EntryReader reader = this.getEntryReader(tag);
+    return reader == null ? defaultValue : reader.booleanValue();
   }
 
   public int getInt(String tag) {
@@ -1426,8 +1427,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public int getIntOrDefault(String tag, int defaultValue) {
-    Entry entry = this.getEntry(tag);
-    return entry == null ? defaultValue : entry.intValue();
+    EntryReader reader = this.getEntryReader(tag);
+    return reader == null ? defaultValue : reader.intValue();
   }
 
   public long getLong(String tag) {
@@ -1435,8 +1436,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public long getLongOrDefault(String tag, long defaultValue) {
-    Entry entry = this.getEntry(tag);
-    return entry == null ? defaultValue : entry.longValue();
+    EntryReader reader = this.getEntryReader(tag);
+    return reader == null ? defaultValue : reader.longValue();
   }
 
   public float getFloat(String tag) {
@@ -1444,8 +1445,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public float getFloatOrDefault(String tag, float defaultValue) {
-    Entry entry = this.getEntry(tag);
-    return entry == null ? defaultValue : entry.floatValue();
+    EntryReader reader = this.getEntryReader(tag);
+    return reader == null ? defaultValue : reader.floatValue();
   }
 
   public double getDouble(String tag) {
@@ -1453,15 +1454,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public double getDoubleOrDefault(String tag, double defaultValue) {
-    Entry entry = this.getEntry(tag);
-    return entry == null ? defaultValue : entry.doubleValue();
+    EntryReader reader = this.getEntryReader(tag);
+    return reader == null ? defaultValue : reader.doubleValue();
   }
 
   @Override
   public boolean containsKey(Object key) {
     if (!(key instanceof String)) return false;
 
-    return (this.getEntry((String) key) != null);
+    return (this.getEntryReader((String) key) != null);
   }
 
   @Override
@@ -1510,6 +1511,28 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
   public Entry getEntry(long tagId) {
     return this.knownStore.getEntry(tagId);
+  }
+
+  /**
+   * Like {@link #getEntry(String)}, but answers with a reader to read and drop rather than keep, so
+   * a store without an Entry per tag builds none: a reader that is not retained is usually
+   * scalar-replaced. Call {@link EntryReader#entry()} to keep one. Safe on a frozen map that
+   * several threads read.
+   */
+  @NoEscape
+  public EntryReader getEntryReader(String tag) {
+    long key = KnownTagCodec.keyOf(tag);
+    if (key != 0) {
+      return this.knownStore.getEntryReader(key);
+    }
+    HashStore nameStore = this.nameStore;
+    return nameStore == null ? null : nameStore.get(tag);
+  }
+
+  /** {@link #getEntryReader(String)} for a known tag id. */
+  @NoEscape
+  public EntryReader getEntryReader(long tagId) {
+    return this.knownStore.getEntryReader(tagId);
   }
 
   @Deprecated
