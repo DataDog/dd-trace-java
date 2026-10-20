@@ -54,3 +54,10 @@ For either the JUnit4 or JUnit Platform Cucumber runner, tag a Scenario or
 Scenario Outline with `@datadog_no_auto_retry` and/or
 `@datadog_prevent_failure_suppression`. These names correspond to the public
 `TestAutomationExclusions` constants. Tags apply to every outline example.
+
+## Karate
+
+Tag the Scenario or Scenario Outline with `@datadog_no_auto_retry` and/or
+`@datadog_prevent_failure_suppression` (the names from the public
+`TestAutomationExclusions` constants). Both Karate 1.x and 2.x resolve these
+scenario tags before Datadog skipping and retry policy selection.
