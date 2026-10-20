@@ -49,6 +49,39 @@ class AwsRdsEndpointTest {
             "orders-db",
             INSTANCE,
             "cn-north-1"),
+        // China also hands out the region-before-service layout, same as the commercial partition.
+        Arguments.of(
+            "orders-db.c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn",
+            "orders-db",
+            INSTANCE,
+            "cn-north-1"),
+        Arguments.of(
+            "orders-aurora.cluster-c9akciq32bzq.cn-northwest-1.rds.amazonaws.com.cn",
+            "orders-aurora",
+            CLUSTER,
+            "cn-northwest-1"),
+        // ISO partition (aws-iso) RDS endpoints use the c2s.ic.gov DNS suffix.
+        Arguments.of(
+            "orders-db.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov",
+            "orders-db",
+            INSTANCE,
+            "us-iso-east-1"),
+        Arguments.of(
+            "orders-aurora.cluster-ro-c9akciq32bzq.us-iso-west-1.rds.c2s.ic.gov",
+            "orders-aurora",
+            CLUSTER_READER,
+            "us-iso-west-1"),
+        // ISO-B partition (aws-iso-b) RDS endpoints use the sc2s.sgov.gov DNS suffix.
+        Arguments.of(
+            "orders-db.c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov",
+            "orders-db",
+            INSTANCE,
+            "us-isob-east-1"),
+        Arguments.of(
+            "orders-proxy.proxy-c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov",
+            "orders-proxy",
+            PROXY,
+            "us-isob-east-1"),
         Arguments.of(
             "orders-aurora.cluster-c9akciq32bzq.us-west-2.rds.amazonaws.com",
             "orders-aurora",
@@ -74,6 +107,13 @@ class AwsRdsEndpointTest {
             "orders-ro",
             PROXY,
             "us-east-1"),
+        // User-defined RDS Proxy endpoint in the ISO partition: the extra "endpoint" label is
+        // normalized away and the c2s.ic.gov suffix is still recognised.
+        Arguments.of(
+            "orders-ro.endpoint.proxy-c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov",
+            "orders-ro",
+            PROXY,
+            "us-iso-east-1"),
         Arguments.of(
             "orders-ro.endpoint.proxy-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn",
             "orders-ro",
@@ -109,6 +149,13 @@ class AwsRdsEndpointTest {
         "orders-db.cluster-.us-east-1.rds.amazonaws.com",
         // "endpoint" label only normalizes for proxy endpoints; a non-proxy third label is not RDS
         "orders-db.endpoint.c9akciq32bzq.us-east-1.rds.amazonaws.com",
+        // an "endpoint" label whose next label is not a proxy hash is not normalized, so the ISO
+        // host is left with an extra label and is not RDS
+        "orders-db.endpoint.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov",
+        // ISO suffix but missing the "rds" service label: not an RDS endpoint
+        "orders-db.c9akciq32bzq.us-iso-east-1.c2s.ic.gov",
+        // ISO suffix but a malformed Region: rejected structurally
+        "orders-db.c9akciq32bzq.usiso.rds.c2s.ic.gov",
         "s3.us-east-1.amazonaws.com",
         "dynamodb.us-east-1.amazonaws.com",
       })
@@ -131,6 +178,10 @@ class AwsRdsEndpointTest {
         "orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn",
         "orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn.",
         "orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn:3306",
+        "orders-db.c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn",
+        "orders-db.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov",
+        "orders-db.c9akciq32bzq.us-iso-east-1.rds.C2S.IC.GOV",
+        "orders-db.c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov",
         "ORDERS-DB.C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM",
         "orders-db.c9akciq32bzq.us-east-1.rds.AmazonAWS.com",
         // shaped like an AWS host, so it may reach the cache; doParse rejects it structurally
@@ -151,6 +202,9 @@ class AwsRdsEndpointTest {
         // ".amazonaws.com" present but not the suffix: rejected before the cache
         "orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com.evil.example",
         "orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com.cn.evil.example",
+        // ISO suffixes present but followed by further labels: rejected before the cache
+        "orders-db.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov.evil.example",
+        "orders-db.c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov.evil.example",
         // port must be all digits and at most five of them
         RDS + ":54x2",
         RDS + ":543210",

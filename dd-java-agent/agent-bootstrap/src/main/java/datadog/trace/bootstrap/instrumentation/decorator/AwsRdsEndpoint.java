@@ -67,14 +67,15 @@ public final class AwsRdsEndpoint {
    *     endpoint.
    */
   public static AwsRdsEndpoint parse(final CharSequence hostname) {
-    if (hostname == null || hostname.length() < AMAZONAWS_COM.length()) {
+    if (hostname == null || hostname.length() < SHORTEST_DNS_SUFFIX.length()) {
       return null;
     }
     String hostnameString = hostname.toString();
-    // Every RDS endpoint, in any partition, ends in ".amazonaws.com" or ".amazonaws.com.cn".
-    // Reject everything else before touching the cache so the handful of real RDS hostnames are
-    // never evicted by the unbounded stream of non-AWS database hosts, and so those hosts never
-    // pay for the label split.
+    // Every RDS endpoint ends in a known AWS partition DNS suffix (commercial and GovCloud
+    // amazonaws.com, China amazonaws.com.cn, ISO c2s.ic.gov, ISO-B sc2s.sgov.gov). Reject
+    // everything else before touching the cache so the handful of real RDS hostnames are never
+    // evicted by the unbounded stream of non-AWS database hosts, and so those hosts never pay for
+    // the label split.
     if (!isPlausibleRdsHostname(hostnameString)) {
       return null;
     }
@@ -82,14 +83,28 @@ public final class AwsRdsEndpoint {
     return endpoint == NOT_RDS ? null : endpoint;
   }
 
-  private static final String AMAZONAWS_COM = ".amazonaws.com";
-  private static final String AMAZONAWS_COM_CN = ".amazonaws.com.cn";
+  // AWS partition DNS suffixes that carry RDS endpoints, from the AWS SDK endpoint partition data:
+  //   aws / aws-us-gov -> amazonaws.com
+  //   aws-cn           -> amazonaws.com.cn
+  //   aws-iso          -> c2s.ic.gov
+  //   aws-iso-b        -> sc2s.sgov.gov
+  private static final String[] DNS_SUFFIXES = {
+    ".amazonaws.com", ".amazonaws.com.cn", ".c2s.ic.gov", ".sc2s.sgov.gov"
+  };
+  // The shortest suffix (".c2s.ic.gov"), used as a cheap length floor before any work.
+  private static final String SHORTEST_DNS_SUFFIX = ".c2s.ic.gov";
+
+  // The same suffixes ordered longest first, so doParse strips ".amazonaws.com.cn" rather than
+  // shortening it to ".amazonaws.com" and misreading the labels.
+  private static final String[] LONGEST_FIRST_DNS_SUFFIXES = {
+    ".amazonaws.com.cn", ".sc2s.sgov.gov", ".amazonaws.com", ".c2s.ic.gov"
+  };
 
   /**
-   * O(1) check that the hostname ends with {@code .amazonaws.com} or {@code .amazonaws.com.cn},
-   * ignoring case and tolerating a trailing {@code .} and a well-formed {@code :port} (at most five
-   * ASCII digits). Anchoring on the suffix (rather than scanning for the substring) also rejects
-   * hostnames that merely contain {@code .amazonaws.com} followed by other labels.
+   * O(1) check that the hostname ends with one of the known AWS partition DNS suffixes, ignoring
+   * case and tolerating a trailing {@code .} and a well-formed {@code :port} (at most five ASCII
+   * digits). Anchoring on the suffix (rather than scanning for a substring) also rejects hostnames
+   * that merely contain such a suffix followed by other labels.
    *
    * <p>This is a conservative pre-filter, not an exact mirror of {@link #doParse}. A hostname with
    * a malformed or oversized port (for example {@code ...amazonaws.com:54x2} or {@code :543210}) is
@@ -104,8 +119,12 @@ public final class AwsRdsEndpoint {
       end--;
     }
     end = stripPort(hostname, end);
-    return endsWithIgnoreCase(hostname, end, AMAZONAWS_COM)
-        || endsWithIgnoreCase(hostname, end, AMAZONAWS_COM_CN);
+    for (String suffix : DNS_SUFFIXES) {
+      if (endsWithIgnoreCase(hostname, end, suffix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Returns the end index with a trailing {@code :port} removed. Bounded to 5 digits. */
@@ -154,11 +173,28 @@ public final class AwsRdsEndpoint {
     if (colon >= 0) {
       end = Math.min(end, colon);
     }
-    String[] labels = hostname.substring(0, end).split("\\.", -1);
+
+    // Strip the partition DNS suffix (.amazonaws.com, .amazonaws.com.cn, .c2s.ic.gov,
+    // .sc2s.sgov.gov) so the remaining labels are the same shape in every partition: the leading
+    // identifier, the account hash, the Region and the literal "rds". The suffix is matched
+    // longest first so .amazonaws.com.cn is not shortened to .amazonaws.com.
+    String prefix = null;
+    for (String suffix : LONGEST_FIRST_DNS_SUFFIXES) {
+      if (end >= suffix.length()
+          && hostname.regionMatches(end - suffix.length(), suffix, 0, suffix.length())) {
+        prefix = hostname.substring(0, end - suffix.length());
+        break;
+      }
+    }
+    if (prefix == null) {
+      return NOT_RDS;
+    }
+
+    String[] labels = prefix.split("\\.", -1);
 
     // A user-defined RDS Proxy endpoint carries an extra "endpoint" label:
-    // <name>.endpoint.proxy-<hash>.<region>.rds.amazonaws.com. Drop that label so the proxy name
-    // and Region are read by the same validated branches as the default proxy endpoint.
+    // <name>.endpoint.proxy-<hash>.<region>.rds<suffix>. Drop that label so the proxy name and
+    // Region are read by the same validated branches as the default proxy endpoint.
     if (labels.length > 3 && "endpoint".equals(labels[1]) && labels[2].startsWith("proxy-")) {
       String[] normalized = new String[labels.length - 1];
       normalized[0] = labels[0];
@@ -166,19 +202,17 @@ public final class AwsRdsEndpoint {
       labels = normalized;
     }
 
-    // <identifier>.<hash>.<region>.rds.amazonaws.com
-    if (labels.length == 6
-        && "rds".equals(labels[3])
-        && "amazonaws".equals(labels[4])
-        && "com".equals(labels[5])) {
+    // After stripping the suffix an RDS endpoint is always four labels: the identifier, the hash,
+    // and the Region and the literal "rds" in either order. Commercial, GovCloud and ISO endpoints
+    // put the Region before "rds" (<id>.<hash>.<region>.rds), the China partition also uses
+    // <id>.<hash>.rds.<region>, so accept both orders.
+    if (labels.length != 4) {
+      return NOT_RDS;
+    }
+    if ("rds".equals(labels[3])) {
       return build(labels[0], labels[1], labels[2]);
     }
-    // <identifier>.<hash>.rds.<region>.amazonaws.com.cn
-    if (labels.length == 7
-        && "rds".equals(labels[2])
-        && "amazonaws".equals(labels[4])
-        && "com".equals(labels[5])
-        && "cn".equals(labels[6])) {
+    if ("rds".equals(labels[2])) {
       return build(labels[0], labels[1], labels[3]);
     }
     return NOT_RDS;
