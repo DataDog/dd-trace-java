@@ -7,7 +7,6 @@ import static com.squareup.moshi.JsonReader.Token.STRING;
 
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.expressions.ContainsExpression;
-import com.datadog.debugger.el.expressions.StringPredicateExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.el.values.StringValue;
 import com.squareup.moshi.JsonReader;
@@ -433,9 +432,9 @@ public class JsonToExpressionConverter {
     }
   }
 
-  private static StringPredicateExpression createStringPredicateExpression(
+  private static BooleanExpression createStringPredicateExpression(
       JsonReader reader,
-      BiFunction<ValueExpression<?>, StringValue, StringPredicateExpression> predicateFunc)
+      BiFunction<ValueExpression<?>, StringValue, ? extends BooleanExpression> predicateFunc)
       throws IOException {
     JsonReader.Token token = reader.peek();
     if (token != BEGIN_ARRAY) {
@@ -445,7 +444,7 @@ public class JsonToExpressionConverter {
     reader.beginArray();
     ValueExpression<?> source = asValueExpression(reader);
     StringValue str = new StringValue(reader.nextString());
-    StringPredicateExpression expr = predicateFunc.apply(source, str);
+    BooleanExpression expr = predicateFunc.apply(source, str);
     reader.endArray();
     return expr;
   }

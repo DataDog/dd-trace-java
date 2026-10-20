@@ -42,6 +42,14 @@ public class LLMObsSystem {
       return;
     }
 
+    // LLMObs spans need a real tracer (buildSpan() returns null on the no-op one), so keep the
+    // no-op SDK when none is installed. Mirrors TracerInstaller.installGlobalTracer, which still
+    // installs one for CI Visibility.
+    if (!config.isTraceEnabled() && !config.isCiVisibilityEnabled()) {
+      LOGGER.debug("LLM Observability is disabled: no tracer is installed (dd.trace.enabled)");
+      return;
+    }
+
     sco.createRemaining(config);
 
     String mlApp = config.getLlmObsMlApp();

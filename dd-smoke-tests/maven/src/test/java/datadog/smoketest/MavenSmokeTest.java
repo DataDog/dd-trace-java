@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.maven.wrapper.MavenWrapperMain;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
@@ -79,6 +80,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   void resetMockBackend() {
     assumeFalse(JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
     mockBackend.reset();
+  }
+
+  @AfterEach
+  void reportForkedJvmCrashes() {
+    reportJvmCrashLogs(projectHome);
   }
 
   @AfterAll

@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
 }
 
 tracerJava {
@@ -35,7 +36,6 @@ dependencies {
 
   compileOnly group: 'io.vertx', name: 'vertx-web', version: vertxVersion
 
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-4.0')
 
@@ -47,6 +47,8 @@ dependencies {
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: vertxVersion
 
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+
+  testImplementation libs.bundles.mockito
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
@@ -60,8 +62,7 @@ dependencies {
 // TODO for AppSec team: remove this section, run `./gradlew :dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-5.0:latestDepTest`, see errors and fix them.
 ["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {
   tasks.named(it, GroovyCompile) {
-    exclude("core/MultiMapInstrumentationTest.groovy")
-    exclude("core/BufferInstrumentationTest.groovy")
+    exclude("core/Iast*.groovy")
     exclude("server/Iast*.groovy")
   }
 }

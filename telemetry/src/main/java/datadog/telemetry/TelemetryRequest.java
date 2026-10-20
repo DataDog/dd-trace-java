@@ -12,10 +12,10 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.config.inversion.ConfigHelper;
 import java.io.IOException;
 import java.util.EnumMap;
@@ -112,8 +112,9 @@ public class TelemetryRequest {
 
   public void writeProducts() {
     try {
+      // Effective AppSec state: AppSec starts before telemetry (see Agent), so it is already set
       requestBody.writeProducts(
-          InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED,
+          ActiveSubsystems.APPSEC_ACTIVE,
           InstrumenterConfig.get().isProfilingEnabled(),
           Config.get().isDynamicInstrumentationEnabled());
     } catch (IOException e) {

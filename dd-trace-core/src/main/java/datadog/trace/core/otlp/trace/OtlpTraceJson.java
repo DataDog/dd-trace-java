@@ -9,12 +9,12 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_A
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
-import static datadog.trace.common.writer.RemoteMapper.HTTP_STATUS;
 import static datadog.trace.common.writer.ddagent.TraceMapper.ORIGIN_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_ID;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexSpanId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexTraceId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeAttribute;
@@ -26,6 +26,8 @@ import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -41,10 +43,26 @@ import java.util.Map;
 /** Provides writers for OpenTelemetry's "trace.proto" JSON encoding. */
 public final class OtlpTraceJson {
 
-  private static final UTF8BytesString SERVICE_NAME = UTF8BytesString.create("service.name");
   private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
+
+  /*
+   * Span fields and intercepted Metadata fields bypass TagMap entry projection. Resolve their
+   * keys through the registry here so JSON and protobuf use the same OpenTelemetry names.
+   */
+  private static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
+
+  private static final UTF8BytesString HTTP_STATUS_CODE_KEY =
+      otelKey(KnownTags.HTTP_STATUS_CODE_ID);
+
+  private static final UTF8BytesString HTTP_STATUS_CODE_KEY_DD =
+      UTF8BytesString.create(KnownTags.HTTP_STATUS_CODE_NAME);
+
+  /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
+  private static UTF8BytesString otelKey(long tagId) {
+    return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
+  }
 
   private OtlpTraceJson() {}
 
@@ -88,14 +106,14 @@ public final class OtlpTraceJson {
 
     writer.name("attributes").beginArray();
     if (!Config.get().getServiceName().equals(span.getServiceName())) {
-      writeSpanTag(writer, SERVICE_NAME, span.getServiceName());
+      writeSpanTag(writer, SERVICE_NAME_KEY, span.getServiceName());
     }
     writeSpanTag(writer, RESOURCE_NAME, span.getResourceName());
     writeSpanTag(writer, OPERATION_NAME, span.getOperationName());
     if (span.getSpanType() != null) {
       writeSpanTag(writer, SPAN_TYPE, span.getSpanType());
     }
-    span.processTagsAndBaggage(metaWriter);
+    span.processTagsAndBaggage(metaWriter, OWN_PROPAGATION_TAGS);
     writer.endArray();
 
     if (!links.isEmpty()) {
@@ -142,21 +160,30 @@ public final class OtlpTraceJson {
     writer.endObject();
   }
 
-  private static void writeSpanTag(JsonWriter writer, TagMap.EntryReader tagEntry) {
+  private static void writeSpanTag(
+      JsonWriter writer, Integer direction, TagMap.EntryReader tagEntry) {
+    // OTLP is the OpenTelemetry wire format, but the rename itself is opt-in: emit the
+    // OpenTelemetry-namespace name only when OTel semantics are enabled, else the entry's own
+    // (Datadog) name, so existing consumers keep seeing Datadog names until they opt in. A few
+    // OpenTelemetry names depend on the span's direction (peer.port is server.port on a client).
+    String key =
+        Config.get().isTraceOtelSemanticsEnabled()
+            ? tagEntry.openTelemetryTag(direction)
+            : tagEntry.tag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
-        writeAttribute(writer, BOOLEAN_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(writer, BOOLEAN_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       case TagMap.EntryReader.INT:
       case TagMap.EntryReader.LONG:
-        writeAttribute(writer, LONG_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(writer, LONG_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       case TagMap.EntryReader.FLOAT:
       case TagMap.EntryReader.DOUBLE:
-        writeAttribute(writer, DOUBLE_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(writer, DOUBLE_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       default:
-        writeAttribute(writer, STRING_ATTRIBUTE, tagEntry.tag(), tagEntry.stringValue());
+        writeAttribute(writer, STRING_ATTRIBUTE, key, tagEntry.stringValue());
     }
   }
 
@@ -211,7 +238,12 @@ public final class OtlpTraceJson {
       writeSpanTag(writer, THREAD_ID, metadata.getThreadId());
       writeSpanTag(writer, THREAD_NAME, metadata.getThreadName());
       if (metadata.getHttpStatusCode() != UNSET_STATUS) {
-        writeSpanTag(writer, HTTP_STATUS, metadata.getHttpStatusCodeString());
+        writeSpanTag(
+            writer,
+            Config.get().isTraceOtelSemanticsEnabled()
+                ? HTTP_STATUS_CODE_KEY
+                : HTTP_STATUS_CODE_KEY_DD,
+            metadata.getHttpStatusCode());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(writer, ORIGIN_KEY, metadata.getOrigin());
@@ -220,7 +252,10 @@ public final class OtlpTraceJson {
         writeSpanTag(writer, PROCESS_TAGS_KEY, metadata.processTags());
       }
 
-      metadata.getTags().forEach(writer, OtlpTraceJson::writeSpanTag);
+      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
+      TagMap tags = metadata.getTags();
+      Integer direction = KnownTagCodec.directionOf(tags);
+      tags.forEach(writer, direction, OtlpTraceJson::writeSpanTag);
 
       // reset for next span
       includeProcessTags = false;
