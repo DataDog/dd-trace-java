@@ -85,3 +85,13 @@ test("critical behavior"
 MUnit's existing category bridge passes these declarations to the shared policy
 and reporter. Ignored tests retain their known tags. MUnit currently has no
 Datadog disabling capability; exclusions do not enable unsupported automation.
+
+## Weaver
+
+Use `TestName.tagged(TestAutomationExclusions.NO_AUTO_RETRY)` and
+`TestName.tagged(TestAutomationExclusions.PREVENT_FAILURE_SUPPRESSION)` on
+native Weaver test declarations. The agent snapshots declaration tags at each
+suite execution and reports them with native failure and skip outcomes.
+
+Weaver currently supports none of Datadog ATR, EFD, Attempt to Fix, quarantine
+or disabling. The metadata bridge does not enable those capabilities.

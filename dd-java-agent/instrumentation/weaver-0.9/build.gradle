@@ -5,6 +5,18 @@ plugins {
 }
 
 muzzle {
+  ['2.12', '2.13'].each { scalaVersion ->
+    pass {
+      group = 'com.disneystreaming'
+      module = "weaver-cats_${scalaVersion}"
+      versions = '[0.8.4,)'
+    }
+    pass {
+      group = 'org.typelevel'
+      module = "weaver-cats_${scalaVersion}"
+      versions = '[0.9.0,)'
+    }
+  }
   pass {
     group = 'com.disneystreaming'
     module = 'weaver-cats_3'
@@ -48,4 +60,30 @@ tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
 tasks.named("compileWeaver084TestGroovy", GroovyCompile) {
   dependsOn 'compileWeaver084TestScala'
   classpath += files(sourceSets.weaver084Test.scala.destinationDirectory)
+}
+
+// Scala 2 emits static suite-loaded callbacks with the task as its first argument.
+['scala212Test', 'scala213Test'].each { suiteName ->
+  addTestSuiteForDir(suiteName, 'scala2Test')
+  sourceSets.named(suiteName) {
+    scala {
+      srcDirs = ['src/test/scala']
+      include 'org/example/TestAutomationExcluded.scala', 'org/example/TestAutomationNamed.scala'
+    }
+  }
+  configurations.matching { it.name.startsWith(suiteName) }.configureEach {
+    exclude group: 'org.typelevel', module: 'weaver-cats_3'
+  }
+  tasks.named("compile${suiteName.capitalize()}Groovy", GroovyCompile) {
+    dependsOn "compile${suiteName.capitalize()}Scala"
+    classpath += files(sourceSets[suiteName].scala.destinationDirectory)
+  }
+  tasks.named("compile${suiteName.capitalize()}Scala", ScalaCompile) {
+    configureCompiler(it, 8, JavaVersion.VERSION_1_8, 'Scala 2 compiler compatibility')
+  }
+}
+
+dependencies {
+  scala212TestImplementation group: 'org.typelevel', name: 'weaver-cats_2.12', version: '0.9.0'
+  scala213TestImplementation group: 'org.typelevel', name: 'weaver-cats_2.13', version: '0.9.0'
 }
