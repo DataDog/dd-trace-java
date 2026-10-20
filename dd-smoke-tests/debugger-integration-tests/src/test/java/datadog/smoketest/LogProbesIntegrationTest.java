@@ -211,6 +211,8 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @Test
   @DisplayName("testFullMethodWithLogTemplate")
   void testFullMethodWithLogTemplate() throws Exception {
+    // increase template evaluation timeout to avoid flakiness
+    additionalJvmArgs.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=200");
     final String METHOD_NAME = "fullMethod";
     final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";
     final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot

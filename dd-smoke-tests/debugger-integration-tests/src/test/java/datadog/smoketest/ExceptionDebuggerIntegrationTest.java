@@ -11,12 +11,12 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import datadog.trace.test.util.NonRetryable;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -28,25 +28,20 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   private boolean traceReceived;
   private boolean snapshotReceived;
   private Map<String, Snapshot> snapshots = new HashMap<>();
-  private List<String> additionalJvmArgs = new ArrayList<>();
   private Supplier<String> timeoutMessage =
       () ->
           String.format(
               "Timeout! traceReceived=%s snapshotReceived=%s #snapshots=%d",
               traceReceived, snapshotReceived, snapshots.size());
 
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
-    commandParams.add("-Ddd.exception.replay.enabled=true"); // enable exception replay
-    commandParams.add("-Ddd.internal.exception.replay.only.local.root=false"); // for all spans
-    commandParams.add("-Ddd.third.party.excludes=datadog.smoketest");
+  @BeforeEach
+  public void beforeEach() {
+    additionalJvmArgs.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+    additionalJvmArgs.add("-Ddd.exception.replay.enabled=true"); // enable exception replay
+    additionalJvmArgs.add("-Ddd.internal.exception.replay.only.local.root=false"); // for all spans
+    additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
     // disable DI to make sure exception debugger works alone
-    commandParams.remove("-Ddd.dynamic.instrumentation.enabled=true");
-    commandParams.addAll(additionalJvmArgs);
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+    removableJvmArgs.add("-Ddd.dynamic.instrumentation.enabled=true");
   }
 
   @Test
