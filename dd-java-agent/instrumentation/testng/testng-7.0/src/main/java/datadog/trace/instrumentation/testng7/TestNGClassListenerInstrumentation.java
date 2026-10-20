@@ -54,7 +54,11 @@ public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVis
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      commonPackageName + ".TestNGUtils", commonPackageName + ".TestNGClassListener"
+      commonPackageName + ".TestEventsHandlerHolder",
+      commonPackageName + ".execution.RetryAnalyzer",
+      commonPackageName + ".execution.RetryAnnotationTransformer",
+      commonPackageName + ".TestNGUtils",
+      commonPackageName + ".TestNGClassListener"
     };
   }
 
