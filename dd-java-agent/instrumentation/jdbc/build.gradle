@@ -108,6 +108,12 @@ tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
 
+// forkedTest takes ~1000s on CI and has started to hit the default 20m budget more often.
+// Give it some headroom while collecting stats on the root cause.
+tasks.named("forkedTest", Test) {
+  timeout = java.time.Duration.ofMinutes(25)
+}
+
 tasks.named("latestDepJava11Test", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11

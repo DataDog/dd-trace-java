@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.locks.LockSupport;
+import java.util.stream.Stream;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 
@@ -65,13 +66,14 @@ public class SpringBasedIntegrationTest extends BaseIntegrationTest {
     long total = sleep.toNanos() == 0 ? 0 : timeout.toNanos() / sleep.toNanos();
     int i = 0;
     while (i < total && !result[0]) {
-      Files.lines(logFilePath)
-          .forEach(
-              it -> {
-                if (it.contains(line)) {
-                  result[0] = true;
-                }
-              });
+      try (Stream<String> lines = Files.lines(logFilePath)) {
+        lines.forEach(
+            it -> {
+              if (it.contains(line)) {
+                result[0] = true;
+              }
+            });
+      }
       LockSupport.parkNanos(sleep.toNanos());
       i++;
     }

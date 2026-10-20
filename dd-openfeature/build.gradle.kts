@@ -5,6 +5,8 @@ plugins {
   `java-library`
   idea
   id("dd-trace-java.conventions.java")
+  id("dd-trace-java.version-file")
+  id("dd-trace-java.jmh-conventions")
 }
 
 description = "Datadog OpenFeature provider SDK."
@@ -26,11 +28,16 @@ java {
 }
 
 dependencies {
-  api("dev.openfeature:sdk:1.22.0")
+  api("dev.openfeature:sdk:1.23.0")
+  implementation("io.opentelemetry:opentelemetry-api:1.66.0")
   api(libs.jackson.core)
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
+}
+
+jmh {
+  jmhVersion = libs.versions.jmh.get()
 }
 
 tasks.withType<JavaCompile>().configureEach {

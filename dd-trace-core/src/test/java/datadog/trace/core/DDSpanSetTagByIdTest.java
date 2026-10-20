@@ -62,6 +62,19 @@ class DDSpanSetTagByIdTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void anIdReplacesAValueSetUnderTheName() {
+    span.setTag("peer.port", 8080);
+
+    span.setTag(KnownTags.PEER_PORT_ID, 443);
+
+    assertEquals(443, span.getTag("peer.port"));
+
+    span.setTag(KnownTags.PEER_PORT_ID, (Object) null);
+
+    assertNull(span.getTag("peer.port"));
+  }
+
+  @Test
   void removingTheSpanKindByIdClearsTheKind() {
     span.setTag(KnownTags.SPAN_KIND_ID, "client");
     assertEquals("client", span.getSpanKindString());

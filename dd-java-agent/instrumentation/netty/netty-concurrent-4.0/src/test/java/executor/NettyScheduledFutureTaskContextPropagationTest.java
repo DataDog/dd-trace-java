@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,12 +20,132 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.ScheduledFuture;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumentationTest {
+  @Test
+  void testCallableCancellationAtDeadlineDoesNotResumeReleasedContext() throws Exception {
+    try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
+      EventExecutor executor = group.next();
+      executor.submit(() -> {}).sync();
+      AgentSpan parent = startSpan("test", "parent");
+      try (ContextScope ignored = activateSpan(parent)) {
+        // Exercise the deadline/cancellation overlap from NettyExecutorInstrumentationTest.
+        // A running callable blocks until cancellation has been attempted for the entire batch.
+        for (int batch = 0; batch < 100; batch++) {
+          CountDownLatch proceed = new CountDownLatch(1);
+          List<ScheduledFuture<?>> futures = new ArrayList<>();
+          try {
+            for (int task = 0; task < 20; task++) {
+              futures.add(
+                  executor.schedule(
+                      () -> {
+                        assertTrue(proceed.await(5, SECONDS));
+                        return null;
+                      },
+                      1,
+                      MILLISECONDS));
+            }
+            for (ScheduledFuture<?> future : futures) {
+              future.cancel(false);
+            }
+          } finally {
+            proceed.countDown();
+          }
+          // Drain running tasks and cancellation cleanup before starting the next batch.
+          executor.submit(() -> {}).get(5, SECONDS);
+          for (ScheduledFuture<?> future : futures) {
+            if (!future.isCancelled()) {
+              future.get(5, SECONDS);
+            }
+          }
+        }
+      } finally {
+        parent.finish();
+      }
+      assertTraces(trace(span().root().operationName("parent")));
+    }
+  }
+
+  @TableTest({
+    "Scenario    | fixedRate",
+    "fixed rate  | true     ",
+    "fixed delay | false    "
+  })
+  void testCancellingRunningPeriodicTaskPreservesItsContext(boolean fixedRate) throws Exception {
+    try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
+      EventExecutor executor = group.next();
+      executor.submit(() -> {}).sync();
+      BlockingTraceableTask task = new BlockingTraceableTask();
+      AgentSpan parent = startSpan("test", "parent");
+      ScheduledFuture<?> future;
+      try (ContextScope ignored = activateSpan(parent)) {
+        future =
+            fixedRate
+                ? executor.scheduleAtFixedRate(task, 0, 1, SECONDS)
+                : executor.scheduleWithFixedDelay(task, 0, 1, SECONDS);
+      } finally {
+        parent.finish();
+      }
+      try {
+        assertTrue(task.started.await(5, SECONDS));
+        assertTrue(future.cancel(false));
+      } finally {
+        task.proceed.countDown();
+      }
+      assertTrue(task.finished.await(5, SECONDS));
+      assertNull(executor.submit(() -> (Object) activeSpan()).get(5, SECONDS));
+      assertTraces(
+          trace(
+              SORT_BY_START_TIME,
+              span().root().operationName("parent"),
+              span().childOfPrevious().operationName("asyncChild")));
+    }
+  }
+
+  @Test
+  void testFailedCancellationPreservesRunningCallableContext() throws Exception {
+    try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
+      EventExecutor executor = group.next();
+      executor.submit(() -> {}).sync();
+      CountDownLatch started = new CountDownLatch(1);
+      CountDownLatch proceed = new CountDownLatch(1);
+      AtomicReference<AgentSpan> taskSpan = new AtomicReference<>();
+      AgentSpan parent = startSpan("test", "parent");
+      ScheduledFuture<?> future;
+      try (ContextScope ignored = activateSpan(parent)) {
+        future =
+            executor.schedule(
+                () -> {
+                  started.countDown();
+                  assertTrue(proceed.await(5, SECONDS));
+                  taskSpan.set(activeSpan());
+                  return null;
+                },
+                0,
+                MILLISECONDS);
+      } finally {
+        parent.finish();
+      }
+      try {
+        assertTrue(started.await(5, SECONDS));
+        assertFalse(future.cancel(false));
+      } finally {
+        proceed.countDown();
+      }
+      future.get(5, SECONDS);
+      assertSame(parent, taskSpan.get());
+      assertNull(executor.submit(() -> (Object) activeSpan()).get(5, SECONDS));
+      assertTraces(trace(span().root().operationName("parent")));
+    }
+  }
+
   @Test
   void testDelayedScheduledFutureTaskActivatesCapturedContinuationWhenDelayExpires()
       throws Exception {
@@ -167,9 +288,9 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
     }
   }
 
-  private static final class CloseableDefaultEventExecutorGroup extends DefaultEventExecutorGroup
+  static final class CloseableDefaultEventExecutorGroup extends DefaultEventExecutorGroup
       implements AutoCloseable {
-    private CloseableDefaultEventExecutorGroup() {
+    CloseableDefaultEventExecutorGroup() {
       super(1);
     }
 

@@ -14,8 +14,13 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.io.TempDir;
 
 public abstract class CiVisibilitySmokeTest {
@@ -43,6 +49,11 @@ public abstract class CiVisibilitySmokeTest {
 
   private static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
   private static final String DISABLE_CDS = "-Xshare:off";
+
+  private static final Path JVM_CRASH_LOGS_DIR =
+      Paths.get(
+          System.getProperty("datadog.smoketest.builddir", "build"), "reports", "jvm-crash-logs");
+  private static final int JVM_CRASH_LOG_PRINTED_LINES = 60;
 
   @TempDir protected Path prefsDir;
 
@@ -176,6 +187,46 @@ public abstract class CiVisibilitySmokeTest {
 
   private static boolean isLinuxArm64() {
     return OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64();
+  }
+
+  /**
+   * Prints and preserves the JVM fatal error logs ({@code hs_err_pid*.log}) that forked processes
+   * wrote under {@code directory}. Forked JVMs write these logs to their working directory, which
+   * is usually a temporary folder deleted after the test.
+   */
+  protected static void reportJvmCrashLogs(Path directory) {
+    if (directory == null || !Files.isDirectory(directory)) {
+      return;
+    }
+
+    List<Path> crashLogs;
+    try (Stream<Path> files = Files.walk(directory)) {
+      crashLogs =
+          files
+              .filter(p -> p.getFileName().toString().matches("hs_err_pid\\d+\\.log"))
+              .collect(Collectors.toList());
+    } catch (IOException | UncheckedIOException e) {
+      System.err.printf("Failed to look for JVM crash logs in %s: %s%n", directory, e);
+      return;
+    }
+
+    for (Path crashLog : crashLogs) {
+      try {
+        Files.createDirectories(JVM_CRASH_LOGS_DIR);
+        Path copy = JVM_CRASH_LOGS_DIR.resolve(crashLog.getFileName());
+        Files.copy(crashLog, copy, StandardCopyOption.REPLACE_EXISTING);
+
+        try (Stream<String> lines = Files.lines(crashLog, StandardCharsets.ISO_8859_1)) {
+          System.out.printf(
+              "JVM crash log %s (copied to %s):%n%s%n",
+              crashLog,
+              copy.toAbsolutePath(),
+              lines.limit(JVM_CRASH_LOG_PRINTED_LINES).collect(Collectors.joining("\n")));
+        }
+      } catch (IOException | UncheckedIOException e) {
+        System.err.printf("Failed to report JVM crash log %s: %s%n", crashLog, e);
+      }
+    }
   }
 
   private static Path tempUserPrefsPath() {
