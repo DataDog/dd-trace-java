@@ -235,7 +235,10 @@ class EvaluationTelemetryOptOutTest {
     assertNull(details.getErrorCode());
     assertEquals(excludeExperimentation ? 2 : 1, details.getValue());
     assertEquals(excludeExperimentation ? 0 : 1, exposures.size());
-    assertTelemetryCounts(suppressTelemetry ? 0 : 1);
+    assertEquals(suppressTelemetry ? 0 : 1, events.size());
+    assertEquals(suppressTelemetry ? 0 : 1, metrics.get());
+    // Without the evaluator's span gate, only logged allocations carry serial-ID metadata.
+    assertEquals(suppressTelemetry || excludeExperimentation ? 0 : 1, spans.size());
   }
 
   @Test
