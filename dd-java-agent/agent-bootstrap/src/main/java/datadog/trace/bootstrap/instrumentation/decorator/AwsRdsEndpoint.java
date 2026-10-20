@@ -27,7 +27,10 @@ public final class AwsRdsEndpoint {
     CLUSTER_READER("cluster-ro"),
     /** {@code <endpoint-name>.cluster-custom-<hash>.<region>.rds.amazonaws.com}. */
     CLUSTER_CUSTOM("cluster-custom"),
-    /** {@code <proxy-name>.proxy-<hash>.<region>.rds.amazonaws.com}. */
+    /**
+     * {@code <proxy-name>.proxy-<hash>.<region>.rds.amazonaws.com}, or a user-defined endpoint
+     * {@code <endpoint-name>.endpoint.proxy-<hash>.<region>.rds.amazonaws.com}.
+     */
     PROXY("proxy");
 
     private final String tagValue;
@@ -152,6 +155,16 @@ public final class AwsRdsEndpoint {
       end = Math.min(end, colon);
     }
     String[] labels = hostname.substring(0, end).split("\\.", -1);
+
+    // A user-defined RDS Proxy endpoint carries an extra "endpoint" label:
+    // <name>.endpoint.proxy-<hash>.<region>.rds.amazonaws.com. Drop that label so the proxy name
+    // and Region are read by the same validated branches as the default proxy endpoint.
+    if (labels.length > 3 && "endpoint".equals(labels[1]) && labels[2].startsWith("proxy-")) {
+      String[] normalized = new String[labels.length - 1];
+      normalized[0] = labels[0];
+      System.arraycopy(labels, 2, normalized, 1, labels.length - 2);
+      labels = normalized;
+    }
 
     // <identifier>.<hash>.<region>.rds.amazonaws.com
     if (labels.length == 6

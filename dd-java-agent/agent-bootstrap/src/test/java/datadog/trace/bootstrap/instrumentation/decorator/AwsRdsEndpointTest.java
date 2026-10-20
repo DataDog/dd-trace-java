@@ -68,7 +68,17 @@ class AwsRdsEndpointTest {
             "orders-proxy.proxy-c9akciq32bzq.ap-southeast-2.rds.amazonaws.com",
             "orders-proxy",
             PROXY,
-            "ap-southeast-2"));
+            "ap-southeast-2"),
+        Arguments.of(
+            "orders-ro.endpoint.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com",
+            "orders-ro",
+            PROXY,
+            "us-east-1"),
+        Arguments.of(
+            "orders-ro.endpoint.proxy-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn",
+            "orders-ro",
+            PROXY,
+            "cn-north-1"));
   }
 
   @ParameterizedTest(name = "parses {0}")
@@ -97,6 +107,8 @@ class AwsRdsEndpointTest {
         "orders-db.c9akciq32bzq.us-east.rds.amazonaws.com",
         ".c9akciq32bzq.us-east-1.rds.amazonaws.com",
         "orders-db.cluster-.us-east-1.rds.amazonaws.com",
+        // "endpoint" label only normalizes for proxy endpoints; a non-proxy third label is not RDS
+        "orders-db.endpoint.c9akciq32bzq.us-east-1.rds.amazonaws.com",
         "s3.us-east-1.amazonaws.com",
         "dynamodb.us-east-1.amazonaws.com",
       })
