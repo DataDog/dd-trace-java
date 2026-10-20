@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
@@ -761,6 +763,39 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
 
       config = tracer.captureTraceConfig();
       assertEquals(spanDefaults, config.spanDefaultTags);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /**
+   * Serializers get the global tags and span defaults of the snapshot the trace started with, so a
+   * config change mid-trace can't split one trace across two sets.
+   */
+  @Test
+  void metadataCarriesTheTraceConfigTagLevels() {
+    Properties properties = new Properties();
+    properties.setProperty(GeneralConfig.TAGS, "global_key:global_val");
+    properties.setProperty(TracerConfig.SPAN_TAGS, "span_key:span_val");
+    CoreTracer tracer = CoreTracer.builder().withProperties(properties).build();
+    unclosedTracers.add(tracer);
+
+    try {
+      ConfigSnapshot traceStartConfig = tracer.captureTraceConfig();
+      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "my_span").start();
+
+      Properties changed = new Properties();
+      changed.setProperty(GeneralConfig.TAGS, "other_key:other_val");
+      tracer.rebuildTraceConfig(Config.get(changed));
+      assertNotSame(traceStartConfig.globalTags, tracer.captureTraceConfig().globalTags);
+
+      Metadata[] captured = {null};
+      span.processTagsAndBaggage(metadata -> captured[0] = metadata, 0);
+
+      assertSame(traceStartConfig.globalTags, captured[0].getGlobalTags());
+      assertSame(traceStartConfig.spanDefaultTags, captured[0].getSpanDefaultTags());
+      assertEquals(buildStringMap("global_key", "global_val"), captured[0].getGlobalTags());
+      assertEquals(buildStringMap("span_key", "span_val"), captured[0].getSpanDefaultTags());
     } finally {
       tracer.close();
     }
