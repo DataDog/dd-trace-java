@@ -19,7 +19,7 @@ public class FeatureFlaggingSystem {
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
 
   private static volatile FeatureFlagsBackend BACKEND;
-  private static Thread SHUTDOWN_HOOK;
+  private static volatile Thread SHUTDOWN_HOOK;
 
   private FeatureFlaggingSystem() {}
 
@@ -77,5 +77,9 @@ public class FeatureFlaggingSystem {
       backend.close();
     }
     LOGGER.debug("Feature Flagging system stopped");
+  }
+
+  static boolean isShutdownHookRegistered() {
+    return SHUTDOWN_HOOK != null;
   }
 }

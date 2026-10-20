@@ -3,10 +3,13 @@ package com.datadog.featureflag;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -63,6 +66,22 @@ class FeatureFlaggingSystemTest {
     assertNull(FeatureFlaggingGateway.backend());
     verify(poller).removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     verify(poller).removeListeners(Product.FFE_FLAGS);
+  }
+
+  @Test
+  @WithConfig(key = TRACE_ENABLED, value = "false")
+  void stopsFromAShutdownHookWhenTracingIsDisabled() {
+    FeatureFlaggingSystem.start(mock(SharedCommunicationObjects.class));
+    assertTrue(FeatureFlaggingSystem.isShutdownHookRegistered());
+
+    FeatureFlaggingSystem.stop();
+    assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
+  }
+
+  @Test
+  void leavesTheShutdownToTracingWhenEnabled() {
+    FeatureFlaggingSystem.start(mock(SharedCommunicationObjects.class));
+    assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
   }
 
   @Test
