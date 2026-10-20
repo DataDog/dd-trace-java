@@ -111,7 +111,10 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       logSamplingDecision("preSampleRequest", hash);
       return true;
     }
-    logNoPermitAvailable(hash);
+    log.debug(
+        "API security sampling skipped, no post-processing permit available (max={}): hash={}",
+        MAX_POST_PROCESSING_TASKS,
+        hash);
     return false;
   }
 
@@ -212,27 +215,6 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     result = 31 * result + method.hashCode();
     result = 31 * result + statusCode;
     return result;
-  }
-
-  private void logNoPermitAvailable(final long hash) {
-    if (!log.isDebugEnabled()) {
-      return;
-    }
-    AgentSpan activeSpan = AgentTracer.get().activeSpan();
-
-    if (activeSpan != null) {
-      log.debug(
-          "API security sampling skipped, no post-processing permit available (max={}): hash={}, traceId={}, spanId={}",
-          MAX_POST_PROCESSING_TASKS,
-          hash,
-          activeSpan.getTraceId(),
-          activeSpan.getSpanId());
-    } else {
-      log.debug(
-          "API security sampling skipped, no post-processing permit available (max={}): hash={}, traceId=null, spanId=null",
-          MAX_POST_PROCESSING_TASKS,
-          hash);
-    }
   }
 
   private void logSamplingDecision(final String method, final long hash) {
