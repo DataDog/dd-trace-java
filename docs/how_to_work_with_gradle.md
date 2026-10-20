@@ -1,11 +1,10 @@
 # How to Work with Gradle
 
-This guide covers Gradle practices and how they apply in this repository, including where
-our current build cannot yet follow a best practice. The project-specific sections explain
-conventions used across the build.
+This guide covers Gradle best practices, how we apply them in this repository, and the
+constraints that currently require exceptions.
 
-Update this guide when a change affects that shared advice. Keep implementation notes,
-workarounds and procedures for a single plugin or task with its source or local documentation.
+Update it when a change affects that shared advice. Keep details specific to one plugin
+or task beside its source or in local documentation.
 
 ## Quick Reference
 
@@ -40,37 +39,14 @@ this repository. Review the code being changed and the modules that use it. Keep
 within the requested task and report unrelated findings separately.
 
 Install the whole skill, including its reference files. If it is missing or incomplete,
-tell the contributor and point them to the setup below. Read-only investigation can continue;
-Gradle edits must wait until the skill is available. A link to the skill does not install it.
+read the [upstream installation instructions](https://github.com/gradle/gradle-skills#installation)
+and help the contributor install it for their agent. If installation cannot be completed
+in this session, provide the relevant commands and explain what is blocking it.
+Read-only investigation can continue; wait until the complete skill is available before
+editing Gradle code.
 
 Check the skill's catalog version against our Gradle wrapper and the JVMs that run the
 affected code. Some recommendations may describe newer or nightly APIs.
-
-### Codex
-
-Ask the built-in [skill installer](https://learn.chatgpt.com/docs/build-skills#install-curated-skills-for-local-use)
-to install the skill from Gradle's repository:
-
-```text
-$skill-installer install https://github.com/gradle/gradle-skills/tree/main/skills/gradle-best-practices
-```
-
-Then invoke it with `$gradle-best-practices`. If it does not appear after installation,
-restart the session.
-
-### Claude Code
-
-Install Gradle's plugin:
-
-```text
-/plugin marketplace add gradle/gradle-skills
-/plugin install gradle-skills@gradle-skills
-```
-
-Invoke the skill with `/gradle-skills:gradle-best-practices`. Each contributor installs the
-plugin for their own setup; naming it in repository instructions does not fetch it.
-See the [upstream installation guide](https://github.com/gradle/gradle-skills#installation)
-for other agents and installation options.
 
 ## What are Gradle Files?
 
