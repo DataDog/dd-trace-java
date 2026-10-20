@@ -59,6 +59,13 @@ import net.bytebuddy.utility.JavaModule;
  * leak-free.
  */
 final class ScopeContinuationTransformer {
+  private static final String[] TARGET_SUFFIXES = {
+    ".scopemanager.ScopeContinuation",
+    ".scopemanager.ScopeStack",
+    ".scopemanager.ContinuableScope",
+    ".scopemanager.ContinuableScopeManager",
+    ".PendingTrace"
+  };
   private static volatile ResettableClassFileTransformer transformer;
 
   private ScopeContinuationTransformer() {}
@@ -80,14 +87,7 @@ final class ScopeContinuationTransformer {
     ClassLoader loader = ScopeContinuationTransformer.class.getClassLoader();
     try {
       // Related core types can otherwise load these targets reentrantly while they are transformed.
-      for (String target :
-          new String[] {
-            ".scopemanager.ScopeContinuation",
-            ".scopemanager.ScopeStack",
-            ".scopemanager.ContinuableScope",
-            ".scopemanager.ContinuableScopeManager",
-            ".PendingTrace"
-          }) {
+      for (String target : TARGET_SUFFIXES) {
         Class.forName(corePackage + target, false, loader);
       }
     } catch (ClassNotFoundException missingCoreTracer) {
@@ -217,7 +217,11 @@ final class ScopeContinuationTransformer {
                                             named(corePackage + ".scopemanager.ContinuableScope")))
                                     .and(returns(void.class)))))
             .installOn(instrumentation);
-    if (failure.get() != null || transformed.size() != 5) {
+    Set<String> expected = new HashSet<>();
+    for (String target : TARGET_SUFFIXES) {
+      expected.add(corePackage + target);
+    }
+    if (failure.get() != null || !transformed.equals(expected)) {
       transformer.reset(instrumentation, AgentBuilder.RedefinitionStrategy.RETRANSFORMATION);
       transformer = null;
       throw new IllegalStateException(

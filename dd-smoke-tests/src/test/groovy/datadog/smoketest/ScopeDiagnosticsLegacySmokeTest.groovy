@@ -6,6 +6,11 @@ import java.util.concurrent.TimeUnit
 /** Exercises companion injection through the legacy smoke-test launch properties. */
 class ScopeDiagnosticsLegacySmokeTest extends AbstractSmokeTest {
   @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     String classes = Paths.get(ScopeDiagnosticsTestApp.protectionDomain.codeSource.location.toURI()).toString()
     ProcessBuilder builder = new ProcessBuilder([

@@ -1,6 +1,11 @@
 package datadog.smoketest
 
 abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
 
   @Override
   ProcessBuilder createProcessBuilder() {

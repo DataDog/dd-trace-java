@@ -33,6 +33,19 @@ public final class ScopeDiagnosticsTestApp {
     if ("double".equals(action)) {
       continuation.release();
       continuation.release();
+    } else if ("delayed".equals(action)) {
+      new Thread(
+              () -> {
+                try {
+                  Thread.sleep(500);
+                } catch (InterruptedException interrupted) {
+                  Thread.currentThread().interrupt();
+                } finally {
+                  continuation.release();
+                }
+              },
+              "delayed-continuation-cleanup")
+          .start();
     } else if (!action.startsWith("leak")) {
       ContextScope scope = continuation.resume();
       scope.close();

@@ -41,6 +41,9 @@ allprojects { Project subProj ->
     .withPropertyName('scopeDiagnosticsAgent')
     .withPathSensitivity(PathSensitivity.NONE)
 
+    def quiescenceProperty = 'datadog.smoketest.scopeDiagnostics.quiescenceMillis'
+    systemProperty quiescenceProperty, providers.systemProperty(quiescenceProperty).getOrElse('2000')
+
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
     jvmArgumentProviders.add(new CommandLineArgumentProvider() {

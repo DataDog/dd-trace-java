@@ -2,6 +2,7 @@ package datadog.smoketest;
 
 import static datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck.LEAKED;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -34,7 +35,8 @@ class ScopeDiagnosticsAppTest {
           assertThrows(AssertionError.class, () -> app.assertCompletesWithValue(30, SECONDS, 0));
       assertTrue(failure.getMessage().contains("LEAKED"), failure.getMessage());
     } finally {
-      assertThrows(AssertionError.class, () -> app.afterAll(null));
+      assertDoesNotThrow(() -> app.afterEach(null));
+      assertDoesNotThrow(() -> app.afterAll(null));
     }
   }
 

@@ -24,6 +24,11 @@ import java.util.concurrent.TimeUnit;
  */
 public final class SmokeCliApp extends AbstractSmokeApp {
 
+  @Override
+  protected boolean recordsProcessLifetime() {
+    return true;
+  }
+
   private SmokeCliApp(Builder builder) {
     super(builder);
   }

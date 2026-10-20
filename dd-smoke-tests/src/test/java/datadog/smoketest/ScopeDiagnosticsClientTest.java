@@ -99,6 +99,33 @@ class ScopeDiagnosticsClientTest {
   }
 
   @Test
+  void failedFinalReportIsConsumedOnce() throws Exception {
+    ScopeDiagnosticsClient client = client(true);
+    response(client, "final", 0, "problems");
+    assertThrows(AssertionError.class, () -> client.verifyCompleted(new StubProcess(false)));
+    assertDoesNotThrow(() -> client.finish(new StubProcess(false)));
+    assertDoesNotThrow(() -> client.verifyCompleted(new StubProcess(false)));
+  }
+
+  @Test
+  void invalidLiveFinishResponseIsConsumedOnce() throws Exception {
+    ScopeDiagnosticsClient client = client(true);
+    response(client, "response-1", 7, "ok");
+    assertThrows(AssertionError.class, () -> client.finish(new StubProcess(true)));
+    assertDoesNotThrow(() -> client.finish(new StubProcess(true)));
+    assertDoesNotThrow(() -> client.verifyCompleted(new StubProcess(false)));
+    assertEquals("1", read(client, "command").getProperty("seq"));
+  }
+
+  @Test
+  void malformedFinalReportIsConsumedOnce() throws Exception {
+    ScopeDiagnosticsClient client = client(true);
+    write(client, "final", "protocol", "1", "seq", "0", "status", "ok");
+    assertThrows(AssertionError.class, () -> client.verifyCompleted(new StubProcess(false)));
+    assertDoesNotThrow(() -> client.verifyCompleted(new StubProcess(false)));
+  }
+
+  @Test
   void absentFinalReportCannotPass() throws Exception {
     ScopeDiagnosticsClient client = client(true);
     AssertionError error =
@@ -113,8 +140,10 @@ class ScopeDiagnosticsClientTest {
     assertThrows(AssertionError.class, () -> client.awaitReady(new StubProcess(false)));
     write(client, "final", "protocol", "1", "seq", "0", "status", "ok");
     assertThrows(AssertionError.class, () -> client.verifyCompleted(new StubProcess(false)));
-    response(client, "final", 12, "ok");
-    assertThrows(AssertionError.class, () -> client.verifyCompleted(new StubProcess(false)));
+    ScopeDiagnosticsClient incorrectSequence = client(true);
+    response(incorrectSequence, "final", 12, "ok");
+    assertThrows(
+        AssertionError.class, () -> incorrectSequence.verifyCompleted(new StubProcess(false)));
   }
 
   @Test
@@ -155,6 +184,7 @@ class ScopeDiagnosticsClientTest {
         client(true, "fixture & cleanup=expected; café + path", LEAKED, NEVER_CLOSED);
     Properties config = read(client, "config");
     assertEquals("cli", config.getProperty("mode"));
+    assertEquals("2000", config.getProperty("quiescenceMillis"));
     assertEquals("LEAKED,NEVER_CLOSED", config.getProperty("disabledChecks"));
     assertEquals("fixture & cleanup=expected; café + path", config.getProperty("reason"));
     assertTrue(client.javaAgentArgument().endsWith("=" + client.directory()));
@@ -163,6 +193,28 @@ class ScopeDiagnosticsClientTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> client(true, "fixture", (ScopeDiagnosticsCheck) null));
+  }
+
+  @Test
+  void quiescenceConfigurationIsValidatedAndWritten() throws Exception {
+    String property = "datadog.smoketest.scopeDiagnostics.quiescenceMillis";
+    String previous = System.getProperty(property);
+    try {
+      System.setProperty(property, "5000");
+      assertEquals("5000", read(client(true), "config").getProperty("quiescenceMillis"));
+      System.setProperty(property, "-1");
+      assertThrows(IllegalArgumentException.class, () -> client(true));
+      System.setProperty(property, "10001");
+      assertThrows(IllegalArgumentException.class, () -> client(true));
+      System.setProperty(property, "invalid");
+      assertThrows(IllegalArgumentException.class, () -> client(true));
+    } finally {
+      if (previous == null) {
+        System.clearProperty(property);
+      } else {
+        System.setProperty(property, previous);
+      }
+    }
   }
 
   @Test

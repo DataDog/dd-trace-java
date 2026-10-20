@@ -264,8 +264,7 @@ public abstract class AbstractSmokeApp
       failure = problem;
     }
     // A CLI's process-wide recording must survive methods while it is still running.
-    if (this.scopeDiagnostics != null
-        && (!(this instanceof SmokeCliApp) || !this.process.isAlive())) {
+    if (this.scopeDiagnostics != null && (!recordsProcessLifetime() || !this.process.isAlive())) {
       failure = attempt(failure, () -> this.scopeDiagnostics.finish(this.process));
     }
     // Check telemetry once, here, while the app and backend are still up as afterAll is too late
@@ -336,6 +335,11 @@ public abstract class AbstractSmokeApp
    */
   protected void onStarted() {}
 
+  /** Whether diagnostics cover the whole application run rather than individual tests. */
+  protected boolean recordsProcessLifetime() {
+    return false;
+  }
+
   /** Invoked before each test method (in {@link #beforeEach}) for the app's per-test reset. */
   protected void onBeforeEach() {}
 
@@ -352,7 +356,7 @@ public abstract class AbstractSmokeApp
           new ScopeDiagnosticsClient(
               this.logFile.getParentFile().toPath(),
               this.name,
-              this instanceof SmokeCliApp,
+              recordsProcessLifetime(),
               this.disabledScopeContinuationChecksReason,
               this.disabledScopeContinuationChecks);
     }

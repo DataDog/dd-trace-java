@@ -57,13 +57,15 @@ public final class ScopeDiagnosticsAgent {
       Class<?> bridge =
           loader.loadClass("datadog.trace.agent.test.scopediag.SmokeDiagnosticsBridge");
       bridge
-          .getMethod("install", Instrumentation.class, Map.class, String.class, String.class)
+          .getMethod(
+              "install", Instrumentation.class, Map.class, String.class, String.class, long.class)
           .invoke(
               null,
               instrumentation,
               payload,
               config.getProperty("disabledChecks", ""),
-              config.getProperty("reason", ""));
+              config.getProperty("reason", ""),
+              Long.parseLong(config.getProperty("quiescenceMillis", "2000")));
       Method start = bridge.getMethod("start");
       Method finish = bridge.getMethod("finish");
       if (cli) {

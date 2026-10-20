@@ -10,6 +10,7 @@ import net.bytebuddy.dynamic.ClassFileLocator;
 public final class SmokeDiagnosticsBridge {
   private static Properties completed;
   private static boolean recording;
+  private static long quiescenceMillis;
   private static String exclusionReason = "";
   private static EnumSet<ScopeDiagnosticsCheck> enabledChecks =
       EnumSet.allOf(ScopeDiagnosticsCheck.class);
@@ -20,7 +21,12 @@ public final class SmokeDiagnosticsBridge {
       Instrumentation instrumentation,
       Map<String, byte[]> classes,
       String disabledChecks,
-      String reason) {
+      String reason,
+      long quiescenceMillis) {
+    if (quiescenceMillis < 0 || quiescenceMillis > 10_000) {
+      throw new IllegalArgumentException("quiescenceMillis must be between 0 and 10000");
+    }
+    SmokeDiagnosticsBridge.quiescenceMillis = quiescenceMillis;
     EnumSet<ScopeDiagnosticsCheck> checks = EnumSet.allOf(ScopeDiagnosticsCheck.class);
     if (!disabledChecks.isEmpty()) {
       if (reason.trim().isEmpty()) {
@@ -69,7 +75,7 @@ public final class SmokeDiagnosticsBridge {
     if (!recording) {
       throw new IllegalStateException("Scope diagnostics have not started recording");
     }
-    ScopeDiagnostics.awaitQuiescence();
+    ScopeDiagnostics.awaitQuiescence(quiescenceMillis);
     ScopeDiagnostics.stop();
     recording = false;
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();

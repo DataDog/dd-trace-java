@@ -101,7 +101,16 @@ public final class ScopeDiagnostics {
 
   /** Gives asynchronous cleanup a bounded opportunity to resolve lifecycles still in flight. */
   public static void awaitQuiescence() {
-    long deadline = System.nanoTime() + DEFAULT_QUIESCENCE_TIMEOUT_MILLIS * 1_000_000L;
+    awaitQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MILLIS);
+  }
+
+  /** Waits up to the supplied budget for recorded lifecycles to complete. */
+  public static void awaitQuiescence(long timeoutMillis) {
+    if (timeoutMillis < 0 || timeoutMillis > Long.MAX_VALUE / 1_000_000L) {
+      throw new IllegalArgumentException(
+          "Invalid scope diagnostics quiescence budget: " + timeoutMillis);
+    }
+    long deadline = System.nanoTime() + timeoutMillis * 1_000_000L;
     synchronized (INSTANCE.lifecycleLock) {
       while (INSTANCE.recordingWindow != null && INSTANCE.snapshot().hasIncompleteLifecycles()) {
         long remaining = deadline - System.nanoTime();

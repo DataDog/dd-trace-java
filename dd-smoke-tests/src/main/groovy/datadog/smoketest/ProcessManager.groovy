@@ -5,6 +5,8 @@ import static datadog.smoketest.KnownLogExclusion.isKnownFlakyTestLogEntry
 import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck
 import datadog.trace.agent.test.utils.PortUtils
+import java.nio.file.FileSystems
+import java.nio.file.Path
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Instant
@@ -37,7 +39,24 @@ abstract class ProcessManager extends Specification {
     null
   }
 
-  /** Plain smoke applications may finish before the first feature starts. */
+  /**
+   * Whether every application process must still be alive before each Spock feature (test method).
+   * Defaults to {@code true}, so an unexpected exit fails immediately rather than timing out while
+   * waiting for application output.
+   *
+   * <p>Override to return {@code false} for batch or CLI applications that may finish normally before
+   * a feature starts. Those tests are responsible for checking completion and the expected exit code.
+   *
+   * <p>This controls only the pre-test liveness assertion. Diagnostic recording and validation remain
+   * governed by their own settings.
+   *
+   * @return {@code true} to require live processes before each feature; {@code false} to allow exit
+   */
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    true
+  }
+
+  /** Record legacy applications from main through completion or suite teardown. */
   protected boolean scopeDiagnosticsProcessLifetime() {
     true
   }
@@ -96,14 +115,21 @@ abstract class ProcessManager extends Specification {
 
   def setup() {
     testedProcesses.eachWithIndex { process, idx ->
+      assertProcessAvailable(process)
       if (!scopeDiagnosticsProcessLifetime()) {
-        assert process.alive: "Process $process is not available on test beginning"
         scopeDiagnostics[idx]?.start(process)
       }
     }
 
     synchronized (outputThreads.testLogMessages) {
       outputThreads.testLogMessages.clear()
+    }
+  }
+
+  /** Checks process health independently of the diagnostic recording mode. */
+  protected final void assertProcessAvailable(Process process) {
+    if (expectsProcessAliveBeforeEachTest()) {
+      assert process.alive: "Process $process is not available on test beginning"
     }
   }
 
@@ -255,6 +281,13 @@ abstract class ProcessManager extends Specification {
   /** Override for launches that store JVM arguments outside the command and environment. */
   protected boolean replaceScopeDiagnosticsArgument(ProcessBuilder builder, String argument) {
     boolean found = false
+    builder.command().removeAll { String value ->
+      if (argument.isEmpty() && value == SCOPE_DIAGNOSTICS_ARGUMENT) {
+        found = true
+        return true
+      }
+      false
+    }
     builder.command().replaceAll { String value ->
       if (value.contains(SCOPE_DIAGNOSTICS_ARGUMENT)) {
         found = true
@@ -262,7 +295,6 @@ abstract class ProcessManager extends Specification {
       }
       value
     }
-    builder.command().removeAll { it.isEmpty() }
     builder.environment().replaceAll { String key, String value ->
       if (value.contains(SCOPE_DIAGNOSTICS_ARGUMENT)) {
         found = true
@@ -271,6 +303,22 @@ abstract class ProcessManager extends Specification {
       value
     }
     return found
+  }
+
+  /** Replaces the diagnostic placeholder in a copied OpenLiberty runnable JAR. */
+  protected final boolean replaceScopeDiagnosticsArgumentInJar(Path applicationJar, String argument) {
+    def appUri = URI.create("jar:${applicationJar.toUri()}")
+    try (def fs = FileSystems.newFileSystem(appUri, [:])) {
+      def optionsFile = fs.getPath('wlp', 'usr', 'servers', 'defaultServer', 'jvm.options')
+      def options = Files.readAllLines(optionsFile)
+      boolean found = options.any {
+        it.contains(SCOPE_DIAGNOSTICS_ARGUMENT)
+      }
+      Files.write(optionsFile, options.collect {
+        it.replace(SCOPE_DIAGNOSTICS_ARGUMENT, argument)
+      })
+      return found
+    }
   }
 
   def getProfilingUrl() {

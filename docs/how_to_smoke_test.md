@@ -42,6 +42,17 @@ The production agent artifact and its strict-write configuration are unchanged.
   first-use static initialization. Concurrent application shutdown hooks are not guaranteed to finish
   before the diagnostic snapshot.
 
+Smoke diagnostics allow up to 2 seconds for incomplete lifecycles to finish, returning as soon as
+all recorded lifecycles are complete. Set
+`-Ddatadog.smoketest.scopeDiagnostics.quiescenceMillis=5000` on the Gradle invocation to override
+this budget (0–10000 ms). Instrumentation tests retain their 250 ms default. The grace period
+cannot establish completion for an application that keeps producing background work; tests must
+finish their work before requesting a snapshot.
+
+Legacy applications are checked alive before each feature independently of diagnostics. Batch
+fixtures that may finish before a feature must override `expectsProcessAliveBeforeEachTest()` to return
+`false`; skipping diagnostics does not disable the liveness check.
+
 Leaks and invalid lifecycle operations fail the test with a summary and capture/resume/cleanup
 timeline. Reports are kept under `build/reports/scope-diagnostics-*`. Missing or malformed reports
 and failed probe installation fail explicitly; they are not clean results.
@@ -76,6 +87,7 @@ Custom launchers pass the control directory to the companion:
 ```
 
 The directory contains a `config` Java properties file with `mode=cli` or `mode=server`.
+Optional `quiescenceMillis=2000` controls the cleanup budget (0–10000 ms).
 Optional `disabledChecks=LEAKED,NEVER_CLOSED` and `reason=known fixture` entries configure exclusions.
 Unknown checks and missing exclusion reasons fail installation. Supported checks are `LEAKED`,
 `LATE_FINISH`, `DOUBLE_FINISH`, `ACTIVATE_AFTER_RESOLVE`, `CLOSE_WRONG_THREAD`, and `NEVER_CLOSED`.

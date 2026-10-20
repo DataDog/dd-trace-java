@@ -23,7 +23,9 @@ public final class ScopeDiagnosticsClient {
   private final long timeoutMillis;
   private long sequence;
   private boolean active;
-  private boolean completed;
+
+  /** A terminal report is enforced once, even if validation fails. */
+  private boolean completionConsumed;
 
   public ScopeDiagnosticsClient(Path reportsDirectory, String name, boolean cli)
       throws IOException {
@@ -63,6 +65,12 @@ public final class ScopeDiagnosticsClient {
     if (!Files.isRegularFile(agent)) {
       throw new IllegalArgumentException("Scope diagnostics agent jar does not exist: " + agent);
     }
+    String quiescence =
+        System.getProperty("datadog.smoketest.scopeDiagnostics.quiescenceMillis", "2000");
+    long quiescenceMillis = Long.parseLong(quiescence);
+    if (quiescenceMillis < 0 || quiescenceMillis > 10_000) {
+      throw new IllegalArgumentException("quiescenceMillis must be between 0 and 10000");
+    }
     this.agent = agent.toAbsolutePath();
     this.cli = cli;
     this.timeoutMillis = timeoutMillis;
@@ -73,6 +81,7 @@ public final class ScopeDiagnosticsClient {
                 "scope-diagnostics-" + name.replaceAll("[^a-zA-Z0-9._-]", "_") + "-")
             .toAbsolutePath();
     Properties config = new Properties();
+    config.setProperty("quiescenceMillis", Long.toString(quiescenceMillis));
     config.setProperty("mode", cli ? "cli" : "server");
     config.setProperty("disabledChecks", names.toString());
     config.setProperty("reason", reason == null ? "" : reason);
@@ -104,12 +113,11 @@ public final class ScopeDiagnosticsClient {
 
   public void finish(Process process) {
     if (cli) {
-      if (completed) {
+      if (completionConsumed) {
         return;
       }
       if (process.isAlive()) {
         request("finish", process);
-        completed = true;
       } else {
         verifyCompleted(process);
       }
@@ -121,15 +129,16 @@ public final class ScopeDiagnosticsClient {
 
   /** Checks CLI shutdown output, or completes a server window before process destruction. */
   public void verifyCompleted(Process process) {
-    if (completed) {
+    if (completionConsumed) {
       return;
     }
     if (!cli || process.isAlive()) {
       finish(process);
       return;
     }
-    validateResponse(await("final", process), 0);
-    completed = true;
+    Properties response = await("final", process);
+    completionConsumed = true;
+    validateResponse(response, 0);
   }
 
   private void request(String action, Process process) {
@@ -145,10 +154,13 @@ public final class ScopeDiagnosticsClient {
     Properties response = await("response-" + id, process, cli && "finish".equals(action));
     if (response == null) {
       // A CLI can exit before accepting finish; its shutdown report completes the same recording.
-      validateResponse(await("final", process), 0);
-    } else {
-      validateResponse(response, id);
+      response = await("final", process);
+      id = 0;
     }
+    if (cli && "finish".equals(action)) {
+      completionConsumed = true;
+    }
+    validateResponse(response, id);
   }
 
   private Properties await(String file, Process process) {

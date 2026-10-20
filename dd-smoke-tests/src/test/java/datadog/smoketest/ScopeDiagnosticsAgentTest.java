@@ -116,6 +116,36 @@ class ScopeDiagnosticsAgentTest {
     }
   }
 
+  @Test
+  void configuredGracePeriodAllowsDelayedServerCleanup() throws Exception {
+    ScopeDiagnosticsClient diagnostics = new ScopeDiagnosticsClient(reports, "delayed", false);
+    Path configFile = diagnostics.directory().resolve("config");
+    Properties config = result(configFile);
+    config.setProperty("quiescenceMillis", "5000");
+    try (OutputStream output = Files.newOutputStream(configFile)) {
+      config.store(output, null);
+    }
+    Process child = launch(diagnostics, "server");
+    try (Writer input = new OutputStreamWriter(child.getOutputStream(), StandardCharsets.UTF_8);
+        BufferedReader output =
+            new BufferedReader(
+                new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))) {
+      diagnostics.awaitReady(child);
+      diagnostics.start(child);
+      exercise(input, output, "delayed");
+      diagnostics.finish(child);
+      Properties report = result(diagnostics.directory().resolve("response-2"));
+      assertEquals("ok", report.getProperty("status"));
+      assertTrue(Integer.parseInt(report.getProperty("eventCount")) > 0);
+      assertTrue(report.getProperty("timeline").contains("diagnostic-delayed"));
+      input.write("exit\n");
+      input.flush();
+      assertTrue(child.waitFor(30, SECONDS));
+    } finally {
+      child.destroyForcibly();
+    }
+  }
+
   @TableTest({
     "Scenario                           | Checks                 | Mode              | Status  ",
     "excluded leak remains recorded     | [LEAKED]               | leak              | ok      ",
@@ -176,6 +206,31 @@ class ScopeDiagnosticsAgentTest {
       AssertionError failure =
           assertThrows(AssertionError.class, () -> diagnostics.awaitReady(child));
       assertTrue(failure.getMessage().contains(error), failure.getMessage());
+      assertTrue(child.waitFor(30, SECONDS));
+      assertTrue(child.exitValue() != 0);
+    } finally {
+      child.destroyForcibly();
+    }
+  }
+
+  @TableTest({
+    "Scenario       | Budget ",
+    "negative       | -1     ",
+    "exceeds bound  | 10001  ",
+    "invalid number | invalid"
+  })
+  void invalidQuiescenceBudgetFailsInstallation(String budget) throws Exception {
+    ScopeDiagnosticsClient diagnostics =
+        new ScopeDiagnosticsClient(reports, "invalid-budget", true);
+    Path configFile = diagnostics.directory().resolve("config");
+    Properties config = result(configFile);
+    config.setProperty("quiescenceMillis", budget);
+    try (OutputStream output = Files.newOutputStream(configFile)) {
+      config.store(output, null);
+    }
+    Process child = launch(diagnostics, "resolved");
+    try {
+      assertThrows(AssertionError.class, () -> diagnostics.awaitReady(child));
       assertTrue(child.waitFor(30, SECONDS));
       assertTrue(child.exitValue() != 0);
     } finally {
