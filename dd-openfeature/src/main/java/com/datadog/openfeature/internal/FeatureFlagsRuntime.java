@@ -186,9 +186,16 @@ public final class FeatureFlagsRuntime {
    * @param bridge the bridge to the Datadog Java agent.
    */
   void registerShutdown(final AgentBridge bridge) {
-    final ShutdownSource shutdown = bridge.shutdown();
-    this.shutdownRegistration =
-        shutdown == null ? addShutdownHook() : shutdown.subscribe(this::stop);
+    AutoCloseable registration = null;
+    try {
+      final ShutdownSource shutdown = bridge.shutdown();
+      if (shutdown != null) {
+        registration = shutdown.subscribe(this::stop);
+      }
+    } catch (final RuntimeException | LinkageError e) {
+      LOGGER.debug("Could not subscribe to the agent shutdown, using a JVM shutdown hook", e);
+    }
+    this.shutdownRegistration = registration == null ? addShutdownHook() : registration;
   }
 
   @Nullable
