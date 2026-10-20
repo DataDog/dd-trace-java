@@ -45,6 +45,9 @@ public final class StripInjectedContext {
    */
   public static ByteArrayInputStream replaceInputStream(InputStream in) {
     if (!(in instanceof ByteArrayInputStream)) {
+      log.debug(
+          "Skipping _datadog strip: unsupported Lambda input stream type {}",
+          in == null ? null : in.getClass().getName());
       return null;
     }
     byte[] original = readAllBytes((ByteArrayInputStream) in);
@@ -72,6 +75,7 @@ public final class StripInjectedContext {
     String json = new String(payload, StandardCharsets.UTF_8);
     // Invalid UTF-8 decodes to U+FFFD and would be re-encoded as such, so keep the payload as is.
     if (json.indexOf('\uFFFD') >= 0) {
+      log.debug("Skipping _datadog strip: Lambda payload contains invalid UTF-8 or U+FFFD");
       return payload;
     }
     String stripped = stripJson(json, 0);
