@@ -29,7 +29,7 @@ java {
 
 dependencies {
   api("dev.openfeature:sdk:1.23.0")
-  api("io.opentelemetry:opentelemetry-api:1.66.0")
+  implementation("io.opentelemetry:opentelemetry-api:1.66.0")
   api(libs.jackson.core)
 
   testImplementation(libs.bundles.junit5)
