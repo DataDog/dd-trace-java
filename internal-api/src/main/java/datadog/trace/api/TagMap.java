@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import datadog.apicontract.Restricted;
-import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.util.AbstractCollection;
@@ -140,6 +139,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
+  /**
+   * A momentary view of one tag: read it where it was obtained and drop it. A reader MUST NOT be
+   * kept past the call that produced it -- not in a field, a collection or a later step. A store
+   * may answer with a flyweight it reuses for the next read or write, so a kept reader can later
+   * report another tag's value. To keep a tag, call {@link #entry()}: an {@link Entry} is the
+   * keepable form. (To be marked {@code @ScopeBounded}, APMLP-2086.)
+   */
   public interface EntryReader {
     public static final byte OBJECT = 1;
 
@@ -1514,12 +1520,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
-   * Like {@link #getEntry(String)}, but answers with a reader to read and drop rather than keep, so
-   * a store without an Entry per tag builds none: a reader that is not retained is usually
-   * scalar-replaced. Call {@link EntryReader#entry()} to keep one. Safe on a frozen map that
-   * several threads read.
+   * Like {@link #getEntry(String)}, but answers with a momentary {@link EntryReader}, so a store
+   * without an Entry per tag builds none. The reader MUST NOT be kept (see {@link EntryReader});
+   * call {@link EntryReader#entry()} to keep one. Safe on a frozen map that several threads read.
    */
-  @NoEscape
   public EntryReader getEntryReader(String tag) {
     long key = KnownTagCodec.keyOf(tag);
     if (key != 0) {
@@ -1530,7 +1534,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /** {@link #getEntryReader(String)} for a known tag id. */
-  @NoEscape
   public EntryReader getEntryReader(long tagId) {
     return this.knownStore.getEntryReader(tagId);
   }
