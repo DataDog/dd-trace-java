@@ -40,6 +40,12 @@ public class Provider extends com.datadog.openfeature.Provider {
   @Deprecated
   public static class Options extends com.datadog.openfeature.Provider.Options {
     @Override
+    public Options enableEvaluationTelemetryOptOutParameter(final boolean enabled) {
+      super.enableEvaluationTelemetryOptOutParameter(enabled);
+      return this;
+    }
+
+    @Override
     public Options initTimeout(final long timeout, final TimeUnit unit) {
       super.initTimeout(timeout, unit);
       return this;
