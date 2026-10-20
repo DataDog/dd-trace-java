@@ -156,6 +156,11 @@ span_types:
   # consumer spans are the aws_request mixin.
   aws.client:
     extends: http.client
+    tags:
+      # Owning AWS account of the called resource, resolved per service (e.g. S3 from a successful
+      # ExpectedBucketOwner, DynamoDB from the table owner). Declared once here so every service
+      # type inherits the same tag identity.
+      - { dd-name: aws_account, type: string, required: optional }
 
   aws.s3:
     extends: aws.client
@@ -164,7 +169,6 @@ span_types:
       - { dd-name: bucketname,        type: string, required: optional }
       - { dd-name: aws.object.key,    type: string, required: optional }
       - { dd-name: aws.storage.class, type: string, required: optional }
-      - { dd-name: aws_account,       type: string, required: optional }  # owning account, from ExpectedBucketOwner on a successful request
       # Data Streams payload sizes, when Data Streams is enabled.
       - { dd-name: http.request_content_length,  type: long, required: optional }
       - { dd-name: http.response_content_length, type: long, required: optional }
@@ -193,7 +197,6 @@ span_types:
     tags:
       - { dd-name: aws.table.name, type: string, required: optional }
       - { dd-name: aws.table.arn,  type: string, required: optional }  # when the table is named by ARN
-      - { dd-name: aws_account,    type: string, required: optional }  # owning account of the table
       - { dd-name: tablename,      type: string, required: optional }
       # Span pointer input, removed before serialization (SpanPointersProcessor).
       - { dd-name: dynamodb.primary_key_1,       type: string, required: optional }
