@@ -41,6 +41,14 @@ public abstract class WeaverUtils {
   private static final MethodHandle GET_EXPECTATION_FAILED_MESSAGE_HANDLE =
       METHOD_HANDLES.method(getClass(EXPECTATION_FAILED_CLASS_NAME), "message");
 
+  // IOTask is private in the Scala 2 build of Weaver 0.8.4.
+  private static final MethodHandle GET_TASK_NAME_HANDLE =
+      METHOD_HANDLES.method(getClass("weaver.framework.RunnerCompat$IOTask"), "fqn");
+
+  public static String getTaskName(Object task) {
+    return METHOD_HANDLES.invoke(GET_TASK_NAME_HANDLE, task);
+  }
+
   public static final List<LibraryCapability> CAPABILITIES = Collections.emptyList();
 
   private WeaverUtils() {}

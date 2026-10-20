@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.weaver;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.none;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -34,8 +36,15 @@ public class WeaverTestTagsInstrumentation extends InstrumenterModule.CiVisibili
   public void methodAdvice(MethodTransformer transformer) {
     // The suite-loaded flatMap callback receives the actual suite returned by its provider.
     transformer.applyAdvice(
-        takesArguments(2).and(takesArgument(1, named("weaver.EffectSuite"))),
+        takesArguments(2).and(not(isStatic())).and(takesArgument(1, named("weaver.EffectSuite"))),
         WeaverTestTagsInstrumentation.class.getName() + "$CaptureTagsAdvice");
+    // Scala 2 lifts the receiver into the first argument of its static callback.
+    transformer.applyAdvice(
+        isStatic()
+            .and(takesArguments(3))
+            .and(takesArgument(0, named(instrumentedType())))
+            .and(takesArgument(2, named("weaver.EffectSuite"))),
+        WeaverTestTagsInstrumentation.class.getName() + "$CaptureScala2TagsAdvice");
   }
 
   public static class CaptureTagsAdvice {
@@ -43,6 +52,13 @@ public class WeaverTestTagsInstrumentation extends InstrumenterModule.CiVisibili
     public static void capture(
         @Advice.FieldValue("fqn") String suiteName, @Advice.Argument(1) Object suite) {
       DatadogWeaverReporter.registerTestTags(suiteName, suite);
+    }
+  }
+
+  public static class CaptureScala2TagsAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void capture(@Advice.Argument(0) Object task, @Advice.Argument(2) Object suite) {
+      DatadogWeaverReporter.registerTestTags(WeaverUtils.getTaskName(task), suite);
     }
   }
 }
