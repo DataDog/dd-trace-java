@@ -1,0 +1,14 @@
+plugins {
+  id 'dd-trace-java.module.internal-library'
+}
+
+dependencies {
+  implementation libs.slf4j
+  // SharedCommunicationObjects and the remote-config API (transitively)
+  api project(':communication')
+  api project(':internal-api')
+
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+  testImplementation libs.tabletest
+}
