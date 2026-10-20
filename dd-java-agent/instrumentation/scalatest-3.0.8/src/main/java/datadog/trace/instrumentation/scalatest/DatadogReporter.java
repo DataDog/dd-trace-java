@@ -150,12 +150,10 @@ public class DatadogReporter {
     String testName = event.testName();
     Object testQualifier = null;
     String testParameters = null;
-    Collection<String> categories;
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+    Collection<String> categories = context.exclusionTags(testIdentifier);
     if (context.itrUnskippable(testIdentifier)) {
-      categories = Collections.singletonList(CIConstants.Tags.ITR_UNSKIPPABLE_TAG);
-    } else {
-      categories = Collections.emptyList();
+      categories.add(CIConstants.Tags.ITR_UNSKIPPABLE_TAG);
     }
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
 
@@ -234,6 +232,7 @@ public class DatadogReporter {
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
 
     TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null);
+    categories = context.exclusionTags(skippableTest);
     SkipReason reason = context.getSkipReason(skippableTest);
 
     TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
