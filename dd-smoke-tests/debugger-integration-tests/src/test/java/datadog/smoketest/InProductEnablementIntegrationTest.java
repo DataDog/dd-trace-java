@@ -4,11 +4,9 @@ import com.datadog.debugger.probe.LogProbe;
 import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.RecordedRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
@@ -16,16 +14,10 @@ import org.junit.jupiter.api.condition.JRE;
 
 @NonRetryable
 public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegrationTest {
-  private List<String> additionalJvmArgs = new ArrayList<>();
 
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    // remove the dynamic instrumentation flag
-    commandParams.remove("-Ddd.dynamic.instrumentation.enabled=true");
-    commandParams.addAll(additionalJvmArgs);
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+  @BeforeEach
+  public void beforeEach() {
+    removableJvmArgs.add("-Ddd.dynamic.instrumentation.enabled=true");
   }
 
   @Test
