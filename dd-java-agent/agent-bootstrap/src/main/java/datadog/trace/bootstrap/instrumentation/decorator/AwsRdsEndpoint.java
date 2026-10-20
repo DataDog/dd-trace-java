@@ -84,10 +84,16 @@ public final class AwsRdsEndpoint {
 
   /**
    * O(1) check that the hostname ends with {@code .amazonaws.com} or {@code .amazonaws.com.cn},
-   * ignoring case and tolerating the same trailing {@code .} and {@code :port} that {@link
-   * #doParse} accepts, so the gate and the parser never disagree on what is RDS-shaped. Anchoring
-   * on the suffix (rather than scanning for the substring) also rejects hostnames that merely
-   * contain {@code .amazonaws.com} followed by other labels.
+   * ignoring case and tolerating a trailing {@code .} and a well-formed {@code :port} (at most five
+   * ASCII digits). Anchoring on the suffix (rather than scanning for the substring) also rejects
+   * hostnames that merely contain {@code .amazonaws.com} followed by other labels.
+   *
+   * <p>This is a conservative pre-filter, not an exact mirror of {@link #doParse}. A hostname with
+   * a malformed or oversized port (for example {@code ...amazonaws.com:54x2} or {@code :543210}) is
+   * rejected here even though {@code doParse} would truncate at the first {@code :} and could
+   * otherwise accept the labels before it. Real RDS endpoints never carry such a suffix, so
+   * rejecting them early is safe: the gate only ever keeps a superset of non-RDS hosts out of the
+   * cache, never a valid RDS endpoint.
    */
   static boolean isPlausibleRdsHostname(final String hostname) {
     int end = hostname.length();
