@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.reactor.core;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -22,7 +23,9 @@ import org.reactivestreams.Subscriber;
 import reactor.core.CoreSubscriber;
 
 public class CorePublisherInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
 
   @Override
   public String hierarchyMarkerType() {
@@ -36,6 +39,11 @@ public class CorePublisherInstrumentation
             hasSuperType(
                 namedOneOf(
                     "reactor.core.publisher.Mono", "reactor.core.publisher.Flux"))); // < 3.1.7
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    return declaresMethod(named("subscribe"));
   }
 
   @Override
