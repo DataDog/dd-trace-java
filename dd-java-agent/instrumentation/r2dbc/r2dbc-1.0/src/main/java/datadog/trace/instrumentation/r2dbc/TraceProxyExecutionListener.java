@@ -51,9 +51,14 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
 
       // R2DBC commonly re-executes bind-parameterized SQL templates; use the bounded
       // prepared-statement cache to avoid normalizing the same query text per execution.
-      DBQueryInfo queryInfo = DBQueryInfo.ofPreparedStatement(firstQuery);
-      span.setResourceName(
-          queries.size() == 1 ? queryInfo.getSql() : batchResource(queries, queryInfo));
+      // Batch entries skip the cache: with inlined literals they rarely repeat and would evict
+      // reusable templates.
+      boolean single = queries.size() == 1;
+      DBQueryInfo queryInfo =
+          single
+              ? DBQueryInfo.ofPreparedStatement(firstQuery)
+              : DBQueryInfo.ofStatement(firstQuery);
+      span.setResourceName(single ? queryInfo.getSql() : batchResource(queries, queryInfo));
       span.setTag(DB_OPERATION, queryInfo.getOperation());
     } else {
       span.setResourceName(DB_QUERY);
@@ -89,7 +94,6 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
     for (int i = 1; i < limit; i++) {
       String query = queries.get(i).getQuery();
       if (query != null) {
-        // ofStatement: batch entries with inlined literals rarely repeat, so don't cache them
         distinct.add(DBQueryInfo.ofStatement(query).getSql().toString());
       }
     }
