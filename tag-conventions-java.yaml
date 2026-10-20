@@ -1,0 +1,164 @@
+# Tracer overlay for tag-conventions.yaml — dd-trace-java's own span types and set-path routing.
+# ---------------------------------------------------------------------------
+# tag-conventions.yaml is language-agnostic. What only this tracer has lives here: span types for Java
+# technologies, and which keys it intercepts on the set-path (routing them to a span field or a
+# sampling directive instead of tag storage).
+#
+# span_types  — span types only this tracer has, each extending a shared one with tags only this
+#               tracer sets (servlet's request extends http.server). Their tags get slots like any other.
+# mixins      — this tracer's cross-cutting tags, pushed onto span types with `applies`. (None yet.)
+# tags        — keys that exist only to be routed, so the conventions do not declare them. They get
+#               ids like any other tag (instrumentation can set them by id) but belong to no span type.
+#               Each is intercepted, so it is not listed again below. Same declaration syntax as
+#               tag-conventions.yaml; refs are not allowed.
+# intercepted — tags declared in tag-conventions.yaml that TagInterceptor also routes. Each one's id carries
+#               the INTERCEPTED bit, so a setter called with a constant id folds the interception test
+#               away. TagInterceptor's switch is the authority on what each one does; a test there
+#               keeps this list and the switch in agreement.
+# ---------------------------------------------------------------------------
+
+span_types:
+  # Servlet requests: http.server spans from a Servlet container, with its context and path.
+  servlet.request:
+    extends: http.server
+    tags:
+      - { dd-name: servlet.context, type: string, required: optional }
+      - { dd-name: servlet.path,    type: string, required: optional }
+      - { dd-name: user.principal,  type: string, required: optional }  # the authenticated principal's name
+      - { dd-name: timeout,         type: long,   required: optional }  # Servlet 3 async timeout, when it fires
+
+  # Spring Web MVC view rendering: the rendered view's class.
+  spring.view.render:
+    extends: view.render
+    tags:
+      - { dd-name: view.type, type: string, required: optional }
+
+  # Spring WebFlux handlers: the handler's class, and a functional route's predicate.
+  spring.webflux.handler:
+    extends: web.handler
+    tags:
+      - { dd-name: handler.type,      type: string, required: optional }
+      - { dd-name: request.predicate, type: string, required: optional }
+
+  # Spring WebFlux's HTTP client: why a request was cancelled.
+  spring.webflux.client:
+    extends: http.client
+    tags:
+      - { dd-name: message, type: string, required: optional }
+      - { dd-name: event,   type: string, required: optional }  # "cancelled"
+
+  # TIBCO BusinessWorks process and activity spans: the app node and version.
+  tibco.process:
+    extends: internal
+    tags:
+      - { dd-name: tibco.node,    type: string, required: optional }
+      - { dd-name: tibco.version, type: string, required: optional }
+
+  # Mule action spans: the correlation id, and the location when Mule supplies one.
+  mule.action:
+    extends: internal
+    tags:
+      - { dd-name: mule.correlation_id, type: string, required: recommended }
+      - { dd-name: mule.location,       type: string, required: optional }
+
+  # Elasticsearch REST client requests.
+  elasticsearch.rest:
+    extends: db.client
+    tags:
+      - { ref: http.method }
+      - { ref: http.url }  # the endpoint path
+      - { dd-name: elasticsearch.body,   type: string, required: optional }  # off by default
+      - { dd-name: elasticsearch.params, type: string, required: optional }
+
+  # Elasticsearch transport client actions.
+  elasticsearch.transport:
+    extends: db.client
+    tags:
+      - { dd-name: elasticsearch.action,                  type: string, required: recommended }
+      - { dd-name: elasticsearch.request,                 type: string, required: recommended }
+      - { dd-name: elasticsearch.request.indices,         type: string, required: optional }
+      - { dd-name: elasticsearch.request.search.types,    type: string, required: optional }
+      - { dd-name: elasticsearch.request.write.type,      type: string, required: optional }
+      - { dd-name: elasticsearch.request.write.routing,   type: string, required: optional }
+      - { dd-name: elasticsearch.request.write.version,   type: long,   required: optional }
+      - { dd-name: elasticsearch.type,                    type: string, required: optional }
+      - { dd-name: elasticsearch.id,                      type: string, required: optional }
+      - { dd-name: elasticsearch.version,                 type: long,   required: optional }
+      - { dd-name: elasticsearch.shard.broadcast.total,   type: int,    required: optional }
+      - { dd-name: elasticsearch.shard.broadcast.successful, type: int, required: optional }
+      - { dd-name: elasticsearch.shard.broadcast.failed,  type: int,    required: optional }
+      - { dd-name: elasticsearch.shard.replication.total, type: int,    required: optional }
+      - { dd-name: elasticsearch.shard.replication.successful, type: int, required: optional }
+      - { dd-name: elasticsearch.shard.replication.failed, type: int,   required: optional }
+      - { dd-name: elasticsearch.response.status,         type: int,    required: optional }
+      - { dd-name: elasticsearch.shard.bulk.id,           type: int,    required: optional }
+      - { dd-name: elasticsearch.shard.bulk.index,        type: string, required: optional }
+      - { dd-name: elasticsearch.node.failures,           type: int,    required: optional }
+      - { dd-name: elasticsearch.node.cluster.name,       type: string, required: optional }
+
+  # Twilio SDK calls: client spans typed http, though they set no HTTP tags.
+  twilio.sdk:
+    extends: http.client
+    tags:
+      - { dd-name: twilio.type,      type: string, required: recommended }
+      - { dd-name: twilio.account,   type: string, required: optional }
+      - { dd-name: twilio.sid,       type: string, required: optional }
+      - { dd-name: twilio.status,    type: string, required: optional }
+      - { dd-name: twilio.parentSid, type: string, required: optional }  # calls only
+
+  # JSP compilation and rendering (span.kind unset at runtime).
+  jsp.compile:
+    extends: internal
+    tags:
+      - { ref: servlet.context }
+      - { dd-name: jsp.compiler,  type: string, required: optional }
+      - { dd-name: jsp.classFQCN, type: string, required: recommended }
+
+  jsp.render:
+    extends: view.render
+    tags:
+      - { ref: servlet.context }
+      - { dd-name: jsp.forwardOrigin, type: string, required: optional }
+      - { dd-name: jsp.requestURL,    type: string, required: optional }
+
+  # Quartz scheduled job executions (span.kind unset at runtime).
+  quartz.job:
+    extends: internal
+    tags:
+      - { dd-name: quartz.job.name,      type: string, required: optional }
+      - { dd-name: quartz.job.group,     type: string, required: optional }
+      - { dd-name: quartz.trigger.name,  type: string, required: optional }
+      - { dd-name: quartz.trigger.group, type: string, required: optional }
+
+  # Hystrix commands, when Hystrix tags are enabled (span.kind unset at runtime).
+  hystrix.command:
+    extends: internal
+    tags:
+      - { dd-name: hystrix.command,      type: string,  required: optional }
+      - { dd-name: hystrix.group,        type: string,  required: optional }
+      - { dd-name: hystrix.circuit-open, type: boolean, required: optional }
+
+tags:
+  - { dd-name: resource.name,     type: string }
+  - { dd-name: span.type,         type: string }
+  - { dd-name: error,             type: boolean }
+  - { dd-name: manual.keep,       type: boolean }
+  - { dd-name: manual.drop,       type: boolean }
+  - { dd-name: asm.keep,          type: boolean }
+  - { dd-name: ai_guard.keep,     type: boolean }
+  - { dd-name: sampling.priority, type: int }
+  - { dd-name: _dd.p.ts,          type: int }
+  - { dd-name: _dd.p.debug,       type: string }
+  - { dd-name: _dd.origin,        type: string }
+  - { dd-name: _dd.measured,      type: boolean }
+  - { dd-name: _dd1.sr.eausr,     type: double }
+
+intercepted:
+  - service
+  - peer.service
+  - span.kind
+  - servlet.context
+  - db.statement
+  - http.method
+  - http.url
+  - http.status_code

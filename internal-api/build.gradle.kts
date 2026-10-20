@@ -266,6 +266,7 @@ extra["excludedClassesInstructionCoverage"] = listOf("datadog.trace.util.stacktr
 
 tagRegistry {
   tagConventionsFile.set(rootProject.layout.projectDirectory.file("tag-conventions.yaml"))
+  tracerOverlayFile.set(rootProject.layout.projectDirectory.file("tag-conventions-java.yaml"))
 }
 
 dependencies {

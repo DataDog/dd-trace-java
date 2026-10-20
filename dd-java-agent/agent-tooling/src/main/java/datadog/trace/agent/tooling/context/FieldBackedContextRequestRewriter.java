@@ -1,11 +1,10 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.FieldBackedContextStore;
-import datadog.trace.bootstrap.FieldBackedContextStores;
+import datadog.trace.bootstrap.ContextStores;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -35,8 +34,8 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
   static final String INSTRUMENTATION_CONTEXT_CLASS =
       getInternalName(InstrumentationContext.class.getName());
 
-  static final String FIELD_BACKED_CONTEXT_STORES_CLASS =
-      getInternalName(FieldBackedContextStores.class.getName());
+  static final String STORES_CLASS =
+      Type.getType(ContextStores.STORES_DESCRIPTOR).getInternalName();
 
   static final String GET_METHOD = "get";
   static final String GET_METHOD_DESCRIPTOR =
@@ -46,14 +45,11 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
       Type.getMethodDescriptor(
           Type.getType(ContextStore.class), Type.getType(String.class), Type.getType(String.class));
 
-  static final String GET_CONTENT_STORE_METHOD = "getContextStore";
-  static final String GET_CONTENT_STORE_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(Type.getType(FieldBackedContextStore.class), Type.INT_TYPE);
+  static final String GET_CONTEXT_STORE_METHOD = "getContextStore";
+  static final String GET_CONTEXT_STORE_METHOD_DESCRIPTOR =
+      Type.getMethodDescriptor(Type.getType(ContextStores.STORE_DESCRIPTOR), Type.INT_TYPE);
 
-  static final String FIELD_BACKED_CONTENT_STORE_DESCRIPTOR =
-      Type.getDescriptor(FieldBackedContextStore.class);
-
-  static final String FAST_CONTENT_STORE_PREFIX = "contextStore";
+  static final String FAST_STORE_PREFIX = "contextStore";
 
   final Map<String, String> contextStore;
   final String instrumenterClassName;
@@ -151,19 +147,19 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
 
                 int storeId = getContextStoreId(keyClassName, contextClassName);
                 // use fast direct field access for a small number of stores
-                if (storeId < FieldBackedContextStores.FAST_STORE_ID_LIMIT) {
+                if (storeId < ContextStores.FAST_STORE_ID_LIMIT) {
                   mv.visitFieldInsn(
                       Opcodes.GETSTATIC,
-                      FIELD_BACKED_CONTEXT_STORES_CLASS,
-                      FAST_CONTENT_STORE_PREFIX + storeId,
-                      FIELD_BACKED_CONTENT_STORE_DESCRIPTOR);
+                      STORES_CLASS,
+                      FAST_STORE_PREFIX + storeId,
+                      ContextStores.STORE_DESCRIPTOR);
                 } else {
                   mv.visitLdcInsn(storeId);
                   mv.visitMethodInsn(
                       Opcodes.INVOKESTATIC,
-                      FIELD_BACKED_CONTEXT_STORES_CLASS,
-                      GET_CONTENT_STORE_METHOD,
-                      GET_CONTENT_STORE_METHOD_DESCRIPTOR,
+                      STORES_CLASS,
+                      GET_CONTEXT_STORE_METHOD,
+                      GET_CONTEXT_STORE_METHOD_DESCRIPTOR,
                       false);
                 }
               } else {

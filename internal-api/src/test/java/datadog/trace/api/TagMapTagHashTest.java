@@ -2,6 +2,7 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -17,13 +18,22 @@ class TagMapTagHashTest {
   @Test
   void aKnownTagHashesToItsIdHoweverItIsSet() {
     TagMap.Entry byId = TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD_ID, "GET");
-    TagMap.Entry byName = TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD_NAME, "GET");
-    TagMap.Entry byOtelName = TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD_OTEL_NAME, "GET");
+    TagMap.Entry byName = TagMap.anyEntryFor(KnownTags.HTTP_METHOD_NAME, "GET");
+    TagMap.Entry byOtelName = TagMap.anyEntryFor(KnownTags.HTTP_METHOD_OTEL_NAME, "GET");
 
     assertEquals(KnownTags.HTTP_METHOD_ID, byId.tagHash);
     assertEquals(KnownTags.HTTP_METHOD_ID, byName.tagHash);
     assertEquals(KnownTags.HTTP_METHOD_ID, byOtelName.tagHash);
     assertEquals(KnownTags.HTTP_METHOD_ID, byName.tagId());
+  }
+
+  @Test
+  void theNameFactoriesAreForCustomTagsOnly() {
+    // Entry's name factories skip the registry, so a known name must come in through its id;
+    // anyEntryFor and friends resolve a name first. (Tests run with assertions enabled.)
+    assertThrows(
+        AssertionError.class, () -> TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD_NAME, "GET"));
+    assertEquals(0L, TagMap.Entry.newAnyEntry("my.custom.tag", "value").tagId());
   }
 
   @Test
@@ -72,9 +82,6 @@ class TagMapTagHashTest {
     assertEquals(tagIds.size(), copy.size());
     for (long tagId : tagIds) {
       String name = KnownTagCodec.nameOf(tagId);
-      if (KnownTagCodec.keyOf(name) != tagId) {
-        continue; // a name declared per direction does not resolve to either direction's id
-      }
       assertEquals("value", map.getObject(name), name);
       assertEquals("value", copy.getObject(name), name);
     }
@@ -84,7 +91,10 @@ class TagMapTagHashTest {
     List<Long> tagIds = new ArrayList<>();
     for (Field field : KnownTags.class.getFields()) {
       if (field.getType() == long.class && Modifier.isStatic(field.getModifiers())) {
-        tagIds.add(field.getLong(null));
+        long tagId = field.getLong(null);
+        if (KnownTagCodec.isKnown(tagId)) {
+          tagIds.add(tagId);
+        }
       }
     }
     return tagIds;

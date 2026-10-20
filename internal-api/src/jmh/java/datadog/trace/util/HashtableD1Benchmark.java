@@ -137,6 +137,28 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Net takeaway: {@code Hashtable} is a strong substitute for {@code HashMap} for simple
  * counter/tally use cases with a primitive value. Avoiding the per-update boxing allocation wins
  * under G1, and wins by a much larger margin on a throughput collector.
+ *
+ * <p>Rerun on the bounded table ({@code D1.createBounded}) with 5 forks and 15 data points per
+ * method, on Zulu 17.0.7 AArch64 with 8 threads. <b>Not comparable to the tables above:</b> on the
+ * same JVM build and JMH 1.37, JMH auto-detected the {@code full + dont-inline} Blackhole here
+ * instead of the cheaper {@code compiler} mode. JMH chooses the mode per run and does not record it
+ * with the scores, so compare within a table, never across. M ops/us:
+ *
+ * <pre>{@code
+ * add_hashMap        1204.8   add_hashtable       974.4
+ * update_hashMap      577.2   update_hashtable   1862.6
+ * iterate_hashMap      15.9   iterate_hashtable    21.5
+ * }</pre>
+ *
+ * <p>Within this run, {@code update_hashtable} wins by ~3.2x and {@code iterate_hashtable} by
+ * ~1.35x, while {@code add_hashtable} is ~19% slower. The cause of the {@code add} gap was not
+ * measured.
+ *
+ * <p>{@code Hashtable} and {@link ConcurrentHashtable} target workloads where <b>updates
+ * dominate</b>: the table is populated once and its primitive fields are then mutated in place, so
+ * a slower {@code add} is an acceptable cost for a faster {@code update}. This result does not
+ * transfer to {@code FlatHashtable} or {@code TagMap}, which are built and then read rather than
+ * updated in a loop.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -192,9 +214,11 @@ public class HashtableD1Benchmark {
       BenchmarkUtils.warmUpHashDispatch(bh);
     }
 
+    // Level.Iteration, not Trial: this rebuilds the table and the HashMap, so each iteration must
+    // start from a fresh, identically-sized state rather than inheriting mutated counters.
     @Setup(Level.Iteration)
     public void setUp() {
-      table = new Hashtable.D1<>(CAPACITY);
+      table = Hashtable.D1.createBounded(D1Counter.class, CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       keys = SOURCE_KEYS;
       for (int i = 0; i < N_KEYS; ++i) {

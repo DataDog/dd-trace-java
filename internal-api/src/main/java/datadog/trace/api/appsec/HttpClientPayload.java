@@ -1,5 +1,6 @@
 package datadog.trace.api.appsec;
 
+import datadog.trace.api.http.MediaType;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;

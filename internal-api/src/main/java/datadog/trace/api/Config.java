@@ -3245,7 +3245,9 @@ public class Config {
             TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
     serviceDiscoveryEnabled =
         configProvider.getBoolean(
-            TRACE_SERVICE_DISCOVERY_ENABLED, DEFAULT_SERVICE_DISCOVERY_ENABLED);
+            TRACE_SERVICE_DISCOVERY_ENABLED,
+            DEFAULT_SERVICE_DISCOVERY_ENABLED
+                && !(isCiVisibilityEnabled() && ciVisibilityAgentlessEnabled));
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10

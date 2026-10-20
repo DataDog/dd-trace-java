@@ -165,6 +165,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.env.FixedCapturedEnvironment.useFixedEnv;
@@ -3109,6 +3110,34 @@ class ConfigTest {
 
     assertTrue(config.isCiVisibilityEnabled());
     assertTrue(config.isCiVisibilityAgentlessEnabled());
+  }
+
+  @TableTest({
+    "scenario                    | ciVisibility | agentless | serviceDiscovery | expected",
+    "default                     | false        | false     |                  | true    ",
+    "CI Visibility with agent    | true         | false     |                  | true    ",
+    "CI Visibility agentless     | true         | true      |                  | false   ",
+    "explicitly enabled override | true         | true      | true             | true    "
+  })
+  @ParameterizedTest(name = "[{index}] {0}")
+  void serviceDiscoveryIsDisabledInCiVisibilityAgentlessMode(
+      String scenario,
+      boolean ciVisibility,
+      boolean agentless,
+      String serviceDiscovery,
+      boolean expected)
+      throws Exception {
+    Properties properties = new Properties();
+    properties.setProperty(CIVISIBILITY_ENABLED, String.valueOf(ciVisibility));
+    properties.setProperty(CIVISIBILITY_AGENTLESS_ENABLED, String.valueOf(agentless));
+    properties.setProperty(API_KEY, "123456789");
+    if (serviceDiscovery != null) {
+      properties.setProperty(TRACE_SERVICE_DISCOVERY_ENABLED, serviceDiscovery);
+    }
+
+    Config config = newConfig(withPropertiesOverride(properties));
+
+    assertEquals(expected, config.isServiceDiscoveryEnabled());
   }
 
   @TableTest({

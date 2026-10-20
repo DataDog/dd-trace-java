@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
@@ -396,7 +397,9 @@ public class InstrumenterConfig {
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
     runtimeContextMapPerStore =
         configProvider.getBoolean(
-            RUNTIME_CONTEXT_MAP_PER_STORE, DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE);
+            RUNTIME_CONTEXT_MAP_PER_STORE,
+            // Gradually roll out shared context storage, starting with Java 25.
+            DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE && !isJavaVersionAtLeast(25));
 
     instrumentationConfigId = configProvider.getString(INSTRUMENTATION_CONFIG_ID, "");
 
