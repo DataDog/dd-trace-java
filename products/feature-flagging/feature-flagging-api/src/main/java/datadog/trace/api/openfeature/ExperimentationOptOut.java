@@ -25,10 +25,7 @@ final class ExperimentationOptOut {
     if (override != ExperimentationOptOutMode.DEFAULT) {
       return override;
     }
-    final String configured =
-        ConfigProvider.getInstance()
-            .getString(
-                FeatureFlaggingConfig.FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE, "disabled");
+    final String configured = configuredMode();
     switch (configured.trim().toLowerCase(Locale.ROOT)) {
       case "":
       case "disabled":
@@ -38,6 +35,21 @@ final class ExperimentationOptOut {
       default:
         throw new IllegalArgumentException(
             "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE must be disabled or immediate");
+    }
+  }
+
+  private static String configuredMode() {
+    try {
+      return ConfigProvider.getInstance()
+          .getString(FeatureFlaggingConfig.FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE, "disabled");
+    } catch (final NoClassDefFoundError unavailableAgent) {
+      // The provider can be constructed without an agent. Initialization still reports its absence.
+      final String property = System.getProperty("dd.feature.flags.experimentation.opt.out.mode");
+      if (property != null) {
+        return property;
+      }
+      final String environment = System.getenv("DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE");
+      return environment != null ? environment : "disabled";
     }
   }
 
