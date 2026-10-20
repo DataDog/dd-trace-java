@@ -22,6 +22,7 @@ muzzle {
 }
 
 addTestSuite('latestDepTest')
+addForkedTestTask('latestDepTest')
 addTestSuite('iastLatestDepTest3')
 
 dependencies {

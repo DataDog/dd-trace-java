@@ -36,6 +36,7 @@ import org.gradle.testkit.runner.TaskOutcome;
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector;
 import org.gradle.util.GradleVersion;
 import org.gradle.wrapper.Download;
+import org.gradle.wrapper.GradleUserHomeLookup;
 import org.gradle.wrapper.Install;
 import org.gradle.wrapper.PathAssembler;
 import org.gradle.wrapper.WrapperConfiguration;
@@ -514,7 +515,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
               GradleVersion.current().getVersion(),
               GRADLE_DISTRIBUTION_NETWORK_TIMEOUT);
 
-      java.io.File userHomeDir = testKitFolder.toFile();
+      // Gradle TestKit installs distributions in the Gradle user home of the current JVM
+      java.io.File userHomeDir = GradleUserHomeLookup.gradleUserHome();
       java.io.File projectDir = projectFolder.toFile();
       Install install = new Install(logger, download, new PathAssembler(userHomeDir, projectDir));
 

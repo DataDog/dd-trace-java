@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
   id 'dd-trace-java.testcontainers'
 }
 
@@ -39,7 +40,6 @@ dependencies {
     exclude group: 'com.datastax.cassandra', module: 'cassandra-driver-core'
   }
 
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation project(':dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-3.0')
   testImplementation project(':dd-java-agent:instrumentation:guava-10.0')
 

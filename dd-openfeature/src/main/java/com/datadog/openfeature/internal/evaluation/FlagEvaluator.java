@@ -1,10 +1,21 @@
 package com.datadog.openfeature.internal.evaluation;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVAL_TIMESTAMP_MS;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALUATION_FEATURES;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static java.util.Arrays.asList;
 
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
+import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
 import com.datadog.openfeature.internal.ufc.ParsedSemver;
 import com.datadog.openfeature.internal.ufc.Rule;
@@ -28,24 +39,36 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Local evaluation over a single configuration snapshot. No transport dependency. */
 public final class FlagEvaluator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluator.class);
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
-  private static final String METADATA_OBSERVE_FULL_EVALUATION_DATA =
-      "observe_full_evaluation_data";
-  private static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
-  private static final String METADATA_DO_LOG = "__dd_do_log";
+  static final String FEATURE_DESTINATION_HOOK = "HOOK";
+  static final String FEATURE_DESTINATION_EXPOSURE = "EXPOSURE";
+  static final String FEATURE_DESTINATION_EVALUATION = "EVALUATION";
+  // A newer UFC can name destinations this SDK does not know; warn once per name, not per
+  // evaluation.
+  static final int MAX_WARNED_FEATURE_DESTINATIONS = 64;
+  static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
   private final boolean spanEnrichmentEnabled;
-  private final ExposureListener exposureListener;
+  private final ExposureLookup exposureLookup;
 
-  public FlagEvaluator(
-      final boolean spanEnrichmentEnabled, final ExposureListener exposureListener) {
+  /**
+   * Creates an evaluator.
+   *
+   * @param spanEnrichmentEnabled whether span enrichment is enabled.
+   * @param exposureLookup the lookup telling whether an exposure was already recorded.
+   */
+  public FlagEvaluator(final boolean spanEnrichmentEnabled, final ExposureLookup exposureLookup) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
-    this.exposureListener = exposureListener;
+    this.exposureLookup = exposureLookup;
   }
 
   public <T> ProviderEvaluation<T> evaluate(
@@ -118,7 +141,6 @@ public final class FlagEvaluator {
             if (isEmpty(split.shards)) {
               return resolveVariant(
                   target,
-                  key,
                   defaultValue,
                   flag,
                   split.variationKey,
@@ -143,7 +165,6 @@ public final class FlagEvaluator {
               if (allShardsMatch) {
                 return resolveVariant(
                     target,
-                    key,
                     defaultValue,
                     flag,
                     split.variationKey,
@@ -175,7 +196,7 @@ public final class FlagEvaluator {
 
   private static ImmutableMetadata consentMetadata(final boolean observeFullEvaluationData) {
     return ImmutableMetadata.builder()
-        .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
+        .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
         .build();
   }
 
@@ -392,7 +413,6 @@ public final class FlagEvaluator {
 
   private <T> ProviderEvaluation<T> resolveVariant(
       final Class<T> target,
-      final String key,
       final T defaultValue,
       final Flag flag,
       final String variationKey,
@@ -443,36 +463,98 @@ public final class FlagEvaluator {
         ImmutableMetadata.builder()
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
-            .addString("allocationKey", allocation.key)
-            .addLong("__dd_eval_timestamp_ms", evalTimestampMs)
-            .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
-    // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
-    // only when span enrichment is on, so a provider without enrichment pays nothing extra.
-    // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
-    // present (when enrichment is on) so the span-enrichment hook can decide whether to record the
-    // subject.
-    if (spanEnrichmentEnabled) {
+            .addString(ALLOCATION_KEY, allocation.key)
+            .addLong(EVAL_TIMESTAMP_MS, evalTimestampMs)
+            .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
+    // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment and
+    // for the exposure hook, which sends the exposure after the evaluation succeeds. An evaluation
+    // that neither logs exposures nor enriches spans carries neither key.
+    // __dd_split_serial_id is omitted when the split carries no serial id.
+    final boolean doLog = Boolean.TRUE.equals(allocation.doLog);
+    if (spanEnrichmentEnabled || doLog) {
       if (split.serialId != null) {
-        metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
+        metadataBuilder.addInteger(SPLIT_SERIAL_ID, split.serialId);
       }
-      metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
+      metadataBuilder.addBoolean(DO_LOG, doLog);
     }
-    final ProviderEvaluation<T> result =
-        ProviderEvaluation.<T>builder()
-            .value(mappedValue)
-            .reason(
-                !isEmpty(allocation.rules)
-                    ? Reason.TARGETING_MATCH.name()
-                    : allocation.startAt != null || allocation.endAt != null
-                        ? Reason.DEFAULT.name()
-                        : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
-            .variant(variant.key)
-            .flagMetadata(metadataBuilder.build())
-            .build();
-    if (Boolean.TRUE.equals(allocation.doLog)) {
-      exposureListener.onExposure(key, result, split.serialId, context);
+    addSplitFeatures(metadataBuilder, split);
+    if (doLog) {
+      metadataBuilder.addBoolean(
+          EXPOSURE_CACHE_HIT,
+          this.exposureLookup.isExposed(
+              flag.key, context.getTargetingKey(), allocation.key, variant.key, split.serialId));
     }
-    return result;
+    return ProviderEvaluation.<T>builder()
+        .value(mappedValue)
+        .reason(
+            !isEmpty(allocation.rules)
+                ? Reason.TARGETING_MATCH.name()
+                : allocation.startAt != null || allocation.endAt != null
+                    ? Reason.DEFAULT.name()
+                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
+        .variant(variant.key)
+        .flagMetadata(metadataBuilder.build())
+        .build();
+  }
+
+  private static void addSplitFeatures(
+      final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder, final Split split) {
+    if (split.features == null) {
+      return;
+    }
+    Set<String> seenKeys = null;
+    boolean evaluationFeatures = false;
+    for (final Feature feature : split.features) {
+      if (feature == null || feature.key == null || feature.destinations == null) {
+        continue;
+      }
+      if (seenKeys == null) {
+        seenKeys = new HashSet<>();
+      }
+      // The first feature with a key wins, for every destination.
+      if (!seenKeys.add(feature.key)) {
+        continue;
+      }
+      for (final String destination : feature.destinations) {
+        final String prefix = metadataPrefix(destination);
+        if (prefix != null) {
+          addFeature(metadataBuilder, prefix + feature.key, feature.value);
+          evaluationFeatures |= EVALUATION_FEATURE_PREFIX.equals(prefix);
+        } else if (WARNED_FEATURE_DESTINATIONS.size() < MAX_WARNED_FEATURE_DESTINATIONS
+            && WARNED_FEATURE_DESTINATIONS.add(destination)) {
+          LOGGER.warn("Ignoring unknown feature destination {}", destination);
+        }
+      }
+    }
+    if (evaluationFeatures) {
+      metadataBuilder.addBoolean(HAS_EVALUATION_FEATURES, true);
+    }
+  }
+
+  private static String metadataPrefix(final String destination) {
+    if (FEATURE_DESTINATION_HOOK.equals(destination)) {
+      return FEATURE_PREFIX;
+    }
+    if (FEATURE_DESTINATION_EXPOSURE.equals(destination)) {
+      return EXPOSURE_FEATURE_PREFIX;
+    }
+    if (FEATURE_DESTINATION_EVALUATION.equals(destination)) {
+      return EVALUATION_FEATURE_PREFIX;
+    }
+    return null;
+  }
+
+  private static void addFeature(
+      final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder,
+      final String key,
+      final Object value) {
+    if (value instanceof String) {
+      metadataBuilder.addString(key, (String) value);
+    } else if (value instanceof Boolean) {
+      metadataBuilder.addBoolean(key, (Boolean) value);
+    } else if (value instanceof Number) {
+      metadataBuilder.addDouble(key, ((Number) value).doubleValue());
+    }
   }
 
   private static Object resolveAttribute(final String name, final EvaluationContext context) {
@@ -541,22 +623,21 @@ public final class FlagEvaluator {
     return Double.parseDouble(String.valueOf(value));
   }
 
-  /** Receives the evaluations whose allocation logs exposures. */
+  /** Tells whether an exposure was already recorded, so it is not sent again. */
   @FunctionalInterface
-  public interface ExposureListener {
+  public interface ExposureLookup {
     /**
-     * Called when an evaluation resolves to an allocation logging exposures.
+     * Tells whether this exposure is the last one recorded for the flag and subject.
      *
-     * @param flagKey the evaluated flag key.
-     * @param evaluation the evaluation result.
+     * @param flag the flag key.
+     * @param subject the subject, the targeting key.
+     * @param allocation the allocation key.
+     * @param variant the variant key.
      * @param serialId the split serial id, or {@code null} if absent.
-     * @param context the evaluation context.
+     * @return whether the exposure was already recorded.
      */
-    void onExposure(
-        String flagKey,
-        ProviderEvaluation<?> evaluation,
-        Integer serialId,
-        EvaluationContext context);
+    boolean isExposed(
+        String flag, String subject, String allocation, String variant, Integer serialId);
   }
 
   @FunctionalInterface
