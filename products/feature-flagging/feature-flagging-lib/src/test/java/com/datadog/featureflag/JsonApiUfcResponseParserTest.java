@@ -92,10 +92,11 @@ class JsonApiUfcResponseParserTest {
                 configWithFlags(
                     booleanFlag("no-allocations", ""),
                     booleanFlag(
-                        "no-splits", ",\"allocations\":[{\"key\":\"no-splits\",\"rules\":[]}]"),
+                        "no-splits",
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"no-splits\",\"rules\":[]}]"),
                     booleanFlag(
                         "null-split",
-                        ",\"allocations\":[{\"key\":\"null-split\",\"rules\":[],\"splits\":[null]}]"),
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"null-split\",\"rules\":[],\"splits\":[null]}]"),
                     booleanFlag("no-rules", allocation("no-rules", "")),
                     booleanFlag("no-conditions", allocation("no-conditions", "[{}]")),
                     booleanFlag(
@@ -174,7 +175,7 @@ class JsonApiUfcResponseParserTest {
                 configWithFlags(
                     booleanFlag(
                         "missing-shards",
-                        ",\"allocations\":[{\"key\":\"missing-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\"}]}]"),
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"missing-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\"}]}]"),
                     booleanFlag("valid-sibling", ""))));
 
     assertNotNull(configuration);
@@ -201,7 +202,7 @@ class JsonApiUfcResponseParserTest {
                             "[{\"conditions\":[{\"attribute\":\"role\",\"operator\":\"ONE_OF\",\"value\":\"admin\"}]}]")),
                     booleanFlag(
                         "negative-shard-range",
-                        ",\"allocations\":[{\"key\":\"negative-shard-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":100,\"ranges\":[{\"start\":-1,\"end\":1}]}]}]}]"),
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"negative-shard-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":100,\"ranges\":[{\"start\":-1,\"end\":1}]}]}]}]"),
                     booleanFlag("valid-sibling", ""))));
 
     assertNotNull(configuration);
@@ -222,25 +223,25 @@ class JsonApiUfcResponseParserTest {
                 configWithFlags(
                     booleanFlag(
                         "zero-total-shards",
-                        ",\"allocations\":[{\"key\":\"zero-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":0,\"ranges\":[]}]}]}]"),
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"zero-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":0,\"ranges\":[]}]}]}]"),
                     booleanFlag(
                         "unsigned-total-shards",
-                        ",\"allocations\":[{\"key\":\"unsigned-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":2147483648,\"ranges\":[{\"start\":2147483648,\"end\":2147483649}]}]}]}]"),
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"unsigned-total-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":2147483648,\"ranges\":[{\"start\":2147483648,\"end\":2147483649}]}]}]}]"),
                     booleanFlag(
                         "too-many-shards",
-                        ",\"allocations\":[{\"key\":\"too-many-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":4294967296,\"ranges\":[]}]}]}]"),
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"too-many-shards\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":4294967296,\"ranges\":[]}]}]}]"),
                     booleanFlag(
                         "missing-ranges",
-                        ",\"allocations\":[{\"key\":\"missing-ranges\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":1}]}]}]"),
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"missing-ranges\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":1}]}]}]"),
                     booleanFlag(
                         "null-shard",
-                        ",\"allocations\":[{\"key\":\"null-shard\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[null]}]}]"),
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"null-shard\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[null]}]}]"),
                     booleanFlag(
                         "null-range",
-                        ",\"allocations\":[{\"key\":\"null-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":1,\"ranges\":[null]}]}]}]"),
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"null-range\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":1,\"ranges\":[null]}]}]}]"),
                     booleanFlag(
                         "negative-range-end",
-                        ",\"allocations\":[{\"key\":\"negative-range-end\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":1,\"ranges\":[{\"start\":0,\"end\":-1}]}]}]}]"),
+                        ",\"allocations\":[{\"doLog\":false,\"key\":\"negative-range-end\",\"rules\":[],\"splits\":[{\"variationKey\":\"on\",\"shards\":[{\"salt\":\"salt\",\"totalShards\":1,\"ranges\":[{\"start\":0,\"end\":-1}]}]}]}]"),
                     booleanFlag(
                         "non-boolean-is-null",
                         allocation(
@@ -446,7 +447,7 @@ class JsonApiUfcResponseParserTest {
   }
 
   private static String allocation(final String key, final String rules) {
-    return ",\"allocations\":[{\"key\":\""
+    return ",\"allocations\":[{\"doLog\":false,\"key\":\""
         + key
         + "\""
         + (rules.isEmpty() ? "" : ",\"rules\":" + rules)

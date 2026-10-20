@@ -1366,6 +1366,10 @@ public class DDEvaluatorTest {
         if (allocation == null) {
           continue;
         }
+        if (allocation.doLog == null) {
+          throw new IllegalArgumentException(
+              "flag \"" + flagKey + "\" contains an allocation without a boolean doLog");
+        }
         validateConditionOperands(flagKey, allocation);
         if (allocation.splits == null) {
           continue;
