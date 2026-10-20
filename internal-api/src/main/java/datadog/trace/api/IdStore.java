@@ -150,6 +150,16 @@ public abstract class IdStore {
   public abstract EntryReader getEntryReader(long tagId);
 
   /**
+   * The entry for the known tag {@code tagId}, reading through to the parent chain, or null. Unlike
+   * {@link #getEntryReader}, the result is an {@link TagMap.Entry} the caller may keep, and it
+   * shares no state with the store, so it is safe to call concurrently on a frozen store that
+   * several threads read, such as a span prototype's or the tracer-level tags.
+   *
+   * @throws IllegalArgumentException if {@code tagId} names no known tag
+   */
+  public abstract TagMap.Entry getEntry(long tagId);
+
+  /**
    * {@link #getEntryReader}'s value, boxed if necessary, or null -- for a caller that needs only
    * the value, so a store that keeps known tags without an Entry per tag can answer without one.
    */

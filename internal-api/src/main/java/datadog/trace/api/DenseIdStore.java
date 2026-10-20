@@ -15,9 +15,11 @@ import java.util.function.Consumer;
  * out. The full id is rebuilt from the serial ({@link KnownTagCodec#idOf}) only where a reader asks
  * for it. Values are boxed: a primitive set by id is stored as its wrapper.
  *
- * <p>Point reads that need only the value ({@link #getValue}) build nothing. Those that return an
- * {@link EntryReader} answer with this store's one reused flyweight, valid until the store's next
- * operation (see {@link IdStore}).
+ * <p>Point reads that need only the value ({@link #getValue}) build nothing. Those that return a
+ * reader or an Entry build their own ({@link #getEntryReader}, {@link #getEntry}), so concurrent
+ * reads of a frozen store shared between threads never share state. Only writes answer their prior
+ * value with this store's one reused flyweight, valid until the store's next operation (see {@link
+ * IdStore}).
  *
  * <p>Removing a tag that hides nothing inherited swaps the last slot into its place. Removing a tag
  * the parent chain also holds stores the shared {@link #TOMBSTONE} as its value instead, and sets
@@ -179,7 +181,11 @@ final class DenseIdStore extends IdStore {
   /** The frozen parent's id store, or null. */
   final DenseIdStore parent;
 
-  /** The reused flyweight point reads answer with; built on first use. */
+  /**
+   * The reused flyweight that writes ({@code put}, {@code getAndPut}, {@code remove}) answer their
+   * prior value with; built on first use. Only writes use it: a store being written has a single
+   * writer, while a frozen store that threads share is only read, and reads build their own.
+   */
   private DenseReader reader;
 
   DenseIdStore(IdStore parent) {
@@ -187,9 +193,25 @@ final class DenseIdStore extends IdStore {
     this.parent = (DenseIdStore) parent;
   }
 
+  /**
+   * A fresh reader per call, never the store's reused one: point reads can come from several
+   * threads at once on a frozen store they share. A short-lived reader is usually scalar-replaced.
+   */
   @Override
   public EntryReader getEntryReader(long tagId) {
-    return this.readerOf(tagId, this.getValue(tagId));
+    Object value = this.getValue(tagId);
+    if (value == null) {
+      return null;
+    }
+    DenseReader reader = new DenseReader();
+    reader.set(tagId, value);
+    return reader;
+  }
+
+  @Override
+  public TagMap.Entry getEntry(long tagId) {
+    Object value = this.getValue(tagId);
+    return value == null ? null : TagMap.Entry.newAnyEntry(tagId, value);
   }
 
   @Override
@@ -396,7 +418,7 @@ final class DenseIdStore extends IdStore {
     this.values = Arrays.copyOf(this.values, newCap);
   }
 
-  /** The flyweight over {@code value}, or null when there is none. */
+  /** The reused flyweight over a write's prior {@code value}, or null when there is none. */
   private EntryReader readerOf(long tagId, Object value) {
     if (value == null) {
       return null;

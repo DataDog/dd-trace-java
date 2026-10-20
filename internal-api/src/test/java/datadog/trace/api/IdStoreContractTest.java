@@ -382,6 +382,30 @@ class IdStoreContractTest {
 
   @ParameterizedTest
   @MethodSource("stores")
+  void getEntryReturnsAnEntryTheCallerMayKeep(Function<IdStore, IdStore> newStore) {
+    IdStore parent = newStore.apply(null);
+    parent.set(KnownTags.HTTP_ROUTE_ID, "/inherited");
+    IdStore store = newStore.apply(parent);
+    store.set(KnownTags.HTTP_METHOD_ID, "GET");
+
+    TagMap.Entry method = store.getEntry(KnownTags.HTTP_METHOD_ID);
+    TagMap.Entry route = store.getEntry(KnownTags.HTTP_ROUTE_ID);
+    EntryReader methodReader = store.getEntryReader(KnownTags.HTTP_METHOD_ID);
+    EntryReader routeReader = store.getEntryReader(KnownTags.HTTP_ROUTE_ID);
+
+    // kept side by side, each still holds its own tag
+    assertEquals("GET", method.objectValue());
+    assertEquals(KnownTags.HTTP_METHOD_ID, method.tagId());
+    assertEquals("/inherited", route.objectValue());
+    assertEquals("GET", methodReader.objectValue());
+    assertEquals("/inherited", routeReader.objectValue());
+    assertNull(store.getEntry(KnownTags.COMPONENT_ID));
+    assertThrows(
+        IllegalArgumentException.class, () -> store.getEntry(KnownTagCodec.makeTagId(9999)));
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
   void anUnknownIdIsRejected(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
     long unknown = KnownTagCodec.makeTagId(9999);

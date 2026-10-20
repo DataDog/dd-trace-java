@@ -1485,7 +1485,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // an OpenTelemetry rename must resolve to the same id, or it would silently miss the entry.
     long key = KnownTagCodec.keyOf(tag);
     if (key != 0) {
-      return entryOf(this.knownStore.getEntryReader(key));
+      return this.knownStore.getEntry(key);
     }
     HashStore nameStore = this.nameStore;
     return nameStore == null ? null : nameStore.get(tag);
@@ -1493,7 +1493,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
   public Entry getEntry(long tagId) {
-    return entryOf(this.knownStore.getEntryReader(tagId));
+    return this.knownStore.getEntry(tagId);
   }
 
   @Deprecated

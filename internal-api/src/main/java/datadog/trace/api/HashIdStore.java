@@ -79,14 +79,20 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public Entry getEntryReader(long tagId) {
+  public Entry getEntry(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       throw notKnown(tagId);
     }
     return this.getVisible(tagId, slotBit(tagId), levelOf(tagId));
   }
 
-  /** {@link #getEntryReader} for a validated id and its slot bit and level. */
+  /** The stored Entry is itself a stable reader, so this is {@link #getEntry}. */
+  @Override
+  public Entry getEntryReader(long tagId) {
+    return this.getEntry(tagId);
+  }
+
+  /** {@link #getEntry} for a validated id and its slot bit and level. */
   private Entry getVisible(long tagId, long bit, int level) {
     if (this.mayHaveLocal(bit, level)) {
       Entry local = HashSupport.findById(this.buckets, Entry.bucketHash(tagId), tagId);
@@ -99,7 +105,7 @@ final class HashIdStore extends IdStore {
 
   @Override
   public Object getValue(long tagId) {
-    Entry entry = this.getEntryReader(tagId);
+    Entry entry = this.getEntry(tagId);
     return entry == null ? null : entry.objectValue();
   }
 
