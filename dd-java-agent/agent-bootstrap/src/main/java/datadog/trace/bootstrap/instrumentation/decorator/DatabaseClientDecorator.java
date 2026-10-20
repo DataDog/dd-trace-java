@@ -163,8 +163,10 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
             BlockResponseFunction brf = ctx.getBlockResponseFunction();
             if (brf != null) {
               Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-              brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+              brf.tryCommitBlockingResponse(ctx, rba);
             }
+            // Thrown even without a BlockResponseFunction: RASP must abort the SQLi attempt even
+            // when no blocking response can be committed.
             throw new BlockingException("Blocked request (for SQL query)");
           }
         }

@@ -57,15 +57,6 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.servlet.ServletRequestSetter",
-      "datadog.trace.instrumentation.servlet.SpanNameCache",
-      packageName + ".RequestDispatcherDecorator",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return singletonMap("javax.servlet.RequestDispatcher", String.class.getName());
   }

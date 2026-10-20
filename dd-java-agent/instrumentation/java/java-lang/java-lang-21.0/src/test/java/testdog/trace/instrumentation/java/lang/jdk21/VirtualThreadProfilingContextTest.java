@@ -41,6 +41,7 @@ public class VirtualThreadProfilingContextTest extends AbstractInstrumentationTe
         CoreTracer.builder()
             .writer(writer)
             .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
+            .strictTraceWrites(true)
             .profilingContextIntegration(PROFILING_CONTEXT)
             .build();
     TracerInstaller.forceInstallGlobalTracer(coreTracer);

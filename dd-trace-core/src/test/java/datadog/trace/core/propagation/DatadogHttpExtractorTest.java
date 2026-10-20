@@ -1,7 +1,9 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.config.GeneralConfig.APM_TRACING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.DatadogHttpCodec.DATADOG_TAGS_KEY;
@@ -12,6 +14,7 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.otBaggageHeaders;
+import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
 import static datadog.trace.test.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -117,6 +120,35 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
 
     String expectedHeader = "my-interesting-info";
     assertEquals(expectedHeader, context.getTags().getString(SOME_TAG));
+  }
+
+  @Test
+  void extractHeaderTagMappedOnAwsTraceHeader() {
+    // X-Amzn-Trace-Id is consumed as AWS X-Ray context, but a header tag mapped onto it must still
+    // be honoured. This is the load-balancer header example from the AWS documentation: it carries
+    // a Self field and is not in the padded format this codec extracts ids from, so only the tag
+    // is expected from it.
+    this.extractor.cleanup();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
+        DynamicConfig.create().setHeaderTags(singletonMap(X_AMZN_TRACE_ID, SOME_TAG)).apply();
+    this.extractor = DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+
+    String awsTraceHeader =
+        "Self=1-67891233-12456789abcdef012345678;Root=1-67891233-abcdef012345678912345678";
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, "1",
+        SPAN_ID_KEY, "2",
+        X_AMZN_TRACE_ID, awsTraceHeader
+    );
+    // spotless:on
+
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(awsTraceHeader, context.getTags().getString(SOME_TAG));
+    assertEquals(DDTraceId.from("1"), context.getTraceId());
+    assertEquals(DDSpanId.from("2"), context.getSpanId());
   }
 
   @ParameterizedTest
@@ -228,15 +260,21 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario             | traceId | spanId  | expectExtraction",
-    "negative traceId     | '-1'    | '1'     | false           ",
-    "negative spanId      | '1'     | '-1'    | false           ",
-    "zero traceId         | '0'     | '1'     | false           ",
-    "zero spanId          | '1'     | '0'     | true            ",
-    "uint64 max traceId   | 'MAX'   | '1'     | true            ",
-    "out-of-range traceId | 'MAX+1' | '1'     | false           ",
-    "uint64 max spanId    | '1'     | 'MAX'   | true            ",
-    "out-of-range spanId  | '1'     | 'MAX+1' | false           "
+    "scenario             | traceId                | spanId                 | expectExtraction",
+    "negative traceId     | '-1'                   | '1'                    | false           ",
+    "negative spanId      | '1'                    | '-1'                   | false           ",
+    "zero traceId         | '0'                    | '1'                    | false           ",
+    "zero spanId          | '1'                    | '0'                    | true            ",
+    "uint64 max traceId   | 'MAX'                  | '1'                    | true            ",
+    "out-of-range traceId | 'MAX+1'                | '1'                    | false           ",
+    "wrapping traceId     | '99999999999999999999' | '1'                    | false           ",
+    "uint64 max spanId    | '1'                    | 'MAX'                  | true            ",
+    "out-of-range spanId  | '1'                    | 'MAX+1'                | false           ",
+    "wrapping spanId      | '1'                    | '99999999999999999999' | false           ",
+    "empty traceId        | ''                     | '1'                    | false           ",
+    "empty spanId         | '1'                    | ''                     | false           ",
+    "hex traceId          | '0x1a'                 | '1'                    | false           ",
+    "hex spanId           | '1'                    | '0x1a'                 | false           "
   })
   void moreIdRangeValidation(
       @ConvertWith(TraceIdConverter.class) String traceId,
@@ -343,6 +381,52 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertEquals(singletonMap(SOME_BAGGAGE, "mappedBaggageValue"), context.getBaggage());
+  }
+
+  /**
+   * With APM tracing disabled, an upstream sampling decision is only kept when {@code _dd.p.ts}
+   * marks the trace for ASM or AI Guard. Otherwise the local sampler sets the priority.
+   */
+  @Nested
+  @WithConfig(key = APM_TRACING_ENABLED, value = "false")
+  class ApmTracingDisabled {
+    @Test
+    void upstreamPriorityDroppedWhenNoProductMarkedTheTrace() {
+      Map<String, String> headers = new HashMap<>();
+      headers.put(TRACE_ID_KEY, "1");
+      headers.put(SPAN_ID_KEY, "2");
+      headers.put(SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP));
+
+      ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+
+      assertEquals(UNSET, context.getSamplingPriority());
+    }
+
+    @Test
+    void upstreamPriorityKeptWhenProductMarkedTheTrace() {
+      Map<String, String> headers = new HashMap<>();
+      headers.put(TRACE_ID_KEY, "1");
+      headers.put(SPAN_ID_KEY, "2");
+      headers.put(SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP));
+      headers.put(DATADOG_TAGS_KEY, "_dd.p.ts=02");
+
+      ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+
+      assertEquals(SAMPLER_KEEP, context.getSamplingPriority());
+    }
+
+    @Test
+    void upstreamPriorityDroppedWhenOnlyDsmMarkedTheTrace() {
+      Map<String, String> headers = new HashMap<>();
+      headers.put(TRACE_ID_KEY, "1");
+      headers.put(SPAN_ID_KEY, "2");
+      headers.put(SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP));
+      headers.put(DATADOG_TAGS_KEY, "_dd.p.ts=04");
+
+      ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+
+      assertEquals(UNSET, context.getSamplingPriority());
+    }
   }
 
   @Nested

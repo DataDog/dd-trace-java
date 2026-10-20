@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
+import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;

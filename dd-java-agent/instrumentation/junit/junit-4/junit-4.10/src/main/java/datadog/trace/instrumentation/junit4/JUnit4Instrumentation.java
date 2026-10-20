@@ -68,17 +68,6 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".JUnit4TracingListener",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "org.junit.runner.Description", TestExecutionTracker.class.getName());

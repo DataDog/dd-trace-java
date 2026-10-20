@@ -714,6 +714,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
           operationName "spark.sql"
           spanType "spark"
           childOf(span(0))
+          assert span.tags["_dd.spark.physical_plan"] != null
         }
         span {
           operationName "spark.job"

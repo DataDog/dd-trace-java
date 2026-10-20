@@ -72,15 +72,20 @@ tasks.named("compileTest_java11Java") {
   configureCompiler(it, JavaVersion.VERSION_11)
 }
 
-tasks.named("compileTest_java21Java") {
-  // Relies on the daemon JDK (>= 18/19) so javac emits `invokeinterface` for `java.lang.Object`
-  // methods on an interface type. See https://bugs.openjdk.org/browse/JDK-8272715.
-  configureCompiler(it, JavaVersion.VERSION_1_8)
-}
-
 tasks.named("jmh") {
   dependsOn(tasks.named("compileTestJava"))
   outputs.upToDateWhen { false }
+}
+
+tasks.named("jmhJar", Jar) {
+  // includeTests also brings in the test InstrumenterModule services file; drop it so only
+  // the jmh benchmark instrumentations are registered, regardless of copy order
+  def testResourcesDir = sourceSets.test.output.resourcesDir.toPath()
+  filesMatching("META-INF/services/datadog.trace.agent.tooling.InstrumenterModule") {
+    if (it.file.toPath().startsWith(testResourcesDir)) {
+      it.exclude()
+    }
+  }
 }
 
 tasks.withType(Test).configureEach {

@@ -35,13 +35,6 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SynapseClientDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()

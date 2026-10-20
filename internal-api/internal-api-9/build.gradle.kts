@@ -2,7 +2,6 @@ import datadog.gradle.configureCompiler
 
 plugins {
   `java-library`
-  id("de.thetaphi.forbiddenapis") version "3.10"
   id("dd-trace-java.jmh-conventions")
   idea
   id("dd-trace-java.module.internal-api")

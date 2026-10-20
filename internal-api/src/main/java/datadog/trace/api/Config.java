@@ -750,8 +750,6 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.isSupportedConfigurationSource;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
@@ -769,7 +767,6 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
-import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -1089,7 +1086,8 @@ public class Config {
 
   private final ProfilingEnablement profilingEnabled;
   private final boolean profilingAgentless;
-  private final boolean isDatadogProfilerEnabled;
+  private final boolean isDatadogProfilerSafeAndConfigured;
+  private final boolean otelThreadContextEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -1257,8 +1255,6 @@ public class Config {
 
   private final int remoteConfigMaxExtraServices;
 
-  private final boolean featureFlaggingProviderEnabled;
-  private final String featureFlaggingConfigurationSource;
   private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
   private final int featureFlaggingConfigurationSourcePollIntervalSeconds;
   private final int featureFlaggingConfigurationSourceRequestTimeoutSeconds;
@@ -2413,7 +2409,7 @@ public class Config {
     profilingEnabled = ProfilingEnablement.of(value);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
-    isDatadogProfilerEnabled =
+    isDatadogProfilerSafeAndConfigured =
         !isDatadogProfilerEnablementOverridden()
             && configProvider.getBoolean(
                 PROFILING_DATADOG_PROFILER_ENABLED, isDatadogProfilerSafeInCurrentEnvironment())
@@ -2657,6 +2653,12 @@ public class Config {
         traceResourceRenamingExplicit != null
             ? traceResourceRenamingExplicit
             : instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
+
+    // No dedicated flag: kill switch is DD_PROFILING_ENABLED / DD_APPSEC_ENABLED.
+    this.otelThreadContextEnabled =
+        isDatadogProfilerSafeAndConfigured()
+            && (isProfilingEnabled()
+                || instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED);
 
     this.traceResourceRenamingAlwaysSimplifiedEndpoint =
         configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, false);
@@ -2944,33 +2946,19 @@ public class Config {
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
 
-    final Boolean configuredFeatureFlaggingProviderEnabled =
-        configProvider.getBoolean(FEATURE_FLAGS_ENABLED);
-    final Boolean legacyFeatureFlaggingProviderEnabled =
-        configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
-    final String configuredFeatureFlaggingConfigurationSource =
-        configProvider.isSet(FEATURE_FLAGS_CONFIGURATION_SOURCE)
-            ? configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE)
-            : null;
-    final FeatureFlaggingConfig.Resolution resolvedFeatureFlaggingConfiguration =
-        resolveConfiguration(
-            configuredFeatureFlaggingProviderEnabled,
-            configuredFeatureFlaggingConfigurationSource,
-            legacyFeatureFlaggingProviderEnabled);
-    if (legacyFeatureFlaggingProviderEnabled != null) {
+    if (configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED) != null) {
       log.warn(
           "Setting {} is deprecated. Use {} and {} instead.",
           EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED,
           FEATURE_FLAGS_ENABLED,
           FEATURE_FLAGS_CONFIGURATION_SOURCE);
     }
-    if (!isSupportedConfigurationSource(configuredFeatureFlaggingConfigurationSource)) {
+    if (instrumenterConfig.getFeatureFlaggingConfigurationSource()
+        == FeatureFlaggingSource.INVALID) {
       log.warn(
           "Unsupported Feature Flagging configuration source; provider disabled: '{}'",
-          resolvedFeatureFlaggingConfiguration.getSource());
+          configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE));
     }
-    featureFlaggingProviderEnabled = resolvedFeatureFlaggingConfiguration.isEnabled();
-    featureFlaggingConfigurationSource = resolvedFeatureFlaggingConfiguration.getSource();
     featureFlaggingConfigurationSourceAgentlessBaseUrl =
         configProvider.getStringNotEmpty(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
@@ -3295,7 +3283,9 @@ public class Config {
             TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
     serviceDiscoveryEnabled =
         configProvider.getBoolean(
-            TRACE_SERVICE_DISCOVERY_ENABLED, DEFAULT_SERVICE_DISCOVERY_ENABLED);
+            TRACE_SERVICE_DISCOVERY_ENABLED,
+            DEFAULT_SERVICE_DISCOVERY_ENABLED
+                && !(isCiVisibilityEnabled() && ciVisibilityAgentlessEnabled));
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -4266,8 +4256,28 @@ public class Config {
     return profilingRecordExceptionMessage;
   }
 
+  /**
+   * Means "profiling is enabled AND the ddprof engine is allowed to run", not "currently
+   * recording".
+   */
   public boolean isDatadogProfilerEnabled() {
-    return isProfilingEnabled() && isDatadogProfilerEnabled;
+    return isProfilingEnabled() && isDatadogProfilerSafeAndConfigured;
+  }
+
+  /**
+   * The raw ddprof env-safety/explicit-flag predicate, without the {@link #isProfilingEnabled()}
+   * AND-prefix: reused by {@link #isOtelThreadContextEnabled()}.
+   */
+  public boolean isDatadogProfilerSafeAndConfigured() {
+    return isDatadogProfilerSafeAndConfigured;
+  }
+
+  /**
+   * Whether the OTel thread/process context should be exposed through the Datadog profiler native
+   * library for external consumers such as eBPF/CWS.
+   */
+  public boolean isOtelThreadContextEnabled() {
+    return otelThreadContextEnabled;
   }
 
   public static boolean isDatadogProfilerEnablementOverridden() {
@@ -4913,11 +4923,12 @@ public class Config {
   }
 
   public boolean isFeatureFlaggingProviderEnabled() {
-    return featureFlaggingProviderEnabled;
+    return instrumenterConfig.isFeatureFlaggingEnabled();
   }
 
   public String getFeatureFlaggingConfigurationSource() {
-    return featureFlaggingConfigurationSource;
+    final FeatureFlaggingSource source = instrumenterConfig.getFeatureFlaggingConfigurationSource();
+    return source == FeatureFlaggingSource.UNSET ? null : source.name().toLowerCase(Locale.ROOT);
   }
 
   public String getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() {
@@ -6868,6 +6879,8 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
+        + ", otelThreadContextEnabled="
+        + otelThreadContextEnabled
         + ", crashTrackingTags="
         + crashTrackingTags
         + ", crashTrackingAgentless="
@@ -6887,9 +6900,9 @@ public class Config {
         + ", remoteConfigIntegrityCheckEnabled="
         + remoteConfigIntegrityCheckEnabled
         + ", featureFlaggingProviderEnabled="
-        + featureFlaggingProviderEnabled
+        + isFeatureFlaggingProviderEnabled()
         + ", featureFlaggingConfigurationSource="
-        + featureFlaggingConfigurationSource
+        + getFeatureFlaggingConfigurationSource()
         + ", featureFlaggingConfigurationSourceAgentlessBaseUrl="
         + featureFlaggingConfigurationSourceAgentlessBaseUrl
         + ", featureFlaggingConfigurationSourcePollIntervalSeconds="

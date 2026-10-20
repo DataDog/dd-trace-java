@@ -50,22 +50,13 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
         SpringMessageHandlerInstrumentation.class.getName() + "$HandleMessageAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpringMessageDecorator",
-      packageName + ".SpringMessageExtractAdapter",
-      packageName + ".SpringMessageExtractAdapter$1",
-    };
-  }
-
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextPropagationAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) Message<?> message, @Advice.Local("ctxScope") ContextScope scope) {
-      if (activeSpan() == null) {
+      if (message != null && activeSpan() == null) {
         // no local active span, so extract from message to avoid disconnected trace
         scope = defaultPropagator().extract(rootContext(), message, GETTER).attach();
       }

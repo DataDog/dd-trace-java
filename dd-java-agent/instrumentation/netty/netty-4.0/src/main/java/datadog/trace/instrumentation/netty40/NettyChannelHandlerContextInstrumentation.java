@@ -44,22 +44,6 @@ public class NettyChannelHandlerContextInstrumentation extends InstrumenterModul
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AttributeKeys",
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         // this may be overly aggressive:

@@ -36,7 +36,11 @@ class TimingReadinessForkedTest extends AbstractInstrumentationTest {
     writer = new ListWriter();
     profiling = new TestProfilingContextIntegration();
     CoreTracer profilingTracer =
-        CoreTracer.builder().writer(writer).profilingContextIntegration(profiling).build();
+        CoreTracer.builder()
+            .writer(writer)
+            .strictTraceWrites(true)
+            .profilingContextIntegration(profiling)
+            .build();
     TracerInstaller.forceInstallGlobalTracer(profilingTracer);
     tracer = profilingTracer;
   }

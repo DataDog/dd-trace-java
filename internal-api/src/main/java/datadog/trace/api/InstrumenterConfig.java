@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
@@ -29,6 +30,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_ENABLED;
+import static datadog.trace.api.FeatureFlaggingSource.AGENTLESS;
+import static datadog.trace.api.FeatureFlaggingSource.INVALID;
+import static datadog.trace.api.FeatureFlaggingSource.REMOTE_CONFIG;
+import static datadog.trace.api.FeatureFlaggingSource.UNSET;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
@@ -98,8 +103,13 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKE
 import static datadog.trace.api.config.TraceInstrumentationConfig.UNSAFE_CLASS_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_PARSING;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
+import static java.lang.Boolean.FALSE;
+import static java.util.Collections.singletonList;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingEnablement;
@@ -143,6 +153,15 @@ public class InstrumenterConfig {
     }
   }
 
+  /**
+   * Name of the opt-in Scala Promise integration that gives the context completing a {@code
+   * Promise} priority over the context that registered callbacks on it. Defined here so that the
+   * instrumentations enabling this mode and the ones that have to compensate for it cannot drift
+   * apart.
+   */
+  private static final String SCALA_PROMISE_COMPLETION_PRIORITY =
+      "scala_promise_completion_priority";
+
   private final ConfigProvider configProvider;
 
   private final boolean triageEnabled;
@@ -165,6 +184,8 @@ public class InstrumenterConfig {
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
   private final boolean llmObsEnabled;
+  private final boolean featureFlaggingEnabled;
+  private final FeatureFlaggingSource featureFlaggingConfigurationSource;
 
   private final String traceExtensionsPath;
 
@@ -231,6 +252,7 @@ public class InstrumenterConfig {
 
   private final boolean appLogsCollectionEnabled;
   private final boolean legacyContextManagerEnabled;
+  private final boolean scalaPromiseCompletionPriorityEnabled;
 
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
@@ -265,6 +287,21 @@ public class InstrumenterConfig {
             CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT,
             DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
+    // The product switch wins, then an explicit source, then the deprecated experimental toggle.
+    final Boolean featureFlagsEnabled = configProvider.getBoolean(FEATURE_FLAGS_ENABLED);
+    final FeatureFlaggingSource featureFlagsSource = featureFlaggingSource(configProvider);
+    final Boolean legacyFeatureFlagsEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
+    if (FALSE.equals(featureFlagsEnabled) || featureFlagsSource != UNSET) {
+      featureFlaggingEnabled = !FALSE.equals(featureFlagsEnabled) && featureFlagsSource != INVALID;
+      featureFlaggingConfigurationSource = featureFlagsSource;
+    } else if (legacyFeatureFlagsEnabled != null) {
+      featureFlaggingEnabled = legacyFeatureFlagsEnabled;
+      featureFlaggingConfigurationSource = legacyFeatureFlagsEnabled ? REMOTE_CONFIG : UNSET;
+    } else {
+      featureFlaggingEnabled = true;
+      featureFlaggingConfigurationSource = AGENTLESS;
+    }
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
@@ -360,7 +397,9 @@ public class InstrumenterConfig {
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
     runtimeContextMapPerStore =
         configProvider.getBoolean(
-            RUNTIME_CONTEXT_MAP_PER_STORE, DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE);
+            RUNTIME_CONTEXT_MAP_PER_STORE,
+            // Gradually roll out shared context storage, starting with Java 25.
+            DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE && !isJavaVersionAtLeast(25));
 
     instrumentationConfigId = configProvider.getString(INSTRUMENTATION_CONFIG_ID, "");
 
@@ -400,6 +439,9 @@ public class InstrumenterConfig {
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
 
     legacyContextManagerEnabled = configProvider.getBoolean(LEGACY_CONTEXT_MANAGER_ENABLED, true);
+
+    scalaPromiseCompletionPriorityEnabled =
+        isIntegrationEnabled(singletonList(SCALA_PROMISE_COMPLETION_PRIORITY), false);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -453,6 +495,20 @@ public class InstrumenterConfig {
     return anyEnabled;
   }
 
+  /**
+   * Whether the Scala Promise instrumentation gives the context completing a {@code Promise}
+   * priority over the context that registered callbacks on it.
+   *
+   * <p>This mode associates the completing context with the resolved {@code Try} itself, so it is
+   * also read by instrumentations that must keep such an association from reaching a framework
+   * callback.
+   *
+   * @return {@code true} if completion-priority propagation is enabled, else {@code false}
+   */
+  public boolean isScalaPromiseCompletionPriorityEnabled() {
+    return scalaPromiseCompletionPriorityEnabled;
+  }
+
   public boolean isIntegrationShortcutMatchingEnabled(
       final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return configProvider.isEnabled(
@@ -461,6 +517,30 @@ public class InstrumenterConfig {
 
   public boolean isTraceEnabled() {
     return traceEnabled;
+  }
+
+  public boolean isFeatureFlaggingEnabled() {
+    return featureFlaggingEnabled;
+  }
+
+  /**
+   * @return the Feature Flags configuration source, {@link FeatureFlaggingSource#UNSET} when none
+   *     is configured or {@link FeatureFlaggingSource#INVALID} when unsupported.
+   */
+  public FeatureFlaggingSource getFeatureFlaggingConfigurationSource() {
+    return featureFlaggingConfigurationSource;
+  }
+
+  private static FeatureFlaggingSource featureFlaggingSource(final ConfigProvider configProvider) {
+    final String value = configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE);
+    if (value == null || value.trim().isEmpty()) {
+      return UNSET;
+    }
+    final FeatureFlaggingSource source =
+        configProvider.getEnum(
+            FEATURE_FLAGS_CONFIGURATION_SOURCE, FeatureFlaggingSource.class, INVALID);
+    // UNSET is not a valid value to configure.
+    return source == UNSET ? INVALID : source;
   }
 
   public boolean isTraceOtelEnabled() {
@@ -882,6 +962,8 @@ public class InstrumenterConfig {
         + apiSecurityEndpointCollectionEnabled
         + ", legacyContextManagerEnabled="
         + legacyContextManagerEnabled
+        + ", scalaPromiseCompletionPriorityEnabled="
+        + scalaPromiseCompletionPriorityEnabled
         + '}';
   }
 }

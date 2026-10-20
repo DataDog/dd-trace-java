@@ -48,6 +48,9 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
       return URIUtils.safeParse(uriPrefix + request.getUri());
     }
     final URI uri = URIUtils.safeParse(request.getUri());
+    if (uri == null) {
+      return null;
+    }
     if ((uri.getHost() == null || uri.getHost().equals("")) && request.headers().contains(HOST)) {
       return URIUtils.safeParse(uriPrefix + request.headers().get(HOST) + request.getUri());
     } else {

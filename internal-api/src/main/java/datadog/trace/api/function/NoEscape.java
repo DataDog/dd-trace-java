@@ -1,5 +1,7 @@
 package datadog.trace.api.function;
 
+import datadog.perfcontract.PerfContract;
+import datadog.perfcontract.SuppressPerfContract;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -61,7 +63,8 @@ import java.lang.annotation.Target;
  * static checker, or in the meantime by an AI reviewer (see the perf-review skill's {@code
  * checks.md}) -- without needing to read this class's prose above. Because the underlying rule is
  * "should" rather than "must", a trigger is a presumptive finding to raise, not an automatic
- * failure: a field that carries a comment explaining the deliberate exception is compliant.
+ * failure: a field that carries a comment explaining the deliberate exception, or a {@link
+ * SuppressPerfContract} annotation citing this class, is compliant.
  *
  * <ul>
  *   <li><b>Trigger (type form):</b> a field (instance or static, in any class) whose declared type
@@ -75,15 +78,21 @@ import java.lang.annotation.Target;
  *       explaining why the retention is safe.
  *   <li><b>Not a trigger:</b> a local variable, a method parameter, or a method return type -- this
  *       rule flags <em>storage</em> that outlives the call, not ordinary use within it. Also not a
- *       trigger: the same field shape, annotated with a comment justifying the retention; or a
- *       method call chained/consumed within the same expression/statement rather than assigned to a
- *       field (e.g. {@code for (T t : ConcurrentHashtable.hashIterable(state, keyHash))}).
+ *       trigger: the same field shape, annotated with a comment justifying the retention, with
+ *       {@code @SuppressPerfContract(value = NoEscape.class, reason = "...")} ({@link
+ *       SuppressPerfContract} -- the generic exemption mechanism shared by every perf-contract
+ *       marker, not {@code @NoEscape}-specific), or with a named canned-exception annotation itself
+ *       meta-annotated {@code @SuppressPerfContract} with {@code NoEscape.class} among its {@code
+ *       value} (e.g. a hypothetical {@code @Borrowed}); or a method call chained/consumed within
+ *       the same expression/statement rather than assigned to a field (e.g. {@code for (T t :
+ *       ConcurrentHashtable.hashIterable(state, keyHash))}).
  *   <li><b>Violation example (type):</b> {@code private final SubSequence cached;}
  *   <li><b>Violation example (method):</b> {@code private final Iterator<T> cached =
  *       ConcurrentHashtable.hashIterator(state, keyHash);}
  *   <li><b>Compliant example:</b> {@code private final String cached;} -- materialize the view
  *       (e.g. call {@code toString()}) before storing it. Or, if retention is a deliberate,
- *       reviewed exception: {@code // Retained on purpose: <reason>} above the field.
+ *       reviewed exception: {@code // Retained on purpose: <reason>} above the field, or
+ *       {@code @SuppressPerfContract(value = NoEscape.class, reason = "...")}.
  *   <li><b>Out of scope (v1):</b> escape through a non-generic/raw container, a capturing lambda,
  *       or a returned value the caller goes on to store several calls later (rather than at the
  *       call site itself). Flag only the field-declaration shapes above; widen this contract only
@@ -91,6 +100,7 @@ import java.lang.annotation.Target;
  * </ul>
  */
 @Documented
+@PerfContract
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface NoEscape {}

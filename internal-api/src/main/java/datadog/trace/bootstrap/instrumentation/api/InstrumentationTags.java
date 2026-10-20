@@ -46,6 +46,14 @@ public class InstrumentationTags {
   public static final String RDS_DB_INSTANCE_IDENTIFIER = "dbinstanceidentifier";
   public static final String RDS_DB_CLUSTER_IDENTIFIER = "dbclusteridentifier";
 
+  // Complete resource identity carried by the request.
+  public static final String AWS_TOPIC_ARN = "aws.topic.arn";
+  public static final String AWS_STREAM_ARN = "aws.stream.arn";
+  public static final String AWS_STATE_MACHINE_ARN = "aws.state_machine.arn";
+  public static final String AWS_EXECUTION_ARN = "aws.execution.arn";
+  public static final String AWS_FUNCTION_NAME = "aws.function.name";
+  public static final String AWS_FUNCTION_ARN = "aws.function.arn";
+
   // These are temporary keys used for span pointer hash calculation
   public static final String S3_ETAG = "s3.eTag";
   public static final String DYNAMO_PRIMARY_KEY_1 = "dynamodb.primary_key_1";
@@ -95,7 +103,6 @@ public class InstrumentationTags {
   public static final String SERVLET_PATH = "servlet.path";
   public static final String SERVLET_DISPATCH = "servlet.dispatch";
   public static final String TIMEOUT = "timeout";
-  public static final String JMS_PRODUCE = "jms.produce";
   public static final String JSP_COMPILER = "jsp.compiler";
   public static final String JSP_CLASSFQCN = "jsp.classFQCN";
   public static final String JSP_FORWARD_ORIGIN = "jsp.forwardOrigin";

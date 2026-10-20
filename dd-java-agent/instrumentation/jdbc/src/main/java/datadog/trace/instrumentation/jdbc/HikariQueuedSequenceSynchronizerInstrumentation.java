@@ -26,13 +26,6 @@ public final class HikariQueuedSequenceSynchronizerInstrumentation
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HikariBlockedTracker",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("waitUntilSequenceExceeded"),

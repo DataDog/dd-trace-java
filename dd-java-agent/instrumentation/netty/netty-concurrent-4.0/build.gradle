@@ -11,18 +11,47 @@ muzzle {
   }
 }
 
+// These executor tests require Netty 4.1 APIs.
+addTestSuite('executorTest')
+
 addTestSuiteForDir('latestDep4Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 addForkedTestTask('latestDep4Test')
 addForkedTestTask('latestDepTest')
+addTestSuiteForDir('netty4144Test', 'test')
+addTestSuiteForDir('legacyNettyTest', 'test')
+addForkedTestTask('netty4144Test')
+addForkedTestTask('legacyNettyTest')
+
+['netty4144Test', 'legacyNettyTest'].each { name ->
+  tasks.named(name, Test) {
+    filter {
+      includeTestsMatching 'executor.NettyScheduledFutureTaskContextPropagationTest'
+    }
+  }
+}
+
+['netty4144TestForkedTest', 'legacyNettyTestForkedTest'].each { name ->
+  tasks.named(name, Test) {
+    filter {
+      includeTestsMatching 'executor.NettyScheduledFutureTaskCancellationForkedTest'
+    }
+  }
+}
 
 dependencies {
+  executorTestImplementation group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
+
   compileOnly group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
 
-  testImplementation group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+  testImplementation group: 'io.netty', name: 'netty-all', version: '4.0.0.Final'
+  testImplementation group: 'io.grpc', name: 'grpc-netty-shaded', version: '1.58.0'
 
-  latestDep4TestImplementation group: 'io.netty', name: 'netty-common', version: '4.+'
-  latestDepTestImplementation group: 'io.netty', name: 'netty-common', version: '+'
+  latestDep4TestImplementation group: 'io.netty', name: 'netty-all', version: '4.+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-all', version: '+'
+  netty4144TestImplementation group: 'io.netty', name: 'netty-all', version: '4.1.44.Final'
+  legacyNettyTestImplementation group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
 }
 
 tasks.named("latestDepTest", Test) {
