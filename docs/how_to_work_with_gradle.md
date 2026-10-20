@@ -1224,6 +1224,20 @@ and plugin callbacks to `afterEvaluate` or changing another project's model. Kee
 dependencies on the build classpath so they do not become application or agent dependencies.
 See Gradle's [plugin development guide](https://docs.gradle.org/current/userguide/implementing_gradle_plugins_binary.html).
 
+### Dependencies on Main Projects
+
+As a rule of thumb, keep build tooling independent of production-module code. Avoid importing
+or copying production classes into plugin implementations. Supply required files and artifacts
+through declared task inputs. Document why an exception is needed.
+
+Keep reusable plugins independent of project names and repository layout. Put references to
+concrete project paths in module-specific conventions or the consuming build.
+
+A convention can still declare [project dependencies](https://docs.gradle.org/current/userguide/multi_project_builds.html)
+for the project it configures. These belong to the consuming project, rather than the build
+tooling's own dependencies. Gradle orders the corresponding build tasks, which works with
+[`buildSrc` being compiled before the main build scripts are evaluated](https://docs.gradle.org/current/userguide/sharing_build_logic_between_subprojects.html).
+
 ### Project Convention Plugins
 
 Files ending in `.gradle.kts` placed in `buildSrc/src/main/kotlin/` target `Project` and can configure tasks, dependencies, and extensions. The `buildSrc/` directory is automatically included by Gradle before the main build.
