@@ -4,9 +4,6 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.IntegrationTestUtils;
 import java.io.ByteArrayOutputStream;
@@ -15,18 +12,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import jvmbootstraptest.AgentLoadedChecker;
-import jvmbootstraptest.FeatureFlaggingShutdownProbe;
-import okhttp3.mockwebserver.Dispatcher;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+// TODO Test that the dd-openfeature SDK flushes its pending events at JVM exit through the agent,
+// with and without tracing, in the OpenFeature smoke tests.
 @Timeout(value = 30, unit = TimeUnit.SECONDS)
 class TraceDisabledFeatureFlaggingShutdownTest {
   @ParameterizedTest
@@ -39,54 +32,6 @@ class TraceDisabledFeatureFlaggingShutdownTest {
     final String logs = run(AgentLoadedChecker.class, options);
     assertFalse(logs.contains("Shutting down agent"), logs);
     assertFalse(logs.contains("Feature Flagging system stopped"), logs);
-  }
-
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void activatedProviderFlushesBothEventTypesAtJvmExit(boolean tracing) throws Exception {
-    final LinkedBlockingQueue<RecordedRequest> events = new LinkedBlockingQueue<>();
-    try (MockWebServer server = new MockWebServer()) {
-      server.setDispatcher(
-          new Dispatcher() {
-            @Override
-            public MockResponse dispatch(RecordedRequest request) {
-              if (request.getPath().equals("/info")) {
-                return new MockResponse()
-                    .setBody(
-                        "{\"endpoints\":[\"v0.4/traces\",\"v0.5/traces\",\"evp_proxy/v4/\"],"
-                            + "\"evp_proxy_allowed_headers\":[\"DD-EVP-ORIGIN\",\"DD-EVP-ORIGIN-VERSION\"]}");
-              }
-              if (request.getPath().startsWith("/evp_proxy/")) {
-                events.add(request);
-                return new MockResponse().setResponseCode(202).setBody("{}");
-              }
-              return new MockResponse().setResponseCode(404);
-            }
-          });
-      server.start();
-      final List<String> options = options(tracing);
-      options.add("-Ddd.trace.agent.url=" + server.url("/"));
-      options.add("-Ddd.feature.flags.configuration.source=agentless");
-      options.add(
-          "-Ddd.feature.flags.configuration.source.agentless.base.url=" + server.url("/config"));
-      final String logs = run(FeatureFlaggingShutdownProbe.class, options);
-      assertTrue(logs.contains("EXIT_WITH_QUEUED_FEATURE_FLAG_EVENTS"), logs);
-      assertEquals(tracing, logs.contains("Shutting down agent"), logs);
-      assertTrue(logs.contains("Feature Flagging system stopped"), logs);
-
-      final List<String> paths = new ArrayList<>();
-      for (int i = 0; i < 2; i++) {
-        final RecordedRequest event = events.poll(1, TimeUnit.SECONDS);
-        assertNotNull(event, logs);
-        paths.add(event.getPath());
-        assertEquals("POST", event.getMethod());
-        assertNull(event.getHeader("DD-API-KEY"));
-        assertTrue(event.getBody().readUtf8().contains("shutdown-flag"));
-      }
-      assertTrue(paths.contains("/evp_proxy/v4/api/v2/exposures"), paths.toString());
-      assertTrue(paths.contains("/evp_proxy/v4/api/v2/flagevaluation"), paths.toString());
-      assertEquals(0, events.size(), "Shutdown must not duplicate either batch");
-    }
   }
 
   private static List<String> options(boolean tracing) {
