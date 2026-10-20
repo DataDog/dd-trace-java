@@ -10,11 +10,16 @@ import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The agent services exposed to the Feature Flags SDK instrumentation. */
 public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend, AutoCloseable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagsBackend.class);
   private static final String API_KEY = "api-key";
   private static final String SITE = "site";
   private static final String ENV = "env";
@@ -26,6 +31,7 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
   private final EventProxy eventProxy;
   private final SpanEnrichmentWriter spanEnrichmentWriter;
   private final CoreMetricCollector metrics;
+  private final List<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
   private RemoteConfigServiceImpl remoteConfig;
 
   public FeatureFlagsBackend(final SharedCommunicationObjects sco, final Config config) {
@@ -131,7 +137,30 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
   }
 
   @Override
-  public synchronized void close() {
+  public AutoCloseable subscribeShutdown(final Runnable listener) {
+    this.shutdownListeners.add(listener);
+    return () -> this.shutdownListeners.remove(listener);
+  }
+
+  /**
+   * Notifies the shutdown listeners, flushing the SDK while the agent services are still running,
+   * then releases the backend resources.
+   */
+  @Override
+  public void close() {
+    // Run outside the lock: the SDK flush posts events and counts metrics through this backend.
+    for (final Runnable listener : this.shutdownListeners) {
+      try {
+        listener.run();
+      } catch (final RuntimeException | LinkageError e) {
+        LOGGER.debug("Feature Flags shutdown listener failed", e);
+      }
+    }
+    this.shutdownListeners.clear();
+    closeResources();
+  }
+
+  private synchronized void closeResources() {
     if (this.remoteConfig != null) {
       this.remoteConfig.close();
       this.remoteConfig = null;

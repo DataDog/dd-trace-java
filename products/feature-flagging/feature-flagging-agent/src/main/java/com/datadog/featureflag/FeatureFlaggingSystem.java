@@ -1,5 +1,8 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_SHUTDOWN;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
@@ -16,6 +19,7 @@ public class FeatureFlaggingSystem {
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
 
   private static volatile FeatureFlagsBackend BACKEND;
+  private static Thread SHUTDOWN_HOOK;
 
   private FeatureFlaggingSystem() {}
 
@@ -42,6 +46,13 @@ public class FeatureFlaggingSystem {
     }
     BACKEND = backend;
     FeatureFlaggingGateway.register(backend);
+    if (!config.isTraceEnabled()) {
+      // Tracing owns the shutdown path running before the JVM shutdown hooks. Without it, stop
+      // from a shutdown hook so the SDK still flushes its pending events.
+      final Thread hook = newAgentThread(FEATURE_FLAG_SHUTDOWN, FeatureFlaggingSystem::stop);
+      Runtime.getRuntime().addShutdownHook(hook);
+      SHUTDOWN_HOOK = hook;
+    }
     LOGGER.debug("Feature Flagging system started");
   }
 
@@ -52,6 +63,15 @@ public class FeatureFlaggingSystem {
   public static synchronized void stop() {
     final FeatureFlagsBackend backend = BACKEND;
     BACKEND = null;
+    final Thread shutdownHook = SHUTDOWN_HOOK;
+    SHUTDOWN_HOOK = null;
+    if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
+      try {
+        Runtime.getRuntime().removeShutdownHook(shutdownHook);
+      } catch (final IllegalStateException ignored) {
+        // The JVM is already shutting down; the hook finds the system stopped.
+      }
+    }
     FeatureFlaggingGateway.register(null);
     if (backend != null) {
       backend.close();

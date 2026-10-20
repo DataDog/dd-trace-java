@@ -1,6 +1,7 @@
 package com.datadog.featureflag;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -21,7 +22,9 @@ import datadog.trace.api.FeatureFlaggingSource;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -96,6 +99,25 @@ class FeatureFlagsBackendTest {
     final FeatureFlagsBackend created = new FeatureFlagsBackend(this.sco, this.config);
 
     assertEquals(apiKey, created.setting("api-key"));
+  }
+
+  @Test
+  void closeNotifiesTheShutdownListenersBeforeReleasingResources() throws Exception {
+    final List<String> calls = new CopyOnWriteArrayList<>();
+    this.backend.subscribeShutdown(() -> calls.add("first"));
+    this.backend.subscribeShutdown(
+        () -> {
+          throw new IllegalStateException("failing listener");
+        });
+    final AutoCloseable unregistered =
+        this.backend.subscribeShutdown(() -> calls.add("unregistered"));
+    this.backend.subscribeShutdown(() -> calls.add("last"));
+    unregistered.close();
+
+    this.backend.close();
+    this.backend.close();
+
+    assertEquals(asList("first", "last"), calls);
   }
 
   @Test

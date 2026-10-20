@@ -98,5 +98,13 @@ public final class FeatureFlaggingGateway {
      * @param defaultValue the native default value.
      */
     void enrichRuntimeDefault(String flagKey, @Nullable Object defaultValue);
+
+    /**
+     * Subscribes to the agent shutdown, notified before the JVM shutdown hooks run.
+     *
+     * @param listener the listener run at shutdown, typically flushing the SDK pending events.
+     * @return the handle to close to unsubscribe.
+     */
+    AutoCloseable subscribeShutdown(Runnable listener);
   }
 }

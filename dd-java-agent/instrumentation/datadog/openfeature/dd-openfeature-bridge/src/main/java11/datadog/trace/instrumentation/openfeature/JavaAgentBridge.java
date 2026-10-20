@@ -4,6 +4,7 @@ import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.bridge.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.EventTransport;
 import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import javax.annotation.Nullable;
@@ -59,5 +60,10 @@ public final class JavaAgentBridge implements AgentBridge {
   @Override
   public SpanEnricher spanEnricher() {
     return this.spanEnricher;
+  }
+
+  @Override
+  public ShutdownSource shutdown() {
+    return new AgentShutdownSource(this.backend);
   }
 }

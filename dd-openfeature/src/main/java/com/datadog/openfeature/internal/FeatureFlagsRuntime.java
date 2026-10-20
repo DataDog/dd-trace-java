@@ -5,6 +5,7 @@ import static com.datadog.openfeature.internal.config.Settings.CONFIGURATION_SOU
 import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.bridge.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.ShutdownSource;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.delivery.CdnConfigurationSource;
 import com.datadog.openfeature.internal.delivery.DirectIntakeTransport;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -27,7 +29,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The Feature Flags runtime: configuration delivery and event pipelines. A single runtime is shared
- * by all the providers of a class loader, and stopped when the last one releases it.
+ * by all the providers of a class loader, and stopped when the last one releases it, or when the
+ * application shuts down: by the Datadog Java agent before the JVM shutdown hooks run when
+ * attached, or by a JVM shutdown hook otherwise.
  */
 public final class FeatureFlagsRuntime {
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagsRuntime.class);
@@ -42,6 +46,8 @@ public final class FeatureFlagsRuntime {
   @Nullable private final FlagEvaluationPipeline evaluations;
   private final List<Consumer<ServerConfiguration>> listeners = new CopyOnWriteArrayList<>();
   private volatile ServerConfiguration configuration;
+  private final AtomicBoolean stopped = new AtomicBoolean();
+  @Nullable private volatile AutoCloseable shutdownRegistration;
 
   FeatureFlagsRuntime(
       final ConfigurationService source,
@@ -66,6 +72,7 @@ public final class FeatureFlagsRuntime {
       if (shared == null) {
         final FeatureFlagsRuntime created = create(bridge, settings);
         created.start();
+        created.registerShutdown(bridge);
         shared = created;
       }
       references++;
@@ -172,7 +179,56 @@ public final class FeatureFlagsRuntime {
     }
   }
 
+  /**
+   * Stops the runtime at application shutdown: through the agent when it supports it, otherwise
+   * through a JVM shutdown hook.
+   *
+   * @param bridge the bridge to the Datadog Java agent.
+   */
+  void registerShutdown(final AgentBridge bridge) {
+    AutoCloseable registration = null;
+    try {
+      final ShutdownSource shutdown = bridge.shutdown();
+      if (shutdown != null) {
+        registration = shutdown.subscribe(this::stop);
+      }
+    } catch (final RuntimeException | LinkageError e) {
+      LOGGER.debug("Could not register the Feature Flags shutdown with the Datadog Java agent", e);
+    }
+    if (registration == null) {
+      registration = addShutdownHook();
+    }
+    this.shutdownRegistration = registration;
+  }
+
+  @Nullable
+  private AutoCloseable addShutdownHook() {
+    final Thread hook = new Thread(this::stop, "dd-openfeature-shutdown");
+    try {
+      Runtime.getRuntime().addShutdownHook(hook);
+    } catch (final IllegalStateException | SecurityException e) {
+      LOGGER.debug("Could not register the Feature Flags shutdown hook", e);
+      return null;
+    }
+    return () -> {
+      if (Thread.currentThread() != hook) {
+        Runtime.getRuntime().removeShutdownHook(hook);
+      }
+    };
+  }
+
   void stop() {
+    if (!this.stopped.compareAndSet(false, true)) {
+      return;
+    }
+    final AutoCloseable registration = this.shutdownRegistration;
+    if (registration != null) {
+      try {
+        registration.close();
+      } catch (final Exception e) {
+        // The JVM is already shutting down, or the agent backend is gone.
+      }
+    }
     this.source.close();
     if (this.evaluations != null) {
       this.evaluations.close();
