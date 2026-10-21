@@ -599,6 +599,50 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   }
 
   /**
+   * Remote config can enable Data Streams Monitoring without changing the tracing tags; the tags
+   * every span starts with must still pick up (and later drop) {@code _dd.dsm.enabled}.
+   */
+  @Test
+  void remoteConfigDataStreamsToggleUpdatesTracerTags() throws Exception {
+    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+    ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+    ProductListener[] capturedUpdater = {null};
+    doAnswer(
+            inv -> {
+              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+              return null;
+            })
+        .when(poller)
+        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+    CoreTracer tracer =
+        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    unclosedTracers.add(tracer);
+
+    try {
+      assertFalse(tracer.captureTraceConfig().isDataStreamsEnabled());
+      assertFalse(tracer.captureTraceConfig().mergedTracerTags.containsKey(DDTags.DSM_ENABLED));
+
+      String json = "{\"lib_config\":{\"data_streams_enabled\": true}}";
+      capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+      capturedUpdater[0].commit(null);
+
+      ConfigSnapshot config = tracer.captureTraceConfig();
+      assertTrue(config.isDataStreamsEnabled());
+      assertEquals(1, config.mergedTracerTags.get(DDTags.DSM_ENABLED));
+
+      capturedUpdater[0].remove(key, null);
+      capturedUpdater[0].commit(null);
+
+      assertFalse(tracer.captureTraceConfig().mergedTracerTags.containsKey(DDTags.DSM_ENABLED));
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /**
    * Remote config {@code tracing_tags} overrides the global tags ({@code DD_TAGS}), and removing
    * the override restores them, matching system-tests' {@code
    * TestDynamicConfigV2.test_tracing_client_tracing_tags}.
