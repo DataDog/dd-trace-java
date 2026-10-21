@@ -13,11 +13,11 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
  */
 public final class KnownTagCodec {
   /*
-   * tagId bit layout: [63-48 serialNum (16 bits)] [47-32 reserved, zero] [31-0 flags]. serialNum is
+   * tagId bit layout: [63-48 serialNum (16 bits)] [47-32 slot] [31-0 flags]. serialNum is
    * globally unique per known tag and is the whole of the tag's identity — nameOf/
    * openTelemetryNameOf switch on it, and the generator emits each id as a literal. Bits [47-32]
-   * are RESERVED and always zero here: they are the window the dense tag store uses for its
-   * co-occurrence slot coordinate, which arrives with that store. Of the low 32 flag bits, bit 2 is
+   * hold the tag's slot ({@link #slotOf}), assigned by graph coloring so tags on one span type never
+   * share a slot, or {@link #NO_SLOT} for a tag on no modeled span type. Of the low 32 flag bits, bit 2 is
    * the trace/span LEVEL bit (set ⟹ trace-level), and bit 1 is the INTERCEPTED bit. Unknown
    * (string-only) custom tags are NOT known ids — {@code keyOf} returns 0 for them.
    *
@@ -65,16 +65,47 @@ public final class KnownTagCodec {
     return (tagId & INTERCEPTED) != 0L;
   }
 
+  /** Bit position of the slot: bits [47-32] of an id. */
+  public static final int SLOT_SHIFT = 32;
+
+  /** The slot of a known tag on no modeled span type. */
+  public static final int NO_SLOT = 0xFFFF;
+
+  /**
+   * The tag's slot, or {@link #NO_SLOT}. The generator colors tags that appear together on a span
+   * type with distinct slots, so when instrumentation follows its span type, {@code 1L <<
+   * slotOf(id)} gives each of a span's tags its own presence bit -- except that on a span type with
+   * more tags than slots, its optional tags share slots with each other. A span can still hold two
+   * tags that share a slot, so a clear bit means the tag is absent, but a set bit only means it may
+   * be present. Every tag without a slot shares bit 63, which no real slot uses.
+   */
+  public static int slotOf(long tagId) {
+    return (int) (tagId >>> SLOT_SHIFT) & 0xFFFF;
+  }
+
+  /**
+   * True if the tag has a slot, below {@link #slotCount()}. False for {@code 0L}, the id {@link
+   * #keyOf} gives a custom tag, which would otherwise decode as slot 0.
+   */
+  public static boolean hasSlot(long tagId) {
+    return tagId != 0L && slotOf(tagId) != NO_SLOT;
+  }
+
+  /** Slots in use: every slotted tag's slot is below this. */
+  public static int slotCount() {
+    return KnownTags.SLOT_COUNT;
+  }
+
   /** Returns the tagId with the {@link #LEVEL_TRACE} flag set. */
   public static long traceLevel(long tagId) {
     return tagId | LEVEL_TRACE;
   }
 
   /**
-   * Builds a tagId from its {@code serialNum} (globally unique per known tag). The reserved [47-32]
-   * window and the low 32 bits are zero, so the id is fully determined by the serial — the
-   * generator emits it as a literal. Inverse of {@link #serialNum}. Intended for the code generator
-   * and tests.
+   * Builds an id carrying only {@code serialNum}: slot 0 and no flags, so it equals a tag's real id
+   * only when that tag has neither. Enough for serial-keyed lookups such as {@link #nameOf};
+   * compare against a {@code KnownTags} constant, never against this. Inverse of {@link
+   * #serialNum}. Intended for tests and serial-keyed lookups.
    */
   public static long makeTagId(int serialNum) {
     return (long) serialNum << 48;
@@ -138,6 +169,9 @@ public final class KnownTagCodec {
 
     /** The id for {@code name} in ANY namespace (many→one), or 0 when it is not a known tag. */
     long keyOf(String name);
+
+    /** See {@link KnownTagCodec#directionalKeyOf}. */
+    long directionalKeyOf(String name, int direction);
   }
 
   /**
@@ -237,4 +271,26 @@ public final class KnownTagCodec {
   }
 
   private KnownTagCodec() {}
+
+  /**
+   * The tag an OpenTelemetry name denotes on spans of {@code direction}, for a name whose tag
+   * depends on direction ({@code server.address} is {@code http.hostname} inbound and {@code
+   * peer.hostname} outbound); 0 for every other name, and for such a name on spans of a direction
+   * where it names no tag, or when {@code name} is null. The core stores and reads Datadog names
+   * only; this is for the OpenTelemetry side, which knows its span's direction.
+   */
+  public static long directionalKeyOf(String name, int direction) {
+    // a null attribute key comes from the application; leave it for the span builder to ignore
+    return name == null ? 0L : Installed.RESOLVER.directionalKeyOf(name, direction);
+  }
+
+  /** True if {@code name} denotes a different tag depending on the span's direction. */
+  public static boolean isDirectionScoped(String name) {
+    for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
+      if (directionalKeyOf(name, direction) != 0) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

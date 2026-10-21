@@ -70,16 +70,17 @@ object TagRegistryGenerator {
       """
       # Tag id assignment.  tags=${reg.tags.size}
 
-      # TAGS     serial lvl int id                 required     name
+      # TAGS     serial lvl int slot id                 required     name
       """.trimIndent()
     )
     for (t in reg.tags) {
       appendLine(
-        "  %6d   %s   %s   %-18s %-12s %s".format(
+        "  %6d   %s   %s   %4s %-18s %-12s %s".format(
           Locale.ROOT,
           t.serial,
           if (t.traceLevel) "T" else "-",
           if (t.intercepted) "I" else "-",
+          if (t.slot == TagRegistry.NO_SLOT) "-" else t.slot.toString(),
           "0x%016X".format(Locale.ROOT, t.id),
           t.required,
           t.name
@@ -102,7 +103,7 @@ object TagRegistryGenerator {
 
       # DIRECTION-SCOPED OPENTELEMETRY NAMES. Each applies only on spans of the given direction, so
       # it is not in the tables above: a tag is emitted under it when its span has that direction,
-      # but name resolution does not use it until it knows the direction.
+      # and a value written under it is resolved to the tag once the span's direction is known.
       """.trimIndent()
     )
     val scoped =
