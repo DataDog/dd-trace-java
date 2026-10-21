@@ -20,12 +20,13 @@ public abstract class UriBasedClientDecorator extends ClientDecorator {
     String host = uri.getHost();
     if (null != host && !host.isEmpty()) {
       span.setTag(Tags.PEER_HOSTNAME, host);
+      if (Config.get().isHttpClientSplitByDomain() && host.charAt(0) >= 'A') {
+        span.setServiceName(host, component());
+      }
+      // Port tagging must follow domain splitting so split-by-tags keeps its precedence.
       int port = OTEL_SEMANTICS ? OtelHttpSemantics.serverPort(uri) : uri.getPort();
       if (port > 0) {
         setPeerPort(span, port);
-      }
-      if (Config.get().isHttpClientSplitByDomain() && host.charAt(0) >= 'A') {
-        span.setServiceName(host, component());
       }
     }
   }

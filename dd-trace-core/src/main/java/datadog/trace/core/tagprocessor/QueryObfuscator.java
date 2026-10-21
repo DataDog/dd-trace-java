@@ -174,8 +174,10 @@ public final class QueryObfuscator extends TagsPostProcessor {
     return null;
   }
 
-  private static String appendQuery(final String url, final String query) {
-    final int fragment = url.indexOf('#');
+  private String appendQuery(final String url, final String query) {
+    // With OTel semantics disabled, captured URLs may contain decoded '#' path characters.
+    // Preserve the existing query concatenation in that mode.
+    final int fragment = otelSemanticsEnabled ? url.indexOf('#') : -1;
     if (fragment < 0) {
       return url + "?" + query;
     }

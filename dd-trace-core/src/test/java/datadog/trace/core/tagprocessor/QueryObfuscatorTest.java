@@ -12,8 +12,10 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.test.util.DDJavaSpecification;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,21 @@ class QueryObfuscatorTest extends DDJavaSpecification {
 
   private static final String JWT =
       "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+
+  @Test
+  void datadogQueryReconstructionPreservesDecodedPath() {
+    URI uri = URI.create("http://host/a%23b?q=1");
+    TagMap tags = TagMap.create();
+    tags.put(
+        Tags.HTTP_URL,
+        URIUtils.lazyValidURL(uri.getScheme(), uri.getHost(), uri.getPort(), uri.getPath()));
+    tags.put(DDTags.HTTP_QUERY, uri.getQuery());
+
+    new QueryObfuscator(null, false).processTags(tags, null, link -> {});
+
+    assertEquals("q=1", tags.get(DDTags.HTTP_QUERY));
+    assertEquals("http://host/a#b?q=1", tags.get(Tags.HTTP_URL));
+  }
 
   @TableTest({
     "scenario | query                                                          | expectedQuery                   ",

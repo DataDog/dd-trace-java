@@ -356,7 +356,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
                   url,
                   path,
                   extracted,
-                  extracted != null && extracted.getXForwardedProto() != null
+                  // Only OTel origin resolution uses Host to resolve ports after a scheme change.
+                  OTEL_SEMANTICS && extracted != null && extracted.getXForwardedProto() != null
                       ? getRequestHeader(request, "Host")
                       : null),
               URL_TAGS);
