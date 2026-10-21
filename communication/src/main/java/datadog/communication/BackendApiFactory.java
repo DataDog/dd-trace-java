@@ -31,16 +31,10 @@ public class BackendApiFactory {
   private final boolean sendOnce;
 
   public BackendApiFactory(Config config, SharedCommunicationObjects sharedCommunicationObjects) {
-    this(config, sharedCommunicationObjects, emptyMap());
+    this(config, sharedCommunicationObjects, emptyMap(), false);
   }
 
-  public BackendApiFactory(
-      Config config,
-      SharedCommunicationObjects sharedCommunicationObjects,
-      Map<String, String> requestHeaders) {
-    this(config, sharedCommunicationObjects, requestHeaders, false);
-  }
-
+  /** Creates a backend factory with optional send-once transport semantics and no extra headers. */
   public BackendApiFactory(
       Config config, SharedCommunicationObjects sharedCommunicationObjects, boolean sendOnce) {
     this(config, sharedCommunicationObjects, emptyMap(), sendOnce);
@@ -204,7 +198,8 @@ public class BackendApiFactory {
    * Creates an EVP proxy client after Agent discovery, optionally forcing a fresh discovery and
    * requiring the Agent to advertise every specified forwarding header.
    *
-   * <p>Required forwarding capabilities are independent of any headers configured on this factory.
+   * <p>Callers supply the forwarding capabilities their event protocol requires. These are
+   * independent of any headers configured on this factory.
    *
    * <p>The {@code forceDiscovery} form is intended for bounded unavailable-route recovery probes.
    */

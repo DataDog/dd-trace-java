@@ -152,6 +152,31 @@ public class MetricInstrumenter extends Instrumenter {
     createFinallyHandler(durationStartLabel, endLabel, wrapTryCatch(insnList));
   }
 
+  /**
+   * Wraps the metric call in a try/catch like {@link #wrapTryCatch(InsnList)}. If the line label is
+   * the start of a catch handler, the caught exception is still on the operand stack. The exception
+   * handler of the try/catch clears the stack, so the exception is saved in a temporary local
+   * before the call and loaded back after it. This keeps the stack empty at both ends of the
+   * try/catch range.
+   */
+  private InsnList wrapLineTryCatch(InsnList insnList, LabelNode lineLabel) {
+    InsnList wrapped = wrapTryCatch(insnList);
+    if (wrapped == EMPTY_INSN_LIST) {
+      return wrapped;
+    }
+    TryCatchBlockNode catchHandler = findCatchHandler(lineLabel);
+    if (catchHandler == null) {
+      return wrapped;
+    }
+    int exceptionVar = newVar(OBJECT_TYPE);
+    // stack [exception]
+    wrapped.insert(new VarInsnNode(Opcodes.ASTORE, exceptionVar));
+    // stack []
+    wrapped.add(new VarInsnNode(Opcodes.ALOAD, exceptionVar));
+    // stack [exception]
+    return wrapped;
+  }
+
   private InsnList wrapTryCatch(InsnList insnList) {
     if (insnList == null || insnList == EMPTY_INSN_LIST) {
       return EMPTY_INSN_LIST;
@@ -397,11 +422,11 @@ public class MetricInstrumenter extends Instrumenter {
             "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
       }
       if (beforeLabel != null) {
-        InsnList insnList = wrapTryCatch(callMetric(metricProbe, beforeLabel));
+        InsnList insnList = wrapLineTryCatch(callMetric(metricProbe, beforeLabel), beforeLabel);
         methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
       }
       if (afterLabel != null && !sourceLine.isSingleLine()) {
-        InsnList insnList = wrapTryCatch(callMetric(metricProbe, afterLabel));
+        InsnList insnList = wrapLineTryCatch(callMetric(metricProbe, afterLabel), afterLabel);
         methodNode.instructions.insert(afterLabel, insnList);
       }
     }

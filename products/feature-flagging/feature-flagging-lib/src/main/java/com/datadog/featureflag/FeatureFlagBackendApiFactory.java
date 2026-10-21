@@ -79,9 +79,21 @@ final class FeatureFlagBackendApiFactory {
       final FeatureFlagRouteSelector routeSelector) {
     this(
         config,
-        new BackendApiFactory(config, sharedCommunicationObjects, REQUEST_HEADERS, true),
+        initializedBackendFactory(config, sharedCommunicationObjects),
         eventType,
         routeSelector);
+  }
+
+  private static BackendApiFactory initializedBackendFactory(
+      final Config config, final SharedCommunicationObjects sharedCommunicationObjects) {
+    if (CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())
+        && config.getApiKey() != null
+        && !config.getApiKey().isEmpty()) {
+      // Direct intake is constructed before Agent discovery. Initialize settings first so its
+      // cached HTTP client uses configured timeouts even when Feature Flagging starts first.
+      sharedCommunicationObjects.createRemaining(config);
+    }
+    return new BackendApiFactory(config, sharedCommunicationObjects, REQUEST_HEADERS, true);
   }
 
   FeatureFlagBackendApiFactory(

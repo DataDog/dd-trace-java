@@ -379,6 +379,8 @@ class BackendApiFactoryTest {
     final MockWebServer intake = new MockWebServer();
     intake.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
     intake.start();
+    final SharedCommunicationObjects sco =
+        sharedCommunicationObjects(new FakeFeaturesDiscovery(null), null);
     try {
       final Properties properties = new Properties();
       properties.setProperty(API_KEY, "api-key");
@@ -387,9 +389,7 @@ class BackendApiFactoryTest {
       final Config config = Config.get(properties);
       final BackendApiFactory factory =
           new BackendApiFactory(
-              config,
-              sharedCommunicationObjects(new FakeFeaturesDiscovery(null), null),
-              singletonMap(ORIGIN_HEADER, JAVA_TRACING_LIBRARY));
+              config, sco, singletonMap(ORIGIN_HEADER, JAVA_TRACING_LIBRARY), false);
 
       // followRedirects=false mirrors the feature-flagging caller, so this also covers the
       // interaction between the redirect-scoped client and the header interceptor.
@@ -407,6 +407,7 @@ class BackendApiFactoryTest {
       assertEquals(JAVA_TRACING_LIBRARY, request.getHeader(ORIGIN_HEADER));
       assertEquals("api-key", request.getHeader("DD-API-KEY"));
     } finally {
+      sco.getIntakeHttpClient().connectionPool().evictAll();
       intake.shutdown();
     }
   }

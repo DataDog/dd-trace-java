@@ -461,6 +461,24 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
         () -> tracker.onLoginSuccessEvent(SDK, USER_LOGIN, USER_ID, METADATA));
   }
 
+  /**
+   * Fail-closed invariant: {@code dispatch} must still signal a block (and the caller must still
+   * throw) when there is no {@link BlockResponseFunction} to commit a response with, so a login
+   * event cannot be waved through just because the integration cannot produce a blocking response.
+   */
+  @Test
+  void blockingOnALoginThrowsEvenWithoutABlockResponseFunction() {
+    Flow.Action.RequestBlockingAction action =
+        new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
+    when(loginEvent.apply(isA(RequestContext.class), eq(LOGIN_SUCCESS), eq(USER_LOGIN)))
+        .thenReturn(new ActionFlow<>(action));
+    when(requestContext.getBlockResponseFunction()).thenReturn(null);
+
+    assertThrows(
+        BlockingException.class,
+        () -> tracker.onLoginSuccessEvent(SDK, USER_LOGIN, USER_ID, METADATA));
+  }
+
   @ParameterizedTest(name = "commit succeeds: {0}")
   @ValueSource(booleans = {true, false})
   void blockingOnALoginCommitsBlockingResponse(boolean commitResult) {

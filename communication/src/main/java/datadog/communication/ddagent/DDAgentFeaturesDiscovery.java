@@ -201,6 +201,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           newState.evpProxyEndpoint,
           newState.telemetryProxyEndpoint);
     }
+    // even if /info failed or sent no container tags hash (e.g. the Lambda extension)
+    if (BaseHash.getBaseHashStr() == null) {
+      BaseHash.recalcBaseHash(null);
+    }
   }
 
   private String probeTracesEndpoint(State newState, List<String> endpoints) {

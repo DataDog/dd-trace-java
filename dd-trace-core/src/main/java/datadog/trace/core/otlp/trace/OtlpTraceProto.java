@@ -14,6 +14,7 @@ import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_ID;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I32_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
@@ -159,7 +160,7 @@ public final class OtlpTraceProto {
       writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
     }
 
-    span.processTagsAndBaggage(metaWriter);
+    span.processTagsAndBaggage(metaWriter, OWN_PROPAGATION_TAGS);
 
     if (span.isError()) {
       int stateSize = 2;
@@ -223,13 +224,17 @@ public final class OtlpTraceProto {
     buf.putLong(spanId);
   }
 
-  private static void writeSpanTag(StreamingBuffer buf, TagMap.EntryReader tagEntry) {
+  private static void writeSpanTag(
+      StreamingBuffer buf, Integer direction, TagMap.EntryReader tagEntry) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
     // OTLP is the OpenTelemetry wire format, but the rename itself is opt-in: emit the
     // OpenTelemetry-namespace name only when OTel semantics are enabled, else the entry's own
-    // (Datadog) name, so existing consumers keep seeing Datadog names until they opt in.
+    // (Datadog) name, so existing consumers keep seeing Datadog names until they opt in. A few
+    // OpenTelemetry names depend on the span's direction (peer.port is server.port on a client).
     String key =
-        Config.get().isTraceOtelSemanticsEnabled() ? tagEntry.openTelemetryTag() : tagEntry.tag();
+        Config.get().isTraceOtelSemanticsEnabled()
+            ? tagEntry.openTelemetryTag(direction)
+            : tagEntry.tag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
         writeAttribute(buf, BOOLEAN_ATTRIBUTE, key, tagEntry.objectValue());
@@ -324,7 +329,10 @@ public final class OtlpTraceProto {
         writeSpanTag(buf, PROCESS_TAGS_KEY, metadata.processTags());
       }
 
-      metadata.getTags().forEach(buf, OtlpTraceProto::writeSpanTag);
+      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
+      TagMap tags = metadata.getTags();
+      Integer direction = KnownTagCodec.directionOf(tags);
+      tags.forEach(buf, direction, OtlpTraceProto::writeSpanTag);
 
       // reset for next span
       includeProcessTags = false;

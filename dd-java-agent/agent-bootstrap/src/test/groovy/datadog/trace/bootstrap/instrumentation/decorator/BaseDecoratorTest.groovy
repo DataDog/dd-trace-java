@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.appsec.api.blocking.BlockingException
 import datadog.context.Context
-import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
@@ -11,6 +10,8 @@ import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.test.util.DDSpecification
 import javax.annotation.Nonnull
 import spock.lang.Shared
+
+import static datadog.trace.bootstrap.instrumentation.decorator.ExpectedSpanState.expectedSpan
 
 class BaseDecoratorTest extends DDSpecification {
 
@@ -24,29 +25,33 @@ class BaseDecoratorTest extends DDSpecification {
   @Shared
   def errorPriority = null as Byte
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
+
+  /**
+   * Mocks an {@link AgentSpan} that reports every id-keyed {@code setTag} as the name-keyed call,
+   * so expectations are written by tag name however the code under test sets the tag. See
+   * {@link NameKeyedAgentSpan}.
+   */
+  AgentSpan mockSpan() {
+    return Mock(NameKeyedAgentSpan)
+  }
   def spanContext = Mock(AgentSpanContext)
 
   def "test afterStart"() {
+    setup:
+    def recordingSpan = new RecordingSpan()
+
     when:
-    decorator.afterStart(span)
+    decorator.afterStart(recordingSpan)
 
     then:
-    1 * span.setSpanType(decorator.spanType())
-    1 * span.setTag(TagMap.Entry.create(Tags.COMPONENT, "test-component"))
-    1 * span.spanContext() >> spanContext
-    1 * spanContext.setIntegrationName("test-component")
-    _ * span.setTag(_)
-    _ * span.setTag(_, _) // Want to allow other calls from child implementations.
-    _ * span.setTag(_)
-    _ * span.setMeasured(true)
-    _ * span.setMetric(_)
-    _ * span.setMetric(_, _)
-    _ * span.setMetric(_)
-    _ * span.setServiceName(_, _)
-    _ * span.setOperationName(_)
-    _ * span.setSamplingPriority(_)
-    0 * _
+    // The base spec runs polymorphically against every subclass decorator, so it only asserts the
+    // baseline identity every decorator applies, tolerating the tags subclasses layer on. Each
+    // level's exact tag set is asserted by its own afterStart spec.
+    expectedSpan()
+      .spanType(decorator.spanType())
+      .component("test-component")
+      .assertIdentityAppliedTo(recordingSpan)
   }
 
   def "test onPeerConnection"() {

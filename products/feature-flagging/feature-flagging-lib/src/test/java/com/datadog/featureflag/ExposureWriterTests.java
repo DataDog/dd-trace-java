@@ -12,6 +12,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,6 +35,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.communication.IntakeApi;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer.HandlerApi;
@@ -163,6 +165,32 @@ class ExposureWriterTests {
             }
             assertExposures(allExposures(), exposures);
           });
+    }
+  }
+
+  @Test
+  void testExposureRequestsCarrySdkIdentity() throws Exception {
+    // Exercise the production writer and factory on the fixed Remote Config EVP v2 route.
+    Config config = mockConfig("identity-service");
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
+      writer.init();
+      writer.accept(buildExposure());
+
+      poll.eventually(
+          () -> {
+            assertNotNull(server.getLastRequest());
+            assertEquals(EXPOSURES_ENDPOINT, server.getLastRequest().getPath());
+            assertEquals("dd-trace-java", server.getLastRequest().getHeader("DD-EVP-ORIGIN"));
+            assertEquals(
+                TracerVersion.TRACER_VERSION,
+                server.getLastRequest().getHeader("DD-EVP-ORIGIN-VERSION"));
+            // The test resource must prevent a hardcoded loader fallback from passing unnoticed.
+            assertNotEquals("0.0.0", server.getLastRequest().getHeader("DD-EVP-ORIGIN-VERSION"));
+            assertNull(server.getLastRequest().getHeader("DD-API-KEY"));
+          });
+    } finally {
+      sharedCommunicationObjects.agentHttpClient.connectionPool().evictAll();
     }
   }
 

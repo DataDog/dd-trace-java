@@ -74,6 +74,8 @@ docs/                     Developer documentation (see below)
 - Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
 - Use `tag: no release notes` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable
+- Dependency changes: when adding, updating, or removing dependencies, regenerate all affected `gradle.lockfile` files
+  and include them in the same PR. See [lockfile updates](docs/how_to_work_with_gradle.md#updating-lock-files).
 
 ## Review Guidelines
 
