@@ -127,6 +127,30 @@ public class SamplingDecisionBenchmark {
     return ptags;
   }
 
+  /**
+   * A probability decision followed by the Datadog header, which doesn't read the OTel tracestate.
+   */
+  @Benchmark
+  public String ptagsProbabilityKeepDatadogHeader(ThreadState thread) {
+    return ptagsProbabilityKeep(thread).headerValue(PropagationTags.HeaderType.DATADOG);
+  }
+
+  /**
+   * A probability decision followed by the W3C {@code tracestate} header, which includes the OTel
+   * {@code ot} member.
+   */
+  @Benchmark
+  public String ptagsProbabilityKeepW3CHeader(ThreadState thread) {
+    return ptagsProbabilityKeep(thread).headerValue(PropagationTags.HeaderType.W3C);
+  }
+
+  /** A probability decision followed by the tracestate OTLP export writes, OTel member included. */
+  @Benchmark
+  public String ptagsProbabilityKeepOtlpTracestate(ThreadState thread) {
+    PropagationTags ptags = ptagsProbabilityKeep(thread);
+    return ptags.getW3CTracestate(ptags.samplingState());
+  }
+
   /** A priority-only decision (manual keep), on fresh trace-level propagation tags. */
   @Benchmark
   public PropagationTags ptagsPriorityKeep() {
