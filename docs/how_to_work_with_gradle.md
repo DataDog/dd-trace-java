@@ -433,6 +433,8 @@ Lifecycle tasks such as `check` and `build` use it to collect other tasks.
 schedule a prerequisite. `finalizedBy` schedules follow-up work such as cleanup,
 including when that task fails. See [Controlling Task Execution](https://docs.gradle.org/current/userguide/controlling_task_execution.html).
 
+Avoid usage of `TaskDependency` interface.
+
 ### Tasks tips
 
 - **Prefer `Sync` over `Copy`**: `Sync` mirrors the source to the destination by removing files that no longer exist 
@@ -1381,43 +1383,54 @@ maintainability and performance. For module build files, use a `dd-trace-java.mo
 
 ## Gradle Lazy API
 
-Each time Gradle is invoked it project **must** go through the Gradle **Configuration phase**, in which it 
-evaluates all build scripts of the participating projects. Any expensive actions in this phase will be run
-_every single time_.
+Gradle configures participating projects before executing tasks, unless it can reuse the
+*configuration cache*. Configuration work affects even short commands such as `help`.
+With roughly 630 projects and 33,000 tasks in dd-trace-java, unnecessary task creation and
+configuration can add substantial overhead.
 
-This means inefficient configuration directly impacts developer experience by slowing down all builds
-— regardless of which tasks actually execute. While time savings per individual task may seem modest,
-they compound quickly: **dd-trace-java has ~630 projects and ~33,000 tasks**. At that scale, even small
-inefficiencies add up significantly.
-
-The solution is Gradle's **lazy API**: make task creation and configuration as lazy as possible, so Gradle only realizes and configures objects it actually needs to execute.
+Gradle's lazy APIs defer task creation, task configuration and value calculation until needed.
 
 ### Why Lazy Configuration Matters
 
-When you use eager APIs, values are computed immediately during configuration—even if the task never runs. Lazy APIs defer this work to execution time, and Gradle can automatically track dependencies between producers and consumers.
+The following methods `register`, `named` and `configureEach` avoid creating and 
+configuring unused tasks. Task configuration still belongs to the configuration phase. 
+The providers defer value calculation until they are queried, which can happen during 
+configuration or execution. Providers backed by task outputs also carry producer 
+dependencies.
 
 ### Eager vs Lazy API Comparison
 
-| Eager (Don't ❌)                | Lazy (Prefer ✅)                       | Notes                                                                  |
-|---------------------------------|----------------------------------------|------------------------------------------------------------------------|
-| `configurations.getByName("x")` | `configurations.named("x")`            | Returns a `NamedDomainObjectProvider` instead of resolving immediately |
-| `tasks.getByName("x")`          | `tasks.named("x")`                     | Avoids triggering task creation/configuration                          |
-| `tasks.findByName("x")`         | `tasks.named("x")`                     | Returns `null` if not found, but still realizes the task               |
-| `tasks.findByPath(":x")`        | `tasks.named("x")` on target project   | Realizes task eagerly; use project reference with `named()` instead    |
-| `tasks.create("x")`             | `tasks.register("x")`                  | Task is only created when needed                                       |
-| `property.set(someValue)`       | `property.set(provider { someValue })` | Defers computation of the value                                        |
-| `collection.all { }`            | `collection.configureEach { }`         | Configures lazily as elements are realized                             |
-| `collection.forEach { }`        | `collection.configureEach { }`         | Avoids forcing realization of all elements                             |
-| `file(path).exists()`           | Use task inputs/outputs                | Let Gradle track file dependencies                                     |
-| `exec { }.exitValue`            | See Exec pattern below                 | Avoid running processes at configuration time                          |
+| Eager (Don't ❌)                 | Lazy (Prefer ✅)                             | Notes                                                                                  |
+| ------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `configurations.getByName("x")` | `configurations.named("x")`                 | Defers realization of the configuration object, not dependency resolution              |
+| `tasks.getByName("x")`          | `tasks.named("x")`                          | Avoids creating and configuring the task during lookup                                 |
+| `tasks.findByName("x")`         | `tasks.named("x")`                          | `findByName` returns `null` if absent; `named` throws instead                          |
+| `tasks.findByPath(":x")`        | `tasks.named("x")` in the owning project    | `findByPath` returns `null` if absent; `named` takes a local name and throws if absent |
+| `tasks.create("x")`             | `tasks.register("x")`                       | Registers the task without creating or configuring it                                  |
+| `property.set(computeValue())`  | `property.set(provider { computeValue() })` | Defers the computation; wrapping an already computed value adds no laziness            |
+| `collection.all { }`            | `collection.configureEach { }`              | Runs configuration actions only for realized domain objects                            |
+| `collection.forEach { }`        | `collection.configureEach { }`              | Applies to configuration actions, rather than collection transformations               |
+| `file(path).exists()`           | Declared task inputs/outputs                | Tracks file dependencies; configuration-time existence checks may still be necessary   |
+| `configuration.files`           | `inputs.files(configuration)`               | Passes the file collection through and preserves producer dependencies                 |
+| `exec { }.exitValue`            | `providers.exec { ... }`                    | `exec` runs immediately; `providers.exec` defers execution until its output is queried |
+| `ProcessBuilder(...).start()`   | `providers.exec { ... }`                    | Exposes process output lazily; see the example under Using Providers                   |
 
 > [!IMPORTANT]
-> Any function that iterates over a Gradle collection (`forEach`, `map`, `filter`, `all`, `any`, 
-> `find`, `first`, etc.) will **eagerly realize all elements**. This defeats lazy configuration. 
-> Always use `configureEach`, or use `named`/`withType` to get lazy providers.
+> Iterating a task or configuration container can realize its elements. 
+> **Any function that iterates over a Gradle collection** (`forEach`, `map`, `filter`, `all`, `any`, `find`, `first`, etc.) will **eagerly realize all elements**, 
+> defeating any other lazy API usage.
+>
+> Instead prefer, 
+> * `configureEach` registers actions for realized elements; 
+> * `withType` creates a filtered live collection.
+> * Provider transformations such as `map` and `flatMap` remain lazy until queried.
 
 > [!WARNING]
-> **Groovy DSL pitfall**: The shorthand syntax `name { }` is **eager** for both tasks and configurations. It calls `getByName()` under the hood, which realizes the element and its dependencies immediately.
+> **Groovy DSL pitfall**: Dynamic task and configuration blocks (shorthand syntax 
+> `theTaskName { }`, or `theConfigurationName { }`) look up their target immediately 
+> (calling under the hood `getByName("theTaskName")`, or `getByName("theConfigurationName")`), realizing the object. 
+> 
+> Note that just looking up a configuration by name does not resolve its dependencies.
 >
 > ```Gradle
 > // ❌ Eager - realizes the task immediately
@@ -1432,9 +1445,11 @@ When you use eager APIs, values are computed immediately during configuration—
 > ```
 >
 > ```Gradle
-> // ❌ Eager - resolves the configuration immediately
-> runtimeClasspath {
->     exclude group: 'org.slf4j'
+> // ❌ Eager - realizes the configuration object
+> configurations {
+>     runtimeClasspath {
+>         exclude group: 'org.slf4j'
+>     }
 > }
 >
 > // ✅ Lazy - configures only when needed
@@ -1453,19 +1468,29 @@ tasks.create("processData") {
 
 // ✅ Lazy - task is created only when needed
 tasks.register("processData") {
-    // configuration runs only when this task is in the execution graph
+    // Task configuration normally runs when this task is needed for the execution graph or eager lookup.
 }
 ```
 
+Configuration actions may run immediately, later or never. Mutating another task from one
+of these actions makes the result depend on realization order. Dependencies therefore belong
+in the consuming task's own configuration action.
+
 ### Configuration Access
 
+`getByName` realizes the configuration object. Its dependencies remain unresolved until Gradle
+needs their files.
+
 ```Gradle Kotlin DSL
-// ❌ Eager - resolves configuration immediately
+// ❌ Eager - realizes the configuration object
 val runtimeClasspath = configurations.getByName("runtimeClasspath")
 
 // ✅ Lazy - returns a provider
 val runtimeClasspath = configurations.named("runtimeClasspath")
 ```
+
+Queries such as `.files`, `.singleFile` or `.resolve()` trigger dependency resolution.
+Task inputs can accept a configuration as a file collection without resolving it in build logic.
 
 ### Walking Collections
 
@@ -1477,8 +1502,8 @@ tasks.all {
     }
 }
 
-// ❌ Eager - forces all tasks to be created
-tasks.withType<JavaCompile>() {
+// ❌ Eager - realizes all JavaCompile tasks
+tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
 }
 
@@ -1514,69 +1539,208 @@ The lazy version also carries the producer dependency, so Gradle runs `jar` befo
 The eager version passes only a file path and loses that dependency information.
 
 > [!TIP]
-> Kotlin DSL supports `=` for Gradle lazy properties, for example `archiveFileName = provider { "app.jar" }`.
-> This has the same effect as `archiveFileName.set(provider { "app.jar" })`.
+> Kotlin DSL supports `=` for Gradle lazy properties, for example `archiveFileName = "app.jar"`.
+> This has the same effect as `archiveFileName.set("app.jar")`; both forms also accept providers.
 
 Provider support depends on the receiving API. Some APIs with `Any` or `Object` parameters
 convert a provider to a string instead of reading its value. JVM arguments are one example;
 see [Lazy JVM Arguments and System Properties](#lazy-jvm-arguments-and-system-properties).
 
+Command output can also be exposed as a provider:
+
+```Gradle Kotlin DSL
+val gitVersion = providers.exec {
+    commandLine("git", "--version")
+}.standardOutput.asText.map { it.trim() }
+```
+
+The command runs when its output is queried. A configuration-time query makes that output
+a configuration-cache input.
+
 > [!TIP]
 > Existing `afterEvaluate` blocks can often be refactored away using providers,
 > lazy task configuration and plugin callbacks.
 
-### Lazy JVM Arguments and System Properties
+#### Custom Value Sources
 
-A common pitfall is reading task outputs or other values during configuration. Here's how to pass values lazily to `Test` or `JavaExec` tasks using `CommandLineArgumentProvider`:
+When a provider is queried during configuration, Gradle tracks the external data it reads
+to decide whether the configuration cache can be reused. A custom
+[`ValueSource`](https://docs.gradle.org/current/javadoc/org/gradle/api/provider/ValueSource.html)
+lets Gradle track the computed result instead. This is useful when only part of the data
+affects configuration.
 
-```Gradle
-// ❌ Eager - task output is resolved at configuration time
-tasks.withType(Test).configureEach {
-    def fooShadowJarTask = tasks.named('fooShadowJar', ShadowJar)
-    def barShadowJarTask = tasks.named('barShadowJarTask', ShadowJar)
-    dependsOn fooShadowJarTask, barShadowJarTask
-    
-    // This resolves the archive path immediately during configuration!
-    systemProperty "smoketest.foo.path", fooShadowJarTask.get().archiveFile.get()
-    environment "BAR_PATH", barShadowJarTask.get().archiveFile.get()
+For example, reading the `version` entry from a `release.properties` file that also contains
+other release metadata:
+
+```Gradle Kotlin DSL
+import java.util.Properties
+
+val releaseFile = layout.projectDirectory.file("release.properties")
+
+// ❌ Any file content change invalidates the configuration cache
+val releaseVersionProvider = providers.fileContents(releaseFile).asText.map {
+    Properties().apply { load(it.reader()) }.getProperty("version")
 }
 
-// ✅ Lazy - use CommandLineArgumentProvider to defer resolution
-tasks.withType(Test).configureEach {
-    def fooShadowJarTask = tasks.named('fooShadowJar', ShadowJar)
-    def barShadowJarTask = tasks.named('barShadowJarTask', ShadowJar)
-    dependsOn fooShadowJarTask, barShadowJarTask
+// ✅ Only a change to the returned version invalidates the configuration cache
+abstract class ReleaseVersionValueSource :
+    ValueSource<String, ReleaseVersionValueSource.Parameters> {
+    interface Parameters : ValueSourceParameters {
+        val releaseFile: RegularFileProperty
+    }
 
-    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-        @Override
-        Iterable<String> asArguments() {
-            // This is only called at execution time
-            return fooShadowJarTask.map { ["-Dsmoketest.foo.path=${it.archiveFile.get()}"] }.get()
+    override fun obtain(): String =
+        parameters.releaseFile.get().asFile.reader().use {
+            Properties().apply { load(it) }.getProperty("version")
         }
-    })
-    
-    // Workaround: environment() calls toString() at execution time
-    environment("BAR_PATH", new Object() {
-        @Override
-        String toString() {
-            return barShadowJarTask.get().archiveFile.get().asFile.absolutePath
-        }
-    })
+}
+
+val releaseVersion = providers.of(ReleaseVersionValueSource::class) {
+    parameters.releaseFile.set(releaseFile)
 }
 ```
 
-> [!TIP]
-> `CommandLineArgumentProvider` is the recommended way to pass lazily-computed JVM arguments. 
-> It's configuration-cache compatible and properly tracks inputs for up-to-date checks. However, 
-> for older APIs like `environment()` that don't accept providers, use the `toString()` wrapper 
-> trick: pass an anonymous object whose `toString()` method computes the value—it will only be 
-> called at execution time.
+When queried during configuration, `obtain()` is rerun on subsequent builds to check its
+result. Changes to other entries leave the returned version unchanged and allow cache reuse.
+Built-in providers remain sufficient for simple environment, file and command reads.
+
+A value source is also a good fit to run a CLI through `ExecOperations`:
+
+```Gradle Kotlin DSL
+import java.io.ByteArrayOutputStream
+
+abstract class GitVersionValueSource @Inject constructor(
+    private val execOperations: ExecOperations
+) : ValueSource<String, ValueSourceParameters.None> {
+    override fun obtain(): String {
+        val output = ByteArrayOutputStream()
+        execOperations.exec {
+            commandLine("git", "--version")
+            standardOutput = output
+        }
+        return output.toString().trim()
+    }
+}
+
+val gitVersion = providers.of(GitVersionValueSource::class) {}
+```
+
+For a simple command, `providers.exec` is shorter. A custom source is useful when combining
+command output with other external data. The command runs again when Gradle checks cache
+reuse, so slow commands add overhead even when the cached configuration is reused.
+
+### Lazy JVM Arguments and System Properties
+
+A common issue is passing arguments immediately by reading task outputs of other tasks or computing values during configuration.
+
+Instead, a `CommandLineArgumentProvider` supplies JVM arguments from tracked task inputs.
+It is applicable to `Test`, `JavaExec`, `Exec`, and any others.
+For example, this can be used to provide the output of `Jar` tasks (in the below example
+`fooJar` and `barJar`) are needed to pass a system property and an environment var.
+
+```Gradle Kotlin DSL
+// ❌ Eager - reads producer task properties while configuring Test
+tasks.withType<Test>().configureEach {
+    val fooJarTask = tasks.named<Jar>("fooJar")
+    val barJarTask = tasks.named<Jar>("barJar")
+    dependsOn(fooJarTask, barJarTask)
+
+    systemProperty("smoketest.foo.path", fooJarTask.get().archiveFile.get().asFile.absolutePath)
+    environment("BAR_PATH", barJarTask.get().archiveFile.get().asFile.absolutePath)
+}
+
+abstract class SmokeTestJvmArguments : CommandLineArgumentProvider {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val fooJar: RegularFileProperty
+
+    override fun asArguments(): Iterable<String> =
+        listOf("-Dsmoketest.foo.path=${fooJar.get().asFile.absolutePath}")
+}
+
+// ✅ Lazy - tracks the artifacts and reads their paths when needed
+tasks.withType<Test>().configureEach {
+    val fooJar = tasks.named<Jar>("fooJar").flatMap { it.archiveFile }
+    val barJar = tasks.named<Jar>("barJar").flatMap { it.archiveFile }
+    val arguments = objects.newInstance<SmokeTestJvmArguments>()
+    arguments.fooJar = fooJar
+    jvmArgumentProviders.add(arguments)
+    
+    // Workaround: environment() currently do not accept providers
+    inputs.file(barJar).withPropertyName("barJar").withPathSensitivity(PathSensitivity.NONE)
+    doFirst {
+        environment("BAR_PATH", barJar.get().asFile.absolutePath)
+    }
+}
+```
+
+`@InputFile` on `SmokeTestJvmArguments.fooJar` makes the JAR's fingerprint of the
+test task's up-to-date checks. Setting that property from the `fooJar` task's output also
+schedules `fooJar` before the tests. `inputs.file(barJar)` provides the same tracking and
+dependency for `barJar`; `doFirst` sets `BAR_PATH` before the test process starts.
+
+> [!CAUTION]
+> Deferred evaluation alone does not guarantee input tracking or configuration-cache compatibility.
+> Argument providers and task actions follow the same
+> [configuration-cache requirements](https://docs.gradle.org/current/userguide/configuration_cache_requirements.html).
+>
+> * An incorrect input on an argument provider coud track path **string** without tracking the file's contents:
+>
+>   ```Gradle Kotlin DSL
+>   // ❌ Tracks the path string, so changes to the JAR at that path are missed
+>   abstract class PathOnlyJvmArguments : CommandLineArgumentProvider {
+>       @get:Input
+>       abstract val fooJarPath: Property<String>
+>   
+>       override fun asArguments(): Iterable<String> =
+>           listOf("-Dsmoketest.foo.path=${fooJarPath.get()}")
+>   }
+>   ```
+>
+>   The earlier `SmokeTestJvmArguments` properly uses `@InputFile` on a `RegularFileProperty` to track the JAR's contents.
+>
+> * This assignment is deferred, but does not track the JAR's contents or schedule its producer:
+>
+>   ```Gradle Kotlin DSL
+>   // ❌ Deferred assignment without a declared file input
+>   tasks.withType<Test>().configureEach {
+>       val barJar = tasks.named<Jar>("barJar").flatMap { it.archiveFile }
+>       doFirst {
+>           environment("BAR_PATH", barJar.get().asFile.absolutePath)
+>       }
+>   }
+>   ```
+>   
+>   The `inputs.file(barJar)` declaration in the lazy example above provides both.
+>
+> * Capturing another task in an action also prevents configuration-cache storage:
+>
+>   ```Gradle Kotlin DSL
+>   // ❌ Deferred lookup that retains the producing task
+>   tasks.withType<Test>().configureEach {
+>       val fooJarTask = tasks.named<Jar>("fooJar").get()
+>       dependsOn(fooJarTask)
+>       doFirst {
+>           systemProperty("smoketest.foo.path", fooJarTask.archiveFile.get().asFile.absolutePath)
+>       }
+>   }
+>   ```
+>   
+>   `dependsOn` orders the tasks, but the captured `Jar` task cannot be stored in the
+>   configuration cache. The lazy example reads the declared `fooJar` file property instead.
+
+### Replacing `afterEvaluate`
+
+`afterEvaluate` runs after a project's build script, during configuration. Its callbacks
+run in registration order, which makes interactions between plugins fragile. Existing
+blocks can often be eliminated with provider wiring, lazy task configuration or
+`pluginManager.withPlugin`, depending on what they are waiting for.
 
 ### Benefits of Lazy Configuration
 
 1. **Faster configuration**: Only necessary work is performed
 2. **Automatic dependency tracking**: Gradle knows which tasks produce values that others consume
-3. **Configuration cache compatibility**: Lazy providers are serializable and can be cached
+3. **Configuration cache compatibility**: Explicit inputs and compatible provider implementations support configuration cache reuse
 4. **Correct ordering**: Task dependencies are inferred from provider relationships
 
 ## Gradle Daemon JVM
