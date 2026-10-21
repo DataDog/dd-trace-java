@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
@@ -45,6 +46,9 @@ public abstract class CiVisibilitySmokeTest {
       Config.get().getCiVisibilityJacocoPluginVersion();
 
   private static final Map<String, String> DEFAULT_TRACER_CONFIG = defaultJvmArguments();
+
+  private static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
+  private static final String DISABLE_CDS = "-Xshare:off";
 
   private static final Path JVM_CRASH_LOGS_DIR =
       Paths.get(
@@ -112,6 +116,10 @@ public abstract class CiVisibilitySmokeTest {
   protected List<String> buildJvmArguments(
       String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
     List<String> arguments = new ArrayList<>(Arrays.asList("-Xms256m", "-Xmx512m"));
+    // Disable CDS to avoid SIGSEGVs on Linux arm64
+    if (isLinuxArm64()) {
+      arguments.add(DISABLE_CDS);
+    }
 
     arguments.add(preventJulPrefsFileLock());
 
@@ -158,6 +166,27 @@ public abstract class CiVisibilitySmokeTest {
   protected String preventJulPrefsFileLock() {
     Path resolved = prefsDir != null ? prefsDir : tempUserPrefsPath();
     return "-Djava.util.prefs.userRoot=" + resolved.toAbsolutePath();
+  }
+
+  /**
+   * Disables CDS in every JVM started with {@code environment}, including nested build tool
+   * processes, to avoid SIGSEGVs on Linux arm64.
+   */
+  protected static void disableCdsOnLinuxArm64(Map<String, String> environment) {
+    if (!isLinuxArm64()) {
+      return;
+    }
+    String options = environment.get(JAVA_TOOL_OPTIONS);
+    if (options == null) {
+      options = System.getenv(JAVA_TOOL_OPTIONS);
+    }
+    environment.put(
+        JAVA_TOOL_OPTIONS,
+        options == null || options.isEmpty() ? DISABLE_CDS : options + " " + DISABLE_CDS);
+  }
+
+  private static boolean isLinuxArm64() {
+    return OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64();
   }
 
   /**

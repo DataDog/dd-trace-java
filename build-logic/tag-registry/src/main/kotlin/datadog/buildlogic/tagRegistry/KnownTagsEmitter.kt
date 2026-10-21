@@ -59,6 +59,15 @@ object KnownTagsEmitter {
     fun otelNameC(ddName: String) = otelNameOfConst.getValue(ddName)
 
     val keyOfOrder = reg.tags.map { it.ddName } // stable emit order
+    // OpenTelemetry names that denote a different tag depending on the span's direction. keyOf
+    // ignores direction (a shared Datadog name such as server.port resolves to its own tag);
+    // directionalKeyOf(name, direction) switches on each one's tag per direction.
+    val directional = sortedMapOf<String, MutableMap<TagConventions.Direction, String>>()
+    for (t in reg.tags) {
+      for ((direction, otel) in t.scopedOtelNames) {
+        directional.getOrPut(otel) { mutableMapOf() }[direction] = t.ddName
+      }
+    }
     return buildString {
       // Public API first (name + encoded id couplets), so readers see the useful parts up top; the
       // serial ids and keyOf/resolver machinery follow below. Derivation is in the trailing comment.
@@ -95,6 +104,34 @@ object KnownTagsEmitter {
 
       // Serial numbers (globalSerial per tag) — public, so a switch on KnownTagCodec.serialNum outside
       // this package (the resolver here, TagInterceptor in core) can name them as case labels.
+      // Per-direction aliases: each OpenTelemetry name that names a tag on spans of one direction, as
+      // that tag's id. Code that knows its direction writes in OpenTelemetry terms by id
+      // (Outbound.SERVER_ADDRESS_ID is PEER_HOSTNAME_ID) without knowing the Datadog name, and
+      // without a lookup. Direction-free renames are repeated in each, so one class covers a span.
+      for (direction in TagConventions.Direction.entries) {
+        val aliases = sortedMapOf<String, String>()
+        for (t in reg.tags) {
+          val otel = t.otelName ?: t.scopedOtelNames[direction] ?: continue
+          aliases[otel] = t.ddName
+        }
+        if (aliases.isEmpty()) continue
+        val holder = DIRECTION_CLASS.getValue(direction)
+        appendLine("  /** OpenTelemetry names on ${DIRECTION_SPANS.getValue(direction)} spans, as the ids of the tags they name. */")
+        appendLine("  public static final class $holder {")
+        val local = HashSet<String>()
+        for ((otel, ddName) in aliases) {
+          var constant = withSuffix(sanitize(otel), "_ID")
+          var n = 2
+          while (!local.add(constant)) constant = "${withSuffix(sanitize(otel), "_ID")}_${n++}"
+          appendLine("    /** {@code ${escape(otel)}}: {@code ${escape(ddName)}}. */")
+          appendLine("    public static final long $constant = $className.${idC(ddName)};")
+        }
+        appendLine()
+        appendLine("    private $holder() {}")
+        appendLine("  }")
+        appendLine()
+      }
+
       appendLine("  // ---- serial numbers ----")
       for (t in reg.tags) {
         appendLine("  public static final int ${serialC(t.ddName)} = ${t.serial};")
@@ -221,6 +258,30 @@ object KnownTagsEmitter {
                 int slot = StringIndex.EmbeddingSupport.indexOf(KEYOF_HASHES, KEYOF_KEYS, name);
                 return slot < 0 ? 0L : KEYOF_IDS[slot];
               }
+
+              @Override
+              public long directionalKeyOf(String name, int direction) {
+                switch (name) {
+        """.trimIndent()
+      )
+      for ((name, byDirection) in directional) {
+        appendLine("    case \"${escape(name)}\":")
+        appendLine("      switch (direction) {")
+        for (d in TagConventions.Direction.entries) {
+          val tag = byDirection[d] ?: continue
+          appendLine("        case KnownTagCodec.DIRECTION_${d.name}:")
+          appendLine("          return ${idC(tag)};")
+        }
+        appendLine("        default:")
+        appendLine("          return 0L;")
+        appendLine("      }")
+      }
+      appendLine(
+        """
+                  default:
+                    return 0L;
+                }
+              }
             };
 
         private $className() {}
@@ -229,6 +290,20 @@ object KnownTagsEmitter {
       )
     }
   }
+
+  private val DIRECTION_CLASS =
+    mapOf(
+      TagConventions.Direction.INBOUND to "Inbound",
+      TagConventions.Direction.OUTBOUND to "Outbound",
+      TagConventions.Direction.NONE to "Internal",
+    )
+
+  private val DIRECTION_SPANS =
+    mapOf(
+      TagConventions.Direction.INBOUND to "server and consumer",
+      TagConventions.Direction.OUTBOUND to "client and producer",
+      TagConventions.Direction.NONE to "internal",
+    )
 
   private fun hex(id: Long): String = "0x%016XL".format(Locale.ROOT, id)
 

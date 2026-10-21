@@ -1403,7 +1403,45 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    return unsafeTags.getObject(tag);
+    Object value = unsafeTags.getObject(tag);
+    return value != null ? value : unsafeGetDirectionScopedTag(tag);
+  }
+
+  /**
+   * Resolves an OpenTelemetry name whose tag depends on the span's direction, by this span's kind:
+   * {@code server.address} is {@code http.hostname} on inbound spans and {@code peer.hostname} on
+   * outbound ones. Tried only after a plain lookup misses, so a tag set under the literal name
+   * wins; null when the name isn't direction-scoped or the span has no direction.
+   */
+  private Object unsafeGetDirectionScopedTag(final String tag) {
+    int direction = directionOfKind(spanKindOrdinal);
+    if (direction == KnownTagCodec.DIRECTION_UNKNOWN) {
+      return null;
+    }
+    long tagId = KnownTagCodec.directionalKeyOf(tag, direction);
+    if (tagId == 0) {
+      return null;
+    }
+    TagMap.Entry entry = unsafeTags.getEntry(tagId);
+    return entry == null ? null : entry.objectValue();
+  }
+
+  /**
+   * The {@link KnownTagCodec} direction of a span-kind ordinal; brokers and custom kinds have none.
+   */
+  static int directionOfKind(byte spanKindOrdinal) {
+    switch (spanKindOrdinal) {
+      case SPAN_KIND_SERVER:
+      case SPAN_KIND_CONSUMER:
+        return KnownTagCodec.DIRECTION_INBOUND;
+      case SPAN_KIND_CLIENT:
+      case SPAN_KIND_PRODUCER:
+        return KnownTagCodec.DIRECTION_OUTBOUND;
+      case SPAN_KIND_INTERNAL:
+        return KnownTagCodec.DIRECTION_NONE;
+      default:
+        return KnownTagCodec.DIRECTION_UNKNOWN;
+    }
   }
 
   @Deprecated

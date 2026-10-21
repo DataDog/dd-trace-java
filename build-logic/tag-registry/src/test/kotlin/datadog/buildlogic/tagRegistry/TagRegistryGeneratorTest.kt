@@ -341,6 +341,85 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
+  fun `a Datadog name can be another tag's OpenTelemetry name in some directions`() {
+    val domain =
+      """
+      span_types:
+        http.server:
+          span-kind: server
+          tags: [{dd-name: server.port, type: int}]
+        http.client: {span-kind: client, include: [outbound_peer]}
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int, otel-name: server.port}]}
+      """
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(directory.conventionsFile(domain), output)
+
+    val tags = TagRegistry.build(tagConventions(domain)).tags.associateBy { it.name }
+    assertThat(tags.getValue("server.port").scopedOtelNames)
+      .isEqualTo(
+        mapOf(TagConventions.Direction.INBOUND to "server.port", TagConventions.Direction.NONE to "server.port")
+      )
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(source.substringAfter("case \"server.port\":").substringBefore("default:"))
+      .contains(
+        "case KnownTagCodec.DIRECTION_INBOUND:",
+        "return SERVER_PORT_ID;",
+        "case KnownTagCodec.DIRECTION_OUTBOUND:",
+        "return PEER_PORT_ID;",
+        "case KnownTagCodec.DIRECTION_NONE:",
+      )
+    // Without a direction the Datadog name is its own tag; only directionalKeyOf maps it elsewhere.
+    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};"))
+      .contains("SERVER_PORT_ID,")
+      .doesNotContain("SENTINEL")
+  }
+
+  @Test
+  fun `each direction gets its OpenTelemetry names as the ids of the tags they name`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        base: {abstract: true, tags: [{dd-name: http.method, otel-name: http.request.method}]}
+        http.server:
+          span-kind: server
+          tags:
+            - {dd-name: http.hostname, otel-name: server.address}
+            - {dd-name: server.port, type: int}
+        http.client: {span-kind: client, include: [outbound_peer]}
+      mixins:
+        outbound_peer:
+          span-kind: client
+          tags:
+            - {dd-name: peer.hostname, otel-name: server.address}
+            - {dd-name: peer.port, type: int, otel-name: server.port}
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    fun holder(name: String) = source.substringAfter("public static final class $name {").substringBefore("private $name() {}")
+    assertThat(holder("Outbound"))
+      .contains(
+        "SERVER_ADDRESS_ID = KnownTags.PEER_HOSTNAME_ID;",
+        "SERVER_PORT_ID = KnownTags.PEER_PORT_ID;",
+        "HTTP_REQUEST_METHOD_ID = KnownTags.HTTP_METHOD_ID;",
+      )
+    assertThat(holder("Inbound"))
+      .contains(
+        "SERVER_ADDRESS_ID = KnownTags.HTTP_HOSTNAME_ID;",
+        "SERVER_PORT_ID = KnownTags.SERVER_PORT_ID;",
+        "HTTP_REQUEST_METHOD_ID = KnownTags.HTTP_METHOD_ID;",
+      )
+    assertThat(holder("Internal"))
+      .contains("SERVER_PORT_ID = KnownTags.SERVER_PORT_ID;")
+      .doesNotContain("SERVER_ADDRESS_ID")
+  }
+
+  @Test
   fun `a Datadog name declared per direction is one tag`() {
     val yaml = directory.conventionsFile(
       """
@@ -434,6 +513,8 @@ class TagRegistryGeneratorTest {
   @TableTest(
     """
           scenario                     | domain                                                                                                                                                               | message
+          scoped rename to own name    | span_types: {a: {span-kind: client, tags: [{dd-name: x, otel-name: x}]}}                                                                                             | collides with canonical
+          shared name renamed itself   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o}]}, b: {span-kind: client, tags: [{dd-name: y, otel-name: x}]}}                                  | so it cannot be renamed itself
           same name in one direction   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o}]}, b: {span-kind: consumer, tags: [{dd-name: y, otel-name: o}]}}                                | claimed by both 'x' and 'y' on inbound spans
           neutral contradicts scoped   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o, span-kind-neutral: true}]}, b: {span-kind: client, tags: [{dd-name: y, otel-name: o}]}}         | on outbound spans
           map-form otel-name           | span_types: {a: {span-kind: client, tags: [{dd-name: x, otel-name: {outbound: o}}]}}                                                                                  | invalid otel-name
@@ -543,17 +624,87 @@ class TagRegistryGeneratorTest {
       )
   }
 
+  @Test
+  fun `a tracer overlay mixin applies its tags to shared span types`() {
+    val mapper = ObjectMapper(YAMLFactory())
+    val type = object : TypeReference<Map<String, Any?>>() {}
+    val root: Map<String, Any?> =
+      mapper.readValue(
+        """
+        span_types:
+          base: {abstract: true, tags: [{dd-name: service}]}
+          http.server: {extends: base, span-kind: server, tags: [{dd-name: http.route}]}
+          db.client: {extends: base, span-kind: client, tags: [{dd-name: db.type}]}
+        """,
+        type
+      )
+    val overlay: Map<String, Any?> =
+      mapper.readValue(
+        """
+        mixins:
+          servlet: {applies: [http.server], tags: [{dd-name: servlet.context}, {dd-name: servlet.path}]}
+        intercepted: [servlet.context]
+        """,
+        type
+      )
+
+    val conv = TagConventions.parse(root, overlay)
+
+    assertThat(conv.resolve("http.server").map { it.ddName })
+      .containsExactlyInAnyOrder("service", "http.route", "servlet.context", "servlet.path")
+    assertThat(conv.resolve("db.client").map { it.ddName }).containsExactlyInAnyOrder("service", "db.type")
+    assertThat(conv.interceptedNames).contains("servlet.context")
+  }
+
+  @Test
+  fun `a tracer overlay span type extends a shared one`() {
+    val mapper = ObjectMapper(YAMLFactory())
+    val type = object : TypeReference<Map<String, Any?>>() {}
+    val root: Map<String, Any?> =
+      mapper.readValue(
+        """
+        span_types:
+          base: {abstract: true, tags: [{dd-name: service}]}
+          http.server: {extends: base, span-kind: server, tags: [{dd-name: http.route}]}
+        """,
+        type
+      )
+    val overlay: Map<String, Any?> =
+      mapper.readValue(
+        """
+        span_types:
+          servlet.request: {extends: http.server, tags: [{dd-name: servlet.context}, {dd-name: servlet.path}]}
+        intercepted: [servlet.context]
+        """,
+        type
+      )
+
+    val conv = TagConventions.parse(root, overlay)
+
+    assertThat(conv.concreteTypes()).contains("http.server", "servlet.request")
+    assertThat(conv.resolve("servlet.request").map { it.ddName })
+      .containsExactlyInAnyOrder("service", "http.route", "servlet.context", "servlet.path")
+    assertThat(conv.resolve("http.server").map { it.ddName }).containsExactlyInAnyOrder("service", "http.route")
+  }
+
   @TableTest(
     """
           scenario           | overlay                      | message
           undeclared name    | 'intercepted: [missing]'     | is not declared
           ref in overlay     | 'tags: [{ref: service}]'     | must be declarations, not refs
-          unknown section    | 'span_types: {}'             | may only declare
+          unknown section    | 'trace_level: {}'            | may only declare
           duplicate of a tag | 'tags: [{dd-name: service}]' | declared in both
+          mixin with no applies | 'mixins: {servlet: {tags: [{dd-name: servlet.path}]}}' | must say which span types
+          mixin reusing a shared name | 'mixins: {peer: {applies: [base], tags: [{dd-name: x.y}]}}' | reuses the name
+          type with no extends | 'span_types: {servlet.request: {tags: [{dd-name: servlet.path}]}}' | must extend a span type
+          type reusing a shared name | 'span_types: {base: {extends: base}}' | reuses the name of a shared span type
           """
   )
   fun `invalid tracer overlays are rejected`(overlay: String, message: String) {
-    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: service}]}}")
+    val yaml =
+      directory.conventionsFile(
+        "span_types: {base: {tags: [{dd-name: service}]}}\nmixins: {peer: {tags: [{dd-name: peer.service}]}}"
+      )
     val overlayFile = directory.writeFile("overlay.yaml", overlay)
 
     assertThatIllegalArgumentException()

@@ -2,7 +2,6 @@ import datadog.gradle.configureCompiler
 
 plugins {
   `java-library`
-  idea
   id("dd-trace-java.module.internal-library")
   id("dd-trace-java.jmh-conventions")
 }
@@ -33,11 +32,5 @@ listOf("compileMain_java17Java", "compileTestJava", "compileJmhJava").forEach {
     // The Java 17 implementation can lift this offset, but compileTestJava must first be split if
     // the remaining socket tests still need to run on Java 8.
     configureCompiler(JavaVersion.VERSION_1_8, "Uses java.net.UnixDomainSocketAddress (Java 16+) at Java 8 bytecode")
-  }
-}
-
-idea {
-  module {
-    jdkName = "17"
   }
 }
