@@ -520,12 +520,20 @@ public final class DatadogProfiler {
     Map<String, String> configuredByName = configuredProfilerOptions(configuredOptions);
 
     StringBuilder mergedOptions = new StringBuilder();
-    for (String option : derivedOptions.split(",")) {
-      String trimmedOption = option.trim();
+    for (int start = 0; start <= derivedOptions.length(); ) {
+      int end = derivedOptions.indexOf(',', start);
+      if (end < 0) {
+        end = derivedOptions.length();
+      }
+      String trimmedOption = derivedOptions.substring(start, end).trim();
       if (!trimmedOption.isEmpty()
           && !configuredByName.containsKey(profilerOptionName(trimmedOption))) {
         mergedOptions.append(',').append(trimmedOption);
       }
+      if (end == derivedOptions.length()) {
+        break;
+      }
+      start = end + 1;
     }
     for (String option : configuredByName.values()) {
       mergedOptions.append(',').append(option);
@@ -535,17 +543,24 @@ public final class DatadogProfiler {
 
   private static Map<String, String> configuredProfilerOptions(String configuredOptions) {
     Map<String, String> configuredByName = new LinkedHashMap<>();
-    for (String option : configuredOptions.split(",")) {
-      String trimmedOption = option.trim();
+    for (int start = 0; start <= configuredOptions.length(); ) {
+      int end = configuredOptions.indexOf(',', start);
+      if (end < 0) {
+        end = configuredOptions.length();
+      }
+      String trimmedOption = configuredOptions.substring(start, end).trim();
       if (!trimmedOption.isEmpty()) {
         String name = profilerOptionName(trimmedOption);
-        if (isReservedProfilerOption(name)) {
-          continue;
+        if (!isReservedProfilerOption(name)) {
+          // Reinsert duplicate keys to order them by their last occurrence.
+          configuredByName.remove(name);
+          configuredByName.put(name, trimmedOption);
         }
-        // Reinsert duplicate keys to order them by their last occurrence.
-        configuredByName.remove(name);
-        configuredByName.put(name, trimmedOption);
       }
+      if (end == configuredOptions.length()) {
+        break;
+      }
+      start = end + 1;
     }
     return configuredByName;
   }
