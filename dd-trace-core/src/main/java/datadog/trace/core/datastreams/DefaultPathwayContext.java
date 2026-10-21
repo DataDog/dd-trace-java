@@ -160,22 +160,27 @@ public class DefaultPathwayContext implements PathwayContext {
       throw new IllegalStateException("Context must be started to encode");
     }
 
+    long pathwayStartMillis = TimeUnit.NANOSECONDS.toMillis(pathwayStartNanos);
+    long edgeStartMillis =
+        pathwayStartMillis
+            + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
+
+    String cached = PathwayContextCodecCache.getEncoded(hash, pathwayStartMillis, edgeStartMillis);
+    if (cached != null) {
+      return cached;
+    }
+
     if (outputBuffer == null) {
       outputBuffer = GrowingByteArrayOutput.withInitialCapacity(20);
     }
     outputBuffer.clear();
     outputBuffer.writeLongLE(hash);
-
-    long pathwayStartMillis = TimeUnit.NANOSECONDS.toMillis(pathwayStartNanos);
     VarEncodingHelper.encodeSignedVarLong(outputBuffer, pathwayStartMillis);
-
-    long edgeStartMillis =
-        pathwayStartMillis
-            + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
-
     VarEncodingHelper.encodeSignedVarLong(outputBuffer, edgeStartMillis);
     byte[] base64 = Base64.getEncoder().encode(outputBuffer.trimmedCopy());
-    return new String(base64, ISO_8859_1);
+    String result = new String(base64, ISO_8859_1);
+    PathwayContextCodecCache.putEncoded(hash, pathwayStartMillis, edgeStartMillis, result);
+    return result;
   }
 
   @Override
@@ -237,13 +242,24 @@ public class DefaultPathwayContext implements PathwayContext {
 
   protected static DefaultPathwayContext decode(
       TimeSource timeSource, String serviceNameOverride, String base64) throws IOException {
-    byte[] base64Bytes = base64.getBytes(UTF_8);
-    byte[] bytes = Base64.getDecoder().decode(base64Bytes);
-    ByteArrayInput input = ByteArrayInput.wrap(bytes);
+    long hash;
+    long pathwayStartMillis;
+    long edgeStartMillis;
+    PathwayContextCodecCache.Decoded cached = PathwayContextCodecCache.getDecoded(base64);
+    if (cached != null) {
+      hash = cached.hash;
+      pathwayStartMillis = cached.pathwayStartMillis;
+      edgeStartMillis = cached.edgeStartMillis;
+    } else {
+      byte[] base64Bytes = base64.getBytes(UTF_8);
+      byte[] bytes = Base64.getDecoder().decode(base64Bytes);
+      ByteArrayInput input = ByteArrayInput.wrap(bytes);
+      hash = input.readLongLE();
+      pathwayStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
+      edgeStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
+      PathwayContextCodecCache.putDecoded(base64, hash, pathwayStartMillis, edgeStartMillis);
+    }
 
-    long hash = input.readLongLE();
-
-    long pathwayStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
     long pathwayStartNanos = TimeUnit.MILLISECONDS.toNanos(pathwayStartMillis);
 
     // Convert the start time to the current JVM's nano clock
@@ -252,7 +268,6 @@ public class DefaultPathwayContext implements PathwayContext {
     long nowNanoTicks = timeSource.getNanoTicks();
     long pathwayStartNanoTicks = nowNanoTicks - nanosSinceStart;
 
-    long edgeStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
     long edgeStartNanoTicks =
         pathwayStartNanoTicks + TimeUnit.MILLISECONDS.toNanos(edgeStartMillis - pathwayStartMillis);
 

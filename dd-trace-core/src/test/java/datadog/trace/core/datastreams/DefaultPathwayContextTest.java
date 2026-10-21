@@ -5,6 +5,7 @@ import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -18,6 +19,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.context.Context;
+import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
@@ -34,13 +36,17 @@ import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.util.FNV64Hash;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -774,6 +780,94 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
 
     assertNull(extractedSpan);
+  }
+
+  private static final CarrierVisitor<Map<String, String>> MAP_VISITOR = Map::forEach;
+
+  private static String referenceEncode(long hash, long pathwayStartMillis, long edgeStartMillis) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    for (int i = 0; i < 8; i++) {
+      out.write((int) (hash >>> (8 * i)) & 0xff);
+    }
+    writeZigZagVarLong(out, pathwayStartMillis);
+    writeZigZagVarLong(out, edgeStartMillis);
+    return new String(Base64.getEncoder().encode(out.toByteArray()), ISO_8859_1);
+  }
+
+  private static void writeZigZagVarLong(ByteArrayOutputStream out, long value) {
+    long v = (value << 1) ^ (value >> 63);
+    while ((v & ~0x7FL) != 0) {
+      out.write((int) ((v & 0x7F) | 0x80));
+      v >>>= 7;
+    }
+    out.write((int) v);
+  }
+
+  @Test
+  void encodeMatchesUncachedReference() throws IOException {
+    long[] hashes = {0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE, 12345L};
+    long[] millis = {0L, -5L, 1L, 1_700_000_000_000L, 1_000_000_000_000L};
+    Random random = new Random(11);
+    for (int i = 0; i < 200; i++) {
+      long hash = i < hashes.length ? hashes[i] : random.nextLong();
+      long start = i < millis.length ? millis[i] : random.nextInt(1_000_000_000);
+      long edge = start + (i % 3 == 0 ? 0 : random.nextInt(10_000));
+      String reference = referenceEncode(hash, start, edge);
+
+      ControllableTimeSource timeSource = new ControllableTimeSource();
+      DefaultPathwayContext context =
+          DefaultPathwayContext.decode(timeSource, null, referenceEncode(hash, start, edge));
+
+      assertEquals(reference, context.encode());
+      assertEquals(reference, context.encode());
+    }
+  }
+
+  @Test
+  void decodeHitUsesCurrentTime() throws IOException {
+    String encoded = referenceEncode(777L, 1_000L, 1_000L);
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    timeSource.set(5_000_000_000L);
+
+    DefaultPathwayContext first = DefaultPathwayContext.decode(timeSource, null, encoded);
+    first.setCheckpoint(fromTags(DataStreamsTags.create("internal", null)), pointConsumer);
+    timeSource.advance(7_000_000L);
+    DefaultPathwayContext second = DefaultPathwayContext.decode(timeSource, null, encoded);
+    second.setCheckpoint(fromTags(DataStreamsTags.create("internal", null)), pointConsumer);
+
+    StatsPoint firstPoint = pointConsumer.points.get(0);
+    StatsPoint secondPoint = pointConsumer.points.get(1);
+    assertEquals(4_000_000_000L, firstPoint.getPathwayLatencyNano());
+    assertEquals(4_007_000_000L, secondPoint.getPathwayLatencyNano());
+    assertEquals(firstPoint.getParentHash(), secondPoint.getParentHash());
+  }
+
+  @Test
+  void malformedValueNotCached() throws IOException {
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    Map<String, String> invalid = new HashMap<>();
+    invalid.put(PROPAGATION_KEY_BASE64, "not valid base64 !!");
+
+    for (int i = 0; i < 2; i++) {
+      assertNull(DefaultPathwayContext.extract(invalid, MAP_VISITOR, timeSource, null));
+    }
+
+    String valid = referenceEncode(31L, 100L, 100L);
+    Map<String, String> validThenInvalid = new LinkedHashMap<>();
+    validThenInvalid.put(PROPAGATION_KEY_BASE64, valid);
+    validThenInvalid.put(PROPAGATION_KEY_BASE64.toUpperCase(), "###");
+    DefaultPathwayContext kept =
+        DefaultPathwayContext.extract(validThenInvalid, MAP_VISITOR, timeSource, null);
+    assertNotNull(kept);
+    assertEquals(valid, kept.encode());
+
+    Map<String, String> invalidThenValid = new LinkedHashMap<>();
+    invalidThenValid.put(PROPAGATION_KEY_BASE64, "###");
+    invalidThenValid.put(PROPAGATION_KEY_BASE64.toUpperCase(), valid);
+    DefaultPathwayContext last =
+        DefaultPathwayContext.extract(invalidThenValid, MAP_VISITOR, timeSource, null);
+    assertNotNull(last);
+    assertEquals(valid, last.encode());
   }
 
   static class CapturingPointConsumer implements Consumer<StatsPoint> {
