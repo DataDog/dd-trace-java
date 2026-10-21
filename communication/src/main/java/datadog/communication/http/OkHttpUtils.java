@@ -170,6 +170,7 @@ public final class OkHttpUtils {
     }
 
     builder
+        .hostnameVerifier(ForbiddenCertificatesHostnameVerifier.INSTANCE)
         .connectTimeout(timeoutMillis, MILLISECONDS)
         .writeTimeout(timeoutMillis, MILLISECONDS)
         .readTimeout(timeoutMillis, MILLISECONDS)

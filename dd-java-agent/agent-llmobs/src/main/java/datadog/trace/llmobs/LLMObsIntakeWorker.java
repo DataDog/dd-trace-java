@@ -7,6 +7,7 @@ import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.http.ForbiddenCertificatesHostnameVerifier;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
@@ -129,7 +130,10 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
       this.payloadDescription = payloadDescription;
       this.queue = queue;
       this.serializer = serializer;
-      this.httpClient = new OkHttpClient();
+      this.httpClient =
+          new OkHttpClient.Builder()
+              .hostnameVerifier(ForbiddenCertificatesHostnameVerifier.INSTANCE)
+              .build();
       this.submissionUrl = submissionUrl;
       this.headers = headers;
 
