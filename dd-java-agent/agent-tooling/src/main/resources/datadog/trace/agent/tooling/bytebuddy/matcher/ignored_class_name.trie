@@ -36,6 +36,8 @@
 1 datadog.opentracing.*
 1 datadog.slf4j.*
 1 datadog.trace.*
+# Legacy OpenFeature providers need compatibility advice after their bootstrap API was removed.
+0 datadog.trace.api.openfeature.Provider
 # remove this once https://github.com/raphw/byte-buddy/issues/558 is fixed
 0 datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 1 datadog.trace.core.*
