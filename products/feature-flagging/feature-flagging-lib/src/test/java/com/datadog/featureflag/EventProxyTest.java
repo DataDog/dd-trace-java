@@ -1,85 +1,196 @@
 package com.datadog.featureflag;
 
+import static com.datadog.featureflag.EventProxy.IDENTITY_HEADERS;
+import static com.datadog.featureflag.EventProxy.IDENTITY_HEADER_NAMES;
+import static com.datadog.featureflag.EventProxy.PRE_SEND_RETRY;
+import static com.datadog.featureflag.EventProxy.RECOVERY_INTERVAL_NANOS;
+import static datadog.communication.EvpProxy.ORIGIN_HEADER;
+import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT;
+import static datadog.communication.http.HttpRetryPolicy.Factory.NEVER_RETRY;
+import static datadog.trace.api.intake.Intake.EVENT_PLATFORM;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Arrays.asList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.HttpResponseException;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.trace.api.intake.Intake;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.util.concurrent.atomic.AtomicLong;
+import okhttp3.Response;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class EventProxyTest {
   private static final byte[] PAYLOAD = "{}".getBytes(UTF_8);
+  private static final String ENDPOINT = "evp_proxy/v4/";
+
+  private final BackendApiFactory factory = mock(BackendApiFactory.class);
+  private final BackendApi exposures = mock(BackendApi.class);
+  private final BackendApi flagEvaluations = mock(BackendApi.class);
+  private final AtomicLong now = new AtomicLong();
 
   @Test
-  void isUnavailableWithoutAgentProxySupport() throws IOException {
-    final EventProxy proxy = new EventProxy(mock(BackendApiFactory.class), false);
-
-    assertFalse(proxy.isAvailable());
-    assertFalse(proxy.post("exposures", PAYLOAD));
-  }
-
-  @Test
-  void postsEachRouteThroughItsOwnClient() throws IOException {
-    final BackendApiFactory factory = mock(BackendApiFactory.class);
-    final BackendApi exposures = mock(BackendApi.class);
-    final BackendApi flagEvaluations = mock(BackendApi.class);
-    when(factory.createEvpProxyApi(Intake.EVENT_PLATFORM, true)).thenReturn(exposures);
-    when(factory.createEvpProxyApi(Intake.EVENT_PLATFORM, false)).thenReturn(flagEvaluations);
-    final EventProxy proxy = new EventProxy(factory, false);
+  void sendsRemoteConfigurationEventsToTheFixedV2EndpointWithPreSendRetry() throws IOException {
+    clientsFor(V2_EVP_PROXY_ENDPOINT);
+    final EventProxy proxy = proxy(false, false);
 
     assertTrue(proxy.isAvailable());
     assertTrue(proxy.post("exposures", PAYLOAD));
     assertTrue(proxy.post("flagevaluation", PAYLOAD));
 
-    verify(exposures).post(eq("exposures"), any(), any(), any(), eq(false));
-    verify(flagEvaluations).post(eq("flagevaluation"), any(), any(), any(), eq(false));
+    verify(this.factory)
+        .createEvpProxyApiForEndpoint(EVENT_PLATFORM, true, PRE_SEND_RETRY, V2_EVP_PROXY_ENDPOINT);
+    verify(this.factory)
+        .createEvpProxyApiForEndpoint(EVENT_PLATFORM, false, PRE_SEND_RETRY, V2_EVP_PROXY_ENDPOINT);
+    verify(this.factory, never()).discoverEvpProxyEndpoint(anyBoolean(), anyIterable());
+    verify(this.exposures).post(eq("exposures"), any(), any(), any(), eq(false));
+    verify(this.flagEvaluations).post(eq("flagevaluation"), any(), any(), any(), eq(false));
   }
 
   @Test
-  void doesNotRetryWhenDirectFallbackIsAvailable() {
-    final BackendApiFactory factory = mock(BackendApiFactory.class);
-    final EventProxy proxy = new EventProxy(factory, true);
+  void sendsAgentlessEventsOnceThroughTheDiscoveredEndpoint() throws IOException {
+    when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
+    clientsFor(ENDPOINT);
+    final EventProxy proxy = proxy(true, true);
 
-    proxy.isAvailable();
+    assertTrue(proxy.isAvailable());
+    assertTrue(proxy.post("exposures", PAYLOAD));
 
-    verify(factory)
-        .createEvpProxyApi(Intake.EVENT_PLATFORM, true, HttpRetryPolicy.Factory.NEVER_RETRY);
-    verify(factory)
-        .createEvpProxyApi(Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
+    verify(this.factory).createEvpProxyApiForEndpoint(EVENT_PLATFORM, true, NEVER_RETRY, ENDPOINT);
+    verify(this.factory).createEvpProxyApiForEndpoint(EVENT_PLATFORM, false, NEVER_RETRY, ENDPOINT);
+    verify(this.factory, times(1)).discoverEvpProxyEndpoint(anyBoolean(), anyIterable());
   }
 
   @Test
-  void reportsConnectionFailuresAsUnavailable() throws IOException {
-    final BackendApi api = proxyApi(new ConnectException("refused"));
+  void leavesAgentlessEventsToDirectIntakeWithoutTheAgentProxy() throws IOException {
+    final EventProxy proxy = proxy(true, true);
 
-    assertFalse(new EventProxy(factoryOf(api), false).post("exposures", PAYLOAD));
+    assertFalse(proxy.isAvailable());
+    this.now.addAndGet(RECOVERY_INTERVAL_NANOS);
+    assertFalse(proxy.post("exposures", PAYLOAD));
+
+    verify(this.factory, times(1)).discoverEvpProxyEndpoint(anyBoolean(), anyIterable());
+  }
+
+  @Test
+  void recoversTheAgentProxyWhenItIsTheOnlyRoute() throws IOException {
+    final EventProxy proxy = proxy(true, false);
+
+    assertTrue(proxy.isAvailable(), "the proxy route stays in place to recover");
+    assertFalse(proxy.post("exposures", PAYLOAD));
+    verify(this.factory, never()).discoverEvpProxyEndpoint(eq(true), anyIterable());
+
+    this.now.addAndGet(RECOVERY_INTERVAL_NANOS);
+    when(this.factory.discoverEvpProxyEndpoint(true, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
+    clientsFor(ENDPOINT);
+
+    assertTrue(proxy.post("exposures", PAYLOAD));
+    verify(this.exposures).post(eq("exposures"), any(), any(), any(), eq(false));
+  }
+
+  @Test
+  void failedDiscoveryRetriesAtMostOncePerRecoveryInterval() throws IOException {
+    when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES))
+        .thenThrow(new IllegalStateException("discovery failed"));
+    final EventProxy proxy = proxy(true, false);
+
+    assertTrue(proxy.isAvailable());
+    assertFalse(proxy.post("exposures", PAYLOAD));
+    this.now.addAndGet(RECOVERY_INTERVAL_NANOS);
+    assertFalse(proxy.post("exposures", PAYLOAD));
+    verify(this.factory, times(1)).discoverEvpProxyEndpoint(eq(true), anyIterable());
+
+    this.now.addAndGet(RECOVERY_INTERVAL_NANOS - 1);
+    assertFalse(proxy.post("exposures", PAYLOAD));
+    verify(this.factory, times(1)).discoverEvpProxyEndpoint(eq(true), anyIterable());
+
+    this.now.incrementAndGet();
+    when(this.factory.discoverEvpProxyEndpoint(true, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
+    clientsFor(ENDPOINT);
+    assertTrue(proxy.post("exposures", PAYLOAD));
+
+    verify(this.factory, times(2)).discoverEvpProxyEndpoint(eq(true), anyIterable());
+    verify(this.exposures).post(eq("exposures"), any(), any(), any(), eq(false));
+  }
+
+  @Test
+  void doesNotRediscoverAfterRejectionWhenDirectFallbackIsAvailable() throws IOException {
+    when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
+    clientsFor(ENDPOINT);
+    when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
+        .thenThrow(new ConnectException("refused"))
+        .thenReturn(null);
+    final EventProxy proxy = proxy(true, true);
+
+    assertFalse(proxy.post("exposures", PAYLOAD));
+    assertTrue(proxy.isAvailable());
+    assertTrue(proxy.post("exposures", PAYLOAD));
+
+    verify(this.factory, times(1)).discoverEvpProxyEndpoint(anyBoolean(), anyIterable());
+    verify(this.exposures, times(2)).post(any(), any(), any(), any(), eq(false));
+  }
+
+  @Test
+  void propagatesAmbiguousTransportFailuresWithoutRetryOrRediscovery() throws IOException {
+    when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
+    clientsFor(ENDPOINT);
+    final IOException failure = new IOException("connection reset after sending");
+    when(this.exposures.post(any(), any(), any(), any(), anyBoolean())).thenThrow(failure);
+    final EventProxy proxy = proxy(true, false);
+
+    assertSame(failure, assertThrows(IOException.class, () -> proxy.post("exposures", PAYLOAD)));
+    assertTrue(proxy.isAvailable());
+
+    verify(this.factory, times(1)).discoverEvpProxyEndpoint(anyBoolean(), anyIterable());
+    verify(this.exposures).post(any(), any(), any(), any(), eq(false));
+  }
+
+  @Test
+  void waitsForANewEndpointAfterADefinitiveRejectionWhenItIsTheOnlyRoute() throws IOException {
+    when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
+    clientsFor(ENDPOINT);
+    when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
+        .thenThrow(new ConnectException("refused"));
+    final EventProxy proxy = proxy(true, false);
+
+    assertFalse(proxy.post("exposures", PAYLOAD));
+    assertFalse(proxy.post("exposures", PAYLOAD));
+
+    verify(this.exposures, times(1)).post(any(), any(), any(), any(), anyBoolean());
   }
 
   @TableTest({
     "Scenario     | Status | Definitive",
-    "forbidden    | 403    | true      ",
+    "forbidden    | 403    | false     ",
     "not found    | 404    | true      ",
     "not allowed  | 405    | true      ",
     "server error | 500    | false     ",
     "rate limited | 429    | false     "
   })
   void classifiesProxyRejections(final int status, final boolean definitive) throws IOException {
-    final BackendApi api = proxyApi(new HttpResponseException(status, "rejected"));
-    final EventProxy proxy = new EventProxy(factoryOf(api), false);
+    clientsFor(V2_EVP_PROXY_ENDPOINT);
+    when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
+        .thenThrow(new HttpResponseException(status, "rejected"));
+    final EventProxy proxy = proxy(false, false);
 
     if (definitive) {
       assertFalse(proxy.post("exposures", PAYLOAD));
@@ -88,15 +199,52 @@ class EventProxyTest {
     }
   }
 
-  private static BackendApi proxyApi(final IOException failure) throws IOException {
-    final BackendApi api = mock(BackendApi.class);
-    when(api.post(any(), any(), any(), any(), anyBoolean())).thenThrow(failure);
-    return api;
+  @Test
+  void reportsConnectionRefusalAsDefinitive() throws IOException {
+    clientsFor(V2_EVP_PROXY_ENDPOINT);
+    when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
+        .thenThrow(new ConnectException("refused"));
+
+    assertFalse(proxy(false, false).post("exposures", PAYLOAD));
   }
 
-  private static BackendApiFactory factoryOf(final BackendApi api) {
-    final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createEvpProxyApi(eq(Intake.EVENT_PLATFORM), anyBoolean())).thenReturn(api);
-    return factory;
+  @Test
+  void identifiesTheJavaTracingLibrary() {
+    assertEquals("dd-trace-java", IDENTITY_HEADERS.get(ORIGIN_HEADER));
+    assertEquals(TracerVersion.TRACER_VERSION, IDENTITY_HEADERS.get(ORIGIN_VERSION_HEADER));
+    assertNotEquals("0.0.0", IDENTITY_HEADERS.get(ORIGIN_VERSION_HEADER));
+  }
+
+  @Test
+  void discoversOnlyAgentlessEndpointsForwardingTheIdentity() {
+    proxy(true, true).isAvailable();
+
+    verify(this.factory)
+        .discoverEvpProxyEndpoint(false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+  }
+
+  @Test
+  void preSendRetryRetriesConnectionRefusalOnly() {
+    final HttpRetryPolicy policy = PRE_SEND_RETRY.create();
+
+    assertFalse(policy.shouldRetry(new IOException("reset")));
+    assertFalse(policy.shouldRetry((Response) null));
+    assertTrue(policy.shouldRetry(new ConnectException("refused")));
+    assertTrue(policy.shouldRetry(new ConnectException("refused")));
+    assertTrue(policy.shouldRetry(new ConnectException("refused")));
+    assertFalse(policy.shouldRetry(new ConnectException("refused")), "at most three retries");
+  }
+
+  private EventProxy proxy(final boolean agentless, final boolean directFallbackAvailable) {
+    return new EventProxy(this.factory, agentless, directFallbackAvailable, this.now::get);
+  }
+
+  private void clientsFor(final String endpoint) {
+    when(this.factory.createEvpProxyApiForEndpoint(
+            eq(EVENT_PLATFORM), eq(true), any(), eq(endpoint)))
+        .thenReturn(this.exposures);
+    when(this.factory.createEvpProxyApiForEndpoint(
+            eq(EVENT_PLATFORM), eq(false), any(), eq(endpoint)))
+        .thenReturn(this.flagEvaluations);
   }
 }

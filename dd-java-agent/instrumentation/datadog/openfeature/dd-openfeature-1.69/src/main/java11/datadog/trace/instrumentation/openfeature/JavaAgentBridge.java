@@ -69,7 +69,6 @@ public final class JavaAgentBridge implements AgentBridge {
 
   @Override
   public ShutdownSource shutdown() {
-    // TODO Flush the SDK through the agent shutdown. Until then, the SDK uses a JVM shutdown hook.
-    return null;
+    return new AgentShutdownSource(this.backend);
   }
 }
