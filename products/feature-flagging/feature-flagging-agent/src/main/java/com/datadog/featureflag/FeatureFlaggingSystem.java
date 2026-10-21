@@ -77,10 +77,6 @@ public class FeatureFlaggingSystem {
     LOGGER.debug("Feature Flagging system stopped");
   }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
   private static synchronized void addShutdownHook() {
     if (BACKEND == null || SHUTDOWN_HOOK != null) {
       return;
