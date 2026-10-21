@@ -92,7 +92,7 @@ public class DatadogProfilerConfig {
   }
 
   public static String getProfilerOptions(ConfigProvider configProvider) {
-    return getString(configProvider, PROFILING_DATADOG_PROFILER_OPTIONS);
+    return configProvider.getString(PROFILING_DATADOG_PROFILER_OPTIONS);
   }
 
   public static boolean isCpuProfilerEnabled() {

@@ -104,23 +104,12 @@ class DatadogProfilerConfigTest {
   }
 
   @Test
-  void profilerOptionsPreferDdprofKeyOverAsyncCompatibilityKey() {
+  void profilerOptionsReadDdprofKey() {
     Properties props = new Properties();
-    props.put("profiling.experimental.async.options", "cpu=20m");
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "cpu=10m");
 
     assertEquals(
         "cpu=10m",
-        DatadogProfilerConfig.getProfilerOptions(ConfigProvider.withPropertiesOverride(props)));
-  }
-
-  @Test
-  void profilerOptionsUseAsyncCompatibilityKeyAsFallback() {
-    Properties props = new Properties();
-    props.put("profiling.experimental.async.options", "cpu=20m");
-
-    assertEquals(
-        "cpu=20m",
         DatadogProfilerConfig.getProfilerOptions(ConfigProvider.withPropertiesOverride(props)));
   }
 
