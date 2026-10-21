@@ -811,7 +811,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
       tags.tag(KnownTags.SERVER_PORT_NAME, uri.port)
       tags.tag(KnownTags.URL_PATH_NAME, uri.path)
       tags.tag(KnownTags.URL_SCHEME_NAME, uri.scheme)
-      tags.tag(KnownTags.URL_QUERY_NAME, uri.rawQuery)
+      tags.tag(KnownTags.HTTP_QUERY_STRING_NAME, uri.rawQuery)
     } else {
       tags.tag(Tags.HTTP_URL, url)
       tags.tag(Tags.HTTP_HOSTNAME, uri.host)

@@ -6,7 +6,6 @@ import com.google.re2j.PatternSyntaxException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
@@ -125,53 +124,37 @@ public final class QueryObfuscator extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    String query = obfuscateTag(unsafeTags, DDTags.HTTP_QUERY);
-    if (otelSemanticsEnabled) {
-      String otelQuery = obfuscateTag(unsafeTags, KnownTags.URL_QUERY_NAME);
-      if (otelQuery != null) {
-        query = otelQuery;
-      }
-    }
-    if (query == null) {
-      return;
-    }
-
-    Object url = unsafeTags.getObject(Tags.HTTP_URL);
-    if (url instanceof CharSequence) {
-      unsafeTags.put(Tags.HTTP_URL, appendQuery(url.toString(), query));
-    }
-
-    // HTTP clients carry the query separately only so this processor can scrub it before
-    // rebuilding url.full. url.query is a server attribute in the OTel HTTP conventions.
-    if (otelSemanticsEnabled
-        && spanContext != null
-        && spanContext.getSpanType() != null
-        && DDSpanTypes.HTTP_CLIENT.contentEquals(spanContext.getSpanType())) {
-      unsafeTags.remove(KnownTags.URL_QUERY_NAME);
-    }
-  }
-
-  private String obfuscateTag(TagMap unsafeTags, String queryTag) {
-    Object query = unsafeTags.getObject(queryTag);
+    Object query = unsafeTags.getObject(DDTags.HTTP_QUERY);
     if (query instanceof CharSequence) {
       if (failClosed) {
-        unsafeTags.remove(queryTag);
-        return null;
+        unsafeTags.remove(DDTags.HTTP_QUERY);
+        return;
       }
-      final String obfuscated;
       try {
-        obfuscated = obfuscate(query.toString());
+        query = obfuscate(query.toString());
       } catch (Exception e) {
         // never report a query that could not be obfuscated, and never log it
         log.debug("Could not obfuscate query string, dropping it", e);
-        unsafeTags.remove(queryTag);
-        return null;
+        unsafeTags.remove(DDTags.HTTP_QUERY);
+        return;
       }
 
-      unsafeTags.put(queryTag, obfuscated);
-      return obfuscated;
+      unsafeTags.put(DDTags.HTTP_QUERY, query);
+
+      Object url = unsafeTags.getObject(Tags.HTTP_URL);
+      if (url instanceof CharSequence) {
+        unsafeTags.put(Tags.HTTP_URL, appendQuery(url.toString(), query.toString()));
+      }
+
+      // HTTP clients carry the query separately only so this processor can scrub it before
+      // rebuilding url.full. url.query is a server attribute in the OTel HTTP conventions.
+      if (otelSemanticsEnabled
+          && spanContext != null
+          && spanContext.getSpanType() != null
+          && DDSpanTypes.HTTP_CLIENT.contentEquals(spanContext.getSpanType())) {
+        unsafeTags.remove(DDTags.HTTP_QUERY);
+      }
     }
-    return null;
   }
 
   private String appendQuery(final String url, final String query) {

@@ -120,7 +120,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     decorator.afterStart(span);
     decorator.onRequest(span, new ClientRequest("GET", uri));
 
-    assertEquals("token=secret", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals("token=secret", span.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
 
     span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
@@ -138,7 +138,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     UrlConnectionDecorator.DECORATE.afterStart(span);
     UrlConnectionDecorator.DECORATE.onURI(span, uri);
 
-    assertEquals("token=secret", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals("token=secret", span.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
 
     span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
@@ -164,7 +164,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals("GET", span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME));
     assertEquals("/users/123", span.getTag(KnownTags.URL_PATH_NAME));
     assertEquals("https", span.getTag(KnownTags.URL_SCHEME_NAME));
-    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
+    assertNull(span.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
     assertEquals("example.com", span.getTag(KnownTags.HTTP_HOSTNAME_NAME));
     assertEquals(8443, span.getTag(KnownTags.SERVER_PORT_NAME));
     assertNull(span.getTag(Tags.HTTP_CLIENT_IP));
@@ -186,11 +186,11 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     decorator.afterStart(span);
     decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
 
-    assertEquals("token=secret&view=full", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals("token=secret&view=full", span.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
 
     span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
-    assertEquals("<redacted>&view=full", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals("<redacted>&view=full", span.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
     assertEquals("/orders", span.getTag(KnownTags.URL_PATH_NAME));
   }
 
@@ -217,7 +217,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
     assertEquals(expectedPath, span.getTag(KnownTags.URL_PATH_NAME));
-    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
+    assertNull(span.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
     assertNull(span.getTag(Tags.HTTP_URL));
   }
 
@@ -246,12 +246,12 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
 
     assertEquals(expectedPath, span.getTag(KnownTags.URL_PATH_NAME));
-    assertEquals(expectedQuery, span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals(expectedQuery, span.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
 
     span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
     assertEquals(expectedPath, span.getTag(KnownTags.URL_PATH_NAME));
-    assertEquals(obfuscatedQuery, span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals(obfuscatedQuery, span.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
     assertNull(span.getTag(Tags.HTTP_URL));
   }
 
@@ -271,12 +271,14 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     decorator.afterStart(span);
     decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
 
-    assertEquals("token=secret&view=full?details#section", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals(
+        "token=secret&view=full?details#section", span.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
 
     span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
     assertEquals("/bad%path", span.getTag(KnownTags.URL_PATH_NAME));
-    assertEquals("<redacted>&view=full?details#section", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals(
+        "<redacted>&view=full?details#section", span.getTag(KnownTags.HTTP_QUERY_STRING_NAME));
   }
 
   @Test

@@ -98,6 +98,12 @@ class OtlpTraceJsonCollectorTest {
         attrKeys.contains("http.method"),
         "renamed tag must not also appear under its Datadog name; got " + attrKeys);
     assertTrue(
+        attrKeys.contains("url.query"),
+        "renamed tag must use its OpenTelemetry name; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("http.query.string"),
+        "renamed tag must not also appear under its Datadog name; got " + attrKeys);
+    assertTrue(
         attrKeys.contains("network.peer.address"),
         "renamed tag must use its OpenTelemetry name; got " + attrKeys);
     assertFalse(
@@ -125,6 +131,13 @@ class OtlpTraceJsonCollectorTest {
         "tag must use its Datadog name when OTel semantics are disabled; got " + attrKeys);
     assertFalse(
         attrKeys.contains("http.request.method"),
+        "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
+            + attrKeys);
+    assertTrue(
+        attrKeys.contains("http.query.string"),
+        "tag must use its Datadog name when OTel semantics are disabled; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("url.query"),
         "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
             + attrKeys);
     assertTrue(
@@ -260,6 +273,7 @@ class OtlpTraceJsonCollectorTest {
       agentSpan.setTag(SPAN_KIND, SPAN_KIND_SERVER);
       agentSpan.setResourceName("GET /api");
       agentSpan.setTag("http.method", "GET");
+      agentSpan.setTag("http.query.string", "view=full");
       agentSpan.setTag("network.client.ip", "192.0.2.10");
       agentSpan.setTag("server.address", "example.com");
       agentSpan.setTag("server.port", 443);
