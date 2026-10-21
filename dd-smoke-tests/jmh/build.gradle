@@ -1,0 +1,40 @@
+apply from: "$rootDir/gradle/java.gradle"
+description = 'JMH CI Visibility Smoke Tests.'
+
+dependencies {
+  // jmh-core is on the test classpath so org.openjdk.jmh.Main (and its runtime deps) are available
+  // to the spawned benchmark process; its jar path is also passed to the test-time javac below.
+  implementation group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.37'
+  // Not used to process this module's sources (it has none) — resolved only so its jar path can be
+  // passed to the test-time javac, which compiles the example benchmark project under
+  // src/test/resources and runs the JMH annotation processor to generate META-INF/BenchmarkList.
+  annotationProcessor group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.37'
+
+  testImplementation project(':dd-smoke-tests:backend-mock')
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def jmhJar = configurations.named("runtimeClasspath")
+          .get()
+          .find { it.name.contains("jmh-core") }
+        return ["-Ddatadog.smoketest.jmh.core.jar.path=${jmhJar}"]
+      }
+    })
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def annprocJar = configurations.named("annotationProcessor")
+          .get()
+          .find { it.name.contains("jmh-generator-annprocess") }
+        return ["-Ddatadog.smoketest.jmh.annproc.jar.path=${annprocJar}"]
+      }
+    })
+
+  if (project.hasProperty("mavenRepositoryProxy")) {
+    // propagate proxy URL to tests, to then propagate it to nested Gradle builds
+    environment "MAVEN_REPOSITORY_PROXY", project.property("mavenRepositoryProxy")
+  }
+}
