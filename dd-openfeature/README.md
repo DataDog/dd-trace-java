@@ -193,6 +193,7 @@ tracing remain active. Previously recorded or queued data is not removed.
 The SDK does not use any dd-trace-java internal module. Its parts that the agent can provide are behind the `com.datadog.openfeature.internal.bridge` SPI:
 
 * `AgentBridges.detect()` returns `AgentBridge.NONE` without the agent.
-* The `:dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-bridge` instrumentation replaces its result with a bridge delegating to the agent backend (`products/feature-flagging/feature-flagging-lib`) through the bootstrap `FeatureFlaggingGateway`.
+* The `:dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-1.69` instrumentation replaces its result with a bridge delegating to the agent backend (`products/feature-flagging/feature-flagging-lib`) through the bootstrap `FeatureFlaggingGateway`.
+* The `:dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-1.56` instrumentation keeps the providers released before the bridge (1.56 to 1.68) from linking to the agent bootstrap API they used: they return the caller defaults.
 * The SPI is the only contract crossing SDK and agent versions. It must evolve in a backward compatible way, and the instrumentation references to it are checked by muzzle.
 * UFC parsing, evaluation, event payloads and batching stay in the SDK. The agent forwards raw Remote Configuration documents and event payloads.
