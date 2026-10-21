@@ -126,6 +126,20 @@ public class PTagsFactory implements PropagationTags.Factory {
      */
     private final LLMObsTagValues extractedLLMObsTags;
 
+    /**
+     * Pre-built decision maker values ("-0", "-1", ...) indexed by sampling mechanism, so a
+     * sampling decision doesn't concatenate, validate and look up the same few strings every time.
+     * Sized with headroom over the current mechanisms; anything beyond falls back to {@link
+     * TagValue#from}.
+     */
+    private static final TagValue[] DECISION_MAKER_TAG_VALUES = new TagValue[16];
+
+    static {
+      for (int mechanism = 0; mechanism < DECISION_MAKER_TAG_VALUES.length; ++mechanism) {
+        DECISION_MAKER_TAG_VALUES[mechanism] = TagValue.from("-" + mechanism);
+      }
+    }
+
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
     // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
@@ -360,7 +374,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         // Protect against possible SamplingMechanism.UNKNOWN (-1) that doesn't comply with the
         // format
         if (samplingMechanism >= 0) {
-          TagValue newDM = TagValue.from("-" + samplingMechanism);
+          TagValue newDM = decisionMakerTagValue(samplingMechanism);
           if (!newDM.equals(nextDecisionMakerTagValue)) {
             // This should invalidate any cached w3c and datadog header
             clearCachedHeaders();
@@ -453,6 +467,13 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public String getDebugPropagation() {
       return debugPropagation;
+    }
+
+    /** Returns the decision maker value for a non-negative sampling mechanism. */
+    static TagValue decisionMakerTagValue(int samplingMechanism) {
+      return samplingMechanism < DECISION_MAKER_TAG_VALUES.length
+          ? DECISION_MAKER_TAG_VALUES[samplingMechanism]
+          : TagValue.from("-" + samplingMechanism);
     }
 
     private static TagValue knuthSamplingRateTagValue(double rate) {
