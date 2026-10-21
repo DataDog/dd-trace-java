@@ -68,7 +68,8 @@ class ExposureHookWithoutAgentTest {
           throw new ClassNotFoundException(name);
         }
         if (name.startsWith("datadog.trace.api.openfeature.ExposureHook")
-            || name.equals("datadog.trace.api.openfeature.SplitFeatureMetadata")) {
+            || name.equals("datadog.trace.api.openfeature.SplitFeatureMetadata")
+            || name.equals("datadog.trace.api.openfeature.DiagnosticLogger")) {
           Class<?> loaded = findLoadedClass(name);
           if (loaded == null) {
             final byte[] bytes = classBytes(name);

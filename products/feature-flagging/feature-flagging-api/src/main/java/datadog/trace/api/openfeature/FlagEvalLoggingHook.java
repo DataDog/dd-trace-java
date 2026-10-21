@@ -11,8 +11,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * OpenFeature Hook that captures flag evaluation events for EVP flagevaluation emission.
@@ -36,7 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 class FlagEvalLoggingHook<T> implements Hook<T> {
 
-  private static final Logger log = LoggerFactory.getLogger(FlagEvalLoggingHook.class);
+  private static final DiagnosticLogger log = DiagnosticLogger.getLogger(FlagEvalLoggingHook.class);
 
   static final AtomicBoolean FEATURES_SUPPORTED =
       new AtomicBoolean(featuresSupported(FlagEvalEvent.class));

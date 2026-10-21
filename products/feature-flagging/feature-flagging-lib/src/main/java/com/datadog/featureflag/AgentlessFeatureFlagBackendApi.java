@@ -11,14 +11,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import okhttp3.RequestBody;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Sends Feature Flag events through the process-wide Agentless EVP route selector. */
 final class AgentlessFeatureFlagBackendApi implements BackendApi {
 
-  private static final Logger LOGGER =
-      LoggerFactory.getLogger(AgentlessFeatureFlagBackendApi.class);
+  private static final DiagnosticLogger LOGGER =
+      DiagnosticLogger.getLogger(AgentlessFeatureFlagBackendApi.class);
 
   private final FeatureFlagRouteSelector routeSelector;
   private final Supplier<String> proxyEndpointSupplier;

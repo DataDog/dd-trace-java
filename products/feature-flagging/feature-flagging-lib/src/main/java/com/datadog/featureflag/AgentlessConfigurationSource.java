@@ -33,11 +33,10 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 final class AgentlessConfigurationSource implements ConfigurationSourceService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(AgentlessConfigurationSource.class);
+  private static final DiagnosticLogger LOGGER =
+      DiagnosticLogger.getLogger(AgentlessConfigurationSource.class);
 
   private static final String DATADOG_UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
@@ -81,7 +80,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
             () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER)),
         Executors.newSingleThreadScheduledExecutor(
             new AgentThreadFactory(FEATURE_FLAG_CONFIGURATION_POLLER)),
-        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
+        new RatelimitedLogger(LOGGER.backend(), MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
   }
 
   AgentlessConfigurationSource(
@@ -96,7 +95,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         pollIntervalMillis,
         client,
         executor,
-        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
+        new RatelimitedLogger(LOGGER.backend(), MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
   }
 
   AgentlessConfigurationSource(
@@ -125,13 +124,17 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
 
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug(
-          "Feature Flagging starting agentless configuration source at {}://{}:{}; pollIntervalMs={}, requestTimeoutSeconds={}, env={}",
+          "Feature Flagging starting agentless configuration source at {}://{}:{}; pollIntervalMs={}, requestTimeoutSeconds={}, env={}, requestedEnv={}, endpointMode={}",
           endpoint.scheme(),
           endpoint.host(),
           endpoint.port(),
           pollIntervalMillis,
           config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds(),
-          config.getEnv());
+          config.getEnv(),
+          endpoint.queryParameter("dd_env"),
+          config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() == null
+              ? "managed"
+              : "custom (DD_ENV is not appended)");
     }
     if (config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() == null
         && isBlank(config.getApiKey())) {
@@ -211,10 +214,14 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         return false;
       }
       if (isRetryableStatus(response.status)) {
-        ratelimitedLogger.warn(
-            "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}",
-            MAX_ATTEMPTS,
-            response.status);
+        try {
+          ratelimitedLogger.warn(
+              "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}; retaining current configuration; retry on next poll",
+              MAX_ATTEMPTS,
+              response.status);
+        } catch (Throwable ignored) {
+          // Logging must not interrupt polling or recovery.
+        }
         return false;
       }
       synchronized (lifecycleLock) {
@@ -222,12 +229,16 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       }
     } catch (final IOException e) {
       if (!closed) {
-        ratelimitedLogger.warn(
-            "Feature Flagging agentless endpoint request failed after {} attempts: {}: {}",
-            MAX_ATTEMPTS,
-            e.getClass().getSimpleName(),
-            e.getMessage(),
-            e);
+        try {
+          ratelimitedLogger.warn(
+              "Feature Flagging agentless endpoint request failed after {} attempts: {}: {}; retaining current configuration; retry on next poll",
+              MAX_ATTEMPTS,
+              e.getClass().getSimpleName(),
+              e.getMessage(),
+              e);
+        } catch (Throwable ignored) {
+          // Logging must not interrupt polling or recovery.
+        }
       }
       return false;
     }
@@ -241,9 +252,13 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     }
     if (response.status == HttpURLConnection.HTTP_UNAUTHORIZED
         || response.status == HttpURLConnection.HTTP_FORBIDDEN) {
-      ratelimitedLogger.warn(
-          "Feature Flagging agentless endpoint returned HTTP {}; verify endpoint authentication",
-          response.status);
+      try {
+        ratelimitedLogger.warn(
+            "Feature Flagging agentless endpoint returned HTTP {}; verify endpoint authentication",
+            response.status);
+      } catch (Throwable ignored) {
+        // Logging must not interrupt polling or recovery.
+      }
       return false;
     }
     if (response.status != HttpURLConnection.HTTP_OK) {
@@ -276,11 +291,13 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     updateEtag(response.etag);
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug(
-          "Feature Flagging agentless configuration applied: flags={}, env={}, configurationEnv={}, createdAt={}",
+          "Feature Flagging agentless configuration applied: flags={}, env={}, configurationEnv={}, createdAt={}, invalidFlags={}, etag={}",
           configuration.flags.size(),
           config.getEnv(),
           configuration.environment == null ? null : configuration.environment.name,
-          configuration.createdAt);
+          configuration.createdAt,
+          configuration.invalidFlags == null ? 0 : configuration.invalidFlags.size(),
+          etag);
     }
     return true;
   }

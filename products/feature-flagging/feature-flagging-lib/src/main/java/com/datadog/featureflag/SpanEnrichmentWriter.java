@@ -6,8 +6,6 @@ import datadog.trace.api.featureflag.SpanEnrichmentEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Agent-side owner of APM feature-flag span enrichment. This is the WRITE tier of the
@@ -35,7 +33,8 @@ import org.slf4j.LoggerFactory;
 public final class SpanEnrichmentWriter
     implements FeatureFlaggingGateway.SpanEnrichmentListener, AutoCloseable {
 
-  private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentWriter.class);
+  private static final DiagnosticLogger log =
+      DiagnosticLogger.getLogger(SpanEnrichmentWriter.class);
 
   public static SpanEnrichmentWriter getInstance() {
     return SingletonHolder.INSTANCE;

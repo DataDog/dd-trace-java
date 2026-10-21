@@ -33,12 +33,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import okio.BufferedSource;
 import okio.Okio;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 final class UniversalFlagConfigParser implements ConfigurationDeserializer<ServerConfiguration> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(UniversalFlagConfigParser.class);
+  private static final DiagnosticLogger LOGGER =
+      DiagnosticLogger.getLogger(UniversalFlagConfigParser.class);
 
   static final String INVALID_FLAG = "invalid_flag";
   static final String INVALID_SEMVER_COMPARAND = "invalid_semver_comparand";
@@ -95,6 +94,15 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       }
     }
     INVALID_FLAGS_HOLDER.get().clear();
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(
+          "Feature Flagging configuration received: usableFlags={}, invalidFlags={}, configurationPresent={}",
+          configuration == null || configuration.flags == null ? 0 : configuration.flags.size(),
+          configuration == null || configuration.invalidFlags == null
+              ? 0
+              : configuration.invalidFlags.size(),
+          configuration != null && configuration.flags != null);
+    }
     return configuration;
   }
 
@@ -369,17 +377,26 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         return reader.nextNull();
       }
       final Map<String, Flag> flags = new HashMap<>();
+      int receivedFlags = 0;
+      int rejectedFlags = 0;
       reader.beginObject();
       while (reader.hasNext()) {
         final String flagKey = reader.nextName();
+        receivedFlags++;
         final Object rawFlag = reader.readJsonValue();
         try {
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
           if (flag != null) {
             validateFlag(flagKey, flag);
             flags.put(flagKey, flag);
+          } else {
+            rejectedFlags++;
+            LOGGER.debug(
+                "Feature Flagging rejected flag {} during configuration parsing: null flag",
+                flagKey);
           }
         } catch (JsonDataException | IllegalArgumentException error) {
+          rejectedFlags++;
           final String reason =
               error instanceof InvalidSemverComparandException
                   ? INVALID_SEMVER_COMPARAND
@@ -392,6 +409,13 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         }
       }
       reader.endObject();
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug(
+            "Feature Flagging configuration flags parsed: receivedFlags={}, usableFlags={}, rejectedFlags={}",
+            receivedFlags,
+            flags.size(),
+            rejectedFlags);
+      }
       return flags;
     }
 

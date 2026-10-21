@@ -8,8 +8,6 @@ import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Sends the exposure for a logged allocation to the agent once the evaluation has succeeded.
@@ -21,7 +19,7 @@ import org.slf4j.LoggerFactory;
  */
 class ExposureLoggingHook<T> implements Hook<T> {
 
-  private static final Logger log = LoggerFactory.getLogger(ExposureLoggingHook.class);
+  private static final DiagnosticLogger log = DiagnosticLogger.getLogger(ExposureLoggingHook.class);
   private static final AtomicBoolean WARNED = new AtomicBoolean();
 
   static final ExposureLoggingHook<Object> INSTANCE =
@@ -50,6 +48,7 @@ class ExposureLoggingHook<T> implements Hook<T> {
       }
       final ImmutableMetadata metadata = details.getFlagMetadata();
       if (metadata == null) {
+        log.debug("Feature Flagging exposure suppressed: metadata unavailable");
         return;
       }
       // The ImmutableMetadata getters build a debug message for every absent key.
@@ -67,6 +66,8 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final String variantKey = details.getVariant();
       final EvaluationContext context = ctx == null ? null : ctx.getCtx();
       if (allocationKey == null || variantKey == null || context == null) {
+        log.debug(
+            "Feature Flagging exposure suppressed: allocation, variant, or context unavailable");
         return;
       }
       final Object serialValue = values.get(DDEvaluator.METADATA_SPLIT_SERIAL_ID);

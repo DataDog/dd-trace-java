@@ -49,12 +49,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
-  private static final Logger log = LoggerFactory.getLogger(DDEvaluator.class);
+  private static final DiagnosticLogger log = DiagnosticLogger.getLogger(DDEvaluator.class);
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
@@ -262,29 +260,42 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     // ProviderEvaluation returned, so the hook's consent decision is pinned to this evaluation's
     // config and cannot drift on a concurrent Remote Config swap.
     final ServerConfiguration config = configuration.get();
+    final ProviderEvaluation<T> result = resolve(target, key, defaultValue, context, config);
+    DebugLoggingHook.resolution(key, defaultValue, context, result, config);
+    return result;
+  }
+
+  private <T> ProviderEvaluation<T> resolve(
+      final Class<T> target,
+      final String key,
+      final T defaultValue,
+      final EvaluationContext context,
+      final ServerConfiguration config) {
     // Boolean.TRUE.equals covers both null (privacy-preserving default) and Boolean.FALSE without
     // an NPE — the field is boxed so a malformed UFC message doesn't abort the whole parse.
     final boolean observeFullEvaluationData =
         config != null && Boolean.TRUE.equals(config.observeFullEvaluationData);
     try {
       if (config == null) {
-        return error(defaultValue, ErrorCode.PROVIDER_NOT_READY, null, observeFullEvaluationData);
+        return error(
+            key, defaultValue, ErrorCode.PROVIDER_NOT_READY, null, observeFullEvaluationData);
       }
 
       if (context == null) {
-        return error(defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData);
+        return error(key, defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData);
       }
 
       final Flag flag = config.flags.get(key);
       if (flag == null) {
         if (config.invalidFlags != null && config.invalidFlags.containsKey(key)) {
           return error(
+              key,
               defaultValue,
               ErrorCode.PARSE_ERROR,
               "invalid configuration for flag " + key,
               observeFullEvaluationData);
         }
-        return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
+        return error(key, defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
       }
 
       if (!flag.enabled) {
@@ -297,6 +308,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
       if (flag.allocations == null) {
         return error(
+            key,
             defaultValue,
             ErrorCode.GENERAL,
             "Missing allocations for flag " + key,
@@ -335,7 +347,11 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             } else {
               if (targetingKey == null) {
                 return error(
-                    defaultValue, ErrorCode.TARGETING_KEY_MISSING, null, observeFullEvaluationData);
+                    key,
+                    defaultValue,
+                    ErrorCode.TARGETING_KEY_MISSING,
+                    null,
+                    observeFullEvaluationData);
               }
               // To match a split, subject must match ALL underlying shards
               boolean allShardsMatch = true;
@@ -369,12 +385,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           .flagMetadata(consentMetadata(observeFullEvaluationData))
           .build();
     } catch (final PatternSyntaxException e) {
-      return error(defaultValue, ErrorCode.PARSE_ERROR, e.getMessage(), observeFullEvaluationData);
+      return error(
+          key, defaultValue, ErrorCode.PARSE_ERROR, e.getMessage(), observeFullEvaluationData);
     } catch (final NumberFormatException e) {
       return error(
-          defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
+          key, defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
     } catch (final Exception e) {
-      return error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData);
+      return error(key, defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData);
     }
   }
 
@@ -385,10 +402,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static <T> ProviderEvaluation<T> error(
+      final String key,
       final T defaultValue,
       final ErrorCode code,
       final String errorMessage,
       final boolean observeFullEvaluationData) {
+    DebugLoggingHook.resolutionError(key, code, errorMessage);
     // Under consent-off the errorMessage is dropped: exception messages from the outer catch blocks
     // (NumberFormatException, generic Exception) can echo raw evaluation-context values, so they
     // must never reach any consumer of ProviderEvaluation.getErrorMessage() — not just our own
@@ -614,6 +633,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     final Variant variant = flag.variations.get(variationKey);
     if (variant == null) {
       return error(
+          key,
           defaultValue,
           ErrorCode.GENERAL,
           "Variant not found for: " + variationKey,
@@ -622,6 +642,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
     if (!isTypeCompatible(target, flag.variationType)) {
       return error(
+          key,
           defaultValue,
           ErrorCode.TYPE_MISMATCH,
           "Requested type "
@@ -636,6 +657,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       mappedValue = mapValue(target, variant.value);
     } catch (final NumberFormatException e) {
       return error(
+          key,
           defaultValue,
           ErrorCode.PARSE_ERROR,
           "Variant '"

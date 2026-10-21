@@ -22,12 +22,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWriter {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ExposureWriterImpl.class);
+  private static final DiagnosticLogger LOGGER =
+      DiagnosticLogger.getLogger(ExposureWriterImpl.class);
   private static final int DEFAULT_CAPACITY = 1 << 16; // 65536 elements
   private static final int DEFAULT_FLUSH_INTERVAL_IN_SECONDS = 1;
   private static final int FLUSH_THRESHOLD = 100;
@@ -145,6 +144,12 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
       }
       // Stop accepting new dispatches without waiting for producers already inside accept().
       FeatureFlaggingGateway.removeExposureListener(this);
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug(
+            "Feature Flagging exposure shutdown requested: queued={}, inFlight={}; pending exposures will not be flushed; processor completion is reported separately",
+            queue.size(),
+            serializer.inFlight);
+      }
       // Polling wakes within 100 ms. An interrupt can race with, or abort, the final POST.
       serializer.requestShutdown();
     }
@@ -190,6 +195,7 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
     private final List<ExposureEvent> buffer = new ArrayList<>();
     private final Runnable errorCallback;
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+    private volatile boolean inFlight;
 
     ExposureSerializingHandler(
         final Supplier<BackendApi> backendApiSupplier,
@@ -238,7 +244,9 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
         }
       }
       LOGGER.debug(
-          "Feature Flagging exposure processor stopped; pending exposures are not flushed on shutdown");
+          "Feature Flagging exposure processor stopped; pending exposures are not flushed on shutdown; queued={}, buffered={}, inFlight=false",
+          queue.size(),
+          buffer.size());
     }
 
     private void runDutyCycle() throws InterruptedException {
@@ -298,6 +306,7 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
       }
       try {
         LOGGER.debug("Feature Flagging exposure flush starting: count={}", this.buffer.size());
+        inFlight = true;
         evpPublisher.post(EXPOSURES_ROUTE, payload);
         LOGGER.debug("Feature Flagging exposure flush delivered: count={}", this.buffer.size());
       } catch (AgentlessFeatureFlagBackendApi.UnavailableRouteException ignored) {
@@ -315,6 +324,7 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
               e);
         }
       } finally {
+        inFlight = false;
         // Best-effort delivery must not retry an ambiguously accepted batch. A later definitive
         // proxy rejection could otherwise replay the same exposures through direct intake.
         this.buffer.clear();

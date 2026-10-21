@@ -132,7 +132,7 @@ class RemoteConfigServiceImplTest {
 
       verify(listener).accept(config);
       assertLogged(
-          "configuration applied: key=datadog/2/FFE_FLAGS/config/config, flags=0, env=Test, createdAt=2024-04-17T19:40:53.716Z");
+          "configuration applied: key=datadog/2/FFE_FLAGS/config/config, flags=0, configurationEnv=Test, createdAt=2024-04-17T19:40:53.716Z");
     }
 
     @Test
@@ -142,7 +142,8 @@ class RemoteConfigServiceImplTest {
       service.accept("config", config, mock(PollingRateHinter.class));
 
       verify(listener).accept(config);
-      assertLogged("configuration applied: key=config, flags=0, env=null, createdAt=null");
+      assertLogged(
+          "configuration applied: key=config, flags=0, configurationEnv=null, createdAt=null");
     }
 
     @Test

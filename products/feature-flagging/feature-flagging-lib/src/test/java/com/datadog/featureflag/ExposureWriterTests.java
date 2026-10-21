@@ -237,6 +237,73 @@ class ExposureWriterTests {
     }
   }
 
+  @TableTest({
+    "Scenario            | Fails | Outcome                                               ",
+    "in-flight delivered | false | 'flush delivered'                                     ",
+    "in-flight timed out | true  | 'flush failed: SocketTimeoutException; dropping batch'"
+  })
+  void reportsShutdownWithPendingAndInFlightExposures(boolean fails, String outcome)
+      throws Exception {
+    Logger logger = (Logger) LoggerFactory.getLogger(ExposureWriterImpl.class);
+    Level previous = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.list = new CopyOnWriteArrayList<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    CountDownLatch inFlight = new CountDownLatch(1);
+    BackendApi backend = mock(BackendApi.class);
+    when(backend.post(any(), any(), any(), any(), eq(false)))
+        .thenAnswer(
+            invocation -> {
+              inFlight.countDown();
+              try {
+                new CountDownLatch(1).await();
+              } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+              }
+              if (fails) {
+                throw new SocketTimeoutException("destination timed out during shutdown");
+              }
+              return null;
+            });
+    Config config = mockConfig("shutdown");
+    BackendApiFactory backendFactory = mock(BackendApiFactory.class);
+    when(backendFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, true)).thenReturn(backend);
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            16,
+            1,
+            MILLISECONDS,
+            new FeatureFlagBackendApiFactory(config, backendFactory, FeatureFlagEventType.EXPOSURE),
+            config);
+    try {
+      writer.init();
+      writer.accept(buildExposure());
+      assertTrue(inFlight.await(5000, MILLISECONDS));
+      writer.accept(buildExposure());
+      writer.close();
+      poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(
+                  e ->
+                      e.getFormattedMessage()
+                          .contains("shutdown requested: queued=1, inFlight=true")));
+      assertTrue(appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(outcome)));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(
+                  e -> e.getFormattedMessage().contains("queued=1, buffered=0, inFlight=false")));
+      verify(backend).post(any(), any(), any(), any(), eq(false));
+    } finally {
+      writer.close();
+      logger.detachAppender(appender);
+      logger.setLevel(previous);
+      appender.stop();
+    }
+  }
+
   @Test
   void testExposureRequestsCarrySdkIdentity() throws Exception {
     // Exercise the production writer and factory on the fixed Remote Config EVP v2 route.

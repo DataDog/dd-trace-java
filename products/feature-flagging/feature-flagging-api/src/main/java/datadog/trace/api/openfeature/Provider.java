@@ -23,12 +23,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class Provider extends EventProvider implements Metadata {
 
-  private static final Logger log = LoggerFactory.getLogger(Provider.class);
+  private static final DiagnosticLogger log = DiagnosticLogger.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
 
@@ -161,13 +159,15 @@ public class Provider extends EventProvider implements Metadata {
       }
       log.debug("Feature Flagging provider initialized successfully");
     } catch (final OpenFeatureError e) {
-      log.debug("Feature Flagging provider initialization failed: errorCode={}", e.getErrorCode());
+      log.debug(
+          "Feature Flagging provider initialization failed: errorCode={}", e.getErrorCode(), e);
       markInitializationError();
       throw e;
     } catch (final Throwable e) {
       log.debug(
           "Feature Flagging provider initialization failed: {}; verify the Java agent and feature flag configuration",
-          e.getClass().getSimpleName());
+          e.getClass().getSimpleName(),
+          e);
       markInitializationError();
       throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
     }
@@ -279,6 +279,8 @@ public class Provider extends EventProvider implements Metadata {
     if (evaluator != null) {
       evaluator.shutdown();
     }
+    log.debug(
+        "Feature Flagging provider shutdown complete; configuration listener detached; agent owns exposure delivery and shutdown");
   }
 
   // Visible for tests: expose whether span enrichment is wired (gate-on) without leaking the impl.

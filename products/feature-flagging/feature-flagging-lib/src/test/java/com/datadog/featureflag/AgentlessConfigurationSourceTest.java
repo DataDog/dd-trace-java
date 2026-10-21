@@ -65,6 +65,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.LoggerFactory;
+import org.tabletest.junit.TableTest;
 
 @ExtendWith(MockitoExtension.class)
 class AgentlessConfigurationSourceTest {
@@ -765,7 +766,9 @@ class AgentlessConfigurationSourceTest {
       assertEquals(3, requests.size());
       verify(ratelimitedLogger)
           .warn(
-              "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}", 3, 503);
+              "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}; retaining current configuration; retry on next poll",
+              3,
+              503);
       verifyNoInteractions(listener);
     } finally {
       service.close();
@@ -803,7 +806,7 @@ class AgentlessConfigurationSourceTest {
       assertEquals(3, requests.size());
       verify(ratelimitedLogger)
           .warn(
-              "Feature Flagging agentless endpoint request failed after {} attempts: {}: {}",
+              "Feature Flagging agentless endpoint request failed after {} attempts: {}: {}; retaining current configuration; retry on next poll",
               3,
               "SocketTimeoutException",
               finalFailure.getMessage(),
@@ -1238,13 +1241,45 @@ class AgentlessConfigurationSourceTest {
       logger.setLevel(previousLevel);
     }
 
+    @TableTest({
+      "Scenario              | Env        | Custom URL                             | Requested ",
+      "managed environment   | production |                                        | production",
+      "custom no environment | production | 'https://flags.example.com/config'     |           ",
+      "custom scoped URL     | production | 'https://flags.example.com/?dd_env=qa' | qa        ",
+      "managed unset         |            |                                        |           "
+    })
+    void distinguishesSdkAndRequestedEnvironment(String env, String customUrl, String requested)
+        throws Exception {
+      Config config = config("datadoghq.com", env);
+      when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl()).thenReturn(customUrl);
+      AgentlessConfigurationSource.UfcHttpClient client =
+          mock(AgentlessConfigurationSource.UfcHttpClient.class);
+      when(client.fetch(any(), any(), any())).thenReturn(response(304, null, null));
+      try (AgentlessConfigurationSource source =
+          new AgentlessConfigurationSource(
+              AgentlessConfigurationSource.endpoint(config),
+              config,
+              30000,
+              client,
+              mock(ScheduledExecutorService.class))) {
+        source.init();
+        assertLogged(
+            "env="
+                + env
+                + ", requestedEnv="
+                + requested
+                + ", endpointMode="
+                + (customUrl == null ? "managed" : "custom (DD_ENV is not appended)"));
+      }
+    }
+
     @Test
     void reportsAppliedUnchangedAndRejectedConfigurationWithParseFailure() throws Exception {
       final AgentlessConfigurationSource.UfcHttpClient client =
           mock(AgentlessConfigurationSource.UfcHttpClient.class);
       when(client.fetch(any(), any(), any()))
           .thenReturn(
-              response(200, "secret-etag", emptyConfig()),
+              response(200, "configuration-v1", emptyConfig()),
               response(304, null, null),
               response(200, null, "{\"secret-payload\":"));
       final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
@@ -1260,6 +1295,7 @@ class AgentlessConfigurationSourceTest {
         assertTrue(service.pollOnce());
         assertFalse(service.pollOnce());
         assertLogged("configuration applied: flags=0, env=production, configurationEnv=Staging");
+        assertLogged("etag=configuration-v1");
         assertLogged("configuration unchanged (HTTP 304)");
         assertNotNull(
             assertLogged("configuration rejected: malformed UFC payload").getThrowableProxy());

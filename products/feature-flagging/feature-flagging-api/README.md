@@ -256,34 +256,125 @@ This setting stops exposures only. Flag evaluation events have their own setting
 
 ## Onboarding diagnostics
 
-Enable `DD_TRACE_DEBUG=true` for the Java agent's configuration and exposure-delivery logs.
-The provider uses the application's SLF4J backend: enable DEBUG for
-`datadog.trace.api.openfeature` before constructing the provider to include initialization,
-readiness changes, evaluation outcomes, and exposure suppression. The evaluation debug hook is
-registered only when its logger is enabled; no additional feature flag setting is required.
+Set `DD_TRACE_DEBUG=true` for the Java agent's configuration, writer, and transport logs.
+Also enable DEBUG for `datadog.trace.api.openfeature` in the application's SLF4J backend **before
+constructing `Provider`**. The provider and agent have separate logging backends;
+`DD_TRACE_DEBUG` does not change application logger levels. No additional flag evaluation data
+setting is required for raw debug logs, including when `observe_full_evaluation_data` is false.
+That metadata setting continues to govern evaluation telemetry independently.
 
-Look for messages prefixed with `Feature Flagging`:
+For an application using Logback, save this as `logback-ffe-debug.xml`:
 
-- Startup reports the configuration source and effective environment. Agentless startup reports
-  the endpoint origin and polling settings, and warns if the Datadog endpoint requires a missing
-  `DD_API_KEY`.
-- Polling reports HTTP status, transport exception details, and retry delay. `unchanged` means HTTP
-  304; `applied` appears only after configuration dispatch succeeds. Rejected responses retain
-  the current configuration. Remote Config removal and provider recovery are logged separately.
-- Evaluations report the flag key, variant, reason, and error code. An `ERROR` reason identifies
-  fallback to the caller's default. Flag values, defaults, targeting keys and attributes, arbitrary
-  metadata, and error messages are omitted. Flag keys, variant identifiers, environment names,
-  configuration timestamps, and Remote Config keys are included for diagnosis.
-- Exposure logs distinguish suppression, queueing, queue overflow, flush attempts, delivery, and
-  failed batches that are dropped. Queueing or dispatch to listeners does not confirm delivery.
-  The exposure writer currently stops without flushing pending exposures on shutdown; its stop
-  message makes that limitation explicit.
+```xml
+<configuration>
+  <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target>
+    <encoder>
+      <pattern>%date %-5level %logger - %msg%n%ex</pattern>
+    </encoder>
+  </appender>
+  <logger name="datadog.trace.api.openfeature" level="DEBUG"/>
+  <root level="INFO">
+    <appender-ref ref="STDERR"/>
+  </root>
+</configuration>
+```
 
-Endpoint startup logs include only the origin, and configuration payloads are not logged directly.
-Transport failures and rejected configurations retain exception details and stack traces for
-troubleshooting and agent error telemetry. Rejected-flag warnings include the structural reason,
-but omit invalid semantic-version comparand values. Per-evaluation and per-exposure debug logs
-can be verbose; disable DEBUG after troubleshooting.
+Launch the application with its existing SLF4J binding on the classpath:
 
-Coverage follows the [SDK debug logging checklist](https://datadoghq.atlassian.net/wiki/spaces/PANA/pages/7276692209)
-and the [Node.js reference implementation](https://github.com/DataDog/dd-trace-js/pull/10468).
+```shell
+DD_TRACE_DEBUG=true \
+DD_FEATURE_FLAGS_ENABLED=true \
+DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless \
+DD_ENV=production \
+java -javaagent:/path/to/dd-java-agent.jar \
+  -Dlogback.configurationFile=/path/to/logback-ffe-debug.xml \
+  -jar application.jar 2>ffe-debug.log
+```
+
+For the managed agentless endpoint, supply `DD_API_KEY` through the environment. For a custom
+endpoint, set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL`; the SDK does not append
+`DD_ENV` to that URL. For Agent delivery, use `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config`
+and `DD_REMOTE_CONFIG_ENABLED=true`, with the Datadog Agent reachable from the application.
+Register the provider with `setProviderAndWait` after logging has been configured, then evaluate
+flags. With `slf4j-simple` instead of Logback, use
+`-Dorg.slf4j.simpleLogger.log.datadog.trace.api.openfeature=debug` before provider construction.
+With another binding, configure that category at DEBUG and allow it through appender filters.
+
+Both the agent's default output and the Logback example above go to stderr. Keep the full
+`ffe-debug.log`: filtering only for `Feature Flagging` loses shared Remote Config and HTTP
+transport logs. Relevant categories are `datadog.trace.api.openfeature` (provider),
+`com.datadog.featureflag` (configuration and writers), `datadog.remoteconfig`
+(Agent configuration polling), and `datadog.communication` (transport and delivery).
+Agent Remote Config logs describe the Java tracer's connection to the Agent; use the Datadog
+Agent's own logs to diagnose its upstream authentication and configuration fetches.
+
+Look for these diagnostic boundaries:
+
+- Setup names the source, SDK environment, timeouts, endpoint origin, and credential problems.
+  Agentless startup labels `requestedEnv` from the URL separately from `env`; application logs
+  label the delivered `configurationEnv`. `endpointMode=custom` means the SDK did not append
+  `DD_ENV`, even if the supplied URL already contains a `dd_env` query parameter.
+- Parsing reports usable and rejected flag counts. Application reports include the configuration's
+  creation time, agentless ETag or Remote Config key where available. `flags=0` on an applied
+  configuration means an available empty configuration; a missing configuration is reported
+  separately. Failed refreshes report retention of the previous configuration. HTTP attempts,
+  retry delays, exhaustion, unchanged responses, and subsequent application are logged.
+- Provider initialization reports its timeout budget, initial availability, terminal outcome,
+  and unavailable/recovered transitions.
+- `provider resolution` records effective targeting inputs, raw default and resolved values,
+  variant, reason, errors, metadata, and the identity of the configuration used for that resolution.
+  Raw resolution errors are logged before any telemetry-specific error-message filtering.
+  `evaluation observed at finallyAfter` records the SDK details visible to that hook, including
+  fallback after an application `after` hook fails. It is an observation at that point: later
+  `finallyAfter` hooks can still mutate details, so it does not claim the application's final return.
+- Values and context are not truncated or redacted. OpenFeature's conversion methods expand nested
+  lists and structures. If conversion or formatting fails (including cycles or excessive nesting
+  that exhaust the JVM stack), a `diagnostic formatting failed; raw detail unavailable` message is
+  attempted. The evaluation proceeds unchanged. Backend filters, sinks, and log collectors can
+  impose their own limits, so check those when collecting large values.
+- Exposures report suppression reasons, queueing, overflow, flush counts, delivery, and failed
+  batches that are dropped. Dispatch to listeners and queueing do not confirm delivery.
+- Provider shutdown detaches its configuration listener; the Java agent owns the configuration
+  source and exposure writer. Exposure shutdown reports queued work and whether a request is in
+  flight. Pending exposures are **not flushed**. The processor reports completion separately,
+  after any in-flight delivery outcome, with the counts left in its queue and buffer.
+
+To disable these diagnostics, turn off `DD_TRACE_DEBUG`, restore the application category to INFO,
+and recreate the provider. When DEBUG is off, raw values and context are not traversed or formatted.
+Logger and diagnostic formatting failures are isolated from provider and delivery behavior.
+
+### Java scenario coverage
+
+The implementation assessment below follows the shared A–K matrix. **Present means source coverage,
+not certification that every acceptance scenario has passed against a deployed Agent or endpoint.**
+
+| Scenario | Assessment | Implementation / focused test evidence |
+|---|---|---|
+| A. Setup/settings | Present | `FeatureFlaggingSystem`, source startup and credential diagnostics |
+| B. Fetch/failure/retry | Present | `AgentlessConfigurationSourceTest`, shared Remote Config/transport logs |
+| C. Usable configuration + identity | Present | Parser summaries, `RemoteConfigServiceImplTest`, agentless apply/retain/ETag logs |
+| D. Environment mismatch | Present | Separate SDK, URL-requested and delivered environment fields |
+| E. Readiness/recovery | Present | `ProviderTest`, initial subscription availability and recovery logs |
+| F. Raw evaluation details | Present | `DebugLoggingHookTest`: raw values, nested objects, defaults, context, errors, hook failure, configuration identity |
+| G. Exposure lifecycle | Present | `ExposureWriterTests`, provider suppression and listener dispatch logs |
+| H. Shutdown outcome | Present | Source stop, provider detach, exposure shutdown request and worker completion/delivery logs |
+| I. Enable/find logs | Present | Exact startup switches, SLF4J configuration, categories and destinations above |
+| J. Debug-off overhead | Present | Hook registration gate and tests that forbid context/result inspection with DEBUG off |
+| K. Logger-failure isolation | Present | `DebugLoggingHookTest` and `DiagnosticIsolationTest`: throwing backends and level checks across lifecycle and delivery |
+
+Run the focused suites with:
+
+```shell
+git submodule update --init -- dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data
+./gradlew :products:feature-flagging:feature-flagging-api:test \
+  :products:feature-flagging:feature-flagging-lib:test \
+  :products:feature-flagging:feature-flagging-agent:test -PtestJvm=11
+```
+
+For acceptance records, retain `git rev-parse HEAD` plus any working-tree patch, source mode,
+startup command, test/reproduction command, expected messages, observed transcript, and
+Pass/Fail/Not run/N/A with reason. Exercise agentless and Agent/Remote Config independently.
+Persistent-cache startup is N/A: this provider has no persistent configuration cache.
+
+Coverage follows the [SDK debug logging checklist](https://datadoghq.atlassian.net/wiki/spaces/PANA/pages/7276692209).

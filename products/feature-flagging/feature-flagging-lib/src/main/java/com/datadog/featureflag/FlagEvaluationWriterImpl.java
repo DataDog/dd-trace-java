@@ -24,8 +24,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * EVP flagevaluation writer for Java.
@@ -54,7 +52,8 @@ import org.slf4j.LoggerFactory;
  */
 public class FlagEvaluationWriterImpl implements FlagEvaluationWriter, FeatureFlagEventWriter {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationWriterImpl.class);
+  private static final DiagnosticLogger LOGGER =
+      DiagnosticLogger.getLogger(FlagEvaluationWriterImpl.class);
 
   static final int DEFAULT_CAPACITY = 1 << 12; // 4096 elements, per cross-SDK RFC
   static final int FLUSH_INTERVAL_SECONDS = 10;

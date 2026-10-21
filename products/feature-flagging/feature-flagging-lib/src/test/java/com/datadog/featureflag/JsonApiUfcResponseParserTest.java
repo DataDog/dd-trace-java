@@ -30,6 +30,36 @@ import org.slf4j.LoggerFactory;
 class JsonApiUfcResponseParserTest {
 
   @Test
+  void countsNullAndMalformedFlagsWithoutChangingTheirEvaluationSemantics() throws Exception {
+    Logger logger = (Logger) LoggerFactory.getLogger(UniversalFlagConfigParser.class);
+    Level previous = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    try {
+      ServerConfiguration config = parse(wrap("{\"flags\":{\"null-flag\":null,\"bad\":42}}"));
+      assertTrue(config.flags.isEmpty());
+      assertEquals(1, config.invalidFlags.size());
+      assertFalse(config.invalidFlags.containsKey("null-flag"));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(
+                  event ->
+                      event
+                          .getFormattedMessage()
+                          .contains("receivedFlags=2, usableFlags=0, rejectedFlags=2")));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(event -> event.getFormattedMessage().contains("null flag")));
+    } finally {
+      logger.detachAppender(appender);
+      logger.setLevel(previous);
+      appender.stop();
+    }
+  }
+
+  @Test
   void rejectedFlagWarningsRetainStructuralReasonsWithoutSemverComparands() throws Exception {
     final Logger logger = (Logger) LoggerFactory.getLogger(UniversalFlagConfigParser.class);
     final Level previousLevel = logger.getLevel();
