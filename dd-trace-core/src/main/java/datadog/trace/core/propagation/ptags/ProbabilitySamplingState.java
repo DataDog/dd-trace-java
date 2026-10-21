@@ -34,8 +34,9 @@ final class ProbabilitySamplingState extends SamplingState {
   }
 
   /**
-   * Builds the {@code ot} member on first read. Racing readers agree on one instance, because
-   * callers compare otel states by identity to detect changes.
+   * Builds the {@code ot} member on first read. Racing readers agree on one instance, so identity
+   * checks on otel states keep skipping redundant work, and publication doesn't depend on {@link
+   * OtelTraceState} keeping its fields final.
    */
   @Override
   public CharSequence getOtelTraceState() {
