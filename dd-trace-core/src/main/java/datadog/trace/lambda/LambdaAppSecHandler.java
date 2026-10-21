@@ -10,6 +10,7 @@ import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.appsec.AppSecContext;
@@ -56,7 +57,7 @@ public class LambdaAppSecHandler {
   private static final Logger log = LoggerFactory.getLogger(LambdaAppSecHandler.class);
   private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, TimeUnit.MINUTES);
   private static final String HTTP_QUERY_TAG =
-      Config.get().isTraceOtelSemanticsEnabled() ? DDTags.HTTP_QUERY_OTEL_NAME : DDTags.HTTP_QUERY;
+      Config.get().isTraceOtelSemanticsEnabled() ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY;
 
   /**
    * Marks an invocation AppSec did not process because the trigger is not HTTP, or if the event is

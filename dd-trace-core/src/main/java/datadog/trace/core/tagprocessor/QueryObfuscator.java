@@ -6,6 +6,7 @@ import com.google.re2j.PatternSyntaxException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
@@ -126,7 +127,7 @@ public final class QueryObfuscator extends TagsPostProcessor {
       TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     String query = obfuscateTag(unsafeTags, DDTags.HTTP_QUERY);
     if (otelSemanticsEnabled) {
-      String otelQuery = obfuscateTag(unsafeTags, DDTags.HTTP_QUERY_OTEL_NAME);
+      String otelQuery = obfuscateTag(unsafeTags, KnownTags.URL_QUERY_NAME);
       if (otelQuery != null) {
         query = otelQuery;
       }
@@ -146,7 +147,7 @@ public final class QueryObfuscator extends TagsPostProcessor {
         && spanContext != null
         && spanContext.getSpanType() != null
         && DDSpanTypes.HTTP_CLIENT.contentEquals(spanContext.getSpanType())) {
-      unsafeTags.remove(DDTags.HTTP_QUERY_OTEL_NAME);
+      unsafeTags.remove(KnownTags.URL_QUERY_NAME);
     }
   }
 

@@ -35,7 +35,6 @@ public class DDTags {
   public static final String PATHWAY_HASH = "pathway.hash";
 
   public static final String HTTP_QUERY = "http.query.string";
-  public static final String HTTP_QUERY_OTEL_NAME = "url.query";
   public static final String HTTP_FRAGMENT = "http.fragment.string";
 
   public static final String USER_NAME = "user.principal";

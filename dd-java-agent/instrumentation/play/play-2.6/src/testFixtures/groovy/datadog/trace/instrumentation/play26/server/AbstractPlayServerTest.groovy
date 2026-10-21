@@ -160,7 +160,7 @@ class AbstractPlayServerTest extends HttpServerTest<Server> {
         }
         if (endpoint.query) {
           if (otelSemantics) {
-            "$DDTags.HTTP_QUERY_OTEL_NAME" expectedQueryTag
+            "$KnownTags.URL_QUERY_NAME" expectedQueryTag
           } else {
             "$DDTags.HTTP_QUERY" expectedQueryTag
           }

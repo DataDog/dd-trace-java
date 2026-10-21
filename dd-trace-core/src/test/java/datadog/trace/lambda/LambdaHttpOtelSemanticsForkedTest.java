@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
@@ -64,21 +65,21 @@ class LambdaHttpOtelSemanticsForkedTest {
   void lambdaOmitsQueryAttributesWhenCaptureIsDisabled() {
     TagContext parent = lambdaHttpContext();
 
-    assertNull(parent.getTags().get(DDTags.HTTP_QUERY_OTEL_NAME));
+    assertNull(parent.getTags().get(KnownTags.URL_QUERY_NAME));
     assertNull(parent.getTags().get(DDTags.HTTP_QUERY));
     assertEquals("https://api.example.com/orders", parent.getTags().get(Tags.HTTP_URL));
   }
 
   private void assertSanitizedLambdaQuery(String expectedUrl, String expectedQuery) {
     TagContext parent = lambdaHttpContext();
-    assertEquals("token=secret&view=full", parent.getTags().get(DDTags.HTTP_QUERY_OTEL_NAME));
+    assertEquals("token=secret&view=full", parent.getTags().get(KnownTags.URL_QUERY_NAME));
     assertNull(parent.getTags().get(DDTags.HTTP_QUERY));
     DDSpan span = (DDSpan) tracer.startSpan("test", "aws.lambda", parent);
     span.setSpanType(DDSpanTypes.HTTP_SERVER);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
     span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
-    assertEquals(expectedQuery, span.getTag(DDTags.HTTP_QUERY_OTEL_NAME));
+    assertEquals(expectedQuery, span.getTag(KnownTags.URL_QUERY_NAME));
     assertNull(span.getTag(DDTags.HTTP_QUERY));
     assertEquals(expectedUrl, span.getTag(Tags.HTTP_URL).toString());
   }

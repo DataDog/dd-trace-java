@@ -167,7 +167,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
           "$DDTags.ERROR_TYPE" endpoint.status.toString()
         }
         if (endpoint.query) {
-          tag(otelSemantics ? DDTags.HTTP_QUERY_OTEL_NAME : DDTags.HTTP_QUERY, endpoint.rawQuery)
+          tag(otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY, endpoint.rawQuery)
         }
         defaultTags()
       }
