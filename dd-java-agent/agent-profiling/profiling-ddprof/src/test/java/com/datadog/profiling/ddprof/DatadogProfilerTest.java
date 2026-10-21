@@ -141,6 +141,36 @@ class DatadogProfilerTest {
     assertTrue(cmd.contains(",wall="));
     assertTrue(cmd.contains(",loglevel=DEBUG"));
     assertTrue(cmd.endsWith(",cpu=7m,nativemem=131072"));
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.NATIVEMEM));
+  }
+
+  @Test
+  void testExperimentalMemoryOptionUpdatesEnabledModes() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_ALLOCATION_ENABLED, "false");
+    props.put(ProfilingConfig.PROFILING_HEAP_ENABLED, "false");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "memory=262144b:a");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.ALLOCATION));
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.MEMLEAK));
+    String cmd = startCmd(profiler);
+    assertTrue(cmd.endsWith(",memory=262144b:a"), cmd);
+    assertEquals(cmd.indexOf(",memory="), cmd.lastIndexOf(",memory="), cmd);
+
+    props.put(ProfilingConfig.PROFILING_ALLOCATION_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "memory=262144b:l:0.1");
+    profiler = DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.ALLOCATION));
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.MEMLEAK));
+    cmd = startCmd(profiler);
+    assertTrue(cmd.endsWith(",memory=262144b:l:0.1"), cmd);
+    assertEquals(cmd.indexOf(",memory="), cmd.lastIndexOf(",memory="), cmd);
   }
 
   @Test

@@ -60,6 +60,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -119,6 +120,7 @@ public final class DatadogProfiler {
   private final AtomicBoolean recordingFlag = new AtomicBoolean(false);
   private final ConfigProvider configProvider;
   private final JavaProfiler profiler;
+  private final Set<ProfilingMode> configuredProfilingModes = EnumSet.noneOf(ProfilingMode.class);
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
   private final ContextSetter contextSetter;
@@ -244,23 +246,25 @@ public final class DatadogProfiler {
     // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
     //  can be consistent with JFR event control
     if (isAllocationProfilingEnabled(configProvider)) {
-      profilingModes.add(ALLOCATION);
+      configuredProfilingModes.add(ALLOCATION);
     }
     if (isMemoryLeakProfilingEnabled(configProvider)) {
-      profilingModes.add(MEMLEAK);
+      configuredProfilingModes.add(MEMLEAK);
     }
     if (isCpuProfilerEnabled(configProvider)) {
-      profilingModes.add(CPU);
+      configuredProfilingModes.add(CPU);
     }
     if (isWallClockProfilerEnabled(configProvider)) {
-      profilingModes.add(WALL);
+      configuredProfilingModes.add(WALL);
     }
     if (isNativeMemoryProfilingEnabled(configProvider)) {
-      profilingModes.add(NATIVEMEM);
+      configuredProfilingModes.add(NATIVEMEM);
     }
     if (isNativeSocketProfilingEnabled(configProvider)) {
-      profilingModes.add(NATIVESOCKET);
+      configuredProfilingModes.add(NATIVESOCKET);
     }
+    profilingModes.addAll(configuredProfilingModes);
+    applyProfilerOptionModes(profilingModes, profilerOptions);
     Set<String> contextAttributes = getContextAttributes(configProvider);
     this.orderedContextAttributes = getOrderedContextAttributes(contextAttributes, configProvider);
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
@@ -436,7 +440,7 @@ public final class DatadogProfiler {
       cmd.append(",fjmethodid=false");
     }
 
-    if (profilingModes.contains(CPU)) {
+    if (configuredProfilingModes.contains(CPU)) {
       // cpu profiling is enabled.
       String schedulingEvent = getSchedulingEvent(configProvider);
       if (schedulingEvent != null && !schedulingEvent.isEmpty()) {
@@ -457,7 +461,7 @@ public final class DatadogProfiler {
         cmd.append(",cpu=").append(interval).append('m');
       }
     }
-    if (profilingModes.contains(WALL)) {
+    if (configuredProfilingModes.contains(WALL)) {
       // wall profiling is enabled.
       cmd.append(",wall=");
       if (getWallCollapsing(configProvider)) {
@@ -475,24 +479,25 @@ public final class DatadogProfiler {
       }
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
-    if (profilingModes.contains(ALLOCATION) || profilingModes.contains(MEMLEAK)) {
+    if (configuredProfilingModes.contains(ALLOCATION)
+        || configuredProfilingModes.contains(MEMLEAK)) {
       // allocation profiling or live heap profiling is enabled
       cmd.append(",memory=").append(getAllocationInterval(configProvider)).append('b');
       cmd.append(':');
-      if (profilingModes.contains(ALLOCATION)) {
+      if (configuredProfilingModes.contains(ALLOCATION)) {
         cmd.append('a');
       }
-      if (profilingModes.contains(MEMLEAK)) {
+      if (configuredProfilingModes.contains(MEMLEAK)) {
         cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
         cmd.append(':')
             .append(String.format("%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
       }
     }
-    if (profilingModes.contains(NATIVEMEM)) {
+    if (configuredProfilingModes.contains(NATIVEMEM)) {
       // native memory (malloc) profiling is enabled
       cmd.append(",nativemem=").append(getNativeMemoryInterval(configProvider));
     }
-    if (profilingModes.contains(NATIVESOCKET)) {
+    if (configuredProfilingModes.contains(NATIVESOCKET)) {
       // native socket I/O profiling is enabled
       String interval = getNativeSocketInterval(configProvider);
       cmd.append(",natsock");
@@ -512,19 +517,7 @@ public final class DatadogProfiler {
   }
 
   static String mergeProfilerOptions(String derivedOptions, String configuredOptions) {
-    Map<String, String> configuredByName = new LinkedHashMap<>();
-    for (String option : configuredOptions.split(",")) {
-      String trimmedOption = option.trim();
-      if (!trimmedOption.isEmpty()) {
-        String name = profilerOptionName(trimmedOption);
-        if (isReservedProfilerOption(name)) {
-          continue;
-        }
-        // Reinsert duplicate keys to order them by their last occurrence.
-        configuredByName.remove(name);
-        configuredByName.put(name, trimmedOption);
-      }
-    }
+    Map<String, String> configuredByName = configuredProfilerOptions(configuredOptions);
 
     StringBuilder mergedOptions = new StringBuilder();
     for (String option : derivedOptions.split(",")) {
@@ -540,6 +533,23 @@ public final class DatadogProfiler {
     return mergedOptions.toString();
   }
 
+  private static Map<String, String> configuredProfilerOptions(String configuredOptions) {
+    Map<String, String> configuredByName = new LinkedHashMap<>();
+    for (String option : configuredOptions.split(",")) {
+      String trimmedOption = option.trim();
+      if (!trimmedOption.isEmpty()) {
+        String name = profilerOptionName(trimmedOption);
+        if (isReservedProfilerOption(name)) {
+          continue;
+        }
+        // Reinsert duplicate keys to order them by their last occurrence.
+        configuredByName.remove(name);
+        configuredByName.put(name, trimmedOption);
+      }
+    }
+    return configuredByName;
+  }
+
   static void warnIfProfilerOptionsConfigured(Logger logger, String configuredOptions) {
     if (configuredOptions != null && !configuredOptions.isEmpty()) {
       logger.warn(SEND_TELEMETRY, PROFILER_OPTIONS_WARNING);
@@ -548,12 +558,102 @@ public final class DatadogProfiler {
 
   private static String profilerOptionName(String option) {
     int equals = option.indexOf('=');
-    return equals < 0 ? option : option.substring(0, equals).trim();
+    String name = equals < 0 ? option : option.substring(0, equals).trim();
+    return name.toLowerCase(Locale.ROOT);
   }
 
   private static boolean isReservedProfilerOption(String name) {
-    // Keep the agent-controlled action, format, and recording path.
-    return "start".equals(name) || "jfr".equals(name) || "file".equals(name);
+    switch (name) {
+      case "start":
+      case "resume":
+      case "stop":
+      case "check":
+      case "status":
+      case "list":
+      case "version":
+      case "jfr":
+      case "file":
+      case "attributes":
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  static void applyProfilerOptionModes(Set<ProfilingMode> modes, String configuredOptions) {
+    if (configuredOptions == null || configuredOptions.isEmpty()) {
+      return;
+    }
+    Map<String, String> configuredByName = configuredProfilerOptions(configuredOptions);
+    for (Map.Entry<String, String> option : configuredByName.entrySet()) {
+      String name = option.getKey();
+      switch (name) {
+        case "cpu":
+          modes.add(CPU);
+          break;
+        case "event":
+          String event = profilerOptionValue(option.getValue());
+          if (!event.isEmpty() && !"alloc".equals(event) && !"noop".equals(event)) {
+            modes.add(CPU);
+          }
+          break;
+        case "wall":
+          modes.add(WALL);
+          break;
+        case "memory":
+          applyMemoryProfilerModes(modes, profilerOptionValue(option.getValue()));
+          break;
+        case "nativemem":
+          modes.add(NATIVEMEM);
+          break;
+        case "natsock":
+          modes.add(NATIVESOCKET);
+          break;
+        default:
+          break;
+      }
+    }
+    String generations = configuredByName.get("generations");
+    if (generations != null && profilerBooleanValue(generations)) {
+      modes.add(MEMLEAK);
+    }
+  }
+
+  private static void applyMemoryProfilerModes(Set<ProfilingMode> modes, String value) {
+    modes.remove(ALLOCATION);
+    modes.remove(MEMLEAK);
+    int separator = value.indexOf(':');
+    if (separator < 0) {
+      modes.add(ALLOCATION);
+      modes.add(MEMLEAK);
+      return;
+    }
+    String flags = value.substring(separator + 1);
+    int nextSeparator = flags.indexOf(':');
+    if (nextSeparator >= 0) {
+      flags = flags.substring(0, nextSeparator);
+    }
+    if (flags.indexOf('a') >= 0) {
+      modes.add(ALLOCATION);
+    }
+    if (flags.indexOf('l') >= 0 || flags.indexOf('L') >= 0) {
+      modes.add(MEMLEAK);
+    }
+  }
+
+  private static String profilerOptionValue(String option) {
+    int equals = option.indexOf('=');
+    return equals < 0 ? "" : option.substring(equals + 1).trim();
+  }
+
+  private static boolean profilerBooleanValue(String option) {
+    String value = profilerOptionValue(option);
+    return value.isEmpty()
+        || "y".equals(value)
+        || "yes".equals(value)
+        || "t".equals(value)
+        || "true".equals(value)
+        || "1".equals(value);
   }
 
   public void recordTraceRoot(long rootSpanId, String endpoint, String operation) {
