@@ -4,11 +4,14 @@ import static java.util.Collections.emptyMap;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.evaluation.ExperimentationOptOut;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -44,17 +47,50 @@ class CanonicalFixtureTest {
   @MethodSource("canonicalTestCases")
   @ParameterizedTest(name = "{0}")
   void evaluateCanonicalFixture(final FixtureCase testCase) throws IOException {
+    evaluateCanonicalFixture(testCase, ExperimentationOptOutMode.DISABLED);
+  }
+
+  @MethodSource("immediateOptOutTestCases")
+  @ParameterizedTest(name = "immediate: {0}")
+  void evaluateImmediateOptOutFixture(final FixtureCase testCase) throws IOException {
+    evaluateCanonicalFixture(testCase, ExperimentationOptOutMode.IMMEDIATE);
+  }
+
+  @SuppressWarnings("unchecked")
+  static List<FixtureCase> immediateOptOutTestCases() throws IOException {
+    final List<FixtureCase> cases = new ArrayList<>();
+    for (final FixtureCase testCase : canonicalTestCases()) {
+      final Map<String, Object> capabilities =
+          (Map<String, Object>) testCase.json.get("capabilities");
+      if (capabilities != null && capabilities.containsKey("experimentationOptOutImmediate")) {
+        final Map<String, Object> json = new java.util.LinkedHashMap<>(testCase.json);
+        json.put("result", capabilities.get("experimentationOptOutImmediate"));
+        cases.add(new FixtureCase(testCase.fileName, testCase.index, json));
+      }
+    }
+    assertEquals(26, cases.size(), "The immediate opt-out capability fixtures must execute");
+    return cases;
+  }
+
+  private void evaluateCanonicalFixture(
+      final FixtureCase testCase, final ExperimentationOptOutMode mode) throws IOException {
     final DDEvaluator evaluator =
-        new DDEvaluator(mock(Runnable.class), AgentBridge.NONE, TestSettings.of());
+        new DDEvaluator(mock(Runnable.class), AgentBridge.NONE, TestSettings.of(), mode);
     evaluator.accept(
         UniversalFlagConfigParser.parse(
             Files.readAllBytes(fixtureRoot().resolve("ufc-config.json"))));
 
     final Class<?> targetType = targetType(testCase.variationType);
-    final Object defaultValue = DDEvaluator.mapValue(targetType, testCase.defaultValue);
-    final Object expectedValue = DDEvaluator.mapValue(targetType, testCase.resultValue);
-    final ProviderEvaluation<?> details =
-        evaluate(evaluator, targetType, testCase.flag, defaultValue, context(testCase));
+    final Object defaultValue = fixtureValue(targetType, testCase.defaultValue);
+    final Object expectedValue = fixtureValue(targetType, testCase.resultValue);
+    final Provider provider =
+        new Provider(new Provider.Options().experimentationOptOutMode(mode), evaluator, false);
+    final ProviderEvaluation<?> details;
+    try {
+      details = evaluate(provider, targetType, testCase.flag, defaultValue, context(testCase));
+    } finally {
+      provider.shutdown();
+    }
 
     assertThat(details.getValue(), equalTo(expectedValue));
     assertThat(details.getReason(), equalTo(testCase.resultReason));
@@ -63,6 +99,11 @@ class CanonicalFixtureTest {
     }
     if (testCase.resultErrorCode != null) {
       assertThat(details.getErrorCode(), equalTo(ErrorCode.valueOf(testCase.resultErrorCode)));
+      if ("INVALID_CONTEXT".equals(testCase.resultErrorCode)) {
+        assertEquals(ExperimentationOptOut.INVALID_TIMESTAMP, details.getErrorMessage());
+      }
+    } else if (!"ERROR".equals(testCase.resultReason)) {
+      assertNull(details.getErrorCode());
     }
     if (testCase.resultAllocationKey != null) {
       assertThat(
@@ -71,14 +112,41 @@ class CanonicalFixtureTest {
     }
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  private static Object fixtureValue(final Class<?> type, final Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (type == Value.class) {
+      return Value.objectToValue(value);
+    }
+    if (type == Integer.class) {
+      return ((Number) value).intValue();
+    }
+    if (type == Double.class) {
+      return ((Number) value).doubleValue();
+    }
+    return value;
+  }
+
   private static ProviderEvaluation<?> evaluate(
-      final DDEvaluator evaluator,
+      final Provider provider,
       final Class<?> targetType,
       final String flag,
       final Object defaultValue,
       final EvaluationContext context) {
-    return evaluator.evaluate((Class) targetType, flag, defaultValue, context);
+    if (targetType == Boolean.class) {
+      return provider.getBooleanEvaluation(flag, (Boolean) defaultValue, context);
+    }
+    if (targetType == Integer.class) {
+      return provider.getIntegerEvaluation(flag, (Integer) defaultValue, context);
+    }
+    if (targetType == Double.class) {
+      return provider.getDoubleEvaluation(flag, (Double) defaultValue, context);
+    }
+    if (targetType == String.class) {
+      return provider.getStringEvaluation(flag, (String) defaultValue, context);
+    }
+    return provider.getObjectEvaluation(flag, (Value) defaultValue, context);
   }
 
   @SuppressWarnings("unchecked")
@@ -164,6 +232,7 @@ class CanonicalFixtureTest {
   }
 
   static final class FixtureCase {
+    final Map<String, Object> json;
     final String fileName;
     final int index;
     final Map<String, Object> attributes;
@@ -179,6 +248,7 @@ class CanonicalFixtureTest {
 
     @SuppressWarnings("unchecked")
     FixtureCase(final String fileName, final int index, final Map<String, Object> json) {
+      this.json = json;
       this.fileName = fileName;
       this.index = index;
       final Object attributes = normalize(json.get("attributes"));

@@ -7,6 +7,7 @@ import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationU
 import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.bridge.AgentBridges;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.evaluation.ExperimentationOptOut;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -39,6 +40,7 @@ public class Provider extends EventProvider implements Metadata {
   private final Options options;
   private final AgentBridge bridge;
   private final Settings settings;
+  private final ExperimentationOptOutMode experimentationOptOutMode;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
@@ -79,6 +81,8 @@ public class Provider extends EventProvider implements Metadata {
     this.evaluator = evaluator;
     this.bridge = AgentBridges.detect();
     this.settings = Settings.load(this.bridge);
+    this.experimentationOptOutMode =
+        ExperimentationOptOut.resolve(options.experimentationOptOutMode, this.settings);
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
     try {
@@ -242,7 +246,8 @@ public class Provider extends EventProvider implements Metadata {
     if (evaluator != null) {
       return evaluator;
     }
-    return new DDEvaluator(this::onConfigurationChange, this.bridge, this.settings);
+    return new DDEvaluator(
+        this::onConfigurationChange, this.bridge, this.settings, this.experimentationOptOutMode);
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {
@@ -335,6 +340,18 @@ public class Provider extends EventProvider implements Metadata {
     private long timeout = 30;
     private TimeUnit unit = SECONDS;
     private Boolean evaluationTelemetryOptOutParameterEnabled;
+    private ExperimentationOptOutMode experimentationOptOutMode = ExperimentationOptOutMode.DEFAULT;
+
+    /**
+     * Sets per-subject experimentation opt-out. Overrides configuration when not DEFAULT.
+     *
+     * @param mode the mode; configure before constructing the provider.
+     * @return these options.
+     */
+    public Options experimentationOptOutMode(final ExperimentationOptOutMode mode) {
+      this.experimentationOptOutMode = java.util.Objects.requireNonNull(mode, "mode");
+      return this;
+    }
 
     /**
      * Enables per-evaluation telemetry opt-out through the {@code dd_evaluation_telemetry_opt_out}

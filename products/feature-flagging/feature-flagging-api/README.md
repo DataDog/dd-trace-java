@@ -256,6 +256,10 @@ This setting stops exposures only. Flag evaluation events have their own setting
 
 ## Per-subject experimentation opt-out
 
+The standalone provider supports the same behavior through
+`com.datadog.openfeature.Provider` and `com.datadog.openfeature.ExperimentationOptOutMode`.
+The examples below use the legacy provider package.
+
 Set the mode before constructing the provider:
 
 ```sh
@@ -267,7 +271,7 @@ Pass the subject's stored preference time with each evaluation. Omit the attribu
 ```java
 OpenFeatureAPI.getInstance().setProviderAndWait(new Provider());
 Client client = OpenFeatureAPI.getInstance().getClient();
-MutableContext context = new MutableContext(athleteId);
+MutableContext context = new MutableContext(subjectId);
 context.add("dd_experimentation_opt_out_at", "2026-10-19T15:30:00Z");
 boolean enabled = client.getBooleanValue("new-route-planner", false, context);
 ```
