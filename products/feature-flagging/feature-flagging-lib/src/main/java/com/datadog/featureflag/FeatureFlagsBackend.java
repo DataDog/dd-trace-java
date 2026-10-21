@@ -51,7 +51,7 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
         sco,
         config,
         new EventProxy(
-            new BackendApiFactory(config, sco, true),
+            new BackendApiFactory(config, sco, EventProxy.IDENTITY_HEADERS, true),
             config.getFeatureFlaggingConfigurationSource() == AGENTLESS,
             config.getFeatureFlaggingConfigurationSource() == AGENTLESS
                 && config.getApiKey() != null

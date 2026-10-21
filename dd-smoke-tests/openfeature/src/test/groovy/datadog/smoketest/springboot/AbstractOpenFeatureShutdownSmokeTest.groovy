@@ -77,7 +77,11 @@ abstract class AbstractOpenFeatureShutdownSmokeTest extends AbstractSmokeTest {
       if (!path.contains('api/v2/flagevaluation')) {
         return null
       }
-      return new JsonSlurper().parse(request.body)
+      return [
+        origin: request.getHeader('DD-EVP-ORIGIN'),
+        originVersion: request.getHeader('DD-EVP-ORIGIN-VERSION'),
+        body: new JsonSlurper().parse(request.body)
+      ]
     }
   }
 
@@ -100,6 +104,7 @@ abstract class AbstractOpenFeatureShutdownSmokeTest extends AbstractSmokeTest {
     then:
     testedProcess.waitFor(30, SECONDS)
     evaluatedFlags().contains('boolean-one-of-matches')
+    evaluationRequests().every { it.origin == 'dd-trace-java' && it.originVersion }
   }
 
   protected void evaluate(final String testCaseFile) {
@@ -117,8 +122,11 @@ abstract class AbstractOpenFeatureShutdownSmokeTest extends AbstractSmokeTest {
   }
 
   protected List<String> evaluatedFlags() {
-    final requests = evpProxyMessages*.getV2() as List<Map<String, Object>>
-    return requests*.flagEvaluations.flatten()*.flag*.key as List<String>
+    return evaluationRequests()*.body*.flagEvaluations.flatten()*.flag*.key as List<String>
+  }
+
+  protected List<Map<String, Object>> evaluationRequests() {
+    return evpProxyMessages*.getV2() as List<Map<String, Object>>
   }
 
   protected static URL fetchResource(final String name) {

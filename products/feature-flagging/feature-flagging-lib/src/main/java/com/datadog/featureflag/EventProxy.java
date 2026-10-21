@@ -2,18 +2,26 @@ package com.datadog.featureflag;
 
 import static com.datadog.featureflag.FeatureFlagEventType.EXPOSURE;
 import static com.datadog.featureflag.FeatureFlagEventType.FLAG_EVALUATION;
+import static datadog.communication.EvpProxy.JAVA_TRACING_LIBRARY;
+import static datadog.communication.EvpProxy.ORIGIN_HEADER;
+import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT;
 import static datadog.communication.http.HttpRetryPolicy.Factory.NEVER_RETRY;
 import static datadog.trace.api.intake.Intake.EVENT_PLATFORM;
-import static java.util.Collections.emptyList;
+import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableMap;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.HttpResponseException;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.HttpRetryPolicy;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.LongSupplier;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
@@ -27,8 +35,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>With the Remote Configuration source, events always go to the Agent through the fixed v2 proxy
  * endpoint. With the agentless source, the proxy endpoint is discovered once and shared by both
- * routes. When it is not available and the SDK cannot fall back to direct intake, the proxy route
- * stays in place and the endpoint is discovered again at most once per recovery interval.
+ * routes, provided it forwards the identity headers sent with every event. When it is not available
+ * and the SDK cannot fall back to direct intake, the proxy route stays in place and the endpoint is
+ * discovered again at most once per recovery interval.
  *
  * <p>Payloads are sent once: only a connection refusal, proven to happen before sending, is
  * retried, and only with the Remote Configuration source.
@@ -38,6 +47,12 @@ class EventProxy {
   private static final MediaType JSON = MediaType.parse("application/json");
   static final String EXPOSURES_ROUTE = "exposures";
   static final long RECOVERY_INTERVAL_NANOS = MINUTES.toNanos(1);
+
+  /** Identifies the library sending the events, on every proxy request. */
+  static final Map<String, String> IDENTITY_HEADERS = identityHeaders();
+
+  /** The headers a discovered proxy endpoint must forward to keep the event identity. */
+  static final List<String> IDENTITY_HEADER_NAMES = asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER);
 
   /** Retries connection refusal only; automatic retries and redirects remain disabled. */
   static final HttpRetryPolicy.Factory PRE_SEND_RETRY =
@@ -186,7 +201,7 @@ class EventProxy {
   private Clients discover(final boolean force) {
     final String endpoint;
     try {
-      endpoint = this.backendApiFactory.discoverEvpProxyEndpoint(force, emptyList());
+      endpoint = this.backendApiFactory.discoverEvpProxyEndpoint(force, IDENTITY_HEADER_NAMES);
     } catch (final RuntimeException e) {
       LOGGER.debug("Could not discover the Datadog Agent event proxy", e);
       return null;
@@ -200,6 +215,13 @@ class EventProxy {
             EVENT_PLATFORM, EXPOSURE.responseCompressionEnabled(), retryPolicy, endpoint),
         this.backendApiFactory.createEvpProxyApiForEndpoint(
             EVENT_PLATFORM, FLAG_EVALUATION.responseCompressionEnabled(), retryPolicy, endpoint));
+  }
+
+  private static Map<String, String> identityHeaders() {
+    final Map<String, String> headers = new HashMap<>(2);
+    headers.put(ORIGIN_HEADER, JAVA_TRACING_LIBRARY);
+    headers.put(ORIGIN_VERSION_HEADER, TracerVersion.TRACER_VERSION);
+    return unmodifiableMap(headers);
   }
 
   /**

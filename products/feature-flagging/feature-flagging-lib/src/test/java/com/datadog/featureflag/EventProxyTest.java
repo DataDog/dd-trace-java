@@ -1,13 +1,19 @@
 package com.datadog.featureflag;
 
+import static com.datadog.featureflag.EventProxy.IDENTITY_HEADERS;
+import static com.datadog.featureflag.EventProxy.IDENTITY_HEADER_NAMES;
 import static com.datadog.featureflag.EventProxy.PRE_SEND_RETRY;
 import static com.datadog.featureflag.EventProxy.RECOVERY_INTERVAL_NANOS;
+import static datadog.communication.EvpProxy.ORIGIN_HEADER;
+import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT;
 import static datadog.communication.http.HttpRetryPolicy.Factory.NEVER_RETRY;
 import static datadog.trace.api.intake.Intake.EVENT_PLATFORM;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Collections.emptyList;
+import static java.util.Arrays.asList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,6 +30,7 @@ import static org.mockito.Mockito.when;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.HttpResponseException;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.HttpRetryPolicy;
 import java.io.IOException;
 import java.net.ConnectException;
@@ -61,7 +68,7 @@ class EventProxyTest {
 
   @Test
   void sendsAgentlessEventsOnceThroughTheDiscoveredEndpoint() throws IOException {
-    when(this.factory.discoverEvpProxyEndpoint(false, emptyList())).thenReturn(ENDPOINT);
+    when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
     clientsFor(ENDPOINT);
     final EventProxy proxy = proxy(true, true);
 
@@ -93,7 +100,7 @@ class EventProxyTest {
     verify(this.factory, never()).discoverEvpProxyEndpoint(eq(true), anyIterable());
 
     this.now.addAndGet(RECOVERY_INTERVAL_NANOS);
-    when(this.factory.discoverEvpProxyEndpoint(true, emptyList())).thenReturn(ENDPOINT);
+    when(this.factory.discoverEvpProxyEndpoint(true, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
     clientsFor(ENDPOINT);
 
     assertTrue(proxy.post("exposures", PAYLOAD));
@@ -102,7 +109,7 @@ class EventProxyTest {
 
   @Test
   void failedDiscoveryRetriesAtMostOncePerRecoveryInterval() throws IOException {
-    when(this.factory.discoverEvpProxyEndpoint(false, emptyList()))
+    when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES))
         .thenThrow(new IllegalStateException("discovery failed"));
     final EventProxy proxy = proxy(true, false);
 
@@ -117,7 +124,7 @@ class EventProxyTest {
     verify(this.factory, times(1)).discoverEvpProxyEndpoint(eq(true), anyIterable());
 
     this.now.incrementAndGet();
-    when(this.factory.discoverEvpProxyEndpoint(true, emptyList())).thenReturn(ENDPOINT);
+    when(this.factory.discoverEvpProxyEndpoint(true, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
     clientsFor(ENDPOINT);
     assertTrue(proxy.post("exposures", PAYLOAD));
 
@@ -127,7 +134,7 @@ class EventProxyTest {
 
   @Test
   void doesNotRediscoverAfterRejectionWhenDirectFallbackIsAvailable() throws IOException {
-    when(this.factory.discoverEvpProxyEndpoint(false, emptyList())).thenReturn(ENDPOINT);
+    when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
     clientsFor(ENDPOINT);
     when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
         .thenThrow(new ConnectException("refused"))
@@ -144,7 +151,7 @@ class EventProxyTest {
 
   @Test
   void propagatesAmbiguousTransportFailuresWithoutRetryOrRediscovery() throws IOException {
-    when(this.factory.discoverEvpProxyEndpoint(false, emptyList())).thenReturn(ENDPOINT);
+    when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
     clientsFor(ENDPOINT);
     final IOException failure = new IOException("connection reset after sending");
     when(this.exposures.post(any(), any(), any(), any(), anyBoolean())).thenThrow(failure);
@@ -159,7 +166,7 @@ class EventProxyTest {
 
   @Test
   void waitsForANewEndpointAfterADefinitiveRejectionWhenItIsTheOnlyRoute() throws IOException {
-    when(this.factory.discoverEvpProxyEndpoint(false, emptyList())).thenReturn(ENDPOINT);
+    when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
     clientsFor(ENDPOINT);
     when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
         .thenThrow(new ConnectException("refused"));
@@ -199,6 +206,21 @@ class EventProxyTest {
         .thenThrow(new ConnectException("refused"));
 
     assertFalse(proxy(false, false).post("exposures", PAYLOAD));
+  }
+
+  @Test
+  void identifiesTheJavaTracingLibrary() {
+    assertEquals("dd-trace-java", IDENTITY_HEADERS.get(ORIGIN_HEADER));
+    assertEquals(TracerVersion.TRACER_VERSION, IDENTITY_HEADERS.get(ORIGIN_VERSION_HEADER));
+    assertNotEquals("0.0.0", IDENTITY_HEADERS.get(ORIGIN_VERSION_HEADER));
+  }
+
+  @Test
+  void discoversOnlyAgentlessEndpointsForwardingTheIdentity() {
+    proxy(true, true).isAvailable();
+
+    verify(this.factory)
+        .discoverEvpProxyEndpoint(false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
   }
 
   @Test
