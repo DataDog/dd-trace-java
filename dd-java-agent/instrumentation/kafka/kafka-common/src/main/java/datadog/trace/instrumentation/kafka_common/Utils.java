@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_common;
 
 import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
+import java.util.AbstractMap;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
@@ -24,10 +25,35 @@ public final class Utils {
     Headers headers = val.headers();
     if (headers != null)
       for (Header h : headers) {
-        int valueSize = h.value() == null ? 0 : h.value().length;
-        headersSize += valueSize + utf8Length(h.key());
+        byte[] value = h.value();
+        int valueSize = value == null ? 0 : value.length;
+        headersSize += valueSize + keyUtf8Length(h.key());
       }
     return headersSize + val.serializedKeySize() + val.serializedValueSize();
+  }
+
+  private static final int KEY_LENGTH_CACHE_SIZE = 128; // power of two
+  private static final int MAX_CACHED_KEY_LENGTH = 64; // chars; longer keys are not cached
+
+  /** Direct-mapped, lock-free cache of header key to UTF-8 length; races only cost a miss. */
+  @SuppressWarnings("unchecked")
+  private static final AbstractMap.SimpleImmutableEntry<String, Integer>[] KEY_UTF8_LENGTHS =
+      new AbstractMap.SimpleImmutableEntry[KEY_LENGTH_CACHE_SIZE];
+
+  /** Returns exactly {@code key.getBytes(UTF_8).length}, cached for short keys. */
+  static int keyUtf8Length(String key) {
+    if (key.length() > MAX_CACHED_KEY_LENGTH) {
+      return utf8Length(key);
+    }
+    int h = key.hashCode();
+    int i = (h ^ (h >>> 16)) & (KEY_LENGTH_CACHE_SIZE - 1);
+    AbstractMap.SimpleImmutableEntry<String, Integer> e = KEY_UTF8_LENGTHS[i];
+    if (e != null && key.equals(e.getKey())) {
+      return e.getValue();
+    }
+    int n = utf8Length(key);
+    KEY_UTF8_LENGTHS[i] = new AbstractMap.SimpleImmutableEntry<>(key, n);
+    return n;
   }
 
   /** Returns exactly {@code s.getBytes(UTF_8).length} without allocating. */
