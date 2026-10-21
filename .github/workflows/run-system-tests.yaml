@@ -51,15 +51,16 @@ jobs:
           JAVA_21_HOME=$JAVA_HOME_21_X64 \
           ./gradlew clean :dd-java-agent:shadowJar :dd-openfeature:jar \
             --build-cache --parallel --stacktrace --no-daemon --max-workers=4
-          # System tests install a dd-openfeature jar found next to the agent instead of the published one,
-          # as the agent supports only the dd-openfeature version built along with it.
-          cp workspace/dd-openfeature/build/libs/dd-openfeature-*.jar workspace/dd-java-agent/build/libs/
+          mkdir -p workspace/system-tests-binaries
+          cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar \
+            workspace/dd-openfeature/build/libs/dd-openfeature-*.jar \
+            workspace/system-tests-binaries/
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: binaries
-          path: workspace/dd-java-agent/build/libs/
+          path: workspace/system-tests-binaries/
 
   main:
     needs:
