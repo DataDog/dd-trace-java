@@ -44,7 +44,9 @@ public final class ScopeDiagnosticsExtension
       if (suiteEnabled && suiteSetupPending) {
         suiteSetupPending = false;
         try {
-          report(extensionContext.getRequiredTestClass().getSimpleName() + " suite setup");
+          report(
+              extensionContext.getRequiredTestClass().getSimpleName() + " suite setup",
+              resolveClass(extensionContext));
         } catch (Throwable diagnosticFailure) {
           setupFailure.addSuppressed(diagnosticFailure);
         } finally {
@@ -68,14 +70,15 @@ public final class ScopeDiagnosticsExtension
     if (suiteEnabled) {
       if (suiteSetupPending) {
         suiteSetupPending = false;
-        report(context.getRequiredTestClass().getSimpleName() + " suite setup");
+        report(
+            context.getRequiredTestClass().getSimpleName() + " suite setup", resolveClass(context));
       } else {
         ScopeDiagnostics.reset();
       }
     }
     TrackScopeContinuations config = resolve(context);
     if (ScopeDiagnostics.isEnabled(config)) {
-      ScopeDiagnostics.startRecording();
+      ScopeDiagnostics.startRecording(config);
     }
   }
 
@@ -84,7 +87,7 @@ public final class ScopeDiagnosticsExtension
     try {
       TrackScopeContinuations config = resolve(context);
       if (ScopeDiagnostics.isEnabled(config)) {
-        report(context.getDisplayName());
+        report(context.getDisplayName(), config);
       }
     } finally {
       if (suiteEnabled) {
@@ -104,7 +107,9 @@ public final class ScopeDiagnosticsExtension
       return;
     }
     try {
-      report(extensionContext.getRequiredTestClass().getSimpleName() + " suite cleanup");
+      report(
+          extensionContext.getRequiredTestClass().getSimpleName() + " suite cleanup",
+          resolveClass(extensionContext));
     } catch (Throwable diagnosticFailure) {
       try {
         invocation.proceed();
@@ -139,7 +144,7 @@ public final class ScopeDiagnosticsExtension
         == AbstractInstrumentationTest.class;
   }
 
-  private static void report(String displayName) {
+  private static void report(String displayName, TrackScopeContinuations config) {
     try {
       ScopeDiagnostics.awaitQuiescence();
       ScopeDiagnostics.stop();
@@ -147,7 +152,7 @@ public final class ScopeDiagnosticsExtension
       if (report.hasFindings()) {
         log.info("[{}] {}", displayName, report.renderTimeline());
       }
-      ScopeDiagnostics.assertNoLeaks(report);
+      ScopeDiagnostics.assertNoViolations(report, config);
     } finally {
       ScopeDiagnostics.reset();
     }

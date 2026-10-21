@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterpreter.handleXRayTraceHeader;
 import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
@@ -194,6 +195,10 @@ class DatadogHttpCodec {
               default:
             }
           }
+        } catch (NumberFormatException e) {
+          invalidateContext();
+          log.debug(EXCLUDE_TELEMETRY, "Ignoring context with invalid {}: {}", key, value);
+          return false;
         } catch (RuntimeException e) {
           invalidateContext();
           log.debug("Exception when extracting context", e);

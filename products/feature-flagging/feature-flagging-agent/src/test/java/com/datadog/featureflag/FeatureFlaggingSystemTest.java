@@ -16,6 +16,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -37,6 +38,54 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlaggingSystemTest {
+  @Test
+  @WithConfig(key = "trace.enabled", value = "false")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  void traceDisabledHookFollowsActivationStopAndRestart() {
+    final SharedCommunicationObjects sco = sharedCommunicationObjects();
+    final ExposureWriter writer = mock(ExposureWriter.class);
+    final FeatureFlaggingSystem.SystemInitializer initializer =
+        (ignoredSco, ignoredConfig) -> FeatureFlaggingSystem.initialize(null, writer);
+    for (int restart = 0; restart < 2; restart++) {
+      FeatureFlaggingSystem.start(sco, initializer);
+      assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
+      FeatureFlaggingGateway.activate();
+      FeatureFlaggingGateway.activate();
+      assertTrue(FeatureFlaggingSystem.isShutdownHookRegistered());
+      FeatureFlaggingSystem.stop();
+      assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
+    }
+    verify(writer, times(2)).init();
+    verify(writer, times(2)).close();
+  }
+
+  @Test
+  @WithConfig(key = "trace.enabled", value = "false")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  void failedActivationDoesNotLeaveAShutdownHook() {
+    final ExposureWriter writer = mock(ExposureWriter.class);
+    FeatureFlaggingSystem.start(
+        sharedCommunicationObjects(),
+        (sco, config) -> {
+          FeatureFlaggingSystem.initialize(null, writer);
+          throw new IllegalStateException("failed activation");
+        });
+    assertThrows(IllegalStateException.class, FeatureFlaggingGateway::activate);
+    assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
+    verify(writer).close();
+  }
+
+  @Test
+  @WithConfig(key = "trace.enabled", value = "true")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  void tracingOwnsShutdownWithoutAnAdditionalFeatureFlagHook() {
+    FeatureFlaggingSystem.start(
+        sharedCommunicationObjects(),
+        (sco, config) -> FeatureFlaggingSystem.initialize(null, mock(ExposureWriter.class)));
+    FeatureFlaggingGateway.activate();
+    assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
+  }
+
   @AfterEach
   void resetFlagEvaluationGateway() {
     FeatureFlaggingSystem.stop();

@@ -1604,6 +1604,22 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
       {
         "version": "A",
@@ -11905,6 +11921,38 @@
         "version": "A",
         "type": "string",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_BLRP_SCHEDULE_DELAY": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
+        "aliases": []
+      }
+    ],
+    "OTEL_BLRP_EXPORT_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30000",
+        "aliases": []
+      }
+    ],
+    "OTEL_BLRP_MAX_QUEUE_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "2048",
+        "aliases": []
+      }
+    ],
+    "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "512",
         "aliases": []
       }
     ],

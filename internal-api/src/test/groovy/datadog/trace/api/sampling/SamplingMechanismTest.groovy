@@ -108,6 +108,7 @@ class SamplingMechanismTest extends DDSpecification {
     APPSEC            | UNSET        | true
     APPSEC            | SAMPLER_KEEP | true
     UNKNOWN           | SAMPLER_KEEP | false
+    DEFAULT           | SAMPLER_DROP | true
     DEFAULT           | SAMPLER_KEEP | false
     AGENT_RATE        | SAMPLER_KEEP | false
     REMOTE_AUTO_RATE  | SAMPLER_KEEP | false
@@ -116,5 +117,30 @@ class SamplingMechanismTest extends DDSpecification {
     REMOTE_USER_RATE  | SAMPLER_KEEP | false
     DATA_JOBS         | SAMPLER_KEEP | false
     EXTERNAL_OVERRIDE | SAMPLER_KEEP | false
+  }
+
+  void 'Test canAvoidSamplingPriorityLock with Data Jobs enabled'(){
+    setup:
+    injectSysConfig("dd.apm.tracing.enabled", "false")
+    injectSysConfig("dd.data.jobs.enabled", "true")
+
+    expect:
+    canAvoidSamplingPriorityLock(priority, mechanism) == valid
+
+    where:
+    mechanism | priority     | valid
+    DEFAULT   | SAMPLER_DROP | false
+    APPSEC    | SAMPLER_KEEP | true
+    DATA_JOBS | USER_KEEP    | true
+  }
+
+  void 'Test canAvoidSamplingPriorityLock with APM tracing enabled'(){
+    expect:
+    canAvoidSamplingPriorityLock(priority, mechanism) == valid
+
+    where:
+    mechanism | priority     | valid
+    DEFAULT   | SAMPLER_DROP | false
+    APPSEC    | SAMPLER_KEEP | false
   }
 }

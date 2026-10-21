@@ -127,6 +127,23 @@ configuration. For example, `integrationTestImplementation` gets
 `integrationTestContainerImage`. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
 for inheritance and shared configuration examples.
 
+## Netty Instrumentation Tests
+
+Instrumentation modules whose tests use Netty 4 or shaded Netty should apply the Netty test convention:
+
+```Gradle
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
+}
+```
+
+This opt-in convention lives in `build-logic/conventions/src/main/kotlin/` and configures the module
+when `dd-trace-java.module.instrumentation` is applied. It adds the `netty-concurrent-4.0`
+instrumentation to the test classpath so that Netty tasks captured
+by `java-concurrent` can activate and release their context. Additional test suites inherit this
+dependency. It does not add a Netty library dependency or change production dependencies.
+
 ## Continuation lifecycle failures
 
 Instrumentation test harnesses always enable strict trace writes; there is no harness opt-out.
@@ -137,8 +154,34 @@ If a fix cannot be included immediately, quarantine the Spock test with `@Flaky`
 `@Flaky` is not yet supported for JUnit tests.
 Keep continuation tracking enabled so the diagnostic evidence is preserved.
 
-Disable tracking with `@TrackScopeContinuations(enabled = false, reason = "...")` only for a proven incompatibility with the diagnostic itself, never for an unresolved leak.
-Keep the opt-out narrow and document the incompatibility and its removal condition.
+`@TrackScopeContinuations` records every detected lifecycle condition by default. Use `disabledChecks`
+to exclude checks from enforcement:
+
+```java
+// Exclude an enforced check only for a proven diagnostic incompatibility.
+@TrackScopeContinuations(
+    disabledChecks = ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+    reason = "the synthetic fixture models failed activation without a real continuation; remove with ABC-123")
+```
+
+An empty `disabledChecks` list keeps all checks active, including checks added in the future. A
+nonempty list excludes only the listed checks and includes future checks automatically. A method
+annotation replaces the class configuration; exclusion lists are not merged.
+
+`enabled = false` stops recording entirely and requires an empty `disabledChecks` list. A reason is
+required whenever `enabled = false` or `disabledChecks` is nonempty. Document the incompatibility
+and its removal condition.
+
+With recording enabled, all conditions remain recorded and reported even when every check is
+excluded. Excluding checks changes enforcement only; it does not disable recording, classification,
+or the bounded wait for asynchronous cleanup.
+
+The diagnostic policy determines which findings fail a test and which are advisory. Excluding a
+check affects enforcement without removing its diagnostic evidence. Reports distinguish findings
+that caused a failure from those retained for context.
+
+Disable recording or individual checks only for a proven incompatibility with the diagnostic itself,
+never to hide an unresolved lifecycle bug.
 Strict trace writes remain enabled.
 
 ## Running Tests

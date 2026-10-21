@@ -43,7 +43,7 @@ class ScopeDiagnosticsSpockFixtureTest extends InstrumentationSpecification {
 
     then:
     def failure = thrown(AssertionError)
-    failure.message.contains("Scope continuation problems detected")
+    failure.message.contains("Scope/continuation lifecycle violations detected")
     ScopeDiagnostics.report().records().isEmpty()
 
     cleanup:

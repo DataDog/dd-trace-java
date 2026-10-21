@@ -312,7 +312,7 @@ abstract class GradleAppSpec @Inject constructor() : ApplicationSpec() {
    */
   abstract val buildCacheEnabled: Property<Boolean>
 
-  /** Timeout, in seconds, for stopping the nested Gradle daemon after the build. */
+  /** Timeout, in seconds, for each shutdown wait. See [NestedGradleBuild.stopTimeoutSeconds]. */
   abstract val stopTimeoutSeconds: Property<Long>
 }
 
@@ -359,7 +359,7 @@ abstract class MavenAppSpec @Inject constructor() : ApplicationSpec() {
  * because the Spring Boot Gradle plugin pre-3.5.0 calls `Configuration.getUploadTaskName()`,
  * removed in Gradle 9.
  */
-const val DEFAULT_NESTED_GRADLE_VERSION = "8.14.5"
+const val DEFAULT_NESTED_GRADLE_VERSION = "8.14.6"
 
 /**
  * Default JDK language version for the nested build. JDK 21 is the version the root build

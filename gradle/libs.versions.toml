@@ -4,17 +4,18 @@
 # Build
 develocity = "4.6.0"
 forbiddenapis = "3.11"
-gradle-tooling-api = "8.14.5"
+gradle-tooling-api = "8.14.6"
 jsr305 = "3.0.2"
 shadow = "9.4.2"
+spotbugs-gradle-plugin = "6.5.11"
 spotbugs_annotations = "4.10.4"
 
 # Source code formatters
 google-java-format = "1.36.1"
-greclipse = "4.27" # Pinned. See: https://github.com/diffplug/spotless/issues/3013
+greclipse = "4.27"  # Pinned to preserve Spock table alignment and compact closure formatting.
 ktlint = "1.8.0"
 scalafmt = "3.11.5"
-spotless = "8.10.3"
+spotless = "8.10.4"
 tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks
@@ -64,7 +65,7 @@ commons = "3.2"
 guava = "33.6.0-jre"
 javaparser = "3.28.2"
 jctools = "4.0.6"
-lz4 = "1.11.1"
+lz4 = "1.11.4"
 re2j = "1.8"
 
 # Logging
@@ -94,6 +95,7 @@ forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbidden
 gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "gradle-tooling-api" }
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
+spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs-gradle-plugin" }
 
 # DataDog libs and forks
 datadog-okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "datadog-okhttp" }
@@ -163,6 +165,7 @@ jul-to-slf4j = { module = "org.slf4j:jul-to-slf4j", version.ref = "slf4j" }
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 
 # JSON
+jackson-core = {module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson"}
 jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson"}
 moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 

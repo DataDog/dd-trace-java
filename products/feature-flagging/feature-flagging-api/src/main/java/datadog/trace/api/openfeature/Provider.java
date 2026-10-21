@@ -2,6 +2,8 @@ package datadog.trace.api.openfeature;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -87,7 +89,7 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(3);
+    final List<Hook> hooks = new ArrayList<>(4);
     if (flagEvalMetricsHook != null) {
       hooks.add(flagEvalMetricsHook);
     }
@@ -103,6 +105,17 @@ public class Provider extends EventProvider implements Metadata {
     }
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
+    }
+    if (options.isEvaluationTelemetryOptOutParameterEnabled()) {
+      for (int i = 0; i < hooks.size(); i++) {
+        hooks.set(i, new EvaluationTelemetryOptOutHook(hooks.get(i)));
+      }
+    }
+    // Exposure logging is independent of evaluation telemetry opt-out.
+    try {
+      hooks.add(buildExposureLoggingHook());
+    } catch (LinkageError e) {
+      log.warn("Feature flag exposure reporting is unavailable with the installed agent", e);
     }
     this.providerHooks =
         hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
@@ -230,6 +243,10 @@ public class Provider extends EventProvider implements Metadata {
     return FlagEvalLoggingHook.INSTANCE;
   }
 
+  Hook buildExposureLoggingHook() {
+    return ExposureLoggingHook.INSTANCE;
+  }
+
   @Override
   public void shutdown() {
     if (flagEvalMetrics != null) {
@@ -303,8 +320,47 @@ public class Provider extends EventProvider implements Metadata {
 
   public static class Options {
 
-    private long timeout;
-    private TimeUnit unit;
+    private long timeout = 30;
+    private TimeUnit unit = SECONDS;
+    private Boolean evaluationTelemetryOptOutParameterEnabled;
+
+    /**
+     * Enables per-evaluation telemetry opt-out through the {@code dd_evaluation_telemetry_opt_out}
+     * context attribute. Overrides {@code
+     * DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED}, including when false.
+     * Without an explicit option, the provider reads configuration at construction. Disabled by
+     * default.
+     *
+     * <p>Only boolean {@code true} suppresses new Datadog evaluation events, evaluation metrics,
+     * and automatic flag span enrichment. Missing or other values preserve telemetry. This does not
+     * change flag results, exposure logging, application hooks, or previously recorded data.
+     *
+     * <p>The attribute remains available for targeting and exposure reporting. Existing privacy and
+     * reporting settings apply.
+     *
+     * @param enabled whether to honor the attribute; configure before constructing the provider
+     * @return these options
+     */
+    public Options enableEvaluationTelemetryOptOutParameter(final boolean enabled) {
+      this.evaluationTelemetryOptOutParameterEnabled = enabled;
+      return this;
+    }
+
+    private boolean isEvaluationTelemetryOptOutParameterEnabled() {
+      if (evaluationTelemetryOptOutParameterEnabled != null) {
+        return evaluationTelemetryOptOutParameterEnabled;
+      }
+      try {
+        return ConfigProvider.getInstance()
+            .getBoolean(
+                FeatureFlaggingConfig
+                    .FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED,
+                false);
+      } catch (final LinkageError | Exception e) {
+        // Keep provider construction compatible when agent configuration classes are unavailable.
+        return false;
+      }
+    }
 
     public Options initTimeout(final long timeout, final TimeUnit unit) {
       this.timeout = timeout;

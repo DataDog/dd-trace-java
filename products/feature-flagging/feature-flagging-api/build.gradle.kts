@@ -3,7 +3,6 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 
 plugins {
   `java-library`
-  idea
   id("dd-trace-java.module.distributable.api")
   id("me.champeau.jmh")
 }
@@ -13,6 +12,12 @@ configure<TestJvmConstraintsExtension> {
 }
 
 description = "Implementation of the OpenFeature Provider interface."
+
+extra["excludedClassesCoverage"] = listOf(
+  // Value classes with only equals/hashCode; the cache tests cover their use.
+  "datadog.trace.api.openfeature.ExposureDeduplicationCache.Key",
+  "datadog.trace.api.openfeature.ExposureDeduplicationCache.Sent"
+)
 
 // Set both JAR and Maven artifact name
 val openFeatureArtifactId = "dd-openfeature"
@@ -26,12 +31,6 @@ publishing {
   }
 }
 
-idea {
-  module {
-    jdkName = "11"
-  }
-}
-
 java {
   toolchain {
     languageVersion = JavaLanguageVersion.of(11)
@@ -39,7 +38,7 @@ java {
 }
 
 dependencies {
-  api("dev.openfeature:sdk:1.20.1")
+  api("dev.openfeature:sdk:1.23.0")
 
   compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
   compileOnly(project(":products:feature-flagging:feature-flagging-config"))
@@ -52,6 +51,7 @@ dependencies {
   // branch cannot be driven.
   testImplementation(project(":products:feature-flagging:feature-flagging-config"))
   testImplementation(project(":utils:config-utils"))
+  testImplementation(project(":components:environment"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)

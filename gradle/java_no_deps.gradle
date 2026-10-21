@@ -10,11 +10,11 @@ import java.nio.file.LinkOption
 apply plugin: 'dd-trace-java.configure-tests'
 apply plugin: 'java-library'
 apply plugin: 'dd-trace-java.test-jvm-constraints'
+apply plugin: 'dd-trace-java.conventions.forbidden-apis'
+apply plugin: 'dd-trace-java.conventions.spotbugs'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
-apply from: "$rootDir/gradle/forbiddenapis.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
-apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
 apply from: "$rootDir/gradle/test-suites.gradle"
 
@@ -226,7 +226,7 @@ tasks.named("javadoc", Javadoc) {
   javadocTool = javaToolchains.javadocToolFor {
     languageVersion = JavaLanguageVersion.of(8)
   }
-  source = sourceSets.main.java.srcDirs
+  source = sourceSets.main.java
   classpath = configurations.compileClasspath
 
   options {
