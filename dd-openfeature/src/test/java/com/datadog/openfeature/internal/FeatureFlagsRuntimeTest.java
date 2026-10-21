@@ -1,6 +1,8 @@
 package com.datadog.openfeature.internal;
 
 import static java.util.Collections.emptyMap;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -15,13 +17,16 @@ import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.bridge.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.EventTransport;
 import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
@@ -51,7 +56,7 @@ class FeatureFlagsRuntimeTest {
                     AgentBridge.NONE,
                     TestSettings.of("feature.flags.configuration.source", "remote_config")));
 
-    assertTrue(error.getMessage().contains("requires the Datadog Java agent"));
+    assertTrue(error.getMessage().contains("requires a compatible Datadog Java agent"));
   }
 
   @Test
@@ -240,6 +245,97 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
+  void agentShutdownFlushesPendingExposuresOnce() {
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final List<Map<String, Object>> requests = new CopyOnWriteArrayList<>();
+    final TestAgentBridge bridge =
+        new TestAgentBridge(source, (route, json) -> requests.add(JsonReading.readObject(json)))
+            .withAgentShutdown();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.acquire(
+            bridge,
+            TestSettings.of(
+                "feature.flags.configuration.source", "remote_config",
+                "flagging.evaluation.counts.enabled", "false"));
+    try {
+      assertNotNull(bridge.shutdownFlush, "the runtime registers its flush with the agent");
+      runtime.recordExposure(exposure());
+
+      bridge.shutdownFlush.run();
+
+      assertTrue(source.closed);
+      assertTrue(bridge.shutdownUnregistered);
+      assertEquals(1, requests.size());
+    } finally {
+      FeatureFlagsRuntime.release();
+    }
+    assertEquals(1, requests.size(), "a release after the agent shutdown does not flush again");
+  }
+
+  @Test
+  void releaseUnregistersTheAgentShutdownFlush() {
+    final TestAgentBridge bridge =
+        new TestAgentBridge(new TestConfigurationSource(), null).withAgentShutdown();
+    FeatureFlagsRuntime.acquire(
+        bridge, TestSettings.of("feature.flags.configuration.source", "remote_config"));
+
+    FeatureFlagsRuntime.release();
+
+    assertTrue(bridge.shutdownUnregistered);
+  }
+
+  @Test
+  void stopFlushesBothPipelinesWithinOneShutdownBudget() throws Exception {
+    final CountDownLatch exposuresPosted = new CountDownLatch(1);
+    final CountDownLatch evaluationsPosted = new CountDownLatch(1);
+    final CountDownLatch releasePosts = new CountDownLatch(1);
+    final EventTransport stalledTransport =
+        (route, json) -> {
+          ("exposures".equals(route) ? exposuresPosted : evaluationsPosted).countDown();
+          try {
+            releasePosts.await(10, SECONDS);
+          } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        };
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(new TestConfigurationSource(), stalledTransport),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    runtime.start();
+    try {
+      runtime.recordExposure(exposure());
+      runtime.evaluations().enqueue(new FlagEvalEvent("f", "v", "a", "s", 1L, emptyMap()));
+
+      final long started = System.nanoTime();
+      runtime.stop();
+      final long elapsedMillis = NANOSECONDS.toMillis(System.nanoTime() - started);
+
+      assertEquals(0, evaluationsPosted.getCount(), "the evaluations final flush started");
+      assertEquals(0, exposuresPosted.getCount(), "the exposures final flush started");
+      assertTrue(elapsedMillis < 1300, "Both pipeline waits took " + elapsedMillis + " ms");
+    } finally {
+      releasePosts.countDown();
+    }
+  }
+
+  @Test
+  void failingAgentShutdownSubscriptionFallsBackToTheJvmShutdownHook() {
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final TestAgentBridge bridge =
+        new TestAgentBridge(source, null)
+            .withFailingAgentShutdown(new IllegalStateException("Shutdown in progress"));
+
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.acquire(
+            bridge, TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    assertNotNull(runtime);
+    FeatureFlagsRuntime.release();
+
+    assertTrue(source.closed, "the started runtime is stopped on release");
+  }
+
+  @Test
   void failedStartDoesNotCacheTheSharedRuntime() {
     final ConfigurationSource failing =
         listener -> {
@@ -280,6 +376,16 @@ class FeatureFlagsRuntimeTest {
             null));
   }
 
+  private static com.datadog.openfeature.internal.exposure.ExposureEvent exposure() {
+    return new com.datadog.openfeature.internal.exposure.ExposureEvent(
+        1L,
+        new com.datadog.openfeature.internal.exposure.Allocation("a"),
+        new com.datadog.openfeature.internal.exposure.Flag("f"),
+        new com.datadog.openfeature.internal.exposure.Variant("v"),
+        new com.datadog.openfeature.internal.exposure.Subject("s", emptyMap()),
+        null);
+  }
+
   private static final class TestConfigurationSource implements ConfigurationSource {
     volatile Consumer<byte[]> listener;
     volatile boolean closed;
@@ -294,6 +400,10 @@ class FeatureFlagsRuntimeTest {
   private static final class TestAgentBridge implements AgentBridge {
     private final ConfigurationSource remoteConfiguration;
     private final EventTransport eventProxy;
+    private boolean agentShutdown;
+    private RuntimeException shutdownFailure;
+    volatile Runnable shutdownFlush;
+    volatile boolean shutdownUnregistered;
 
     TestAgentBridge(
         final ConfigurationSource remoteConfiguration, final EventTransport eventProxy) {
@@ -324,6 +434,30 @@ class FeatureFlagsRuntimeTest {
     @Override
     public SpanEnricher spanEnricher() {
       return SpanEnricher.NOOP;
+    }
+
+    @Override
+    public ShutdownSource shutdown() {
+      if (!this.agentShutdown) {
+        return null;
+      }
+      return listener -> {
+        if (this.shutdownFailure != null) {
+          throw this.shutdownFailure;
+        }
+        this.shutdownFlush = listener;
+        return () -> this.shutdownUnregistered = true;
+      };
+    }
+
+    TestAgentBridge withAgentShutdown() {
+      this.agentShutdown = true;
+      return this;
+    }
+
+    TestAgentBridge withFailingAgentShutdown(final RuntimeException failure) {
+      this.shutdownFailure = failure;
+      return withAgentShutdown();
     }
   }
 }

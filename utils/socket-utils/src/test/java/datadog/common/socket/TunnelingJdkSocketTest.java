@@ -7,16 +7,18 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.condition.JRE.JAVA_16;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedSelectorException;
 import java.nio.channels.SelectableChannel;
@@ -168,37 +170,67 @@ public class TunnelingJdkSocketTest {
     clientSocket.setSoTimeout(testTimeout);
     assertEquals(testTimeout, clientSocket.getSoTimeout());
 
+    clientSocket.selector.wakeup();
     long startTime = System.currentTimeMillis();
-    int readResult = inputStream.read();
+    assertThrows(SocketTimeoutException.class, inputStream::read);
     long endTime = System.currentTimeMillis();
     long readDuration = endTime - startTime;
     int timeVariance = 100;
     assertTrue(readDuration >= testTimeout && readDuration <= testTimeout + timeVariance);
-    assertEquals(0, readResult);
 
     int newTimeout = testTimeout / 2;
     clientSocket.setSoTimeout(newTimeout);
     assertEquals(newTimeout, clientSocket.getSoTimeout());
-    assertTimeoutPreemptively(Duration.ofMillis(testTimeout), () -> inputStream.read());
+    assertTimeoutPreemptively(
+        Duration.ofMillis(testTimeout),
+        () -> assertThrows(SocketTimeoutException.class, () -> inputStream.read(new byte[1])));
+
+    int invalidTimeout = -1;
+    assertThrows(IllegalArgumentException.class, () -> clientSocket.setSoTimeout(invalidTimeout));
 
     // The socket should block indefinitely when timeout is set to 0, per
     // https://docs.oracle.com/en/java/javase/16/docs/api//java.base/java/net/Socket.html#setSoTimeout(int).
     int infiniteTimeout = 0;
     clientSocket.setSoTimeout(infiniteTimeout);
     assertEquals(infiniteTimeout, clientSocket.getSoTimeout());
+    ExecutorService reader = Executors.newSingleThreadExecutor();
     try {
-      assertTimeoutPreemptively(Duration.ofMillis(testTimeout), () -> inputStream.read());
-      fail("Read should block indefinitely with infinite timeout");
-    } catch (AssertionError e) {
-      // Expected
+      clientSocket.selector.wakeup();
+      Future<Integer> read = reader.submit(() -> inputStream.read());
+      assertThrows(TimeoutException.class, () -> read.get(testTimeout, TimeUnit.MILLISECONDS));
+      reader.shutdownNow();
+      assertInstanceOf(
+          InterruptedIOException.class,
+          assertThrows(ExecutionException.class, () -> read.get(5, TimeUnit.SECONDS)).getCause());
+    } finally {
+      reader.shutdownNow();
+      clientSocket.close();
+      assertTrue(reader.awaitTermination(5, TimeUnit.SECONDS));
     }
 
-    int invalidTimeout = -1;
-    assertThrows(IllegalArgumentException.class, () -> clientSocket.setSoTimeout(invalidTimeout));
-
-    clientSocket.close();
     assertThrows(SocketException.class, () -> clientSocket.setSoTimeout(testTimeout));
     assertThrows(SocketException.class, clientSocket::getSoTimeout);
+  }
+
+  @Test
+  public void testSingleByteReadsPreserveRemainingData() throws Exception {
+    try (TunnelingJdkSocket clientSocket = createClient()) {
+      server.serverThread.join(TimeUnit.SECONDS.toMillis(5));
+      SocketChannel peer = server.acceptedChannel.get();
+      assertNotNull(peer);
+      ByteBuffer bytes = ByteBuffer.wrap(new byte[] {0, (byte) 255});
+      while (bytes.hasRemaining()) {
+        peer.write(bytes);
+      }
+      peer.shutdownOutput();
+
+      clientSocket.setSoTimeout(1000);
+      InputStream inputStream = clientSocket.getInputStream();
+      assertEquals(0, inputStream.read(new byte[0]));
+      assertEquals(0, inputStream.read());
+      assertEquals(255, inputStream.read());
+      assertEquals(-1, inputStream.read());
+    }
   }
 
   @Test
