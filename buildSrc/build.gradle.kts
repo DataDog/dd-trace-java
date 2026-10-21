@@ -1,3 +1,7 @@
+import org.gradle.api.attributes.java.TargetJvmVersion
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
@@ -5,17 +9,39 @@ plugins {
   alias(libs.plugins.spotless)
 }
 
-// The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
-// allow to schedule workers on different JDK version.
+// Gradle-only code follows the daemon JVM selected by the repository's wrapper.
 java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  toolchain.languageVersion.set(JavaLanguageVersion.current())
 }
 
-kotlin {
+// Only these classes and their dependencies are executed in older worker JVMs.
+val workers by sourceSets.creating
+configurations.implementation {
+  extendsFrom(configurations[workers.implementationConfigurationName])
+}
+configurations[workers.runtimeClasspathConfigurationName].attributes {
+  attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 8)
+}
+configurations[workers.compileClasspathConfigurationName].attributes {
+  attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 8)
+}
+
+tasks.named<JavaCompile>(workers.compileJavaTaskName) {
+  options.release.set(8)
+}
+tasks.named<KotlinCompile>(workers.getCompileTaskName("kotlin")) {
   compilerOptions {
-    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+    jvmTarget.set(JvmTarget.JVM_1_8)
+    freeCompilerArgs.add("-Xjdk-release=8")
   }
+}
+kotlin.target.compilations.named("test") {
+  associateWith(kotlin.target.compilations.getByName(workers.name))
+}
+
+val workersJar by tasks.registering(Jar::class) {
+  archiveClassifier.set("workers")
+  from(workers.output)
 }
 
 gradlePlugin {
@@ -93,9 +119,12 @@ repositories {
 
 dependencies {
   implementation(gradleApi())
+  implementation(files(workersJar))
   implementation(libs.forbiddenapis)
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", libs.versions.byte.buddy.get())
+  // Gradle supplies the Worker API and logging in the worker process.
+  add(workers.compileOnlyConfigurationName, gradleApi())
+  add(workers.implementationConfigurationName, libs.bytebuddy)
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")

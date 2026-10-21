@@ -1442,6 +1442,21 @@ tasks.withType(Test).configureEach {
 
 The Gradle Daemon is a long-lived background process that speeds up builds by avoiding JVM startup costs and caching project information. Configuring the Daemon JVM ensures consistent build behavior across machines.
 
+`buildSrc` plugins and tests compile for the JVM running Gradle, selected by
+`gradle/gradle-daemon-jvm.properties`. Muzzle and build-time instrumentation can
+execute in older worker JVMs, so their actions, parameters and instrumentation
+helper live in `buildSrc/src/workers` and are packaged in a separate JAR.
+That source set uses Java `--release 8` and Kotlin `-Xjdk-release=8` to restrict
+both bytecode and JDK APIs. Its dependencies must also support Java 8.
+The existing call-site generator and modifiable-config agent remain separate
+Java 8 projects because they also execute outside the Gradle daemon.
+
+Worker tests use `JAVA_8_HOME`, `JAVA_11_HOME`, `JAVA_17_HOME` and `JAVA_25_HOME`.
+Set these to installed JDKs before running `./gradlew -p buildSrc :test -PrunBuildSrcTests`;
+matrix entries without a matching environment variable are reported as skipped.
+For this standalone build, also set `JAVA_HOME` to the daemon JDK: it does not read
+the root build's daemon JVM criteria.
+
 ### Daemon JVM Criteria
 
 You can specify criteria for the JVM that runs the Gradle Daemon. This is configured in `gradle/gradle-daemon-jvm.properties`:

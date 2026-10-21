@@ -2,6 +2,7 @@ package datadog.gradle.plugin.instrument
 
 import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin.Companion.BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION
+import net.bytebuddy.build.Plugin
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -72,6 +73,11 @@ abstract class InstrumentPostProcessingAction @Inject constructor(
       languageVersion.set(resolvedJavaVersion)
     }.get()
     return workerExecutor.processIsolation {
+      classpath.from(
+        InstrumentAction::class.java.protectionDomain.codeSource.location,
+        Unit::class.java.protectionDomain.codeSource.location,
+        Plugin::class.java.protectionDomain.codeSource.location,
+      )
       forkOptions {
         setExecutable(javaLauncher.executablePath.asFile.absolutePath)
         if (HostPlatform.isLinuxArm64()) {

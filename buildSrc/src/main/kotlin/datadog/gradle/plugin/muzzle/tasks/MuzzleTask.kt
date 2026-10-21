@@ -148,6 +148,10 @@ abstract class MuzzleTask @Inject constructor(
       // and may need additional code on muzzle plugin to filter those out
       // See https://github.com/gradle/gradle/issues/33987
       workerExecutor.processIsolation {
+        classpath.from(
+          MuzzleAction::class.java.protectionDomain.codeSource.location,
+          Unit::class.java.protectionDomain.codeSource.location,
+        )
         forkOptions {
           // datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin needs reflective access to ClassLoader.findLoadedClass
           if(launcher.metadata.languageVersion > JavaLanguageVersion.of(9)) {

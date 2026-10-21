@@ -78,9 +78,6 @@ open class GradleFixture {
      *   Gradle version could change them.  The `toLongOrNull()` guard safely skips entries
      *   that don't parse as a PID (including the UUID fallback Gradle uses when the PID
      *   is unavailable).
-     * - **Java 8 compatible**: uses `kill`/`taskkill` via [ProcessBuilder] instead of
-     *   `ProcessHandle` (Java 9+) because build logic targets JVM 1.8.
-     *
      * [1]: https://github.com/gradle/gradle/blob/43b381d88/testing/internal-distribution-testing/src/main/groovy/org/gradle/integtests/fixtures/daemon/DaemonLogsAnalyzer.groovy
      */
     private fun stopDaemonsIn(testKitDir: File) {

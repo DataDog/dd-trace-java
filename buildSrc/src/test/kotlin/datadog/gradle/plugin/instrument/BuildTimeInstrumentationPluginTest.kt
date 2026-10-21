@@ -2,8 +2,13 @@ package datadog.gradle.plugin.instrument
 
 import datadog.gradle.plugin.GradleFixture
 import net.bytebuddy.utility.OpenedClassReader
+import org.assertj.core.api.Assertions.assertThat
+import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
@@ -40,6 +45,30 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
     package example;
     public class ExampleCode {}
   """
+
+  @ParameterizedTest
+  @ValueSource(ints = [8, 11, 17, 25])
+  fun `instrumentation runs in the source set worker JVM`(javaVersion: Int) {
+    val javaHome = "JAVA_${javaVersion}_HOME"
+    assumeTrue(!System.getenv(javaHome).isNullOrBlank(), "$javaHome is required for this worker test")
+    writeGradleProperties("org.gradle.java.installations.fromEnv=$javaHome")
+    val sourceSet = "main_java$javaVersion"
+    writeRootProject(buildGradle + """
+      val workerSources = sourceSets.create("$sourceSet")
+      configurations[workerSources.compileOnlyConfigurationName].extendsFrom(configurations.compileOnly.get())
+      tasks.withType<JavaCompile>().configureEach { options.release.set(8) }
+    """)
+    writeTestPlugin("ExampleCode", sourceSet = sourceSet)
+    writeJavaSource("example.ExampleCode", exampleCode, sourceSet = sourceSet)
+
+    val result = run("compileMain_java${javaVersion}Java", "--stacktrace")
+
+    assertThat(result.task(":compileMain_java${javaVersion}Java")?.outcome)
+      .withFailMessage("%s", result.output).isEqualTo(SUCCESS)
+    assertInstrumented(buildFile("classes/java/$sourceSet/example/ExampleCode.class"))
+    assertThat(buildFile("classes/java/$sourceSet/worker-java-version.txt"))
+      .hasContent(if (javaVersion == 8) "1.8" else javaVersion.toString())
+  }
 
   @Test
   fun `test instrument plugin`() {
@@ -139,13 +168,15 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
     assertInstrumented(buildFile("classes/java/main/ExternalCode.class"))
   }
 
-  private fun writeTestPlugin(vararg classNames: String) {
+  private fun writeTestPlugin(vararg classNames: String, sourceSet: String = "main") {
     val conditions = classNames.joinToString(" || ") { "\"$it\".equals(name)" }
     writeJavaSource(
       "TestPlugin",
       """
       import java.io.File;
       import java.io.IOException;
+      import java.nio.charset.StandardCharsets;
+      import java.nio.file.Files;
       import net.bytebuddy.build.Plugin;
       import net.bytebuddy.description.type.TypeDescription;
       import net.bytebuddy.dynamic.ClassFileLocator;
@@ -154,8 +185,10 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
       public class TestPlugin implements Plugin {
         private final File targetDir;
 
-        public TestPlugin(File targetDir) {
+        public TestPlugin(File targetDir) throws IOException {
           this.targetDir = targetDir;
+          Files.write(new File(targetDir, "worker-java-version.txt").toPath(),
+              System.getProperty("java.specification.version").getBytes(StandardCharsets.UTF_8));
         }
 
         @Override
@@ -177,7 +210,8 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
         // no-op
       }
     }
-    """
+    """,
+      sourceSet = sourceSet,
     )
   }
 
