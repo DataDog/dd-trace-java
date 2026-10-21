@@ -31,10 +31,15 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Per-request tracing cost of the standard propagation shapes, with a default-configured tracer
+ * Per-request tracing cost of the standard propagation scenarios, with a default-configured tracer
  * (default propagation styles: Datadog, W3C trace context and baggage). It puts a cost on the
  * per-trace sampling and propagation bookkeeping, such as the OpenTelemetry {@code ot} tracestate
- * member that v1.67.0 started generating, as a service actually sees it:
+ * member that v1.67.0 started generating, as a service actually sees it.
+ *
+ * <p>This is a <b>scenario benchmark</b>: each arm is a whole request as a service handles it,
+ * driven through the tracer's public API, rather than one method in isolation. A change to any
+ * piece shows up as what it costs a real request, and the result doesn't depend on which internals
+ * the benchmark happens to call. The scenarios:
  *
  * <ul>
  *   <li>{@link #headNoPropagation}: a root service span that makes the sampling decision (at
@@ -46,11 +51,11 @@ import org.openjdk.jmh.infra.Blackhole;
  *       client span.
  * </ul>
  *
- * <p>{@code upstream} selects what the extracting shapes receive: {@code sameVersion} is what this
- * tracer itself injects (a fleet on one version), and {@code withOtelMember} is a fixed current
- * format carrying an {@code ot} member (an upgraded upstream, whatever this tracer's version).
- * Upstream headers cycle through 1024 distinct trace ids so caches keyed by header content see
- * realistic variety.
+ * <p>{@code upstream} selects what the extracting scenarios receive: {@code sameVersion} is what
+ * this tracer itself injects (a fleet on one version), and {@code withOtelMember} is a fixed
+ * current format carrying an {@code ot} member (an upgraded upstream, whatever this tracer's
+ * version). Upstream headers cycle through 1024 distinct trace ids so caches keyed by header
+ * content see realistic variety.
  *
  * <p><b>Read the allocation columns.</b> Run with {@code -prof gc}; {@code gc.alloc.rate.norm}
  * (B/op) is the primary signal. Throughput is directional only.
@@ -62,7 +67,7 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <pre>
  *   ./gradlew :dd-trace-core:jmhJar
- *   java -jar dd-trace-core/build/libs/dd-trace-core-*-jmh.jar ServiceShapePropagationBenchmark -prof gc
+ *   java -jar dd-trace-core/build/libs/dd-trace-core-*-jmh.jar PropagationScenariosBenchmark -prof gc
  * </pre>
  */
 @State(Scope.Benchmark)
@@ -72,7 +77,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
-public class ServiceShapePropagationBenchmark {
+public class PropagationScenariosBenchmark {
   private static final String INSTRUMENTATION_NAME = "bench";
   private static final String SERVER_OPERATION_NAME = "servlet.request";
   private static final String CLIENT_OPERATION_NAME = "http.request";
@@ -163,7 +168,7 @@ public class ServiceShapePropagationBenchmark {
     return AgentSpan.fromContext(extracted).spanContext();
   }
 
-  /** The incoming headers the extracting shapes cycle through. */
+  /** The incoming headers the extracting scenarios cycle through. */
   @State(Scope.Benchmark)
   public static class Upstream {
     @Param({"sameVersion", "withOtelMember"})
@@ -173,7 +178,7 @@ public class ServiceShapePropagationBenchmark {
     final Map<String, String>[] headers = new Map[UPSTREAM_TRACE_COUNT];
 
     @Setup
-    public void setup(ServiceShapePropagationBenchmark benchmark) {
+    public void setup(PropagationScenariosBenchmark benchmark) {
       Random random = new Random(42);
       for (int i = 0; i < UPSTREAM_TRACE_COUNT; ++i) {
         headers[i] =
