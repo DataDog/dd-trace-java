@@ -199,7 +199,12 @@ To run tests on a different JVM than the one used for the build, you can specify
 * `-PtestJvm=X` like `-PtestJvm=8`, `-PtestJvm=25` to run with a specific JDK version,
 * `-PtestJvm=/path/to/jdk` to run with a given JDK,
 
-To also run CI tests on the additional vendor and pre-release JVMs, include the exact, case-sensitive `[ci: NON_DEFAULT_JVMS]` text in the commit message.
+To also run CI tests on the additional vendor and pre-release JVMs, include the exact, case-sensitive `[ci: NON_DEFAULT_JVMS]` text in the commit message. On its own, it applies to amd64 tests only.
+
+On pull requests, arm64 tests are manual jobs. To run them on CI, include one of the following exact, case-sensitive texts in the commit message:
+
+* `[ci: ARM64]` to run them on the default arm64 JVMs.
+* `[ci: ARM64, NON_DEFAULT_JVMS]` to run them on all JVMs.
 
 ### Running System Tests
 

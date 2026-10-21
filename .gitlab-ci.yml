@@ -851,7 +851,8 @@ muzzle-dep-report:
     # Enable for default test JVMs or for NON_DEFAULT_JVMS
     - if: '$NON_DEFAULT_JVMS == "true"'
       when: on_success
-    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+    # [ci: NON_DEFAULT_JVMS] or [ci: ARM64, NON_DEFAULT_JVMS] in the commit message.
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bNON_DEFAULT_JVMS\b[^\]]*\]/'
       when: on_success
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: on_success
@@ -886,10 +887,15 @@ muzzle-dep-report:
     - if: '$NON_DEFAULT_JVMS == "true"'
       when: on_success
       allow_failure: true
-    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+    # On feature branches/PRs, [ci: ARM64] in the commit message runs the default JVM subset,
+    # and [ci: ARM64, NON_DEFAULT_JVMS] runs all JVMs. [ci: NON_DEFAULT_JVMS] alone only affects amd64.
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bARM64\b[^\]]*\]/ && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bNON_DEFAULT_JVMS\b[^\]]*\]/'
       when: on_success
       allow_failure: true
-    # Keep the default JVM subset available for manual runs on feature branches/PRs.
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bARM64\b[^\]]*\]/ && $testJvm =~ $DEFAULT_TEST_JVMS'
+      when: on_success
+      allow_failure: true
+    # Otherwise keep the default JVM subset available for manual runs.
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
@@ -994,6 +1000,8 @@ test_inst:
 
 test_inst_arm64:
   extends: .test_job_arm64_with_test_agent
+  # Instrumentation tests are slower on arm64 runners than the 1h default allows.
+  timeout: 75 minutes
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
@@ -1205,7 +1213,9 @@ test_smoke_graalvm_arm64:
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
-    NON_DEFAULT_JVMS: "true"
+    # Treat the GraalVM JVMs as this job's defaults, so it follows the arm64 rules like the other arm64 jobs:
+    # automatic on master and the merge queue, manual on PRs unless the commit message contains [ci: ARM64].
+    DEFAULT_TEST_JVMS: /^graalvm(17|21|25)$/
   parallel:
     matrix:
       - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
