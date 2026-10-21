@@ -103,9 +103,9 @@ public final class FlagEvaluator {
         return error(defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData);
       }
 
-      final boolean excludeExperiments;
+      final Instant experimentationCutoff;
       try {
-        excludeExperiments = ExperimentationOptOut.exclude(experimentationOptOutMode, context);
+        experimentationCutoff = ExperimentationOptOut.cutoff(experimentationOptOutMode, context);
       } catch (final IllegalArgumentException e) {
         // This diagnostic is fixed SDK text. It contains no customer context values.
         return ProviderEvaluation.<T>builder()
@@ -150,7 +150,8 @@ public final class FlagEvaluator {
       final String targetingKey = context.getTargetingKey();
 
       for (final Allocation allocation : flag.allocations) {
-        if (excludeExperiments && !Boolean.FALSE.equals(allocation.doLog)) {
+        if (ExperimentationOptOut.excludes(
+            experimentationOptOutMode, experimentationCutoff, allocation)) {
           continue;
         }
         if (!isAllocationActive(allocation, now)) {

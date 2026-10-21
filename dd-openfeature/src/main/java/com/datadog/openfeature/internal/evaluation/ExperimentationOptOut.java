@@ -2,6 +2,7 @@ package com.datadog.openfeature.internal.evaluation;
 
 import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.ufc.Allocation;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.Value;
 import java.time.DateTimeException;
@@ -34,27 +35,44 @@ public final class ExperimentationOptOut {
         return ExperimentationOptOutMode.DISABLED;
       case "immediate":
         return ExperimentationOptOutMode.IMMEDIATE;
+      case "future_experiments_only":
+        return ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY;
       default:
         throw new IllegalArgumentException(
-            "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE must be disabled or immediate");
+            "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE must be disabled, immediate, or future_experiments_only");
     }
   }
 
-  /** Returns whether the context requests exclusion; rejects a malformed enabled attribute. */
-  static boolean exclude(final ExperimentationOptOutMode mode, final EvaluationContext context) {
-    if (mode != ExperimentationOptOutMode.IMMEDIATE || !context.keySet().contains(ATTRIBUTE)) {
-      return false;
+  /** Parses the cutoff once per evaluation; null means no exclusion. */
+  static Instant cutoff(final ExperimentationOptOutMode mode, final EvaluationContext context) {
+    if ((mode != ExperimentationOptOutMode.IMMEDIATE
+            && mode != ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY)
+        || !context.keySet().contains(ATTRIBUTE)) {
+      return null;
     }
     final Value value = context.getValue(ATTRIBUTE);
     if (value != null && value.isString()) {
       try {
         // Use the allocation startAt/endAt parser's timestamp contract.
-        DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(value.asString(), Instant::from);
-        return true;
+        return DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(value.asString(), Instant::from);
       } catch (final DateTimeException e) {
         // Do not expose the supplied context value in the diagnostic.
       }
     }
     throw new IllegalArgumentException(INVALID_TIMESTAMP);
+  }
+
+  /** Excludes before targeting; unknown activation does not qualify as older. */
+  static boolean excludes(
+      final ExperimentationOptOutMode mode, final Instant cutoff, final Allocation allocation) {
+    if (cutoff == null) {
+      return false;
+    }
+    if (Boolean.FALSE.equals(allocation.doLog)) {
+      return false;
+    }
+    return mode == ExperimentationOptOutMode.IMMEDIATE
+        || allocation.randomizationActivatedAt == null
+        || !allocation.randomizationActivatedAt.isBefore(cutoff);
   }
 }

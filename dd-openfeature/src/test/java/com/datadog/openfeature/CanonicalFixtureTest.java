@@ -56,19 +56,34 @@ class CanonicalFixtureTest {
     evaluateCanonicalFixture(testCase, ExperimentationOptOutMode.IMMEDIATE);
   }
 
-  @SuppressWarnings("unchecked")
+  @MethodSource("futureOptOutTestCases")
+  @ParameterizedTest(name = "future: {0}")
+  void evaluateFutureOptOutFixture(final FixtureCase testCase) throws IOException {
+    evaluateCanonicalFixture(testCase, ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY);
+  }
+
+  static List<FixtureCase> futureOptOutTestCases() throws IOException {
+    return optOutTestCases("experimentationOptOutFutureExperimentsOnly", 42);
+  }
+
   static List<FixtureCase> immediateOptOutTestCases() throws IOException {
+    return optOutTestCases("experimentationOptOutImmediate", 26);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<FixtureCase> optOutTestCases(final String capability, final int expectedCount)
+      throws IOException {
     final List<FixtureCase> cases = new ArrayList<>();
     for (final FixtureCase testCase : canonicalTestCases()) {
       final Map<String, Object> capabilities =
           (Map<String, Object>) testCase.json.get("capabilities");
-      if (capabilities != null && capabilities.containsKey("experimentationOptOutImmediate")) {
+      if (capabilities != null && capabilities.containsKey(capability)) {
         final Map<String, Object> json = new java.util.LinkedHashMap<>(testCase.json);
-        json.put("result", capabilities.get("experimentationOptOutImmediate"));
+        json.put("result", capabilities.get(capability));
         cases.add(new FixtureCase(testCase.fileName, testCase.index, json));
       }
     }
-    assertEquals(26, cases.size(), "The immediate opt-out capability fixtures must execute");
+    assertEquals(expectedCount, cases.size(), "The opt-out capability fixtures must execute");
     return cases;
   }
 

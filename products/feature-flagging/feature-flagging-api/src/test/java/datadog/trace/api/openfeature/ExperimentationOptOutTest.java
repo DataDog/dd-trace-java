@@ -2,9 +2,12 @@ package datadog.trace.api.openfeature;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.Value;
 import java.time.DateTimeException;
@@ -17,19 +20,31 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class ExperimentationOptOutTest {
   private static final String PROPERTY = "dd.feature.flags.experimentation.opt.out.mode";
 
   @ParameterizedTest
-  @ValueSource(strings = {"", "disabled", "immediate", " IMMEDIATE ", "unsupported"})
+  @ValueSource(
+      strings = {
+        "",
+        "disabled",
+        "immediate",
+        " IMMEDIATE ",
+        "future_experiments_only",
+        " FUTURE_EXPERIMENTS_ONLY ",
+        "unsupported"
+      })
   void providerConfigurationPrecedence(final String configured) {
     final String previous = System.getProperty(PROPERTY);
     System.setProperty(PROPERTY, configured);
     try {
       for (final ExperimentationOptOutMode override :
           new ExperimentationOptOutMode[] {
-            ExperimentationOptOutMode.DISABLED, ExperimentationOptOutMode.IMMEDIATE
+            ExperimentationOptOutMode.DISABLED,
+            ExperimentationOptOutMode.IMMEDIATE,
+            ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY
           }) {
         assertEquals(override, ExperimentationOptOut.resolve(override));
         new Provider(new Provider.Options().experimentationOptOutMode(override)).shutdown();
@@ -40,7 +55,9 @@ class ExperimentationOptOutTest {
         final ExperimentationOptOutMode expected =
             configured.trim().equalsIgnoreCase("immediate")
                 ? ExperimentationOptOutMode.IMMEDIATE
-                : ExperimentationOptOutMode.DISABLED;
+                : configured.trim().equalsIgnoreCase("future_experiments_only")
+                    ? ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY
+                    : ExperimentationOptOutMode.DISABLED;
         assertEquals(expected, ExperimentationOptOut.resolve(ExperimentationOptOutMode.DEFAULT));
         new Provider().shutdown();
       }
@@ -63,9 +80,9 @@ class ExperimentationOptOutTest {
         "9999-12-31T23:59:59Z",
         "2024-02-29T00:00:00Z"
       })
-  void validTimestampExcludesImmediately(final String timestamp) {
-    assertTrue(
-        ExperimentationOptOut.exclude(
+  void validTimestampProvidesCutoff(final String timestamp) {
+    assertNotNull(
+        ExperimentationOptOut.cutoff(
             ExperimentationOptOutMode.IMMEDIATE,
             new MutableContext().add(ExperimentationOptOut.ATTRIBUTE, timestamp)));
   }
@@ -92,18 +109,25 @@ class ExperimentationOptOutTest {
   void invalidValuesAreRejectedOnlyWhenEnabled(final Value value) {
     final MutableContext context =
         new MutableContext(Collections.singletonMap(ExperimentationOptOut.ATTRIBUTE, value));
-    final IllegalArgumentException error =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> ExperimentationOptOut.exclude(ExperimentationOptOutMode.IMMEDIATE, context));
-    assertEquals(ExperimentationOptOut.INVALID_TIMESTAMP, error.getMessage());
-    assertFalse(ExperimentationOptOut.exclude(ExperimentationOptOutMode.DISABLED, context));
+    for (final ExperimentationOptOutMode mode :
+        new ExperimentationOptOutMode[] {
+          ExperimentationOptOutMode.IMMEDIATE, ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY
+        }) {
+      final IllegalArgumentException error =
+          assertThrows(
+              IllegalArgumentException.class, () -> ExperimentationOptOut.cutoff(mode, context));
+      assertEquals(ExperimentationOptOut.INVALID_TIMESTAMP, error.getMessage());
+    }
+    assertNull(ExperimentationOptOut.cutoff(ExperimentationOptOutMode.DISABLED, context));
   }
 
   @Test
   void missingAttributePreservesParticipation() {
-    assertFalse(
-        ExperimentationOptOut.exclude(ExperimentationOptOutMode.IMMEDIATE, new MutableContext()));
+    for (final ExperimentationOptOutMode mode : ExperimentationOptOutMode.values()) {
+      assertNull(ExperimentationOptOut.cutoff(mode, new MutableContext()));
+      // An inactive cutoff must return without inspecting the allocation.
+      assertFalse(ExperimentationOptOut.excludes(mode, null, null));
+    }
   }
 
   @ParameterizedTest
@@ -132,17 +156,61 @@ class ExperimentationOptOutTest {
     final MutableContext context =
         new MutableContext().add(ExperimentationOptOut.ATTRIBUTE, timestamp);
     if (accepted) {
-      assertTrue(ExperimentationOptOut.exclude(ExperimentationOptOutMode.IMMEDIATE, context));
+      assertNotNull(ExperimentationOptOut.cutoff(ExperimentationOptOutMode.IMMEDIATE, context));
     } else {
       assertThrows(
           IllegalArgumentException.class,
-          () -> ExperimentationOptOut.exclude(ExperimentationOptOutMode.IMMEDIATE, context));
+          () -> ExperimentationOptOut.cutoff(ExperimentationOptOutMode.IMMEDIATE, context));
     }
+  }
+
+  @TableTest({
+    "mode                    | doLog | activation                          | excluded",
+    "IMMEDIATE               | true  | 2026-10-19T11:59:59.999999999Z      | true    ",
+    "FUTURE_EXPERIMENTS_ONLY | true  | 2026-10-19T11:59:59.999999999Z      | false   ",
+    "FUTURE_EXPERIMENTS_ONLY | true  | 2026-10-19T12:00:00Z                | true    ",
+    "FUTURE_EXPERIMENTS_ONLY | true  | 2026-10-19T12:00:00.000000001Z      | true    ",
+    "FUTURE_EXPERIMENTS_ONLY | true  | 2026-10-19T08:00:00-04:00           | true    ",
+    "FUTURE_EXPERIMENTS_ONLY | true  | 2026-10-19T07:59:59.999999999-04:00 | false   ",
+    "FUTURE_EXPERIMENTS_ONLY | true  |                                     | true    ",
+    "FUTURE_EXPERIMENTS_ONLY | false |                                     | false   ",
+    "IMMEDIATE               | false |                                     | false   "
+  })
+  void appliesActivationCutoff(
+      final ExperimentationOptOutMode mode,
+      final boolean doLog,
+      final String activation,
+      final boolean excluded) {
+    final Allocation allocation =
+        Allocation.fromInstants(
+            "allocation",
+            null,
+            null,
+            null,
+            Collections.emptyList(),
+            doLog,
+            activation == null
+                ? null
+                : DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(activation, Instant::from));
+    assertEquals(
+        excluded,
+        ExperimentationOptOut.excludes(mode, Instant.parse("2026-10-19T12:00:00Z"), allocation));
   }
 
   @Test
   void nullProgrammaticModeIsRejected() {
     assertThrows(
         NullPointerException.class, () -> new Provider.Options().experimentationOptOutMode(null));
+  }
+
+  @Test
+  void probesActivationSupportWithoutRequiringItOnOlderAgents() {
+    assertTrue(ExperimentationOptOut.supportsActivation(Allocation.class));
+    assertFalse(ExperimentationOptOut.supportsActivation(Object.class));
+    assertFalse(ExperimentationOptOut.supportsActivation(WrongActivationType.class));
+  }
+
+  public static class WrongActivationType {
+    public String randomizationActivatedAt;
   }
 }

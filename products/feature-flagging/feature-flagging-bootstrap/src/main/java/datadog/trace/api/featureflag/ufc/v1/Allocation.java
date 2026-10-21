@@ -12,6 +12,9 @@ public class Allocation {
   public final List<Split> splits;
   public final Boolean doLog;
 
+  /** First activation of this allocation's randomization; null means unknown. */
+  public final Instant randomizationActivatedAt;
+
   private final transient Instant preciseStartAt;
   private final transient Instant preciseEndAt;
 
@@ -30,7 +33,8 @@ public class Allocation {
         splits,
         doLog,
         startAt == null ? null : startAt.toInstant(),
-        endAt == null ? null : endAt.toInstant());
+        endAt == null ? null : endAt.toInstant(),
+        null);
   }
 
   private Allocation(
@@ -41,13 +45,15 @@ public class Allocation {
       final List<Split> splits,
       final Boolean doLog,
       final Instant preciseStartAt,
-      final Instant preciseEndAt) {
+      final Instant preciseEndAt,
+      final Instant randomizationActivatedAt) {
     this.key = key;
     this.rules = rules;
     this.startAt = startAt;
     this.endAt = endAt;
     this.splits = splits;
     this.doLog = doLog;
+    this.randomizationActivatedAt = randomizationActivatedAt;
     this.preciseStartAt = preciseStartAt;
     this.preciseEndAt = preciseEndAt;
   }
@@ -59,6 +65,17 @@ public class Allocation {
       final Instant endAt,
       final List<Split> splits,
       final Boolean doLog) {
+    return fromInstants(key, rules, startAt, endAt, splits, doLog, null);
+  }
+
+  public static Allocation fromInstants(
+      final String key,
+      final List<Rule> rules,
+      final Instant startAt,
+      final Instant endAt,
+      final List<Split> splits,
+      final Boolean doLog,
+      final Instant randomizationActivatedAt) {
     return new Allocation(
         key,
         rules,
@@ -67,7 +84,8 @@ public class Allocation {
         splits,
         doLog,
         startAt,
-        endAt);
+        endAt,
+        randomizationActivatedAt);
   }
 
   public Instant startAtInstant() {

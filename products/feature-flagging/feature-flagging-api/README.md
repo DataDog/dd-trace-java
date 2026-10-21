@@ -293,3 +293,24 @@ Provider provider = new Provider(new Provider.Options()
 `DEFAULT` uses central SDK configuration. The provider resolves the mode at construction.
 Unsupported configuration values throw `IllegalArgumentException`. Evaluation telemetry remains independent.
 Immediate withdrawal can change an enrolled subject's experience. Account for this change in experiment analysis.
+
+Use `future_experiments_only` or `ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY` to exclude newer experiments.
+Supply the same stored `dd_experimentation_opt_out_at` timestamp with each evaluation.
+For exposure-logging allocations, the provider compares `randomizationActivatedAt` with that timestamp:
+
+| Allocation activation | Behavior |
+| --- | --- |
+| Before the subject's opt-out time | Evaluate normally, including exposure logging |
+| Equal to or after the opt-out time | Skip the allocation and continue ordinary delivery |
+| Missing or null | Skip the allocation because its activation time is unknown |
+
+Ordinary allocations remain available. Missing subject attributes preserve normal evaluation.
+Both enabled modes reject invalid subject timestamps. Malformed activation metadata rejects the affected flag with `PARSE_ERROR` in every mode.
+Comparisons retain nanosecond precision and account for timezone offsets.
+The cutoff does not depend on the SDK clock. It is not a scheduled change or proof of prior enrollment.
+An older allocation can still assign a subject for the first time.
+
+Enable future mode after the configuration service supplies stable activation timestamps and preserves ordinary fallback allocations.
+Upgrade the Java agent with the provider. An older agent without activation metadata treats all exposure-logging allocations as unknown.
+Keep the subject's stored opt-out time stable across sessions and SDK instances.
+The provider stores no consent history and emits no new event type.

@@ -80,6 +80,7 @@ public class DDEvaluatorTest {
   private static final Moshi MOSHI =
       new Moshi.Builder()
           .add(Date.class, new DateAdapter())
+          .add(Instant.class, new InstantAdapter())
           .add(ShardAdapter.FACTORY)
           .add(FlagMapAdapter.FACTORY)
           .build();
@@ -1060,6 +1061,26 @@ public class DDEvaluatorTest {
     return cases;
   }
 
+  @MethodSource("futureOptOutTestCases")
+  @ParameterizedTest(name = "future: {0}")
+  void futureOptOutCanonicalFixture(final FixtureCase testCase) throws IOException {
+    evaluateCanonicalFixture(
+        testCase,
+        testCase.capabilities.get("experimentationOptOutFutureExperimentsOnly"),
+        ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY);
+  }
+
+  private static List<FixtureCase> futureOptOutTestCases() throws IOException {
+    final List<FixtureCase> cases =
+        canonicalTestCases().stream()
+            .filter(
+                testCase ->
+                    testCase.capabilities.containsKey("experimentationOptOutFutureExperimentsOnly"))
+            .collect(Collectors.toList());
+    assertEquals(42, cases.size(), "The future opt-out capability fixtures must execute");
+    return cases;
+  }
+
   private void evaluateCanonicalFixture(
       final FixtureCase testCase,
       final FixtureResult expected,
@@ -1530,6 +1551,21 @@ public class DDEvaluatorTest {
     @Override
     public void toJson(final JsonWriter writer, final Map<String, Flag> value) {
       throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  private static final class InstantAdapter extends JsonAdapter<Instant> {
+    @Override
+    public Instant fromJson(final JsonReader reader) throws IOException {
+      if (reader.peek() == JsonReader.Token.NULL) {
+        return reader.nextNull();
+      }
+      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(reader.nextString(), Instant::from);
+    }
+
+    @Override
+    public void toJson(final JsonWriter writer, final Instant value) throws IOException {
+      writer.value(value == null ? null : value.toString());
     }
   }
 

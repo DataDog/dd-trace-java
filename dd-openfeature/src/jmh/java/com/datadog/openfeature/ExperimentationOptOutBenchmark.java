@@ -43,7 +43,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(NANOSECONDS)
 @Fork(1)
 public class ExperimentationOptOutBenchmark {
-  @Param({"DISABLED", "IMMEDIATE"})
+  @Param({"DISABLED", "IMMEDIATE", "FUTURE_EXPERIMENTS_ONLY"})
   public ExperimentationOptOutMode mode;
 
   @Param({"false", "true"})
@@ -74,7 +74,7 @@ public class ExperimentationOptOutBenchmark {
       context.add("dd_experimentation_opt_out_at", "2026-10-19T12:00:00Z");
     }
     final ProviderEvaluation<Boolean> result = evaluate();
-    final boolean excluded = mode == ExperimentationOptOutMode.IMMEDIATE && optedOut;
+    final boolean excluded = mode != ExperimentationOptOutMode.DISABLED && optedOut;
     if (result.getErrorCode() != null
         || result.getValue() != excluded
         || !(excluded ? "ordinary" : "experiment")

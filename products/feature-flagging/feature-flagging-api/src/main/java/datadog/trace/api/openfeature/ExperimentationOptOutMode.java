@@ -10,5 +10,11 @@ public enum ExperimentationOptOutMode {
    * Skips exposure-logging allocations when dd_experimentation_opt_out_at is an RFC3339 timestamp.
    * Applies immediately, including to experiments already in progress.
    */
-  IMMEDIATE
+  IMMEDIATE,
+  /**
+   * Skips exposure-logging allocations activated at or after dd_experimentation_opt_out_at. Unknown
+   * activation is skipped. Older allocations continue normally, including exposures. This is an
+   * allocation activation cutoff, not a record of prior subject enrollment.
+   */
+  FUTURE_EXPERIMENTS_ONLY
 }

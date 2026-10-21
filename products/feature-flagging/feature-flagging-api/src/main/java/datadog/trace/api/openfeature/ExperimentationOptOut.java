@@ -1,6 +1,7 @@
 package datadog.trace.api.openfeature;
 
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.EvaluationContext;
@@ -32,9 +33,11 @@ final class ExperimentationOptOut {
         return ExperimentationOptOutMode.DISABLED;
       case "immediate":
         return ExperimentationOptOutMode.IMMEDIATE;
+      case "future_experiments_only":
+        return ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY;
       default:
         throw new IllegalArgumentException(
-            "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE must be disabled or immediate");
+            "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE must be disabled, immediate, or future_experiments_only");
     }
   }
 
@@ -58,24 +61,48 @@ final class ExperimentationOptOut {
     return environment != null ? environment : "disabled";
   }
 
-  static boolean exclude(final ExperimentationOptOutMode mode, final EvaluationContext context) {
-    if (mode != ExperimentationOptOutMode.IMMEDIATE || !context.keySet().contains(ATTRIBUTE)) {
-      return false;
+  static Instant cutoff(final ExperimentationOptOutMode mode, final EvaluationContext context) {
+    if ((mode != ExperimentationOptOutMode.IMMEDIATE
+            && mode != ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY)
+        || !context.keySet().contains(ATTRIBUTE)) {
+      return null;
     }
     final Value value = context.getValue(ATTRIBUTE);
-    if (value != null && value.isString() && validTimestamp(value.asString())) {
-      return true;
+    if (value != null && value.isString()) {
+      try {
+        // Use the allocation startAt/endAt parser's timestamp contract.
+        return DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(value.asString(), Instant::from);
+      } catch (final DateTimeException e) {
+        // Do not expose customer context values in the diagnostic.
+      }
     }
     throw new IllegalArgumentException(INVALID_TIMESTAMP);
   }
 
-  private static boolean validTimestamp(final String value) {
-    try {
-      // Use the allocation startAt/endAt parser's timestamp contract.
-      DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(value, Instant::from);
-      return true;
-    } catch (final DateTimeException e) {
+  static boolean excludes(
+      final ExperimentationOptOutMode mode, final Instant cutoff, final Allocation allocation) {
+    if (cutoff == null) {
       return false;
     }
+    if (Boolean.FALSE.equals(allocation.doLog)) {
+      return false;
+    }
+    return mode == ExperimentationOptOutMode.IMMEDIATE
+        || !ActivationSupport.AVAILABLE
+        || allocation.randomizationActivatedAt == null
+        || !allocation.randomizationActivatedAt.isBefore(cutoff);
+  }
+
+  static boolean supportsActivation(final Class<?> allocationType) {
+    try {
+      return allocationType.getField("randomizationActivatedAt").getType() == Instant.class;
+    } catch (ReflectiveOperationException | LinkageError | SecurityException unavailable) {
+      return false;
+    }
+  }
+
+  /** Probe only when future mode is evaluated; older agents have unknown activation. */
+  private static final class ActivationSupport {
+    private static final boolean AVAILABLE = supportsActivation(Allocation.class);
   }
 }
