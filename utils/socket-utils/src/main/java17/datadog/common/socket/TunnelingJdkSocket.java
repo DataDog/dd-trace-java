@@ -3,12 +3,14 @@ package datadog.common.socket;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
 import java.net.UnixDomainSocketAddress;
@@ -21,6 +23,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Subtype UNIX socket for a higher-fidelity impersonation of TCP sockets. This is named "tunneling"
@@ -43,8 +46,8 @@ final class TunnelingJdkSocket extends Socket {
 
   static final int DEFAULT_BUFFER_SIZE = 8192;
   // Indicate that the buffer size is not set by initializing to -1
-  private int sendBufferSize = -1;
-  private int receiveBufferSize = -1;
+  private volatile int sendBufferSize = -1;
+  private volatile int receiveBufferSize = -1;
 
   TunnelingJdkSocket(final Path path) throws IOException, UnsupportedOperationException {
     this.unixSocketAddress = UnixDomainSocketAddress.of(path);
@@ -236,46 +239,66 @@ final class TunnelingJdkSocket extends Socket {
         @Override
         public int read() throws IOException {
           byte[] nextByte = new byte[1];
-          return (read(nextByte, 0, 1) == -1) ? -1 : (nextByte[0] & 0xFF);
+          return (read(nextByte, 0, 1) == 1) ? (nextByte[0] & 0xFF) : -1;
         }
 
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
+          if (off < 0 || len < 0 || off > b.length - len) {
+            throw new IndexOutOfBoundsException();
+          }
+          if (len == 0) {
+            return 0;
+          }
           if (isInputShutdown()) {
             return -1;
           }
           buffer.clear();
+          buffer.limit(Math.min(buffer.capacity(), len));
+          int readTimeout = timeout;
+          long start = System.nanoTime();
+          long remaining = readTimeout;
 
           try {
-            int readyChannels = readSelector.select(timeout);
-            if (readyChannels == 0) {
-              if (isClosed() || !readSelector.isOpen()) {
+            while (true) {
+              int readyChannels = readSelector.select(remaining);
+              if (readyChannels == 0 && (isClosed() || !readSelector.isOpen())) {
                 throw new SocketException("Socket is closed");
               }
-              return 0;
-            }
-
-            Set<SelectionKey> selectedKeys = readSelector.selectedKeys();
-            // Multiple input streams share this selector, so serialize iteration and removal from
-            // its non-thread-safe selected-key set.
-            synchronized (selectedKeys) {
-              Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
-              while (keyIterator.hasNext()) {
-                SelectionKey key = keyIterator.next();
-                keyIterator.remove();
-                if (key.isReadable()) {
-                  int r = unixSocketChannel.read(buffer);
-                  if (r == -1) {
-                    return -1;
+              if (readyChannels > 0) {
+                Set<SelectionKey> selectedKeys = readSelector.selectedKeys();
+                // Multiple input streams share this selector, so serialize iteration and removal
+                // from its non-thread-safe selected-key set.
+                synchronized (selectedKeys) {
+                  Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+                  while (keyIterator.hasNext()) {
+                    SelectionKey key = keyIterator.next();
+                    keyIterator.remove();
+                    if (key.isReadable()) {
+                      int r = unixSocketChannel.read(buffer);
+                      if (r == -1) {
+                        return -1;
+                      }
+                      if (r > 0) {
+                        buffer.flip();
+                        buffer.get(b, off, r);
+                        return r;
+                      }
+                    }
                   }
-                  buffer.flip();
-                  len = Math.min(r, len);
-                  buffer.get(b, off, len);
-                  return len;
+                }
+              }
+              if (Thread.currentThread().isInterrupted()) {
+                throw new InterruptedIOException("Read interrupted");
+              }
+              // Selection can wake without data; retry within the original timeout.
+              if (readTimeout > 0) {
+                remaining = readTimeout - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+                if (remaining <= 0) {
+                  throw new SocketTimeoutException("Read timed out");
                 }
               }
             }
-            return 0;
           } catch (ClosedSelectorException | CancelledKeyException e) {
             SocketException socketException = new SocketException("Socket is closed");
             socketException.initCause(e);

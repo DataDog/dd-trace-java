@@ -36,6 +36,8 @@ public final class Settings {
   static final String EVALUATION_COUNTS_ENABLED = "flagging.evaluation.counts.enabled";
   static final String EXPOSURES_DATADOG_LOGGING_ENABLED =
       "feature.flags.exposures.datadog.logging.enabled";
+  static final String EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED =
+      "feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
   static final String API_KEY = "api-key";
   static final String SITE = "site";
   static final String ENV = "env";
@@ -160,6 +162,16 @@ public final class Settings {
    */
   public boolean isExposuresDatadogLoggingEnabled() {
     return !Boolean.FALSE.equals(getBoolean(EXPOSURES_DATADOG_LOGGING_ENABLED));
+  }
+
+  /**
+   * Tells whether the {@code dd_evaluation_telemetry_opt_out} evaluation context attribute can opt
+   * subjects out of evaluation telemetry. The provider option takes precedence over this setting.
+   *
+   * @return whether per-subject evaluation telemetry opt-out is enabled (off by default).
+   */
+  public boolean isEvaluationTelemetryPerSubjectOptOutEnabled() {
+    return Boolean.TRUE.equals(getBoolean(EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED));
   }
 
   /**

@@ -50,6 +50,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
@@ -636,6 +637,56 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       capturedUpdater[0].commit(null);
 
       assertFalse(tracer.captureTraceConfig().mergedTracerTags.containsKey(DDTags.DSM_ENABLED));
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /**
+   * Remote config {@code tracing_tags} overrides the global tags ({@code DD_TAGS}), and removing
+   * the override restores them, matching system-tests' {@code
+   * TestDynamicConfigV2.test_tracing_client_tracing_tags}.
+   */
+  @Test
+  void remoteConfigTracingTagsOverrideGlobalTags() throws Exception {
+    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+    ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+    ProductListener[] capturedUpdater = {null};
+    doAnswer(
+            inv -> {
+              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+              return null;
+            })
+        .when(poller)
+        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+    Properties properties = new Properties();
+    properties.setProperty(GeneralConfig.TAGS, "local_key:local_val");
+    CoreTracer tracer =
+        CoreTracer.builder()
+            .withProperties(properties)
+            .sharedCommunicationObjects(sco)
+            .pollForTracingConfiguration()
+            .build();
+    unclosedTracers.add(tracer);
+
+    try {
+      Map<String, String> localTags = buildStringMap("local_key", "local_val");
+      assertEquals(localTags, tracer.captureTraceConfig().mergedTracerTags);
+
+      String json = "{\"lib_config\":{\"tracing_tags\": [\"rc_key:rc_val\"]}}";
+      capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+      capturedUpdater[0].commit(null);
+
+      assertEquals(
+          buildStringMap("rc_key", "rc_val"), tracer.captureTraceConfig().mergedTracerTags);
+
+      capturedUpdater[0].remove(key, null);
+      capturedUpdater[0].commit(null);
+
+      assertEquals(localTags, tracer.captureTraceConfig().mergedTracerTags);
     } finally {
       tracer.close();
     }

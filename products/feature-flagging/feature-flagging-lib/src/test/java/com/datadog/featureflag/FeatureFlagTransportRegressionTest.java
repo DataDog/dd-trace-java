@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.communication.BackendApi;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProtocolVersion;
 import datadog.trace.test.junit.utils.config.WithConfig;
@@ -21,6 +22,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -33,7 +35,6 @@ import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.tabletest.junit.TableTest;
@@ -137,35 +138,55 @@ class FeatureFlagTransportRegressionTest extends DDJavaSpecification {
     }
   }
 
-  @Test
-  void agentlessWithoutIdentityKeepsAnOlderAgentUsableWithoutDirectCredentials() throws Exception {
-    final List<Request> requests = new ArrayList<>();
-    final SharedCommunicationObjects sco = new SharedCommunicationObjects();
-    sco.agentUrl = HttpUrl.get("http://localhost:8126/");
-    sco.agentHttpClient =
-        new OkHttpClient.Builder()
-            .addInterceptor(
-                chain -> {
-                  final Request request = chain.request();
-                  requests.add(request);
-                  return response(
-                      request,
-                      200,
-                      request.url().encodedPath().equals("/info")
-                          ? "{\"endpoints\":[\"v0.5/traces\",\"evp_proxy/v4/\"],\"evp_proxy_allowed_headers\":[]}"
-                          : "{}");
-                })
-            .build();
-
-    final BackendApi api =
-        new FeatureFlagBackendApiFactory(config("agentless"), sco, EXPOSURE).create();
-    post(api);
-
-    assertEquals(2, requests.size());
-    assertEquals("/info", requests.get(0).url().encodedPath());
-    assertEquals("/evp_proxy/v4/api/v2/exposures", requests.get(1).url().encodedPath());
-    assertNull(requests.get(1).header("DD-API-KEY"));
-    assertNull(requests.get(1).header("DD-EVP-ORIGIN"));
+  @TableTest({
+    "Capabilities | Can Deliver",
+    "none         | false      ",
+    "origin       | false      ",
+    "version      | false      ",
+    "both         | true       "
+  })
+  void agentlessIdentityRequiresBothForwardingCapabilities(String capabilities, boolean canDeliver)
+      throws Exception {
+    final String headers =
+        capabilities.equals("both")
+            ? "\"dd-evp-origin\",\"DD-EVP-ORIGIN-VERSION\""
+            : capabilities.equals("origin")
+                ? "\"DD-EVP-ORIGIN\""
+                : capabilities.equals("version") ? "\"DD-EVP-ORIGIN-VERSION\"" : "";
+    try (MockWebServer server = new MockWebServer()) {
+      server.start();
+      server.enqueue(
+          new MockResponse()
+              .setBody(
+                  "{\"endpoints\":[\"v0.5/traces\",\"evp_proxy/v4/\"],\"evp_proxy_allowed_headers\":["
+                      + headers
+                      + "]}"));
+      server.enqueue(new MockResponse().setResponseCode(202).setBody("{}"));
+      final SharedCommunicationObjects sco = new SharedCommunicationObjects();
+      sco.agentUrl = server.url("/");
+      sco.agentHttpClient = new OkHttpClient();
+      try {
+        final BackendApi api =
+            new FeatureFlagBackendApiFactory(config("agentless"), sco, EXPOSURE).create();
+        if (canDeliver) {
+          post(api);
+        } else {
+          assertThrows(IOException.class, () -> post(api));
+        }
+        assertEquals(canDeliver ? 2 : 1, server.getRequestCount());
+        assertEquals("/info", server.takeRequest(1, TimeUnit.SECONDS).getPath());
+        if (canDeliver) {
+          final RecordedRequest event = server.takeRequest(1, TimeUnit.SECONDS);
+          assertEquals("/evp_proxy/v4/api/v2/exposures", event.getPath());
+          assertNull(event.getHeader("DD-API-KEY"));
+          assertEquals("dd-trace-java", event.getHeader("DD-EVP-ORIGIN"));
+          assertEquals(TracerVersion.TRACER_VERSION, event.getHeader("DD-EVP-ORIGIN-VERSION"));
+        }
+      } finally {
+        sco.agentHttpClient.connectionPool().evictAll();
+        sco.agentHttpClient.dispatcher().executorService().shutdownNow();
+      }
+    }
   }
 
   private static Config config(String source) {

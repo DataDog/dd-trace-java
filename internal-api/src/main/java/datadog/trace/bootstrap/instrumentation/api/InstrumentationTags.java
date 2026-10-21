@@ -94,7 +94,6 @@ public class InstrumentationTags {
   public static final String SERVLET_PATH = "servlet.path";
   public static final String SERVLET_DISPATCH = "servlet.dispatch";
   public static final String TIMEOUT = "timeout";
-  public static final String JMS_PRODUCE = "jms.produce";
   public static final String JSP_COMPILER = "jsp.compiler";
   public static final String JSP_CLASSFQCN = "jsp.classFQCN";
   public static final String JSP_FORWARD_ORIGIN = "jsp.forwardOrigin";
