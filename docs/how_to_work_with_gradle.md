@@ -1259,10 +1259,13 @@ Gradle schedules tasks for project dependencies as part of the main build.
 
 Files ending in `.gradle.kts` placed in `buildSrc/src/main/kotlin/` target `Project` and can configure tasks, dependencies, and extensions. The `buildSrc/` directory is automatically included by Gradle before the main build.
 
+New convention plugins belong in `build-logic`. During the script-plugin migration, conventions
+that need shared `buildSrc` classes still need to land in `buildSrc`; see [Build Logic Location](#build-logic-location).
+
 > [!IMPORTANT]
-> Prefer build logic that is independent of concrete project paths. Referring to repository projects
-> from `build-logic` or `buildSrc` couples the plugin to the project layout; keep such dependencies
-> deliberate and limited to conventions that need them.
+> Hard-coded project paths such as `:dd-trace-api` tie a plugin to the repository layout, in other words it creates coupling.
+> They belong in the consuming build script unless the dependency is part of the convention;
+> see [Dependencies on Main Projects](#dependencies-on-main-projects).
 
 In this project, convention plugins use the `dd-trace-java.` prefix. For example, `dd-trace-java.configure-tests.gradle.kts` configures test tasks across all subprojects:
 
