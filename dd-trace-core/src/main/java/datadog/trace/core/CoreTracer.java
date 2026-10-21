@@ -2628,7 +2628,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
       }
 
-      if (null != oldSnapshot && getTracingTags().equals(oldSnapshot.getTracingTags())) {
+      if (null != oldSnapshot
+          && isTracingTagsOverridden() == oldSnapshot.isTracingTagsOverridden()
+          && getTracingTags().equals(oldSnapshot.getTracingTags())) {
         globalTags = oldSnapshot.globalTags;
         spanDefaultTags = oldSnapshot.spanDefaultTags;
         mergedTracerTags = oldSnapshot.mergedTracerTags;
@@ -2636,7 +2638,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       } else {
         Config config = CoreTracer.this.initialConfig;
         Map<String, String> tracingTags = getTracingTags();
-        boolean overridden = !tracingTags.equals(config.getGlobalTags());
+        boolean overridden = isTracingTagsOverridden();
         // A remote config tracing_tags override stands in for all the user's tags, span defaults
         // included, until it's removed. It doesn't change the service's env or version.
         TagMap defaultSpanTags = overridden ? TagMap.EMPTY : CoreTracer.this.defaultSpanTags;

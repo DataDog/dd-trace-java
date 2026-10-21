@@ -601,15 +601,19 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
    * Remote config {@code tracing_tags} overrides the global tags ({@code DD_TAGS}), and removing
    * the override restores them, matching system-tests' {@code
    * TestDynamicConfigV2.test_tracing_client_tracing_tags}. The override replaces the span tags
-   * ({@code DD_TRACE_SPAN_TAGS}) too.
+   * ({@code DD_TRACE_SPAN_TAGS}) too, even when it's empty.
    */
   @TableTest({
-    "scenario           | localTagsKey    | expectedWithOverride",
-    "DD_TAGS            | tags            | [rc_key: rc_val]    ",
-    "DD_TRACE_SPAN_TAGS | trace.span.tags | [rc_key: rc_val]    "
+    "scenario                  | localTagsKey    | overrideTags          | expectedWithOverride",
+    "DD_TAGS                   | tags            | '[\"rc_key:rc_val\"]' | [rc_key: rc_val]    ",
+    "DD_TRACE_SPAN_TAGS        | trace.span.tags | '[\"rc_key:rc_val\"]' | [rc_key: rc_val]    ",
+    "empty, DD_TRACE_SPAN_TAGS | trace.span.tags | '[]'                  | [:]                 "
   })
   void remoteConfigTracingTagsOverrideGlobalTags(
-      String scenario, String localTagsKey, Map<String, String> expectedWithOverride)
+      String scenario,
+      String localTagsKey,
+      String overrideTags,
+      Map<String, String> expectedWithOverride)
       throws Exception {
     ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
     ConfigurationPoller poller = mock(ConfigurationPoller.class);
@@ -633,7 +637,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       Map<String, String> localTags = buildStringMap("local_key", "local_val");
       assertEquals(localTags, tracer.captureTraceConfig().mergedTracerTags);
 
-      String json = "{\"lib_config\":{\"tracing_tags\": [\"rc_key:rc_val\"]}}";
+      String json = "{\"lib_config\":{\"tracing_tags\": " + overrideTags + "}}";
       capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
       capturedUpdater[0].commit(null);
 
