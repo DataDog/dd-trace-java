@@ -3,6 +3,26 @@ package datadog.trace.instrumentation.kotlin.coroutines
 import datadog.trace.agent.test.InstrumentationSpecification
 
 abstract class AbstractStandardSuspensionHandoffTest extends InstrumentationSpecification {
+  def "#builder with an enclosing context captures active span with swap #swapped"() {
+    when:
+    new StandardSuspensionHandoffTests().runChildWithEnclosingContext(builder, swapped)
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+    def spans = trace.collectEntries { [(it.operationName.toString()): it] }
+
+    then:
+    trace.size() == 3
+    spans.active.parentId == spans.parent.spanId
+    spans.child.parentId == spans.active.spanId
+
+    where:
+    builder  | swapped
+    'async'  | false
+    'async'  | true
+    'launch' | false
+    'launch' | true
+  }
+
   def "lazy #builder inherits starting context with automatic start #automatic and active span #tracedStarter"() {
     when:
     new StandardSuspensionHandoffTests().runLazyChildWithInheritedContext(builder, automatic, tracedStarter)

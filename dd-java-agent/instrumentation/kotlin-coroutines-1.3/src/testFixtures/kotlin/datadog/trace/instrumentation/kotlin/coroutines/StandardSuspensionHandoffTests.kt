@@ -50,6 +50,43 @@ private val BASE_KEY = ContextKey.named<String>("scope-touching-base")
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class StandardSuspensionHandoffTests {
+  fun runChildWithEnclosingContext(builder: String, swapped: Boolean) = runBlocking {
+    val enclosingContext = coroutineContext
+    val parent = get().buildSpan("kotlin_coroutine", "parent").start()
+    val parentScope = get().activateManualSpan(parent)
+    try {
+      withContext(CoroutineName("nested")) {
+        val active = get().buildSpan("kotlin_coroutine", "active").start()
+        val previous = if (swapped) active.swap() else null
+        val scope = if (!swapped) get().activateManualSpan(active) else null
+        try {
+          val block: suspend CoroutineScope.() -> Unit = {
+            check(activeSpan() === active) { "Child inherited the enclosing context's older span" }
+            delay(1)
+            check(activeSpan() === active) { "Child lost its active parent after suspension" }
+            get().buildSpan("kotlin_coroutine", "child").start().finish()
+          }
+          val child = try {
+            when (builder) {
+              "async" -> async(enclosingContext, block = block)
+              "launch" -> launch(enclosingContext, block = block)
+              else -> error("Unknown child builder: $builder")
+            }
+          } finally {
+            scope?.close()
+            previous?.swap()
+          }
+          child.join()
+        } finally {
+          active.finish()
+        }
+      }
+    } finally {
+      parentScope.close()
+      parent.finish()
+    }
+  }
+
   fun runLazyChildWithInheritedContext(builder: String, automatic: Boolean, tracedStarter: Boolean) = runBlocking {
     val creator = get().buildSpan("kotlin_coroutine", "creator").start()
     val creatorScope = get().activateManualSpan(creator)

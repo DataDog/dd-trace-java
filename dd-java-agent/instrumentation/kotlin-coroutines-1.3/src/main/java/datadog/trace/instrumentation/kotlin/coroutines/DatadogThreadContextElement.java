@@ -60,7 +60,9 @@ public final class DatadogThreadContextElement
       return coroutineContext.plus(new DatadogThreadContextElement(null, null));
     }
     return replaceDatadogElement(
-        coroutineContext, existing.context, existing.localRootFor(coroutineContext.get(Job.Key)));
+        coroutineContext,
+        LEGACY_CONTEXT_MANAGER ? Context.current() : null,
+        existing.localRootFor(coroutineContext.get(Job.Key)));
   }
 
   private static CoroutineContext replaceDatadogElement(
@@ -99,8 +101,8 @@ public final class DatadogThreadContextElement
   public static CoroutineContext forFlowCollection(
       CoroutineContext upstream, CoroutineContext downstream) {
     DatadogThreadContextElement caller = downstream.get(DATADOG_KEY);
-    // legacy callers share a live scope stack, which a snapshot would replace
-    if (!LEGACY_CONTEXT_MANAGER && caller != null) {
+    // Read context before legacySharedStack to acquire the initialized stack state.
+    if (caller != null && caller.context != null && !caller.legacySharedStack) {
       // Downstream reinstalls the caller's element without constructing a coroutine.
       caller.context = Context.current();
     }
@@ -193,7 +195,7 @@ public final class DatadogThreadContextElement
       }
       if (datadog.context == null) {
         datadog.captureInitialContext(true);
-      } else if (!LEGACY_CONTEXT_MANAGER
+      } else if (!datadog.legacySharedStack
           && datadog.owner != coroutine
           && datadog.isScopedBy(coroutine)) {
         // scoped coroutines (coroutineScope, withTimeout, or withContext before 1.6.1) share their
