@@ -58,6 +58,9 @@ public class ContainerInfo {
    */
   private static final String EXTERNAL_ENV_VARIABLE = "DD_EXTERNAL_ENV";
 
+  private static final String ENTITY_ID;
+  private static final String EXTERNAL_ENV;
+
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public String containerId;
 
@@ -69,10 +72,6 @@ public class ContainerInfo {
 
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public List<CGroupInfo> cGroups = new ArrayList<>();
-
-  private String entityId;
-
-  private String externalEnv;
 
   public String getContainerId() {
     return containerId;
@@ -111,11 +110,7 @@ public class ContainerInfo {
    * known, otherwise the cgroup inode, or {@code null} if neither is available.
    */
   public @Nullable String getEntityId() {
-    return entityId;
-  }
-
-  public void setEntityId(@Nullable String entityId) {
-    this.entityId = entityId;
+    return ENTITY_ID;
   }
 
   /**
@@ -124,11 +119,7 @@ public class ContainerInfo {
    * {@code null} if it is unset, empty or not a valid HTTP header value.
    */
   public @Nullable String getExternalEnv() {
-    return externalEnv;
-  }
-
-  public void setExternalEnv(@Nullable String externalEnv) {
-    this.externalEnv = externalEnv;
+    return EXTERNAL_ENV;
   }
 
   static {
@@ -141,11 +132,10 @@ public class ContainerInfo {
       }
     }
 
-    containerInfo.setEntityId(
-        readEntityID(containerInfo, isHostCgroupNamespace(), DEFAULT_CGROUP_MOUNT_PATH));
-    containerInfo.setExternalEnv(sanitizeExternalEnv(ConfigHelper.env(EXTERNAL_ENV_VARIABLE)));
-
     INSTANCE = containerInfo;
+
+    ENTITY_ID = readEntityID(containerInfo, isHostCgroupNamespace(), DEFAULT_CGROUP_MOUNT_PATH);
+    EXTERNAL_ENV = sanitizeExternalEnv(ConfigHelper.env(EXTERNAL_ENV_VARIABLE));
   }
 
   static @Nullable String readEntityID(

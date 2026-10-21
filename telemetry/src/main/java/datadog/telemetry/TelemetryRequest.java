@@ -1,7 +1,6 @@
 package datadog.telemetry;
 
 import datadog.communication.ddagent.TracerVersion;
-import datadog.communication.http.OkHttpUtils;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -66,8 +65,6 @@ public class TelemetryRequest {
             .addHeader("DD-Client-Library-Language", DDTags.LANGUAGE_TAG_VALUE)
             .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
             .post(requestBody);
-
-    OkHttpUtils.addOriginHeaders(builder);
 
     if (debug) {
       builder.addHeader("DD-Telemetry-Debug-Enabled", "true");

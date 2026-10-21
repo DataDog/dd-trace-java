@@ -89,7 +89,11 @@ public class TelemetryClient {
   public Result sendHttpRequest(Request.Builder httpRequestBuilder) {
     httpRequestBuilder.url(url);
     if (apiKey != null) {
+      // intake client
       httpRequestBuilder.addHeader("DD-API-KEY", apiKey);
+    } else {
+      // agent client: only the local Datadog Agent uses the origin detection headers
+      OkHttpUtils.addOriginHeaders(httpRequestBuilder);
     }
 
     Request httpRequest = httpRequestBuilder.build();

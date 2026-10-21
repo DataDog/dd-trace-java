@@ -86,6 +86,7 @@ public class BatchUploader {
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final HttpUrl urlBase;
+  private final boolean toAgent;
   private final Callback responseCallback;
   private final String apiKey;
   private final DebuggerMetrics debuggerMetrics;
@@ -117,6 +118,7 @@ public class BatchUploader {
       throw new IllegalArgumentException("Endpoint url is empty");
     }
     urlBase = HttpUrl.get(endpoint);
+    toAgent = OkHttpUtils.isAgentUrl(urlBase, config);
     LOGGER.debug("Started BatchUploader[{}] with target url {}", name, urlBase);
     apiKey = config.getApiKey();
     this.ratelimitedLogger = ratelimitedLogger;
@@ -241,7 +243,10 @@ public class BatchUploader {
     } else {
       LOGGER.debug("API key is null");
     }
-    OkHttpUtils.addOriginHeaders(requestBuilder);
+    if (toAgent) {
+      // only the local Datadog Agent uses the origin detection headers
+      OkHttpUtils.addOriginHeaders(requestBuilder);
+    }
     Request request = requestBuilder.build();
     LOGGER.debug("[{}] Sending request: {} CT: {}", name, request, request.body().contentType());
     enqueueCall(client, request, responseCallback, retryPolicy, 0, inflightRequests);

@@ -41,9 +41,16 @@ public class PollerRequestFactory {
   private final String hostName;
   private final String tracerVersion;
   private final Moshi moshi;
+  private final ContainerInfo containerInfo;
+  private final boolean toAgent;
   final HttpUrl url;
 
   public PollerRequestFactory(Config config, String tracerVersion, String url, Moshi moshi) {
+    this(config, tracerVersion, url, moshi, ContainerInfo.get());
+  }
+
+  PollerRequestFactory(
+      Config config, String tracerVersion, String url, Moshi moshi, ContainerInfo containerInfo) {
     this.runtimeId = getRuntimeId(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.apiKey = config.getApiKey();
@@ -54,6 +61,9 @@ public class PollerRequestFactory {
     this.tracerVersion = tracerVersion.replace('~', '+');
     this.url = parseUrl(url);
     this.moshi = moshi;
+    this.containerInfo = containerInfo;
+    // without an explicit remote config URL, requests go to the local Datadog Agent
+    this.toAgent = config.getFinalRemoteConfigUrl() == null;
   }
 
   private static String getRuntimeId(Config config) {
@@ -89,7 +99,14 @@ public class PollerRequestFactory {
     if (this.apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, this.apiKey);
     }
-    ContainerInfo containerInfo = ContainerInfo.get();
+    if (toAgent) {
+      // only the local Datadog Agent uses the origin detection headers
+      addOriginHeaders(requestBuilder);
+    }
+    return requestBuilder.build();
+  }
+
+  private void addOriginHeaders(Request.Builder requestBuilder) {
     String containerId = containerInfo.getContainerId();
     if (containerId != null) {
       requestBuilder.addHeader(HEADER_CONTAINER_ID, containerId);
@@ -102,7 +119,6 @@ public class PollerRequestFactory {
     if (externalEnv != null) {
       requestBuilder.addHeader(HEADER_EXTERNAL_ENV, externalEnv);
     }
-    return requestBuilder.build();
   }
 
   private String buildRemoteConfigRequestJson(

@@ -79,7 +79,7 @@ public class SharedCommunicationObjects {
     forceClearTextHttpForIntakeClient = config.isForceClearTextHttpForIntakeClient();
 
     if (agentUrl == null) {
-      agentUrl = parseAgentUrl(config);
+      agentUrl = OkHttpUtils.parseAgentUrl(config);
       if (agentUrl == null) {
         throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
       }
@@ -144,15 +144,6 @@ public class SharedCommunicationObjects {
       }
       pausedComponents.clear();
     }
-  }
-
-  private static HttpUrl parseAgentUrl(Config config) {
-    String agentUrl = config.getAgentUrl();
-    if (agentUrl.startsWith("unix:")) {
-      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
-      agentUrl = "http://" + config.getAgentHost() + ":" + config.getAgentPort();
-    }
-    return HttpUrl.parse(agentUrl);
   }
 
   public ConfigurationPoller configurationPoller(Config config) {

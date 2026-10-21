@@ -125,8 +125,6 @@ class TestTelemetryRouter extends TelemetryRouter {
       assertEquals(TracerVersion.TRACER_VERSION, request.header("DD-Client-Library-Version"));
       assertEquals("v2", request.header("DD-Telemetry-API-Version"));
       assertEquals(requestType.toString(), request.header("DD-Telemetry-Request-Type"));
-      String entityId = request.header("Datadog-Entity-ID");
-      assertTrue(entityId == null || entityId.startsWith("in-") || entityId.startsWith("cin-"));
       String sessionId = request.header("DD-Session-ID");
       assertTrue(
           sessionId != null && sessionId.matches("[\\da-f]{8}-([\\da-f]{4}-){3}[\\da-f]{12}"));
