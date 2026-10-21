@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductActivation;
@@ -25,8 +24,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
-import datadog.trace.bootstrap.instrumentation.api.URIUtils;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.http.DatadogClientUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.OtelClientUrl;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.BitSet;
@@ -44,6 +45,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
   private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
+  private static final TagExtractor<URI> URL_TAGS =
+      OTEL_SEMANTICS ? OtelClientUrl.INSTANCE : DatadogClientUrl.INSTANCE;
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
 
@@ -139,23 +142,11 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         }
       }
 
-      // Copy of HttpServerDecorator url handling
       try {
         final URI url = url(request);
         if (url != null) {
           onURI(span, url);
-          if (OTEL_SEMANTICS) {
-            OtelHttpSemantics.setClientUrl(span, url);
-          } else {
-            span.setTag(
-                KnownTags.HTTP_URL_ID,
-                URIUtils.lazyValidURL(
-                    url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
-            if (Config.get().isHttpClientTagQueryString()) {
-              span.setTag(DDTags.HTTP_QUERY, url.getQuery());
-              span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
-            }
-          }
+          span.setTagsFrom(url, URL_TAGS);
           // Explicit path mappings take precedence over the default name in either semantic mode.
           if (shouldSetResourceName()) {
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());

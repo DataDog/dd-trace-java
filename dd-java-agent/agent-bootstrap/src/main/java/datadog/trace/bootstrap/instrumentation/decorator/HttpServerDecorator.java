@@ -7,14 +7,12 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.bootstrap.instrumentation.api.URIUtils.decode;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
@@ -39,10 +37,13 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
-import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.http.DatadogServerUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.HttpServerUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.OtelServerUrl;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
@@ -72,6 +73,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
+  private static final TagExtractor<HttpServerUrl> URL_TAGS =
+      OTEL_SEMANTICS ? OtelServerUrl.INSTANCE : DatadogServerUrl.INSTANCE;
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
   protected static final boolean SHOULD_SET_404_RESOURCE_NAME =
       !OTEL_SEMANTICS
@@ -341,7 +344,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         span.setTag(KnownTags.HTTP_METHOD_ID, method);
       }
 
-      // Copy of HttpClientDecorator url handling
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
@@ -349,85 +351,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           boolean valid = url.isValid();
           String path = encoded ? url.rawPath() : url.path();
-          if (OTEL_SEMANTICS) {
-            String scheme =
-                OtelHttpSemantics.forwardedValue(
-                    extracted == null ? null : extracted.getXForwardedProto());
-            if (scheme == null) {
-              scheme = url.scheme();
-            }
-            int requestPort = url.port();
-            if (scheme != null && !scheme.equalsIgnoreCase(url.scheme())) {
-              // A forwarded scheme can describe a different origin from the backend connection.
-              // Preserve an explicit public Host port; otherwise use the origin scheme default.
-              requestPort = OtelHttpSemantics.portFromHost(getRequestHeader(request, "Host"));
-            }
-            if (valid) {
-              if (scheme != null) {
-                span.setTag(KnownTags.URL_SCHEME_ID, scheme);
-              }
-              // Ensure that path components have a leading '/'
-              if (path == null || path.isEmpty()) {
-                path = "/";
-              } else if (path.charAt(0) != '/') {
-                path = "/" + path;
-              }
-              span.setTag(KnownTags.URL_PATH_ID, path);
-            } else if (supportsRaw) {
-              String raw = url.raw();
-              if (raw != null) {
-                int fragmentStart = raw.indexOf('#');
-                if (fragmentStart >= 0) {
-                  raw = raw.substring(0, fragmentStart);
-                }
-              }
-              int queryStart = raw == null ? -1 : raw.indexOf('?');
-              span.setTag(
-                  KnownTags.URL_PATH_ID, queryStart < 0 ? raw : raw.substring(0, queryStart));
-              if (queryStart >= 0 && config.isHttpServerTagQueryString()) {
-                String query = raw.substring(queryStart + 1);
-                if (!config.isHttpServerRawQueryString()) {
-                  query = decode(query, url.hasPlusEncodedSpaces());
-                }
-                if (!query.isEmpty()) {
-                  span.setTag(KnownTags.URL_QUERY_ID, query);
-                }
-              }
-            }
-            OtelHttpSemantics.setServerAddressAndPort(
-                span,
-                extracted == null ? null : extracted.getXForwardedHost(),
-                extracted == null ? null : extracted.getXForwardedPort(),
-                scheme,
-                url.host(),
-                requestPort);
-          } else {
-            if (valid) {
-              span.setTag(
-                  KnownTags.HTTP_URL_ID,
-                  URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
-            } else if (supportsRaw) {
-              span.setTag(KnownTags.HTTP_URL_ID, URIUtils.lazyInvalidUrl(url.raw()));
-            }
-            if (extracted != null && extracted.getXForwardedHost() != null) {
-              span.setTag(KnownTags.HTTP_HOSTNAME_ID, extracted.getXForwardedHost());
-            } else if (url.host() != null) {
-              span.setTag(KnownTags.HTTP_HOSTNAME_ID, url.host());
-            }
-          }
-
-          if (valid && config.isHttpServerTagQueryString()) {
-            String query =
-                supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
-            if (OTEL_SEMANTICS) {
-              if (query != null && !query.isEmpty()) {
-                span.setTag(KnownTags.URL_QUERY_NAME, query);
-              }
-            } else {
-              span.setTag(KnownTags.HTTP_QUERY_STRING_ID, query);
-              span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
-            }
-          }
+          span.setTagsFrom(
+              HttpServerUrl.fromRequest(
+                  url,
+                  path,
+                  extracted,
+                  extracted != null && extracted.getXForwardedProto() != null
+                      ? getRequestHeader(request, "Host")
+                      : null),
+              URL_TAGS);
           Flow<Void> flow = callIGCallbackURI(span, url, method);
           if (flow.getAction() instanceof RequestBlockingAction) {
             span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());

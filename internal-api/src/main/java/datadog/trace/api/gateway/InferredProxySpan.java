@@ -18,6 +18,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
+import datadog.trace.bootstrap.instrumentation.api.http.DatadogServerUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.HttpServerUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.OtelServerUrl;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +43,8 @@ public class InferredProxySpan implements ImplicitContextKeyed {
   static final Map<String, String> SUPPORTED_PROXIES;
   static final String INSTRUMENTATION_NAME = "inferred_proxy";
   private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
+  private static final TagExtractor<HttpServerUrl> URL_TAGS =
+      OTEL_SEMANTICS ? OtelServerUrl.INSTANCE : DatadogServerUrl.URL_ONLY;
 
   static {
     SUPPORTED_PROXIES = new HashMap<>();
@@ -110,18 +116,10 @@ public class InferredProxySpan implements ImplicitContextKeyed {
 
     if (OTEL_SEMANTICS) {
       OtelHttpSemantics.setRequestMethod(span, httpMethod);
-      span.setTag(KnownTags.URL_PATH_ID, path);
-      if (domainName != null && !domainName.isEmpty()) {
-        span.setTag(KnownTags.URL_SCHEME_ID, "https");
-        span.setTag(KnownTags.Inbound.SERVER_ADDRESS_ID, domainName);
-        span.setTag(KnownTags.Inbound.SERVER_PORT_ID, 443);
-      }
     } else {
       span.setTag(KnownTags.HTTP_METHOD_ID, httpMethod);
-      span.setTag(
-          KnownTags.HTTP_URL_ID,
-          domainName != null && !domainName.isEmpty() ? "https://" + domainName + path : path);
     }
+    span.setTagsFrom(HttpServerUrl.fromInferredProxy(domainName, path), URL_TAGS);
 
     // A concrete path is not a route under the OTel conventions. Keep the legacy fallback only
     // while Datadog semantics are active.

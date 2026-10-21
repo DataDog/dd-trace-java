@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.cache.RadixTreeCache;
@@ -35,22 +34,6 @@ public final class OtelHttpSemantics {
 
   public static void setMethodResourceName(final AgentSpan span, final CharSequence method) {
     span.setResourceName(spanNameMethod(method), ResourceNamePriorities.HTTP_PATH_NORMALIZER);
-  }
-
-  public static void setClientUrl(final AgentSpan span, final URI url) {
-    // Use the object tag setter rather than the CharSequence overload, which checks length(), which
-    // would render the URL immediately.
-    span.setTag(KnownTags.HTTP_URL_ID, (Object) new ClientUrl(url));
-    if (Config.get().isHttpClientTagQueryString()) {
-      // QueryObfuscator scrubs this before rebuilding url.full and removes it from client spans.
-      // Decode rather than using getRawQuery(): the obfuscator matches literal parameter names, so
-      // a percent-encoded name such as t%6fken would hide the secret from it. This matches the
-      // query that non-OpenTelemetry client spans already carry in http.url.
-      final String query = url.getQuery();
-      if (query != null) {
-        span.setTag(KnownTags.URL_QUERY_ID, query);
-      }
-    }
   }
 
   public static String spanNameMethod(final CharSequence method) {
@@ -143,53 +126,6 @@ public final class OtelHttpSemantics {
     return parsePort(host.substring(colon + 1));
   }
 
-  public static void setServerAddressAndPort(
-      final AgentSpan span,
-      final String forwardedHostHeader,
-      final String forwardedPortHeader,
-      final String scheme,
-      final String requestHost,
-      final int requestPort) {
-    final String forwardedHost = forwardedValue(forwardedHostHeader);
-    String serverAddress = requestHost;
-    int hostPort = -1;
-
-    if (forwardedHost != null) {
-      serverAddress = forwardedHost;
-      if (forwardedHost.charAt(0) == '[') {
-        final int closingBracket = forwardedHost.indexOf(']');
-        if (closingBracket > 0) {
-          serverAddress = forwardedHost.substring(1, closingBracket);
-          if (closingBracket + 1 < forwardedHost.length()
-              && forwardedHost.charAt(closingBracket + 1) == ':') {
-            hostPort = parsePort(forwardedHost.substring(closingBracket + 2));
-          }
-        }
-      } else {
-        final int colon = forwardedHost.lastIndexOf(':');
-        if (colon > 0 && colon == forwardedHost.indexOf(':')) {
-          serverAddress = forwardedHost.substring(0, colon);
-          hostPort = parsePort(forwardedHost.substring(colon + 1));
-        }
-      }
-    }
-
-    if (serverAddress != null && !serverAddress.isEmpty()) {
-      span.setTag(KnownTags.Inbound.SERVER_ADDRESS_ID, serverAddress);
-    }
-
-    int serverPort = parsePort(forwardedValue(forwardedPortHeader));
-    if (serverPort <= 0) {
-      serverPort = hostPort;
-    }
-    if (serverPort <= 0) {
-      serverPort = forwardedHost == null && requestPort > 0 ? requestPort : serverPort(scheme, -1);
-    }
-    if (serverPort > 0) {
-      span.setTag(KnownTags.Inbound.SERVER_PORT_ID, serverPort);
-    }
-  }
-
   public static int parsePort(final String value) {
     if (value == null) {
       return -1;
@@ -207,26 +143,5 @@ public final class OtelHttpSemantics {
       port = port * 10 + (c - '0');
     }
     return port > 0 && port <= 65535 ? port : -1;
-  }
-
-  /** Defers client URL redaction and query removal until the URL is read. */
-  private static final class ClientUrl extends URIUtils.LazyUrl {
-    private final URI uri;
-
-    private ClientUrl(URI uri) {
-      super(null);
-      this.uri = uri;
-    }
-
-    @Override
-    public String path() {
-      return uri.getPath();
-    }
-
-    @Override
-    public String get() {
-      String value = lazy;
-      return value != null ? value : withoutQuery(redactedUrl(uri));
-    }
   }
 }
