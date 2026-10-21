@@ -5555,7 +5555,7 @@ public class Config {
     return version;
   }
 
-  /** Tags set on every span ({@code DD_SPAN_TAGS}), without the global tags. */
+  /** Tags set on every span ({@code DD_TRACE_SPAN_TAGS}), without the global tags. */
   public Map<String, String> getSpanTags() {
     return spanTags;
   }

@@ -222,8 +222,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final boolean apmTracingEnabled;
 
   /**
-   * Span defaults added to every span: {@code DD_SPAN_TAGS}, or the tags given to the builder.
-   * Unlike the global tags ({@code DD_TAGS}), remote config doesn't replace these.
+   * Span defaults added to every span: {@code DD_TRACE_SPAN_TAGS}, or the tags given to the
+   * builder. A remote config {@code tracing_tags} override replaces these along with the global
+   * tags while it's active.
    */
   private final TagMap defaultSpanTags;
 
@@ -2591,14 +2592,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     final Sampler sampler;
 
     /**
-     * The global tags ({@code DD_TAGS}, or their remote-config override), as given. These are what
-     * an OTLP export carries as resource attributes.
+     * The global tags ({@code DD_TAGS}, or their remote-config override, which keeps the configured
+     * {@code env} and {@code version}). These are what an OTLP export carries as resource
+     * attributes.
      */
     final TagMap globalTags;
 
     /**
      * The span defaults with the tracer-defined tags ({@code env}, {@code _dd.dsm.enabled}, ...),
-     * but without the global tags.
+     * but without the global tags. Only the tracer-defined tags while a remote config {@code
+     * tracing_tags} override is active.
      */
     final TagMap spanDefaultTags;
 
@@ -2632,8 +2635,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         mergedTracerTagsNeedsIntercept = oldSnapshot.mergedTracerTagsNeedsIntercept;
       } else {
         Config config = CoreTracer.this.initialConfig;
-        TagMap defaultSpanTags = CoreTracer.this.defaultSpanTags;
-        globalTags = TagMap.fromMapImmutable(getTracingTags());
+        Map<String, String> tracingTags = getTracingTags();
+        boolean overridden = !tracingTags.equals(config.getGlobalTags());
+        // A remote config tracing_tags override stands in for all the user's tags, span defaults
+        // included, until it's removed. It doesn't change the service's env or version.
+        TagMap defaultSpanTags = overridden ? TagMap.EMPTY : CoreTracer.this.defaultSpanTags;
+        globalTags =
+            overridden
+                ? withIdentityTags(tracingTags, config.getGlobalTags())
+                : TagMap.fromMapImmutable(tracingTags);
         spanDefaultTags = withTracerTags(defaultSpanTags, config, this);
 
         // span defaults take precedence over global tags
@@ -2645,6 +2655,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             CoreTracer.this.tagInterceptor.needsIntercept(mergedTracerTags);
       }
     }
+  }
+
+  /** {@code overrideTags} with the {@code env} and {@code version} from {@code configTags}. */
+  private static TagMap withIdentityTags(
+      Map<String, String> overrideTags, Map<String, String> configTags) {
+    TagMap result = TagMap.create(overrideTags.size() + 2);
+    result.putAll(overrideTags);
+    String env = configTags.get(Tags.ENV);
+    if (env != null) {
+      result.set(Tags.ENV, env);
+    }
+    String version = configTags.get(Tags.VERSION);
+    if (version != null) {
+      result.set(Tags.VERSION, version);
+    }
+    return result.freeze();
   }
 
   /**

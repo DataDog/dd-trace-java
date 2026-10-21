@@ -50,7 +50,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
@@ -601,13 +600,13 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   /**
    * Remote config {@code tracing_tags} overrides the global tags ({@code DD_TAGS}), and removing
    * the override restores them, matching system-tests' {@code
-   * TestDynamicConfigV2.test_tracing_client_tracing_tags}. Span tags ({@code DD_SPAN_TAGS}) are
-   * separate local config, so they're kept alongside the override.
+   * TestDynamicConfigV2.test_tracing_client_tracing_tags}. The override replaces the span tags
+   * ({@code DD_TRACE_SPAN_TAGS}) too.
    */
   @TableTest({
-    "scenario     | localTagsKey    | expectedWithOverride                  ",
-    "DD_TAGS      | tags            | [rc_key: rc_val]                      ",
-    "DD_SPAN_TAGS | trace.span.tags | [local_key: local_val, rc_key: rc_val]"
+    "scenario           | localTagsKey    | expectedWithOverride",
+    "DD_TAGS            | tags            | [rc_key: rc_val]    ",
+    "DD_TRACE_SPAN_TAGS | trace.span.tags | [rc_key: rc_val]    "
   })
   void remoteConfigTracingTagsOverrideGlobalTags(
       String scenario, String localTagsKey, Map<String, String> expectedWithOverride)
@@ -625,14 +624,9 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
         .when(poller)
         .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
-    Properties properties = new Properties();
-    properties.setProperty(localTagsKey, "local_key:local_val");
+    injectSysConfig(localTagsKey, "local_key:local_val");
     CoreTracer tracer =
-        CoreTracer.builder()
-            .withProperties(properties)
-            .sharedCommunicationObjects(sco)
-            .pollForTracingConfiguration()
-            .build();
+        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
     unclosedTracers.add(tracer);
 
     try {
@@ -656,7 +650,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
 
   /**
    * The config snapshot keeps the global tags apart from the span defaults, so an OTLP export can
-   * carry the global tags as resource attributes; remote config replaces only the global tags.
+   * carry the global tags as resource attributes. A remote config override replaces both.
    */
   @Test
   void configSnapshotSeparatesGlobalTagsFromSpanDefaults() throws Exception {
@@ -673,16 +667,12 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
         .when(poller)
         .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
-    Properties properties = new Properties();
-    properties.setProperty(GeneralConfig.TAGS, "global_key:global_val,shared_key:global_val");
-    properties.setProperty(TracerConfig.SPAN_TAGS, "span_key:span_val,shared_key:span_val");
-    properties.setProperty(GeneralConfig.ENV, "prod");
+    injectSysConfig(GeneralConfig.TAGS, "global_key:global_val,shared_key:global_val");
+    injectSysConfig(TracerConfig.SPAN_TAGS, "span_key:span_val,shared_key:span_val");
+    injectSysConfig(GeneralConfig.ENV, "prod");
+    injectSysConfig(GeneralConfig.VERSION, "1.2.3");
     CoreTracer tracer =
-        CoreTracer.builder()
-            .withProperties(properties)
-            .sharedCommunicationObjects(sco)
-            .pollForTracingConfiguration()
-            .build();
+        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
     unclosedTracers.add(tracer);
 
     try {
@@ -690,9 +680,13 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
           buildStringMap("span_key", "span_val", "shared_key", "span_val", "env", "prod");
 
       ConfigSnapshot config = tracer.captureTraceConfig();
-      // Config adds DD_ENV to the global tags
+      // Config adds DD_ENV and DD_VERSION to the global tags
       assertEquals(
-          buildStringMap("global_key", "global_val", "shared_key", "global_val", "env", "prod"),
+          buildStringMap(
+              "global_key", "global_val",
+              "shared_key", "global_val",
+              "env", "prod",
+              "version", "1.2.3"),
           config.globalTags);
       assertEquals(spanDefaults, config.spanDefaultTags);
       assertEquals(
@@ -708,15 +702,17 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
       capturedUpdater[0].commit(null);
 
       config = tracer.captureTraceConfig();
-      assertEquals(buildStringMap("rc_key", "rc_val"), config.globalTags);
-      assertEquals(spanDefaults, config.spanDefaultTags);
+      // the override keeps the configured env and version
       assertEquals(
-          buildStringMap(
-              "rc_key", "rc_val",
-              "span_key", "span_val",
-              "shared_key", "span_val",
-              "env", "prod"),
-          config.mergedTracerTags);
+          buildStringMap("rc_key", "rc_val", "env", "prod", "version", "1.2.3"), config.globalTags);
+      assertEquals(buildStringMap("env", "prod"), config.spanDefaultTags);
+      assertEquals(buildStringMap("rc_key", "rc_val", "env", "prod"), config.mergedTracerTags);
+
+      capturedUpdater[0].remove(key, null);
+      capturedUpdater[0].commit(null);
+
+      config = tracer.captureTraceConfig();
+      assertEquals(spanDefaults, config.spanDefaultTags);
     } finally {
       tracer.close();
     }
