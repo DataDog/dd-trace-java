@@ -1,10 +1,11 @@
 # How to Work with Gradle
 
 This guide covers Gradle best practices, how we apply them in this repository, and the
-constraints that currently require exceptions.
+constraints that currently require exceptions. Understanding these concepts will help
+you navigate the build system and contribute effectively.
 
-Update it when a change affects that shared advice. Keep details specific to one plugin
-or task beside its source or in local documentation.
+The guide describes shared practices and repository constraints. Details specific to one
+plugin or task belong beside its source or in local documentation.
 
 ## Quick Reference
 
@@ -34,30 +35,27 @@ or task beside its source or in local documentation.
 ## Gradle skills
 
 Gradle publishes a [best-practices skill](https://github.com/gradle/gradle-skills) for reviewing
-build scripts and plugin code. Run it in audit mode before an agent changes Gradle code in
-this repository. Review the code being changed and the modules that use it. Keep fixes
-within the requested task and report unrelated findings separately.
+build scripts and plugin code. In this repository, agent-assisted Gradle code changes require
+an audit of the affected code and its consuming modules with this skill. The requested task
+defines the scope of fixes; unrelated findings are reported separately.
 
-Install the whole skill, including its reference files. If it is missing or incomplete,
-read the [upstream installation instructions](https://github.com/gradle/gradle-skills#installation)
-and help the contributor install it for their agent. If installation cannot be completed
-in this session, provide the relevant commands and explain what is blocking it.
-Read-only investigation can continue; wait until the complete skill is available before
-editing Gradle code.
+The [upstream installation instructions](https://github.com/gradle/gradle-skills#installation)
+cover supported agents. A complete installation includes the skill's reference files.
+Without them, only read-only investigation is available until installation is complete.
 
-Check the skill's catalog version against our Gradle wrapper and the JVMs that run the
-affected code. Some recommendations may describe newer or nightly APIs.
+The skill's catalog may describe newer or nightly APIs. Its recommendations need to match
+our Gradle wrapper version and the JVMs that run the affected code.
 
 ## What are Gradle Files?
 
-Gradle builds are defined through a set of build scripts. These scripts can be written in two Domain Specific Languages (DSLs): **Groovy DSL** and **Kotlin DSL**.
+Gradle builds are defined through a set of build scripts. These scripts can be written in two Domain Specific Languages (DSLs): **Groovy DSL** (`*.gradle`) and **Kotlin DSL** (`*.gradle.kts`) .
 
 ### Groovy DSL
 
 The original Gradle DSL uses Groovy syntax. Files use the `.gradle` extension.
 
 Avoid Groovy DSL if you can, small project, however since the project still rely 
-heaviliy on _script plugins_ written in Groovy, this is not always straighforward to use Kotlin DSL.
+heavily on _script plugins_ written in Groovy, this is not always straightforward to use Kotlin DSL.
 
 ```Gradle
 plugins {
@@ -116,19 +114,39 @@ Gradle executes builds in distinct phases. Understanding this lifecycle is essen
 
 ### 1. Initialization Phase
 
-Gradle determines which projects are part of the build. It executes:
+Gradle runs init scripts, then evaluates the settings script to determine which projects belong
+to the build.
 
-- **`init.gradle`** (or scripts in `~/.gradle/init.d/`): Global initialization scripts that run before any project is evaluated
-- **`settings.gradle.kts`**: Defines the main repository project structure and discovers subprojects
+- **[Init scripts](https://docs.gradle.org/current/userguide/init_scripts.html)** can configure
+  a build without changing its build scripts. They can be passed with `--init-script` or loaded
+  from the Gradle user home's `init.d/` directory (`~/.gradle/init.d/` by default).
 
-```Gradle Kotlin DSL
-// settings.gradle.kts
-rootProject.name = "my-project"
+  For example, an init script can enable offline dependency resolution:
+  
+  ```Gradle Kotlin DSL
+  // offline.init.gradle.kts
+  gradle.startParameter.isOffline = true
+  ```
+  
+  ```bash
+  ./gradlew --init-script offline.init.gradle.kts build
+  ```  
 
-include("module-a")
-include("module-b")
-include("module-c:submodule")
-```
+  This invocation uses cached dependencies and fails if a required dependency is missing.
+
+
+- **`settings.gradle.kts`** defines the root project and includes subprojects.
+
+  The settings script defines the project structure:
+  
+  ```Gradle Kotlin DSL
+  // settings.gradle.kts
+  rootProject.name = "my-project"
+  
+  include(":module-a")
+  include(":module-b")
+  include(":module-c:submodule")
+  ```
 
 ### 2. Configuration Phase
 
@@ -184,36 +202,59 @@ Only tasks required to complete the requested goal are executed.
 
 In a well-organized Gradle project, build logic lives in specific places:
 
-| Location              | Purpose                                                            |
-|-----------------------|--------------------------------------------------------------------|
-| `settings.gradle.kts` | Project structure, repositories and plugin management              |
-| `build.gradle.kts`    | Configuration for one project                                      |
-| `buildSrc/`           | Build logic Gradle makes available automatically to the main build |
-| `build-logic/`        | Build logic included explicitly through plugin management          |
-| `gradle/`             | Version catalogs, wrapper files and remaining script plugins       |
+| Location              | Purpose                                                        |
+|-----------------------|----------------------------------------------------------------|
+| `settings.gradle.kts` | Project structure, repositories and plugin management          |
+| `build.gradle.kts`    | Configuration for one project                                  |
+| `buildSrc/`           | Legacy build logic, automatically available to the main build  |
+| `build-logic/`        | Build logic included explicitly through plugin management      |
+| `gradle/`             | Version catalogs, wrapper files and remaining *script plugins* |
 
 `buildSrc` and included builds have their own settings and dependencies. Repositories and
-version catalogs from the main build are not inherited; configure or import them explicitly.
+version catalogs from the main build are not inherited, so each build has its own declarations
+or explicit imports.
 
-New project-facing conventions usually belong in `build-logic`. `buildSrc` still holds
-plugins and shared types that need its classloader. Keep changes to existing plugins
-where they are unless the task includes moving them.
+Gradle [recommends an included `build-logic` build](https://docs.gradle.org/current/userguide/best_practices_structuring_builds.html#favor_composite_builds)
+for shared conventions. Its plugins have explicit dependencies and are added only to the
+projects that use them.
+This limits classpath coupling and can reduce build script recompilation when build logic
+changes. Plugins can also be built and tested independently.
+
+`buildSrc` is the legacy location for our build logic and remains supported by Gradle.
+
+Project build scripts and applied *script plugins* load `buildSrc` classes through a common
+parent classloader. We are replacing script plugins with convention plugins, using `buildSrc`
+as an intermediate step for conventions applied across all modules through existing scripts.
+Those scripts still need access to shared classes through that classloader, which currently
+prevents those classes from moving into `build-logic`. Independent conventions applied on
+demand can go directly into `build-logic`: explicit plugin requests provide their classpath
+to the consuming projects.
 
 > [!CAUTION]
-> Script plugins are not recommended. The best practice for developing our build logic in plugins is 
-> to create _convention plugins_ or _binary plugins_.
+> *Script plugins* are not recommended. Shared build logic belongs in _convention plugins_
+> or _binary plugins_.
 
 ### Running Build Logic Tests
 
-Use unit tests for helpers and TestKit for behaviour that depends on Gradle, such as task
-wiring and plugin application. Reuse the existing fixtures. When changing how plugins work
-together, test the relevant application orders and try a module that uses them.
+Unit tests cover helpers, while Gradle's TestKit covers behaviour that depends on Gradle.
+Simple declarative conventions may not need dedicated tests. Larger plugins with conditional
+behaviour benefit from functional tests covering:
+
+- Plugin application, including different application orders for interacting plugins
+- Configuration roles and dependency resolution
+- Task wiring, outcomes and generated files
+- Behaviour in a consuming module
+
+Existing fixtures provide the setup for these tests. Isolated Projects support is not currently
+required, but avoiding cross-project state reduces future migration work.
 See Gradle's [plugin testing guide](https://docs.gradle.org/current/userguide/testing_gradle_plugins.html).
 
-Check task outcomes and generated files as well as the build result. For configuration-cache
-changes, run the same task twice with `--configuration-cache` and check that the second run
-reuses the entry. For incremental changes, check that unchanged inputs leave the task
-`UP-TO-DATE` and changed inputs update its output. Use a clean fixture to check `FROM-CACHE`.
+Repeated runs exercise different behaviour:
+
+- `--rerun` on a task, or `--rerun-tasks` for all selected tasks, forces execution again.
+- Two identical runs with `--configuration-cache` show whether the second reuses the entry.
+- Unchanged inputs leave an incremental task `UP-TO-DATE`; changed inputs update its output.
+- Restoring outputs from a populated build cache into a clean fixture produces `FROM-CACHE`.
 
 Running `buildSrc/` tests within IntelliJ IDEA works without special treatment because the build
 detects the injected `idea.active` system property.
@@ -294,9 +335,10 @@ In custom tasks, use annotations to declare inputs and outputs:
 
 More annotations are documented [here](https://docs.gradle.org/current/userguide/implementing_custom_tasks.html#annotating_inputs_and_outputs).
 
-Give each task its own outputs and choose path sensitivity to match what it reads. For custom
-task classes, use `@CacheableTask` when the outputs are reproducible from the declared inputs,
-or `@DisableCachingByDefault` with a reason when caching is unsuitable.
+Each task owns its outputs, and path sensitivity reflects which parts of an input path affect
+the result. A custom task class can opt into build caching with `@CacheableTask` when its
+outputs are reproducible from its declared inputs. `@DisableCachingByDefault` records why
+caching is unsuitable otherwise.
 
 ##### In custom tasks declared with DSL
 
@@ -380,13 +422,15 @@ When running Gradle tasks, you'll see status labels indicating what happened dur
 
 ### Task Dependencies
 
-When a task reads another task's output, pass the output provider to the consuming task's
-input. Gradle can then infer the dependency; see [Using Providers](#using-providers).
-Keep an explicit `dependsOn` when a prerequisite has no output to wire, or when a lifecycle
-task collects other tasks.
+Gradle infers a task dependency when a producing task's output provider is connected to a
+consuming task's input. The declared inputs and outputs also support up-to-date checks;
+see [Using Providers](#using-providers).
+
+An explicit `dependsOn` schedules a prerequisite even when no artifact flows between tasks.
+Lifecycle tasks such as `check` and `build` use it to collect other tasks.
 
 `mustRunAfter` and `shouldRunAfter` only order tasks already selected to run. They do not
-schedule a prerequisite. Use `finalizedBy` for work such as cleanup that must follow a task,
+schedule a prerequisite. `finalizedBy` schedules follow-up work such as cleanup,
 including when that task fails. See [Controlling Task Execution](https://docs.gradle.org/current/userguide/controlling_task_execution.html).
 
 ### Tasks tips
@@ -1187,36 +1231,27 @@ common configuration patterns and can be applied like any other plugin.
 > Convention plugins promote consistency across modules. Instead of copy-pasting configuration,
 > define it once and apply it everywhere.
 
-### Keeping Plugins Independent
+### Plugin Boundaries
 
-Plugins in the same source root, including `buildSrc`, still have separate responsibilities.
-Use plugin IDs, documented extensions and Gradle model APIs to connect them. Depending on
-another plugin's implementation classes, internal helpers or undocumented task names makes
-either plugin harder to change. Share code when it represents the same knowledge and should change together;
-similar-looking code alone is not a reason to join two plugins.
+Plugins retain separate responsibilities even within `buildSrc`. Plugin IDs, documented
+extensions, properties, task paths and public Gradle APIs let them interact without depending
+on each other's implementation details. Shared code is useful when it represents knowledge
+that must change together across plugins.
 
-If a plugin requires another plugin, apply it explicitly with `pluginManager.apply`.
-For an optional integration, use `pluginManager.withPlugin` so it works in either application
-order. A one-time `hasPlugin` check misses plugins applied later.
-
-Use public Gradle APIs and keep configuration in the plugin that owns it. Prefer providers
-and plugin callbacks to `afterEvaluate` or changing another project's model. Keep plugin
-dependencies on the build classpath so they do not become application or agent dependencies.
 See Gradle's [plugin development guide](https://docs.gradle.org/current/userguide/implementing_gradle_plugins_binary.html).
 
 ### Dependencies on Main Projects
 
-As a rule of thumb, keep build tooling independent of production-module code. Avoid importing
-or copying production classes into plugin implementations. Supply required files and artifacts
-through declared task inputs. Document why an exception is needed.
+Build tooling remains independent of production code. The tasks it registers can consume
+production artifacts through declared inputs. Convention plugins can also declare
+[project dependencies](https://docs.gradle.org/current/userguide/multi_project_builds.html)
+for the projects they configure.
 
-Keep reusable plugins independent of project names and repository layout. Put references to
-concrete project paths in module-specific conventions or the consuming build.
+Concrete project paths usually belong in the consuming build, keeping reusable plugins
+independent of the repository layout. Exceptions have a documented reason.
 
-A convention can still declare [project dependencies](https://docs.gradle.org/current/userguide/multi_project_builds.html)
-for the project it configures. These belong to the consuming project, rather than the build
-tooling's own dependencies. Gradle orders the corresponding build tasks, which works with
-[`buildSrc` being compiled before the main build scripts are evaluated](https://docs.gradle.org/current/userguide/sharing_build_logic_between_subprojects.html).
+[`buildSrc` is compiled before the main build scripts are evaluated](https://docs.gradle.org/current/userguide/sharing_build_logic_between_subprojects.html).
+Gradle schedules tasks for project dependencies as part of the main build.
 
 ### Project Convention Plugins
 
@@ -1333,7 +1368,7 @@ Script plugins are standalone `.gradle` or `.gradle.kts` files that can be appli
 apply(from = "$rootDir/gradle/some-script.gradle")
 ```
 
-As warned, don't wrtite new ones, use convention plugins instead !
+As warned, don't write new ones, use convention plugins instead !
 
 - **No type safety**: When written in Groovy DSL, you lose IDE support and compile-time checking
 - **Mixed DSL confusion**: Projects often end up with a mix of Groovy and Kotlin scripts
@@ -1455,22 +1490,40 @@ tasks.withType<JavaCompile>().configureEach {
 
 ### Using Providers
 
-Pass providers through to properties and file collections that accept them. Use `map` to
-transform a value and `flatMap` when the result is itself a provider, such as a task's
-output property.
+A provider represents a value that Gradle can query when needed. Properties and file
+collections that accept providers retain this connection without reading the value immediately.
+`map` transforms a value; `flatMap` connects to another provider, such as a task's output property.
 
-With the Java plugin applied, this copies its JAR without resolving the path during configuration:
+With the Java plugin applied, these examples show eager and lazy access to its JAR:
 
 ```Gradle Kotlin DSL
+// ❌ Eager - reads the archive path while configuring this task
+tasks.register<Copy>("stageJarEager") {
+    from(tasks.named<Jar>("jar").get().archiveFile.get())
+    into(layout.buildDirectory.dir("staged-eager"))
+}
+
+// ✅ Lazy - preserves the output provider and its dependency on the jar task
 tasks.register<Copy>("stageJar") {
     from(tasks.named<Jar>("jar").flatMap { it.archiveFile })
     into(layout.buildDirectory.dir("staged"))
 }
 ```
 
-Check the receiving API before passing it a provider. An `Any` or `Object` parameter may
-turn it into a string instead of reading its value. For JVM arguments, see
-[Lazy JVM Arguments and System Properties](#lazy-jvm-arguments-and-system-properties).
+The lazy version also carries the producer dependency, so Gradle runs `jar` before `stageJar`.
+The eager version passes only a file path and loses that dependency information.
+
+> [!TIP]
+> Kotlin DSL supports `=` for Gradle lazy properties, for example `archiveFileName = provider { "app.jar" }`.
+> This has the same effect as `archiveFileName.set(provider { "app.jar" })`.
+
+Provider support depends on the receiving API. Some APIs with `Any` or `Object` parameters
+convert a provider to a string instead of reading its value. JVM arguments are one example;
+see [Lazy JVM Arguments and System Properties](#lazy-jvm-arguments-and-system-properties).
+
+> [!TIP]
+> Existing `afterEvaluate` blocks can often be refactored away using providers,
+> lazy task configuration and plugin callbacks.
 
 ### Lazy JVM Arguments and System Properties
 
