@@ -33,7 +33,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -169,6 +172,65 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
     assertNotEquals(0L, third.getHash());
     assertEquals(55L, third.getPathwayLatencyNano());
     assertEquals(30L, third.getEdgeLatencyNano());
+  }
+
+  @Test
+  void hashesMatchReferenceImplementation() throws IOException {
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    DefaultPathwayContext context = new DefaultPathwayContext(timeSource, null);
+    DataStreamsTags[] chain = {
+      DataStreamsTags.create("kafka", DataStreamsTags.Direction.OUTBOUND, "topic", "group", null),
+      DataStreamsTags.create("kafka", DataStreamsTags.Direction.INBOUND, "topic", "group", null),
+      DataStreamsTags.create("kafka", DataStreamsTags.Direction.INBOUND, "topic", "group", null),
+      DataStreamsTags.create("kafka", DataStreamsTags.Direction.OUTBOUND, "other", "group", null)
+    };
+
+    long parent = 0;
+    long closestOpposite = 0;
+    DataStreamsTags.Direction previous = null;
+    for (DataStreamsTags tags : chain) {
+      timeSource.advance(10);
+      context.setCheckpoint(fromTags(tags), pointConsumer);
+      StatsPoint point = pointConsumer.points.get(pointConsumer.points.size() - 1);
+
+      if (tags.getDirectionValue() == previous && previous != null) {
+        parent = closestOpposite;
+      } else {
+        previous = tags.getDirectionValue();
+        closestOpposite = parent;
+      }
+      ByteBuffer buffer = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN);
+      buffer.putLong(tags.getHash()).putLong(parent);
+      long expectedHash = FNV64Hash.generateHash(buffer.array(), FNV64Hash.Version.v1);
+      long expectedAggregation =
+          FNV64Hash.continueHash(
+              tags.getAggregationHash(),
+              DataStreamsTags.longToBytes(expectedHash),
+              FNV64Hash.Version.v1);
+
+      assertEquals(expectedHash, point.getHash());
+      assertEquals(parent, point.getParentHash());
+      assertEquals(expectedAggregation, point.getAggregationHash());
+      parent = expectedHash;
+    }
+    assertNotNull(context.encode());
+  }
+
+  @Test
+  void decodedContextCanBeCheckpointedAndEncoded() throws IOException {
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    DefaultPathwayContext context = new DefaultPathwayContext(timeSource, null);
+    timeSource.advance(10);
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", null)), pointConsumer);
+    String encoded = context.encode();
+
+    DefaultPathwayContext decoded = DefaultPathwayContext.decode(timeSource, null, encoded);
+    assertEquals(encoded, decoded.encode());
+    timeSource.advance(10);
+    decoded.setCheckpoint(
+        fromTags(DataStreamsTags.create("kafka", DataStreamsTags.Direction.INBOUND)),
+        pointConsumer);
+    assertNotNull(decoded.encode());
   }
 
   @Test

@@ -27,8 +27,7 @@ public class DefaultPathwayContext implements PathwayContext {
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
   private final TimeSource timeSource;
   private final String serviceNameOverride;
-  private final GrowingByteArrayOutput outputBuffer =
-      GrowingByteArrayOutput.withInitialCapacity(20);
+  private GrowingByteArrayOutput outputBuffer;
 
   // pathwayStartNanos is nanoseconds since epoch
   // Nano ticks is necessary because time differences should use a monotonically increasing clock
@@ -118,10 +117,8 @@ public class DefaultPathwayContext implements PathwayContext {
 
     long newHash = generatePathwayHash(nodeHash, hash);
     long aggregationHash =
-        FNV64Hash.continueHash(
-            context.tags().getAggregationHash(),
-            DataStreamsTags.longToBytes(newHash),
-            FNV64Hash.Version.v1);
+        FNV64Hash.continueHashLongBE(
+            context.tags().getAggregationHash(), newHash, FNV64Hash.Version.v1);
 
     long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
     long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -163,6 +160,9 @@ public class DefaultPathwayContext implements PathwayContext {
       throw new IllegalStateException("Context must be started to encode");
     }
 
+    if (outputBuffer == null) {
+      outputBuffer = GrowingByteArrayOutput.withInitialCapacity(20);
+    }
     outputBuffer.clear();
     outputBuffer.writeLongLE(hash);
 
@@ -266,9 +266,6 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private long generatePathwayHash(long nodeHash, long parentHash) {
-    outputBuffer.clear();
-    outputBuffer.writeLongLE(nodeHash);
-    outputBuffer.writeLongLE(parentHash);
-    return FNV64Hash.generateHash(outputBuffer.backingArray(), 0, 16, FNV64Hash.Version.v1);
+    return FNV64Hash.generateHashLongsLE(nodeHash, parentHash, FNV64Hash.Version.v1);
   }
 }

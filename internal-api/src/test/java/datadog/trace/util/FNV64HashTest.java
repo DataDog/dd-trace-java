@@ -1,12 +1,19 @@
 package datadog.trace.util;
 
 import static datadog.trace.util.FNV64Hash.continueHash;
+import static datadog.trace.util.FNV64Hash.continueHashLongBE;
+import static datadog.trace.util.FNV64Hash.continueHashLongLE;
 import static datadog.trace.util.FNV64Hash.generateHash;
+import static datadog.trace.util.FNV64Hash.generateHashLongsLE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.util.FNV64Hash.Version;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Random;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -256,5 +263,25 @@ class FNV64HashTest {
       result[i] = (byte) values[i];
     }
     return result;
+  }
+
+  @Test
+  void longHelpersMatchByteArrayVariants() {
+    Random random = new Random(42);
+    long[] values = {0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE, 1L, 0x0102030405060708L};
+    for (Version version : Version.values()) {
+      for (int i = 0; i < 1000 + values.length; i++) {
+        long first = i < values.length ? values[i] : random.nextLong();
+        long second = i < values.length ? values[values.length - 1 - i] : random.nextLong();
+        byte[] le = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(first).array();
+        byte[] le2 = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(second).array();
+        byte[] be = ByteBuffer.allocate(8).order(ByteOrder.BIG_ENDIAN).putLong(first).array();
+        byte[] both = ByteBuffer.allocate(16).put(le).put(le2).array();
+
+        assertEquals(generateHash(both, version), generateHashLongsLE(first, second, version));
+        assertEquals(continueHash(second, le, version), continueHashLongLE(second, first, version));
+        assertEquals(continueHash(second, be, version), continueHashLongBE(second, first, version));
+      }
+    }
   }
 }

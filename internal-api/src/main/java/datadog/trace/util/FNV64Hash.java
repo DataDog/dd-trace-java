@@ -45,6 +45,47 @@ public class FNV64Hash {
     }
   }
 
+  /**
+   * Same as {@link #generateHash(byte[], Version)} over the 8 little-endian bytes of each value.
+   */
+  public static long generateHashLongsLE(long first, long second, Version version) {
+    return continueHashLongLE(continueHashLongLE(FNV_INIT, first, version), second, version);
+  }
+
+  /** Same as {@link #continueHash(long, byte[], Version)} over the 8 little-endian value bytes. */
+  public static long continueHashLongLE(long currentHash, long value, Version version) {
+    long hash = currentHash;
+    if (version == Version.v1) {
+      for (int shift = 0; shift < 64; shift += 8) {
+        hash *= FNV_PRIME;
+        hash ^= (value >>> shift) & 0xffL;
+      }
+    } else {
+      for (int shift = 0; shift < 64; shift += 8) {
+        hash ^= (value >>> shift) & 0xffL;
+        hash *= FNV_PRIME;
+      }
+    }
+    return hash;
+  }
+
+  /** Same as {@link #continueHash(long, byte[], Version)} over the 8 big-endian value bytes. */
+  public static long continueHashLongBE(long currentHash, long value, Version version) {
+    long hash = currentHash;
+    if (version == Version.v1) {
+      for (int shift = 56; shift >= 0; shift -= 8) {
+        hash *= FNV_PRIME;
+        hash ^= (value >>> shift) & 0xffL;
+      }
+    } else {
+      for (int shift = 56; shift >= 0; shift -= 8) {
+        hash ^= (value >>> shift) & 0xffL;
+        hash *= FNV_PRIME;
+      }
+    }
+    return hash;
+  }
+
   private static long generateFNV1Hash(long currentHash, byte[] data, int start, int length) {
     long hash = currentHash;
 
