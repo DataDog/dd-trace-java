@@ -4,7 +4,7 @@
 # Build
 develocity = "4.6.0"
 forbiddenapis = "3.11"
-gradle-tooling-api = "8.14.5"
+gradle-tooling-api = "8.14.6"
 jsr305 = "3.0.2"
 shadow = "9.4.2"
 spotbugs_annotations = "4.10.4"

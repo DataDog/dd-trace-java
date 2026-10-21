@@ -9,22 +9,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import datadog.trace.api.DDTags;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.util.NonRetryable;
-import java.nio.file.Path;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @NonRetryable
 public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest {
 
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
-    commandParams.add("-Ddd.code.origin.for.spans.enabled=true");
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+  @BeforeEach
+  public void beforeEach() {
+    additionalJvmArgs.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+    additionalJvmArgs.add("-Ddd.code.origin.for.spans.enabled=true");
   }
 
   @Test

@@ -20,7 +20,6 @@ import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,17 +37,10 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
   @Override
   void setup(TestInfo testInfo) throws Exception {
     super.setup(testInfo);
-    appUrl = startAppAndAndGetUrl();
-  }
-
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+    additionalJvmArgs.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
     // increase eval timeout for decoration evaluations
-    commandParams.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=100");
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+    additionalJvmArgs.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=100");
+    appUrl = startAppAndAndGetUrl();
   }
 
   @Test

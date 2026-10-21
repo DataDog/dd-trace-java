@@ -59,4 +59,10 @@ public class CapturedSnapshot05 {
       this.additionalMsg = additionalMsg;
     }
   }
+
+  static String multiLineExpression(String arg) {
+    StringBuilder sb = new StringBuilder(
+        arg.substring(0, 1)); // beae1817-f3b0-4ea8-a74f-000000000004
+    return sb.toString();
+  }
 }

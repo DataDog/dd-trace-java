@@ -28,6 +28,79 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     TEST_WRITER.get(0).get(0).operationName.toString() == "parent"
   }
 
+  def "empty withContext preserves thread context callbacks"() {
+    when:
+    getCoreKotlinCoroutineTestsInstance(Dispatchers.Default).emptyWithContextPreservesFastPath()
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "withContext with a replaced Job keeps an early-finished root open nonCancellable=#nonCancellable #dispatcherName"() {
+    when:
+    getCoreKotlinCoroutineTestsInstance(dispatcher).withContextWithReplacedJobKeepsEarlyFinishedRootOpen(nonCancellable)
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.size() == 1
+    def trace = TEST_WRITER.get(0)
+    trace.size() == 3
+    findSpan(trace, "late-child").parentId == findSpan(trace, "early-root").spanId
+    findSpan(trace, "after-context").parentId == findSpan(trace, "early-root").spanId
+
+    where:
+    [dispatcherName, dispatcher, nonCancellable] << dispatchersToTest.collectMany { [it + false, it + true] }
+  }
+
+  def "child launched inside withContext inherits an early-finished root #dispatcherName"() {
+    when:
+    getCoreKotlinCoroutineTestsInstance(dispatcher).withContextChildInheritsEarlyFinishedRoot()
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.size() == 1
+    def trace = TEST_WRITER.get(0)
+    trace.size() == 3
+    findSpan(trace, "late-child").parentId == findSpan(trace, "early-root").spanId
+    findSpan(trace, "after-context").parentId == findSpan(trace, "early-root").spanId
+
+    where:
+    [dispatcherName, dispatcher] << dispatchersToTest
+  }
+
+  def "flowOn preserves a locally activated root unchangedContext=#unchangedContext suspendFlow=#suspendFlow"() {
+    when:
+    getCoreKotlinCoroutineTestsInstance(Dispatchers.Default).flowWithLocallyActivatedRoot(unchangedContext, suspendFlow)
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.size() == 1
+    def trace = TEST_WRITER.get(0)
+    trace.size() == 4
+    ["flow-child", "collect-child", "after-flow"].each {
+      assert findSpan(trace, it).parentId == findSpan(trace, "flow-root").spanId
+    }
+
+    where:
+    unchangedContext | suspendFlow
+    false            | false
+    false            | true
+    true             | false
+    true             | true
+  }
+
+  def "flow still rejects an invalid emission context kind=#kind"() {
+    when:
+    getCoreKotlinCoroutineTestsInstance(Dispatchers.Default).flowEmissionInContext(kind, false)
+
+    then:
+    def error = thrown(IllegalStateException)
+    error.message.startsWith("Flow invariant is violated")
+
+    where:
+    kind << ["equal-name", "changed-name", "changed-dispatcher", "mdc", "launch"]
+  }
+
   @Shared
   static dispatchersToTest = [
     ['default', Dispatchers.Default],
