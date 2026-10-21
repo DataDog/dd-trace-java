@@ -10,6 +10,7 @@
 #      TIMEIT_OUTPUT (default results.java.<scenario>.json in this folder)
 #      PROFILE=1 -> JFR over the timed produce+consume phases only; PROFILE_OUTPUT (.jfr path),
 #                   plus <PROFILE_OUTPUT minus .jfr>.top.txt hot-method text
+#      HEAP_MB=512 -> fixed heap (-Xms=-Xmx) used in all scenarios, with -XX:NativeMemoryTracking=summary
 #      DD_JAVA_AGENT overrides the agent jar; DD_TRACE_AGENT_URL (default mock agent 127.0.0.1:18127)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -42,7 +43,10 @@ else
   AGENT_ARGS=()
 fi
 
-java ${AGENT_ARGS[@]+"${AGENT_ARGS[@]}"} -cp "$CP" bench.Bench
+# Fixed heap (Xms=Xmx, no AlwaysPreTouch) + NMT so memory is comparable across scenarios.
+JVM_MEM_ARGS=(-Xms${HEAP_MB:-512}m -Xmx${HEAP_MB:-512}m -XX:NativeMemoryTracking=summary)
+
+java "${JVM_MEM_ARGS[@]}" ${AGENT_ARGS[@]+"${AGENT_ARGS[@]}"} -cp "$CP" bench.Bench
 
 if [ "$PROFILE" = 1 ]; then
   uv run --no-project python "$HERE/jfr_top.py" "$PROFILE_OUTPUT" > "${PROFILE_OUTPUT%.jfr}.top.txt"

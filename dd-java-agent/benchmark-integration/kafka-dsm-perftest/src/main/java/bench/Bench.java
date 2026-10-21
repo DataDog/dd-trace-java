@@ -33,6 +33,26 @@ public class Bench {
             .start().getInputStream().readAllBytes()).trim()) / 1024.0;
   }
 
+  /** Total committed memory (MB) reported by Native Memory Tracking (includes the Java heap). */
+  static double nmtCommittedMb() throws Exception {
+    Process p = new ProcessBuilder(
+            Path.of(System.getProperty("java.home"), "bin", "jcmd").toString(),
+            String.valueOf(ProcessHandle.current().pid()), "VM.native_memory", "summary", "scale=KB")
+        .redirectErrorStream(true).start();
+    String out = new String(p.getInputStream().readAllBytes());
+    java.util.regex.Matcher m =
+        java.util.regex.Pattern.compile("Total: reserved=\\d+KB, committed=(\\d+)KB").matcher(out);
+    if (!m.find()) throw new IllegalStateException("NMT total not found: " + out);
+    return Long.parseLong(m.group(1)) / 1024.0;
+  }
+
+  /** Heap used (MB) after an explicit GC. */
+  static double heapUsedAfterGcMb() {
+    System.gc();
+    Runtime rt = Runtime.getRuntime();
+    return (rt.totalMemory() - rt.freeMemory()) / (1024.0 * 1024.0);
+  }
+
   static Recording startRecording() {
     Recording rec = new Recording();
     rec.enable("jdk.ExecutionSample").withPeriod(Duration.ofMillis(1));
@@ -121,8 +141,13 @@ public class Bench {
       runs.append(String.format(Locale.ROOT, "{\"produce_ms\":%f,\"consume_ms\":%f}", r[0], r[1]));
     }
     if (PROFILE) mergeRecordings();
+    double heapUsedMb = heapUsedAfterGcMb();
+    double nmtMb = nmtCommittedMb();
+    double finalRss = rssMb();
     try (FileWriter w = new FileWriter(OUT)) {
-      w.write("{\"runs\":[" + runs + "],\"max_rss_mb\":" + maxRss + ",\"commit_every\":" + COMMIT_EVERY + "}");
+      w.write("{\"runs\":[" + runs + "],\"max_rss_mb\":" + maxRss + ",\"final_rss_mb\":" + finalRss
+          + ",\"heap_used_after_gc_mb\":" + heapUsedMb + ",\"nmt_committed_mb\":" + nmtMb
+          + ",\"commit_every\":" + COMMIT_EVERY + "}");
     }
     System.exit(0);
   }

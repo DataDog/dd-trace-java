@@ -38,11 +38,16 @@ teardown. `WARMUP` iterations are discarded, `COUNT` are timed.
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` |
 | `KAFKA_TOPIC` | `benchmark-topic-java-<scenario>-<slug>` (`+` → `plus`; run/iteration suffix appended) |
 | `TIMEIT_OUTPUT` | `results.java.<scenario>.json` (in this folder) |
+| `HEAP_MB` | 512 |
 | `PROFILE` | 0; `1` records JFR |
 | `PROFILE_OUTPUT` | `profile.java.<scenario>.jfr` (in this folder) |
 
-Output JSON: `{"runs":[{"produce_ms":..,"consume_ms":..},..],"max_rss_mb":..,"commit_every":..}`;
-`max_rss_mb` is the max RSS (via `ps`) sampled after every timed iteration.
+Output JSON: `{"runs":[{"produce_ms":..,"consume_ms":..},..],"max_rss_mb":..,"final_rss_mb":..,
+"heap_used_after_gc_mb":..,"nmt_committed_mb":..,"commit_every":..}`; `max_rss_mb` is the max RSS
+(via `ps`) sampled after every timed iteration. All scenarios run with a fixed heap
+(`-Xms=-Xmx=$HEAP_MB`, default 512m, no AlwaysPreTouch) and `-XX:NativeMemoryTracking=summary`;
+`heap_used_after_gc_mb` is measured after an explicit GC and `nmt_committed_mb` is the NMT total
+committed (incl. heap) at the end of the run. Memory overhead is computed from `nmt_committed_mb`.
 
 ## Profiling
 
