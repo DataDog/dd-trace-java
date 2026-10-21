@@ -36,7 +36,6 @@ com.google.j2objc:j2objc-annotations:3.1=jmhRuntimeClasspath,testCompileClasspat
 com.google.re2j:re2j:1.8=jmhRuntimeClasspath,testRuntimeClasspath
 com.squareup.moshi:moshi:1.11.0=compileClasspath,jmhCompileClasspath,jmhRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.squareup.okhttp3:logging-interceptor:3.12.12=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-com.squareup.okhttp3:mockwebserver:3.12.12=jmhRuntimeClasspath
 com.squareup.okhttp3:okhttp:3.12.12=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.squareup.okio:okio:1.17.5=compileClasspath,jmhCompileClasspath,jmhRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.thoughtworks.qdox:qdox:1.12.1=codenarc
