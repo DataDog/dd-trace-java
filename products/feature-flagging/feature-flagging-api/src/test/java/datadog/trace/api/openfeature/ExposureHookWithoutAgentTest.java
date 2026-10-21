@@ -2,6 +2,7 @@ package datadog.trace.api.openfeature;
 
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.openfeature.sdk.EvaluationContext;
@@ -12,6 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -54,6 +56,28 @@ class ExposureHookWithoutAgentTest {
         evaluationClass.getMethod("getFeatures").invoke(evaluation));
   }
 
+  @Test
+  void debugLoggingIsDisabledWithoutAgentConfiguration() throws Exception {
+    String previousDebug = System.getProperty("dd.trace.debug");
+    System.setProperty("dd.trace.debug", "true");
+    try {
+      ClassLoader loader = new AgentlessClassLoader(getClass().getClassLoader());
+      Class<?> loggerClass = Class.forName(DiagnosticLogger.class.getName(), true, loader);
+      Method getLogger = loggerClass.getMethod("getLogger", Class.class);
+      getLogger.setAccessible(true);
+      Object logger = getLogger.invoke(null, getClass());
+      Method isDebugEnabled = loggerClass.getMethod("isDebugEnabled");
+      isDebugEnabled.setAccessible(true);
+      assertFalse((Boolean) isDebugEnabled.invoke(logger));
+    } finally {
+      if (previousDebug == null) {
+        System.clearProperty("dd.trace.debug");
+      } else {
+        System.setProperty("dd.trace.debug", previousDebug);
+      }
+    }
+  }
+
   private static final class AgentlessClassLoader extends ClassLoader {
     AgentlessClassLoader(final ClassLoader parent) {
       super(parent);
@@ -63,7 +87,8 @@ class ExposureHookWithoutAgentTest {
     protected Class<?> loadClass(final String name, final boolean resolve)
         throws ClassNotFoundException {
       synchronized (getClassLoadingLock(name)) {
-        if (name.startsWith("datadog.trace.api.featureflag.")
+        if (name.startsWith("datadog.trace.bootstrap.config.")
+            || name.startsWith("datadog.trace.api.featureflag.")
             || name.startsWith("datadog.trace.api.openfeature.DDEvaluator")) {
           throw new ClassNotFoundException(name);
         }

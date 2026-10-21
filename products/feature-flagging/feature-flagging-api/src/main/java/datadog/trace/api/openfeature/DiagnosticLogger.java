@@ -1,5 +1,6 @@
 package datadog.trace.api.openfeature;
 
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,9 +11,11 @@ import org.slf4j.LoggerFactory;
  */
 final class DiagnosticLogger {
   private final Logger delegate;
+  private final boolean traceDebugEnabled;
 
   private DiagnosticLogger(Logger delegate) {
     this.delegate = delegate;
+    this.traceDebugEnabled = readTraceDebugEnabled();
   }
 
   public static DiagnosticLogger getLogger(Class<?> type) {
@@ -25,9 +28,18 @@ final class DiagnosticLogger {
     return new DiagnosticLogger(logger);
   }
 
+  private static boolean readTraceDebugEnabled() {
+    try {
+      return ConfigProvider.getInstance().getBoolean("trace.debug", false);
+    } catch (Throwable ignored) {
+      // Configuration may be unavailable without an agent or with an older agent.
+      return false;
+    }
+  }
+
   public boolean isDebugEnabled() {
     try {
-      return delegate != null && delegate.isDebugEnabled();
+      return traceDebugEnabled && delegate != null && delegate.isDebugEnabled();
     } catch (Throwable ignored) {
       return false;
     }
@@ -35,7 +47,7 @@ final class DiagnosticLogger {
 
   public void debug(String message) {
     try {
-      if (delegate != null) {
+      if (traceDebugEnabled && delegate != null) {
         delegate.debug(message);
       }
     } catch (Throwable ignored) {
@@ -45,7 +57,7 @@ final class DiagnosticLogger {
 
   public void debug(String message, Object argument) {
     try {
-      if (delegate != null) {
+      if (traceDebugEnabled && delegate != null) {
         delegate.debug(message, argument);
       }
     } catch (Throwable ignored) {
@@ -55,7 +67,7 @@ final class DiagnosticLogger {
 
   public void debug(String message, Object first, Object second) {
     try {
-      if (delegate != null) {
+      if (traceDebugEnabled && delegate != null) {
         delegate.debug(message, first, second);
       }
     } catch (Throwable ignored) {
@@ -65,7 +77,7 @@ final class DiagnosticLogger {
 
   public void debug(String message, Object... arguments) {
     try {
-      if (delegate != null) {
+      if (traceDebugEnabled && delegate != null) {
         delegate.debug(message, arguments);
       }
     } catch (Throwable ignored) {

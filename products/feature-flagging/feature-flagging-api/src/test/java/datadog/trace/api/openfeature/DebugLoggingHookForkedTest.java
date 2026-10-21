@@ -56,7 +56,11 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.tabletest.junit.TableTest;
 
-class DebugLoggingHookTest {
+class DebugLoggingHookForkedTest {
+  static {
+    System.setProperty("dd.trace.debug", "true");
+  }
+
   private final Logger logger = (Logger) LoggerFactory.getLogger(DebugLoggingHook.class);
   private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
   private Level previousLevel;

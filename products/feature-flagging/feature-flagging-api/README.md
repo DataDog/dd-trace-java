@@ -259,6 +259,9 @@ This setting stops exposures only. Flag evaluation events have their own setting
 Set `DD_TRACE_DEBUG=true` for the Java agent's configuration, writer, and transport logs.
 Also enable DEBUG for `datadog.trace.api.openfeature` in the application's SLF4J backend **before
 constructing `Provider`**. The provider and agent have separate logging backends;
+provider debug logs require both `DD_TRACE_DEBUG=true` (or `-Ddd.trace.debug=true`) and an
+application logger that permits DEBUG. The trace debug setting defaults to false and is cached
+when provider loggers are initialized; changing it requires restarting the application.
 `DD_TRACE_DEBUG` does not change application logger levels. No additional flag evaluation data
 setting is required for raw debug logs, including when `observe_full_evaluation_data` is false.
 That metadata setting continues to govern evaluation telemetry independently.
@@ -340,8 +343,11 @@ Look for these diagnostic boundaries:
   flight. Pending exposures are **not flushed**. The processor reports completion separately,
   after any in-flight delivery outcome, with the counts left in its queue and buffer.
 
-To disable these diagnostics, turn off `DD_TRACE_DEBUG`, restore the application category to INFO,
-and recreate the provider. When DEBUG is off, raw values and context are not traversed or formatted.
+To disable these debug diagnostics, set `DD_TRACE_DEBUG=false` and restart the application
+(without a conflicting `-Ddd.trace.debug=true` override). Provider debug logs are suppressed even
+if the application logger remains at DEBUG. Lowering the application category to INFO also
+suppresses provider debug logs immediately. When either gate is off, raw values and context are
+not traversed or formatted. WARN, INFO, and ERROR messages retain their normal logging behavior.
 Logger and diagnostic formatting failures are isolated from provider and delivery behavior.
 
 ### Java scenario coverage
@@ -356,18 +362,19 @@ not certification that every acceptance scenario has passed against a deployed A
 | C. Usable configuration + identity | Present | Parser summaries, `RemoteConfigServiceImplTest`, agentless apply/retain/ETag logs |
 | D. Environment mismatch | Present | Separate SDK, URL-requested and delivered environment fields |
 | E. Readiness/recovery | Present | `ProviderTest`, initial subscription availability and recovery logs |
-| F. Raw evaluation details | Present | `DebugLoggingHookTest`: raw values, nested objects, defaults, context, errors, hook failure, configuration identity |
+| F. Raw evaluation details | Present | `DebugLoggingHookForkedTest`: raw values, nested objects, defaults, context, errors, hook failure, configuration identity |
 | G. Exposure lifecycle | Present | `ExposureWriterTests`, provider suppression and listener dispatch logs |
 | H. Shutdown outcome | Present | Source stop, provider detach, exposure shutdown request and worker completion/delivery logs |
 | I. Enable/find logs | Present | Exact startup switches, SLF4J configuration, categories and destinations above |
 | J. Debug-off overhead | Present | Hook registration gate and tests that forbid context/result inspection with DEBUG off |
-| K. Logger-failure isolation | Present | `DebugLoggingHookTest` and `DiagnosticIsolationTest`: throwing backends and level checks across lifecycle and delivery |
+| K. Logger-failure isolation | Present | `DebugLoggingHookForkedTest` and `DiagnosticIsolationTest`: throwing backends and level checks across lifecycle and delivery |
 
 Run the focused suites with:
 
 ```shell
 git submodule update --init -- dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data
 ./gradlew :products:feature-flagging:feature-flagging-api:test \
+  :products:feature-flagging:feature-flagging-api:forkedTest \
   :products:feature-flagging:feature-flagging-lib:test \
   :products:feature-flagging:feature-flagging-agent:test -PtestJvm=11
 ```
