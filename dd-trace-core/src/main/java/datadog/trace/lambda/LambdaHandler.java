@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.communication.http.ForbiddenCertificatesHostnameVerifier;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -54,6 +55,7 @@ public class LambdaHandler {
 
   private static OkHttpClient HTTP_CLIENT =
       new OkHttpClient.Builder()
+          .hostnameVerifier(ForbiddenCertificatesHostnameVerifier.INSTANCE)
           .retryOnConnectionFailure(true)
           .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
           .writeTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
