@@ -50,6 +50,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
@@ -74,6 +75,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
   private final Thread thread;
+  private final Consumer<StatsPoint> addPoint = this::add;
   private final DataStreamsPropagator propagator;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;
@@ -308,10 +310,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
     PathwayContext pathwayContext = span.spanContext().getPathwayContext();
     if (pathwayContext != null) {
-      pathwayContext.setCheckpoint(context, this::add);
+      pathwayContext.setCheckpoint(context, addPoint);
       long pathwayHash = pathwayContext.getHash();
       if (pathwayHash != 0) {
-        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayHash));
+        span.setTag(PATHWAY_HASH, PathwayHashStrings.toUnsignedString(pathwayHash));
       }
     }
   }
