@@ -1,9 +1,14 @@
 package com.datadog.profiling.ddprof;
 
 import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampleAvailable;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
@@ -16,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.Logger;
 
 class DatadogProfilerConfigTest {
   private String originalVmName;
@@ -95,6 +101,79 @@ class DatadogProfilerConfigTest {
             + "' should return '"
             + expectedStackwalker
             + "'");
+  }
+
+  @Test
+  void profilerOptionsPreferDdprofKeyOverAsyncCompatibilityKey() {
+    Properties props = new Properties();
+    props.put("profiling.experimental.async.options", "cpu=20m");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "cpu=10m");
+
+    assertEquals(
+        "cpu=10m",
+        DatadogProfilerConfig.getProfilerOptions(ConfigProvider.withPropertiesOverride(props)));
+  }
+
+  @Test
+  void profilerOptionsUseAsyncCompatibilityKeyAsFallback() {
+    Properties props = new Properties();
+    props.put("profiling.experimental.async.options", "cpu=20m");
+
+    assertEquals(
+        "cpu=20m",
+        DatadogProfilerConfig.getProfilerOptions(ConfigProvider.withPropertiesOverride(props)));
+  }
+
+  @Test
+  void profilerOptionsAreNullWhenUnset() {
+    assertNull(
+        DatadogProfilerConfig.getProfilerOptions(
+            ConfigProvider.withPropertiesOverride(new Properties())));
+  }
+
+  @ParameterizedTest
+  @MethodSource("profilerOptionMergeCases")
+  void mergeProfilerOptions(
+      String derivedOptions, String configuredOptions, String expectedOptions) {
+    assertEquals(
+        expectedOptions, DatadogProfiler.mergeProfilerOptions(derivedOptions, configuredOptions));
+  }
+
+  @Test
+  void warningIsNotEmittedWithoutProfilerOptions() {
+    Logger logger = mock(Logger.class);
+
+    DatadogProfiler.warnIfProfilerOptionsConfigured(logger, null);
+    DatadogProfiler.warnIfProfilerOptionsConfigured(logger, "");
+
+    verifyNoInteractions(logger);
+  }
+
+  @Test
+  void warningIsMarkedForTelemetryWhenProfilerOptionsAreConfigured() {
+    Logger logger = mock(Logger.class);
+
+    DatadogProfiler.warnIfProfilerOptionsConfigured(logger, "cpu=7m");
+
+    verify(logger).warn(SEND_TELEMETRY, DatadogProfiler.PROFILER_OPTIONS_WARNING);
+  }
+
+  private static Stream<Arguments> profilerOptionMergeCases() {
+    return Stream.of(
+        Arguments.of(
+            ",cpu=10m,wall=50m,loglevel=INFO",
+            "cpu=7m,nativemem=131072",
+            ",wall=50m,loglevel=INFO,cpu=7m,nativemem=131072"),
+        Arguments.of(
+            ",loglevel=INFO,cpu=10m,loglevel=INFO", "loglevel=DEBUG", ",cpu=10m,loglevel=DEBUG"),
+        Arguments.of(",natsock=100us,wall=50m", "natsock", ",wall=50m,natsock"),
+        Arguments.of(
+            ",cpu=10m,wall=50m",
+            " , cpu=7m, , nativemem=131072, ",
+            ",wall=50m,cpu=7m,nativemem=131072"),
+        Arguments.of(",cpu=10m,wall=50m", "  ", ",cpu=10m,wall=50m"),
+        Arguments.of(",cpu=10m,wall=50m", "cpu=5m,cpu=7m", ",wall=50m,cpu=7m"),
+        Arguments.of(",cpu=10m", "start,jfr,file=other.jfr,cpu=7m", ",cpu=7m"));
   }
 
   private static Stream<Arguments> j9StackwalkerTestCases() {

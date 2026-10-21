@@ -122,6 +122,28 @@ class DatadogProfilerTest {
   }
 
   @Test
+  void testStartCmdExperimentalOptionsExtendAndOverrideDerivedOptions() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "cpu=7m,nativemem=131072");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL, "DEBUG");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    Path targetFile = Paths.get("/tmp/target.jfr");
+    String cmd = profiler.cmdStartProfiling(targetFile);
+    assertTrue(cmd.startsWith("start,jfr,file=" + targetFile.toAbsolutePath()));
+    int explicitCpuOption = cmd.lastIndexOf(",cpu=7m");
+    assertTrue(explicitCpuOption >= 0);
+    assertEquals(explicitCpuOption, cmd.indexOf(",cpu="));
+    assertTrue(cmd.contains(",wall="));
+    assertTrue(cmd.contains(",loglevel=DEBUG"));
+    assertTrue(cmd.endsWith(",cpu=7m,nativemem=131072"));
+  }
+
+  @Test
   void testStartCmdNativeMemDisabledByDefault() throws Exception {
     assertDoesNotThrow(
         () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");

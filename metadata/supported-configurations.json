@@ -3273,6 +3273,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_ASYNC_OPTIONS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_ASYNC_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -3330,6 +3338,14 @@
       }
     ],
     "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVESOCKET_INTERVAL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_OPTIONS": [
       {
         "version": "A",
         "type": "string",

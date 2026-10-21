@@ -9,6 +9,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLiveHeapSamp
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLogLevel;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getNativeMemoryInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getNativeSocketInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getProfilerOptions;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSafeMode;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEvent;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEventInterval;
@@ -37,6 +38,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DETAILED_DEBUG_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
@@ -56,7 +58,9 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
@@ -77,9 +81,15 @@ public final class DatadogProfiler {
   private static final String OPERATION = "_dd.trace.operation";
   private static final String RESOURCE = "_dd.trace.resource";
 
+  static final String PROFILER_OPTIONS_WARNING =
+      "The profiling.experimental.ddprof.options configuration directly modifies Datadog "
+          + "profiler options, overrides conflicting derived options, and may cause unexpected "
+          + "behavior.";
+
   private static final int MAX_NUM_ENDPOINTS = 8192;
 
   private final boolean detailedDebugLogging;
+  private final String profilerOptions;
 
   /**
    * Creates a profiler API with default configuration, may result in loading the profiler native
@@ -219,6 +229,8 @@ public final class DatadogProfiler {
 
   private DatadogProfiler(ConfigProvider configProvider) {
     this.configProvider = configProvider;
+    this.profilerOptions = getProfilerOptions(configProvider);
+    warnIfProfilerOptionsConfigured(log, profilerOptions);
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
     this.detailedDebugLogging =
         configProvider.getBoolean(
@@ -398,6 +410,9 @@ public final class DatadogProfiler {
 
   String cmdStartProfiling(Path file) throws IllegalStateException {
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
+    StringBuilder cmd = new StringBuilder("start,jfr");
+    cmd.append(",file=").append(file.toAbsolutePath());
+    int derivedOptionsStart = cmd.length();
     int safemode = getSafeMode(configProvider);
     if (safemode != ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT) {
       // be very vocal about messing around with the profiler safemode as it may induce crashes
@@ -406,8 +421,6 @@ public final class DatadogProfiler {
               + "This is not recommended and may cause instability and crashes.",
           safemode);
     }
-    StringBuilder cmd = new StringBuilder("start,jfr");
-    cmd.append(",file=").append(file.toAbsolutePath());
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
     cmd.append(",jstackdepth=").append(getStackDepth(configProvider));
     cmd.append(",cstack=").append(getCStack(configProvider));
@@ -487,9 +500,60 @@ public final class DatadogProfiler {
         cmd.append('=').append(interval);
       }
     }
+    if (profilerOptions != null && !profilerOptions.isEmpty()) {
+      String mergedOptions =
+          mergeProfilerOptions(cmd.substring(derivedOptionsStart), profilerOptions);
+      cmd.setLength(derivedOptionsStart);
+      cmd.append(mergedOptions);
+    }
     String cmdString = cmd.toString();
     log.debug("Datadog profiler command line: {}", cmdString);
     return cmdString;
+  }
+
+  static String mergeProfilerOptions(String derivedOptions, String configuredOptions) {
+    Map<String, String> configuredByName = new LinkedHashMap<>();
+    for (String option : configuredOptions.split(",")) {
+      String trimmedOption = option.trim();
+      if (!trimmedOption.isEmpty()) {
+        String name = profilerOptionName(trimmedOption);
+        if (isReservedProfilerOption(name)) {
+          continue;
+        }
+        // Reinsert duplicate keys to order them by their last occurrence.
+        configuredByName.remove(name);
+        configuredByName.put(name, trimmedOption);
+      }
+    }
+
+    StringBuilder mergedOptions = new StringBuilder();
+    for (String option : derivedOptions.split(",")) {
+      String trimmedOption = option.trim();
+      if (!trimmedOption.isEmpty()
+          && !configuredByName.containsKey(profilerOptionName(trimmedOption))) {
+        mergedOptions.append(',').append(trimmedOption);
+      }
+    }
+    for (String option : configuredByName.values()) {
+      mergedOptions.append(',').append(option);
+    }
+    return mergedOptions.toString();
+  }
+
+  static void warnIfProfilerOptionsConfigured(Logger logger, String configuredOptions) {
+    if (configuredOptions != null && !configuredOptions.isEmpty()) {
+      logger.warn(SEND_TELEMETRY, PROFILER_OPTIONS_WARNING);
+    }
+  }
+
+  private static String profilerOptionName(String option) {
+    int equals = option.indexOf('=');
+    return equals < 0 ? option : option.substring(0, equals).trim();
+  }
+
+  private static boolean isReservedProfilerOption(String name) {
+    // Keep the agent-controlled action, format, and recording path.
+    return "start".equals(name) || "jfr".equals(name) || "file".equals(name);
   }
 
   public void recordTraceRoot(long rootSpanId, String endpoint, String operation) {
