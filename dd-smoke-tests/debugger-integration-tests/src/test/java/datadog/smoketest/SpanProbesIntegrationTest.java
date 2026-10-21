@@ -6,9 +6,8 @@ import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.SpanProbe;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.util.NonRetryable;
-import java.nio.file.Path;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -16,12 +15,9 @@ import org.junit.jupiter.api.condition.DisabledIf;
 @NonRetryable
 public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+  @BeforeEach
+  public void beforeEach() {
+    additionalJvmArgs.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
   }
 
   @Test

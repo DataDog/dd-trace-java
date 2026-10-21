@@ -3,7 +3,6 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 
 plugins {
   `java-library`
-  idea
   id("dd-trace-java.module.distributable.api")
   id("me.champeau.jmh")
 }
@@ -32,12 +31,6 @@ publishing {
   }
 }
 
-idea {
-  module {
-    jdkName = "11"
-  }
-}
-
 java {
   toolchain {
     languageVersion = JavaLanguageVersion.of(11)
@@ -58,6 +51,7 @@ dependencies {
   // branch cannot be driven.
   testImplementation(project(":products:feature-flagging:feature-flagging-config"))
   testImplementation(project(":utils:config-utils"))
+  testImplementation(project(":components:environment"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)

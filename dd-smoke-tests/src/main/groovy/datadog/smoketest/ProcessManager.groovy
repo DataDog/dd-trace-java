@@ -57,7 +57,7 @@ abstract class ProcessManager extends Specification {
 
   // Added a timestamp to protect logs from being overwritten on retries.
   @Shared
-  private String logFileTimestamp = LOG_FILE_TIMESTAMP_FORMATTER.format(Instant.now())
+  protected String logFileTimestamp = LOG_FILE_TIMESTAMP_FORMATTER.format(Instant.now())
 
   @Shared
   private String[] logFilePaths = (0..<numberOfProcesses).collect { idx ->

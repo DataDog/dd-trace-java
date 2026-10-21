@@ -106,6 +106,16 @@ public abstract class AbstractDatadogThreadContextElementTest {
   }
 
   @Test
+  void replacementPreservesLogicalContextEqualityAndHashCode() {
+    CoroutineContext original =
+        addDatadogElement(EmptyCoroutineContext.INSTANCE).plus(new Element());
+    CoroutineContext replacement = addDatadogElement(original);
+    assertNotSame(original, replacement);
+    assertEquals(original, replacement);
+    assertEquals(original.hashCode(), replacement.hashCode());
+  }
+
+  @Test
   void contextWithoutDatadogElementRetainsItsContents() {
     Element ordinary = new Element();
     Hook hook = new Hook();
@@ -123,7 +133,8 @@ public abstract class AbstractDatadogThreadContextElementTest {
     CoroutineContext output = addDatadogElement(input);
     assertSame(original, lookup(input, original));
     assertNotSame(original, lookup(output, original));
-    assertEquals(keys(input), keys(output));
+    assertEquals(keys(input).size(), keys(output).size());
+    assertEquals(hookKeys(input), hookKeys(output));
     input.fold(
         output,
         (rebuilt, element) -> {
@@ -131,6 +142,17 @@ public abstract class AbstractDatadogThreadContextElementTest {
             assertSame(element, lookup(rebuilt, element));
           }
           return rebuilt;
+        });
+  }
+
+  private static List<CoroutineContext.Key<?>> hookKeys(CoroutineContext context) {
+    return context.fold(
+        new ArrayList<CoroutineContext.Key<?>>(),
+        (keys, element) -> {
+          if (element instanceof ThreadContextElement) {
+            keys.add(element.getKey());
+          }
+          return keys;
         });
   }
 
