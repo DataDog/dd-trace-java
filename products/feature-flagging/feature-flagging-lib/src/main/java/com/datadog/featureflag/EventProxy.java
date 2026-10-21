@@ -55,7 +55,6 @@ class EventProxy {
   private volatile Clients clients;
   private boolean discovered;
   private long nextDiscoveryNanos;
-  private boolean unavailableLogged;
 
   /**
    * @param backendApiFactory the send-once factory of event platform proxy clients.
@@ -88,7 +87,8 @@ class EventProxy {
    *     or when direct intake is not available.
    */
   boolean isAvailable() {
-    return current() != null || (this.agentless && !this.directFallbackAvailable);
+    // Only the agentless source can lack proxy clients.
+    return current() != null || !this.directFallbackAvailable;
   }
 
   /**
@@ -153,7 +153,6 @@ class EventProxy {
     if (this.clients == null) {
       scheduleDiscovery();
     } else {
-      this.unavailableLogged = false;
       LOGGER.info("Feature Flags event delivery recovered through the Datadog Agent event proxy");
     }
     return this.clients;
@@ -168,16 +167,14 @@ class EventProxy {
     }
   }
 
+  /** Waits for a new proxy endpoint when it is the only route. Runs once per outage. */
   private void onUnavailable() {
-    if (this.agentless && !this.directFallbackAvailable) {
+    if (!this.directFallbackAvailable) {
       scheduleDiscovery();
-      if (!this.unavailableLogged) {
-        this.unavailableLogged = true;
-        LOGGER.warn(
-            "Feature Flags events are being dropped because no local EVP proxy or direct intake"
-                + " route is available. Make the Agent reachable, or configure DD_API_KEY and a"
-                + " valid DD_SITE.");
-      }
+      LOGGER.warn(
+          "Feature Flags events are being dropped because no local EVP proxy or direct intake"
+              + " route is available. Make the Agent reachable, or configure DD_API_KEY and a"
+              + " valid DD_SITE.");
     }
   }
 
