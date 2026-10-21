@@ -7,6 +7,7 @@ import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.R2DBC_QUERY;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.QueryExecutionInfo;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.QueryInfo;
@@ -88,13 +89,13 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
    * cost does not grow with the batch.
    */
   private static String batchResource(List<QueryInfo> queries, DBQueryInfo first) {
-    Set<String> distinct = new LinkedHashSet<>();
-    distinct.add(first.getSql().toString());
+    Set<UTF8BytesString> distinct = new LinkedHashSet<>();
+    distinct.add(first.getSql());
     int limit = Math.min(queries.size(), MAX_BATCH_STATEMENTS_IN_RESOURCE);
     for (int i = 1; i < limit; i++) {
       String query = queries.get(i).getQuery();
       if (query != null) {
-        distinct.add(DBQueryInfo.ofStatement(query).getSql().toString());
+        distinct.add(DBQueryInfo.ofStatement(query).getSql());
       }
     }
     return String.join("; ", distinct);
