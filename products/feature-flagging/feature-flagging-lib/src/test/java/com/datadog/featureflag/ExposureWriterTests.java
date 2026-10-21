@@ -1,8 +1,10 @@
 package com.datadog.featureflag;
 
+import static datadog.communication.EvpProxy.ORIGIN_HEADER;
+import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
-import static java.util.Collections.emptyList;
+import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -10,6 +12,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,6 +35,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.communication.IntakeApi;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer.HandlerApi;
@@ -161,6 +165,32 @@ class ExposureWriterTests {
             }
             assertExposures(allExposures(), exposures);
           });
+    }
+  }
+
+  @Test
+  void testExposureRequestsCarrySdkIdentity() throws Exception {
+    // Exercise the production writer and factory on the fixed Remote Config EVP v2 route.
+    Config config = mockConfig("identity-service");
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
+      writer.init();
+      writer.accept(buildExposure());
+
+      poll.eventually(
+          () -> {
+            assertNotNull(server.getLastRequest());
+            assertEquals(EXPOSURES_ENDPOINT, server.getLastRequest().getPath());
+            assertEquals("dd-trace-java", server.getLastRequest().getHeader("DD-EVP-ORIGIN"));
+            assertEquals(
+                TracerVersion.TRACER_VERSION,
+                server.getLastRequest().getHeader("DD-EVP-ORIGIN-VERSION"));
+            // The test resource must prevent a hardcoded loader fallback from passing unnoticed.
+            assertNotEquals("0.0.0", server.getLastRequest().getHeader("DD-EVP-ORIGIN-VERSION"));
+            assertNull(server.getLastRequest().getHeader("DD-API-KEY"));
+          });
+    } finally {
+      sharedCommunicationObjects.agentHttpClient.connectionPool().evictAll();
     }
   }
 
@@ -566,7 +596,8 @@ class ExposureWriterTests {
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi proxyApi = mock(BackendApi.class);
     final BackendApi directApi = mock(BackendApi.class);
-    when(backendApiFactory.discoverEvpProxyEndpoint(false, emptyList()))
+    when(backendApiFactory.discoverEvpProxyEndpoint(
+            false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
         .thenReturn(V4_EVP_PROXY_ENDPOINT);
     when(backendApiFactory.createEvpProxyApiForEndpoint(
             Intake.EVENT_PLATFORM,
@@ -636,7 +667,8 @@ class ExposureWriterTests {
     final AtomicLong clock = new AtomicLong();
     final BackendApiFactory backend = mock(BackendApiFactory.class);
     final BackendApi proxy = mock(BackendApi.class);
-    when(backend.discoverEvpProxyEndpoint(true, emptyList())).thenReturn(V4_EVP_PROXY_ENDPOINT);
+    when(backend.discoverEvpProxyEndpoint(true, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
+        .thenReturn(V4_EVP_PROXY_ENDPOINT);
     when(backend.createEvpProxyApiForEndpoint(
             Intake.EVENT_PLATFORM,
             true,
@@ -653,14 +685,18 @@ class ExposureWriterTests {
         new ExposureWriterImpl(16, 100, MILLISECONDS, factory, config);
     try {
       writer.init();
-      poll.eventually(() -> verify(backend).discoverEvpProxyEndpoint(false, emptyList()));
+      poll.eventually(
+          () ->
+              verify(backend)
+                  .discoverEvpProxyEndpoint(false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)));
       clock.set(10);
       MILLISECONDS.sleep(300);
-      verify(backend, never()).discoverEvpProxyEndpoint(true, emptyList());
+      verify(backend, never())
+          .discoverEvpProxyEndpoint(true, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
       verify(proxy, never()).post(any(), any(), any(), any(), eq(false));
       writer.accept(buildExposure());
       poll.eventually(() -> verify(proxy).post(eq("exposures"), any(), any(), any(), eq(false)));
-      verify(backend).discoverEvpProxyEndpoint(true, emptyList());
+      verify(backend).discoverEvpProxyEndpoint(true, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
     } finally {
       writer.close();
     }
