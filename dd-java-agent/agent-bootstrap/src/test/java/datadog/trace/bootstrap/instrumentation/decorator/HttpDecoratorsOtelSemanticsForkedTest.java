@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.context.Context.root;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
@@ -32,6 +33,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.UnparseableURIDataAdapter;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
@@ -190,6 +192,91 @@ class HttpDecoratorsOtelSemanticsForkedTest {
 
     assertEquals("<redacted>&view=full", span.getTag(KnownTags.URL_QUERY_NAME));
     assertEquals("/orders", span.getTag(KnownTags.URL_PATH_NAME));
+  }
+
+  @TableTest({
+    "Scenario             | Request URI                                            | Expected Path",
+    "query                | /bad%path?token=secret&view=full                       | /bad%path    ",
+    "encoded marker       | /bad%3F%path?token=secret                              | /bad%3F%path ",
+    "query and fragment   | /bad%path?token=secret&view=full#fragment              | /bad%path    ",
+    "fragment only        | /bad%path#fragment                                     | /bad%path    ",
+    "fragment question    | /bad%path#fragment?token=secret                        | /bad%path    ",
+    "empty query fragment | /bad%path?#fragment                                    | /bad%path    ",
+    "encoded markers      | /bad%23%path?token=secret&view=full%23details#fragment | /bad%23%path ",
+    "empty query          | /bad%path?                                             | /bad%path    ",
+    "no query             | /bad%path                                              | /bad%path    "
+  })
+  void invalidServerUrlRespectsQueryStringOptOut(String requestUri, String expectedPath) {
+    TestServerDecorator decorator = new TestServerDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "servlet.request");
+    ServerRequest request =
+        new ServerRequest("GET", new UnparseableURIDataAdapter(requestUri), null);
+
+    decorator.afterStart(span);
+    decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
+    span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
+
+    assertEquals(expectedPath, span.getTag(KnownTags.URL_PATH_NAME));
+    assertNull(span.getTag(KnownTags.URL_QUERY_NAME));
+    assertNull(span.getTag(Tags.HTTP_URL));
+  }
+
+  @TableTest({
+    "Scenario             | Request URI                                            | Expected Path | Expected Query                   | Obfuscated Query              ",
+    "malformed path       | /bad%path?token=secret&view=full                       | /bad%path     | token=secret&view=full           | <redacted>&view=full          ",
+    "malformed query      | /orders?token=secret&view=%GG                          | /orders       | token=secret&view=%GG            | <redacted>&view=%GG           ",
+    "extra marker         | /bad%path?token=secret&view=full?details               | /bad%path     | token=secret&view=full?details   | <redacted>&view=full?details  ",
+    "query and fragment   | /bad%path?token=secret&view=full#fragment              | /bad%path     | token=secret&view=full           | <redacted>&view=full          ",
+    "fragment only        | /bad%path#fragment                                     | /bad%path     |                                  |                               ",
+    "fragment question    | /bad%path#fragment?token=secret                        | /bad%path     |                                  |                               ",
+    "empty query fragment | /bad%path?#fragment                                    | /bad%path     |                                  |                               ",
+    "encoded markers      | /bad%23%path?token=secret&view=full%23details#fragment | /bad%23%path  | token=secret&view=full%23details | <redacted>&view=full%23details",
+    "empty query          | /bad%path?                                             | /bad%path     |                                  |                               ",
+    "no query             | /bad%path                                              | /bad%path     |                                  |                               "
+  })
+  @WithConfig(key = HTTP_SERVER_TAG_QUERY_STRING, value = "true")
+  void invalidServerUrlSeparatesAndObfuscatesQueryWhenEnabled(
+      String requestUri, String expectedPath, String expectedQuery, String obfuscatedQuery) {
+    TestServerDecorator decorator = new TestServerDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "servlet.request");
+    ServerRequest request =
+        new ServerRequest("GET", new UnparseableURIDataAdapter(requestUri), null);
+
+    decorator.afterStart(span);
+    decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
+
+    assertEquals(expectedPath, span.getTag(KnownTags.URL_PATH_NAME));
+    assertEquals(expectedQuery, span.getTag(KnownTags.URL_QUERY_NAME));
+
+    span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
+
+    assertEquals(expectedPath, span.getTag(KnownTags.URL_PATH_NAME));
+    assertEquals(obfuscatedQuery, span.getTag(KnownTags.URL_QUERY_NAME));
+    assertNull(span.getTag(Tags.HTTP_URL));
+  }
+
+  @Test
+  @WithConfig(key = HTTP_SERVER_TAG_QUERY_STRING, value = "true")
+  @WithConfig(key = HTTP_SERVER_RAW_QUERY_STRING, value = "false")
+  void invalidServerUrlDecodesQueryWhenConfigured() {
+    TestServerDecorator decorator = new TestServerDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "servlet.request");
+    ServerRequest request =
+        new ServerRequest(
+            "GET",
+            new UnparseableURIDataAdapter(
+                "/bad%path?t%6fken=secret&view=full%3Fdetails%23section#fragment?token=fragment-secret"),
+            null);
+
+    decorator.afterStart(span);
+    decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
+
+    assertEquals("token=secret&view=full?details#section", span.getTag(KnownTags.URL_QUERY_NAME));
+
+    span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
+
+    assertEquals("/bad%path", span.getTag(KnownTags.URL_PATH_NAME));
+    assertEquals("<redacted>&view=full?details#section", span.getTag(KnownTags.URL_QUERY_NAME));
   }
 
   @Test
@@ -550,7 +637,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
 
   private static final class ServerRequest {
     private final String method;
-    private final URI uri;
+    private final URIDataAdapter uri;
     private final String hostHeader;
 
     private ServerRequest(String method, URI uri) {
@@ -558,6 +645,10 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     }
 
     private ServerRequest(String method, URI uri, String hostHeader) {
+      this(method, new URIDefaultDataAdapter(uri), hostHeader);
+    }
+
+    private ServerRequest(String method, URIDataAdapter uri, String hostHeader) {
       this.method = method;
       this.uri = uri;
       this.hostHeader = hostHeader;
@@ -608,7 +699,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
 
     @Override
     protected URIDataAdapter url(ServerRequest request) {
-      return new URIDefaultDataAdapter(request.uri);
+      return request.uri;
     }
 
     @Override

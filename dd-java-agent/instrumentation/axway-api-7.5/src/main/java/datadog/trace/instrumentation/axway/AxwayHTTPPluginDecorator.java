@@ -228,7 +228,9 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
       if (uri.getPath() != null) {
         span.setTag(KnownTags.URL_PATH_ID, uri.getPath());
       }
-      if (uri.getRawQuery() != null && !uri.getRawQuery().isEmpty()) {
+      if (Config.get().isHttpServerTagQueryString()
+          && uri.getRawQuery() != null
+          && !uri.getRawQuery().isEmpty()) {
         span.setTag(KnownTags.URL_QUERY_ID, uri.getRawQuery());
       }
       if (host == null || host.isEmpty()) {

@@ -7,6 +7,7 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.bootstrap.instrumentation.api.URIUtils.decode;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
@@ -373,7 +374,25 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
               }
               span.setTag(KnownTags.URL_PATH_ID, path);
             } else if (supportsRaw) {
-              span.setTag(KnownTags.URL_PATH_ID, url.raw());
+              String raw = url.raw();
+              if (raw != null) {
+                int fragmentStart = raw.indexOf('#');
+                if (fragmentStart >= 0) {
+                  raw = raw.substring(0, fragmentStart);
+                }
+              }
+              int queryStart = raw == null ? -1 : raw.indexOf('?');
+              span.setTag(
+                  KnownTags.URL_PATH_ID, queryStart < 0 ? raw : raw.substring(0, queryStart));
+              if (queryStart >= 0 && config.isHttpServerTagQueryString()) {
+                String query = raw.substring(queryStart + 1);
+                if (!config.isHttpServerRawQueryString()) {
+                  query = decode(query, url.hasPlusEncodedSpaces());
+                }
+                if (!query.isEmpty()) {
+                  span.setTag(KnownTags.URL_QUERY_ID, query);
+                }
+              }
             }
             OtelHttpSemantics.setServerAddressAndPort(
                 span,

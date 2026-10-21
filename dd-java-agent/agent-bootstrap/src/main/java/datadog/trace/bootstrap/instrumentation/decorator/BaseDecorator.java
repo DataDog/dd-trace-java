@@ -223,12 +223,12 @@ public abstract class BaseDecorator {
   }
 
   public void setPeerPort(AgentSpan span, String port) {
-    span.setTag(KnownTags.Outbound.SERVER_PORT_ID, port);
+    span.setTag(KnownTags.PEER_PORT_ID, port);
   }
 
   public void setPeerPort(AgentSpan span, int port) {
     if (port > UNSET_PORT) {
-      span.setTag(KnownTags.Outbound.SERVER_PORT_ID, port);
+      span.setTag(KnownTags.PEER_PORT_ID, port);
     }
   }
 
