@@ -69,10 +69,7 @@ public final class OtelHttpSemantics {
     if (fragment < 0) {
       return url.substring(0, query);
     }
-    return new StringBuilder(url.length() - (fragment - query))
-        .append(url, 0, query)
-        .append(url, fragment, url.length())
-        .toString();
+    return url.substring(0, query) + url.substring(fragment);
   }
 
   public static void setErrorType(final AgentSpan span, final int status) {

@@ -181,11 +181,6 @@ public final class QueryObfuscator extends TagsPostProcessor {
     if (fragment < 0) {
       return url + "?" + query;
     }
-    return new StringBuilder(url.length() + query.length() + 1)
-        .append(url, 0, fragment)
-        .append('?')
-        .append(query)
-        .append(url, fragment, url.length())
-        .toString();
+    return url.substring(0, fragment) + "?" + query + url.substring(fragment);
   }
 }
