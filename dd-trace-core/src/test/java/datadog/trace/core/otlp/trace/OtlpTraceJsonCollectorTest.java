@@ -397,6 +397,42 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @Test
+  void propagationTagsAreWrittenOnTheLocalRootSpanOnly() throws IOException {
+    AgentSpan root = TRACER.startSpan("test", "op.root");
+    root.setResourceName("root.op");
+    ((DDSpan) root)
+        .spanContext()
+        .getPropagationTags()
+        .tryUpdateProbabilitySamplingDecision(
+            PrioritySampling.USER_KEEP,
+            SamplingMechanism.REMOTE_ADAPTIVE_RULE,
+            0.5,
+            false,
+            root.getTraceId().toLong(),
+            true);
+    root.setBaggageItem("baggage.key", "baggage.value");
+    AgentSpan child = TRACER.startSpan("test", "op.child", root.spanContext());
+    child.setResourceName("child.op");
+    child.finish();
+    root.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) root, (CoreSpan<?>) child));
+    List<Map<String, Object>> parsedSpans = allSpans(collector.collectTraces());
+
+    Map<String, Object> parsedRoot = spanNamed(parsedSpans, "root.op");
+    assertEquals(asList("-12"), attributeValues(parsedRoot, "_dd.p.dm"));
+    assertEquals(asList("0.5"), attributeValues(parsedRoot, "_dd.p.ksr"));
+    assertEquals(asList("baggage.value"), attributeValues(parsedRoot, "baggage.key"));
+
+    Map<String, Object> parsedChild = spanNamed(parsedSpans, "child.op");
+    for (String key : attributeKeys(parsedChild)) {
+      assertFalse(key.startsWith("_dd.p."), "child span must not carry " + key);
+    }
+    assertEquals(asList("baggage.value"), attributeValues(parsedChild, "baggage.key"));
+  }
+
+  @Test
   void poisonedSpanResetsCollectorForNextTrace() throws IOException {
     // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
     DDSpan realSpan = startAndFinish("op.first", "GET /first", null);
@@ -543,6 +579,13 @@ class OtlpTraceJsonCollectorTest {
       result.add((Map<String, Object>) span);
     }
     return result;
+  }
+
+  private static Map<String, Object> spanNamed(List<Map<String, Object>> spans, String name) {
+    return spans.stream()
+        .filter(s -> name.equals(s.get("name")))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError(name + " span not found"));
   }
 
   @SuppressWarnings("unchecked")

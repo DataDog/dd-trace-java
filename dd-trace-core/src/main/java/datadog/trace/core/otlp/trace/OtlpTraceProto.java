@@ -14,7 +14,7 @@ import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_ID;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
-import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
+import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I32_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
@@ -51,6 +51,7 @@ import datadog.trace.core.PendingTrace;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
+import java.util.Map;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
@@ -160,7 +161,10 @@ public final class OtlpTraceProto {
       writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
     }
 
-    span.processTagsAndBaggage(metaWriter, OWN_PROPAGATION_TAGS);
+    // Like the Datadog mappers, only serialize propagation tags (_dd.p.dm, _dd.p.tid...) once per
+    // trace segment: on the local root span, which owns them.
+    span.processTagsAndBaggage(
+        metaWriter, span.getLocalRootSpan() == span ? ROOT_PROPAGATION_TAGS : 0);
 
     if (span.isError()) {
       int stateSize = 2;
@@ -329,8 +333,20 @@ public final class OtlpTraceProto {
         writeSpanTag(buf, PROCESS_TAGS_KEY, metadata.processTags());
       }
 
-      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
       TagMap tags = metadata.getTags();
+
+      // Baggage carries the propagation tags (e.g. the _dd.p.dm sampling decision maker) and any
+      // baggage items injected as tags, as in the Datadog mappers. Span tags win on a key clash,
+      // which also keeps OTLP attribute keys unique.
+      for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
+        if (tags.containsKey(entry.getKey())) {
+          continue;
+        }
+        writeTag(buf, 9, LEN_WIRE_TYPE);
+        writeAttribute(buf, STRING_ATTRIBUTE, entry.getKey(), entry.getValue());
+      }
+
+      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
       Integer direction = KnownTagCodec.directionOf(tags);
       tags.forEach(buf, direction, OtlpTraceProto::writeSpanTag);
 

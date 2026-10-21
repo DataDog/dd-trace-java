@@ -14,7 +14,7 @@ import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_ID;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
-import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
+import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexSpanId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexTraceId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeAttribute;
@@ -113,7 +113,10 @@ public final class OtlpTraceJson {
     if (span.getSpanType() != null) {
       writeSpanTag(writer, SPAN_TYPE, span.getSpanType());
     }
-    span.processTagsAndBaggage(metaWriter, OWN_PROPAGATION_TAGS);
+    // Like the Datadog mappers, only serialize propagation tags (_dd.p.dm, _dd.p.tid...) once per
+    // trace segment: on the local root span, which owns them.
+    span.processTagsAndBaggage(
+        metaWriter, span.getLocalRootSpan() == span ? ROOT_PROPAGATION_TAGS : 0);
     writer.endArray();
 
     if (!links.isEmpty()) {
@@ -252,8 +255,19 @@ public final class OtlpTraceJson {
         writeSpanTag(writer, PROCESS_TAGS_KEY, metadata.processTags());
       }
 
-      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
       TagMap tags = metadata.getTags();
+
+      // Baggage carries the propagation tags (e.g. the _dd.p.dm sampling decision maker) and any
+      // baggage items injected as tags, as in the Datadog mappers. Span tags win on a key clash,
+      // which also keeps OTLP attribute keys unique.
+      for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
+        if (tags.containsKey(entry.getKey())) {
+          continue;
+        }
+        writeAttribute(writer, STRING_ATTRIBUTE, entry.getKey(), entry.getValue());
+      }
+
+      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
       Integer direction = KnownTagCodec.directionOf(tags);
       tags.forEach(writer, direction, OtlpTraceJson::writeSpanTag);
 
