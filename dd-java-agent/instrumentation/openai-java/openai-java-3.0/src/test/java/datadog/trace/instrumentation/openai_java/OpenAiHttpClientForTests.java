@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.openai_java;
+
 import com.openai.core.RequestOptions;
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpClient;

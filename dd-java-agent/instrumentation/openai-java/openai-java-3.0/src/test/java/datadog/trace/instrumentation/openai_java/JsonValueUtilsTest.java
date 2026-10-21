@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -131,7 +132,7 @@ class JsonValueUtilsTest {
 
   @Test
   void testEmptyArray() {
-    Object result = JsonValueUtils.jsonValueToObject(JsonValue.from(Arrays.asList()));
+    Object result = JsonValueUtils.jsonValueToObject(JsonValue.from(emptyList()));
     assertInstanceOf(List.class, result);
     assertTrue(((List<?>) result).isEmpty());
   }

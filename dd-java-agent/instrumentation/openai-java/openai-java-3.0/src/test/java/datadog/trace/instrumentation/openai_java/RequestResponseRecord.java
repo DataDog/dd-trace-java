@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.openai_java;
+
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpRequest;
 import com.openai.core.http.HttpRequestBody;
@@ -10,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -146,7 +149,7 @@ public class RequestResponseRecord {
 
   public static RequestResponseRecord read(Path recFilePath) {
     int statusCode = 200;
-    Map<String, String> headers = new java.util.HashMap<>();
+    Map<String, String> headers = new HashMap<>();
     StringBuilder bodyBuilder = new StringBuilder();
 
     try {
