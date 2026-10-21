@@ -1,7 +1,7 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
+import static datadog.trace.api.FeatureFlaggingSource.AGENTLESS;
+import static datadog.trace.api.FeatureFlaggingSource.REMOTE_CONFIG;
 
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -34,7 +34,7 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
         config,
         new EventProxy(
             new BackendApiFactory(config, sco),
-            CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())
+            config.getFeatureFlaggingConfigurationSource() == AGENTLESS
                 && config.getApiKey() != null),
         SpanEnrichmentWriter.getInstance(),
         CoreMetricCollector.getInstance());
@@ -55,8 +55,7 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
 
   /** Registers the Remote Configuration product early when it is the configuration source. */
   public void start() {
-    if (CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(
-            this.config.getFeatureFlaggingConfigurationSource())
+    if (this.config.getFeatureFlaggingConfigurationSource() == REMOTE_CONFIG
         && isRemoteConfigAvailable()) {
       remoteConfig().start();
     }
