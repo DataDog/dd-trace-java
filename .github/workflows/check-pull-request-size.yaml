@@ -1,0 +1,110 @@
+name: Check pull request size
+on:
+  pull_request:
+    types: [opened, reopened, edited, ready_for_review, labeled, unlabeled, synchronize]
+    branches:
+      - master
+      - "release/v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check_pull_request_size:
+    name: Check pull request size
+    # Skip draft pull requests
+    if: ${{ !github.event.pull_request.draft }}
+    permissions:
+      contents: read # Required to check out the pull request changes
+      id-token: write # Required for OIDC token federation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request changes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
+        with:
+          fetch-depth: 2 # Fetch the pull request merge commit and its parents
+          filter: blob:none
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - name: Count added lines
+        id: count-added-lines
+        run: |
+          # The first parent of the pull request merge commit is the base branch
+          ADDED_LINES=$(.github/scripts/count-added-lines.sh HEAD^1 HEAD)
+          echo "Added lines: $ADDED_LINES"
+          echo "added_lines=$ADDED_LINES" >> "$GITHUB_OUTPUT"
+      - name: Get GitHub Token via dd-octo-sts
+        id: generate-token
+        uses: DataDog/dd-octo-sts-action@c85802a58e202b7e764b5441e4378c76043c8108 # v1.0.5
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.check-pull-request-size
+      - name: Check pull request size
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 9.0.0
+        env:
+          ADDED_LINES: ${{ steps.count-added-lines.outputs.added_lines }}
+          MAX_ADDED_LINES: 1000
+        with:
+          github-token: ${{ steps.generate-token.outputs.token }}
+          script: |
+            const managedMarker = '<!-- dd-trace-java-check-pull-request-size -->'
+            const overrideLabel = 'tag: override pr size check'
+            const addedLines = parseInt(process.env.ADDED_LINES, 10)
+            const maxAddedLines = parseInt(process.env.MAX_ADDED_LINES, 10)
+
+            // Look for the previous managed comment
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            })
+            const existingComment = comments.find(comment => comment.body?.includes(managedMarker))
+
+            const deleteManagedComment = async () => {
+              if (existingComment) {
+                await github.rest.issues.deleteComment({
+                  comment_id: existingComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo
+                })
+              }
+            }
+
+            // Check for override label — skip the check if label present
+            const labels = context.payload.pull_request.labels.map(l => l.name)
+            if (labels.includes(overrideLabel)) {
+              await deleteManagedComment()
+              console.log(`${overrideLabel} label detected — skipping the check.`)
+              return
+            }
+
+            if (addedLines < maxAddedLines) {
+              await deleteManagedComment()
+              console.log(`Pull request adds ${addedLines} lines, below the ${maxAddedLines} lines limit.`)
+              return
+            }
+
+            const body = `**❌ Pull Request Too Large**\n\n` +
+              `This pull request adds **${addedLines}** lines while the limit is **${maxAddedLines}** lines.\n` +
+              `Deleted lines, moved code, and \`gradle.lockfile\` files are not counted.\n\n` +
+              `Please split it into smaller stacked pull requests, each one targeting the branch of the previous one. ` +
+              `See the [pull request size guidelines](https://github.com/DataDog/dd-trace-java/blob/master/CONTRIBUTING.md#pull-request-size) for more details.\n\n` +
+              `If this PR cannot be split, exceptionnaly add the \`${overrideLabel}\` label to bypass this workflow.\n\n` +
+              managedMarker
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                comment_id: existingComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              })
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.payload.pull_request.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              })
+            }
+            core.setFailed(`Pull request adds ${addedLines} lines, above the ${maxAddedLines} lines limit. See PR comment for details. To bypass this workflow, add the '${overrideLabel}' label.`)
