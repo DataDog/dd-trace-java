@@ -22,6 +22,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.test.junit.utils.config.WithConfig;
+import java.lang.reflect.Field;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -80,6 +81,40 @@ class FeatureFlaggingSystemTest {
 
     FeatureFlaggingSystem.stop();
     assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_ENABLED, value = "false")
+  void shutdownHookFlushesListenersAndStopsTheBackend() throws Exception {
+    FeatureFlaggingSystem.start(mock(SharedCommunicationObjects.class));
+    final Runnable listener = mock(Runnable.class);
+    FeatureFlaggingGateway.backend().subscribeShutdown(listener);
+
+    final Field field = FeatureFlaggingSystem.class.getDeclaredField("SHUTDOWN_HOOK");
+    field.setAccessible(true);
+    final Thread hook = (Thread) field.get(null);
+    // Run the real hook without shutting down the test JVM.
+    assertTrue(Runtime.getRuntime().removeShutdownHook(hook));
+    hook.start();
+    hook.join(5000);
+
+    assertFalse(hook.isAlive(), "the shutdown hook must finish");
+    assertNull(FeatureFlaggingGateway.backend());
+    assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
+    verify(listener).run();
+  }
+
+  @Test
+  @WithConfig(key = TRACE_ENABLED, value = "false")
+  void lateShutdownSubscriptionDoesNotRegisterAHookAfterStop() throws Exception {
+    FeatureFlaggingSystem.start(mock(SharedCommunicationObjects.class));
+    final FeatureFlaggingGateway.Backend backend = FeatureFlaggingGateway.backend();
+    FeatureFlaggingSystem.stop();
+
+    try (final AutoCloseable ignored = backend.subscribeShutdown(() -> {})) {
+      assertNull(FeatureFlaggingGateway.backend());
+      assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
+    }
   }
 
   @Test

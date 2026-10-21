@@ -8,6 +8,7 @@ import static datadog.trace.api.intake.Intake.EVENT_PLATFORM;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -97,6 +98,63 @@ class EventProxyTest {
 
     assertTrue(proxy.post("exposures", PAYLOAD));
     verify(this.exposures).post(eq("exposures"), any(), any(), any(), eq(false));
+  }
+
+  @Test
+  void failedDiscoveryRetriesAtMostOncePerRecoveryInterval() throws IOException {
+    when(this.factory.discoverEvpProxyEndpoint(false, emptyList()))
+        .thenThrow(new IllegalStateException("discovery failed"));
+    final EventProxy proxy = proxy(true, false);
+
+    assertTrue(proxy.isAvailable());
+    assertFalse(proxy.post("exposures", PAYLOAD));
+    this.now.addAndGet(RECOVERY_INTERVAL_NANOS);
+    assertFalse(proxy.post("exposures", PAYLOAD));
+    verify(this.factory, times(1)).discoverEvpProxyEndpoint(eq(true), anyIterable());
+
+    this.now.addAndGet(RECOVERY_INTERVAL_NANOS - 1);
+    assertFalse(proxy.post("exposures", PAYLOAD));
+    verify(this.factory, times(1)).discoverEvpProxyEndpoint(eq(true), anyIterable());
+
+    this.now.incrementAndGet();
+    when(this.factory.discoverEvpProxyEndpoint(true, emptyList())).thenReturn(ENDPOINT);
+    clientsFor(ENDPOINT);
+    assertTrue(proxy.post("exposures", PAYLOAD));
+
+    verify(this.factory, times(2)).discoverEvpProxyEndpoint(eq(true), anyIterable());
+    verify(this.exposures).post(eq("exposures"), any(), any(), any(), eq(false));
+  }
+
+  @Test
+  void doesNotRediscoverAfterRejectionWhenDirectFallbackIsAvailable() throws IOException {
+    when(this.factory.discoverEvpProxyEndpoint(false, emptyList())).thenReturn(ENDPOINT);
+    clientsFor(ENDPOINT);
+    when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
+        .thenThrow(new ConnectException("refused"))
+        .thenReturn(null);
+    final EventProxy proxy = proxy(true, true);
+
+    assertFalse(proxy.post("exposures", PAYLOAD));
+    assertTrue(proxy.isAvailable());
+    assertTrue(proxy.post("exposures", PAYLOAD));
+
+    verify(this.factory, times(1)).discoverEvpProxyEndpoint(anyBoolean(), anyIterable());
+    verify(this.exposures, times(2)).post(any(), any(), any(), any(), eq(false));
+  }
+
+  @Test
+  void propagatesAmbiguousTransportFailuresWithoutRetryOrRediscovery() throws IOException {
+    when(this.factory.discoverEvpProxyEndpoint(false, emptyList())).thenReturn(ENDPOINT);
+    clientsFor(ENDPOINT);
+    final IOException failure = new IOException("connection reset after sending");
+    when(this.exposures.post(any(), any(), any(), any(), anyBoolean())).thenThrow(failure);
+    final EventProxy proxy = proxy(true, false);
+
+    assertSame(failure, assertThrows(IOException.class, () -> proxy.post("exposures", PAYLOAD)));
+    assertTrue(proxy.isAvailable());
+
+    verify(this.factory, times(1)).discoverEvpProxyEndpoint(anyBoolean(), anyIterable());
+    verify(this.exposures).post(any(), any(), any(), any(), eq(false));
   }
 
   @Test
