@@ -42,6 +42,9 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UP
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE;
 import static datadog.trace.api.config.DebuggerConfig.EXCEPTION_REPLAY_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
@@ -166,9 +169,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENAB
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.env.FixedCapturedEnvironment.useFixedEnv;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.bootstrap.config.provider.ConfigProvider.withPropertiesOverride;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -3679,15 +3679,16 @@ class ConfigTest {
 
   @TableTest({
     "scenario             | value             | expected     ",
-    "not set              |                   | agentless    ",
-    "empty                | ''                | agentless    ",
-    "blank                | '   '             | agentless    ",
-    "case insensitive     | ReMoTe_ConFiG     | remote_config",
-    "padded               | ' remote_config ' | invalid      ",
-    "unknown source       | not-a-real-source | invalid      ",
-    "unset is not a value | unset             | invalid      "
+    "not set              |                   | AGENTLESS    ",
+    "empty                | ''                | AGENTLESS    ",
+    "blank                | '   '             | AGENTLESS    ",
+    "case insensitive     | ReMoTe_ConFiG     | REMOTE_CONFIG",
+    "padded               | ' remote_config ' | INVALID      ",
+    "unknown source       | not-a-real-source | INVALID      ",
+    "unset is not a value | unset             | INVALID      "
   })
-  void featureFlagConfigurationSourceParsesValue(String value, String expected) throws Exception {
+  void featureFlagConfigurationSourceParsesValue(String value, FeatureFlaggingSource expected)
+      throws Exception {
     Properties properties = new Properties();
     if (value != null) {
       properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE, value);
@@ -3700,23 +3701,23 @@ class ConfigTest {
 
   @TableTest({
     "scenario                           | providerEnabled | source        | legacyProviderEnabled | expectedEnabled | expectedSource",
-    "nothing set                        |                 |               |                       | true            | agentless     ",
-    "provider enabled                   | true            |               |                       | true            | agentless     ",
-    "legacy enabled                     |                 |               | true                  | true            | remote_config ",
-    "legacy disabled                    |                 |               | false                 | false           |               ",
-    "source wins over legacy enabled    |                 | agentless     | true                  | true            | agentless     ",
-    "source wins over legacy disabled   |                 | remote_config | false                 | true            | remote_config ",
-    "provider disabled wins over legacy | false           | agentless     | true                  | false           | agentless     ",
-    "legacy disabled wins over provider | true            |               | false                 | false           |               ",
-    "unknown source                     |                 | not-a-source  |                       | false           | invalid       ",
-    "offline source                     |                 | offline       | true                  | false           | invalid       "
+    "nothing set                        |                 |               |                       | true            | AGENTLESS     ",
+    "provider enabled                   | true            |               |                       | true            | AGENTLESS     ",
+    "legacy enabled                     |                 |               | true                  | true            | REMOTE_CONFIG ",
+    "legacy disabled                    |                 |               | false                 | false           | UNSET         ",
+    "source wins over legacy enabled    |                 | agentless     | true                  | true            | AGENTLESS     ",
+    "source wins over legacy disabled   |                 | remote_config | false                 | true            | REMOTE_CONFIG ",
+    "provider disabled wins over legacy | false           | agentless     | true                  | false           | AGENTLESS     ",
+    "legacy disabled wins over provider | true            |               | false                 | false           | UNSET         ",
+    "unknown source                     |                 | not-a-source  |                       | false           | INVALID       ",
+    "offline source                     |                 | offline       | true                  | false           | INVALID       "
   })
   void featureFlagConfigurationAppliesMigrationPrecedence(
       Boolean providerEnabled,
       String source,
       Boolean legacyProviderEnabled,
       boolean expectedEnabled,
-      String expectedSource)
+      FeatureFlaggingSource expectedSource)
       throws Exception {
     Properties properties = new Properties();
     if (providerEnabled != null) {
