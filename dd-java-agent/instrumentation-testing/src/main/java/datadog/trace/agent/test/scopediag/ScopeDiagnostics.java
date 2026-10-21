@@ -352,11 +352,9 @@ public final class ScopeDiagnostics {
 
     void onActivateFailed(ContextContinuation id) {
       try {
-        ContinuationRecord record = records.get(id);
-        // Resolution advice can arrive after a concurrent failed resume.
-        if (record != null) {
-          record.addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED));
-        }
+        // The probe observed cancellation; capture and resolution need not be in this window.
+        recordFor(id, DDTraceId.ZERO, 0, null, (byte) -1)
+            .addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED));
       } catch (Throwable ignored) {
       }
     }

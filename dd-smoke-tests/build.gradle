@@ -36,24 +36,33 @@ allprojects { Project subProj ->
   subProj.tasks.withType(Test).configureEach { subTask ->
     def agentTaskRef = project(':dd-java-agent').tasks.named('shadowJar', ShadowJar)
     def diagnosticsTaskRef = project(':dd-java-agent:instrumentation-testing').tasks.named('scopeDiagnosticsAgentJar', Jar)
-    dependsOn agentTaskRef, diagnosticsTaskRef
-    inputs.file(diagnosticsTaskRef.flatMap { it.archiveFile })
-    .withPropertyName('scopeDiagnosticsAgent')
-    .withPathSensitivity(PathSensitivity.NONE)
+    def agentArguments = subProj.objects.newInstance(SmokeAgentArguments)
+    agentArguments.tracerJar.set(agentTaskRef.flatMap { it.archiveFile })
+    agentArguments.diagnosticsJar.set(diagnosticsTaskRef.flatMap { it.archiveFile })
+    jvmArgumentProviders.add(agentArguments)
 
     def quiescenceProperty = 'datadog.smoketest.scopeDiagnostics.quiescenceMillis'
     systemProperty quiescenceProperty, providers.systemProperty(quiescenceProperty).getOrElse('2000')
 
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
-    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-        @Override
-        Iterable<String> asArguments() {
-          return [
-            "-Ddatadog.smoketest.agent.shadowJar.path=${agentTaskRef.get().archiveFile.get()}",
-            "-Ddatadog.smoketest.scopeDiagnostics.agent.path=${diagnosticsTaskRef.get().archiveFile.get()}"
-          ]
-        }
-      })
+  }
+}
+
+abstract class SmokeAgentArguments implements CommandLineArgumentProvider {
+  @InputFile
+  @PathSensitive(PathSensitivity.NONE)
+  abstract RegularFileProperty getTracerJar()
+
+  @InputFile
+  @PathSensitive(PathSensitivity.NONE)
+  abstract RegularFileProperty getDiagnosticsJar()
+
+  @Override
+  Iterable<String> asArguments() {
+    return [
+      '-Ddatadog.smoketest.agent.shadowJar.path=' + tracerJar.get().asFile.absolutePath,
+      '-Ddatadog.smoketest.scopeDiagnostics.agent.path=' + diagnosticsJar.get().asFile.absolutePath
+    ]
   }
 }

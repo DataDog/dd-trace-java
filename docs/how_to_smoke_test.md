@@ -37,10 +37,15 @@ The production agent artifact and its strict-write configuration are unchanged.
 - `SmokeServerApp` and `AbstractServerSmokeTest` record each test's work, including per-test teardown,
   then allow a bounded cleanup grace period before checking. Server startup and suite shutdown are
   outside these windows.
+  Continuations captured outside a window remain visible when used during it, but their outstanding
+  holds are not test-owned leaks. Scopes opened during the window must still be closed, and resuming
+  a resolved continuation is a violation even when it was resolved before the window began.
 - `SmokeCliApp` and other legacy `AbstractSmokeTest` applications record from before `main` until
   exit, or until the harness checks them before stopping a still-running process. This includes
   first-use static initialization. Concurrent application shutdown hooks are not guaranteed to finish
-  before the diagnostic snapshot.
+  before the diagnostic snapshot. The grace period returns immediately when no incomplete lifecycles
+  are recorded; increasing it does not ensure that later shutdown-hook work is covered. Tests that
+  require cleanup coverage must complete that cleanup before requesting the snapshot.
 
 Smoke diagnostics allow up to 2 seconds for incomplete lifecycles to finish, returning as soon as
 all recorded lifecycles are complete. Set

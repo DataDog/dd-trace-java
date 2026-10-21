@@ -7,9 +7,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 
 /** Small child application that uses the actual packaged agent, not a second test tracer. */
 public final class ScopeDiagnosticsTestApp {
+  private static ContextContinuation retained;
+
   private ScopeDiagnosticsTestApp() {}
 
   public static void main(String[] args) throws Exception {
@@ -27,10 +31,15 @@ public final class ScopeDiagnosticsTestApp {
     }
   }
 
-  private static void exercise(String action) {
+  private static void exercise(String action) throws Exception {
     AgentSpan span = AgentTracer.startSpan("smoke-diagnostic-test", "diagnostic-" + action);
     ContextContinuation continuation = AgentTracer.get().capture(span);
-    if ("double".equals(action)) {
+    if ("retain-released".equals(action)) {
+      retained = continuation;
+      retained.release();
+    } else if ("retain-held".equals(action)) {
+      retained = continuation.hold();
+    } else if ("double".equals(action)) {
       continuation.release();
       continuation.release();
     } else if ("delayed".equals(action)) {
@@ -54,5 +63,20 @@ public final class ScopeDiagnosticsTestApp {
       AgentTracer.activateSpan(span);
     }
     span.finish();
+    if (action.startsWith("resume-retained")) {
+      FutureTask<Void> resume =
+          new FutureTask<>(
+              () -> {
+                ContextScope scope = retained.resume();
+                if (!"resume-retained-unclosed".equals(action)) {
+                  scope.close();
+                }
+                return null;
+              });
+      new Thread(resume, "retained-continuation-worker").start();
+      resume.get(10, TimeUnit.SECONDS);
+    } else if ("release-retained".equals(action)) {
+      retained.release();
+    }
   }
 }

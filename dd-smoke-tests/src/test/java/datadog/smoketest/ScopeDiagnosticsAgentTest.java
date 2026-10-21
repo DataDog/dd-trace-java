@@ -3,6 +3,7 @@ package datadog.smoketest;
 import static datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck.LEAKED;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -111,6 +112,82 @@ class ScopeDiagnosticsAgentTest {
       input.write("exit\n");
       input.flush();
       assertTrue(child.waitFor(30, SECONDS));
+    } finally {
+      child.destroyForcibly();
+    }
+  }
+
+  @TableTest({
+    "Scenario                         | PreviousWindow",
+    "resolved in an earlier window    | true          ",
+    "resolved before the first window | false         "
+  })
+  void serverWindowDetectsResumeOfPreviouslyResolvedContinuation(boolean previousWindow)
+      throws Exception {
+    ScopeDiagnosticsClient diagnostics = new ScopeDiagnosticsClient(reports, "stale", false);
+    Process child = launch(diagnostics, "server");
+    try (Writer input = new OutputStreamWriter(child.getOutputStream(), StandardCharsets.UTF_8);
+        BufferedReader output =
+            new BufferedReader(
+                new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))) {
+      diagnostics.awaitReady(child);
+      if (previousWindow) {
+        diagnostics.start(child);
+      }
+      exercise(input, output, "retain-released");
+      if (previousWindow) {
+        diagnostics.finish(child);
+      }
+      diagnostics.start(child);
+      exercise(input, output, "resume-retained");
+      AssertionError failure = assertThrows(AssertionError.class, () -> diagnostics.finish(child));
+      assertTrue(failure.getMessage().contains("ACTIVATE_AFTER_RESOLVE"), failure.getMessage());
+      Properties report =
+          result(diagnostics.directory().resolve(previousWindow ? "response-4" : "response-2"));
+      assertTrue(Integer.parseInt(report.getProperty("eventCount")) > 0);
+      assertFalse(report.getProperty("detail").contains("[LEAKED]"));
+      input.write("exit\n");
+      input.flush();
+      assertTrue(child.waitFor(30, SECONDS));
+      assertEquals(0, child.exitValue());
+    } finally {
+      child.destroyForcibly();
+    }
+  }
+
+  @TableTest({
+    "Scenario                          | Action                   | Unclosed",
+    "balanced use of an external hold  | resume-retained          | false   ",
+    "external hold with unclosed scope | resume-retained-unclosed | true    "
+  })
+  void serverWindowDoesNotOwnStartupHold(String action, boolean unclosed) throws Exception {
+    ScopeDiagnosticsClient diagnostics = new ScopeDiagnosticsClient(reports, "external", false);
+    Process child = launch(diagnostics, "server");
+    try (Writer input = new OutputStreamWriter(child.getOutputStream(), StandardCharsets.UTF_8);
+        BufferedReader output =
+            new BufferedReader(
+                new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))) {
+      diagnostics.awaitReady(child);
+      exercise(input, output, "retain-held");
+      diagnostics.start(child);
+      exercise(input, output, action);
+      if (unclosed) {
+        AssertionError failure =
+            assertThrows(AssertionError.class, () -> diagnostics.finish(child));
+        assertTrue(failure.getMessage().contains("NEVER_CLOSED"), failure.getMessage());
+      } else {
+        diagnostics.finish(child);
+      }
+      Properties report = result(diagnostics.directory().resolve("response-2"));
+      assertEquals(unclosed ? "problems" : "ok", report.getProperty("status"));
+      assertTrue(Integer.parseInt(report.getProperty("eventCount")) > 0);
+      assertTrue(report.getProperty("timeline").contains("EXTERNAL"));
+      assertFalse(report.getProperty("detail").contains("[LEAKED]"));
+      exercise(input, output, "release-retained");
+      input.write("exit\n");
+      input.flush();
+      assertTrue(child.waitFor(30, SECONDS));
+      assertEquals(0, child.exitValue());
     } finally {
       child.destroyForcibly();
     }
