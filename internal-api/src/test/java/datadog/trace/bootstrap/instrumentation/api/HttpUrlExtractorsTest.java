@@ -159,17 +159,6 @@ class HttpUrlExtractorsTest {
 
   @Test
   @WithConfig(key = "http.client.tag.query-string", value = "false")
-  void datadogUrlConnectionKeepsOriginalUrl() {
-    String url = "http://u:p@host:80/a?q=1#fragment";
-
-    DatadogClientUrl.FULL_URL.extract(URI.create(url), span);
-
-    verify(span).setTag(KnownTags.HTTP_URL_ID, url);
-    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
-  }
-
-  @Test
-  @WithConfig(key = "http.client.tag.query-string", value = "false")
   void otelClientRespectsQueryOptOut() {
     OtelClientUrl.INSTANCE.extract(URI.create("http://host/a?token=secret"), span);
 

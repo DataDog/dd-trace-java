@@ -100,7 +100,6 @@ public abstract class HttpServerUrl {
     private final String path;
     private final AgentSpanContext.Extracted extracted;
     private final String hostHeader;
-    private Origin origin;
 
     private Request(
         URIDataAdapter uri, String path, AgentSpanContext.Extracted extracted, String hostHeader) {
@@ -170,31 +169,26 @@ public abstract class HttpServerUrl {
 
     @Override
     Origin origin() {
-      if (origin == null) {
-        String scheme = forwardedValue(extracted == null ? null : extracted.getXForwardedProto());
-        if (scheme == null) {
-          scheme = uri.scheme();
-        }
-        int port = uri.port();
-        if (scheme != null && !scheme.equalsIgnoreCase(uri.scheme())) {
-          port = portFromHost(hostHeader);
-        }
-        origin =
-            Origin.resolve(
-                scheme,
-                uri.host(),
-                port,
-                extracted == null ? null : extracted.getXForwardedHost(),
-                extracted == null ? null : extracted.getXForwardedPort());
+      String scheme = forwardedValue(extracted == null ? null : extracted.getXForwardedProto());
+      if (scheme == null) {
+        scheme = uri.scheme();
       }
-      return origin;
+      int port = uri.port();
+      if (scheme != null && !scheme.equalsIgnoreCase(uri.scheme())) {
+        port = portFromHost(hostHeader);
+      }
+      return Origin.resolve(
+          scheme,
+          uri.host(),
+          port,
+          extracted == null ? null : extracted.getXForwardedHost(),
+          extracted == null ? null : extracted.getXForwardedPort());
     }
   }
 
   private static final class InferredProxy extends HttpServerUrl {
     private final String domain;
     private final String path;
-    private Origin origin;
 
     private InferredProxy(String domain, String path) {
       this.domain = domain != null && !domain.isEmpty() ? domain : null;
@@ -218,10 +212,7 @@ public abstract class HttpServerUrl {
 
     @Override
     Origin origin() {
-      if (origin == null) {
-        origin = new Origin(domain != null ? "https" : null, domain, domain != null ? 443 : -1);
-      }
-      return origin;
+      return new Origin(domain != null ? "https" : null, domain, domain != null ? 443 : -1);
     }
   }
 
@@ -231,7 +222,6 @@ public abstract class HttpServerUrl {
     private final String port;
     private boolean parsed;
     private URI uri;
-    private Origin origin;
 
     private Transaction(String originalUrl, String host, String port) {
       this.originalUrl = originalUrl;
@@ -272,22 +262,19 @@ public abstract class HttpServerUrl {
 
     @Override
     Origin origin() {
-      if (origin == null) {
-        URI uri = uri();
-        String scheme = uri == null ? null : uri.getScheme();
-        String address = host;
-        int port = parsePort(this.port);
-        if (uri != null) {
-          if (address == null || address.isEmpty()) {
-            address = uri.getHost();
-          }
-          if (port <= 0) {
-            port = uri.getPort();
-          }
+      URI uri = uri();
+      String scheme = uri == null ? null : uri.getScheme();
+      String address = host;
+      int port = parsePort(this.port);
+      if (uri != null) {
+        if (address == null || address.isEmpty()) {
+          address = uri.getHost();
         }
-        origin = new Origin(scheme, address, serverPort(scheme, port));
+        if (port <= 0) {
+          port = uri.getPort();
+        }
       }
-      return origin;
+      return new Origin(scheme, address, serverPort(scheme, port));
     }
   }
 }

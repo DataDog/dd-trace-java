@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static datadog.trace.util.IntStringUtils.REJECT_LEADING_PLUS;
+import static datadog.trace.util.IntStringUtils.parseNonNegativeInt;
+
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.cache.RadixTreeCache;
@@ -7,6 +10,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /** Shared helpers for emitting OpenTelemetry HTTP semantic conventions. */
@@ -39,6 +43,12 @@ public final class OtelHttpSemantics {
   public static String spanNameMethod(final CharSequence method) {
     final String methodName = method == null ? null : method.toString();
     return KNOWN_METHODS.contains(methodName) ? methodName : "HTTP";
+  }
+
+  /** Returns {@code http.url}, falling back to {@code url.path}, without rendering the value. */
+  public static Object urlOrPath(final Map<String, ?> tags) {
+    Object url = tags.get(Tags.HTTP_URL);
+    return url != null ? url : tags.get(KnownTags.URL_PATH_NAME);
   }
 
   public static String redactedUrl(final URI url) {
@@ -120,25 +130,18 @@ public final class OtelHttpSemantics {
     } else if (host.indexOf(':') != colon) {
       return -1;
     }
-    return parsePort(host.substring(colon + 1));
+    return parsePort(host, colon + 1, host.length() - colon - 1);
   }
 
   public static int parsePort(final String value) {
-    if (value == null) {
-      return -1;
-    }
-    final int length = value.length();
+    return value == null ? -1 : parsePort(value, 0, value.length());
+  }
+
+  private static int parsePort(final String value, final int start, final int length) {
     if (length == 0 || length > 5) {
       return -1;
     }
-    int port = 0;
-    for (int i = 0; i < length; i++) {
-      final char c = value.charAt(i);
-      if (c < '0' || c > '9') {
-        return -1;
-      }
-      port = port * 10 + (c - '0');
-    }
+    final int port = parseNonNegativeInt(value, start, length, REJECT_LEADING_PLUS);
     return port > 0 && port <= 65535 ? port : -1;
   }
 }

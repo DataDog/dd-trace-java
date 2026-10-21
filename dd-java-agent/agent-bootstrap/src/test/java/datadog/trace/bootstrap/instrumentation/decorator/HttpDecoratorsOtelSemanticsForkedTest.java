@@ -7,6 +7,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RA
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
+import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.HTTP_PATH_NORMALIZER;
+import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.MANUAL_INSTRUMENTATION;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.core.MetadataConsumer.NO_OP;
@@ -16,8 +18,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.json.JsonMapper;
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
@@ -94,6 +102,103 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals(503, span.getHttpStatusCode());
     assertEquals("503", span.getTag("error.type"));
     assertTrue(span.isError());
+  }
+
+  @TableTest({
+    "Scenario               | Method | URL                        | Span type | Expected resource",
+    "No URL                 | GET    |                            | http      | GET              ",
+    "Extension method       | BREW   |                            | http      | HTTP             ",
+    "Missing method         |        |                            | http      | HTTP             ",
+    "Opaque URL             | GET    | mailto:test@test.com       | http      | GET              ",
+    "Other span type        | GET    |                            | custom    | GET              ",
+    "Missing span type      | GET    |                            |           | GET              ",
+    "HTTP client path       | GET    | https://example.com/orders | http      | GET              ",
+    "Other span type path   | GET    | https://example.com/orders | custom    | GET /orders      ",
+    "Missing span type path | GET    | https://example.com/orders |           | GET /orders      "
+  })
+  void clientResourceNamePreservesSpanTypeBehavior(
+      String method, String url, String spanType, String expectedResource) {
+    TestClientDecorator decorator = new TestClientDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "http.request");
+
+    decorator.afterStart(span);
+    span.setSpanType(spanType);
+    decorator.onRequest(span, new ClientRequest(method, url == null ? null : URI.create(url)));
+
+    assertEquals(expectedResource, span.getResourceName().toString());
+    assertEquals(HTTP_PATH_NORMALIZER, span.getResourceNamePriority());
+  }
+
+  @TableTest({
+    "Scenario             | Fail extraction",
+    "URL extraction fails | true           ",
+    "URL decoration fails | false          "
+  })
+  void clientResourceNameSurvivesUrlFailures(boolean failExtraction) {
+    TestClientDecorator decorator = spy(new TestClientDecorator());
+    DDSpan span = (DDSpan) tracer.startSpan("test", "http.request");
+    URI uri = URI.create("https://example.com/orders");
+    ClientRequest request = new ClientRequest("GET", uri);
+    RuntimeException failure = new IllegalArgumentException("Invalid URL");
+    if (failExtraction) {
+      doThrow(failure).when(decorator).url(request);
+    } else {
+      doThrow(failure).when(decorator).onURI(span, uri);
+    }
+
+    decorator.afterStart(span);
+    decorator.onRequest(span, request);
+
+    assertEquals("GET", span.getResourceName().toString());
+    assertEquals(HTTP_PATH_NORMALIZER, span.getResourceNamePriority());
+  }
+
+  @Test
+  void clientResourceNameSurvivesBlockingException() {
+    TestClientDecorator decorator = spy(new TestClientDecorator());
+    DDSpan span = (DDSpan) tracer.startSpan("test", "http.request");
+    URI uri = URI.create("https://example.com/orders");
+    ClientRequest request = new ClientRequest("GET", uri);
+    BlockingException failure = new BlockingException("Blocked request");
+    doThrow(failure).when(decorator).onURI(span, uri);
+
+    decorator.afterStart(span);
+
+    assertSame(
+        failure, assertThrows(BlockingException.class, () -> decorator.onRequest(span, request)));
+    assertEquals("GET", span.getResourceName().toString());
+    assertEquals(HTTP_PATH_NORMALIZER, span.getResourceNamePriority());
+  }
+
+  @Test
+  void clientResourceNameWithoutUrlPreservesManualName() {
+    TestClientDecorator decorator = new TestClientDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "http.request");
+    span.setResourceName("custom operation", MANUAL_INSTRUMENTATION);
+
+    decorator.afterStart(span);
+    decorator.onRequest(span, new ClientRequest("GET", null));
+
+    assertEquals("custom operation", span.getResourceName().toString());
+    assertEquals(MANUAL_INSTRUMENTATION, span.getResourceNamePriority());
+  }
+
+  @TableTest({
+    "Scenario | URL                       ",
+    "No URL   |                           ",
+    "With URL | https://example.com/orders"
+  })
+  @WithConfig(key = "trace.URLAsResourceNameRule.enabled", value = "false")
+  void clientResourceNamingCanBeDisabled(String url) {
+    TestClientDecorator decorator = spy(new TestClientDecorator());
+    doReturn(false).when(decorator).shouldSetResourceName();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "http.request");
+    span.setResourceName("custom operation");
+
+    decorator.afterStart(span);
+    decorator.onRequest(span, new ClientRequest("GET", url == null ? null : URI.create(url)));
+
+    assertEquals("custom operation", span.getResourceName().toString());
   }
 
   @Test
@@ -326,6 +431,44 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals("192.0.2.10", span.getTag(Tags.NETWORK_CLIENT_IP));
     assertEquals(forwardedIp, span.getTag(Tags.HTTP_FORWARDED_IP));
     assertEquals(headers.forwarded, span.getTag(Tags.HTTP_FORWARDED));
+  }
+
+  @TableTest({
+    "Scenario      | Root Client Ip | Expected Client Ip",
+    "root address  | 203.0.113.7    | 203.0.113.7       ",
+    "peer fallback |                | 192.0.2.10        "
+  })
+  @WithConfig(key = CLIENT_IP_ENABLED, value = "true")
+  void serverDecoratorInheritsClientIpFromLocalRoot(String rootClientIp, String expectedClientIp) {
+    TestServerDecorator decorator = new TestServerDecorator();
+    DDSpan rootSpan = (DDSpan) tracer.startSpan("test", "servlet.request");
+    rootSpan.setTag(Tags.HTTP_CLIENT_IP, rootClientIp);
+    DDSpan span = (DDSpan) tracer.startSpan("test", "servlet.dispatch", rootSpan.spanContext());
+    ServerRequest request = new ServerRequest("GET", URI.create("https://example.com/"));
+
+    decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
+
+    assertEquals(expectedClientIp, span.getTag(Tags.HTTP_CLIENT_IP));
+    assertEquals("192.0.2.10", span.getTag(Tags.NETWORK_CLIENT_IP));
+    assertEquals(rootClientIp, rootSpan.getTag(Tags.HTTP_CLIENT_IP));
+  }
+
+  @Test
+  @WithConfig(key = CLIENT_IP_ENABLED, value = "true")
+  void serverDecoratorPreservesExistingClientIpAcrossRepeatedDecoration() {
+    TestServerDecorator decorator = new TestServerDecorator();
+    DDSpan span = (DDSpan) tracer.startSpan("test", "servlet.request");
+    span.setTag(Tags.HTTP_CLIENT_IP, "203.0.113.7");
+    ServerRequest request = new ServerRequest("GET", URI.create("https://example.com/"));
+
+    decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
+
+    assertEquals("203.0.113.7", span.getTag(Tags.HTTP_CLIENT_IP));
+
+    decorator.onRequest(span, new Connection("192.0.2.11", 32101), request, root());
+
+    assertEquals("203.0.113.7", span.getTag(Tags.HTTP_CLIENT_IP));
+    assertEquals("192.0.2.11", span.getTag(Tags.NETWORK_CLIENT_IP));
   }
 
   @TableTest({
@@ -600,7 +743,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     }
   }
 
-  static final class TestClientDecorator extends HttpClientDecorator<ClientRequest, Integer> {
+  static class TestClientDecorator extends HttpClientDecorator<ClientRequest, Integer> {
     @Override
     protected String[] instrumentationNames() {
       return new String[] {"test-http-client"};

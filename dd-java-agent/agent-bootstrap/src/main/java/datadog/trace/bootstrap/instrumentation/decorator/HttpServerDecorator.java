@@ -72,7 +72,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
-  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
+  protected static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
   private static final TagExtractor<HttpServerUrl> URL_TAGS =
       OTEL_SEMANTICS ? OtelServerUrl.INSTANCE : DatadogServerUrl.INSTANCE;
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
@@ -384,6 +384,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String inferredAddressStr = null;
+    boolean clientIpTagged = false;
     if (shouldResolveIp && extracted != null) {
       InetAddress inferredAddress = ClientIpAddressResolver.resolve(extracted, span);
       // the peer address should be used if:
@@ -403,6 +404,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         inferredAddressStr = inferredAddress.getHostAddress();
         if (shouldTagIps) {
           span.setTag(KnownTags.HTTP_CLIENT_IP_ID, inferredAddressStr);
+          clientIpTagged = true;
         }
       }
     } else if (shouldTagIps && span.getLocalRootSpan() != span) {
@@ -415,6 +417,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       Object clientIp = localRootSpan.getTag(Tags.HTTP_CLIENT_IP);
       if (clientIp != null) {
         span.setTag(KnownTags.HTTP_CLIENT_IP_ID, clientIp);
+        clientIpTagged = true;
       }
     }
 
@@ -426,7 +429,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       if (shouldTagIps) {
         span.setTag(KnownTags.NETWORK_CLIENT_IP_ID, peerIp);
-        if (OTEL_SEMANTICS && span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME) == null) {
+        if (OTEL_SEMANTICS
+            && !clientIpTagged
+            && span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME) == null) {
           span.setTag(KnownTags.HTTP_CLIENT_IP_ID, peerIp);
         }
       }

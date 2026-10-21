@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductActivation;
@@ -125,9 +126,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       String method = method(request);
       if (OTEL_SEMANTICS) {
         OtelHttpSemantics.setRequestMethod(span, method);
-        if (shouldSetResourceName()) {
-          OtelHttpSemantics.setMethodResourceName(span, method);
-        }
       } else {
         span.setTag(KnownTags.HTTP_METHOD_ID, method);
       }
@@ -142,6 +140,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         }
       }
 
+      boolean resourceNameSet = false;
       try {
         final URI url = url(request);
         if (url != null) {
@@ -149,7 +148,11 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           span.setTagsFrom(url, URL_TAGS);
           // Explicit path mappings take precedence over the default name in either semantic mode.
           if (shouldSetResourceName()) {
-            HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
+            String path = url.getPath();
+            if (path != null) {
+              HTTP_RESOURCE_DECORATOR.withClientPath(span, method, path);
+              resourceNameSet = true;
+            }
           }
           // SSRF exploit prevention check
           onHttpClientRequest(span, url.toString());
@@ -161,7 +164,21 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
       } finally {
+        if (!resourceNameSet) {
+          setOtelResourceNameFallback(span, method);
+        }
         ssrfIastCheck(request);
+      }
+    }
+  }
+
+  private void setOtelResourceNameFallback(AgentSpan span, String method) {
+    if (OTEL_SEMANTICS && shouldSetResourceName()) {
+      CharSequence spanType = span.getSpanType();
+      if (spanType != null && DDSpanTypes.HTTP_CLIENT.contentEquals(spanType)) {
+        HTTP_RESOURCE_DECORATOR.withClientPath(span, method, null);
+      } else {
+        OtelHttpSemantics.setMethodResourceName(span, method);
       }
     }
   }

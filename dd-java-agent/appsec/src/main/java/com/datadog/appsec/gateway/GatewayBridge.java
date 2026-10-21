@@ -8,6 +8,7 @@ import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HE
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics.urlOrPath;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityDownstreamSampler;
@@ -28,7 +29,6 @@ import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.util.BodyParser;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
-import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.appsec.HttpClientPayload;
 import datadog.trace.api.appsec.HttpClientRequest;
@@ -1120,10 +1120,7 @@ public class GatewayBridge {
     if (route != null) {
       ctx.setRoute(route.toString());
     }
-    Object url = tags.get(Tags.HTTP_URL);
-    if (url == null) {
-      url = tags.get(KnownTags.URL_PATH_NAME);
-    }
+    Object url = urlOrPath(tags);
     if (url != null) {
       ctx.setHttpUrl(url.toString());
     }

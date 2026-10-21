@@ -159,15 +159,14 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     // Resource Name: OTel uses <Method> <Route> or just <Method>; Datadog keeps the historical
     // fallback to <Method> <Path> when no route is available.
     // Use MANUAL_INSTRUMENTATION priority to prevent TagInterceptor from overriding
-    String spanNameMethod =
-        OTEL_SEMANTICS ? OtelHttpSemantics.spanNameMethod(httpMethod) : httpMethod;
     String resourceName;
     if (OTEL_SEMANTICS) {
+      String spanNameMethod = OtelHttpSemantics.spanNameMethod(httpMethod);
       resourceName = route != null ? spanNameMethod + " " + route : spanNameMethod;
     } else {
       String routeOrPath = route != null ? route : path;
       resourceName =
-          spanNameMethod != null && routeOrPath != null ? spanNameMethod + " " + routeOrPath : null;
+          httpMethod != null && routeOrPath != null ? httpMethod + " " + routeOrPath : null;
     }
     if (resourceName != null) {
       span.setResourceName(resourceName, MANUAL_INSTRUMENTATION);

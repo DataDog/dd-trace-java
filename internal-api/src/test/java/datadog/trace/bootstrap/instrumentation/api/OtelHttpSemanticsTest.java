@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -13,6 +14,8 @@ import static org.mockito.Mockito.when;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -57,6 +60,34 @@ class OtelHttpSemanticsTest {
   @Test
   void spanNameMethodUsesHttpForNullMethod() {
     assertEquals("HTTP", OtelHttpSemantics.spanNameMethod(null));
+  }
+
+  @TableTest({
+    "Scenario       | Http URL                 | URL path   | Expected                ",
+    "No URL or path |                          |            |                         ",
+    "URL only       | https://example.com/full |            | https://example.com/full",
+    "Path only      |                          | /orders    | /orders                 ",
+    "Prefer URL     | https://example.com/full | /different | https://example.com/full",
+    "Empty URL      | ''                       | /orders    | ''                      ",
+    "Empty path     |                          | ''         | ''                      "
+  })
+  void urlOrPathFallsBackOnlyWhenUrlIsAbsent(String httpUrl, String path, String expected) {
+    Map<String, Object> tags = new HashMap<>();
+    tags.put(Tags.HTTP_URL, httpUrl);
+    tags.put(KnownTags.URL_PATH_NAME, path);
+
+    assertEquals(expected, OtelHttpSemantics.urlOrPath(tags));
+  }
+
+  @Test
+  void urlOrPathDoesNotRenderLazyUrl() {
+    URIUtils.LazyUrl url = URIUtils.lazyValidURL("https", "example.com", 443, "/orders");
+    Map<String, Object> tags = new HashMap<>();
+    tags.put(Tags.HTTP_URL, url);
+    tags.put(KnownTags.URL_PATH_NAME, "/different");
+
+    assertSame(url, OtelHttpSemantics.urlOrPath(tags));
+    assertNull(url.lazy);
   }
 
   @TableTest({
@@ -169,16 +200,16 @@ class OtelHttpSemanticsTest {
   }
 
   @TableTest({
-    "Scenario         | Value                                    | Expected",
-    "Valid port       | 8080                                     | 8080    ",
-    "Minimum port     | 1                                        | 1       ",
-    "Maximum port     | 65535                                    | 65535   ",
-    "Leading zeros    | 00080                                    | 80      ",
-    "Out of range     | {0, 65536, 99999}                        | -1      ",
-    "Malformed port   | {abc, 80x, 8.0, ' 80', '80 '}            | -1      ",
-    "Signed port      | {+80, -1}                                | -1      ",
-    "Non-ASCII digits | {８０, ٨٠}                               | -1      ",
-    "Excess digits    | {100000, 000080, 2147483647, 2147483648} | -1      "
+    "Scenario         | Value                                            | Expected",
+    "Valid port       | 8080                                             | 8080    ",
+    "Minimum port     | 1                                                | 1       ",
+    "Maximum port     | 65535                                            | 65535   ",
+    "Leading zeros    | 00080                                            | 80      ",
+    "Out of range     | {0, 65536, 99999}                                | -1      ",
+    "Malformed port   | {abc, 80x, 8.0, ' 80', '80 '}                    | -1      ",
+    "Signed port      | {+80, -1}                                        | -1      ",
+    "Non-ASCII digits | {８０, ٨٠}                                       | -1      ",
+    "Excess digits    | {100000, 000080, 008080, 2147483647, 2147483648} | -1      "
   })
   void parsePortRejectsOutOfRangeAndMalformedValues(String value, int expected) {
     assertEquals(expected, OtelHttpSemantics.parsePort(value));
@@ -210,16 +241,25 @@ class OtelHttpSemanticsTest {
   }
 
   @TableTest({
-    "Scenario           | Host                     | Expected port",
-    "No host            |                          | -1           ",
-    "Host only          | public.example.com       | -1           ",
-    "Explicit port      | public.example.com:9443  | 9443         ",
-    "Invalid port       | public.example.com:bad   | -1           ",
-    "Port out of range  | public.example.com:65536 | -1           ",
-    "IPv6 host          | '[2001:db8::1]'          | -1           ",
-    "IPv6 explicit port | '[2001:db8::1]:8443'     | 8443         ",
-    "Unbracketed IPv6   | 2001:db8::1:8443         | -1           ",
-    "Malformed IPv6     | '[2001:db8::1:8443'      | -1           "
+    "Scenario           | Host                      | Expected port",
+    "No host            |                           | -1           ",
+    "Empty host         | ''                        | -1           ",
+    "Host only          | public.example.com        | -1           ",
+    "Empty port         | public.example.com:       | -1           ",
+    "Explicit port      | public.example.com:9443   | 9443         ",
+    "Minimum port       | public.example.com:1      | 1            ",
+    "Maximum port       | public.example.com:65535  | 65535        ",
+    "Leading zeros      | public.example.com:00080  | 80           ",
+    "Excess digits      | public.example.com:008080 | -1           ",
+    "Signed port        | {'host:+80', 'host:-1'}   | -1           ",
+    "Whitespace         | {'host: 80', 'host:80 '}  | -1           ",
+    "Non-ASCII digits   | {'host:８０', 'host:٨٠'}  | -1           ",
+    "Invalid port       | public.example.com:bad    | -1           ",
+    "Port out of range  | public.example.com:65536  | -1           ",
+    "IPv6 host          | '[2001:db8::1]'           | -1           ",
+    "IPv6 explicit port | '[2001:db8::1]:8443'      | 8443         ",
+    "Unbracketed IPv6   | 2001:db8::1:8443          | -1           ",
+    "Malformed IPv6     | '[2001:db8::1:8443'       | -1           "
   })
   void portFromHostRequiresAnExplicitValidPort(String host, int expectedPort) {
     assertEquals(expectedPort, OtelHttpSemantics.portFromHost(host));
