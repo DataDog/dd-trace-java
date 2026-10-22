@@ -1,9 +1,13 @@
 package com.datadog.featureflag;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -18,6 +22,12 @@ import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -71,6 +81,57 @@ class RemoteConfigServiceImplTest {
 
     assertEquals(1, late.size());
     assertArrayEquals(DOCUMENT, late.get(0));
+  }
+
+  @Test
+  void concurrentRemovalIsDeliveredAfterTheInitialReplay() throws Exception {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    service.accept("key", DOCUMENT, null);
+    final List<byte[]> received = new CopyOnWriteArrayList<>();
+    final CountDownLatch replayStarted = new CountDownLatch(1);
+    final CountDownLatch finishReplay = new CountDownLatch(1);
+    final CountDownLatch removalStarted = new CountDownLatch(1);
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<AutoCloseable> subscription =
+          executor.submit(
+              () ->
+                  service.subscribe(
+                      content -> {
+                        if (content != null) {
+                          replayStarted.countDown();
+                          try {
+                            assertTrue(finishReplay.await(5, SECONDS));
+                          } catch (final InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new AssertionError(e);
+                          }
+                        }
+                        received.add(content);
+                      }));
+      assertTrue(replayStarted.await(5, SECONDS));
+      final Future<?> removal =
+          executor.submit(
+              () -> {
+                removalStarted.countDown();
+                service.accept("key", null, null);
+              });
+      assertTrue(removalStarted.await(5, SECONDS));
+      assertThrows(TimeoutException.class, () -> removal.get(100, MILLISECONDS));
+
+      finishReplay.countDown();
+      removal.get(5, SECONDS);
+      subscription.get(5, SECONDS).close();
+
+      assertEquals(2, received.size());
+      assertArrayEquals(DOCUMENT, received.get(0));
+      assertNull(received.get(1));
+    } finally {
+      finishReplay.countDown();
+      executor.shutdownNow();
+      service.close();
+    }
   }
 
   @Test
