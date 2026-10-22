@@ -184,7 +184,7 @@ tracing remain active. Previously recorded or queued data is not removed.
 
 ## Migrating from earlier versions
 
-* The provider moved to `com.datadog.openfeature.Provider`. `datadog.trace.api.openfeature.Provider` is kept as a deprecated alias.
+* The provider moved to `com.datadog.openfeature.Provider`, and the exposure hook to `com.datadog.openfeature.ExposureHook`. `datadog.trace.api.openfeature.Provider` and `datadog.trace.api.openfeature.ExposureHook` are kept as deprecated aliases.
 * The SDK no longer requires `dd-java-agent` and no longer links against agent classes.
 * `dd-openfeature` 1.66.0 and earlier require the agent classes this release removes. Upgrade `dd-openfeature` together with `dd-java-agent` 1.67.0 or later.
 
