@@ -1,6 +1,7 @@
 package com.datadog.openfeature.internal;
 
 import static java.util.Collections.emptyMap;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,6 +28,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
@@ -136,6 +141,61 @@ class FeatureFlagsRuntimeTest {
       runtime.stop();
     }
     assertTrue(source.closed);
+  }
+
+  @Test
+  void concurrentRemovalIsDeliveredAfterTheInitialReplay() throws Exception {
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(source, null),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    runtime.start();
+    source.listener.accept(EMPTY_UFC);
+    final List<ServerConfiguration> received = new CopyOnWriteArrayList<>();
+    final CountDownLatch replayStarted = new CountDownLatch(1);
+    final CountDownLatch finishReplay = new CountDownLatch(1);
+    final CountDownLatch removalStarted = new CountDownLatch(1);
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<?> registration =
+          executor.submit(
+              () ->
+                  runtime.addConfigurationListener(
+                      configuration -> {
+                        if (configuration != null) {
+                          replayStarted.countDown();
+                          try {
+                            assertTrue(finishReplay.await(5, SECONDS));
+                          } catch (final InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new AssertionError(e);
+                          }
+                        }
+                        received.add(configuration);
+                      }));
+      assertTrue(replayStarted.await(5, SECONDS));
+      final Future<?> removal =
+          executor.submit(
+              () -> {
+                removalStarted.countDown();
+                source.listener.accept(null);
+              });
+      assertTrue(removalStarted.await(5, SECONDS));
+      assertThrows(TimeoutException.class, () -> removal.get(100, MILLISECONDS));
+
+      finishReplay.countDown();
+      registration.get(5, SECONDS);
+      removal.get(5, SECONDS);
+
+      assertEquals(2, received.size());
+      assertEquals("Test", received.get(0).environment.name);
+      assertNull(received.get(1));
+    } finally {
+      finishReplay.countDown();
+      executor.shutdownNow();
+      runtime.stop();
+    }
   }
 
   @Test

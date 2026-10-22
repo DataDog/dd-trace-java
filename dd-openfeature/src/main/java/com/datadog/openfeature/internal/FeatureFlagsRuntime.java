@@ -17,6 +17,7 @@ import com.datadog.openfeature.internal.exposure.ExposurePipeline;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -258,8 +259,13 @@ public final class FeatureFlagsRuntime {
   }
 
   private void onConfiguration(@Nullable final ServerConfiguration configuration) {
-    this.configuration = configuration;
-    for (final Consumer<ServerConfiguration> listener : this.listeners) {
+    final Iterator<Consumer<ServerConfiguration>> snapshot;
+    synchronized (this.listeners) {
+      this.configuration = configuration;
+      snapshot = this.listeners.iterator();
+    }
+    while (snapshot.hasNext()) {
+      final Consumer<ServerConfiguration> listener = snapshot.next();
       try {
         listener.accept(configuration);
       } catch (final RuntimeException e) {
@@ -274,10 +280,13 @@ public final class FeatureFlagsRuntime {
    * @param listener the listener to add.
    */
   public void addConfigurationListener(final Consumer<ServerConfiguration> listener) {
-    this.listeners.add(listener);
-    final ServerConfiguration current = this.configuration;
-    if (current != null) {
-      listener.accept(current);
+    // Keep registration and replay atomic with notification snapshots.
+    synchronized (this.listeners) {
+      this.listeners.add(listener);
+      final ServerConfiguration current = this.configuration;
+      if (current != null) {
+        listener.accept(current);
+      }
     }
   }
 

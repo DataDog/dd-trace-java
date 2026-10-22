@@ -6,6 +6,7 @@ import static datadog.remoteconfig.Product.FFE_FLAGS;
 import datadog.remoteconfig.ConfigurationChangesTypedListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -52,10 +53,13 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
    */
   public AutoCloseable subscribe(final Consumer<byte[]> subscriber) {
     start();
-    this.subscribers.add(subscriber);
-    final byte[] document = this.current;
-    if (document != null) {
-      subscriber.accept(document);
+    // Keep registration and replay atomic with notification snapshots.
+    synchronized (this.subscribers) {
+      this.subscribers.add(subscriber);
+      final byte[] document = this.current;
+      if (document != null) {
+        subscriber.accept(document);
+      }
     }
     return () -> this.subscribers.remove(subscriber);
   }
@@ -77,8 +81,13 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       final String configKey,
       @Nullable final byte[] content,
       final PollingRateHinter pollingRateHinter) {
-    this.current = content;
-    for (final Consumer<byte[]> subscriber : this.subscribers) {
+    final Iterator<Consumer<byte[]>> snapshot;
+    synchronized (this.subscribers) {
+      this.current = content;
+      snapshot = this.subscribers.iterator();
+    }
+    while (snapshot.hasNext()) {
+      final Consumer<byte[]> subscriber = snapshot.next();
       try {
         subscriber.accept(content);
       } catch (final RuntimeException e) {
