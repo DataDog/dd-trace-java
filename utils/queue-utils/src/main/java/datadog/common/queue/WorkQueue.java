@@ -5,6 +5,8 @@ import datadog.trace.api.function.StrategyConsumer;
 import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * A bounded handoff point between producers and a consumer, with admission that never builds an
@@ -119,9 +121,10 @@ import java.util.function.Consumer;
  * one: there is no outcome to report, so {@code tryPut} and {@link Reservation#fill fill} throw
  * instead of returning, and they throw before claiming a place so that a call with a bug in it
  * costs the queue nothing. A null inside a batch throws partway through, abandoning the rest.
- * <b>Producers, consumers, retry strategies and exception handlers</b> are required too — a null
- * there has no sensible reading, and it surfaces as the thrown {@link NullPointerException} of the
- * call that would have used it, with any place already claimed given back first.
+ * <b>Producers, consumers, retry strategies and exception handlers</b> are required too, but are
+ * marked {@link Nonnull} rather than checked: a null function object is a caller bug, and checking
+ * for one would cost every call inlining budget. Its effect is unspecified, and may cost the item a
+ * processing call was meant to consume.
  */
 public interface WorkQueue<T> {
 
@@ -145,7 +148,7 @@ public interface WorkQueue<T> {
    *     producer that declined
    */
   @StrategyConsumer
-  boolean tryPut(@Strategy Producer<? extends T> producer);
+  boolean tryPut(@Nonnull @Strategy Producer<? extends T> producer);
 
   /**
    * Admits an element derived from {@code context}, constructing it only once a slot is reserved.
@@ -154,7 +157,8 @@ public interface WorkQueue<T> {
    *     as a refusal here -- see {@link #tryPut(Producer)}
    */
   @StrategyConsumer
-  <C> boolean tryPut(C context, @Strategy ContextualProducer<? super C, ? extends T> producer);
+  <C> boolean tryPut(
+      C context, @Nonnull @Strategy ContextualProducer<? super C, ? extends T> producer);
 
   /**
    * Admits an element derived from two contexts, constructing it only once a slot is reserved.
@@ -167,7 +171,7 @@ public interface WorkQueue<T> {
   <C1, C2> boolean tryPut(
       C1 first,
       C2 second,
-      @Strategy BiContextualProducer<? super C1, ? super C2, ? extends T> producer);
+      @Nonnull @Strategy BiContextualProducer<? super C1, ? super C2, ? extends T> producer);
 
   /**
    * @return the elements that were not admitted, empty if all were
@@ -219,7 +223,7 @@ public interface WorkQueue<T> {
   <E, C> int tryPutBatch(
       Collection<? extends E> source,
       C context,
-      @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer);
+      @Nonnull @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer);
 
   /**
    * As {@link #tryPutBatch(Collection, Object, BiContextualProducer)}, handing each source element
@@ -235,8 +239,8 @@ public interface WorkQueue<T> {
   <E, C> int tryPutBatch(
       Collection<? extends E> source,
       C context,
-      @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer,
-      @Strategy RejectHandler<? super E> onRejected);
+      @Nonnull @Strategy BiContextualProducer<? super E, ? super C, ? extends T> producer,
+      @Nullable @Strategy RejectHandler<? super E> onRejected);
 
   /**
    * Claims a place without supplying its element, for a caller whose work between claiming and
@@ -262,7 +266,7 @@ public interface WorkQueue<T> {
    *
    * @return whether there was an item to consume
    */
-  boolean process(Consumer<? super T> consumer);
+  boolean process(@Nonnull Consumer<? super T> consumer);
 
   /**
    * Consumes one item, if there is one, handing a throwing consumer's failure to {@code
@@ -270,7 +274,8 @@ public interface WorkQueue<T> {
    *
    * @return whether there was an item to consume
    */
-  boolean processOrRetry(Consumer<? super T> consumer, @Strategy RetryStrategy<T> retryStrategy);
+  boolean processOrRetry(
+      @Nonnull Consumer<? super T> consumer, @Nonnull @Strategy RetryStrategy<T> retryStrategy);
 
   /**
    * Consumes one item, if there is one, handing a throwing consumer's failure to {@code
@@ -279,14 +284,15 @@ public interface WorkQueue<T> {
    * @return whether there was an item to consume
    */
   boolean processOrHandle(
-      Consumer<? super T> consumer, @Strategy ExceptionHandler<? super T> exceptionHandler);
+      @Nonnull Consumer<? super T> consumer,
+      @Nonnull @Strategy ExceptionHandler<? super T> exceptionHandler);
 
   /**
    * Consumes one item, if there is one. A throwing consumer propagates.
    *
    * @return whether there was an item to consume
    */
-  <C> boolean process(C context, BiConsumer<? super C, ? super T> consumer);
+  <C> boolean process(C context, @Nonnull BiConsumer<? super C, ? super T> consumer);
 
   /**
    * Consumes one item, if there is one, handing a throwing consumer's failure to {@code
@@ -296,8 +302,8 @@ public interface WorkQueue<T> {
    */
   <C> boolean processOrRetry(
       C context,
-      BiConsumer<? super C, ? super T> consumer,
-      @Strategy RetryStrategy<T> retryStrategy);
+      @Nonnull BiConsumer<? super C, ? super T> consumer,
+      @Nonnull @Strategy RetryStrategy<T> retryStrategy);
 
   /**
    * Consumes one item, if there is one, handing a throwing consumer's failure to {@code
@@ -307,8 +313,8 @@ public interface WorkQueue<T> {
    */
   <C> boolean processOrHandle(
       C context,
-      BiConsumer<? super C, ? super T> consumer,
-      @Strategy ExceptionHandler<? super T> exceptionHandler);
+      @Nonnull BiConsumer<? super C, ? super T> consumer,
+      @Nonnull @Strategy ExceptionHandler<? super T> exceptionHandler);
 
   /**
    * Consumes up to {@code limit} items, stopping early when the queue runs dry.
@@ -327,7 +333,7 @@ public interface WorkQueue<T> {
    * @return how many items were consumed, which is {@code limit} when the batch filled and there
    *     may be more waiting
    */
-  int process(int limit, Consumer<? super T> consumer);
+  int process(int limit, @Nonnull Consumer<? super T> consumer);
 
   /**
    * Consumes up to {@code limit} items, stopping early when the queue runs dry.
@@ -335,7 +341,7 @@ public interface WorkQueue<T> {
    * @return how many items were consumed
    * @see #process(int, Consumer)
    */
-  <C> int process(int limit, C context, BiConsumer<? super C, ? super T> consumer);
+  <C> int process(int limit, C context, @Nonnull BiConsumer<? super C, ? super T> consumer);
 
   /**
    * An O(1) count of the places currently spent: elements held, plus places claimed by producers
