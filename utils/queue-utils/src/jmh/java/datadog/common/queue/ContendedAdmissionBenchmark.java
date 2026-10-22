@@ -105,10 +105,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * slice mid-sequence with the line hot. The ~7.9ns is tight and the mechanism is not in doubt; a
  * quiet run will likely show a smaller multiple against a smaller before.
  *
- * <p>{@code steady} is the one arm where the two backings now separate, and by more than their
- * intervals: 252.8ns against 489.7ns, the MPMC ring ahead of the MPSC one. Eight producers against
- * a single drain thread is a shape the multi-consumer ring is built for and the single-consumer
- * ring is not, and the gap is not evidence about admission -- read it as the drain, not the claim.
+ * <p>{@code steady} measured 252.8ns per attempt on MPMC and 489.7ns on MPSC in this run. The timed
+ * operation is an admission attempt, including refusals; a separate, untimed thread drains the
+ * queue. These values do not isolate drain cost or successful handoff throughput. Both backings
+ * support this producer/consumer arrangement.
  *
  * <p>Attribution, since two changes landed together: this is the read, not the folding of the
  * closed flag into the count. Removing a volatile boolean load cannot account for 950ns. Folding it
