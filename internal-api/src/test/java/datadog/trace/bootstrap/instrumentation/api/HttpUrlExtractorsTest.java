@@ -221,6 +221,95 @@ class HttpUrlExtractorsTest {
   }
 
   @Test
+  @WithConfig(key = "http.client.tag.query-string", value = "false")
+  void datadogClientRespectsQueryOptOut() {
+    DatadogClientUrl.INSTANCE.extract(URI.create("http://host/a?token=secret#fragment"), span);
+
+    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
+    verify(span, never()).setTag(eq(DDTags.HTTP_FRAGMENT), anyString());
+  }
+
+  @TableTest({
+    "Scenario      | Path | Expected path",
+    "Missing path  |      | /            ",
+    "Empty path    | ''   | /            ",
+    "Relative path | a    | /a           ",
+    "Absolute path | /a   | /a           "
+  })
+  void serverNormalizesRequestPath(String path, String expectedPath) {
+    OtelServerUrl.INSTANCE.extract(
+        HttpServerUrl.fromRequest(
+            new URIDefaultDataAdapter(URI.create("http://host")), path, null, null),
+        span);
+
+    verify(span).setTag(KnownTags.URL_PATH_ID, expectedPath);
+  }
+
+  @TableTest({
+    "Scenario    | Raw URL                    | Expected path | Expected query",
+    "Query       | /bad%path?q=a%20b          | /bad%path     | q=a b         ",
+    "Fragment    | /bad%path?q=a%20b#fragment | /bad%path     | q=a b         ",
+    "No query    | /bad%path#fragment         | /bad%path     |               ",
+    "Empty query | /bad%path?                 | /bad%path     |               "
+  })
+  @WithConfig(key = "http.server.raw.query-string", value = "false")
+  void serverExtractsMalformedRequestUrl(String rawUrl, String expectedPath, String expectedQuery) {
+    HttpServerUrl url =
+        HttpServerUrl.fromRequest(new UnparseableURIDataAdapter(rawUrl), null, null, null);
+    AgentSpan datadog = mock(AgentSpan.class);
+
+    DatadogServerUrl.INSTANCE.extract(url, datadog);
+    OtelServerUrl.INSTANCE.extract(url, span);
+
+    ArgumentCaptor<CharSequence> captured = ArgumentCaptor.forClass(CharSequence.class);
+    verify(datadog).setTag(eq(KnownTags.HTTP_URL_ID), captured.capture());
+    assertEquals(rawUrl, captured.getValue().toString());
+    verify(datadog, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
+    verify(span).setTag(KnownTags.URL_PATH_ID, expectedPath);
+    if (expectedQuery == null) {
+      verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
+    } else {
+      verify(span).setTag(KnownTags.URL_QUERY_ID, expectedQuery);
+    }
+  }
+
+  @Test
+  @WithConfig(key = "http.server.raw.query-string", value = "true")
+  void serverPreservesRawMalformedQuery() {
+    OtelServerUrl.INSTANCE.extract(
+        HttpServerUrl.fromRequest(
+            new UnparseableURIDataAdapter("/bad%path?q=a%20b"), null, null, null),
+        span);
+
+    verify(span).setTag(KnownTags.URL_QUERY_ID, "q=a%20b");
+  }
+
+  @Test
+  void serverOmitsUnavailableMalformedUrl() {
+    URIDataAdapter adapter = mock(URIDataAdapter.class);
+    HttpServerUrl url = HttpServerUrl.fromRequest(adapter, null, null, null);
+
+    DatadogServerUrl.INSTANCE.extract(url, span);
+    OtelServerUrl.INSTANCE.extract(url, span);
+
+    verify(span, never()).setTag(eq(KnownTags.HTTP_URL_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_PATH_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
+  }
+
+  @Test
+  @WithConfig(key = "http.server.tag.query-string", value = "false")
+  void datadogServerRespectsQueryOptOut() {
+    DatadogServerUrl.INSTANCE.extract(
+        HttpServerUrl.fromRequest(
+            new URIDefaultDataAdapter(URI.create("http://host/a?q=1#fragment")), "/a", null, null),
+        span);
+
+    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
+    verify(span, never()).setTag(eq(DDTags.HTTP_FRAGMENT), anyString());
+  }
+
+  @Test
   void datadogServerKeepsBackendUrlAndOriginalForwardedHostname() {
     URI uri = URI.create("http://internal:8080/a?q=1#fragment");
     AgentSpanContext.Extracted extracted = mock(AgentSpanContext.Extracted.class);
