@@ -49,6 +49,7 @@ class KnownTagsTest {
         Arguments.of(KnownTags.SERVER_PORT_NAME, KnownTags.SERVER_PORT_ID),
         Arguments.of(KnownTags.URL_PATH_NAME, KnownTags.URL_PATH_ID),
         Arguments.of(KnownTags.HTTP_QUERY_STRING_NAME, KnownTags.HTTP_QUERY_STRING_ID),
+        Arguments.of(KnownTags.URL_QUERY_NAME, KnownTags.URL_QUERY_ID),
         Arguments.of(KnownTags.URL_SCHEME_NAME, KnownTags.URL_SCHEME_ID),
         Arguments.of(KnownTags.NETWORK_CLIENT_IP_NAME, KnownTags.NETWORK_CLIENT_IP_ID),
         Arguments.of(Tags.PEER_HOSTNAME, KnownTags.PEER_HOSTNAME_ID),
@@ -74,7 +75,6 @@ class KnownTagsTest {
         Arguments.of(
             "http.response.status_code", KnownTags.HTTP_STATUS_CODE_ID, "http.status_code"),
         Arguments.of("url.full", KnownTags.HTTP_URL_ID, "http.url"),
-        Arguments.of("url.query", KnownTags.HTTP_QUERY_STRING_ID, "http.query.string"),
         Arguments.of("user_agent.original", KnownTags.HTTP_USERAGENT_ID, "http.useragent"),
         Arguments.of("client.address", KnownTags.HTTP_CLIENT_IP_ID, "http.client_ip"),
         Arguments.of("db.system", KnownTags.DB_TYPE_ID, "db.type"),

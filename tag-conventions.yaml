@@ -131,7 +131,8 @@ span_types:
       - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original, span-kind-neutral: true }
       - { dd-name: url.path,          type: string, required: conditional }  # OTel-only; server replacement for http.url
       - { dd-name: url.scheme,        type: string, required: conditional }  # OTel-only; server replacement for http.url
-      - { dd-name: http.query.string, type: string, required: recommended, otel-name: url.query, span-kind-neutral: true }
+      - { dd-name: http.query.string, type: string, required: recommended }
+      - { dd-name: url.query,         type: string, required: conditional }  # OTel-only; kept separate from http.query.string
       - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address, span-kind-neutral: true }
       # Inbound only: the client's socket address. Server spans also carry that address in peer.ipv4 /
       # peer.ipv6, so do not map those inbound too, or the attribute is exported twice.

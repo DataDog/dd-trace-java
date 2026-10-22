@@ -29,9 +29,14 @@ class QueryObfuscatorTest extends DDJavaSpecification {
   private static final String JWT =
       "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
 
-  @Test
-  void datadogQueryReconstructionPreservesDecodedPath() {
-    URI uri = URI.create("http://host/a%23b?q=1");
+  @TableTest({
+    "Scenario           | URL                       | Expected URL         ",
+    "Decoded hash       | http://host/a%23b?q=1     | http://host/a#b?q=1  ",
+    "Decoded question   | http://host/a%3Fb?q=1     | http://host/a?b?q=1  ",
+    "Decoded delimiters | http://host/a%3Fb%23c?q=1 | http://host/a?b#c?q=1"
+  })
+  void datadogQueryReconstructionPreservesDecodedPath(String url, String expectedUrl) {
+    URI uri = URI.create(url);
     TagMap tags = TagMap.create();
     tags.put(
         Tags.HTTP_URL,
@@ -41,7 +46,46 @@ class QueryObfuscatorTest extends DDJavaSpecification {
     new QueryObfuscator(null, false).processTags(tags, null, link -> {});
 
     assertEquals("q=1", tags.get(DDTags.HTTP_QUERY));
-    assertEquals("http://host/a#b?q=1", tags.get(Tags.HTTP_URL));
+    assertEquals(expectedUrl, tags.get(Tags.HTTP_URL));
+  }
+
+  @TableTest({
+    "Scenario           | URL                                                    | Query               | Expected URL                                          ",
+    "OpenTelemetry      | https://example.com/orders?page=1                      | page=1              | https://example.com/orders?page=1                     ",
+    "OTel redaction     | https://example.com/orders?token=secret&page=1#details | token=secret&page=1 | 'https://example.com/orders?<redacted>&page=1#details'",
+    "OTel fragment only | https://example.com/orders#details?view=full           | page=1              | https://example.com/orders?page=1#details?view=full   "
+  })
+  void existingOtelUrlQueryIsReplaced(String url, String query, String expectedUrl) {
+    TagMap tags = TagMap.create();
+    tags.put(Tags.HTTP_URL, url);
+    tags.put("url.query", query);
+
+    new QueryObfuscator(null, true).processTags(tags, null, link -> {});
+
+    assertEquals(expectedUrl, tags.get(Tags.HTTP_URL));
+    assertEquals(query.replace("token=secret", "<redacted>"), tags.get("url.query"));
+    assertFalse(tags.containsKey(DDTags.HTTP_QUERY));
+  }
+
+  @Test
+  void datadogProcessingKeepsQueryTagsSeparate() {
+    TagMap tags = TagMap.create();
+    tags.put(Tags.HTTP_URL, "https://example.com/orders?page=1");
+    tags.put("url.query", "page=1");
+
+    QueryObfuscator obfuscator = new QueryObfuscator(null, false);
+    obfuscator.processTags(tags, null, link -> {});
+
+    assertEquals("https://example.com/orders?page=1", tags.get(Tags.HTTP_URL));
+    assertEquals("page=1", tags.get("url.query"));
+    assertFalse(tags.containsKey(DDTags.HTTP_QUERY));
+
+    tags.put(DDTags.HTTP_QUERY, "token=secret");
+    obfuscator.processTags(tags, null, link -> {});
+
+    assertEquals("https://example.com/orders?page=1?<redacted>", tags.get(Tags.HTTP_URL));
+    assertEquals("<redacted>", tags.get(DDTags.HTTP_QUERY));
+    assertEquals("page=1", tags.get("url.query"));
   }
 
   @TableTest({
@@ -160,9 +204,11 @@ class QueryObfuscatorTest extends DDJavaSpecification {
     "OpenTelemetry | true          "
   })
   void invalidRegexDropsQueryString(boolean otelSemantics) {
-    TagMap unsafeTags = process(new QueryObfuscator("(?<=a)b", otelSemantics), "pwd=secret");
+    String queryTag = otelSemantics ? "url.query" : DDTags.HTTP_QUERY;
+    TagMap unsafeTags =
+        process(new QueryObfuscator("(?<=a)b", otelSemantics), "pwd=secret", queryTag);
 
-    assertFalse(unsafeTags.containsKey(DDTags.HTTP_QUERY));
+    assertFalse(unsafeTags.containsKey(queryTag));
     assertEquals("http://site.com/index", unsafeTags.getObject(Tags.HTTP_URL));
   }
 
@@ -230,11 +276,12 @@ class QueryObfuscatorTest extends DDJavaSpecification {
 
     TagMap tags = TagMap.create();
     tags.put(Tags.HTTP_URL, "http://site.com/index#fragment");
-    tags.put(DDTags.HTTP_QUERY, "token=secret&view=full");
+    String queryTag = otelSemantics ? "url.query" : DDTags.HTTP_QUERY;
+    tags.put(queryTag, "token=secret&view=full");
 
     obfuscator.processTags(tags, spanContext, link -> {});
 
     assertEquals(expectedUrl, tags.get(Tags.HTTP_URL));
-    assertEquals(retainQuery ? "<redacted>&view=full" : null, tags.get(DDTags.HTTP_QUERY));
+    assertEquals(retainQuery ? "<redacted>&view=full" : null, tags.get(queryTag));
   }
 }

@@ -45,7 +45,7 @@ class HttpUrlExtractorsTest {
     assertNull(url.lazy);
     assertEquals("https://REDACTED:REDACTED@host/a#fragment", url.toString());
     assertEquals("https://REDACTED:REDACTED@host/a#fragment", url.get());
-    verify(span).setTag(KnownTags.HTTP_QUERY_STRING_ID, "token=secret");
+    verify(span).setTag(KnownTags.URL_QUERY_ID, "token=secret");
   }
 
   @TableTest({
@@ -62,14 +62,14 @@ class HttpUrlExtractorsTest {
     OtelClientUrl.INSTANCE.extract(URI.create(rawUrl), span);
 
     // The obfuscator matches literal parameter names, so the query it receives must be decoded.
-    verify(span).setTag(KnownTags.HTTP_QUERY_STRING_ID, expectedQuery);
+    verify(span).setTag(KnownTags.URL_QUERY_ID, expectedQuery);
   }
 
   @Test
   void otelClientOmitsQueryTagWhenAbsent() {
     OtelClientUrl.INSTANCE.extract(URI.create("http://host/a"), span);
 
-    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
   }
 
   @Test
@@ -162,7 +162,7 @@ class HttpUrlExtractorsTest {
   void otelClientRespectsQueryOptOut() {
     OtelClientUrl.INSTANCE.extract(URI.create("http://host/a?token=secret"), span);
 
-    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
   }
 
   @Test
@@ -213,7 +213,7 @@ class HttpUrlExtractorsTest {
 
     verify(span).setTag(KnownTags.URL_SCHEME_ID, "https");
     verify(span).setTag(KnownTags.URL_PATH_ID, "/a");
-    verify(span).setTag(KnownTags.HTTP_QUERY_STRING_ID, "token=secret");
+    verify(span).setTag(KnownTags.URL_QUERY_ID, "token=secret");
   }
 
   @Test
@@ -222,7 +222,7 @@ class HttpUrlExtractorsTest {
     OtelServerUrl.INSTANCE.extract(
         HttpServerUrl.fromTransaction("https://host/a?token=secret", null, null), span);
 
-    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
   }
 
   @Test

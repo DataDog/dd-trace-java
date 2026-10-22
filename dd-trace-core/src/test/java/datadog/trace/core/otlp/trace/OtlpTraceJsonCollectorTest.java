@@ -273,7 +273,7 @@ class OtlpTraceJsonCollectorTest {
       agentSpan.setTag(SPAN_KIND, SPAN_KIND_SERVER);
       agentSpan.setResourceName("GET /api");
       agentSpan.setTag("http.method", "GET");
-      agentSpan.setTag("http.query.string", "view=full");
+      agentSpan.setTag(otelSemanticsEnabled ? "url.query" : "http.query.string", "view=full");
       agentSpan.setTag("network.client.ip", "192.0.2.10");
       agentSpan.setTag("server.address", "example.com");
       agentSpan.setTag("server.port", 443);

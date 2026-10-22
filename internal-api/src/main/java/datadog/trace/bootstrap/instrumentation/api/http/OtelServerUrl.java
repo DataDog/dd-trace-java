@@ -30,7 +30,7 @@ public final class OtelServerUrl implements TagExtractor<HttpServerUrl> {
     if (Config.get().isHttpServerTagQueryString()) {
       String query = url.query();
       if (query != null && !query.isEmpty()) {
-        span.setTag(KnownTags.HTTP_QUERY_STRING_ID, query);
+        span.setTag(KnownTags.URL_QUERY_ID, query);
       }
     }
   }

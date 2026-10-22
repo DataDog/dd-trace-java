@@ -6,9 +6,11 @@ import com.google.re2j.PatternSyntaxException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
 import org.slf4j.Logger;
@@ -124,26 +126,38 @@ public final class QueryObfuscator extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    Object query = unsafeTags.getObject(DDTags.HTTP_QUERY);
+    processQuery(unsafeTags, spanContext, DDTags.HTTP_QUERY);
+    if (otelSemanticsEnabled) {
+      processQuery(unsafeTags, spanContext, KnownTags.URL_QUERY_NAME);
+    }
+  }
+
+  private void processQuery(TagMap unsafeTags, DDSpanContext spanContext, String queryTag) {
+    Object query = unsafeTags.getObject(queryTag);
     if (query instanceof CharSequence) {
       if (failClosed) {
-        unsafeTags.remove(DDTags.HTTP_QUERY);
+        unsafeTags.remove(queryTag);
         return;
       }
+      final String obfuscatedQuery;
       try {
-        query = obfuscate(query.toString());
+        obfuscatedQuery = obfuscate(query.toString());
       } catch (Exception e) {
         // never report a query that could not be obfuscated, and never log it
         log.debug("Could not obfuscate query string, dropping it", e);
-        unsafeTags.remove(DDTags.HTTP_QUERY);
+        unsafeTags.remove(queryTag);
         return;
       }
 
-      unsafeTags.put(DDTags.HTTP_QUERY, query);
+      unsafeTags.put(queryTag, obfuscatedQuery);
 
       Object url = unsafeTags.getObject(Tags.HTTP_URL);
       if (url instanceof CharSequence) {
-        unsafeTags.put(Tags.HTTP_URL, appendQuery(url.toString(), query.toString()));
+        if (otelSemanticsEnabled) {
+          unsafeTags.put(Tags.HTTP_URL, rebuildOtelUrl(url.toString(), obfuscatedQuery));
+        } else {
+          unsafeTags.put(Tags.HTTP_URL, url + "?" + obfuscatedQuery);
+        }
       }
 
       // HTTP clients carry the query separately only so this processor can scrub it before
@@ -152,18 +166,17 @@ public final class QueryObfuscator extends TagsPostProcessor {
           && spanContext != null
           && spanContext.getSpanType() != null
           && DDSpanTypes.HTTP_CLIENT.contentEquals(spanContext.getSpanType())) {
-        unsafeTags.remove(DDTags.HTTP_QUERY);
+        unsafeTags.remove(queryTag);
       }
     }
   }
 
-  private String appendQuery(final String url, final String query) {
-    // With OTel semantics disabled, captured URLs may contain decoded '#' path characters.
-    // Preserve the existing query concatenation in that mode.
-    final int fragment = otelSemanticsEnabled ? url.indexOf('#') : -1;
+  private String rebuildOtelUrl(final String url, final String query) {
+    final String withoutQuery = OtelHttpSemantics.withoutQuery(url);
+    final int fragment = withoutQuery.indexOf('#');
     if (fragment < 0) {
-      return url + "?" + query;
+      return withoutQuery + "?" + query;
     }
-    return url.substring(0, fragment) + "?" + query + url.substring(fragment);
+    return withoutQuery.substring(0, fragment) + "?" + query + withoutQuery.substring(fragment);
   }
 }
