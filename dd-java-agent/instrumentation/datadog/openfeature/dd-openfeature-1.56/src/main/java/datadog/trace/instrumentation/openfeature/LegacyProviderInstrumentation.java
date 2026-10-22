@@ -15,6 +15,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 /**
  * Keeps legacy providers usable as default-value providers after their bootstrap API is removed.
  */
+@SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public class LegacyProviderInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType,
