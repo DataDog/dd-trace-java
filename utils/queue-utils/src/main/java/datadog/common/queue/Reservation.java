@@ -48,7 +48,8 @@ public interface Reservation<T> extends AutoCloseable {
 
   /**
    * Publishes {@code element} into the claimed place. A granted place is already paid for, so this
-   * cannot be rejected; a refused one discards the element, having already counted the drop.
+   * cannot be rejected. A refused reservation ignores the fill and counts nothing: check {@link
+   * #granted} and count any discarded element yourself.
    */
   void fill(T element);
 
