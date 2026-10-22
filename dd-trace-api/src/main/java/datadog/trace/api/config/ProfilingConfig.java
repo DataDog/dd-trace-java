@@ -40,6 +40,12 @@ public final class ProfilingConfig {
       "profiling.experimental.ddprof.jmethodid_optim.enabled";
   public static final boolean PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED_DEFAULT = false;
 
+  // When set to true, ddprof attempts remote symbolication of native frames whose binaries have
+  // been stripped.
+  public static final String PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED =
+      "profiling.experimental.ddprof.remotesym.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED_DEFAULT = false;
+
   /**
    * @deprecated Use {@link #PROFILING_DEBUG_UPLOAD_COMPRESSION} instead. This will be removed in a
    *     future release.
