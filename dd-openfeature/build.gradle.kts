@@ -65,9 +65,3 @@ tasks.named<Jar>("jar") {
     attributes("Automatic-Module-Name" to "com.datadog.openfeature")
   }
 }
-
-// The dd-openfeature provider jar is not produced by the CI `build` job, so there is no reference
-// artifact to compare against. Disable the release jar comparison gate registered by publish.gradle.
-tasks.named("compareToReferenceJar") {
-  enabled = false
-}
