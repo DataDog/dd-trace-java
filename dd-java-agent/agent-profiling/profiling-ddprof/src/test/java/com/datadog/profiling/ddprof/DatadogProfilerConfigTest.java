@@ -165,7 +165,15 @@ class DatadogProfilerConfigTest {
             ",wall=50m,cpu=7m,nativemem=131072"),
         Arguments.of(",cpu=10m,wall=50m", "  ", ",cpu=10m,wall=50m"),
         Arguments.of(",cpu=10m,wall=50m", "cpu=5m,cpu=7m", ",wall=50m,cpu=7m"),
-        Arguments.of(",cpu=10m", "CPU=7m", ",CPU=7m"),
+        Arguments.of(",cpu=10m", "CPU=7m", ",cpu=7m"),
+        Arguments.of(",cpu=10m,wall=50m", "cpu = 7m", ",wall=50m,cpu=7m"),
+        Arguments.of(",cpu=10m,wall=50m", "event=cycles", ",wall=50m,event=cycles"),
+        Arguments.of(",event=cycles,interval=1000000", "cpu=7m", ",cpu=7m"),
+        Arguments.of(",cpu=10m", "cpu=7m,event=cycles", ",event=cycles"),
+        Arguments.of(
+            ",event=cycles,interval=1000000",
+            "event=instructions",
+            ",interval=1000000,event=instructions"),
         Arguments.of(
             ",cpu=10m,attributes=foo",
             "START,Resume,stop,CHECK,status,List,VERSION,JFR,File=other.jfr,ATTRIBUTES=bar,cpu=7m",
@@ -214,7 +222,18 @@ class DatadogProfilerConfigTest {
         Arguments.of(
             EnumSet.noneOf(ProfilingMode.class),
             "event=noop,memory=262144b:,generations=true",
-            EnumSet.of(ProfilingMode.MEMLEAK)));
+            EnumSet.of(ProfilingMode.MEMLEAK)),
+        Arguments.of(
+            EnumSet.of(ProfilingMode.CPU), "event=noop", EnumSet.noneOf(ProfilingMode.class)),
+        Arguments.of(EnumSet.of(ProfilingMode.CPU), "event=cycles", EnumSet.of(ProfilingMode.CPU)),
+        Arguments.of(
+            EnumSet.of(ProfilingMode.CPU),
+            "cpu=7m,event=noop",
+            EnumSet.noneOf(ProfilingMode.class)),
+        Arguments.of(
+            EnumSet.noneOf(ProfilingMode.class),
+            "event=noop,cpu=7m",
+            EnumSet.of(ProfilingMode.CPU)));
   }
 
   private static Stream<Arguments> j9StackwalkerTestCases() {

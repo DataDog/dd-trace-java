@@ -527,7 +527,7 @@ public final class DatadogProfiler {
       }
       String trimmedOption = derivedOptions.substring(start, end).trim();
       if (!trimmedOption.isEmpty()
-          && !configuredByName.containsKey(profilerOptionName(trimmedOption))) {
+          && !overridesDerivedProfilerOption(configuredByName, profilerOptionName(trimmedOption))) {
         mergedOptions.append(',').append(trimmedOption);
       }
       if (end == derivedOptions.length()) {
@@ -552,9 +552,13 @@ public final class DatadogProfiler {
       if (!trimmedOption.isEmpty()) {
         String name = profilerOptionName(trimmedOption);
         if (!isReservedProfilerOption(name)) {
+          if (isCpuEngineOption(name)) {
+            configuredByName.remove("cpu");
+            configuredByName.remove("event");
+          }
           // Reinsert duplicate keys to order them by their last occurrence.
           configuredByName.remove(name);
-          configuredByName.put(name, trimmedOption);
+          configuredByName.put(name, normalizeProfilerOption(name, trimmedOption));
         }
       }
       if (end == configuredOptions.length()) {
@@ -563,6 +567,26 @@ public final class DatadogProfiler {
       start = end + 1;
     }
     return configuredByName;
+  }
+
+  private static boolean overridesDerivedProfilerOption(
+      Map<String, String> configuredByName, String derivedName) {
+    if (configuredByName.containsKey(derivedName)) {
+      return true;
+    }
+    if (isCpuEngineOption(derivedName)) {
+      return configuredByName.containsKey("cpu") || configuredByName.containsKey("event");
+    }
+    return "interval".equals(derivedName) && configuredByName.containsKey("cpu");
+  }
+
+  private static boolean isCpuEngineOption(String name) {
+    return "cpu".equals(name) || "event".equals(name);
+  }
+
+  private static String normalizeProfilerOption(String name, String option) {
+    int equals = option.indexOf('=');
+    return equals < 0 ? name : name + '=' + option.substring(equals + 1).trim();
   }
 
   static void warnIfProfilerOptionsConfigured(Logger logger, String configuredOptions) {
@@ -600,6 +624,9 @@ public final class DatadogProfiler {
       return;
     }
     Map<String, String> configuredByName = configuredProfilerOptions(configuredOptions);
+    if (configuredByName.containsKey("cpu") || configuredByName.containsKey("event")) {
+      modes.remove(CPU);
+    }
     for (Map.Entry<String, String> option : configuredByName.entrySet()) {
       String name = option.getKey();
       switch (name) {

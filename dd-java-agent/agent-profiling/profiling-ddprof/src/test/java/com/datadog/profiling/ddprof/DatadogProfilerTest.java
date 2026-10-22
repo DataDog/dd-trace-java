@@ -145,6 +145,39 @@ class DatadogProfilerTest {
   }
 
   @Test
+  void testExperimentalEventOptionOverridesDerivedCpuOption() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "event=cycles");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    String cmd = startCmd(profiler);
+    assertFalse(cmd.contains(",cpu="), cmd);
+    assertTrue(cmd.endsWith(",event=cycles"), cmd);
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.CPU));
+  }
+
+  @Test
+  void testExperimentalNoopEventDisablesCpuMode() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT, "cycles");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "event=noop");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    String cmd = startCmd(profiler);
+    assertFalse(cmd.contains(",event=cycles"), cmd);
+    assertTrue(cmd.endsWith(",event=noop"), cmd);
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.CPU));
+  }
+
+  @Test
   void testExperimentalMemoryOptionUpdatesEnabledModes() throws Exception {
     assertDoesNotThrow(
         () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
