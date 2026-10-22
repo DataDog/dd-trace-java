@@ -188,7 +188,6 @@ public class Tags {
 
   public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";
-  public static final String PROPAGATED_TRACE_ID_HIGH = "_dd.p.tid";
 
   public static final String LLMOBS_LLM_SPAN_KIND = "llm";
   public static final String LLMOBS_WORKFLOW_SPAN_KIND = "workflow";

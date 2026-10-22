@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_PARTIAL_VERSION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_TOP_LEVEL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_WAS_LONG_RUNNING;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.PROPAGATED_TRACE_ID_HIGH;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
@@ -60,6 +59,8 @@ public final class OtlpTraceProto {
   private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
+
+  private static final String TRACE_ID_HIGH_TAG = "_dd.p.tid";
 
   /*
    * Span fields and intercepted Metadata fields bypass TagMap entry projection. Resolve their
@@ -341,7 +342,7 @@ public final class OtlpTraceProto {
       // which also keeps OTLP attribute keys unique. _dd.p.tid is skipped: the OTLP traceId already
       // carries the upper 64 bits of the trace id.
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        if (PROPAGATED_TRACE_ID_HIGH.equals(entry.getKey()) || tags.containsKey(entry.getKey())) {
+        if (TRACE_ID_HIGH_TAG.equals(entry.getKey()) || tags.containsKey(entry.getKey())) {
           continue;
         }
         writeTag(buf, 9, LEN_WIRE_TYPE);
