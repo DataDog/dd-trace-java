@@ -3,17 +3,17 @@ package datadog.common.queue;
 import datadog.trace.api.function.Strategy;
 
 /**
- * Produces an element for admission into a {@link WorkQueue}.
+ * Produces an element after a {@link WorkQueue} has claimed capacity for it.
  *
- * <p>A producer is only invoked once a place has been claimed, so it is never called for an element
- * that will be rejected. Implementations must be non-capturing — a {@code static final} constant of
- * the concrete type, or a lambda that closes over nothing — which is what {@link Strategy} marks.
+ * <p>Prefer a reusable producer or a non-capturing lambda. The contextual producer overloads carry
+ * per-admission state without capturing it. Constructing a capturing lambda for each admission may
+ * allocate; HotSpot can eliminate that allocation through escape analysis when the call chain
+ * inlines. {@link Strategy} describes the intended optimisation pattern, without guaranteeing it.
  *
- * <p>That is not a preference, it is the whole reason this form exists. A capturing lambda
- * allocates once per call, and so does a {@link Reservation}; the reservation is straight-line code
- * that keeps whatever the call site had hoisted and needs no context parameters. So a producer that
- * captures is strictly worse than the reserve form it was meant to improve on. If the state will
- * not fit the context parameters, use {@link WorkQueue#tryReserve} rather than closing over it.
+ * <p>Use {@link WorkQueue#tryReserve()} when the work between claiming and filling cannot fit a
+ * producer callback. A producer returning null declines the element and releases its claimed place.
+ *
+ * @param <T> the produced item type
  */
 @Strategy
 @FunctionalInterface
