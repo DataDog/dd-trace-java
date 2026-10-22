@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductActivation;
@@ -174,12 +173,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   private void setOtelResourceNameFallback(AgentSpan span, String method) {
     if (OTEL_SEMANTICS && shouldSetResourceName()) {
-      CharSequence spanType = span.getSpanType();
-      if (spanType != null && DDSpanTypes.HTTP_CLIENT.contentEquals(spanType)) {
-        HTTP_RESOURCE_DECORATOR.withClientPath(span, method, null);
-      } else {
-        OtelHttpSemantics.setMethodResourceName(span, method);
-      }
+      OtelHttpSemantics.setMethodResourceName(span, method);
     }
   }
 
