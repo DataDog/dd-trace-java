@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -19,7 +20,13 @@ import datadog.trace.bootstrap.instrumentation.api.http.HttpServerUrl;
 import datadog.trace.bootstrap.instrumentation.api.http.OtelClientUrl;
 import datadog.trace.bootstrap.instrumentation.api.http.OtelServerUrl;
 import datadog.trace.test.junit.utils.config.WithConfig;
+import java.lang.reflect.Field;
 import java.net.URI;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -31,11 +38,16 @@ import org.tabletest.junit.TableTest;
 class HttpUrlExtractorsTest {
   private final AgentSpan span = mock(AgentSpan.class);
 
-  @Test
-  void otelClientLazilyStripsQueryAndRedactsCredentials() {
+  @TableTest({
+    "Scenario           | Get first",
+    "Render as string   | false    ",
+    "Render as supplier | true     "
+  })
+  void otelClientLazilyStripsQueryAndRedactsCredentials(boolean getFirst) throws Exception {
     ArgumentCaptor<LazyUrl> urlCaptor = ArgumentCaptor.forClass(LazyUrl.class);
 
-    OtelClientUrl.INSTANCE.extract(URI.create("https://u:p@host/a?token=secret#fragment"), span);
+    URI uri = URI.create("https://u:p@host/a?token=secret#fragment");
+    OtelClientUrl.INSTANCE.extract(uri, span);
 
     verify(span).setTag(eq(KnownTags.HTTP_URL_ID), (Object) urlCaptor.capture());
     LazyUrl url = urlCaptor.getValue();
@@ -43,9 +55,52 @@ class HttpUrlExtractorsTest {
     // Reading the path must leave the full URL unrendered.
     assertEquals("/a", url.path());
     assertNull(url.lazy);
+    Field source = url.getClass().getDeclaredField("uri");
+    source.setAccessible(true);
+    assertSame(uri, source.get(url));
+    assertEquals(
+        "https://REDACTED:REDACTED@host/a#fragment", getFirst ? url.get() : url.toString());
+    assertNull(source.get(url));
+    assertEquals("/a", url.path());
     assertEquals("https://REDACTED:REDACTED@host/a#fragment", url.toString());
     assertEquals("https://REDACTED:REDACTED@host/a#fragment", url.get());
     verify(span).setTag(KnownTags.URL_QUERY_ID, "token=secret");
+  }
+
+  @Test
+  void otelClientSupportsConcurrentRenderingAndPathReads() throws Exception {
+    ArgumentCaptor<LazyUrl> urlCaptor = ArgumentCaptor.forClass(LazyUrl.class);
+    OtelClientUrl.INSTANCE.extract(URI.create("https://host/a%3Fb?token=secret#fragment"), span);
+    verify(span).setTag(eq(KnownTags.HTTP_URL_ID), (Object) urlCaptor.capture());
+    LazyUrl url = urlCaptor.getValue();
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    CyclicBarrier start = new CyclicBarrier(2);
+    try {
+      Future<?> rendering =
+          executor.submit(
+              () -> {
+                start.await(10, TimeUnit.SECONDS);
+                for (int i = 0; i < 1000; i++) {
+                  assertEquals("https://host/a%3Fb#fragment", url.get());
+                  assertEquals("a%3Fb", url.subSequence(13, 18).toString());
+                }
+                return null;
+              });
+      Future<?> reading =
+          executor.submit(
+              () -> {
+                start.await(10, TimeUnit.SECONDS);
+                for (int i = 0; i < 1000; i++) {
+                  assertEquals("/a?b", url.path());
+                  assertEquals("https://host/a%3Fb#fragment", url.toString());
+                }
+                return null;
+              });
+      rendering.get(10, TimeUnit.SECONDS);
+      reading.get(10, TimeUnit.SECONDS);
+    } finally {
+      executor.shutdownNow();
+    }
   }
 
   @TableTest({

@@ -28,7 +28,8 @@ public final class OtelClientUrl implements TagExtractor<URI> {
   }
 
   private static final class ClientUrl extends URIUtils.LazyUrl {
-    private final URI uri;
+    private volatile URI uri;
+    private String path;
 
     private ClientUrl(URI uri) {
       super(null);
@@ -37,14 +38,20 @@ public final class OtelClientUrl implements TagExtractor<URI> {
 
     @Override
     public String path() {
-      return uri.getPath();
+      URI source = uri;
+      return source != null ? source.getPath() : path;
     }
 
     @Override
     public String get() {
-      return lazy != null
-          ? lazy
-          : OtelHttpSemantics.withoutQuery(OtelHttpSemantics.redactedUrl(uri));
+      URI source = uri;
+      if (source != null) {
+        path = source.getPath();
+        lazy = OtelHttpSemantics.withoutQuery(OtelHttpSemantics.redactedUrl(source));
+        // Publish both cached values before releasing the URI. Concurrent renders are harmless.
+        uri = null;
+      }
+      return lazy;
     }
   }
 }
