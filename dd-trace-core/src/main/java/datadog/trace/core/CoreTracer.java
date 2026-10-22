@@ -2630,7 +2630,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
       if (null != oldSnapshot
           && isTracingTagsOverridden() == oldSnapshot.isTracingTagsOverridden()
-          && getTracingTags().equals(oldSnapshot.getTracingTags())) {
+          && getTracingTags().equals(oldSnapshot.getTracingTags())
+          // withTracerTags also depends on whether Data Streams Monitoring is enabled
+          && isDataStreamsEnabled() == oldSnapshot.isDataStreamsEnabled()) {
         globalTags = oldSnapshot.globalTags;
         spanDefaultTags = oldSnapshot.spanDefaultTags;
         mergedTracerTags = oldSnapshot.mergedTracerTags;
