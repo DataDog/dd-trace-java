@@ -738,6 +738,8 @@ class OtlpTraceProtoTest {
   void propagationTagsAreWrittenOnTheLocalRootSpanOnly() throws IOException {
     AgentSpan root = TRACER.startSpan("test", "op.root");
     root.setResourceName("root.op");
+    // 128-bit trace ids are on by default, so the root carries a _dd.p.tid propagation tag
+    assertNotEquals(0, root.getTraceId().toHighOrderLong());
     ((DDSpan) root)
         .spanContext()
         .getPropagationTags()
@@ -763,6 +765,8 @@ class OtlpTraceProtoTest {
     assertNotNull(rootAttributes, "root span must be exported");
     assertEquals("-11", rootAttributes.get("_dd.p.dm"));
     assertEquals("0.5", rootAttributes.get("_dd.p.ksr"));
+    // the OTLP traceId already carries the upper 64 bits
+    assertFalse(rootAttributes.containsKey("_dd.p.tid"), "_dd.p.tid must not be exported");
     assertEquals("baggage.value", rootAttributes.get("baggage.key"));
 
     Map<String, String> childAttributes = attributesBySpan.get("child.op");

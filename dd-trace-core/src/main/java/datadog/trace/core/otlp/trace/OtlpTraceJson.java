@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_PARTIAL_VERSION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_TOP_LEVEL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_WAS_LONG_RUNNING;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.PROPAGATED_TRACE_ID_HIGH;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
@@ -113,7 +114,7 @@ public final class OtlpTraceJson {
     if (span.getSpanType() != null) {
       writeSpanTag(writer, SPAN_TYPE, span.getSpanType());
     }
-    // Like the Datadog mappers, only serialize propagation tags (_dd.p.dm, _dd.p.tid...) once per
+    // Like the Datadog mappers, only serialize propagation tags (_dd.p.dm, _dd.p.ksr...) once per
     // trace segment: on the local root span, which owns them.
     span.processTagsAndBaggage(
         metaWriter, span.getLocalRootSpan() == span ? ROOT_PROPAGATION_TAGS : 0);
@@ -259,9 +260,10 @@ public final class OtlpTraceJson {
 
       // Baggage carries the propagation tags (e.g. the _dd.p.dm sampling decision maker) and any
       // baggage items injected as tags, as in the Datadog mappers. Span tags win on a key clash,
-      // which also keeps OTLP attribute keys unique.
+      // which also keeps OTLP attribute keys unique. _dd.p.tid is skipped: the OTLP traceId already
+      // carries the upper 64 bits of the trace id.
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        if (tags.containsKey(entry.getKey())) {
+        if (PROPAGATED_TRACE_ID_HIGH.equals(entry.getKey()) || tags.containsKey(entry.getKey())) {
           continue;
         }
         writeAttribute(writer, STRING_ATTRIBUTE, entry.getKey(), entry.getValue());
