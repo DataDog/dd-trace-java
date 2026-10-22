@@ -1,5 +1,6 @@
 package datadog.common.queue;
 
+import static datadog.common.queue.RetryStrategy.maxRetries;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -372,7 +373,7 @@ class WorkQueueContractTest {
     WorkQueue<String> queue = factory.apply(CAPACITY);
     queue.tryPut("a");
     AtomicInteger attempts = new AtomicInteger();
-    RetryStrategy<String> strategy = new MaxRetries<>(3);
+    RetryStrategy<String> strategy = maxRetries(3);
 
     while (queue.processOrRetry(
         item -> {

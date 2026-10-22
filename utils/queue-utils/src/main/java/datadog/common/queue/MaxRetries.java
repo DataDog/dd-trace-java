@@ -1,18 +1,16 @@
 package datadog.common.queue;
 
 /**
- * A {@link RetryStrategy} that resubmits a failed item up to a fixed number of times, then gives
- * up.
+ * The strategy behind {@link RetryStrategy#maxRetries}. A named class rather than a lambda so it
+ * reads as itself in compilation logs.
  *
- * <p>The count is retries, not consumptions: {@code new MaxRetries<>(3)} lets an item be consumed
- * four times in all, and {@code new MaxRetries<>(0)} never resubmits. {@link
- * RetryStrategy#onFailure} reports the first failure as attempt {@code 1}, so the comparison is
- * against the failures so far rather than against the attempt number.
+ * <p>{@link RetryStrategy#onFailure} reports the first failure as attempt {@code 1}, so the
+ * comparison is against the failures so far rather than against the attempt number.
  */
-public final class MaxRetries<T> implements RetryStrategy<T> {
+final class MaxRetries<T> implements RetryStrategy<T> {
   private final int maxRetries;
 
-  public MaxRetries(int maxRetries) {
+  MaxRetries(int maxRetries) {
     this.maxRetries = maxRetries;
   }
 
