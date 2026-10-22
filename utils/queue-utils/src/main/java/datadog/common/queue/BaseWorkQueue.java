@@ -64,17 +64,15 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   private static final long CLOSED_MARK = -(1L << 39);
 
   /**
-   * The most places one call will claim at a time, however long the batch.
+   * Maximum places reserved by one batch claim.
    *
-   * <p>This is not a fairness knob. A claim drives the shared count down by its own size until the
-   * unused part comes back, and every other producer's admission begins with a comparison of that
-   * count against zero -- so an oversized claim turns concurrent single admissions away for the
-   * width of the claim, at the boundary, where the most threads are arriving. The cap is a bound on
-   * how many neighbours one batching producer can make refuse, which is why it is modest rather
-   * than as large as batches get. Claims are also clamped to what the count says is available, so
-   * this bounds the dip a claim takes deliberately; the rest is the race the single claim already
-   * runs. {@code ContendedAdmissionBenchmark} prices both halves: what batching saves the batcher,
-   * and what it costs the producers next to it.
+   * <p>A claim lowers the shared permit count before its elements are stored or unused permits are
+   * returned. Other producers can be refused during that interval. This cap limits how much
+   * capacity one claim can withhold; it does not bound the number of refusals or guarantee
+   * fairness. Each claim is also clamped to the available-count snapshot.
+   *
+   * <p>{@code ContendedBatchAdmissionBenchmark} compares batching with single admissions and
+   * measures the effect on neighbouring producers.
    */
   private static final int MAX_BATCH_CLAIM = 32;
 
