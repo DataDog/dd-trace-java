@@ -159,11 +159,7 @@ class AbstractPlayServerTest extends HttpServerTest<Server> {
           errorTags(endpoint == CUSTOM_EXCEPTION ? TestHttpErrorHandler.CustomRuntimeException : RuntimeException, endpoint.body)
         }
         if (endpoint.query) {
-          if (otelSemantics) {
-            "$KnownTags.HTTP_QUERY_STRING_NAME" expectedQueryTag
-          } else {
-            "$DDTags.HTTP_QUERY" expectedQueryTag
-          }
+          tag(otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY, expectedQueryTag)
         }
         defaultTags()
       }
