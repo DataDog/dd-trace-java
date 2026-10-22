@@ -402,6 +402,7 @@
 /dd-java-agent/instrumentation/datadog/openfeature/  @DataDog/feature-flagging-and-experimentation-sdk
 /dd-openfeature/                                     @DataDog/feature-flagging-and-experimentation-sdk
 /dd-smoke-tests/openfeature/                         @DataDog/feature-flagging-and-experimentation-sdk
+/dd-smoke-tests/openfeature-legacy/                  @DataDog/feature-flagging-and-experimentation-sdk
 /products/feature-flagging/                          @DataDog/feature-flagging-and-experimentation-sdk
 
 # @DataDog/profiling-java
