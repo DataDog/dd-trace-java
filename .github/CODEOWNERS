@@ -2,22 +2,20 @@
 # Note that the apm-java team co-owns some product paths to help with reviews.
 
 # Shared core with product overrides below
-/dd-trace-core/                       @DataDog/apm-java
-/utils/                               @DataDog/apm-java
-/communication/                       @DataDog/apm-lang-platform-java
-/components/                          @DataDog/apm-lang-platform-java
-/dd-java-agent/                       @DataDog/apm-lang-platform-java
-/dd-smoke-tests/                      @DataDog/apm-lang-platform-java
-/dd-trace-api/                        @DataDog/apm-lang-platform-java
-/internal-api/                        @DataDog/apm-lang-platform-java
-/remote-config/                       @DataDog/apm-lang-platform-java
-/telemetry/                           @DataDog/apm-lang-platform-java
-/test-published-dependencies/         @DataDog/apm-lang-platform-java
-/dd-java-agent/agent-otel/            @DataDog/apm-sdk-capabilities
-/dd-smoke-tests/custom-systemloader/  @DataDog/apm-sdk-capabilities
-/dd-smoke-tests/java9-modules/        @DataDog/apm-sdk-capabilities
-/dd-trace-ot/                         @DataDog/apm-sdk-capabilities
-/products/metrics/                    @DataDog/apm-sdk-capabilities
+/dd-trace-core/                @DataDog/apm-java
+/utils/                        @DataDog/apm-java
+/communication/                @DataDog/apm-lang-platform-java
+/components/                   @DataDog/apm-lang-platform-java
+/dd-java-agent/                @DataDog/apm-lang-platform-java
+/dd-smoke-tests/               @DataDog/apm-lang-platform-java
+/dd-trace-api/                 @DataDog/apm-lang-platform-java
+/internal-api/                 @DataDog/apm-lang-platform-java
+/remote-config/                @DataDog/apm-lang-platform-java
+/telemetry/                    @DataDog/apm-lang-platform-java
+/test-published-dependencies/  @DataDog/apm-lang-platform-java
+/dd-java-agent/agent-otel/     @DataDog/apm-sdk-capabilities
+/dd-trace-ot/                  @DataDog/apm-sdk-capabilities
+/products/metrics/             @DataDog/apm-sdk-capabilities
 
 # Shared documentation
 /.agents/                   @DataDog/apm-java
