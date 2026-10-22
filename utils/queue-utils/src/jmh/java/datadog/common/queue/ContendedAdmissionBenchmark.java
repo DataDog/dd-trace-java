@@ -168,7 +168,7 @@ public class ContendedAdmissionBenchmark {
   @Param({"MPSC", "MPMC"})
   public Backings backings;
 
-  /** Never full, drained concurrently by {@link #consume}. */
+  /** Queue drained concurrently by the dedicated {@link #drain} thread. */
   private WorkQueue<String> queue;
 
   /** Filled once in setup and never drained, so every admission is refused. */
