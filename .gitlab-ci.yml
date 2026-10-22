@@ -56,7 +56,7 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "9.8.1" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "9.8.2" # must match gradle-wrapper.properties
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
@@ -306,7 +306,7 @@ maven-central-pre-release-check:
       # See https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
       # Use the staging API search endpoint to validate the tokens without relying on a specific deployment
       AUTHORIZATION_HEADER="Authorization: Bearer $(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64)"
-      if ! curl --silent --show-error --fail \
+      if ! curl --silent --show-error --fail --retry 5 --retry-delay 2 --retry-connrefused \
         "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any" \
         --header "$AUTHORIZATION_HEADER" \
         > /dev/null; then

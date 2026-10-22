@@ -6,40 +6,33 @@ import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
 import com.datadog.openfeature.internal.bridge.EventTransport;
 import com.datadog.openfeature.internal.config.Settings;
 import java.io.IOException;
-import java.net.ConnectException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
-/** Posts events directly to the Datadog event platform intake, authenticated with an API key. */
+/**
+ * Posts events directly to the Datadog event platform intake, authenticated with an API key. Each
+ * batch is sent once, without retries or redirects, so an ambiguously accepted batch is never sent
+ * twice.
+ */
 public final class DirectIntakeTransport implements EventTransport {
-  static final int MAX_RETRIES = 5;
-  private static final long INITIAL_RETRY_DELAY_MILLIS = 100;
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
 
   private final URI intake;
   private final String apiKey;
   private final String traceId;
   private final HttpClient httpClient;
-  private final Retries.Sleeper retrySleeper;
 
-  DirectIntakeTransport(
-      final URI intake,
-      final String apiKey,
-      final HttpClient httpClient,
-      final Retries.Sleeper retrySleeper) {
+  DirectIntakeTransport(final URI intake, final String apiKey, final HttpClient httpClient) {
     this.intake = intake;
     this.apiKey = apiKey;
     // Intake requests are attributed to a stable, random trace id.
     this.traceId = Long.toUnsignedString(ThreadLocalRandom.current().nextLong() >>> 1);
     this.httpClient = httpClient;
-    this.retrySleeper = retrySleeper;
   }
 
   /**
@@ -58,8 +51,7 @@ public final class DirectIntakeTransport implements EventTransport {
     return new DirectIntakeTransport(
         URI.create("https://" + SiteHost.of("event-platform-intake", settings.site()) + "/api/v2/"),
         apiKey,
-        HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).followRedirects(NEVER).build(),
-        TimeUnit.MILLISECONDS::sleep);
+        HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).followRedirects(NEVER).build());
   }
 
   @Override
@@ -76,14 +68,8 @@ public final class DirectIntakeTransport implements EventTransport {
     final int status;
     try {
       status =
-          Retries.send(
-                  () ->
-                      new HttpCall<>(
-                          this.httpClient, request, HttpResponse.BodyHandlers.discarding()),
-                  new IntakeRetryPolicy(),
-                  MAX_RETRIES + 1,
-                  this.retrySleeper,
-                  () -> false)
+          new HttpCall<>(this.httpClient, request, HttpResponse.BodyHandlers.discarding())
+              .execute()
               .statusCode();
     } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -91,46 +77,6 @@ public final class DirectIntakeTransport implements EventTransport {
     }
     if (status < 200 || status >= 300) {
       throw new IOException("Request to " + route + " returned error response " + status);
-    }
-  }
-
-  private static final class IntakeRetryPolicy implements Retries.Policy {
-    private boolean rateLimitRetry;
-
-    @Override
-    public boolean shouldRetry(final IOException error) {
-      return error instanceof ConnectException || error instanceof HttpTimeoutException;
-    }
-
-    @Override
-    public long retryDelayMillis(@Nullable final HttpResponse<?> response, final int attempt) {
-      if (this.rateLimitRetry) {
-        return -1;
-      }
-      if (response != null) {
-        final int status = response.statusCode();
-        if (status == 429) {
-          final String reset = response.headers().firstValue("X-RateLimit-Reset").orElse(null);
-          if (reset != null) {
-            try {
-              final long seconds = Long.parseLong(reset);
-              if (seconds > 10) {
-                return -1;
-              }
-              if (seconds >= 0) {
-                this.rateLimitRetry = true;
-                return TimeUnit.SECONDS.toMillis(seconds)
-                    + ThreadLocalRandom.current().nextInt(401);
-              }
-            } catch (final NumberFormatException ignored) {
-              // An invalid reset header falls back to exponential backoff.
-            }
-          }
-        } else if (status < 500 || status > 599) {
-          return -1;
-        }
-      }
-      return INITIAL_RETRY_DELAY_MILLIS << (attempt - 1);
     }
   }
 }

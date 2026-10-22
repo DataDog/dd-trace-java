@@ -1,6 +1,5 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.CompletableResultCode.ofSuccess;
 import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
@@ -35,7 +34,6 @@ import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
-import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -1639,14 +1637,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public CompletableResultCode shutdownOtelMetrics() {
-    if (initialConfig.isMetricsOtlpExporterEnabled()) {
-      return OtlpMetricsService.INSTANCE.exportThenShutdown();
-    }
-    return ofSuccess();
-  }
-
-  @Override
   public void flushLogs() {
     if (initialConfig.isLogsOtlpExporterEnabled()) {
       OtlpLogsService.INSTANCE.flush();
@@ -2620,7 +2610,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (null == oldSnapshot) {
         mergedTracerTags = CoreTracer.this.defaultSpanTags.immutableCopy();
         this.mergedTracerTagsNeedsIntercept = CoreTracer.this.defaultSpanTagsNeedsIntercept;
-      } else if (getTracingTags().equals(oldSnapshot.getTracingTags())) {
+      } else if (getTracingTags().equals(oldSnapshot.getTracingTags())
+          // withTracerTags also depends on whether Data Streams Monitoring is enabled
+          && isDataStreamsEnabled() == oldSnapshot.isDataStreamsEnabled()) {
         mergedTracerTags = oldSnapshot.mergedTracerTags;
         mergedTracerTagsNeedsIntercept = oldSnapshot.mergedTracerTagsNeedsIntercept;
       } else {

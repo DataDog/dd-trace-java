@@ -36,7 +36,7 @@ public class DebuggerMetricCollector
 
   public enum SkippedReason implements Reason {
     RATE_LIMIT("reason:rateLimitProbe"),
-    EVALUATION_TIME_OUT("reason:evaluationTimeOut"),
+    EVALUATION_TIME_OUT("reason:evaluationTimeout"),
     ;
 
     private final String tag;

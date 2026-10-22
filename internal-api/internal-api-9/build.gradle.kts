@@ -3,7 +3,6 @@ import datadog.gradle.configureCompiler
 plugins {
   `java-library`
   id("dd-trace-java.jmh-conventions")
-  idea
   id("dd-trace-java.module.internal-api")
 }
 
@@ -41,12 +40,6 @@ dependencies {
 
   testImplementation(project(":dd-java-agent:testing"))
   testImplementation(libs.slf4j)
-}
-
-idea {
-  module {
-    jdkName = "11"
-  }
 }
 
 jmh {
