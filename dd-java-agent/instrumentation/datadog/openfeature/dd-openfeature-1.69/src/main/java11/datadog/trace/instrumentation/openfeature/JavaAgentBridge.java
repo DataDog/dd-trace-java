@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.openfeature;
 
+import static java.lang.reflect.Modifier.isAbstract;
+import static java.lang.reflect.Modifier.isStatic;
+
 import com.datadog.openfeature.internal.bridge.AgentBridge;
 import com.datadog.openfeature.internal.bridge.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.EventTransport;
@@ -7,10 +10,20 @@ import com.datadog.openfeature.internal.bridge.HealthMetrics;
 import com.datadog.openfeature.internal.bridge.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.SpanEnricher;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import java.lang.reflect.Method;
 import javax.annotation.Nullable;
 
 /** The bridge backed by the agent Feature Flags backend. */
 public final class JavaAgentBridge implements AgentBridge {
+  // Muzzle checks calls, but not the SPI methods implemented by these helpers.
+  private static final boolean SPI_COMPATIBLE =
+      implementsSpi(AgentBridge.class, JavaAgentBridge.class)
+          && implementsSpi(ConfigurationSource.class, AgentConfigurationSource.class)
+          && implementsSpi(EventTransport.class, AgentEventProxy.class)
+          && implementsSpi(HealthMetrics.class, AgentHealthMetrics.class)
+          && implementsSpi(SpanEnricher.class, AgentSpanEnricher.class)
+          && implementsSpi(ShutdownSource.class, AgentShutdownSource.class);
+
   private final FeatureFlaggingGateway.Backend backend;
   private final HealthMetrics healthMetrics;
   private final SpanEnricher spanEnricher;
@@ -24,12 +37,32 @@ public final class JavaAgentBridge implements AgentBridge {
   /**
    * Connects the SDK to the agent backend.
    *
-   * @param fallback the bridge to use if the agent backend is not started.
+   * @param fallback the bridge to use if the agent backend is not started or the SDK SPI is
+   *     incompatible.
    * @return the agent bridge, or the fallback one.
    */
   public static AgentBridge connect(final AgentBridge fallback) {
     final FeatureFlaggingGateway.Backend backend = FeatureFlaggingGateway.backend();
-    return backend == null ? fallback : new JavaAgentBridge(backend);
+    return backend == null || !SPI_COMPATIBLE ? fallback : new JavaAgentBridge(backend);
+  }
+
+  private static boolean implementsSpi(final Class<?> spi, final Class<?> implementation) {
+    try {
+      for (final Method method : spi.getMethods()) {
+        if (!isStatic(method.getModifiers())) {
+          final Method implemented =
+              implementation.getMethod(method.getName(), method.getParameterTypes());
+          if (isAbstract(implemented.getModifiers())
+              || isStatic(implemented.getModifiers())
+              || implemented.getReturnType() != method.getReturnType()) {
+            return false;
+          }
+        }
+      }
+      return true;
+    } catch (final NoSuchMethodException e) {
+      return false;
+    }
   }
 
   @Nullable
