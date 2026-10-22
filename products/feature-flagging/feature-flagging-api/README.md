@@ -348,12 +348,15 @@ Look for these diagnostic boundaries:
   after any in-flight delivery outcome, with the counts left in its queue and buffer.
 
 To disable these debug diagnostics, set `DD_TRACE_DEBUG=false` and restart the application
-(without a conflicting `-Ddd.trace.debug=true` override). Provider debug logs are suppressed even
-if the application logger remains at DEBUG. Lowering the application category to INFO also
-suppresses provider debug logs immediately. When either gate is off, raw values and context are not traversed or formatted.
-WARN, INFO, and ERROR messages retain their normal logging behavior. Logging and formatting
-failures in provider diagnostics are isolated from construction, initialization, readiness
-events, evaluation, and shutdown.
+(without a conflicting `-Ddd.trace.debug=true` override). Provider lifecycle, evaluation, and
+exposure debug diagnostics are then suppressed even if the application logger remains at DEBUG.
+A few debug messages for rare failures (an exposure callback, span enrichment, or metric recording
+failure, or an older agent missing a feature) follow only the application logger level. Lowering
+the application category to INFO suppresses all provider debug logs immediately. When either gate
+is off, raw values and context are not traversed or formatted. WARN, INFO, and ERROR messages
+retain their normal logging behavior. Logging and formatting failures in provider debug
+diagnostics are isolated from construction, initialization, readiness events, evaluation, and
+shutdown; WARN and ERROR messages are not isolated from a logging backend that throws.
 
 Run the focused suites with:
 
