@@ -151,10 +151,18 @@ public final class HashStore {
    */
 
   public void set(String tag, Object value) {
+    if (value == null) {
+      this.remove(tag); // a null value removes the tag
+      return;
+    }
     this.put(Entry.newAnyEntry(tag, value));
   }
 
   public void set(String tag, CharSequence value) {
+    if (value == null) {
+      this.remove(tag); // a null value removes the tag
+      return;
+    }
     this.put(Entry.newObjectEntry(tag, value));
   }
 

@@ -117,11 +117,19 @@ final class HashIdStore extends IdStore {
 
   @Override
   public void set(long tagId, Object value) {
+    if (value == null) {
+      this.remove(tagId); // a null value removes the tag
+      return;
+    }
     this.put(Entry.newAnyEntry(tagId, value));
   }
 
   @Override
   public void set(long tagId, CharSequence value) {
+    if (value == null) {
+      this.remove(tagId); // a null value removes the tag
+      return;
+    }
     this.put(Entry.newObjectEntry(tagId, value));
   }
 

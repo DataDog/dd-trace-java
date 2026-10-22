@@ -466,6 +466,47 @@ class IdStoreContractTest {
 
   @ParameterizedTest
   @MethodSource("stores")
+  void settingANullValueRemovesTheTag(Function<IdStore, IdStore> newStore) {
+    IdStore parent = newStore.apply(null);
+    parent.set(KnownTags.HTTP_ROUTE_ID, "/inherited");
+    IdStore store = newStore.apply(parent);
+    store.set(KnownTags.HTTP_METHOD_ID, "GET");
+
+    store.set(KnownTags.HTTP_METHOD_ID, (Object) null);
+    store.set(KnownTags.HTTP_ROUTE_ID, (CharSequence) null); // hides the inherited tag
+    assertNull(store.getValue(KnownTags.HTTP_METHOD_ID));
+    assertNull(store.getValue(KnownTags.HTTP_ROUTE_ID));
+    assertEquals(0, store.size());
+    assertEquals("/inherited", parent.getValue(KnownTags.HTTP_ROUTE_ID), "the parent keeps it");
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
+  void aNullValueThroughTheMapApiRemovesTheTag(Function<IdStore, IdStore> newStore) {
+    TagMap view = TagMap.viewOf(newStore.apply(null), HashStore.create(null), false);
+    view.put("http.route", "/a");
+    view.put("my.tag", "custom");
+    view.set("http.method", "GET");
+    view.set("peer.port", 5432);
+
+    assertEquals("/a", view.put("http.route", null), "returns the prior value");
+    assertEquals("custom", view.put("my.tag", null));
+    view.set("http.method", (Object) null);
+    assertEquals(5432, view.getAndSet("peer.port", (Object) null).objectValue());
+    Map<String, Object> withNull = new HashMap<>();
+    withNull.put("http.route", null);
+    view.putAll(withNull); // already absent: still absent
+
+    for (String tag : new String[] {"http.route", "my.tag", "http.method", "peer.port"}) {
+      assertFalse(view.containsKey(tag), tag);
+      assertNull(view.get(tag), tag);
+    }
+    assertEquals(0, view.size());
+    assertTrue(view.isEmpty());
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
   void aReaderWithNoEntryIsANoOp(Function<IdStore, IdStore> newStore) {
     IdStore store = newStore.apply(null);
     store.set(KnownTags.HTTP_ROUTE_ID, "/a");
