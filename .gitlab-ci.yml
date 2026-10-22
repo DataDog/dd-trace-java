@@ -851,7 +851,7 @@ muzzle-dep-report:
     # Enable for default test JVMs or for NON_DEFAULT_JVMS
     - if: '$NON_DEFAULT_JVMS == "true"'
       when: on_success
-    # [ci: NON_DEFAULT_JVMS] or [ci: ARM64, NON_DEFAULT_JVMS] in the commit message.
+    # [ci: NON_DEFAULT_JVMS] with any other parameters in the commit message.
     - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bNON_DEFAULT_JVMS\b[^\]]*\]/'
       when: on_success
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
