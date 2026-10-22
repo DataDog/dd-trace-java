@@ -17,10 +17,13 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * The three admission forms measured against each other on a real queue, to answer one question:
- * does the reservation object survive escape analysis? If it does, the reserve route costs what the
- * producer routes cost and {@link BiContextualProducer} was never needed for client-side stats. If
- * it does not, the producer callbacks are earning their contortions.
+ * Compares admission APIs and measures whether HotSpot removes the temporary reservation object
+ * through escape analysis.
+ *
+ * <p>If the reservation is eliminated, the reserve path is allocation-free and costs what the
+ * producer overloads cost, so {@link BiContextualProducer} would not have been needed for
+ * client-side stats. If it survives, the reserve path allocates per admission and the producer
+ * overloads earn their place. Compare its GC profiler results with those of the producer overloads.
  *
  * <pre>./gradlew :utils:queue-utils:jmh -Pjmh.includes=Admission -Pjmh.profilers=gc</pre>
  *
