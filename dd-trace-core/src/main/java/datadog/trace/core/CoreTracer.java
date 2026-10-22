@@ -2656,7 +2656,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (null == oldSnapshot) {
         mergedTracerTags = CoreTracer.this.defaultSpanTags.immutableCopy();
         this.mergedTracerTagsNeedsIntercept = CoreTracer.this.defaultSpanTagsNeedsIntercept;
-      } else if (getTracingTags().equals(oldSnapshot.getTracingTags())) {
+      } else if (getTracingTags().equals(oldSnapshot.getTracingTags())
+          // withTracerTags also depends on whether Data Streams Monitoring is enabled
+          && isDataStreamsEnabled() == oldSnapshot.isDataStreamsEnabled()) {
         mergedTracerTags = oldSnapshot.mergedTracerTags;
         mergedTracerTagsNeedsIntercept = oldSnapshot.mergedTracerTagsNeedsIntercept;
       } else {

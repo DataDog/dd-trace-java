@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
-  id 'idea'
 }
 
 muzzle {
@@ -39,10 +38,4 @@ dependencies {
 
 tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
 }
