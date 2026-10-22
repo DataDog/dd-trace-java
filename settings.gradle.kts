@@ -214,6 +214,7 @@ include(
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
   ":dd-smoke-tests:openfeature",
+  ":dd-smoke-tests:openfeature-legacy",
   ":dd-smoke-tests:opentracing",
   ":dd-smoke-tests:opentelemetry",
   ":dd-smoke-tests:osgi",
