@@ -1,12 +1,9 @@
 package com.datadog.profiling.controller;
 
-import com.datadoghq.profiler.LibraryLoader;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.libs.ddprof.DdprofLibraryLoader;
-import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.TempLocationManager;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
@@ -130,61 +127,31 @@ public final class EnvironmentChecker {
       return true;
     }
 
-    DdprofLibraryLoader.JavaProfilerHolder profiler = DdprofLibraryLoader.javaProfiler();
-    if (profiler.isLoaded()) {
-      appendLine("Native library loaded successfully", sb);
-      return true;
-    }
-    if (profiler.isLoadAttempted()) {
-      appendLine("Datadog profiler failed to load earlier in this JVM:", sb);
-      appendStackTrace(profiler.getReasonNotLoaded(), sb);
+    DdprofLibraryLoader.LibraryCheck check;
+    try {
+      check = DdprofLibraryLoader.checkLibrary();
+    } catch (Throwable t) {
+      appendLine("Unable to load native library using the profiling library loader.", sb);
+      appendStackTrace(t, sb);
       return false;
     }
 
-    appendLine("Checking native library loading using the profiling library loader.", sb);
-    Throwable failure;
-    try {
-      ConfigProvider configuration = ConfigProvider.getInstance();
-      LibraryLoader.Result result =
-          LibraryLoader.builder()
-              .withLibraryLocation(
-                  configuration.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH))
-              .withScratchDir(DdprofLibraryLoader.getScratchDir(configuration))
-              .load();
-
-      if (result.succeeded) {
-        appendLine("Native library loaded successfully", sb);
-        return true;
-      }
-
-      // the loader reports the original error only once; look it up in the components which
-      // may have attempted the load earlier
-      failure = result.error != null ? result.error : earlierLibraryFailure();
-      if (failure == null) {
-        appendLine(
-            "An earlier native library load failed. The loader does not retry within this JVM. "
-                + "Check application startup logs for the original error; restart after addressing the cause.",
-            sb);
-      }
-    } catch (Throwable t) {
-      failure = t;
+    if (check.loaded) {
+      appendLine("Native library loaded successfully", sb);
+      return true;
     }
-
-    appendLine("Unable to load native library using the profiling library loader.", sb);
-    appendStackTrace(failure, sb);
+    if (!check.earlierAttempt) {
+      appendLine("Unable to load native library using the profiling library loader.", sb);
+    } else if (check.reasonNotLoaded != null) {
+      appendLine("Datadog profiler failed to load earlier in this JVM:", sb);
+    } else {
+      appendLine(
+          "An earlier native library load failed. The loader does not retry within this JVM. "
+              + "Check application startup logs for the original error; restart after addressing the cause.",
+          sb);
+    }
+    appendStackTrace(check.reasonNotLoaded, sb);
     return false;
-  }
-
-  private static Throwable earlierLibraryFailure() {
-    for (DdprofLibraryLoader.ComponentHolder<?> holder :
-        new DdprofLibraryLoader.ComponentHolder<?>[] {
-          DdprofLibraryLoader.jvmAccess(), DdprofLibraryLoader.otelContext()
-        }) {
-      if (holder.isLoadAttempted() && holder.getReasonNotLoaded() != null) {
-        return holder.getReasonNotLoaded();
-      }
-    }
-    return null;
   }
 
   private static void appendStackTrace(Throwable t, StringBuilder sb) {

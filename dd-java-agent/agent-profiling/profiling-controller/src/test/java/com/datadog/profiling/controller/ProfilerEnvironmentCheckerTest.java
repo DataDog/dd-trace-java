@@ -1,7 +1,10 @@
 package com.datadog.profiling.controller;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.RETURNS_SELF;
@@ -13,7 +16,6 @@ import static org.mockito.Mockito.when;
 import com.datadoghq.profiler.LibraryLoader;
 import datadog.environment.OperatingSystem;
 import datadog.libs.ddprof.DdprofLibraryLoader;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.TempLocationManager;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -21,6 +23,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -49,7 +53,7 @@ class ProfilerEnvironmentCheckerTest {
     tempLocations.when(TempLocationManager::getInstance).thenReturn(tempManager);
     when(tempManager.getTempDir()).thenReturn(temp);
 
-    scratchLocations = mockStatic(DdprofLibraryLoader.class);
+    scratchLocations = mockStatic(DdprofLibraryLoader.class, CALLS_REAL_METHODS);
     scratchLocations
         .when(DdprofLibraryLoader::javaProfiler)
         .thenReturn(mock(DdprofLibraryLoader.JavaProfilerHolder.class));
@@ -59,9 +63,6 @@ class ProfilerEnvironmentCheckerTest {
     scratchLocations
         .when(DdprofLibraryLoader::otelContext)
         .thenReturn(mock(DdprofLibraryLoader.OTelContextHolder.class));
-    scratchLocations
-        .when(() -> DdprofLibraryLoader.getScratchDir(ConfigProvider.getInstance()))
-        .thenReturn(temp.resolve("scratch").toString());
 
     builder = mock(LibraryLoader.Builder.class, RETURNS_SELF);
     when(builder.load()).thenReturn(LibraryLoader.Result.SUCCESS);
@@ -91,8 +92,10 @@ class ProfilerEnvironmentCheckerTest {
     assertTrue(Files.exists(recording));
     assertTrue(Files.exists(library));
     try (Stream<Path> files = Files.list(temp)) {
-      assertEquals(2, files.count());
+      // the files above plus the library scratch directory
+      assertEquals(3, files.count());
     }
+    verify(builder).withScratchDir(temp.resolve("scratch").toString());
     verify(builder).load();
   }
 
@@ -138,6 +141,43 @@ class ProfilerEnvironmentCheckerTest {
   }
 
   @Test
+  void waitsForAnInFlightProfilerLoad() throws Exception {
+    DdprofLibraryLoader.JavaProfilerHolder holder =
+        mock(DdprofLibraryLoader.JavaProfilerHolder.class);
+    scratchLocations.when(DdprofLibraryLoader::javaProfiler).thenReturn(holder);
+    Thread checker = Thread.currentThread();
+    CountDownLatch loading = new CountDownLatch(1);
+    AtomicReference<Throwable> loaderFailure = new AtomicReference<>();
+    // simulates a profiler component holding the load lock while it loads the library
+    Thread loader =
+        new Thread(
+            () -> {
+              try {
+                synchronized (DdprofLibraryLoader.class) {
+                  loading.countDown();
+                  await().until(() -> checker.getState() == Thread.State.BLOCKED);
+                  when(holder.isLoadAttempted()).thenReturn(true);
+                  when(holder.getReasonNotLoaded())
+                      .thenReturn(new UnsatisfiedLinkError("failed while the flare waited"));
+                }
+              } catch (Throwable t) {
+                loaderFailure.set(t);
+              }
+            });
+    loader.start();
+    loading.await();
+    StringBuilder report = new StringBuilder();
+
+    assertFalse(EnvironmentChecker.checkEnvironment(report));
+
+    loader.join();
+    assertNull(loaderFailure.get());
+    assertTrue(report.toString().contains("Datadog profiler failed to load earlier in this JVM:"));
+    assertTrue(report.toString().contains("failed while the flare waited"));
+    libraries.verifyNoInteractions();
+  }
+
+  @Test
   void reportsEarlierLibraryFailureOfOtherComponents() {
     DdprofLibraryLoader.JVMAccessHolder holder = mock(DdprofLibraryLoader.JVMAccessHolder.class);
     when(holder.isLoadAttempted()).thenReturn(true);
@@ -177,7 +217,6 @@ class ProfilerEnvironmentCheckerTest {
 
     assertFalse(EnvironmentChecker.checkEnvironment(report));
 
-    assertTrue(report.toString().contains("Unable to load native library"));
     assertTrue(report.toString().contains("An earlier native library load failed"));
     assertFalse(report.toString().contains("Profiler is ready to be used."));
   }
@@ -188,14 +227,12 @@ class ProfilerEnvironmentCheckerTest {
         mock(DdprofLibraryLoader.JavaProfilerHolder.class);
     when(holder.isLoaded()).thenReturn(true);
     scratchLocations.when(DdprofLibraryLoader::javaProfiler).thenReturn(holder);
-    scratchLocations
-        .when(() -> DdprofLibraryLoader.getScratchDir(ConfigProvider.getInstance()))
-        .thenThrow(new IOException("scratch directory unavailable"));
 
     StringBuilder report = new StringBuilder();
     assertTrue(EnvironmentChecker.checkEnvironment(report));
 
     assertTrue(report.toString().contains("Native library loaded successfully"));
+    assertFalse(Files.exists(temp.resolve("scratch")));
     libraries.verifyNoInteractions();
   }
 
@@ -245,7 +282,7 @@ class ProfilerEnvironmentCheckerTest {
       }
     }
 
-    assertTrue(report != null);
+    assertNotNull(report);
     assertTrue(report.contains("Native library loaded successfully"));
     verify(builder).load();
   }
