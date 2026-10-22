@@ -2768,7 +2768,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           "$DDTags.ERROR_TYPE" endpoint.status.toString()
         }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" expectedQueryTag
+          tag(otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY, expectedQueryTag)
         }
         if ({
           isDataStreamsEnabled()
