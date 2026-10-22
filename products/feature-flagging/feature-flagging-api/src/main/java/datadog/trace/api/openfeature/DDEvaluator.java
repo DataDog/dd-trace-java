@@ -1,5 +1,6 @@
 package datadog.trace.api.openfeature;
 
+import static datadog.trace.api.openfeature.Provider.debugQuietly;
 import static java.util.Arrays.asList;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
@@ -49,10 +50,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
-  private static final DiagnosticLogger log = DiagnosticLogger.getLogger(DDEvaluator.class);
+  private static final Logger log = LoggerFactory.getLogger(DDEvaluator.class);
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
@@ -223,7 +226,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
     FeatureFlaggingGateway.activate();
     FeatureFlaggingGateway.addConfigListener(this);
-    log.debug(
+    debugQuietly(
+        log,
         "Feature Flagging provider configuration available at subscription: {}",
         hasConfiguration());
     return initializationLatch.await(timeout, unit) || hasConfiguration();

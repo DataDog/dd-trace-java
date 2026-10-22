@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * OpenFeature {@code finally} hook that captures feature-flag evaluation metadata for APM span
@@ -35,7 +37,7 @@ import java.util.Map;
  */
 class SpanEnrichmentHook implements Hook<Object> {
 
-  private static final DiagnosticLogger log = DiagnosticLogger.getLogger(SpanEnrichmentHook.class);
+  private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentHook.class);
 
   // The metadata keys the DDEvaluator attaches for span enrichment (single source of truth there).
   static final String METADATA_SERIAL_ID = DDEvaluator.METADATA_SPLIT_SERIAL_ID;

@@ -11,6 +11,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An OpenFeature hook that hands each completed flag evaluation to a callback, with the Datadog
@@ -39,7 +41,7 @@ import java.util.function.Consumer;
  */
 public final class ExposureHook implements Hook<Object> {
 
-  private static final DiagnosticLogger log = DiagnosticLogger.getLogger(ExposureHook.class);
+  private static final Logger log = LoggerFactory.getLogger(ExposureHook.class);
 
   private final Consumer<Evaluation> callback;
   private final AtomicBoolean warned = new AtomicBoolean();

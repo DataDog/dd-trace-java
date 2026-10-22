@@ -1,5 +1,7 @@
 package datadog.trace.api.openfeature;
 
+import static datadog.trace.api.openfeature.Provider.debugQuietly;
+
 import dev.openfeature.sdk.ErrorCode;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
@@ -8,10 +10,12 @@ import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import java.io.Closeable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class FlagEvalMetrics implements Closeable {
 
-  private static final DiagnosticLogger log = DiagnosticLogger.getLogger(FlagEvalMetrics.class);
+  private static final Logger log = LoggerFactory.getLogger(FlagEvalMetrics.class);
 
   private static final String METER_NAME = "ddtrace.openfeature";
   private static final String METRIC_NAME = "feature_flag.evaluations";
@@ -40,7 +44,7 @@ class FlagEvalMetrics implements Closeable {
               .setDescription(METRIC_DESC)
               .build();
 
-      log.debug("Flag evaluation metrics initialized");
+      debugQuietly(log, "Flag evaluation metrics initialized");
     } catch (NoClassDefFoundError e) {
       log.error(
           "OpenTelemetry API is not on the classpath — evaluation metrics disabled. Add"

@@ -10,12 +10,13 @@ import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RemoteConfigServiceImpl
     implements ConfigurationSourceService, ConfigurationChangesTypedListener<ServerConfiguration> {
 
-  private static final DiagnosticLogger LOGGER =
-      DiagnosticLogger.getLogger(RemoteConfigServiceImpl.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(RemoteConfigServiceImpl.class);
 
   private final ConfigurationPoller configurationPoller;
 
@@ -52,7 +53,8 @@ public class RemoteConfigServiceImpl
       LOGGER.debug(
           "Feature Flagging remote_config configuration applied: key={}, flags={}, configurationEnv={}, createdAt={}, invalidFlags={}",
           configKey,
-          configuration.flags == null ? 0 : configuration.flags.size(),
+          // A payload without a flags member is not an empty configuration.
+          configuration.flags == null ? "missing" : configuration.flags.size(),
           configuration.environment == null ? null : configuration.environment.name,
           configuration.createdAt,
           configuration.invalidFlags == null ? 0 : configuration.invalidFlags.size());

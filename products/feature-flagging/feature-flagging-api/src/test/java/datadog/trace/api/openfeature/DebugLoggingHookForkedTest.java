@@ -81,21 +81,35 @@ class DebugLoggingHookForkedTest {
   }
 
   @TableTest({
-    "Scenario       | Level | Registered",
-    "Debug enabled  | DEBUG | true      ",
-    "Debug filtered | INFO  | false     ",
-    "Errors only    | ERROR | false     "
+    "Scenario       | Level | Registered | Warned",
+    "Debug enabled  | DEBUG | true       | false ",
+    "Debug filtered | INFO  | false      | true  ",
+    "Errors only    | ERROR | false      | true  "
   })
-  void registersOnlyWhenDebugIsActive(String scenario, String level, boolean registered) {
+  void registersOnlyWhenDebugIsActiveAndWarnsOtherwise(
+      String scenario, String level, boolean registered, boolean warned) {
     logger.setLevel(Level.toLevel(level));
+    Logger providerLogger = (Logger) LoggerFactory.getLogger(Provider.class);
+    ListAppender<ILoggingEvent> providerEvents = new ListAppender<>();
+    providerEvents.start();
+    providerLogger.addAppender(providerEvents);
     Provider provider =
         new Provider(new Provider.Options().initTimeout(1, MILLISECONDS), mock(Evaluator.class));
     try {
       assertEquals(
           registered,
           provider.getProviderHooks().stream().anyMatch(DebugLoggingHook.class::isInstance));
+      assertEquals(
+          warned,
+          providerEvents.list.stream()
+              .anyMatch(
+                  event ->
+                      event.getLevel() == Level.WARN
+                          && event.getFormattedMessage().startsWith("DD_TRACE_DEBUG is enabled")));
     } finally {
       provider.shutdown();
+      providerLogger.detachAppender(providerEvents);
+      providerEvents.stop();
     }
   }
 
@@ -302,6 +316,31 @@ class DebugLoggingHookForkedTest {
     DebugLoggingHook.resolution("flag", value, context, result, null);
     verifyNoInteractions(context, result, value);
     assertTrue(appender.list.isEmpty());
+  }
+
+  @Test
+  void enabledTraceDebugLogsProviderLifecycle() {
+    Logger providerLogger = (Logger) LoggerFactory.getLogger(Provider.class);
+    Level previousLevel = providerLogger.getLevel();
+    ListAppender<ILoggingEvent> lifecycle = new ListAppender<>();
+    lifecycle.start();
+    providerLogger.setLevel(Level.DEBUG);
+    providerLogger.addAppender(lifecycle);
+    try {
+      new Provider(new Provider.Options(), mock(Evaluator.class)).shutdown();
+      assertTrue(
+          lifecycle.list.stream()
+              .anyMatch(
+                  event ->
+                      event.getLevel() == Level.DEBUG
+                          && event
+                              .getFormattedMessage()
+                              .equals("Feature Flagging provider shutting down")));
+    } finally {
+      providerLogger.detachAppender(lifecycle);
+      lifecycle.stop();
+      providerLogger.setLevel(previousLevel);
+    }
   }
 
   @TableTest({

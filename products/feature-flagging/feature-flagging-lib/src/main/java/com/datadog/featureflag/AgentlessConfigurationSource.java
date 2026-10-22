@@ -33,10 +33,11 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class AgentlessConfigurationSource implements ConfigurationSourceService {
-  private static final DiagnosticLogger LOGGER =
-      DiagnosticLogger.getLogger(AgentlessConfigurationSource.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AgentlessConfigurationSource.class);
 
   private static final String DATADOG_UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
@@ -80,7 +81,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
             () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER)),
         Executors.newSingleThreadScheduledExecutor(
             new AgentThreadFactory(FEATURE_FLAG_CONFIGURATION_POLLER)),
-        new RatelimitedLogger(LOGGER.backend(), MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
+        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
   }
 
   AgentlessConfigurationSource(
@@ -95,7 +96,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         pollIntervalMillis,
         client,
         executor,
-        new RatelimitedLogger(LOGGER.backend(), MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
+        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
   }
 
   AgentlessConfigurationSource(
@@ -214,14 +215,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         return false;
       }
       if (isRetryableStatus(response.status)) {
-        try {
-          ratelimitedLogger.warn(
-              "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}; retaining current configuration; retry on next poll",
-              MAX_ATTEMPTS,
-              response.status);
-        } catch (Throwable ignored) {
-          // Logging must not interrupt polling or recovery.
-        }
+        ratelimitedLogger.warn(
+            "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}; retaining current configuration; retry on next poll",
+            MAX_ATTEMPTS,
+            response.status);
         return false;
       }
       synchronized (lifecycleLock) {
@@ -229,16 +226,12 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       }
     } catch (final IOException e) {
       if (!closed) {
-        try {
-          ratelimitedLogger.warn(
-              "Feature Flagging agentless endpoint request failed after {} attempts: {}: {}; retaining current configuration; retry on next poll",
-              MAX_ATTEMPTS,
-              e.getClass().getSimpleName(),
-              e.getMessage(),
-              e);
-        } catch (Throwable ignored) {
-          // Logging must not interrupt polling or recovery.
-        }
+        ratelimitedLogger.warn(
+            "Feature Flagging agentless endpoint request failed after {} attempts: {}: {}; retaining current configuration; retry on next poll",
+            MAX_ATTEMPTS,
+            e.getClass().getSimpleName(),
+            e.getMessage(),
+            e);
       }
       return false;
     }
@@ -252,13 +245,9 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     }
     if (response.status == HttpURLConnection.HTTP_UNAUTHORIZED
         || response.status == HttpURLConnection.HTTP_FORBIDDEN) {
-      try {
-        ratelimitedLogger.warn(
-            "Feature Flagging agentless endpoint returned HTTP {}; verify endpoint authentication",
-            response.status);
-      } catch (Throwable ignored) {
-        // Logging must not interrupt polling or recovery.
-      }
+      ratelimitedLogger.warn(
+          "Feature Flagging agentless endpoint returned HTTP {}; verify endpoint authentication",
+          response.status);
       return false;
     }
     if (response.status != HttpURLConnection.HTTP_OK) {

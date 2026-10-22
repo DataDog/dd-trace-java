@@ -20,12 +20,13 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Selects the transport for Feature Flagging events. */
 final class FeatureFlagBackendApiFactory {
 
-  private static final DiagnosticLogger LOGGER =
-      DiagnosticLogger.getLogger(FeatureFlagBackendApiFactory.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagBackendApiFactory.class);
   private static final Map<String, String> REQUEST_HEADERS = requestHeaders();
 
   /** Retries connection refusal only; automatic retries and redirects remain disabled. */

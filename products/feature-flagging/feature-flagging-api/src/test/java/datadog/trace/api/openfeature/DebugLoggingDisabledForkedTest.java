@@ -4,6 +4,7 @@ import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -17,6 +18,7 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ProviderEvaluation;
+import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
@@ -58,10 +60,15 @@ class DebugLoggingDisabledForkedTest {
         new DebugLoggingHook().finallyAfter(hookContext, details, emptyMap());
 
         verifyNoInteractions(context, result, details, value);
+        assertThrows(ProviderNotReadyError.class, () -> provider.initialize(null));
+        ExposureLoggingHook.INSTANCE.finallyAfter(null, null, emptyMap());
       } finally {
         provider.shutdown();
       }
       assertTrue(appender.list.stream().noneMatch(event -> event.getLevel() == Level.DEBUG));
+      assertTrue(
+          appender.list.stream()
+              .noneMatch(event -> event.getFormattedMessage().startsWith("DD_TRACE_DEBUG")));
     } finally {
       backend.detachAppender(appender);
       appender.stop();

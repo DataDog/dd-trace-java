@@ -33,11 +33,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import okio.BufferedSource;
 import okio.Okio;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class UniversalFlagConfigParser implements ConfigurationDeserializer<ServerConfiguration> {
 
-  private static final DiagnosticLogger LOGGER =
-      DiagnosticLogger.getLogger(UniversalFlagConfigParser.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(UniversalFlagConfigParser.class);
 
   static final String INVALID_FLAG = "invalid_flag";
   static final String INVALID_SEMVER_COMPARAND = "invalid_semver_comparand";
@@ -94,15 +95,6 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       }
     }
     INVALID_FLAGS_HOLDER.get().clear();
-    if (LOGGER.isDebugEnabled()) {
-      LOGGER.debug(
-          "Feature Flagging configuration received: usableFlags={}, invalidFlags={}, configurationPresent={}",
-          configuration == null || configuration.flags == null ? 0 : configuration.flags.size(),
-          configuration == null || configuration.invalidFlags == null
-              ? 0
-              : configuration.invalidFlags.size(),
-          configuration != null && configuration.flags != null);
-    }
     return configuration;
   }
 
@@ -397,11 +389,10 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
           }
         } catch (JsonDataException | IllegalArgumentException error) {
           rejectedFlags++;
-          final String reason =
-              error instanceof InvalidSemverComparandException
-                  ? INVALID_SEMVER_COMPARAND
-                  : INVALID_FLAG;
-          INVALID_FLAGS_HOLDER.get().put(flagKey, reason);
+          INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_FLAG);
+          if (error instanceof InvalidSemverComparandException) {
+            INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_SEMVER_COMPARAND);
+          }
           LOGGER.warn(
               "Feature Flagging rejected flag {} during configuration parsing: {}",
               flagKey,

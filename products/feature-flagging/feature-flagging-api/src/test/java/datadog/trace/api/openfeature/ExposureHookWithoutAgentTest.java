@@ -13,7 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
+import java.lang.reflect.Field;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -57,18 +57,15 @@ class ExposureHookWithoutAgentTest {
   }
 
   @Test
-  void debugLoggingIsDisabledWithoutAgentConfiguration() throws Exception {
+  void rawDebugLoggingIsDisabledWithoutAgentConfiguration() throws Exception {
     String previousDebug = System.getProperty("dd.trace.debug");
     System.setProperty("dd.trace.debug", "true");
     try {
       ClassLoader loader = new AgentlessClassLoader(getClass().getClassLoader());
-      Class<?> loggerClass = Class.forName(DiagnosticLogger.class.getName(), true, loader);
-      Method getLogger = loggerClass.getMethod("getLogger", Class.class);
-      getLogger.setAccessible(true);
-      Object logger = getLogger.invoke(null, getClass());
-      Method isDebugEnabled = loggerClass.getMethod("isDebugEnabled");
-      isDebugEnabled.setAccessible(true);
-      assertFalse((Boolean) isDebugEnabled.invoke(logger));
+      Class<?> hookClass = Class.forName(DebugLoggingHook.class.getName(), true, loader);
+      Field traceDebug = hookClass.getDeclaredField("TRACE_DEBUG");
+      traceDebug.setAccessible(true);
+      assertFalse(traceDebug.getBoolean(null));
     } finally {
       if (previousDebug == null) {
         System.clearProperty("dd.trace.debug");
@@ -94,7 +91,7 @@ class ExposureHookWithoutAgentTest {
         }
         if (name.startsWith("datadog.trace.api.openfeature.ExposureHook")
             || name.equals("datadog.trace.api.openfeature.SplitFeatureMetadata")
-            || name.equals("datadog.trace.api.openfeature.DiagnosticLogger")) {
+            || name.equals("datadog.trace.api.openfeature.DebugLoggingHook")) {
           Class<?> loaded = findLoadedClass(name);
           if (loaded == null) {
             final byte[] bytes = classBytes(name);

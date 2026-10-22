@@ -11,6 +11,8 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FeatureFlaggingSystem {
 
@@ -19,8 +21,7 @@ public class FeatureFlaggingSystem {
     void initialize(SharedCommunicationObjects sco, Config config);
   }
 
-  private static final DiagnosticLogger LOGGER =
-      DiagnosticLogger.getLogger(FeatureFlaggingSystem.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
 
   private static volatile ConfigurationSourceService CONFIG_SERVICE;
   private static volatile ExposureWriter EXPOSURE_WRITER;

@@ -258,11 +258,14 @@ This setting stops exposures only. Flag evaluation events have their own setting
 
 Set `DD_TRACE_DEBUG=true` for the Java agent's configuration, writer, and transport logs.
 Also enable DEBUG for `datadog.trace.api.openfeature` in the application's SLF4J backend **before
-constructing `Provider`**. The provider and agent have separate logging backends;
-provider debug logs require both `DD_TRACE_DEBUG=true` (or `-Ddd.trace.debug=true`) and an
-application logger that permits DEBUG. The trace debug setting defaults to false and is cached
-when provider loggers are initialized; changing it requires restarting the application.
-`DD_TRACE_DEBUG` does not change application logger levels. No additional flag evaluation data
+constructing `Provider`**. The provider and agent have separate logging backends; provider
+debug logs (lifecycle, exposure, and raw evaluation values, defaults, and targeting context)
+require both `DD_TRACE_DEBUG=true` (or `-Ddd.trace.debug=true`) and an application logger that
+permits DEBUG. The trace debug setting defaults to false and is read once, when the provider is
+first constructed; changing it requires restarting the application.
+`DD_TRACE_DEBUG` does not change application logger levels. If `DD_TRACE_DEBUG` is enabled but
+that category does not permit DEBUG when the provider is constructed, the provider logs a WARN
+that names the missing logger setting. No additional flag evaluation data
 setting is required for raw debug logs, including when `observe_full_evaluation_data` is false.
 That metadata setting continues to govern evaluation telemetry independently.
 
@@ -320,8 +323,9 @@ Look for these diagnostic boundaries:
   `DD_ENV`, even if the supplied URL already contains a `dd_env` query parameter.
 - Parsing reports usable and rejected flag counts. Application reports include the configuration's
   creation time, agentless ETag or Remote Config key where available. `flags=0` on an applied
-  configuration means an available empty configuration; a missing configuration is reported
-  separately. Failed refreshes report retention of the previous configuration. HTTP attempts,
+  configuration means an available empty configuration. `flags=missing` means the Remote Config
+  payload had no `flags` member; evaluations against it return a `GENERAL` error. Removal or
+  absence of the whole configuration is reported separately. Failed refreshes report retention of the previous configuration. HTTP attempts,
   retry delays, exhaustion, unchanged responses, and subsequent application are logged.
 - Provider initialization reports its timeout budget, initial availability, terminal outcome,
   and unavailable/recovered transitions.
@@ -339,35 +343,17 @@ Look for these diagnostic boundaries:
 - Exposures report suppression reasons, queueing, overflow, flush counts, delivery, and failed
   batches that are dropped. Dispatch to listeners and queueing do not confirm delivery.
 - Provider shutdown detaches its configuration listener; the Java agent owns the configuration
-  source and exposure writer. Exposure shutdown reports queued work and whether a request is in
-  flight. Pending exposures are **not flushed**. The processor reports completion separately,
+  source and exposure writer. Exposure shutdown reports queued work. Pending exposures are
+  **not flushed**. The processor reports completion separately,
   after any in-flight delivery outcome, with the counts left in its queue and buffer.
 
 To disable these debug diagnostics, set `DD_TRACE_DEBUG=false` and restart the application
 (without a conflicting `-Ddd.trace.debug=true` override). Provider debug logs are suppressed even
 if the application logger remains at DEBUG. Lowering the application category to INFO also
-suppresses provider debug logs immediately. When either gate is off, raw values and context are
-not traversed or formatted. WARN, INFO, and ERROR messages retain their normal logging behavior.
-Logger and diagnostic formatting failures are isolated from provider and delivery behavior.
-
-### Java scenario coverage
-
-The implementation assessment below follows the shared A–K matrix. **Present means source coverage,
-not certification that every acceptance scenario has passed against a deployed Agent or endpoint.**
-
-| Scenario | Assessment | Implementation / focused test evidence |
-|---|---|---|
-| A. Setup/settings | Present | `FeatureFlaggingSystem`, source startup and credential diagnostics |
-| B. Fetch/failure/retry | Present | `AgentlessConfigurationSourceTest`, shared Remote Config/transport logs |
-| C. Usable configuration + identity | Present | Parser summaries, `RemoteConfigServiceImplTest`, agentless apply/retain/ETag logs |
-| D. Environment mismatch | Present | Separate SDK, URL-requested and delivered environment fields |
-| E. Readiness/recovery | Present | `ProviderTest`, initial subscription availability and recovery logs |
-| F. Raw evaluation details | Present | `DebugLoggingHookForkedTest`: raw values, nested objects, defaults, context, errors, hook failure, configuration identity |
-| G. Exposure lifecycle | Present | `ExposureWriterTests`, provider suppression and listener dispatch logs |
-| H. Shutdown outcome | Present | Source stop, provider detach, exposure shutdown request and worker completion/delivery logs |
-| I. Enable/find logs | Present | Exact startup switches, SLF4J configuration, categories and destinations above |
-| J. Debug-off overhead | Present | Hook registration gate and tests that forbid context/result inspection with DEBUG off |
-| K. Logger-failure isolation | Present | `DebugLoggingHookForkedTest` and `DiagnosticIsolationTest`: throwing backends and level checks across lifecycle and delivery |
+suppresses provider debug logs immediately. When either gate is off, raw values and context are not traversed or formatted.
+WARN, INFO, and ERROR messages retain their normal logging behavior. Logging and formatting
+failures in provider diagnostics are isolated from construction, initialization, readiness
+events, evaluation, and shutdown.
 
 Run the focused suites with:
 

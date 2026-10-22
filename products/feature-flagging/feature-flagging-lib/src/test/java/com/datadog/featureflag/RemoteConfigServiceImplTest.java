@@ -143,7 +143,7 @@ class RemoteConfigServiceImplTest {
 
       verify(listener).accept(config);
       assertLogged(
-          "configuration applied: key=config, flags=0, configurationEnv=null, createdAt=null");
+          "configuration applied: key=config, flags=missing, configurationEnv=null, createdAt=null");
     }
 
     @Test

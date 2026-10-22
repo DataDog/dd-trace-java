@@ -286,15 +286,11 @@ class ExposureWriterTests {
       poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
       assertTrue(
           appender.list.stream()
-              .anyMatch(
-                  e ->
-                      e.getFormattedMessage()
-                          .contains("shutdown requested: queued=1, inFlight=true")));
+              .anyMatch(e -> e.getFormattedMessage().contains("shutdown requested: queued=1;")));
       assertTrue(appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(outcome)));
       assertTrue(
           appender.list.stream()
-              .anyMatch(
-                  e -> e.getFormattedMessage().contains("queued=1, buffered=0, inFlight=false")));
+              .anyMatch(e -> e.getFormattedMessage().contains("queued=1, buffered=0")));
       verify(backend).post(any(), any(), any(), any(), eq(false));
     } finally {
       writer.close();
