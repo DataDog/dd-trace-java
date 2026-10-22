@@ -67,12 +67,6 @@ tasks.named<Jar>("jar") {
   }
 }
 
-// The dd-openfeature provider jar is not produced by the CI `build` job, so there is no reference
-// artifact to compare against. Disable the release jar comparison gate registered by publish.gradle.
-tasks.named("compareToReferenceJar") {
-  enabled = false
-}
-
 // The agent bridge SPI versions, with the first SDK release shipping each of them. A released
 // version is frozen (only default methods can be added): check it against that release.
 // TODO Set the v1 baseline once the first SDK release with the agent bridge is published.
