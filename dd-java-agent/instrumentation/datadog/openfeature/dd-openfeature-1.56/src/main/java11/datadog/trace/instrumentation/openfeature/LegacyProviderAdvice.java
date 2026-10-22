@@ -1,20 +1,26 @@
 package datadog.trace.instrumentation.openfeature;
 
+import static net.bytebuddy.asm.Advice.Argument;
+import static net.bytebuddy.asm.Advice.OnMethodEnter;
+import static net.bytebuddy.asm.Advice.OnMethodExit;
+import static net.bytebuddy.asm.Advice.OnNonDefaultValue;
+import static net.bytebuddy.asm.Advice.Return;
+
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Reason;
-import net.bytebuddy.asm.Advice;
 import org.slf4j.LoggerFactory;
 
 /** Avoids linking legacy evaluators to the removed agent bootstrap API. */
+@SuppressWarnings("unused")
 public class LegacyProviderAdvice {
   public static class Initialize {
-    @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
+    @OnMethodEnter(skipOn = OnNonDefaultValue.class)
     public static boolean skipLegacyInitialization() {
       return true;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @OnMethodExit(suppress = Throwable.class)
     public static void warn() {
       LoggerFactory.getLogger("datadog.trace.api.openfeature.Provider")
           .warn(
@@ -24,15 +30,15 @@ public class LegacyProviderAdvice {
   }
 
   public static class Evaluation {
-    @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
+    @OnMethodEnter(skipOn = OnNonDefaultValue.class)
     public static boolean skipLegacyEvaluation() {
       return true;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @OnMethodExit(suppress = Throwable.class)
     public static void returnDefault(
-        @Advice.Argument(1) final Object defaultValue,
-        @Advice.Return(readOnly = false) ProviderEvaluation<?> evaluation) {
+        @Argument(1) final Object defaultValue,
+        @Return(readOnly = false) ProviderEvaluation<?> evaluation) {
       evaluation =
           ProviderEvaluation.builder()
               .value(defaultValue)
