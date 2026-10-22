@@ -9,122 +9,36 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * A bounded handoff point between producers and a consumer, with admission that never builds an
- * element it is going to reject.
+ * A handoff queue that claims capacity before invoking a producer.
  *
- * <h2>Why to use this instead of a queue and a call site</h2>
+ * <p>A full or closed queue does not invoke the producer. This lets callers defer construction and
+ * destructive reads until capacity is available. {@link #tryPut(Object)} accepts work already built
+ * by the caller. Bounded factories fix capacity at construction; an unbounded queue requires {@link
+ * WorkQueues#createUnboundedMpmcQueue()}.
  *
- * Every failure below was found in this tree, in code that offers into a {@code
- * java.util.concurrent} queue by hand. They are not hypothetical, and none of them is anyone's
- * carelessness -- each is what the shape of {@code offer} invites. The last column is the honest
- * one: this API makes some of them impossible, some merely unlikely, one it only makes explicit,
- * and one it does not address at all.
+ * <p>A claim reserves capacity without holding a position in the backing while the element is
+ * built. Keep producer callbacks short: their claims withhold capacity from other producers. Prefer
+ * producer callbacks; use {@link #tryReserve()} when the work cannot fit one. Check {@link
+ * Reservation#granted()} before building and close unfilled reservations to release capacity.
  *
- * <table border="1">
- *   <caption>Hand-rolled admission failures, and what this API does about them</caption>
- *   <tr><th>Failure</th><th>Seen as</th><th>Here</th></tr>
- *   <tr>
- *     <td>The refusal is discarded, so a drop is invisible</td>
- *     <td>Seven call sites in {@code RumInjectorMetrics}; two in {@code WafMetricCollector}, which
- *         tests the return at a dozen sites and drops it at two; {@code ProductChangeCollector};
- *         {@code IntegrationsCollector}</td>
- *     <td><b>Not addressed.</b> Refusal is reported only through the return value, so a caller
- *         that ignores it loses the element as silently as before. A drop counter owned by the
- *         queue would cover this and is deliberately not in this version -- every other refusal
- *         here is already reported synchronously, so it would have been a safety net for a
- *         negligent caller rather than new information, and nothing yet surfaces it. What does
- *         help is that {@link #tryPutBatch} answers for a whole drain at once, leaving one return
- *         to ignore where a hand-rolled loop leaves one per element</td>
- *   </tr>
- *   <tr>
- *     <td>State is destroyed to build an element that is then refused, losing it permanently</td>
- *     <td>{@code WafMetricCollector} does {@code getAndSet(i, 0)} on a counter, then abandons the
- *         metric if the queue is full -- the delta is gone. {@code CoreMetricCollector} carries a
- *         comment about avoiding exactly this, so it is known</td>
- *     <td><b>Impossible</b> if admission is reached through a producer or a {@link Reservation}: the
- *         place is claimed before the source is consumed, so there is no window in which a caller
- *         has destroyed something it cannot hand off</td>
- *   </tr>
- *   <tr>
- *     <td>The first refusal abandons the rest of the batch, silently</td>
- *     <td>{@code WafMetricCollector} returns out of its publish loop on a failed offer</td>
- *     <td><b>Impossible.</b> {@link #tryPutBatch} reports how many it admitted, or hands back the
- *         elements it refused, so a partial admission is a number rather than a guess</td>
- *   </tr>
- *   <tr>
- *     <td>A capacity check that another thread invalidates before the offer</td>
- *     <td>{@code CoreMetricCollector}'s {@code remainingCapacity() == 0};
- *         {@code FlagEvaluationWriterImpl}'s {@code size() < capacity()}, whose javadoc correctly
- *         calls itself best-effort</td>
- *     <td><b>Impossible.</b> The check <i>is</i> the claim -- a granted place cannot be taken by a
- *         racing producer, so there is no check-then-act to lose</td>
- *   </tr>
- *   <tr>
- *     <td>The element is built before anyone asks whether there is room</td>
- *     <td>Most sites, since the element is the argument to {@code offer}</td>
- *     <td><b>Unlikely.</b> The producer forms make the cheap order the natural one, but
- *         {@link #tryPut(Object)} still lets a caller build first, on purpose, for elements that
- *         already exist</td>
- *   </tr>
- *   <tr>
- *     <td>An unbounded queue, so pressure becomes heap</td>
- *     <td>{@code ProductChangeCollector} and {@code IntegrationsCollector} are
- *         {@code new LinkedBlockingQueue<>()}</td>
- *     <td><b>Only made explicit.</b> A bound is required unless a caller names
- *         {@code WorkQueues.createUnboundedMpmcQueue}, which is a decision rather than a default</td>
- *   </tr>
- * </table>
+ * <p>Admission reports refusals through return values or an optional {@link RejectHandler}. Batch
+ * overloads return admitted counts or rejected elements. The queue keeps no drop count; callers
+ * handle the outcomes they need to account for.
  *
- * <p>Worth reading {@code FlagEvaluationWriterImpl} as the counter-example: it is bounded, it
- * counts its drops, it surfaces the count as a metric, and it documents its own race honestly. It
- * is proof the discipline is achievable by hand -- at the cost of that team working it out and
- * writing it down themselves, which is the cost this module exists to pay once. Note that its drop
- * counter is the one part of it this API does not replace: counting and publishing a refusal stays
- * the caller's, which is the same division {@code FlagEvaluationWriterImpl} already chose.
+ * <p>Processing runs on the calling thread. Boolean results report whether an item was found; they
+ * say nothing about whether the consumer succeeded. Plain processing propagates consumer failures;
+ * the retry and handler variants delegate them to a {@link RetryStrategy} or {@link
+ * ExceptionHandler}.
  *
- * <p>Capacity is fixed by construction. A queue never grows in response to fullness: full means
- * refuse. Admission claims a place before invoking any producer, so a rejected element is never
- * constructed at all — the guarantee that makes it safe to hand this a producer that allocates
- * heavily, since the allocation cannot happen on the path where it would be wasted.
+ * <p>Elements must be non-null and are checked before any capacity is claimed. Producers,
+ * consumers, retry strategies and exception handlers must be non-null too, but are marked {@link
+ * Nonnull} rather than checked; a null function object is a caller bug with unspecified effect.
+ * Contexts and the optional reject handler may be null. A producer may return null to decline work
+ * and release its claim. Single-element producer overloads return false for both declines and
+ * refusals. A null element in a batch throws and abandons the remaining elements; earlier
+ * admissions remain.
  *
- * <p>What is claimed is capacity, never a position, so a producer never holds up a consumer. It
- * does hold a place other producers could have used, though: work that blocks, or that takes
- * appreciably longer than an allocation, is paid for by everyone else admitting to this queue.
- * Producers should build their element and nothing else.
- *
- * <p>Prefer the producer forms, and treat {@link #tryReserve} as the fallback. The distinction is
- * {@code forEach} against {@code Iterator}: with a producer the queue owns the sequence, claiming
- * and building in the order it knows to be safe, and there is no protocol for a caller to get
- * wrong. A reservation hands that loop back — the caller must check {@link Reservation#granted},
- * must fill or close, and an abandoned one is capacity nobody can see or reclaim, the same way a
- * half-consumed iterator is state its collection cannot account for. Reach for it when the work
- * between claiming and filling genuinely will not fold into a callback, and use {@code tryPut}
- * everywhere else.
- *
- * <p>Consumption is synchronous and happens in the caller's frame; the boolean returned by the
- * {@code process} methods reports whether there was an item to work on, which is the signal a drain
- * loop needs, and says nothing about whether the consumer succeeded. A consumer that throws throws
- * out of {@code process} — the queue takes no view on failure it was not given one for, and never
- * logs. Say what should happen instead by calling {@link #processOrRetry} with a {@link
- * RetryStrategy}, or {@link #processOrHandle} with an {@link ExceptionHandler} when the answer is
- * only ever to record it and move on. Those are separate names rather than overloads because a
- * lambda or method reference cannot always tell two same-arity callbacks apart.
- *
- * <p>Nulls carry meaning in three places and are a bug everywhere else. A <b>context</b> may be
- * null: the queue carries it to a producer or consumer and never looks at it, so an absent one is
- * the caller's business. An optional {@link RejectHandler} may be null, which says exactly what the
- * overload without it says. And a <b>producer's return</b> may be null, which is that producer
- * declining the element it was asked to build — the place goes back and nothing is admitted, which
- * reads as a refusal to the caller even though nothing was lost.
- *
- * <p>Everything else is required. An <b>element</b> is never null, because neither backing can hold
- * one: there is no outcome to report, so {@code tryPut} and {@link Reservation#fill fill} throw
- * instead of returning, and they throw before claiming a place so that a call with a bug in it
- * costs the queue nothing. A null inside a batch throws partway through, abandoning the rest.
- * <b>Producers, consumers, retry strategies and exception handlers</b> are required too, but are
- * marked {@link Nonnull} rather than checked: a null function object is a caller bug, and checking
- * for one would cost every call inlining budget. Its effect is unspecified, and may cost the item a
- * processing call was meant to consume.
+ * @param <T> the work item type
  */
 public interface WorkQueue<T> {
 
