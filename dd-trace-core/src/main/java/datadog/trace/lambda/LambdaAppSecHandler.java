@@ -417,19 +417,21 @@ public class LambdaAppSecHandler {
         }
       }
 
-      // Call requestClientSocketAddress
-      if (eventData.sourceIp != null) {
-        datadog.trace.api.function.TriFunction<RequestContext, String, Integer, Flow<Void>>
-            socketAddrCallback =
-                tracer
-                    .getCallbackProvider(RequestContextSlot.APPSEC)
-                    .getCallback(EVENTS.requestClientSocketAddress());
-        if (socketAddrCallback != null) {
-          Integer port = eventData.sourcePort != null ? eventData.sourcePort : 0;
-          socketAddrCallback.apply(requestContext, eventData.sourceIp, port);
-        } else {
-          log.debug("requestClientSocketAddress callback is null");
+      // Call requestClientSocketAddress even when no source IP is available.
+      datadog.trace.api.function.TriFunction<RequestContext, String, Integer, Flow<Void>>
+          socketAddrCallback =
+              tracer
+                  .getCallbackProvider(RequestContextSlot.APPSEC)
+                  .getCallback(EVENTS.requestClientSocketAddress());
+      if (socketAddrCallback != null) {
+        Integer port = eventData.sourcePort != null ? eventData.sourcePort : 0;
+        String sourceIp = eventData.sourceIp;
+        if (sourceIp == null || sourceIp.isEmpty()) {
+          sourceIp = "0.0.0.0";
         }
+        socketAddrCallback.apply(requestContext, sourceIp, port);
+      } else {
+        log.debug("requestClientSocketAddress callback is null");
       }
 
       // Call requestHeaderDone

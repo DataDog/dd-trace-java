@@ -675,10 +675,7 @@ final class LambdaEventParser {
     return fullPath.toString();
   }
 
-  /**
-   * Helper method to extract and merge headers with cookies array from event. API Gateway v2
-   * provides a separate 'cookies' array that should be merged with headers.
-   */
+  /** Extracts headers, preferring a non-empty API Gateway v2 cookies array over a cookie header. */
   private static Map<String, String> extractHeadersWithCookies(Map<String, Object> event) {
     Map<String, String> headers = extractHeaders(event.get("headers"));
 
@@ -690,13 +687,8 @@ final class LambdaEventParser {
         // Join cookies with "; " separator per RFC 6265
         String cookieValue = cookiesList.stream().map(String::valueOf).collect(joining("; "));
 
-        // Merge with existing cookie header if present
-        String existingCookie = headers.get("cookie");
-        if (existingCookie != null && !existingCookie.isEmpty()) {
-          headers.put("cookie", existingCookie + "; " + cookieValue);
-        } else {
-          headers.put("cookie", cookieValue);
-        }
+        // The array is authoritative; merging a redundant header would duplicate cookies.
+        headers.put("cookie", cookieValue);
       }
     }
 

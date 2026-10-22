@@ -1,5 +1,6 @@
 package datadog.trace.lambda;
 
+import static datadog.json.JsonMapper.toJson;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.lambda.LambdaEventParser.detectTriggerType;
 import static datadog.trace.lambda.LambdaEventParser.parseResponse;
@@ -77,6 +78,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
@@ -484,6 +486,96 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertEquals("DELETE", capturedMethod[0]);
     assertEquals("/alb/test", capturedPath[0]);
     assertEquals("203.0.113.42", capturedSourceIp[0]);
+  }
+
+  @TableTest({
+    "Scenario          | Header           | Value                  | Expected Ip           ",
+    "xff               | X-Forwarded-For  | '1.1.1.1'              | '1.1.1.1'             ",
+    "xff first entry   | X-Forwarded-For  | '10.0.0.1, 1.1.1.1'    | '10.0.0.1'            ",
+    "xff ipv6          | X-Forwarded-For  | '2001:4860:4860::8888' | '2001:4860:4860::8888'",
+    "xff private ipv6  | X-Forwarded-For  | 'fd00::1'              | 'fd00::1'             ",
+    "ignored forwarded | Forwarded        | 'for=1.1.1.1'          |                       ",
+    "ignored real ip   | X-Real-IP        | '1.1.1.1'              |                       ",
+    "ignored fastly    | Fastly-Client-IP | '1.1.1.1'              |                       ",
+    "ignored cf        | CF-Connecting-IP | '1.1.1.1'              |                       ",
+    "empty ip          | X-Forwarded-For  | ''                     |                       ",
+    "missing ip        |                  |                        |                       "
+  })
+  void albReadsSourceIpFromXffOnly(String header, String value, String expectedIp) {
+    for (boolean multiValue : new boolean[] {false, true}) {
+      String jsonValue = value == null || value.isEmpty() ? "\"\"" : toJson(value);
+      String headers =
+          header == null
+              ? "{}"
+              : "{\"" + header + "\": " + (multiValue ? "[" + jsonValue + "]" : jsonValue) + "}";
+      assertAlbClientIp(headers, multiValue, expectedIp);
+    }
+  }
+
+  @TableTest({
+    "Scenario           | Xff        | Forwarded     | Expected Ip",
+    "xff wins           | '1.1.1.1'  | 'for=8.8.8.8' | '1.1.1.1'  ",
+    "private xff wins   | '10.0.0.1' | 'for=8.8.8.8' | '10.0.0.1' ",
+    "empty xff fallback | ''         | 'for=8.8.8.8' |            "
+  })
+  void albIgnoresForwardedWhenResolvingSourceIp(String xff, String forwarded, String expectedIp) {
+    assertAlbClientIp(
+        "{\"X-Forwarded-For\": "
+            + (xff.isEmpty() ? "\"\"" : toJson(xff))
+            + ", \"Forwarded\": "
+            + toJson(forwarded)
+            + "}",
+        false,
+        expectedIp);
+  }
+
+  @TableTest({
+    "Scenario          | Headers                                                           | Expected Ip",
+    "event fallback    | '{}'                                                              | '8.8.8.8'  ",
+    "invalid headers   | '{\"x-forwarded-for\":\"invalid\",\"forwarded\":\"for=unknown\"}' | '8.8.8.8'  ",
+    "xff present       | '{\"x-forwarded-for\":\"1.1.1.1\"}'                               | '8.8.8.8'  ",
+    "private xff       | '{\"x-forwarded-for\":\"10.0.0.1\"}'                              | '8.8.8.8'  ",
+    "forwarded present | '{\"x-forwarded-for\":\"invalid\",\"forwarded\":\"for=1.1.1.1\"}' | '8.8.8.8'  "
+  })
+  void otherTriggersKeepTheirExplicitEventSourceIp(String headersJson, String expectedIp) {
+    String[] peerIp = {null};
+    setupMockCallbacks(new Callbacks().onSocketAddress((ip, port) -> peerIp[0] = ip));
+
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"path\":\"/\",\"headers\":"
+                    + headersJson
+                    + ",\"requestContext\":{\"httpMethod\":\"GET\",\"identity\":{\"sourceIp\":\"8.8.8.8\"}}}"));
+
+    assertNotNull(context);
+    assertEquals(expectedIp, peerIp[0]);
+    assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP));
+    assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP));
+  }
+
+  @TableTest({
+    "Scenario     | Event                                                                                                                   ",
+    "rest         | '{\"path\":\"/\",\"requestContext\":{\"httpMethod\":\"GET\"}}'                                                          ",
+    "http         | '{\"requestContext\":{\"http\":{\"method\":\"GET\",\"path\":\"/\"}}}'                                                   ",
+    "function url | '{\"requestContext\":{\"domainName\":\"abc.lambda-url.us-east-1.on.aws\",\"http\":{\"method\":\"GET\",\"path\":\"/\"}}}'",
+    "websocket    | '{\"requestContext\":{\"connectionId\":\"c1\",\"routeKey\":\"$connect\"}}'                                              ",
+    "empty source | '{\"path\":\"/\",\"requestContext\":{\"httpMethod\":\"GET\",\"identity\":{\"sourceIp\":\"\"}}}'                         "
+  })
+  void missingPeerIpStillCompletesRequestCallbacks(String eventJson) {
+    String[] peerIp = {null};
+    setupMockCallbacks(
+        new Callbacks()
+            .onSocketAddress((ip, port) -> peerIp[0] = ip)
+            .onHeadersDone(() -> assertEquals("0.0.0.0", peerIp[0])));
+
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(createInputStream(eventJson));
+
+    assertNotNull(context);
+    assertEquals("0.0.0.0", peerIp[0]);
+    assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP));
+    assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP));
   }
 
   @Test
@@ -1168,7 +1260,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void handlesCookiesMergingWithExistingCookieHeader() {
+  void prefersCookiesArrayOverExistingCookieHeader() {
     String eventJson =
         "{"
             + "\"headers\": {\"cookie\": \"existing=value\"},"
@@ -1184,7 +1276,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
     assertNotNull(result);
-    assertEquals("existing=value; new=cookie1; another=cookie2", capturedHeaders.get("cookie"));
+    assertEquals("new=cookie1; another=cookie2", capturedHeaders.get("cookie"));
   }
 
   @Test
@@ -2781,6 +2873,29 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     return new HashMap<>(((TagContext) context).getTags());
   }
 
+  private void assertAlbClientIp(String headersJson, boolean multiValue, String expectedIp) {
+    String[] peerIp = {null};
+    String expectedSourceIp = expectedIp != null ? expectedIp : "0.0.0.0";
+    setupMockCallbacks(
+        new Callbacks()
+            .onSocketAddress((ip, port) -> peerIp[0] = ip)
+            .onHeadersDone(() -> assertEquals(expectedSourceIp, peerIp[0])));
+    String eventJson =
+        "{\"path\":\"/alb\",\"httpMethod\":\"GET\",\""
+            + (multiValue ? "multiValueHeaders" : "headers")
+            + "\":"
+            + headersJson
+            + ",\"requestContext\":{\"elb\":{\"targetGroupArn\":\"arn\"}}}";
+
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(createInputStream(eventJson));
+
+    assertNotNull(context);
+    assertEquals(expectedSourceIp, peerIp[0]);
+    assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP));
+    assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP));
+  }
+
   private static ByteArrayInputStream createInputStream(String json) {
     return new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
   }
@@ -2799,6 +2914,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     BiConsumer<String, URIDataAdapter> onMethodUri;
     BiConsumer<String, String> onHeader;
     BiConsumer<String, Integer> onSocketAddress;
+    Runnable onHeadersDone;
     Consumer<Map<String, Object>> onPathParams;
     Consumer<Object> onBody;
     Consumer<List<String>> onFilenames;
@@ -2815,6 +2931,11 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Callbacks onSocketAddress(BiConsumer<String, Integer> cb) {
       this.onSocketAddress = cb;
+      return this;
+    }
+
+    Callbacks onHeadersDone(Runnable cb) {
+      this.onHeadersDone = cb;
       return this;
     }
 
@@ -2880,7 +3001,14 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     }
 
     Function<RequestContext, Flow<Void>> headerDoneCallback = mock(Function.class);
-    when(headerDoneCallback.apply(any())).thenReturn(Flow.ResultFlow.empty());
+    when(headerDoneCallback.apply(any()))
+        .thenAnswer(
+            inv -> {
+              if (callbacks.onHeadersDone != null) {
+                callbacks.onHeadersDone.run();
+              }
+              return Flow.ResultFlow.empty();
+            });
 
     BiFunction<RequestContext, Map<String, ?>, Flow<Void>> pathParamsCallback = null;
     if (callbacks.onPathParams != null) {
