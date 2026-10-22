@@ -1,11 +1,14 @@
 package datadog.trace.instrumentation.openfeature;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import net.bytebuddy.asm.Advice;
+import static net.bytebuddy.asm.Advice.OnMethodExit;
+import static net.bytebuddy.asm.Advice.Return;
 
+import com.datadog.openfeature.internal.bridge.AgentBridge;
+
+@SuppressWarnings("unused")
 public class DetectBridgeAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void detect(@Advice.Return(readOnly = false) AgentBridge bridge) {
+  @OnMethodExit(suppress = Throwable.class)
+  public static void detect(@Return(readOnly = false) AgentBridge bridge) {
     bridge = JavaAgentBridge.connect(bridge);
   }
 }
