@@ -41,4 +41,11 @@ public interface DecodedSpan {
    * @return The span links, empty when the span carries none.
    */
   List<DecodedSpanLink> getLinks();
+
+  /**
+   * Returns the events.
+   *
+   * @return The span events, empty when the span carries none.
+   */
+  List<DecodedSpanEvent> getEvents();
 }
