@@ -12,6 +12,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -1899,11 +1901,40 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
+  /** The tags as momentary readers (see {@link EntryReader}): read each one, don't keep it. */
   @Override
   public Iterator<EntryReader> iterator() {
     return new EntryReaderIterator(this);
   }
 
+  /**
+   * The tags as stable {@link Entry} objects, unlike {@link #iterator()}: a spliterator usually
+   * feeds a stream, and a stream may collect what it gets. Free where the store already keeps an
+   * Entry per tag; a store that doesn't builds one per tag.
+   */
+  @Override
+  public Spliterator<EntryReader> spliterator() {
+    Iterator<EntryReader> readers = this.iterator();
+    Iterator<EntryReader> entries =
+        new Iterator<EntryReader>() {
+          @Override
+          public boolean hasNext() {
+            return readers.hasNext();
+          }
+
+          @Override
+          public EntryReader next() {
+            return readers.next().entry();
+          }
+        };
+    return Spliterators.spliterator(
+        entries, this.size(), Spliterator.DISTINCT | Spliterator.NONNULL);
+  }
+
+  /**
+   * The tags as stable {@link Entry} objects, so collecting them is safe (see {@link
+   * #spliterator}).
+   */
   public Stream<EntryReader> stream() {
     return StreamSupport.stream(spliterator(), false);
   }

@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -436,6 +437,31 @@ class IdStoreContractTest {
     assertEquals(7L, view.getEntryReader("my.count").longValue());
     assertNull(view.getEntryReader(KnownTags.HTTP_METHOD_ID));
     assertNull(TagMap.viewOf(store, null, false).getEntryReader("my.count"), "no custom store");
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
+  void aStreamYieldsEntriesThatStayValidOnceCollected(Function<IdStore, IdStore> newStore) {
+    IdStore store = newStore.apply(null);
+    store.set(KnownTags.HTTP_ROUTE_ID, "/a");
+    store.set(KnownTags.HTTP_METHOD_ID, "GET");
+    store.set(KnownTags.PEER_PORT_ID, 5432);
+    HashStore names = HashStore.create(null);
+    names.set("my.tag", "custom");
+    TagMap view = TagMap.viewOf(store, names, false);
+
+    // collected, then read: each element must still describe its own tag
+    List<EntryReader> collected = view.stream().collect(Collectors.toList());
+    Map<String, Object> byName = new HashMap<>();
+    for (EntryReader entryReader : collected) {
+      assertNull(byName.put(entryReader.tag(), entryReader.objectValue()), entryReader.tag());
+    }
+    Map<String, Object> expected = new HashMap<>();
+    expected.put("http.route", "/a");
+    expected.put("http.method", "GET");
+    expected.put("peer.port", 5432);
+    expected.put("my.tag", "custom");
+    assertEquals(expected, byName);
   }
 
   @ParameterizedTest
