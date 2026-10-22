@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscArrayQueue;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -32,10 +33,11 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p><b>The decision this table is for.</b> Use {@link MpscArrayQueue} directly when one consumer,
  * the ring's own bound, and an element you already hold are the whole requirement -- it is the
- * floor here and nothing built on top of it will beat it. Reach for {@link WorkQueue} when the
- * element costs something to build, when a drop needs counting, when a failed consumer needs a
- * retry or a handler, or when the queue has a lifecycle. That is a real choice with a real answer
- * on both sides, and the numbers below are what it costs either way.
+ * floor here. Reach for {@link WorkQueue} for its guarantees: an element is built, or a destructive
+ * read made, only once capacity is claimed, through every admission form including batches and
+ * reservations; refusal is reported rather than swallowed; the queue has a lifecycle; and consumer
+ * failures can be retried or handled. The numbers below are what those guarantees cost. They are
+ * not a claim that the API is faster.
  *
  * <p><b>The baselines are not inventions.</b> {@code arrayBlocking} is {@code WafMetricCollector},
  * which offers into an {@code ArrayBlockingQueue(1024)}; {@code linkedBlocking} is {@code
@@ -53,42 +55,37 @@ import org.openjdk.jmh.infra.Blackhole;
  * allocation on every call. Read both. A caller whose queue is never full lives in the first table
  * and should weigh the API for what it buys, not for its speed.
  *
- * <p>Results. JDK 17, one machine, {@code -Pjmh.forks=1}; the four-thread arms carry wide error
- * bars and the ranking within the incumbents is not meaningful, but the separation from {@code
- * refusedWorkQueue} is an order of magnitude and survives any reading of them.
+ * <p>Results. JDK 17, one machine, {@code @Fork(2)}, {@code -Pjmh.profilers=gc}.
  *
  * <pre>
  * Benchmark                 threads    ns/op   B/op
- * steadyRawMpsc                   1     24.2     24
- * steadyWorkQueue                 1     36.3     24
- * steadyArrayBlocking             1     38.8     24
- * steadyClqWithCounter            1     42.8     48
- * steadyLinkedBlocking            1     46.2     48
- * refusedWorkQueue                4      7.2      0
- * refusedClqWithCounter           4    146.1     24
- * refusedLinkedBlocking           4    148.0     24
- * refusedRawMpsc                  4    160.2     24
- * refusedArrayBlocking            4    180.5     24
+ * steadyRawMpscFill               1     22.9     24
+ * steadyRawMpsc                   1     23.8     24
+ * steadyWorkQueue                 1     35.8     24
+ * steadyArrayBlocking             1     38.0     24
+ * steadyClqWithCounter            1     42.1     48
+ * steadyLinkedBlocking            1     45.0     48
+ * refusedWorkQueue                4      1.5      0
+ * refusedRawMpscFill              4      2.6      0
+ * refusedLinkedBlocking           4    139.9     24
+ * refusedRawMpsc                  4    142.0     24
+ * refusedClqWithCounter           4    149.6     24
+ * refusedArrayBlocking            4    184.0     24
  * </pre>
  *
- * <p><b>What the two halves say.</b> Admitting, the raw ring is the floor at 24ns and nothing here
- * reaches it; {@link WorkQueue} costs 12ns more for the counted drop, the lifecycle, and the
- * producer callback. Both incumbents cost more than that, and the two linked queues allocate a node
- * per element on top of the element itself. So the API is not the expensive option even in the case
- * that flatters the alternatives.
+ * <p><b>Admitting.</b> The raw ring is the floor at about 23ns, with or without {@code fill}.
+ * {@link WorkQueue} costs about 13ns more for the permit counter and the producer callback, and no
+ * more allocation: that is the price of the guarantees above. The incumbents that build first cost
+ * more than that anyway, and the two linked queues allocate a node per element on top of the
+ * element itself.
  *
- * <p>Refusing, the separation is not subtle, and it is not really about the queue. {@code
- * refusedWorkQueue} does no allocation at all, because the place is claimed before the producer is
- * ever called and there was no place; every other arm has already built its element by the time it
- * asks. That is the designed difference rather than an artifact of the harness -- but read it as
- * such. A caller whose element is a preexisting object, or is free to build, keeps the shape of
- * this gap and not its size.
- *
- * <p><b>The honest caveat.</b> {@code refusedRawMpsc} is in the same band as the incumbents, which
- * is the reminder that the floor is a floor for admitting, not for refusing: a full ring still
- * touches a line the consumer is moving. {@code refusedWorkQueue} is fast because refusal is a load
- * against a counter no refusing thread writes -- see {@code ContendedAdmissionBenchmark}, which is
- * where that came from and what it cost before.
+ * <p><b>Refusing.</b> Every arm that builds before it asks lands between 140 and 185ns with 24
+ * B/op, and the gap to the claim-first arms is the element, not the queue: the same ring that takes
+ * 142ns to refuse through {@code offer} refuses in 2.6ns through {@code fill}, which also claims a
+ * slot before calling its supplier. {@code refusedWorkQueue} is cheaper still, because refusal is a
+ * load against a counter no refusing thread writes -- see {@code ContendedAdmissionBenchmark}. A
+ * caller whose element already exists, or is free to build, keeps the ordering of this gap and not
+ * its size.
  */
 @Fork(2)
 @Warmup(iterations = 3, time = 1)
@@ -120,7 +117,15 @@ public class AdmissionAlternativesBenchmark {
   /** Only ever called once a place is already claimed, which is the whole difference. */
   private static final Producer<Payload> BUILDER = () -> new Payload(ELEMENT, System.nanoTime());
 
+  /**
+   * The same build for the ring's own {@code fill}, which also claims a slot before calling it. It
+   * must not throw or return null: either would leave a claimed slot the consumer waits on forever.
+   */
+  private static final MessagePassingQueue.Supplier<Payload> RAW_BUILDER =
+      () -> new Payload(ELEMENT, System.nanoTime());
+
   private MpscArrayQueue<Payload> steadyRaw;
+  private MessagePassingQueue<Payload> steadyRawFill;
   private BlockingQueue<Payload> steadyArrayBlocking;
   private BlockingQueue<Payload> steadyLinkedBlocking;
   private Queue<Payload> steadyClq;
@@ -128,6 +133,7 @@ public class AdmissionAlternativesBenchmark {
   private WorkQueue<Payload> steadyWork;
 
   private MpscArrayQueue<Payload> fullRaw;
+  private MessagePassingQueue<Payload> fullRawFill;
   private BlockingQueue<Payload> fullArrayBlocking;
   private BlockingQueue<Payload> fullLinkedBlocking;
   private Queue<Payload> fullClq;
@@ -137,6 +143,7 @@ public class AdmissionAlternativesBenchmark {
   @Setup
   public void setUp() {
     steadyRaw = new MpscArrayQueue<>(CAPACITY);
+    steadyRawFill = Queues.mpscArrayQueue(CAPACITY);
     steadyArrayBlocking = new ArrayBlockingQueue<>(CAPACITY);
     steadyLinkedBlocking = new LinkedBlockingQueue<>(CAPACITY);
     steadyClq = new ConcurrentLinkedQueue<>();
@@ -144,6 +151,7 @@ public class AdmissionAlternativesBenchmark {
     steadyWork = WorkQueues.createMpscQueue(CAPACITY);
 
     fullRaw = new MpscArrayQueue<>(16);
+    fullRawFill = Queues.mpscArrayQueue(16);
     fullArrayBlocking = new ArrayBlockingQueue<>(16);
     fullLinkedBlocking = new LinkedBlockingQueue<>(16);
     fullClq = new ConcurrentLinkedQueue<>();
@@ -152,6 +160,7 @@ public class AdmissionAlternativesBenchmark {
     for (int i = 0; i < 16; i++) {
       Payload payload = new Payload(ELEMENT, i);
       fullRaw.offer(payload);
+      fullRawFill.offer(payload);
       fullArrayBlocking.offer(payload);
       fullLinkedBlocking.offer(payload);
       fullClq.offer(payload);
@@ -169,6 +178,17 @@ public class AdmissionAlternativesBenchmark {
   public void steadyRawMpsc(Blackhole bh) {
     bh.consume(steadyRaw.offer(new Payload(ELEMENT, System.nanoTime())));
     bh.consume(steadyRaw.poll());
+  }
+
+  /**
+   * The ring claiming before it builds, through the same factory {@link WorkQueue} uses. Against
+   * {@code steadyWorkQueue}, this is what the permit counter and the API cost on top of it.
+   */
+  @Benchmark
+  @Threads(1)
+  public void steadyRawMpscFill(Blackhole bh) {
+    bh.consume(steadyRawFill.fill(RAW_BUILDER, 1));
+    bh.consume(steadyRawFill.poll());
   }
 
   /** {@code WafMetricCollector}: build, then offer, then find out. */
@@ -248,6 +268,13 @@ public class AdmissionAlternativesBenchmark {
       bh.consume(fullClq.offer(payload));
     }
     bh.consume(payload);
+  }
+
+  /** The ring's own claim-before-build: a full ring returns 0 without calling the supplier. */
+  @Benchmark
+  @Threads(4)
+  public void refusedRawMpscFill(Blackhole bh) {
+    bh.consume(fullRawFill.fill(RAW_BUILDER, 1));
   }
 
   /** Never asked to build, because the place is claimed first and there was none. */
