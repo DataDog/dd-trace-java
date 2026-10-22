@@ -1,8 +1,8 @@
 package datadog.common.queue;
 
-import static datadog.correctnesscontract.Confined.Extent.FRAME;
+import static datadog.contract.Confined.Extent.FRAME;
 
-import datadog.correctnesscontract.Confined;
+import datadog.contract.Confined;
 
 /**
  * A claimed place in a {@link WorkQueue}, for a caller whose work between claiming and filling

@@ -1,8 +1,8 @@
 package datadog.common.queue;
 
-import static datadog.correctnesscontract.Confined.Extent.CALL;
+import static datadog.contract.Confined.Extent.CALL;
 
-import datadog.correctnesscontract.Confined;
+import datadog.contract.Confined;
 import javax.annotation.Nonnull;
 
 /**
