@@ -15,34 +15,28 @@ public final class WorkQueues {
   private WorkQueues() {}
 
   /**
-   * Creates a bounded Multiple Producer, Single Consumer buffer backed by an MPSC array queue.
+   * Creates a bounded array-backed queue for multiple producers and one consumer.
    *
-   * <p>The preferred backing: no per-element node, constant-time {@link WorkQueue#size()}, and
-   * admission that claims a slot before invoking a producer, so an element that will not fit is
-   * never built.
+   * <p>Use one consumer thread for all operations that remove elements, including processing,
+   * {@link WorkQueue#clear()} and {@link WorkQueue#shutdown()}. Concurrent consumers can spin
+   * indefinitely. Use {@link #createMpmcQueue(int)} when several consumers are needed.
    *
-   * <p>Single Consumer is a requirement, not a characteristic. Producers may be any number of
-   * threads, but every call that takes elements out -- any {@code process}, {@code processOrRetry}
-   * or {@code processOrHandle} overload, plus {@link WorkQueue#clear} and {@link
-   * WorkQueue#shutdown} -- must come from one thread. A second consumer is not rejected and does
-   * not throw: the two can spin inside the ring's gap-wait indefinitely, which presents as a hang
-   * rather than a failure. Use {@link #createMpmcQueue} where more than one thread drains.
-   *
-   * @param requestedCapacity the bound. Will be rounded to the next power of two.
+   * @param <E> the element type
+   * @param requestedCapacity capacity, rounded up to a power of two
+   * @return a queue requiring one consumer
    */
   public static <E> WorkQueue<E> createMpscQueue(int requestedCapacity) {
     return new MpscWorkQueue<>(requestedCapacity);
   }
 
   /**
-   * Creates a bounded Multiple Producer, Multiple Consumer buffer backed by an MPMC array queue.
+   * Creates a bounded array-backed queue for multiple producers and consumers.
    *
-   * <p>For call sites that need several consumers. No per-element node, so it costs an admission
-   * and a drain about what the MPSC ring does; prefer {@link #createMpscQueue} anyway where a
-   * single consumer is possible, because the MPSC ring is cheaper still.
+   * <p>Prefer {@link #createMpscQueue(int)} when one consumer is sufficient.
    *
-   * @param requestedCapacity the bound. Will be rounded to the next power of two, and raised to two
-   *     if it is less than that.
+   * @param <E> the element type
+   * @param requestedCapacity capacity, rounded up to a power of two and at least two
+   * @return a queue that allows concurrent consumers
    */
   public static <E> WorkQueue<E> createMpmcQueue(int requestedCapacity) {
     return MpmcWorkQueue.bounded(requestedCapacity);

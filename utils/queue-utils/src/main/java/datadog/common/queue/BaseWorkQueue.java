@@ -99,44 +99,17 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   /**
-   * Stores an element in a place already claimed for it, so this can only fail if the backing
-   * refuses for a reason of its own. Neither shipped backing does: places outstanding never exceed
-   * the capacity of the structure underneath. A {@code false} tells the caller to give the place
-   * back, and the element is lost.
+   * Stores an element after capacity has been claimed.
    *
-   * <h2>What a third backing would cost here</h2>
+   * <p>A false result tells the caller to release the claim. The producer and reservation paths
+   * then discard the built element. Neither shipped backing returns false: claims never exceed the
+   * capacity of the structure underneath.
    *
-   * <p>This is one call site shared by every backing in the process, so its receiver profile is
-   * global rather than per-caller: a queue used nowhere near yours still writes into it. At one or
-   * two implementations C2 inlines through it; at three it stops, and {@code -XX:+PrintInlining}
-   * reports {@code store} and {@code retrieve} as {@code failed to inline: virtual call} on both
-   * JDK 17 and JDK 25. So the cliff is real and it is easy to fall off — a third backing is a
-   * decision about every existing caller, not only about its own.
-   *
-   * <p>It is also, measured, worth one or two nanoseconds. {@code AdmissionBenchmark}'s {@code
-   * THREE} arm is the standing version of that experiment: 20.8ns against 21.8ns per
-   * admit-and-drain for {@code tryPut(Producer)}, the same shape across the other admission forms,
-   * and no allocation difference at all. The reason is that an admit-and-drain pays two uncontended
-   * atomics on the permit count and a compare-and-set inside the ring, and an out-of-line call is
-   * little against memory ordering. Contention widens the atomics and narrows this further, and
-   * batching does not change it either, because the drain still returns a place per element.
-   *
-   * <p>One path is worse: admitting through a {@link Reservation} costs about 30% more, because
-   * {@link Reservation#fill}'s {@code store} sits at the end of a chain of optimizations that has
-   * to survive a call that no longer folds away. The reservation is still scalar-replaced, so it is
-   * time and not garbage — but a caller admitting that way is the one with something to lose.
-   *
-   * <p>Which is the useful form of the warning. Do not add a third backing to buy throughput,
-   * because there is none here to buy; weigh it against a few percent and against the reader. And
-   * if a path ever admits without touching an atomic, measure again there, because that is where
-   * this would start to matter. The repair, if it comes to it, is to stop sharing the site: let
-   * each backing implement the public interface and forward into this class, so the receiver is an
-   * exact final type at the top of the inlining tree and the call devirtualizes by static
-   * resolution rather than by profile.
-   *
-   * <p>None of that applies to a backing that holds two <i>structures</i> behind one type, which is
-   * why {@link MpmcWorkQueue} branches on a field of its own rather than arriving here as two
-   * classes. A predictable branch costs nothing and adds no receiver.
+   * <p>This virtual call site is shared by all backings. With a third backing, C2 did not inline
+   * store or retrieve on JDK 17 or 25. The JDK 25 AdmissionBenchmark measured about 1-2 ns more for
+   * ordinary admission and about 30% more for reservation fill, without additional allocation.
+   * Measure this path before adding another backing. Keeping two storage structures behind one
+   * backing type does not add a receiver type at this call site.
    *
    * @return whether the element was stored
    */
@@ -189,27 +162,20 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
   }
 
   /**
-   * Spends up to {@code wanted} places at once, and grants what was there rather than refusing
-   * because all of it was not. {@link #claimPlace} is this sequence with {@code wanted} of one.
+   * Claims up to {@code wanted} places, allowing a partial grant.
    *
-   * <p>A batch that claimed all-or-nothing would refuse the whole call when one place was short,
-   * which is a refusal the caller cannot distinguish from a full queue and cannot act on -- it had
-   * room for all but one. Granting the shortfall exactly removes that outcome by construction,
-   * without a retry at a smaller size: the initial read already says how large the claim can
-   * usefully be, so the scaling down is a clamp against a load this path was paying anyway, not a
-   * second trip.
+   * <p>One atomic subtraction claims the amount suggested by the available-count snapshot. If
+   * concurrent claims overspend the count, a second atomic update returns this claim's deficit.
+   * There is no compare-and-set retry loop.
    *
-   * <p>The shape is {@link #claimPlace}'s, and deliberately so: one atomic add on the common path,
-   * a second only where the count went negative, and no compare-and-set loop. It reads {@link
-   * #state} raw rather than through {@link #permits}, for the same reason that one does -- a closed
-   * queue is biased far below zero, so it fails the first comparison and is turned away by a load,
-   * and a close landing mid-claim drives the count so negative that the whole claim is given back.
+   * <p>Read {@link #state} without removing its closed bias: a closed queue must grant nothing. If
+   * {@link #close()} races with the subtraction, the full claim is returned, preserving the bias.
    *
-   * <p>What a short grant means is therefore narrower than it looks. It is not proof the queue is
-   * full: concurrent claimants can each back out and leave places neither of them took. Callers
-   * loop until a claim comes back empty rather than treating the first short grant as the end.
+   * <p>A partial grant does not prove the queue is full: other claimants may return permits.
+   * Callers continue claiming until a claim returns zero.
    *
-   * @return the places granted, between zero and {@code wanted}
+   * @param wanted the maximum number of places to claim
+   * @return the places granted, from zero to {@code wanted}
    */
   private int claimPlaces(int wanted) {
     long available = state.get();

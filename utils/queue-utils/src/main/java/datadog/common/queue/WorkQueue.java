@@ -185,39 +185,22 @@ public interface WorkQueue<T> {
   Collection<T> tryPutBatch(Collection<? extends T> elements);
 
   /**
-   * Admits an element per source element, constructing each only once a slot is reserved for it.
-   * The queue owns the walk, so the producer is asked only for elements there is already room for,
-   * and a caller batching work this way never holds capacity of its own.
+   * Transforms source elements after claiming capacity for each one.
    *
-   * <p>The producer may decline a source element by returning {@code null}. That is an explicit
-   * decision by the caller rather than a loss, so a declined element does not count as admitted;
-   * the place claimed for it is simply given back.
+   * <p>A null result declines a source element and releases its claim. If no claim is granted, the
+   * producer is not called for the remaining source elements. The difference between the source
+   * size and the admitted count therefore includes both declines and refusals. Use a caller-owned
+   * loop if every source element needs processing regardless of admission.
    *
-   * <p>A count rather than the refused source elements, because the count is the number a caller
-   * can act on and the elements are not. A caller that knows how many it meant to admit gets the
-   * exact shortfall by subtraction, with its own declines excluded from both sides. The refused
-   * elements cannot be that precise: a place is claimed before the producer is asked, so a full
-   * queue cannot tell a genuine refusal from an element the producer would have declined anyway,
-   * and hands back some of each.
+   * <p>The source is a collection to require a finite batch: concurrent consumers could keep making
+   * room indefinitely for an unbounded iterable.
    *
-   * <p>{@code context} is the one value the whole batch shares and a source element cannot recover
-   * on its own — a schema, a clock reading, a per-batch buffer. It is read once here rather than
-   * per element, which is the hoist the single-element form spells out in {@link
-   * BiContextualProducer}.
-   *
-   * <p>{@link Collection} rather than {@link Iterable} because admission runs while there is room,
-   * and a queue with a live consumer keeps making room: a source with no end would not terminate.
-   *
-   * <p>Reach for this only when the walk exists to admit and nothing else. The queue stops asking
-   * once it runs out of room, so the producer is the only per-source-element hook a caller gets and
-   * it is reached only for elements there was room for. A loop that also carries something across
-   * its iterations — a count of what it considered, a flag OR-ed over the whole source, a decision
-   * about the batch as a whole — needs every source element regardless of admission, and hands back
-   * more per element than a producer can return. Such a caller keeps its own loop and admits one
-   * element at a time; that is not a shortcoming of the loop.
-   *
-   * @return how many elements were admitted
-   * @see BiContextualProducer
+   * @param <E> the source element type
+   * @param <C> the shared context type
+   * @param source elements to transform
+   * @param context value shared by producer calls; may be null
+   * @param producer creates an element for each granted claim; may return null to decline
+   * @return the number of elements admitted
    */
   @StrategyConsumer
   <E, C> int tryPutBatch(
@@ -243,21 +226,17 @@ public interface WorkQueue<T> {
       @Nullable @Strategy RejectHandler<? super E> onRejected);
 
   /**
-   * Claims a place without supplying its element, for a caller whose work between claiming and
-   * filling cannot be expressed as a {@link Producer}.
+   * Claims capacity for work that cannot be built in a producer callback.
    *
-   * <p>What is reserved is capacity, not a position — {@link Reservation#fill} cannot be rejected,
-   * and the element joins the queue where it is filled. Nothing is held open that a consumer could
-   * be waiting on, so a thread may safely reserve and consume, but a reservation that is never
-   * filled or closed leaks its capacity for good. Use try-with-resources, and keep the reservation
-   * on the reserving thread.
+   * <p>The reservation holds no position in the backing. Its element joins the queue when filled,
+   * so an open reservation does not block consumers. Use try-with-resources to release unfilled
+   * reservations; abandoning one permanently consumes its capacity. Keep the reservation on the
+   * reserving thread.
    *
-   * <p>Never {@code null}: a refusal comes back as a reservation that reports {@link
-   * Reservation#granted} as {@code false} and discards anything filled into it. Nothing on the
-   * refused path throws, so the try-with-resources is always safe; checking {@code granted} is what
-   * lets the caller skip building an element the queue had no room for.
+   * <p>A refused claim returns a non-null reservation that ignores fill. Check {@link
+   * Reservation#granted()} before building the element.
    *
-   * @return the claimed capacity, or a refused reservation if there was none to claim
+   * @return a granted or refused reservation
    */
   Reservation<T> tryReserve();
 
