@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
+import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -50,6 +51,49 @@ class ProbabilitySamplingStateTest {
     SamplingState state = ptags.samplingState();
 
     assertSame(state.getOtelTraceState(), state.getOtelTraceState());
+  }
+
+  /**
+   * Readers racing to build the state agree on one instance. A stress test can't force the race, so
+   * this is a smoke test of the compare-and-set: it can't fail while that holds.
+   */
+  @Test
+  void racingReadsReturnOneInstance() throws InterruptedException {
+    int readers = 8;
+    for (int trial = 0; trial < 100; trial++) {
+      PropagationTags ptags = factory.empty();
+      ptags.tryUpdateProbabilitySamplingDecision(
+          SAMPLER_KEEP, AGENT_RATE, 0.1, false, TRACE_ID_LOW_ORDER_BITS, false);
+      SamplingState state = ptags.samplingState();
+
+      CharSequence[] seen = new CharSequence[readers];
+      CountDownLatch start = new CountDownLatch(1);
+      Thread[] threads = new Thread[readers];
+      for (int i = 0; i < readers; i++) {
+        int reader = i;
+        threads[i] =
+            new Thread(
+                () -> {
+                  try {
+                    start.await();
+                  } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                  }
+                  seen[reader] = state.getOtelTraceState();
+                });
+        threads[i].start();
+      }
+      start.countDown();
+      for (Thread thread : threads) {
+        thread.join();
+      }
+
+      for (CharSequence otelTraceState : seen) {
+        assertSame(seen[0], otelTraceState);
+      }
+      assertSame(seen[0], state.getOtelTraceState());
+    }
   }
 
   @Test
