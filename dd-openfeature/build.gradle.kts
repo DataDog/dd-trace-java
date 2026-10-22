@@ -3,7 +3,6 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 
 plugins {
   `java-library`
-  idea
   id("dd-trace-java.module.distributable.api")
   id("dd-trace-java.version-file")
   id("dd-trace-java.jmh-conventions")
@@ -25,12 +24,6 @@ publishing {
 
 configure<TestJvmConstraintsExtension> {
   minJavaVersion.set(JavaVersion.VERSION_11)
-}
-
-idea {
-  module {
-    jdkName = "11"
-  }
 }
 
 java {
