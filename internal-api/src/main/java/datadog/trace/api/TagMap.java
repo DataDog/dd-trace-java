@@ -1238,8 +1238,7 @@ public final class TagMap
    * optimizations can treat it as fixed.
    */
   private TagMap(TagMap parent) {
-    // needs to be a power of 2 for bucket masking calculation to work as intended
-    this.buckets = new Object[1 << 4];
+    this.buckets = HashSupport.newBuckets();
     this.size = 0;
     this.frozen = false;
     this.parent = parent;
@@ -1466,22 +1465,7 @@ public final class TagMap
 
   /** Looks up an entry in this map's own buckets only — no read-through to the parent. */
   private Entry getLocalEntry(String tag, long tagHash) {
-    Object[] thisBuckets = this.buckets;
-    int hash = Entry.bucketHash(tagHash);
-    return findInBucket(thisBuckets[hash & (thisBuckets.length - 1)], hash, tag);
-  }
-
-  /**
-   * Finds an entry by hash/tag within a single bucket object (Entry | BucketGroup chain | null).
-   */
-  private static Entry findInBucket(Object bucket, int hash, String tag) {
-    if (bucket instanceof Entry) {
-      Entry tagEntry = (Entry) bucket;
-      return tagEntry.matches(tag) ? tagEntry : null;
-    } else if (bucket instanceof BucketGroup) {
-      return ((BucketGroup) bucket).findInChain(hash, tag);
-    }
-    return null;
+    return HashSupport.find(this.buckets, Entry.bucketHash(tagHash), tag);
   }
 
   /**
@@ -1506,7 +1490,7 @@ public final class TagMap
       // shadowed by a nearer level's local entry
       Object[] nearerBuckets = nearer.buckets;
       Object nearerBucket = nearerBuckets[hash & (nearerBuckets.length - 1)];
-      if (findInBucket(nearerBucket, hash, tag) != null) {
+      if (HashSupport.findInBucket(nearerBucket, hash, tag) != null) {
         return false;
       }
     }
@@ -1787,49 +1771,11 @@ public final class TagMap
       this.removedFromParent.remove(newEntry.tag);
     }
 
-    Object[] thisBuckets = this.buckets;
-
-    int newHash = newEntry.hash();
-    int bucketIndex = newHash & (thisBuckets.length - 1);
-
-    Object bucket = thisBuckets[bucketIndex];
-    if (bucket == null) {
-      thisBuckets[bucketIndex] = newEntry;
-
+    Entry replaced = HashSupport.put(this.buckets, newEntry);
+    if (replaced == null) {
       this.size += 1;
-      return null;
-    } else if (bucket instanceof Entry) {
-      Entry existingEntry = (Entry) bucket;
-      if (existingEntry.matches(newEntry.tag)) {
-        thisBuckets[bucketIndex] = newEntry;
-
-        // replaced existing entry - no size change
-        return existingEntry;
-      } else {
-        thisBuckets[bucketIndex] =
-            new BucketGroup(existingEntry.hash(), existingEntry, newHash, newEntry);
-
-        this.size += 1;
-        return null;
-      }
-    } else if (bucket instanceof BucketGroup) {
-      BucketGroup lastGroup = (BucketGroup) bucket;
-
-      BucketGroup containingGroup = lastGroup.findContainingGroupInChain(newHash, newEntry.tag);
-      if (containingGroup != null) {
-        // replaced existing entry - no size change
-        return containingGroup._replace(newHash, newEntry);
-      }
-
-      if (!lastGroup.insertInChain(newHash, newEntry)) {
-        thisBuckets[bucketIndex] = new BucketGroup(newHash, newEntry, lastGroup);
-      }
-      this.size += 1;
-      return null;
     }
-
-    // unreachable
-    return null;
+    return replaced;
   }
 
   public Entry getAndSet(@Nonnull String tag, Object value) {
@@ -1906,143 +1852,14 @@ public final class TagMap
   }
 
   private void putAllMerge(TagMap that) {
-    Object[] thisBuckets = this.buckets;
-    Object[] thatBuckets = that.buckets;
-
-    // Since TagMap-s don't support expansion, buckets are perfectly aligned
-    // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check
-    // elimination
-    for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
-      Object thatBucket = thatBuckets[i];
-
-      // if nothing incoming, nothing to do
-      if (thatBucket == null) continue;
-
-      Object thisBucket = thisBuckets[i];
-      if (thisBucket == null) {
-        // This bucket is null, easy case
-        // Either copy over the sole entry or clone the BucketGroup chain
-
-        if (thatBucket instanceof Entry) {
-          thisBuckets[i] = thatBucket;
-          this.size += 1;
-        } else if (thatBucket instanceof BucketGroup) {
-          BucketGroup thatGroup = (BucketGroup) thatBucket;
-
-          BucketGroup thisNewGroup = thatGroup.cloneChain();
-          thisBuckets[i] = thisNewGroup;
-          this.size += thisNewGroup.sizeInChain();
-        }
-      } else if (thisBucket instanceof Entry) {
-        // This bucket is a single entry, medium complexity case
-        // If other side is an Entry - just merge the entries into a bucket
-        // If other side is a BucketGroup - then clone the group and insert the entry normally into
-        // the cloned group
-
-        Entry thisEntry = (Entry) thisBucket;
-        int thisHash = thisEntry.hash();
-
-        if (thatBucket instanceof Entry) {
-          Entry thatEntry = (Entry) thatBucket;
-          int thatHash = thatEntry.hash();
-
-          if (thisHash == thatHash && thisEntry.matches(thatEntry.tag())) {
-            thisBuckets[i] = thatEntry;
-            // replacing entry, no size change
-          } else {
-            thisBuckets[i] =
-                new BucketGroup(
-                    thisHash, thisEntry,
-                    thatHash, thatEntry);
-            this.size += 1;
-          }
-        } else if (thatBucket instanceof BucketGroup) {
-          BucketGroup thatGroup = (BucketGroup) thatBucket;
-
-          // Clone the other group, then place this entry into that group
-          BucketGroup thisNewGroup = thatGroup.cloneChain();
-          int thisNewGroupSize = thisNewGroup.sizeInChain();
-
-          Entry incomingEntry = thisNewGroup.findInChain(thisHash, thisEntry.tag());
-          if (incomingEntry != null) {
-            // there's already an entry w/ the same tag from the incoming TagMap
-            // incoming entry clobbers the existing try, so we're done
-            thisBuckets[i] = thisNewGroup;
-
-            // overlapping group - subtract one for clobbered existing entry
-            this.size += thisNewGroupSize - 1;
-          } else if (thisNewGroup.insertInChain(thisHash, thisEntry)) {
-            // able to add thisEntry into the existing groups
-            thisBuckets[i] = thisNewGroup;
-
-            // non overlapping group - existing entry already accounted for in this.size
-            this.size += thisNewGroupSize;
-          } else {
-            // unable to add into the existing groups
-            thisBuckets[i] = new BucketGroup(thisHash, thisEntry, thisNewGroup);
-
-            // non overlapping group - existing entry already accounted for in this.size
-            this.size += thisNewGroupSize;
-          }
-        }
-      } else if (thisBucket instanceof BucketGroup) {
-        // This bucket is a BucketGroup, medium to hard case
-        // If the other side is an entry, just normal insertion procedure - no cloning required
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        if (thatBucket instanceof Entry) {
-          Entry thatEntry = (Entry) thatBucket;
-          int thatHash = thatEntry.hash();
-
-          if (thisGroup.replaceInChain(thatHash, thatEntry) != null) {
-            // replaced existing entry no size change
-          } else if (thisGroup.insertInChain(thatHash, thatEntry)) {
-            this.size += 1;
-          } else {
-            thisBuckets[i] = new BucketGroup(thatHash, thatEntry, thisGroup);
-            this.size += 1;
-          }
-        } else if (thatBucket instanceof BucketGroup) {
-          // Most complicated case - need to walk that bucket group chain and update this chain
-          BucketGroup thatGroup = (BucketGroup) thatBucket;
-
-          // Taking the easy / expensive way out for updating size
-          int thisPrevGroupSize = thisGroup.sizeInChain();
-
-          BucketGroup thisNewGroup = thisGroup.replaceOrInsertAllInChain(thatGroup);
-          int thisNewGroupSize = thisNewGroup.sizeInChain();
-
-          thisBuckets[i] = thisNewGroup;
-          this.size += (thisNewGroupSize - thisPrevGroupSize);
-        }
-      }
-    }
+    this.size += HashSupport.merge(this.buckets, that.buckets);
   }
 
   /*
    * Specially optimized version of putAll for the common case of destination map being empty
    */
   private void putAllIntoEmptyMap(TagMap that) {
-    Object[] thisBuckets = this.buckets;
-    Object[] thatBuckets = that.buckets;
-
-    // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check
-    // elimination
-    for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
-      Object thatBucket = thatBuckets[i];
-
-      // faster to explicitly null check first, then do instanceof
-      if (thatBucket == null) {
-        // do nothing
-      } else if (thatBucket instanceof BucketGroup) {
-        // if it is a BucketGroup, then need to clone
-        BucketGroup thatGroup = (BucketGroup) thatBucket;
-
-        thisBuckets[i] = thatGroup.cloneChain();
-      } else { // if ( thatBucket instanceof Entry )
-        thisBuckets[i] = thatBucket;
-      }
-    }
+    HashSupport.copyInto(this.buckets, that.buckets);
     this.size = that.size;
   }
 
@@ -2055,21 +1872,7 @@ public final class TagMap
       return;
     }
 
-    Object[] thisBuckets = this.buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-
-        map.put(thisEntry.tag, thisEntry.objectValue());
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        thisGroup.fillMapFromChain(map);
-      }
-    }
+    HashSupport.fillMap(this.buckets, map);
   }
 
   public void fillStringMap(Map<? super String, ? super String> stringMap) {
@@ -2080,21 +1883,7 @@ public final class TagMap
       return;
     }
 
-    Object[] thisBuckets = this.buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-
-        stringMap.put(thisEntry.tag, thisEntry.stringValue());
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        thisGroup.fillStringMapFromChain(stringMap);
-      }
-    }
+    HashSupport.fillStringMap(this.buckets, stringMap);
   }
 
   @Override
@@ -2155,40 +1944,11 @@ public final class TagMap
 
   /** Removes an entry from this map's own buckets only — no parent/tombstone handling. */
   private Entry removeLocal(String tag, long tagHash) {
-    Object[] thisBuckets = this.buckets;
-
-    int hash = Entry.bucketHash(tagHash);
-    int bucketIndex = hash & (thisBuckets.length - 1);
-
-    Object bucket = thisBuckets[bucketIndex];
-    // null bucket case - do nothing
-    if (bucket instanceof Entry) {
-      Entry existingEntry = (Entry) bucket;
-      if (existingEntry.matches(tag)) {
-        thisBuckets[bucketIndex] = null;
-
-        this.size -= 1;
-        return existingEntry;
-      } else {
-        return null;
-      }
-    } else if (bucket instanceof BucketGroup) {
-      BucketGroup lastGroup = (BucketGroup) bucket;
-
-      BucketGroup containingGroup = lastGroup.findContainingGroupInChain(hash, tag);
-      if (containingGroup == null) {
-        return null;
-      }
-
-      Entry existingEntry = containingGroup._remove(hash, tag);
-      if (containingGroup._isEmpty()) {
-        this.buckets[bucketIndex] = lastGroup.removeGroupInChain(containingGroup);
-      }
-
+    Entry removed = HashSupport.remove(this.buckets, Entry.bucketHash(tagHash), tag);
+    if (removed != null) {
       this.size -= 1;
-      return existingEntry;
     }
-    return null;
+    return removed;
   }
 
   public TagMap copy() {
@@ -2222,21 +1982,7 @@ public final class TagMap
 
   @Override
   public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
-    Object[] thisBuckets = this.buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-
-        consumer.accept(thisEntry);
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        thisGroup.forEachInChain(consumer);
-      }
-    }
+    HashSupport.forEach(this.buckets, consumer);
 
     // read-through: parent entries not shadowed locally or tombstoned. Kept out of line so the
     // common parent == null path stays byte-identical to before (small / inlinable).
@@ -2271,21 +2017,7 @@ public final class TagMap
   }
 
   public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
-    Object[] thisBuckets = this.buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-
-        consumer.accept(thisObj, thisEntry);
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        thisGroup.forEachInChain(thisObj, consumer);
-      }
-    }
+    HashSupport.forEach(this.buckets, thisObj, consumer);
 
     // read-through: parent entries not shadowed locally or tombstoned (kept out of line).
     if (this.parent != null) {
@@ -2319,21 +2051,7 @@ public final class TagMap
 
   public <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
-    Object[] thisBuckets = this.buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-
-        consumer.accept(thisObj, otherObj, thisEntry);
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        thisGroup.forEachInChain(thisObj, otherObj, consumer);
-      }
-    }
+    HashSupport.forEach(this.buckets, thisObj, otherObj, consumer);
 
     // read-through: parent entries not shadowed locally or tombstoned (kept out of line).
     if (this.parent != null) {
@@ -2398,38 +2116,7 @@ public final class TagMap
     // That was done to avoid the extra static initialization needed for an assertion
     // While that's probably an unnecessary optimization, this method is only called in tests
 
-    Object[] thisBuckets = this.buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-        int thisHash = thisEntry.hash();
-
-        int expectedBucket = thisHash & (thisBuckets.length - 1);
-        if (expectedBucket != i) {
-          throw new IllegalStateException("incorrect bucket");
-        }
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        for (BucketGroup curGroup = thisGroup; curGroup != null; curGroup = curGroup.prev) {
-          for (int j = 0; j < BucketGroup.LEN; ++j) {
-            Entry thisEntry = curGroup._entryAt(i);
-            if (thisEntry == null) continue;
-
-            int thisHash = thisEntry.hash();
-            assert curGroup._hashAt(i) == thisHash;
-
-            int expectedBucket = thisHash & (thisBuckets.length - 1);
-            if (expectedBucket != i) {
-              throw new IllegalStateException("incorrect bucket");
-            }
-          }
-        }
-      }
-    }
+    HashSupport.checkBuckets(this.buckets);
 
     if (this.size != this.computeSize()) {
       throw new IllegalStateException("incorrect size");
@@ -2442,37 +2129,11 @@ public final class TagMap
   }
 
   int computeSize() {
-    Object[] thisBuckets = this.buckets;
-
-    int size = 0;
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object curBucket = thisBuckets[i];
-
-      if (curBucket instanceof Entry) {
-        size += 1;
-      } else if (curBucket instanceof BucketGroup) {
-        BucketGroup curGroup = (BucketGroup) curBucket;
-        size += curGroup.sizeInChain();
-      }
-    }
-    return size;
+    return HashSupport.count(this.buckets);
   }
 
   boolean checkIfEmpty() {
-    Object[] thisBuckets = this.buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object curBucket = thisBuckets[i];
-
-      if (curBucket instanceof Entry) {
-        return false;
-      } else if (curBucket instanceof BucketGroup) {
-        BucketGroup curGroup = (BucketGroup) curBucket;
-        if (!curGroup.isEmptyChain()) return false;
-      }
-    }
-
-    return true;
+    return HashSupport.isEmpty(this.buckets);
   }
 
   @Override
@@ -2530,27 +2191,7 @@ public final class TagMap
    * debugging
    */
   String toInternalString() {
-    Object[] thisBuckets = this.buckets;
-
-    StringBuilder ledger = new StringBuilder(128);
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      ledger.append('[').append(i).append("] = ");
-
-      Object thisBucket = thisBuckets[i];
-      if (thisBucket == null) {
-        ledger.append("null");
-      } else if (thisBucket instanceof Entry) {
-        ledger.append('{').append(thisBucket).append('}');
-      } else if (thisBucket instanceof BucketGroup) {
-        for (BucketGroup curGroup = (BucketGroup) thisBucket;
-            curGroup != null;
-            curGroup = curGroup.prev) {
-          ledger.append(curGroup).append(" -> ");
-        }
-      }
-      ledger.append('\n');
-    }
-    return ledger.toString();
+    return HashSupport.toInternalString(this.buckets);
   }
 
   abstract static class IteratorBase {
