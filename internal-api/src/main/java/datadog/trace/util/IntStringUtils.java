@@ -28,6 +28,30 @@ public final class IntStringUtils {
   }
 
   /**
+   * Like {@link #parseNonNegativeInt(CharSequence, boolean)}, but ignores leading and trailing
+   * whitespace (any character up to {@code ' '}, as {@link String#trim()} does), without
+   * allocating. For values that may arrive padded, such as HTTP header values.
+   *
+   * @param allowLeadingPlus {@link #ALLOW_LEADING_PLUS} or {@link #REJECT_LEADING_PLUS}
+   * @return the parsed value, or {@code -1} if {@code s} is null or blank, or its trimmed content
+   *     isn't a valid non-negative {@code int}
+   */
+  public static int parseNonNegativeIntTrimmed(@Nullable CharSequence s, boolean allowLeadingPlus) {
+    if (s == null) {
+      return -1;
+    }
+    int start = 0;
+    int end = s.length();
+    while (start < end && s.charAt(start) <= ' ') {
+      start++;
+    }
+    while (end > start && s.charAt(end - 1) <= ' ') {
+      end--;
+    }
+    return parseNonNegativeInt(s, start, end - start, allowLeadingPlus);
+  }
+
+  /**
    * Parses a non-negative decimal {@code int} from the {@code len} characters of {@code s} starting
    * at {@code start}, without throwing or allocating.
    *
