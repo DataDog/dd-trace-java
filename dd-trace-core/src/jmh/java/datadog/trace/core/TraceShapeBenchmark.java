@@ -14,6 +14,7 @@ import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -23,8 +24,13 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * One whole trace per op, shaped like a web request: a server root, five jdbc prepared-statement
- * children and one {@code @Trace} internal span, all finished. Divide by 7 for per-span figures.
+ * One whole trace per op, shaped like a web request: a server root, {@code children} jdbc
+ * prepared-statement children and one {@code @Trace} internal span, all finished. A trace has
+ * {@code children + 2} spans.
+ *
+ * <p>{@code children} varies the trace size, because single-span and small-trace results can hide
+ * costs that land on every child span: a change can make the root cheaper while charging each
+ * child, which only the larger traces show.
  *
  * <p>For retrospective comparison across tracer versions, each version keeps its own copy of this
  * benchmark, so the arms reflect that version's code:
@@ -54,7 +60,9 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
 public class TraceShapeBenchmark {
-  static final int JDBC_SPANS = 5;
+  /** The number of jdbc children, so the trace has {@code children + 2} spans. */
+  @Param({"1", "5", "20"})
+  int children;
 
   // server: HttpServerDecorator (tomcat)
   static final String SERVER_INSTRUMENTATION = "tomcat-server";
@@ -146,7 +154,7 @@ public class TraceShapeBenchmark {
     server.setTag("language", "jvm");
     legacyRequest(server);
     try (ContextScope scope = tracer.activateSpan(server)) {
-      for (int i = 0; i < JDBC_SPANS; ++i) {
+      for (int i = 0; i < children; ++i) {
         AgentSpan jdbc = tracer.startSpan(JDBC_INSTRUMENTATION, JDBC_OPERATION);
         jdbc.setSpanType(SQL);
         jdbc.setTag(Tags.COMPONENT, JAVA_JDBC);
@@ -203,7 +211,7 @@ public class TraceShapeBenchmark {
     server.setTag(Tags.PEER_PORT, CLIENT_PORT); // setPeerPort
     server.setTag(Tags.HTTP_ROUTE, ROUTE); // the framework, once routing resolves
     try (ContextScope scope = tracer.activateSpan(server)) {
-      for (int i = 0; i < JDBC_SPANS; ++i) {
+      for (int i = 0; i < children; ++i) {
         // AbstractPreparedStatementInstrumentation: startSpan, afterStart, onConnection,
         // onPreparedStatement
         AgentSpan jdbc = tracer.startSpan(JDBC_INSTRUMENTATION, JDBC_OPERATION);
@@ -244,7 +252,7 @@ public class TraceShapeBenchmark {
     server.setTag(KnownTags.PEER_PORT_ID, CLIENT_PORT);
     server.setTag(KnownTags.HTTP_ROUTE_ID, ROUTE);
     try (ContextScope scope = tracer.activateSpan(server)) {
-      for (int i = 0; i < JDBC_SPANS; ++i) {
+      for (int i = 0; i < children; ++i) {
         AgentSpan jdbc = tracer.startSpan(jdbcProto, JDBC_OPERATION);
         jdbc.setTag(KnownTags.DB_TYPE_ID, DB_TYPE);
         jdbc.setServiceName(DB_SERVICE, JAVA_JDBC);
