@@ -8,7 +8,9 @@ import com.google.re2j.Pattern;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.test.util.DDJavaSpecification;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,30 @@ class QueryObfuscatorTest extends DDJavaSpecification {
 
   private static final String JWT =
       "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+
+  @TableTest({
+    "Scenario           | Raw query                                   | Regex         | Expected query                     ",
+    "Encoded ampersand  | token=first%26SECOND_HALF&view=full         |               | <redacted>&view=full               ",
+    "Encoded name       | t%6fken=first%26SECOND_HALF&view=full       |               | <redacted>&view=full               ",
+    "Encoded fragment   | token=first%23SECOND_HALF&view=full         |               | <redacted>&view=full               ",
+    "Safe delimiters    | q=one%26two%23three&view=full               |               | q=one%26two%23three&view=full      ",
+    "Encoded JSON       | data=%7B%22token%22%3A%22first%26LAST%22%7D |               | 'data={<redacted>}'                ",
+    "Custom regex       | private=first%26SECOND_HALF&view=full       | private=[^&]+ | <redacted>&view=full               ",
+    "Disabled redaction | token=first%26SECOND_HALF&view=full         | ''            | token=first%26SECOND_HALF&view=full"
+  })
+  void decodedQueryRedactionPreservesEncodedBoundaries(
+      String rawQuery, String regex, String expectedQuery) {
+    URI uri = URI.create("http://site.com/orders?" + rawQuery);
+    TagMap tags = TagMap.create();
+    tags.put(Tags.HTTP_URL, "http://site.com/orders");
+    tags.put(
+        DDTags.HTTP_QUERY, URIUtils.preserveQueryDelimiters(uri.getRawQuery(), uri.getQuery()));
+
+    new QueryObfuscator(regex).processTags(tags, null, link -> {});
+
+    assertEquals(expectedQuery, tags.get(DDTags.HTTP_QUERY));
+    assertEquals("http://site.com/orders?" + expectedQuery, tags.get(Tags.HTTP_URL));
+  }
 
   @TableTest({
     "scenario | query                                                          | expectedQuery                   ",
