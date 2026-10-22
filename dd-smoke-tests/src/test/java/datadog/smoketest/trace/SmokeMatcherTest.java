@@ -2,6 +2,7 @@ package datadog.smoketest.trace;
 
 import static datadog.smoketest.trace.SmokeTraceAssertions.IGNORE_ADDITIONAL_TRACES;
 import static datadog.smoketest.trace.SmokeTraceAssertions.assertTraces;
+import static datadog.smoketest.trace.SpanEventMatcher.event;
 import static datadog.smoketest.trace.SpanLinkMatcher.any;
 import static datadog.smoketest.trace.SpanLinkMatcher.to;
 import static datadog.smoketest.trace.SpanLinkMatcher.toIndex;
@@ -12,10 +13,12 @@ import static datadog.smoketest.trace.TraceMatcher.trace;
 import static datadog.trace.test.junit.utils.assertions.Matchers.isNonNull;
 import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static java.util.Collections.singletonMap;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import datadog.trace.test.agent.decoder.Decoder;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -54,7 +57,7 @@ class SmokeMatcherTest {
   // One span carrying meta_struct: an IAST-style nested "_dd.stack" plus a request-body entry.
   private static final String META_STRUCT_TRACE =
       "[[{"
-          + "\"service\":\"s\",\"name\":\"servlet.request\",\"resource\":\"r\","
+          + "\"service\":\"test-service\",\"name\":\"servlet.request\",\"resource\":\"r\","
           + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
           + "\"meta\":{},\"metrics\":{},"
           + "\"meta_struct\":{"
@@ -242,12 +245,14 @@ class SmokeMatcherTest {
         trace(span().root()));
 
     // A non-null span type fails the default unless acknowledged with type(...).
-    List<DecodedTrace> typed = Decoder.decodeJson(spanTraceJson("s", "web", 0)).getTraces();
+    List<DecodedTrace> typed =
+        Decoder.decodeJson(spanTraceJson("test-service", "web", 0)).getTraces();
     assertThrows(AssertionError.class, () -> assertTraces(typed, trace(span().root())));
     assertTraces(typed, trace(span().root().type("web")));
 
     // An errored span fails the default unless acknowledged with error(true).
-    List<DecodedTrace> errored = Decoder.decodeJson(spanTraceJson("s", null, 1)).getTraces();
+    List<DecodedTrace> errored =
+        Decoder.decodeJson(spanTraceJson("test-service", null, 1)).getTraces();
     assertThrows(AssertionError.class, () -> assertTraces(errored, trace(span().root())));
     assertTraces(errored, trace(span().root().error(true)));
 
@@ -410,6 +415,77 @@ class SmokeMatcherTest {
             span().operationName("root").root(), span().operationName("merge").links(toIndex(0))));
   }
 
+  // --- Span events ---
+
+  @Test
+  void matchesEventsPositionally() {
+    List<DecodedTrace> traces =
+        Decoder.decodeJson(
+                eventTraceJson(
+                    "[{\"time_unix_nano\":110,\"name\":\"first\"},"
+                        + "{\"time_unix_nano\":120,\"name\":\"second\","
+                        + "\"attributes\":{\"key\":\"value\",\"count\":3}}]"))
+            .getTraces();
+    Map<String, Object> attributes = new LinkedHashMap<>();
+    attributes.put("key", "value");
+    attributes.put("count", 3L);
+
+    assertTraces(
+        traces,
+        trace(
+            span()
+                .operationName("event")
+                .events(event("first"), event("second").attributes(attributes))));
+    assertThrows(
+        AssertionError.class,
+        () -> assertTraces(traces, trace(span().events(event("second"), event("first")))),
+        "events are matched positionally");
+    assertThrows(
+        AssertionError.class,
+        () -> assertTraces(traces, trace(span().events(event("first"), event("second")))),
+        "missing attributes");
+  }
+
+  @Test
+  void eventTimeDefaultsToSpanBounds() {
+    List<DecodedTrace> traces =
+        Decoder.decodeJson(eventTraceJson("[{\"time_unix_nano\":42,\"name\":\"early\"}]"))
+            .getTraces();
+
+    assertThrows(
+        AssertionError.class,
+        () -> assertTraces(traces, trace(span().events(event("early")))),
+        "event time outside the span bounds");
+    assertTraces(traces, trace(span().events(event("early").time(42, NANOSECONDS))));
+  }
+
+  @Test
+  void emptyEventsAssertsNoEventAndAbsentEventsAssertNothing() {
+    List<DecodedTrace> withEvents =
+        Decoder.decodeJson(eventTraceJson("[{\"time_unix_nano\":110,\"name\":\"event\"}]"))
+            .getTraces();
+
+    assertThrows(
+        AssertionError.class,
+        () -> assertTraces(withEvents, trace(span().events())),
+        "events() requires zero events");
+    // Not calling events(...) asserts nothing, even though the span does carry events.
+    assertTraces(withEvents, trace(span().operationName("event")));
+    // A span with no event satisfies events().
+    List<DecodedTrace> withoutEvents =
+        Decoder.decodeJson("[[" + spanJson("plain", 10, 0, 10) + "]]").getTraces();
+    assertTraces(withoutEvents, trace(span().operationName("plain").events()));
+  }
+
+  /** A single-span trace, from 100 to 200 ns, carrying the given events meta tag. */
+  private static String eventTraceJson(String eventsTag) {
+    return "[[{\"service\":\"test-service\",\"name\":\"event\",\"resource\":\"event\","
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":100,\"duration\":100,"
+        + "\"error\":0,\"metrics\":{},\"meta\":{\"events\":\""
+        + eventsTag.replace("\"", "\\\"")
+        + "\"}}]]";
+  }
+
   /** A single-span trace whose root {@code merge} span links to the given span ids. */
   private static String mergeOnlyTraceJson(long... linkedSpanIds) {
     return "[[" + linkingSpanJson(40, 0, linkedSpanIds) + "]]";
@@ -430,7 +506,7 @@ class SmokeMatcherTest {
 
   /** A single-span trace whose link carries flags, a trace state and attributes. */
   private static String refinedLinkTraceJson() {
-    return "[[{\"service\":\"s\",\"name\":\"merge\",\"resource\":\"merge\","
+    return "[[{\"service\":\"test-service\",\"name\":\"merge\",\"resource\":\"merge\","
         + "\"trace_id\":1,\"span_id\":40,\"parent_id\":0,\"start\":40,\"duration\":1,"
         + "\"error\":0,\"metrics\":{},\"meta\":{\"_dd.span_links\":\""
         + "[{\\\"trace_id\\\":\\\"00000000000000000000000000000063\\\","
@@ -455,7 +531,7 @@ class SmokeMatcherTest {
           .append("\\\"}");
     }
     links.append(']');
-    return "{\"service\":\"s\",\"name\":\"merge\",\"resource\":\"merge\","
+    return "{\"service\":\"test-service\",\"name\":\"merge\",\"resource\":\"merge\","
         + "\"trace_id\":1,\"span_id\":"
         + id
         + ",\"parent_id\":"
@@ -467,7 +543,7 @@ class SmokeMatcherTest {
   }
 
   private static String spanJson(String name, long id, long parent, long start) {
-    return "{\"service\":\"s\",\"name\":\""
+    return "{\"service\":\"test-service\",\"name\":\""
         + name
         + "\",\"resource\":\""
         + name
