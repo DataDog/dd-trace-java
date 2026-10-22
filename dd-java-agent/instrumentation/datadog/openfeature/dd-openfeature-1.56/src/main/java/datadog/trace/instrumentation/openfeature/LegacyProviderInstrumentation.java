@@ -26,6 +26,11 @@ public class LegacyProviderInstrumentation extends InstrumenterModule
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return true;
+  }
+
+  @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
     // Application safety must not depend on whether Feature Flags is enabled.
     return true;
@@ -47,6 +52,9 @@ public class LegacyProviderInstrumentation extends InstrumenterModule
     transformer.applyAdvice(
         named("initialize").and(takesArguments(1)),
         packageName + ".LegacyProviderAdvice$Initialize");
+    transformer.applyAdvice(
+        named("getProviderHooks").and(takesArguments(0)),
+        packageName + ".LegacyProviderAdvice$Hooks");
     transformer.applyAdvice(
         namedOneOf(
                 "getBooleanEvaluation",
