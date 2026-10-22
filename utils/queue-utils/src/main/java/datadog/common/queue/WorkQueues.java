@@ -3,12 +3,13 @@ package datadog.common.queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Factory methods for {@link WorkQueue} buffers: bounded handoff points that count what they drop
- * and never build an element they are going to reject.
+ * Creates {@link WorkQueue} instances that claim capacity before invoking a producer.
  *
- * <p>Distinct from {@link Queues}, which hands back a raw JCTools queue for the caller to drive
- * itself. A buffer created here owns its backing — which implementation it is stays an
- * implementation detail, so a call site can be re-backed without changing.
+ * <p>Use these factories for cancellable reservations, batch capacity claims, closeable queues, or
+ * processing with retry strategies. Callers remain responsible for counting refusals.
+ *
+ * <p>Use {@link Queues} for direct JCTools queue operations. The backing of a queue created here is
+ * an implementation detail, so a call site can be re-backed without changing.
  */
 public final class WorkQueues {
 
