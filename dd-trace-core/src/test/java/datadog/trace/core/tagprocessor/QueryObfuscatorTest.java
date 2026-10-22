@@ -215,15 +215,15 @@ class QueryObfuscatorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "Scenario       | OTel semantics | Span type | Retain query",
-    "Datadog server | false          | web       | true        ",
-    "Datadog client | false          | http      | true        ",
-    "OTel server    | true           | web       | true        ",
-    "OTel client    | true           | http      | false       ",
-    "No span type   | true           |           | true        "
+    "Scenario       | OTel semantics | Span type | Retain query | Expected URL                                       ",
+    "Datadog server | false          | web       | true         | http://site.com/index#fragment?<redacted>&view=full",
+    "Datadog client | false          | http      | true         | http://site.com/index#fragment?<redacted>&view=full",
+    "OTel server    | true           | web       | true         | http://site.com/index?<redacted>&view=full#fragment",
+    "OTel client    | true           | http      | false        | http://site.com/index?<redacted>&view=full#fragment",
+    "No span type   | true           |           | true         | http://site.com/index?<redacted>&view=full#fragment"
   })
   void queryIsRetainedUnlessItOnlyBuildsOtelClientUrlFull(
-      boolean otelSemantics, String spanType, boolean retainQuery) {
+      boolean otelSemantics, String spanType, boolean retainQuery, String expectedUrl) {
     QueryObfuscator obfuscator = new QueryObfuscator(null, otelSemantics);
     DDSpanContext spanContext = mock(DDSpanContext.class);
     when(spanContext.getSpanType()).thenReturn(spanType);
@@ -234,7 +234,7 @@ class QueryObfuscatorTest extends DDJavaSpecification {
 
     obfuscator.processTags(tags, spanContext, link -> {});
 
-    assertEquals("http://site.com/index?<redacted>&view=full#fragment", tags.get(Tags.HTTP_URL));
+    assertEquals(expectedUrl, tags.get(Tags.HTTP_URL));
     assertEquals(retainQuery ? "<redacted>&view=full" : null, tags.get(DDTags.HTTP_QUERY));
   }
 }
