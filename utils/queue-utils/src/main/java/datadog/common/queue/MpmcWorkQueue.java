@@ -23,11 +23,9 @@ import org.jctools.queues.MessagePassingQueue;
  * {@code Unsafe} on Java 25 and later.
  *
  * <p>The bounded backing is a JCTools MPMC ring; consult the JCTools documentation for its
- * semantics. What matters here is that its {@code offer} can refuse a queue that is not full, and
- * that the bound does not live in the ring: a place is claimed before {@link #store} is ever
- * called, so a refusal can only mean not yet, and retrying will succeed. The retry is bounded
- * anyway — if the accounting were ever wrong, an unbounded spin would turn a bug into a hang. See
- * {@link Queues#mpmcArrayQueue} for why an ordinary caller cannot use the ring this way.
+ * semantics. Its strict {@code offer} refuses only when the ring's indexes say it is full, and
+ * places outstanding never exceed its capacity, so {@link #store} cannot be refused: a slot a
+ * consumer has claimed but not yet released is waited out inside {@code offer}, not reported.
  */
 final class MpmcWorkQueue<T> extends BaseWorkQueue<T> {
 
@@ -36,18 +34,6 @@ final class MpmcWorkQueue<T> extends BaseWorkQueue<T> {
    * {@link IllegalArgumentException}, in the spirit of rounding the capacity up.
    */
   private static final int MINIMUM_CAPACITY = 2;
-
-  /**
-   * How many times a claimed place will re-offer before giving up on it.
-   *
-   * <p>The window it is riding out is one thread's publish, so almost every retry that happens at
-   * all succeeds on its next attempt. The yields are for the case the spin cannot fix — a producer
-   * descheduled between claiming its slot and filling it — where spinning without giving the core
-   * up would just burn the window down.
-   */
-  private static final int STORE_ATTEMPTS = 64;
-
-  private static final int YIELD_EVERY = 16;
 
   private final Queue<Object> queue;
 
@@ -78,29 +64,7 @@ final class MpmcWorkQueue<T> extends BaseWorkQueue<T> {
 
   @Override
   boolean store(Object element) {
-    // Small enough to inline into the admission path, which is the only reason the retry is a
-    // separate method: a loop here made this too big for C2 to inline and cost every admission
-    // more than the array ring was saving them.
-    return queue.offer(element) || storeRetrying(element);
-  }
-
-  /**
-   * The refusal is transient by construction — a place was claimed, so a slot exists. Reached
-   * roughly once in four hundred offers with four producers and four consumers on a ring of eight,
-   * and not at all on a linked queue, which never refuses.
-   */
-  private boolean storeRetrying(Object element) {
-    for (int attempt = 1; attempt < STORE_ATTEMPTS; attempt++) {
-      if (attempt % YIELD_EVERY == 0) {
-        // The spin cannot help against a producer descheduled between claiming its slot and
-        // filling it; giving the core up can.
-        Thread.yield();
-      }
-      if (queue.offer(element)) {
-        return true;
-      }
-    }
-    return false;
+    return queue.offer(element);
   }
 
   @Override

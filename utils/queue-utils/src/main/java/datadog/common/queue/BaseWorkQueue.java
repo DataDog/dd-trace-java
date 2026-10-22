@@ -100,12 +100,9 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
   /**
    * Stores an element in a place already claimed for it, so this can only fail if the backing
-   * refuses for a reason of its own.
-   *
-   * <p>A place has already been claimed, so a backing that can refuse transiently is expected to
-   * retry rather than report the refusal — a {@code false} from here loses the element, and there
-   * is no way for the queue to tell a structure saying "full" from one saying "not yet". {@link
-   * MpmcWorkQueue} is the case that matters.
+   * refuses for a reason of its own. Neither shipped backing does: places outstanding never exceed
+   * the capacity of the structure underneath. A {@code false} tells the caller to give the place
+   * back, and the element is lost.
    *
    * <h2>What a third backing would cost here</h2>
    *
@@ -407,10 +404,8 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
       }
       requireElement(element);
       done = true;
-      // Through the same tail as every other admission, and not a bare store: a backing is allowed
-      // to give up -- MpmcWorkQueue does, past its retry bound -- and a place spent on an element
-      // the backing would not take has to come back exactly once. Discarding this return was
-      // safe only while no backing could refuse an element it had already claimed room for.
+      // Through the same tail as every other admission, and not a bare store: if a backing ever
+      // refuses an element it had claimed room for, the place has to come back exactly once.
       queue.storeOrRelease(element);
     }
 

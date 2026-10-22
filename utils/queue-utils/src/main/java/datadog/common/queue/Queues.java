@@ -48,13 +48,12 @@ public final class Queues {
   /**
    * Creates a Multiple Producer, Multiple Consumer (MPMC) array-backed queue.
    *
-   * <p>{@code offer} is non-linearizable, and deliberately so: it can refuse while another thread
-   * is midway through publishing to the slot it is looking at, on a queue that is neither full nor
-   * empty. Measured at roughly 0.24% of offers with four producers and four consumers on a queue of
-   * eight. A caller that treats a refusal as "full" will therefore drop work it had room for;
-   * either retry, or hold the bound somewhere the queue cannot lie about -- which is what {@link
-   * WorkQueues#createMpmcQueue} does. {@code poll} carries no matching hazard: it spins for a
-   * pending publish rather than reporting empty, so it can be slow where {@code offer} is wrong.
+   * <p>{@code offer} refuses when the ring's indexes say it is full, and a slot claimed by a
+   * producer that has not finished publishing counts as occupied. A caller that tracks occupancy
+   * itself, by counting completed offers and polls, will therefore see refusals while its own count
+   * says there is room: measured at roughly 0.24% of offers with four producers and four consumers
+   * on a queue of eight. {@link WorkQueues#createMpmcQueue} avoids this by claiming capacity before
+   * it offers.
    *
    * @param requestedCapacity the requested capacity of the queue. Will be rounded to the next power
    *     of two, and is not permitted to be less than two.

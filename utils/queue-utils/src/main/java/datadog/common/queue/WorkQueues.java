@@ -39,9 +39,7 @@ public final class WorkQueues {
    *
    * <p>For call sites that need several consumers. No per-element node, so it costs an admission
    * and a drain about what the MPSC ring does; prefer {@link #createMpscQueue} anyway where a
-   * single consumer is possible, because the MPSC ring is cheaper still and does not have to ride
-   * out the MPMC ring's transient refusals — see {@link MpmcWorkQueue} for what those are and why
-   * claiming a place first makes them harmless.
+   * single consumer is possible, because the MPSC ring is cheaper still.
    *
    * @param requestedCapacity the bound. Will be rounded to the next power of two, and raised to two
    *     if it is less than that.

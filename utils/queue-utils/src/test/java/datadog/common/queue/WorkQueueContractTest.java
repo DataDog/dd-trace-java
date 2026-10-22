@@ -449,13 +449,11 @@ class WorkQueueContractTest {
   @org.junit.jupiter.api.Test
   void severalProducersAndConsumersOnAnArrayRingLoseNothingAndLeakNoPlace()
       throws InterruptedException {
-    // The MPMC ring refuses an offer while another thread is midway through publishing to the slot
-    // in question -- on a queue that is neither full nor empty. Admission claims a place before it
-    // stores, so such a refusal can only mean "not yet" and the backing retries. If that reasoning
-    // is wrong, it is wrong here: elements go missing without any producer being told, or their
-    // places never come back. The drain side is not riding out the same window -- poll spins for a
-    // pending publish rather than reporting empty -- so a false from process here means another
-    // consumer got there first.
+    // Admission claims a place before it stores, and places outstanding never exceed the ring's
+    // capacity, so the ring's offer should never refuse a claimed element. If that reasoning is
+    // wrong, it is wrong here: elements go missing without any producer being told, or their
+    // places never come back. Poll spins for a pending publish rather than reporting empty, so a
+    // false from process here means another consumer got there first.
     int capacity = 64;
     int producers = 4;
     int consumers = 4;
@@ -522,8 +520,9 @@ class WorkQueueContractTest {
         admitted.get() + refused.get(),
         "every element was either admitted or refused, and the refusal was reported");
     assertEquals(admitted.get(), consumed.get(), "every admitted element came back out");
-    // The decisive one: if a retry had given up and the place had not come back, or a spurious
-    // empty read had stranded an element, the queue would now hold fewer than capacity places.
+    // The decisive one: if a claimed store had been refused and the place had not come back, or a
+    // spurious empty read had stranded an element, the queue would now hold fewer than capacity
+    // places.
     for (int i = 0; i < capacity; i++) {
       assertTrue(queue.tryPut("after" + i), "place " + i + " was lost");
     }
@@ -1148,9 +1147,7 @@ class WorkQueueContractTest {
 
   /**
    * A backing that claims to be unable to store anything, so the one outcome no real backing
-   * produces on demand -- a refusal of an element a place was already claimed for -- can be tested
-   * at all. {@link MpmcWorkQueue} reaches it by exhausting its retry bound, which a test cannot
-   * provoke reliably.
+   * produces -- a refusal of an element a place was already claimed for -- can be tested at all.
    */
   private static final class RefusingWorkQueue<T> extends BaseWorkQueue<T> {
     RefusingWorkQueue(int capacity) {
