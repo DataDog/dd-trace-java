@@ -28,6 +28,7 @@ abstract class AbstractLegacyProviderSmokeTest {
     app.assertCompletesWithValue(30, SECONDS, 0);
 
     assertLogged(app, "PROVIDER READY");
+    assertLogged(app, "PROVIDER_HOOKS 0");
     for (final String type : asList("boolean", "string", "integer", "double", "object")) {
       assertLogged(
           app,

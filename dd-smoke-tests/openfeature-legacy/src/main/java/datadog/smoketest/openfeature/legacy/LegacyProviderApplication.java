@@ -15,9 +15,11 @@ public final class LegacyProviderApplication {
   public static void main(final String[] args) {
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     try {
-      api.setProviderAndWait(new Provider());
+      final Provider provider = new Provider();
+      api.setProviderAndWait(provider);
       final Client client = api.getClient();
       System.out.println("PROVIDER " + client.getProviderState());
+      System.out.println("PROVIDER_HOOKS " + provider.getProviderHooks().size());
       final Value object = new Value(new ImmutableStructure(Map.of("fallback", new Value(true))));
       report("boolean", client.getBooleanDetails("boolean", true), true);
       report("string", client.getStringDetails("string", "fallback"), "fallback");
