@@ -128,6 +128,9 @@ class DatadogProfilerTest {
 
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "cpu=7m,nativemem=131072");
+    // wall clock is disabled by default on J9, so opt in explicitly to keep the derived-option
+    // assertions JVM-independent
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, "true");
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL, "DEBUG");
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
