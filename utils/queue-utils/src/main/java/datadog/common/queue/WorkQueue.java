@@ -245,7 +245,8 @@ public interface WorkQueue<T> {
    * <p>What is reserved is capacity, not a position — {@link Reservation#fill} cannot be rejected,
    * and the element joins the queue where it is filled. Nothing is held open that a consumer could
    * be waiting on, so a thread may safely reserve and consume, but a reservation that is never
-   * filled or closed leaks its capacity for good. Use try-with-resources.
+   * filled or closed leaks its capacity for good. Use try-with-resources, and keep the reservation
+   * on the reserving thread.
    *
    * <p>Never {@code null}: a refusal comes back as a reservation that reports {@link
    * Reservation#granted} as {@code false} and discards anything filled into it. Nothing on the

@@ -10,6 +10,10 @@ package datadog.common.queue;
  * quietly and permanently, which is why this is an {@link AutoCloseable} meant for
  * try-with-resources.
  *
+ * <p>A reservation is confined to the thread that reserved it: only that thread may fill or close
+ * it. Completion is not synchronized, so filling or closing from another thread can store two
+ * elements against one place, or store an element whose place was already given back.
+ *
  * <p>A refused claim is a reservation too, rather than a {@code null}, and one that quietly
  * discards whatever is filled into it. Nothing about the failed path throws, so the shortest
  * correct call site is also the obvious one:

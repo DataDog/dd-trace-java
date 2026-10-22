@@ -411,7 +411,7 @@ abstract class BaseWorkQueue<T> implements WorkQueue<T> {
 
     @Override
     public void close() {
-      // Only the reserving thread fills or closes, so a plain flag orders the two correctly.
+      // Reservation confines fill and close to the reserving thread, so a plain flag suffices.
       if (!done) {
         done = true;
         queue.releasePlace();
