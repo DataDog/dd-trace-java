@@ -515,7 +515,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     static int bucketHash(long tagHash) {
       int slot = (int) (tagHash >>> 32) & 0xFFFF;
       if ((tagHash >>> 32) != 0 && slot != KnownTagCodec.NO_SLOT) {
-        int level = (int) (tagHash & KnownTagCodec.LEVEL_TRACE) << 1; // trace-level: + 8
+        int level = (int) (tagHash & KnownTagCodec.LEVEL_TRACE) << 1; // trace-level: flip bit 3
         return ((int) (tagHash >>> 48) << 16) | (slot ^ level);
       }
       int hash = (int) (tagHash >>> 48) ^ (int) tagHash;
