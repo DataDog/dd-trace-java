@@ -147,7 +147,7 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
       FeatureFlaggingGateway.removeExposureListener(this);
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(
-            "Feature Flagging exposure shutdown requested: queued={}; pending exposures will not be flushed; processor completion is reported separately",
+            "Feature Flagging exposure shutdown requested: queued={}; pending exposures get one final best-effort flush; processor completion is reported separately",
             queue.size());
       }
       // Polling wakes within 100 ms. An interrupt can race with, or abort, the final POST.
@@ -158,6 +158,13 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
   @Override
   public void awaitTermination(final long deadlineNanos) {
     FeatureFlagEventWriter.awaitThread(serializerThread, deadlineNanos);
+    // The final POST is not interrupted, so it can outlive the shutdown budget.
+    if (serializerThread.isAlive()
+        && serializerThread != Thread.currentThread()
+        && LOGGER.isDebugEnabled()) {
+      LOGGER.debug(
+          "Feature Flagging exposure shutdown wait expired; final delivery continues in the background");
+    }
   }
 
   @Override
@@ -170,6 +177,8 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug("Feature Flagging exposure {}", queued ? "queued" : "dropped: queue full");
       }
+    } else if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("Feature Flagging exposure dropped: writer shutting down");
     }
   }
 
@@ -243,7 +252,7 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
         }
       }
       LOGGER.debug(
-          "Feature Flagging exposure processor stopped; pending exposures are not flushed on shutdown; queued={}, buffered={}",
+          "Feature Flagging exposure processor stopped after final flush; queued={}, buffered={}",
           queue.size(),
           buffer.size());
     }

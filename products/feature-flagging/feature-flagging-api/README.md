@@ -343,9 +343,12 @@ Look for these diagnostic boundaries:
 - Exposures report suppression reasons, queueing, overflow, flush counts, delivery, and failed
   batches that are dropped. Dispatch to listeners and queueing do not confirm delivery.
 - Provider shutdown detaches its configuration listener; the Java agent owns the configuration
-  source and exposure writer. Exposure shutdown reports queued work. Pending exposures are
-  **not flushed**. The processor reports completion separately,
-  after any in-flight delivery outcome, with the counts left in its queue and buffer.
+  source and exposure writer. Exposure shutdown reports queued work, then the processor finishes
+  any in-flight delivery, drains the queue, and makes one final best-effort flush whose outcome is
+  logged like any other flush. Exposures dispatched after shutdown starts are dropped and logged.
+  If the final delivery outlives the shutdown wait, a message says it continues in the
+  background. The processor reports completion separately, with the counts left in its queue and
+  buffer.
 
 To disable these debug diagnostics, set `DD_TRACE_DEBUG=false` and restart the application
 (without a conflicting `-Ddd.trace.debug=true` override). Provider lifecycle, evaluation, and

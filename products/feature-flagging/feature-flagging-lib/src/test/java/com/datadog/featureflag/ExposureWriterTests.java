@@ -201,12 +201,14 @@ class ExposureWriterTests {
     if (fails) {
       when(backend.post(any(), any(), any(), any(), eq(false))).thenThrow(failure);
     }
-    Config config = mockConfig("test-service");
-    BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    when(backendApiFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, true)).thenReturn(backend);
-    FeatureFlagBackendApiFactory factory =
-        new FeatureFlagBackendApiFactory(config, backendApiFactory, FeatureFlagEventType.EXPOSURE);
-    ExposureWriterImpl writer = new ExposureWriterImpl(16, 1, MILLISECONDS, factory, config);
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            16,
+            1,
+            MILLISECONDS,
+            () -> backend,
+            mockConfig("test-service"),
+            ExposureWriterImpl.SHUTDOWN_TIMEOUT_MILLIS);
     try {
       writer.init();
       writer.accept(buildExposures(1).get(0));
@@ -252,47 +254,54 @@ class ExposureWriterTests {
     logger.addAppender(appender);
     logger.setLevel(Level.DEBUG);
     CountDownLatch inFlight = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    AtomicLong posts = new AtomicLong();
     BackendApi backend = mock(BackendApi.class);
     when(backend.post(any(), any(), any(), any(), eq(false)))
         .thenAnswer(
             invocation -> {
-              inFlight.countDown();
-              try {
-                new CountDownLatch(1).await();
-              } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-              }
-              if (fails) {
-                throw new SocketTimeoutException("destination timed out during shutdown");
+              // Only the first delivery blocks; the final flush after it returns immediately.
+              if (posts.incrementAndGet() == 1) {
+                inFlight.countDown();
+                release.await();
+                if (fails) {
+                  throw new SocketTimeoutException("destination timed out during shutdown");
+                }
               }
               return null;
             });
-    Config config = mockConfig("shutdown");
-    BackendApiFactory backendFactory = mock(BackendApiFactory.class);
-    when(backendFactory.createEvpProxyApi(Intake.EVENT_PLATFORM, true)).thenReturn(backend);
+    List<ExposureEvent> exposures = buildExposures(3);
     ExposureWriterImpl writer =
-        new ExposureWriterImpl(
-            16,
-            1,
-            MILLISECONDS,
-            new FeatureFlagBackendApiFactory(config, backendFactory, FeatureFlagEventType.EXPOSURE),
-            config);
+        new ExposureWriterImpl(16, 1, MILLISECONDS, () -> backend, mockConfig("shutdown"), 100);
     try {
       writer.init();
-      writer.accept(buildExposure());
+      writer.accept(exposures.get(0));
       assertTrue(inFlight.await(5000, MILLISECONDS));
-      writer.accept(buildExposure());
+      writer.accept(exposures.get(1));
       writer.close();
+      writer.accept(exposures.get(2));
+      assertTrue(writer.isSerializerThreadAlive());
+      release.countDown();
       poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
       assertTrue(
           appender.list.stream()
               .anyMatch(e -> e.getFormattedMessage().contains("shutdown requested: queued=1;")));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(e -> e.getFormattedMessage().contains("shutdown wait expired")));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(e -> e.getFormattedMessage().contains("dropped: writer shutting down")));
       assertTrue(appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(outcome)));
       assertTrue(
           appender.list.stream()
-              .anyMatch(e -> e.getFormattedMessage().contains("queued=1, buffered=0")));
-      verify(backend).post(any(), any(), any(), any(), eq(false));
+              .anyMatch(
+                  e ->
+                      e.getFormattedMessage()
+                          .contains("stopped after final flush; queued=0, buffered=0")));
+      verify(backend, times(2)).post(any(), any(), any(), any(), eq(false));
     } finally {
+      release.countDown();
       writer.close();
       logger.detachAppender(appender);
       logger.setLevel(previous);

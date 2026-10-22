@@ -117,6 +117,7 @@ public class Provider extends EventProvider implements Metadata {
     } catch (LinkageError e) {
       log.warn("Feature flag exposure reporting is unavailable with the installed agent", e);
     }
+    // Local debug diagnostics are not telemetry, so evaluation telemetry opt-out does not apply.
     final DebugLoggingHook debugLoggingHook = DebugLoggingHook.createIfEnabled();
     if (debugLoggingHook != null) {
       hooks.add(debugLoggingHook);
