@@ -1949,7 +1949,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (parentSpanContext != null && parentSpanContext.isRemote()) {
         // Preserve AppSec/IAST request context before dropping the remote parent: when
         // extract=IGNORE or RESTART the TagContext parent is nulled before buildSpanContext
-        // can copy requestContextDataAppSec/Iast into DDSpanContext.
+        // can copy requestContextDataAppSec/Iast onto the trace collector.
         if (parentSpanContext instanceof TagContext) {
           TagContext tc = (TagContext) parentSpanContext;
           if (builderRequestContextDataAppSec == null) {
