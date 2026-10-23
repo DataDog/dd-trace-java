@@ -8,6 +8,7 @@ import datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import test.MicronautServer
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -104,7 +105,7 @@ class MicronautTest extends HttpServerTest<Object> {
         it == "TestController.${endpoint.name().toLowerCase()}" || endpoint == NOT_FOUND && it == "404"
       }
       spanType DDSpanTypes.HTTP_SERVER
-      errored (endpoint == EXCEPTION || endpoint == ERROR)
+      errored (endpoint == EXCEPTION || endpoint == ERROR || endpoint == CUSTOM_EXCEPTION)
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" MicronautDecorator.DECORATE.component()
@@ -112,8 +113,29 @@ class MicronautTest extends HttpServerTest<Object> {
         "$Tags.HTTP_STATUS" Integer
         if (endpoint == EXCEPTION) {
           errorTags(Exception, EXCEPTION.body)
+        } else if (endpoint == CUSTOM_EXCEPTION) {
+          errorTags(InputMismatchException, CUSTOM_EXCEPTION.body)
         }
         defaultTags()
+      }
+    }
+  }
+
+  def "test exception handled by an ExceptionHandler bean"() {
+    setup:
+    def request = request(CUSTOM_EXCEPTION, 'GET', null).build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == CUSTOM_EXCEPTION.status
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(CUSTOM_EXCEPTION)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, 'GET', CUSTOM_EXCEPTION)
+        handlerSpan(it, CUSTOM_EXCEPTION)
+        controllerSpan(it, CUSTOM_EXCEPTION)
       }
     }
   }
