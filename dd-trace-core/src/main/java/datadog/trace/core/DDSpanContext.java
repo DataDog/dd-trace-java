@@ -480,7 +480,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext, TagStor
     if (tags != null) {
       return tags;
     }
-    return getRootSpanContextIfDifferent() == null ? tracePropagationTags() : null;
+    return isLocalRoot() ? tracePropagationTags() : null;
   }
 
   @VisibleForTesting
@@ -767,6 +767,11 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext, TagStor
   private DDSpanContext getRootSpanContextOrThis() {
     DDSpanContext rootSpanContext = getRootSpanContextIfDifferent();
     return rootSpanContext != null ? rootSpanContext : this;
+  }
+
+  /** Whether this is the local root span's context, or no root span has registered yet. */
+  private boolean isLocalRoot() {
+    return getRootSpanContextIfDifferent() == null;
   }
 
   private DDSpanContext getRootSpanContextIfDifferent() {
@@ -1526,8 +1531,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext, TagStor
       tags.put(DDTags.THREAD_NAME, threadName.toString());
       int currentSamplingPriority = getSamplingPriority();
       // add _sample_rate tag only on the root/local span owning the decision
-      if (getRootSpanContextIfDifferent() == null
-          && currentSamplingPriority != PrioritySampling.UNSET) {
+      if (isLocalRoot() && currentSamplingPriority != PrioritySampling.UNSET) {
         tags.put(SAMPLE_RATE_KEY, currentSamplingPriority);
       }
       if (httpStatusCode != 0) {
