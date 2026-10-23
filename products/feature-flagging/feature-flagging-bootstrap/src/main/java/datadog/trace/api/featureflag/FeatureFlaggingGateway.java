@@ -52,7 +52,8 @@ public final class FeatureFlaggingGateway {
      * Subscribes to the Feature Flags Remote Configuration product.
      *
      * @param listener the listener receiving raw configuration documents, or {@code null} when the
-     *     configuration is removed.
+     *     configuration is removed. It throws a {@link RuntimeException} to reject a malformed
+     *     document, reported to Remote Configuration as an apply error.
      * @return the handle to close to unsubscribe.
      */
     AutoCloseable subscribeRemoteConfig(Consumer<byte[]> listener);
