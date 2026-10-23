@@ -2612,6 +2612,29 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertEquals("http://lb.example.com/alb", tagsOf(context).get(Tags.HTTP_URL));
   }
 
+  @TableTest({
+    "scenario            | forwardedPort | url                           ",
+    "padded port         | ' 8080 '      | http://lb.example.com:8080/alb",
+    "comma-joined values | '8080, 9090'  | http://lb.example.com/alb     ",
+    "plus sign           | +8080         | http://lb.example.com/alb     ",
+    "negative            | -8080         | http://lb.example.com/alb     ",
+    "overflow            | 99999999999   | http://lb.example.com/alb     ",
+    "not a number        | http          | http://lb.example.com/alb     "
+  })
+  void fallsBackToTheSchemeDefaultForAnUnusableForwardedPort(String forwardedPort, String url) {
+    setupMockCallbacks(new Callbacks());
+    AgentSpanContext context =
+        LambdaAppSecHandler.processRequestStart(
+            createInputStream(
+                "{\"httpMethod\": \"GET\", \"path\": \"/alb\", \"headers\": {\"host\":"
+                    + " \"lb.example.com\", \"x-forwarded-proto\": \"http\","
+                    + " \"x-forwarded-port\": \""
+                    + forwardedPort
+                    + "\"}, \"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn\"}}}"));
+
+    assertEquals(url, tagsOf(context).get(Tags.HTTP_URL));
+  }
+
   @Test
   void normalisesForwardedSchemeCasing() {
     setupMockCallbacks(new Callbacks());
