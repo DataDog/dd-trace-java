@@ -352,8 +352,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           }
 
           if (valid && config.isHttpServerTagQueryString()) {
-            String query =
-                supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
+            String query;
+            if (!supportsRaw) {
+              query = url.query();
+            } else if (config.isHttpServerRawQueryString()) {
+              query = url.rawQuery();
+            } else {
+              query = URIUtils.preserveQueryDelimiters(url.rawQuery(), url.query());
+            }
             span.setTag(DDTags.HTTP_QUERY, query);
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }

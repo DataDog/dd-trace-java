@@ -139,7 +139,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
               Tags.HTTP_URL,
               URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
           if (Config.get().isHttpClientTagQueryString()) {
-            span.setTag(DDTags.HTTP_QUERY, url.getQuery());
+            span.setTag(
+                DDTags.HTTP_QUERY,
+                URIUtils.preserveQueryDelimiters(url.getRawQuery(), url.getQuery()));
             span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
           }
           if (shouldSetResourceName()) {
