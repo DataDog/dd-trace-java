@@ -530,28 +530,33 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "Scenario          | Headers                                                           | Expected Ip",
-    "event fallback    | '{}'                                                              | '8.8.8.8'  ",
-    "invalid headers   | '{\"x-forwarded-for\":\"invalid\",\"forwarded\":\"for=unknown\"}' | '8.8.8.8'  ",
-    "xff present       | '{\"x-forwarded-for\":\"1.1.1.1\"}'                               | '8.8.8.8'  ",
-    "private xff       | '{\"x-forwarded-for\":\"10.0.0.1\"}'                              | '8.8.8.8'  ",
-    "forwarded present | '{\"x-forwarded-for\":\"invalid\",\"forwarded\":\"for=1.1.1.1\"}' | '8.8.8.8'  "
+    "Scenario     | Event                                                                                                                                                                                | Expected Ip",
+    "rest         | '{\"path\":\"/\",\"headers\":%s,\"requestContext\":{\"httpMethod\":\"GET\",\"identity\":{\"sourceIp\":\"8.8.8.8\"}}}'                                                                | '8.8.8.8'  ",
+    "http         | '{\"version\":\"2.0\",\"headers\":%s,\"requestContext\":{\"domainName\":\"api.example.com\",\"http\":{\"method\":\"GET\",\"path\":\"/\",\"sourceIp\":\"8.8.4.4\"}}}'                 | '8.8.4.4'  ",
+    "function url | '{\"version\":\"2.0\",\"headers\":%s,\"requestContext\":{\"domainName\":\"abc.lambda-url.us-east-1.on.aws\",\"http\":{\"method\":\"GET\",\"path\":\"/\",\"sourceIp\":\"1.1.1.1\"}}}' | '1.1.1.1'  ",
+    "websocket    | '{\"headers\":%s,\"requestContext\":{\"connectionId\":\"c1\",\"routeKey\":\"$connect\",\"identity\":{\"sourceIp\":\"9.9.9.9\"}}}'                                                    | '9.9.9.9'  "
   })
-  void otherTriggersKeepTheirExplicitEventSourceIp(String headersJson, String expectedIp) {
-    String[] peerIp = {null};
-    setupMockCallbacks(new Callbacks().onSocketAddress((ip, port) -> peerIp[0] = ip));
+  void otherTriggersKeepTheirExplicitEventSourceIp(String eventJson, String expectedIp) {
+    for (String headersJson :
+        new String[] {
+          "{}",
+          "{\"x-forwarded-for\":\"invalid\",\"forwarded\":\"for=unknown\"}",
+          "{\"x-forwarded-for\":\"1.1.1.1\"}",
+          "{\"x-forwarded-for\":\"10.0.0.1\"}",
+          "{\"x-forwarded-for\":\"invalid\",\"forwarded\":\"for=1.1.1.1\"}"
+        }) {
+      String[] peerIp = {null};
+      setupMockCallbacks(new Callbacks().onSocketAddress((ip, port) -> peerIp[0] = ip));
 
-    AgentSpanContext context =
-        LambdaAppSecHandler.processRequestStart(
-            createInputStream(
-                "{\"path\":\"/\",\"headers\":"
-                    + headersJson
-                    + ",\"requestContext\":{\"httpMethod\":\"GET\",\"identity\":{\"sourceIp\":\"8.8.8.8\"}}}"));
+      AgentSpanContext context =
+          LambdaAppSecHandler.processRequestStart(
+              createInputStream(String.format(eventJson, headersJson)));
 
-    assertNotNull(context);
-    assertEquals(expectedIp, peerIp[0]);
-    assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP));
-    assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP));
+      assertNotNull(context, headersJson);
+      assertEquals(expectedIp, peerIp[0], headersJson);
+      assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP), headersJson);
+      assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP), headersJson);
+    }
   }
 
   @TableTest({
@@ -2897,15 +2902,16 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   private void assertAlbClientIp(String headersJson, boolean multiValue, String expectedIp) {
+    String headerName = multiValue ? "multiValueHeaders" : "headers";
     String[] peerIp = {null};
     String expectedSourceIp = expectedIp != null ? expectedIp : "0.0.0.0";
     setupMockCallbacks(
         new Callbacks()
             .onSocketAddress((ip, port) -> peerIp[0] = ip)
-            .onHeadersDone(() -> assertEquals(expectedSourceIp, peerIp[0])));
+            .onHeadersDone(() -> assertEquals(expectedSourceIp, peerIp[0], headerName)));
     String eventJson =
         "{\"path\":\"/alb\",\"httpMethod\":\"GET\",\""
-            + (multiValue ? "multiValueHeaders" : "headers")
+            + headerName
             + "\":"
             + headersJson
             + ",\"requestContext\":{\"elb\":{\"targetGroupArn\":\"arn\"}}}";
@@ -2913,10 +2919,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpanContext context =
         LambdaAppSecHandler.processRequestStart(createInputStream(eventJson));
 
-    assertNotNull(context);
-    assertEquals(expectedSourceIp, peerIp[0]);
-    assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP));
-    assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP));
+    assertNotNull(context, headerName);
+    assertEquals(expectedSourceIp, peerIp[0], headerName);
+    assertNull(tagsOf(context).get(Tags.HTTP_CLIENT_IP), headerName);
+    assertNull(tagsOf(context).get(Tags.NETWORK_CLIENT_IP), headerName);
   }
 
   private static ByteArrayInputStream createInputStream(String json) {
