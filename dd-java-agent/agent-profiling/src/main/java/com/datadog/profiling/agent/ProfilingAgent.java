@@ -19,8 +19,11 @@ import com.datadog.profiling.controller.ProfilerFlareReporter;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JFRAccess;
+import com.datadog.profiling.remoteconfig.ProfilingConfigHandler;
+import com.datadog.profiling.remoteconfig.ProfilingConfigPoller;
 import com.datadog.profiling.uploader.ProfileUploader;
 import com.datadog.profiling.utils.Timestamper;
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
@@ -55,6 +58,7 @@ public class ProfilingAgent {
 
   private static volatile ProfilingSystem profiler;
   private static volatile ProfileUploader uploader;
+  private static volatile ProfilingConfigPoller remoteConfig;
 
   private static class DataDumper implements RecordingDataListener {
     private final Path path;
@@ -209,6 +213,28 @@ public class ProfilingAgent {
     return false;
   }
 
+  /**
+   * Subscribes to profiling remote config. Called by the agent once the shared communication
+   * objects exist, independently of whether the profiler itself has started yet.
+   */
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards one-time remote config registration.")
+  public static synchronized void startRemoteConfig(SharedCommunicationObjects sco) {
+    if (remoteConfig != null) {
+      return;
+    }
+    Config config = Config.get();
+    if (!ProfilingConfigPoller.isEnabled(config)) {
+      log.debug("Profiling remote config is only enabled with profiling enablement 'auto'");
+      return;
+    }
+    ProfilingConfigPoller poller = new ProfilingConfigPoller(ProfilingConfigHandler.NOOP);
+    poller.start(config, sco);
+    remoteConfig = poller;
+  }
+
   private static RecordingDataListener wrapWithScrubber(
       RecordingDataListener listener, List<String> excludeEventTypes, boolean failOpen) {
     try {
@@ -238,6 +264,11 @@ public class ProfilingAgent {
   private static void shutdown(
       ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
     if (shutDownFlag.compareAndSet(false, true)) {
+      ProfilingConfigPoller rc = remoteConfig;
+      if (rc != null) {
+        rc.stop();
+      }
+
       if (profiler != null) {
         profiler.shutdown(snapshot);
       }

@@ -697,6 +697,7 @@ public class Agent {
       // included in the first poll.
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartFeatureFlagging(scoClass, sco);
+      maybeStartProfilingRemoteConfig(scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
       maybeStartAiGuard();
 
@@ -1634,6 +1635,26 @@ public class Agent {
 
   private static boolean isAwsLambdaRuntime() {
     return !EnvironmentVariables.getOrDefault("AWS_LAMBDA_FUNCTION_NAME", "").isEmpty();
+  }
+
+  private static void maybeStartProfilingRemoteConfig(final Class<?> scoClass, final Object sco) {
+    if (!profilingEnabled || isAwsLambdaRuntime()) {
+      return;
+    }
+
+    StaticEventLogger.begin("Profiling Remote Config");
+
+    try {
+      final Class<?> profilingAgentClass =
+          AGENT_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+      final Method startRemoteConfigMethod =
+          profilingAgentClass.getMethod("startRemoteConfig", scoClass);
+      startRemoteConfigMethod.invoke(null, sco);
+    } catch (final Throwable e) {
+      log.warn("Not starting profiling remote config", e);
+    }
+
+    StaticEventLogger.end("Profiling Remote Config");
   }
 
   private static void shutdownProfilingAgent(final boolean sync) {

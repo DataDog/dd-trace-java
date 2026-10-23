@@ -92,6 +92,7 @@ include(
   ":dd-java-agent:agent-profiling:profiling-controller-ddprof",
   ":dd-java-agent:agent-profiling:profiling-controller-openjdk",
   ":dd-java-agent:agent-profiling:profiling-controller-oracle",
+  ":dd-java-agent:agent-profiling:profiling-remote-config",
   ":dd-java-agent:agent-profiling:profiling-scrubber",
   ":dd-java-agent:agent-profiling:profiling-testing",
   ":dd-java-agent:agent-profiling:profiling-uploader",
