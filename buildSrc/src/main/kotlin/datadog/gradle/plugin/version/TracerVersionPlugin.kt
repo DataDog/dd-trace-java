@@ -87,7 +87,9 @@ class TracerVersionPlugin @Inject constructor(
     gitCurrentBranchProvider(repoWorkingDirectory).zip(
       providerFactory.environmentVariable("CI_COMMIT_BRANCH").orElse("")
     ) { gitBranch, ciBranch ->
-      // GitLab checks out a detached HEAD, where git reports "HEAD" instead of the branch name
+      // GitLab checks out a detached HEAD, where git reports "HEAD" instead of the branch name.
+      // Pipelines that don't set CI_COMMIT_BRANCH to the release branch itself (merge requests,
+      // merge queue working branches) still get the next minor version.
       if (gitBranch == "HEAD" && ciBranch.isNotBlank()) ciBranch else gitBranch
     }
 
