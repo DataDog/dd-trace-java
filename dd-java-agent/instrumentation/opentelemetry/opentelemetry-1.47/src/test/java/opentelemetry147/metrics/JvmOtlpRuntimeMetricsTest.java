@@ -4,9 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.sun.management.UnixOperatingSystemMXBean;
 import datadog.trace.agent.jmxfetch.JvmOtlpRuntimeMetrics;
+import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
@@ -29,9 +32,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 /**
  * Tests that JVM runtime metrics are registered and exported via OTLP using OTel semantic
@@ -102,6 +107,90 @@ public class JvmOtlpRuntimeMetricsTest {
             .filter(n -> n.startsWith("jvm.heap_memory") || n.startsWith("jvm.thread_count"))
             .collect(Collectors.toList());
     assertTrue(ddNames.isEmpty(), "DD-proprietary names leaked: " + ddNames);
+  }
+
+  @Test
+  void allDataPointsHaveLegacyJmxTags() {
+    MetricCollector collector = new MetricCollector();
+    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+    Map<String, String> processTags = expectedProcessTags();
+    assertNotNull(processTags.get("entrypoint.name"), "Missing process tag entrypoint.name");
+    assertNotNull(processTags.get("entrypoint.type"), "Missing process tag entrypoint.type");
+    assertNotNull(processTags.get("entrypoint.workdir"), "Missing process tag entrypoint.workdir");
+    assertTrue(
+        processTags.containsKey("svc.auto") ^ processTags.containsKey("svc.user"),
+        "Exactly one of svc.auto and svc.user is expected: " + processTags);
+
+    int dataPointCount = 0;
+    for (Map.Entry<String, List<DataPointEntry>> metric : collector.points.entrySet()) {
+      for (DataPointEntry point : metric.getValue()) {
+        dataPointCount++;
+        assertCommonJmxFetchTags(metric.getKey(), point, processTags);
+        assertEquals(
+            Config.get().getRuntimeId(),
+            point.attrs.get("runtime-id"),
+            metric.getKey() + " should carry the tracer runtime ID");
+        assertNotNull(
+            point.attrs.get("jmx_domain"), metric.getKey() + " should carry the JMX domain");
+        assertNotNull(point.attrs.get("type"), metric.getKey() + " should carry the MBean type");
+      }
+    }
+    assertTrue(dataPointCount > 0, "Expected at least one JVM runtime metric data point");
+  }
+
+  @Test
+  void jvmMemoryMetricsCarryJmxFetchTagsOfMemoryAndMemoryPoolBeans() {
+    MetricCollector collector = new MetricCollector();
+    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+
+    for (String metric :
+        Arrays.asList(
+            "jvm.memory.used",
+            "jvm.memory.committed",
+            "jvm.memory.limit",
+            "jvm.memory.init",
+            "jvm.memory.used_after_last_gc")) {
+      List<DataPointEntry> points = collector.points.get(metric);
+      assertNotNull(points, metric + " should have data points");
+      assertFalse(points.isEmpty(), metric + " should have data points");
+      for (DataPointEntry point : points) {
+        assertMemoryJmxFetchTags(metric, point);
+      }
+    }
+  }
+
+  @TableTest({
+    "Scenario               | Metric                     | Domain    | Type            | Name Attribute      ",
+    "buffer memory used     | jvm.buffer.memory.used     | java.nio  | BufferPool      | jvm.buffer.pool.name",
+    "buffer memory limit    | jvm.buffer.memory.limit    | java.nio  | BufferPool      | jvm.buffer.pool.name",
+    "buffer count           | jvm.buffer.count           | java.nio  | BufferPool      | jvm.buffer.pool.name",
+    "thread count           | jvm.thread.count           | java.lang | Threading       |                     ",
+    "class loaded           | jvm.class.loaded           | java.lang | ClassLoading    |                     ",
+    "class count            | jvm.class.count            | java.lang | ClassLoading    |                     ",
+    "class unloaded         | jvm.class.unloaded         | java.lang | ClassLoading    |                     ",
+    "cpu time               | jvm.cpu.time               | java.lang | OperatingSystem |                     ",
+    "cpu count              | jvm.cpu.count              | java.lang | OperatingSystem |                     ",
+    "cpu recent utilization | jvm.cpu.recent_utilization | java.lang | OperatingSystem |                     ",
+    "system cpu utilization | jvm.system.cpu.utilization | java.lang | OperatingSystem |                     ",
+    "system cpu load 1m     | jvm.system.cpu.load_1m     | java.lang | OperatingSystem |                     ",
+    "file descriptor count  | jvm.file_descriptor.count  | java.lang | OperatingSystem |                     ",
+    "file descriptor limit  | jvm.file_descriptor.limit  | java.lang | OperatingSystem |                     "
+  })
+  void jvmMetricsCarryJmxFetchTagsOfSourceBean(
+      String metric, String domain, String type, String nameAttribute) {
+    MetricCollector collector = new MetricCollector();
+    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+
+    List<DataPointEntry> points = collector.points.get(metric);
+    assumeTrue(points != null && !points.isEmpty(), metric + " not reported on this JVM");
+    for (DataPointEntry point : points) {
+      String expectedName = nameAttribute == null ? null : (String) point.attrs.get(nameAttribute);
+      if (nameAttribute != null) {
+        assertNotNull(
+            expectedName, metric + " point missing " + nameAttribute + ": " + point.attrs);
+      }
+      assertJmxFetchTags(metric, point, domain, type, expectedName);
+    }
   }
 
   @Test
@@ -241,7 +330,93 @@ public class JvmOtlpRuntimeMetricsTest {
         points.stream()
             .allMatch(
                 p -> p.attrs.containsKey("jvm.gc.name") && p.attrs.containsKey("jvm.gc.action")),
-        "Every jvm.gc.duration data point should carry jvm.gc.name and jvm.gc.action attributes");
+        "Every jvm.gc.duration point should carry jvm.gc.name and jvm.gc.action attributes");
+    for (DataPointEntry point : points) {
+      assertJmxFetchTags(
+          "jvm.gc.duration",
+          point,
+          "java.lang",
+          "GarbageCollector",
+          (String) point.attrs.get("jvm.gc.name"));
+    }
+  }
+
+  /** Passes the metric name and each collected {@code jvm.*} point to {@code check}. */
+  static void forEachJvmPoint(BiConsumer<String, DataPointEntry> check) {
+    MetricCollector collector = new MetricCollector();
+    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+    List<DataPointEntry> memoryPoints = collector.points.get("jvm.memory.used");
+    assertTrue(
+        memoryPoints != null && !memoryPoints.isEmpty(), "jvm.memory.used should have data points");
+    for (Map.Entry<String, List<DataPointEntry>> metric : collector.points.entrySet()) {
+      if (metric.getKey().startsWith("jvm.")) {
+        for (DataPointEntry point : metric.getValue()) {
+          check.accept(metric.getKey(), point);
+        }
+      }
+    }
+  }
+
+  static final List<String> PROCESS_TAGS =
+      Arrays.asList(
+          "entrypoint.basedir",
+          "entrypoint.name",
+          "entrypoint.type",
+          "entrypoint.workdir",
+          "svc.auto",
+          "svc.user");
+
+  static Map<String, String> expectedProcessTags() {
+    Map<String, String> result = new HashMap<>();
+    List<String> processTags = ProcessTags.getTagsAsStringList();
+    if (processTags != null) {
+      for (String tag : processTags) {
+        int separator = tag.indexOf(':');
+        String key = tag.substring(0, separator);
+        if (PROCESS_TAGS.contains(key)) {
+          result.put(key, tag.substring(separator + 1));
+        }
+      }
+    }
+    return result;
+  }
+
+  static void assertJmxFetchTags(
+      String metric, DataPointEntry point, String domain, String type, String name) {
+    assertCommonJmxFetchTags(metric, point, expectedProcessTags());
+    String context = metric + " " + point.attrs;
+    assertEquals(domain, point.attrs.get("jmx_domain"), context);
+    assertEquals(type, point.attrs.get("type"), context);
+    assertEquals(name, point.attrs.get("name"), context);
+    String runtimeId = Config.get().getRuntimeId();
+    assertEquals(runtimeId.isEmpty() ? null : runtimeId, point.attrs.get("runtime-id"), context);
+    assertEquals(
+        Config.get().getMergedJmxTags().get("_dd.injection.mode"),
+        point.attrs.get("_dd.injection.mode"),
+        context);
+  }
+
+  private static void assertCommonJmxFetchTags(
+      String metric, DataPointEntry point, Map<String, String> processTags) {
+    String context = metric + " " + point.attrs;
+    assertEquals("dd-java-agent default", point.attrs.get("instance"), context);
+    assertEquals("jmxfetch-config", point.attrs.get("dd.internal.jmx_check_name"), context);
+    for (String key : PROCESS_TAGS) {
+      assertEquals(processTags.get(key), point.attrs.get(key), context);
+    }
+  }
+
+  static void assertMemoryJmxFetchTags(String metric, DataPointEntry point) {
+    String pool = (String) point.attrs.get("jvm.memory.pool.name");
+    assertJmxFetchTags(metric, point, "java.lang", pool == null ? "Memory" : "MemoryPool", pool);
+  }
+
+  static void assertJavaLangJmxFetchTags(MetricCollector collector, String metric, String type) {
+    List<DataPointEntry> points = collector.points.get(metric);
+    assertNotNull(points, metric + " should have data points");
+    for (DataPointEntry point : points) {
+      assertJmxFetchTags(metric, point, "java.lang", type, null);
+    }
   }
 
   static final class DataPointEntry {
