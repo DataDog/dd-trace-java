@@ -418,8 +418,9 @@ final class LambdaEventParser {
     String xff = headers.get("x-forwarded-for");
     String sourceIp = null;
     if (xff != null) {
-      int commaIdx = xff.indexOf(',');
-      sourceIp = (commaIdx >= 0 ? xff.substring(0, commaIdx) : xff).trim();
+      // In ALB's default append mode, the last entry is the peer observed by ALB.
+      // Earlier entries can be supplied by the caller.
+      sourceIp = xff.substring(xff.lastIndexOf(',') + 1).trim();
     }
 
     // ALB events carry no requestContext.domainName and expose no parameterized route

@@ -489,17 +489,23 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "Scenario          | Header           | Value                  | Expected Ip           ",
-    "xff               | X-Forwarded-For  | '1.1.1.1'              | '1.1.1.1'             ",
-    "xff first entry   | X-Forwarded-For  | '10.0.0.1, 1.1.1.1'    | '10.0.0.1'            ",
-    "xff ipv6          | X-Forwarded-For  | '2001:4860:4860::8888' | '2001:4860:4860::8888'",
-    "xff private ipv6  | X-Forwarded-For  | 'fd00::1'              | 'fd00::1'             ",
-    "ignored forwarded | Forwarded        | 'for=1.1.1.1'          |                       ",
-    "ignored real ip   | X-Real-IP        | '1.1.1.1'              |                       ",
-    "ignored fastly    | Fastly-Client-IP | '1.1.1.1'              |                       ",
-    "ignored cf        | CF-Connecting-IP | '1.1.1.1'              |                       ",
-    "empty ip          | X-Forwarded-For  | ''                     |                       ",
-    "missing ip        |                  |                        |                       "
+    "Scenario               | Header           | Value                           | Expected Ip           ",
+    "xff                    | X-Forwarded-For  | '1.1.1.1'                       | '1.1.1.1'             ",
+    "xff last entry         | X-Forwarded-For  | '10.0.0.1, 1.1.1.1'             | '1.1.1.1'             ",
+    "xff multiple prefixes  | X-Forwarded-For  | '10.0.0.1, 1.1.1.1, 8.8.8.8'    | '8.8.8.8'             ",
+    "xff invalid prefix     | X-Forwarded-For  | 'invalid, 1.1.1.1'              | '1.1.1.1'             ",
+    "xff ipv6               | X-Forwarded-For  | '2001:4860:4860::8888'          | '2001:4860:4860::8888'",
+    "xff ipv6 last entry    | X-Forwarded-For  | 'fd00::1, 2001:4860:4860::8888' | '2001:4860:4860::8888'",
+    "xff private ipv6       | X-Forwarded-For  | 'fd00::1'                       | 'fd00::1'             ",
+    "xff private last entry | X-Forwarded-For  | '1.1.1.1, fd00::1'              | 'fd00::1'             ",
+    "xff padded last entry  | X-Forwarded-For  | '10.0.0.1,  1.1.1.1  '          | '1.1.1.1'             ",
+    "xff empty last entry   | X-Forwarded-For  | '1.1.1.1, '                     |                       ",
+    "ignored forwarded      | Forwarded        | 'for=1.1.1.1'                   |                       ",
+    "ignored real ip        | X-Real-IP        | '1.1.1.1'                       |                       ",
+    "ignored fastly         | Fastly-Client-IP | '1.1.1.1'                       |                       ",
+    "ignored cf             | CF-Connecting-IP | '1.1.1.1'                       |                       ",
+    "empty ip               | X-Forwarded-For  | ''                              |                       ",
+    "missing ip             |                  |                                 |                       "
   })
   void albReadsSourceIpFromXffOnly(String header, String value, String expectedIp) {
     for (boolean multiValue : new boolean[] {false, true}) {
