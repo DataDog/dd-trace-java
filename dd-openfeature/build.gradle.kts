@@ -86,3 +86,25 @@ bridgeSpiBaselines.forEach { (spi, baseline) ->
     }
   }
 }
+
+// The public API, outside the internal packages, must stay compatible with the previous release:
+// each release keeps the API of all the previous ones. The previous release is the latest one
+// before the version being built, so release branches compare against their own line.
+val publicApiBaseline = "(,${version.toString().removeSuffix("-SNAPSHOT")})"
+val japicmpPublicApi = tasks.register<JapicmpTask>("japicmpPublicApi") {
+  description = "Checks the public API stays compatible with the previous dd-openfeature release."
+  val baselineSdk = "com.datadoghq:dd-openfeature:$publicApiBaseline"
+  oldArchives.from(configurations.detachedConfiguration(dependencies.create("$baselineSdk@jar")))
+  oldClasspath.from(configurations.detachedConfiguration(dependencies.create(baselineSdk)))
+  newArchives.from(tasks.named<Jar>("jar"))
+  newClasspath.from(configurations.named("runtimeClasspath"))
+  packageIncludes.addAll("com.datadog.openfeature", "datadog.trace.api.openfeature")
+  failOnModification.set(true)
+  failOnSourceIncompatibility.set(true)
+  // TODO Remove once the baseline is 1.69.0 or later: earlier releases link the agent bootstrap API.
+  ignoreMissingClasses.set(true)
+  txtOutputFile.set(layout.buildDirectory.file("reports/japicmp/public-api.txt"))
+}
+tasks.named("check") {
+  dependsOn(japicmpPublicApi)
+}
