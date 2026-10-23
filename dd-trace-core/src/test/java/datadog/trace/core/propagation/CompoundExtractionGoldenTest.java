@@ -88,7 +88,14 @@ class CompoundExtractionGoldenTest extends DDCoreJavaSpecification {
     "ot=th:0;rv:" + RV + ",vendor=x",
     "foo=bar,dd=p:" + PARENT + ";t.tid:" + TID_HI,
     "dd=s:1;;;p:",
-    ""
+    "",
+    // rejected: an invalid member key, or too many members
+    "Foo=bar,dd=s:1;p:" + PARENT,
+    manyMembers(33),
+    // a malformed trace id tag is a propagation error
+    "dd=s:1;p:" + PARENT + ";t.tid:zzz",
+    // malformed Datadog tags are dropped, but the rest is kept
+    "dd=s:1;p:" + PARENT + ";t.dm:bad,ot=th:0;rv:" + RV
   };
 
   @Test
@@ -156,8 +163,8 @@ class CompoundExtractionGoldenTest extends DDCoreJavaSpecification {
         for (String ddTags : presenceTags) {
           for (int tp = 0; tp < TRACEPARENT.length; ++tp) {
             for (int ts = 0; ts < TRACESTATE.length; ++ts) {
-              // the curated corpus varies traceparent only against one tracestate
-              if (!full && tp != 1 && ts != 1) {
+              // the curated corpus varies traceparent only against a few tracestates
+              if (!full && tp != 1 && ts != 1 && ts != 4 && ts != 5) {
                 continue;
               }
               Map<String, String> headers = new LinkedHashMap<>();
@@ -311,6 +318,14 @@ class CompoundExtractionGoldenTest extends DDCoreJavaSpecification {
     if (value != null) {
       headers.put(key, value);
     }
+  }
+
+  private static String manyMembers(int count) {
+    StringBuilder sb = new StringBuilder("dd=s:1");
+    for (int i = 1; i < count; ++i) {
+      sb.append(",m").append(i).append("=v");
+    }
+    return sb.toString();
   }
 
   private static String repeat(char c, int count) {
