@@ -2,7 +2,7 @@ package datadog.context;
 
 import static java.util.Objects.requireNonNull;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** {@link Context} containing no values. */
 final class EmptyContext implements SelfScopedContext {

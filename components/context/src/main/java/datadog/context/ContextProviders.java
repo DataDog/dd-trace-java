@@ -1,6 +1,6 @@
 package datadog.context;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Provides {@link ContextManager} and {@link ContextBinder} implementations. */
 final class ContextProviders {
