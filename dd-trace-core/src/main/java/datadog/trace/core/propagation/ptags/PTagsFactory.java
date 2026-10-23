@@ -51,7 +51,14 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null, ProductTraceSource.UNSET, null, LLMObsTagValues.EMPTY);
+    return createValid(
+        null,
+        null,
+        null,
+        ProductTraceSource.UNSET,
+        PrioritySampling.UNSET,
+        null,
+        LLMObsTagValues.EMPTY);
   }
 
   @Override
@@ -71,23 +78,6 @@ public class PTagsFactory implements PropagationTags.Factory {
       return empty();
     }
     return W3CPTagsCodec.empty(this, originalTracestate);
-  }
-
-  PropagationTags createValid(
-      List<TagElement> tagPairs,
-      TagValue decisionMakerTagValue,
-      TagValue traceIdTagValue,
-      int productTraceSource,
-      TagValue orgPropagationMarkerTagValue,
-      @Nonnull LLMObsTagValues llmObsTagValues) {
-    return createValid(
-        tagPairs,
-        decisionMakerTagValue,
-        traceIdTagValue,
-        productTraceSource,
-        PrioritySampling.UNSET,
-        orgPropagationMarkerTagValue,
-        llmObsTagValues);
   }
 
   PropagationTags createValid(
@@ -210,29 +200,6 @@ public class PTagsFactory implements PropagationTags.Factory {
      * {@code null} if not set.
      */
     private volatile CharSequence lastParentId;
-
-    PTags(
-        PTagsFactory factory,
-        List<TagElement> tagPairs,
-        TagValue decisionMakerTagValue,
-        TagValue traceIdTagValue,
-        int traceSource,
-        TagValue orgPropagationMarkerTagValue,
-        @Nonnull LLMObsTagValues llmObsTagValues) {
-      this(
-          factory,
-          tagPairs,
-          decisionMakerTagValue,
-          traceIdTagValue,
-          traceSource,
-          PrioritySampling.UNSET,
-          null,
-          null,
-          orgPropagationMarkerTagValue,
-          llmObsTagValues,
-          null,
-          null);
-    }
 
     // Takes tracestate/otelTraceState up-front to build SamplingState in one allocation.
     PTags(
