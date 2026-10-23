@@ -23,9 +23,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.datastreams.PathwayContext;
-import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -33,7 +31,6 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
-import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -43,9 +40,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
-import datadog.trace.util.TagsHelper;
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -67,8 +61,7 @@ import org.slf4j.LoggerFactory;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
-public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext {
+public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -174,21 +167,11 @@ public class DDSpanContext
   /** The origin of the trace. (eg. Synthetics, CI App) */
   private volatile CharSequence origin;
 
-  /** RequestContext data for the InstrumentationGateway */
-  private final Object requestContextDataAppSec;
-
-  private final Object requestContextDataIast;
-  private final Object ciVisibilityContextData;
-
   private final boolean disableSamplingMechanismValidation;
 
   private final PropagationTags propagationTags;
 
   private volatile PathwayContext pathwayContext;
-
-  private volatile BlockResponseFunction blockResponseFunction;
-
-  private volatile ClientIpAddressData clientIpAddressData;
 
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean injectBaggageAsTags;
@@ -404,9 +387,12 @@ public class DDSpanContext
     }
     this.w3cBaggage = w3cBaggage;
 
-    this.requestContextDataAppSec = requestContextDataAppSec;
-    this.requestContextDataIast = requestContextDataIast;
-    this.ciVisibilityContextData = CiVisibilityContextData;
+    if (requestContextDataAppSec != null
+        || requestContextDataIast != null
+        || CiVisibilityContextData != null) {
+      traceCollector.initRequestContextData(
+          requestContextDataAppSec, requestContextDataIast, CiVisibilityContextData);
+    }
 
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
@@ -877,7 +863,7 @@ public class DDSpanContext
   }
 
   public RequestContext getRequestContext() {
-    return this;
+    return traceCollector;
   }
 
   @Override
@@ -1743,68 +1729,8 @@ public class DDSpanContext
     return s.toString();
   }
 
-  /** RequestContext Implementation */
-  @Override
-  public Object getData(RequestContextSlot slot) {
-    if (slot == RequestContextSlot.APPSEC) {
-      return this.requestContextDataAppSec;
-    } else if (slot == RequestContextSlot.CI_VISIBILITY) {
-      return this.ciVisibilityContextData;
-    } else if (slot == RequestContextSlot.IAST) {
-      return this.requestContextDataIast;
-    }
-    return null;
-  }
-
-  @Override
-  public void close() throws IOException {
-    Exception exc = null;
-    if (this.requestContextDataAppSec instanceof Closeable) {
-      try {
-        ((Closeable) this.requestContextDataAppSec).close();
-      } catch (IOException | RuntimeException e) {
-        exc = e;
-      }
-    }
-    if (this.requestContextDataIast instanceof Closeable) {
-      try {
-        ((Closeable) this.requestContextDataIast).close();
-      } catch (IOException | RuntimeException e) {
-        exc = e;
-      }
-    }
-    if (exc != null) {
-      if (exc instanceof RuntimeException) {
-        throw (RuntimeException) exc;
-      } else {
-        throw (IOException) exc;
-      }
-    }
-  }
-
-  @Override
   public TraceSegment getTraceSegment() {
-    return this;
-  }
-
-  @Override
-  public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {
-    getRootSpanContextOrThis().blockResponseFunction = blockResponseFunction;
-  }
-
-  @Override
-  public BlockResponseFunction getBlockResponseFunction() {
-    return getRootSpanContextOrThis().blockResponseFunction;
-  }
-
-  @Override
-  public void setClientIpAddressData(final ClientIpAddressData clientIpAddressData) {
-    getRootSpanContextOrThis().clientIpAddressData = clientIpAddressData;
-  }
-
-  @Override
-  public ClientIpAddressData getClientIpAddressData() {
-    return getRootSpanContextOrThis().clientIpAddressData;
+    return traceCollector;
   }
 
   public PropagationTags getPropagationTags() {
@@ -1816,82 +1742,14 @@ public class DDSpanContext
     return getPropagationTags().getExtractedLLMObsValues();
   }
 
-  /** TraceSegment Implementation */
-  @Override
-  public void setTagTop(String key, Object value, boolean sanitize) {
-    getRootSpanContextOrThis().setTagCurrent(key, value, sanitize);
-  }
-
-  @Override
-  public Object getTagTop(String key, boolean sanitize) {
-    return getRootSpanContextOrThis().getTagCurrent(key, sanitize);
-  }
-
-  @Override
-  public void setTagCurrent(String key, Object value, boolean sanitize) {
-    if (sanitize) {
-      key = TagsHelper.sanitize(key);
-    }
-    this.setTag(key, value);
-  }
-
-  @Override
-  public Object getTagCurrent(String key, boolean sanitize) {
-    if (sanitize) {
-      key = TagsHelper.sanitize(key);
-    }
-    return this.getTag(key);
-  }
-
-  @Override
-  public void setDataTop(String key, Object value) {
-    getRootSpanContextOrThis().setDataCurrent(key, value);
-  }
-
-  @Override
-  public Object getDataTop(String key) {
-    return getRootSpanContextOrThis().getDataCurrent(key);
-  }
-
-  @Override
-  public void effectivelyBlocked() {
-    setTagTop("appsec.blocked", "true");
-  }
-
-  @Override
-  public void setDataCurrent(String key, Object value) {
-    this.setTag(getTagName(key), value);
-  }
-
-  @Override
-  public Object getDataCurrent(String key) {
-    return this.getTag(getTagName(key));
-  }
-
-  private String getTagName(String key) {
-    // TODO is this decided?
-    return "_dd." + key + ".json";
-  }
-
-  @Override
-  public void setMetaStructTop(String field, Object value) {
-    getRootSpanContextOrThis().setMetaStructCurrent(field, value);
-  }
-
+  /** Returns the meta_struct field for {@code key}, creating it if absent. */
   @SuppressWarnings("unchecked")
-  @Override
-  public <T> T getOrCreateMetaStructTop(final String key, final Function<String, T> defaultValue) {
-    final DDSpanContext top = getRootSpanContextOrThis();
-    if (top.metaStruct == EMPTY_META_STRUCT) {
+  <T> T getOrCreateMetaStruct(final String key, final Function<String, T> defaultValue) {
+    if (metaStruct == EMPTY_META_STRUCT) {
       // this will safely create the metastruct if the field has not been initialized already
-      top.setMetaStruct(key, defaultValue.apply(key));
+      setMetaStruct(key, defaultValue.apply(key));
     }
-    return (T) top.metaStruct.computeIfAbsent(key, defaultValue);
-  }
-
-  @Override
-  public void setMetaStructCurrent(String field, Object value) {
-    setMetaStruct(field, value);
+    return (T) metaStruct.computeIfAbsent(key, defaultValue);
   }
 
   @Override
