@@ -1069,7 +1069,8 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
 
       boolean hasCase = consumed || !mockingDetails(span).getInvocations().isEmpty();
       assertEquals(KnownTagCodec.isIntercepted(tagId), hasCase, field.getName());
-      assertEquals(KnownTagCodec.isIntercepted(tagId), interceptor.needsIntercept(tagId));
+      assertEquals(
+          KnownTagCodec.isIntercepted(tagId), interceptor.needsIntercept(tagId), field.getName());
     }
   }
 
