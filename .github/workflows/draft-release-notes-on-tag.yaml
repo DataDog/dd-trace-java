@@ -125,7 +125,7 @@ jobs:
             }
             function cleanUpTitle(title) {
               // Remove tags between brackets
-              title = title.replace(/\[[^\]]+\]/g, '')
+              title = title.replace(/\[[^\]]+\]/g, '').trim()
               // Remove cherry-pick prefix
               if (title.startsWith('🍒 ') && title.includes(' - ')) {
                 title = title.substring(title.indexOf(' - ') + 3)
