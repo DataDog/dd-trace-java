@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
@@ -558,7 +559,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void canOverwriteRequestContextDataWithBuilderFromEmpty() {
+  void requestContextDataFromBuilderFillsEmptyTrace() {
     AgentSpan span1 = tracer.startSpan("test", "span1");
 
     assertNull(span1.getRequestContext().getData(RequestContextSlot.APPSEC));
@@ -574,16 +575,17 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
             .withRequestContextData(RequestContextSlot.IAST, "override")
             .start();
 
-    assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.APPSEC));
-    assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
-    assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.IAST));
+    assertSame(span1.getRequestContext(), span2.getRequestContext());
+    assertEquals("override", span1.getRequestContext().getData(RequestContextSlot.APPSEC));
+    assertEquals("override", span1.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
+    assertEquals("override", span1.getRequestContext().getData(RequestContextSlot.IAST));
 
     span2.finish();
     span1.finish();
   }
 
   @Test
-  void canOverwriteRequestContextDataWithBuilder() {
+  void requestContextDataIsSharedByLocalTrace() {
     TagContext context =
         new TagContext()
             .withCiVisibilityContextData("value")
@@ -606,13 +608,31 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
             .withRequestContextData(RequestContextSlot.IAST, "override")
             .start();
 
-    assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.APPSEC));
-    assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
-    assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.IAST));
+    assertEquals("value", span3.getRequestContext().getData(RequestContextSlot.APPSEC));
+    assertEquals("value", span3.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
+    assertEquals("value", span3.getRequestContext().getData(RequestContextSlot.IAST));
 
     span3.finish();
     span2.finish();
     span1.finish();
+  }
+
+  @Test
+  void requestContextDataFromBuilderStartsNewTrace() {
+    AgentSpan span =
+        tracer
+            .buildSpan("test", "span")
+            .asChildOf(new TagContext())
+            .withRequestContextData(RequestContextSlot.APPSEC, "appsec")
+            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "civis")
+            .withRequestContextData(RequestContextSlot.IAST, "iast")
+            .start();
+
+    assertEquals("appsec", span.getRequestContext().getData(RequestContextSlot.APPSEC));
+    assertEquals("civis", span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
+    assertEquals("iast", span.getRequestContext().getData(RequestContextSlot.IAST));
+
+    span.finish();
   }
 
   private Map<String, Object> productTags() {
