@@ -7,6 +7,7 @@ import com.sun.jna.Pointer;
 import datadog.trace.agent.tooling.usm.UsmMessageImpl.BaseUsmMessage;
 import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor;
 import datadog.trace.bootstrap.instrumentation.usm.UsmMessage;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,13 +25,14 @@ public class UsmExtractorImpl implements UsmExtractor {
       BaseUsmMessage bm = (BaseUsmMessage) message;
 
       log.debug(
-          " sending ioctl: {}", String.format("%08x", UsmMessageImpl.USM_IOCTL_ID.intValue()));
+          " sending ioctl: {}",
+          String.format(Locale.ROOT, "%08x", UsmMessageImpl.USM_IOCTL_ID.intValue()));
       NativeLong res =
           CLibrary.Instance.ioctl(
               new NativeLong(0),
               UsmMessageImpl.USM_IOCTL_ID,
               Pointer.nativeValue(bm.getBufferPtr()));
-      log.debug("ioctl result: {}", String.format("%08x", res.intValue()));
+      log.debug("ioctl result: {}", String.format(Locale.ROOT, "%08x", res.intValue()));
     } else {
       log.debug("INVALID MESSAGE: {}", message.getClass());
     }

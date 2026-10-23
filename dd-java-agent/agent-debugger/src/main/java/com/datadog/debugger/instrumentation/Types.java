@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -293,6 +294,7 @@ public final class Types {
     if (leftParen == -1 || rightParen == -1) {
       throw new IllegalArgumentException(
           String.format(
+              Locale.ROOT,
               "Illegal java signature, missing matching parenthesis: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
               javaSignature));
     }
@@ -306,6 +308,7 @@ public final class Types {
     if (!st.hasMoreTokens() && !args.isEmpty()) {
       throw new IllegalArgumentException(
           String.format(
+              Locale.ROOT,
               "Illegal java signature, invalid argument format: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
               javaSignature));
     }
@@ -314,6 +317,7 @@ public final class Types {
       if (arg.length() == 0) {
         throw new IllegalArgumentException(
             String.format(
+                Locale.ROOT,
                 "Illegal java signature, empty argument: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
                 javaSignature));
       }
@@ -329,6 +333,7 @@ public final class Types {
     if (returnType.length() == 0) {
       throw new IllegalArgumentException(
           String.format(
+              Locale.ROOT,
               "Illegal java signature: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
               javaSignature));
     }

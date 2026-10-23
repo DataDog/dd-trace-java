@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Random;
 import java.util.TreeMap;
 import java.util.function.Supplier;
@@ -81,7 +82,7 @@ public class CaseInsensitiveMapBenchmark {
           () -> {
             String[] upperPrefixes = new String[PREFIXES.length];
             for (int i = 0; i < PREFIXES.length; ++i) {
-              upperPrefixes[i] = PREFIXES[i].toUpperCase();
+              upperPrefixes[i] = PREFIXES[i].toUpperCase(Locale.ROOT);
             }
             return upperPrefixes;
           });
@@ -101,7 +102,7 @@ public class CaseInsensitiveMapBenchmark {
               int suffixIndex = curRandom.nextInt(NUM_SUFFIXES + 1);
 
               String key = PREFIXES[prefixIndex] + "-" + suffixIndex;
-              keys[i] = toUpper ? key.toUpperCase() : key.toLowerCase();
+              keys[i] = toUpper ? key.toUpperCase(Locale.ROOT) : key.toLowerCase(Locale.ROOT);
             }
             return keys;
           });
@@ -160,13 +161,13 @@ public class CaseInsensitiveMapBenchmark {
     for (int suffix = 0; suffix < NUM_SUFFIXES; ++suffix) {
       for (String prefix : PREFIXES) {
         map.put(
-            (prefix + "-" + suffix).toLowerCase(),
+            (prefix + "-" + suffix).toLowerCase(Locale.ROOT),
             suffix); // arguable, but real caller probably doesn't know the case ahead-of-time
       }
     }
     for (int suffix = 0; suffix < NUM_SUFFIXES; suffix += 2) {
       for (String prefix : UPPER_PREFIXES) {
-        map.put((prefix + "-" + suffix).toLowerCase(), suffix + 1);
+        map.put((prefix + "-" + suffix).toLowerCase(Locale.ROOT), suffix + 1);
       }
     }
     return map;
@@ -178,7 +179,7 @@ public class CaseInsensitiveMapBenchmark {
   public Integer lookup_hashMap() {
     // This benchmark is still "correct" in multi-threaded context,
     // Map is populated under the class initialization lock and not changed thereafter
-    return HASH_MAP.get(nextLookupKey().toLowerCase());
+    return HASH_MAP.get(nextLookupKey().toLowerCase(Locale.ROOT));
   }
 
   @Benchmark

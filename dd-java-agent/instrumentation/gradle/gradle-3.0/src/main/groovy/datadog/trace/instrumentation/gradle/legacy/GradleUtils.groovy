@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory
 
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.Locale
 
 abstract class GradleUtils {
 
@@ -74,7 +75,7 @@ abstract class GradleUtils {
       def srcDirs = sourceSet.allSource.srcDirs
       def destinationDirs = sourceSet.output.files
 
-      SourceSet.Type type = sourceSet.name.toLowerCase().contains("test") ? SourceSet.Type.TEST : SourceSet.Type.CODE
+      SourceSet.Type type = sourceSet.name.toLowerCase(Locale.ROOT).contains("test") ? SourceSet.Type.TEST : SourceSet.Type.CODE
       sourceSets.add(new SourceSet(type, srcDirs, destinationDirs))
     }
     return new BuildModuleLayout(sourceSets)

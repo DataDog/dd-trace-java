@@ -151,7 +151,7 @@ public class AgentPreCheck {
         return null;
       }
 
-      BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+      BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
       final StringBuilder sb = new StringBuilder();
       for (int c = reader.read(); c != -1; c = reader.read()) {
         sb.append((char) c);

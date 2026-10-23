@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,7 +126,12 @@ public class CodeOriginProbe extends ProbeDefinition {
   @Override
   public String toString() {
     return String.format(
+        Locale.ROOT,
         "CodeOriginProbe{probeId=%s, entrySpanProbe=%s, signature=%s, where=%s, location=%s}",
-        getProbeId(), entrySpanProbe, signature, where, location);
+        getProbeId(),
+        entrySpanProbe,
+        signature,
+        where,
+        location);
   }
 }

@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -65,7 +66,7 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
       SourceSet sourceSet = gradleSourceSets.findByName(sourceSetName);
       if (sourceSet != null) {
         datadog.trace.api.civisibility.domain.SourceSet.Type sourceSetType =
-            sourceSet.getName().toLowerCase().contains("test")
+            sourceSet.getName().toLowerCase(Locale.ROOT).contains("test")
                 ? datadog.trace.api.civisibility.domain.SourceSet.Type.TEST
                 : datadog.trace.api.civisibility.domain.SourceSet.Type.CODE;
 
@@ -101,12 +102,14 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
                     .getDependencies()
                     .create(
                         String.format(
+                            Locale.ROOT,
                             "com.datadoghq:dd-javac-plugin:%s",
                             extension.getCompilerPluginVersion())),
                 project
                     .getDependencies()
                     .create(
                         String.format(
+                            Locale.ROOT,
                             "com.datadoghq:dd-javac-plugin-client:%s",
                             extension.getCompilerPluginVersion())));
 

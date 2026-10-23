@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
@@ -62,7 +63,8 @@ public final class ResourcesFeatureInstrumentation
       String metricConfigs = metricConfigsPath + "metricconfigs.txt";
       tracerResources.add(metricConfigs);
       try (InputStream is = ClassLoader.getSystemResourceAsStream(metricConfigs);
-          BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+          BufferedReader reader =
+              new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
         String metricConfig;
         while ((metricConfig = reader.readLine()) != null) {
           if (!metricConfig.trim().isEmpty()) {

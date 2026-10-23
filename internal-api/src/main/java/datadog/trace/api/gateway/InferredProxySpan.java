@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
@@ -199,7 +200,8 @@ public class InferredProxySpan implements ImplicitContextKeyed {
       return null; // Unknown proxy type
     }
 
-    return String.format("arn:%s:apigateway:%s::/%s/%s", partition, region, resourceType, apiId);
+    return String.format(
+        Locale.ROOT, "arn:%s:apigateway:%s::/%s/%s", partition, region, resourceType, apiId);
   }
 
   /**

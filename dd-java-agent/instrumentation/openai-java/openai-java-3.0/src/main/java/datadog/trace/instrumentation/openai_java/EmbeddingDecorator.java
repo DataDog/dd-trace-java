@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -77,7 +78,11 @@ public class EmbeddingDecorator {
           firstEmbedding._embedding().asKnown().orElse(Collections.emptyList()).size();
       span.setTag(
           CommonTags.OUTPUT,
-          String.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize));
+          String.format(
+              Locale.ROOT,
+              "[%d embedding(s) returned with size %d]",
+              embeddingCount,
+              embeddingSize));
     }
   }
 

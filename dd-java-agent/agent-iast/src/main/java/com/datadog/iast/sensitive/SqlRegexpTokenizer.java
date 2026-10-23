@@ -9,6 +9,7 @@ import com.google.re2j.Pattern;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +33,7 @@ public class SqlRegexpTokenizer implements SensitiveHandler.Tokenizer {
   private static final String BIN_NUMBER = "b'[0-9a-f]+'|0b[0-9a-f]+";
   private static final String NUMERIC_LITERAL =
       String.format(
+          Locale.ROOT,
           "[-+]?(?:%s)",
           String.join(
               "|", HEX_NUMBER, BIN_NUMBER, DECIMAL_NUMBER + EXPONENT, INTEGER_NUMBER + EXPONENT));

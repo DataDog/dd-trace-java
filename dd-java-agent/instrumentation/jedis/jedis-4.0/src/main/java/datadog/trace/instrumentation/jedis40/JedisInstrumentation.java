@@ -14,6 +14,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.nio.charset.StandardCharsets;
 import net.bytebuddy.asm.Advice;
 import redis.clients.jedis.CommandObject;
 import redis.clients.jedis.Connection;
@@ -61,7 +62,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
       } else {
         // Protocol.Command is the only implementation in the Jedis lib as of 3.1 but this will save
         // us if that changes
-        DECORATE.onStatement(span, new String(command.getRaw()));
+        DECORATE.onStatement(span, new String(command.getRaw(), StandardCharsets.UTF_8));
       }
       return activateSpan(span);
     }

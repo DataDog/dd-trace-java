@@ -13,6 +13,7 @@ import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Supplier;
@@ -263,7 +264,7 @@ class HaystackHttpCodec {
     // ones.
     //  this is done for the purpose of being able to maintain cardinality and idempotence of the
     // conversion
-    String idHex = String.format("%016x", id);
+    String idHex = String.format(Locale.ROOT, "%016x", id);
     return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
   }
 

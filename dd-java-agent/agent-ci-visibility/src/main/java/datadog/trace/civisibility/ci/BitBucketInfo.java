@@ -10,6 +10,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.util.Strings;
+import java.util.Locale;
 import javax.annotation.Nonnull;
 
 class BitBucketInfo implements CIProviderInfo {
@@ -86,7 +87,7 @@ class BitBucketInfo implements CIProviderInfo {
 
   private String buildPipelineUrl(final String repo, final String number) {
     return String.format(
-        "https://bitbucket.org/%s/addon/pipelines/home#!/results/%s", repo, number);
+        Locale.ROOT, "https://bitbucket.org/%s/addon/pipelines/home#!/results/%s", repo, number);
   }
 
   private String buildPipelineId() {

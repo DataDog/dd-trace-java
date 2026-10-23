@@ -21,6 +21,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -204,25 +205,27 @@ class GithubActionsInfo implements CIProviderInfo {
       return null;
     }
 
-    return String.format("%s/%s.git", host, repo);
+    return String.format(Locale.ROOT, "%s/%s.git", host, repo);
   }
 
   private String buildPipelineUrl(
       final String host, final String repo, final String pipelineId, final String retry) {
     if (retry != null && !retry.isEmpty()) {
-      return String.format("%s/%s/actions/runs/%s/attempts/%s", host, repo, pipelineId, retry);
+      return String.format(
+          Locale.ROOT, "%s/%s/actions/runs/%s/attempts/%s", host, repo, pipelineId, retry);
     } else {
-      return String.format("%s/%s/actions/runs/%s", host, repo, pipelineId);
+      return String.format(Locale.ROOT, "%s/%s/actions/runs/%s", host, repo, pipelineId);
     }
   }
 
   private String buildJobUrl(final String host, final String repo, final String commit) {
-    return String.format("%s/%s/commit/%s/checks", host, repo, commit);
+    return String.format(Locale.ROOT, "%s/%s/commit/%s/checks", host, repo, commit);
   }
 
   private String buildJobUrlWithNumericId(
       final String host, final String repo, final String pipelineId, final String jobId) {
-    return String.format("%s/%s/actions/runs/%s/job/%s", host, repo, pipelineId, jobId);
+    return String.format(
+        Locale.ROOT, "%s/%s/actions/runs/%s/job/%s", host, repo, pipelineId, jobId);
   }
 
   /**

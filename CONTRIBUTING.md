@@ -91,6 +91,18 @@ Wildcard imports (`import x.*` or `import static x.*`) are disallowed — see th
     * Switch to `IntelliJ IDEA CE 2021.2.3`.
 </details>
 
+## Explicit locales and charsets
+
+The shared [forbidden-apis ban list](gradle/forbiddenApiFilters/main.txt) requires explicit
+locales and charsets in checked source sets. Use `Locale.ROOT` for identifiers and
+machine-readable formatting. Use the protocol's charset, usually `StandardCharsets.UTF_8`,
+for byte conversions.
+
+When a JVM default is intentional, pass `Locale.getDefault(...)` or `Charset.defaultCharset()`
+explicitly and explain the reason. If the API has no suitable explicit overload, annotate the
+smallest enclosing method or constructor with `@SuppressForbidden` and add a comment explaining
+why it must use the default. The annotation is a compile-only dependency supplied by the convention.
+
 ## Pull request guidelines
 
 ### Draft first

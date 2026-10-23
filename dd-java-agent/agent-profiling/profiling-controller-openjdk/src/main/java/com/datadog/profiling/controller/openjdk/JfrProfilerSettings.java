@@ -7,6 +7,7 @@ import datadog.common.version.VersionInfo;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Locale;
 
 /** Capture the profiler config first and allow emitting the setting events per each recording. */
 final class JfrProfilerSettings extends ProfilerSettingsSupport {
@@ -85,7 +86,7 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
       new ProfilerSettingEvent(PROFILER_ACTIVATION, profilerActivationSetting.enablement.getAlias())
           .commit();
       new ProfilerSettingEvent(
-              SSI_MECHANISM, profilerActivationSetting.ssiMechanism.name().toLowerCase())
+              SSI_MECHANISM, profilerActivationSetting.ssiMechanism.name().toLowerCase(Locale.ROOT))
           .commit();
     }
   }

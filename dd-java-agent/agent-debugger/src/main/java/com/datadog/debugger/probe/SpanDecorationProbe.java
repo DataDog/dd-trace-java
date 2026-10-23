@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -268,13 +269,14 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
           status.getErrors().addAll(logStatus.getErrors());
           if (logStatus.getErrors().size() > 0) {
             spanStatus.addTag(
-                String.format(EVALERROR_DD_TAGS_FORMAT, tagName),
+                String.format(Locale.ROOT, EVALERROR_DD_TAGS_FORMAT, tagName),
                 logStatus.getErrors().get(0).getMessage());
           }
         } else {
           spanStatus.addTag(tagName, tagValue);
         }
-        spanStatus.addTag(String.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
+        spanStatus.addTag(
+            String.format(Locale.ROOT, PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
       }
     }
   }

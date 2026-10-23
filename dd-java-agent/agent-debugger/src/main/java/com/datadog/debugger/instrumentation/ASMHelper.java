@@ -15,12 +15,14 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
@@ -65,10 +67,10 @@ public class ASMHelper {
     File output;
     int count = 0;
     do {
-      output = new File(format("build/%s-%d-%s.txt", method, count++, suffix));
+      output = new File(format(Locale.ROOT, "build/%s-%d-%s.txt", method, count++, suffix));
     } while (output.exists());
     output.getParentFile().mkdirs();
-    try (PrintWriter writer = new PrintWriter(output)) {
+    try (PrintWriter writer = new PrintWriter(output, StandardCharsets.UTF_8.name())) {
       writer.println(content);
       String absolutePath = output.getAbsolutePath();
       absolutePath = absolutePath.substring(0, absolutePath.lastIndexOf('.'));
@@ -91,9 +93,9 @@ public class ASMHelper {
     classNode.accept(new TraceClassVisitor(null, new Textifier(), new PrintWriter(writer)));
     List<String> strings = Arrays.asList(writer.toString().split("\n"));
     for (int i = 0; i < strings.size(); i++) {
-      if (strings.get(i).matches(format(".*(private|public).* %s\\(.*", method))) {
+      if (strings.get(i).matches(format(Locale.ROOT, ".*(private|public).* %s\\(.*", method))) {
         while (!strings.get(i).equals(""))
-          joiner.add(String.format("[%3d] %s", i, strings.get(i++)));
+          joiner.add(String.format(Locale.ROOT, "[%3d] %s", i, strings.get(i++)));
       }
     }
     return joiner.toString();
@@ -392,10 +394,10 @@ public class ASMHelper {
   public static String toString(AbstractInsnNode node) {
     String opcode = node.getOpcode() >= 0 ? Printer.OPCODES[node.getOpcode()] : node.toString();
     if (node instanceof LineNumberNode) {
-      return String.format("LineNumber: %s", ((LineNumberNode) node).line);
+      return String.format(Locale.ROOT, "LineNumber: %s", ((LineNumberNode) node).line);
     } else if (node instanceof MethodInsnNode) {
       MethodInsnNode method = (MethodInsnNode) node;
-      return String.format("%s: [%s] %s", opcode, method.name, method.desc);
+      return String.format(Locale.ROOT, "%s: [%s] %s", opcode, method.name, method.desc);
     } else {
       return opcode;
     }

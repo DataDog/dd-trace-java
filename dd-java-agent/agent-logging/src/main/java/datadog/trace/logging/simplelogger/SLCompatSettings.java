@@ -111,7 +111,9 @@ public class SLCompatSettings {
     private final DateFormat dateFormat;
 
     public LegacyDTFormatter(String dateTimeFormat) {
-      this.dateFormat = new SimpleDateFormat(dateTimeFormat);
+      // User-configured log timestamps follow the JVM's formatting locale.
+      this.dateFormat =
+          new SimpleDateFormat(dateTimeFormat, Locale.getDefault(Locale.Category.FORMAT));
     }
 
     @Override

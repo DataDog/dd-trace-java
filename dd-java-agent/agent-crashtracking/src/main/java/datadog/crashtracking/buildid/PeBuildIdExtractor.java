@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -287,6 +288,7 @@ public class PeBuildIdExtractor implements BuildIdExtractor {
       long guidData1, int guidData2, int guidData3, byte[] guidData4, long age) {
     // Format: GUID (uppercase, without dashes) + Age (lowercase hex)
     return String.format(
+        Locale.ROOT,
         "%08X%04X%04X%02X%02X%02X%02X%02X%02X%02X%02X%x",
         guidData1,
         guidData2,

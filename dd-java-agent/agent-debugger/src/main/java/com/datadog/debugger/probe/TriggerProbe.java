@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,7 +154,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
 
     AgentSpan agentSpan = tracerAPI.activeSpan().getLocalRootSpan();
     agentSpan.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
-    agentSpan.setTag(format("_dd.ld.probe_id.%s", getProbeId().getId()), true);
+    agentSpan.setTag(format(Locale.ROOT, "_dd.ld.probe_id.%s", getProbeId().getId()), true);
   }
 
   @Override
@@ -191,6 +192,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
   @Override
   public String toString() {
     return String.format(
+        Locale.ROOT,
         "TriggerProbe{id='%s', sessionId='%s', evaluateAt=%s, language='%s', location=%s, probeCondition=%s, probeId=%s,"
             + " sampling=%s, tagMap=%s, tags=%s, version=%d, where=%s}",
         id,

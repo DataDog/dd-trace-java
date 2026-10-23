@@ -11,6 +11,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -420,7 +421,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     }
 
     private static String percentage(final long actual, final long total) {
-      return String.format("%2.2f%%", total == 0 ? 0 : (actual * 100D / total));
+      return String.format(Locale.ROOT, "%2.2f%%", total == 0 ? 0 : (actual * 100D / total));
     }
 
     /** Computes different percentiles, values array MUST be sorted beforehand */
@@ -442,11 +443,12 @@ public interface TaintedMap extends Iterable<TaintedObject> {
           value = values[Math.round(values.length * percentile / 100F)];
           break;
       }
-      return String.format("%s:%s", prefix, value);
+      return String.format(Locale.ROOT, "%s:%s", prefix, value);
     }
 
     private static String average(final int[] values) {
-      return String.format("avg:%2.2f", Arrays.stream(values).sum() / (double) values.length);
+      return String.format(
+          Locale.ROOT, "avg:%2.2f", Arrays.stream(values).sum() / (double) values.length);
     }
   }
 

@@ -81,11 +81,11 @@ public class DDEvpProxyApi extends RemoteApi {
 
     public DDEvpProxyApi build() {
       final String trackName = trackType.name().toLowerCase(Locale.ROOT);
-      final String subdomain = String.format("%s-intake", trackName);
+      final String subdomain = String.format(Locale.ROOT, "%s-intake", trackName);
 
       final HttpUrl evpProxyUrl = agentUrl.resolve(evpProxyEndpoint);
       final HttpUrl proxiedApiUrl =
-          evpProxyUrl.resolve(String.format("api/%s/%s", apiVersion, trackName));
+          evpProxyUrl.resolve(String.format(Locale.ROOT, "api/%s/%s", apiVersion, trackName));
 
       final OkHttpClient client =
           (httpClient != null)

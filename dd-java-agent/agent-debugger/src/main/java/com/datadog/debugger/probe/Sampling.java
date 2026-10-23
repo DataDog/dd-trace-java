@@ -1,5 +1,6 @@
 package com.datadog.debugger.probe;
 
+import java.util.Locale;
 import java.util.Objects;
 
 /** Stores sampling configuration */
@@ -71,6 +72,9 @@ public class Sampling {
   @Override
   public String toString() {
     return String.format(
-        "Sampling{coolDownInSeconds=%d, eventsPerSecond=%s}", coolDownInSeconds, eventsPerSecond);
+        Locale.ROOT,
+        "Sampling{coolDownInSeconds=%d, eventsPerSecond=%s}",
+        coolDownInSeconds,
+        eventsPerSecond);
   }
 }

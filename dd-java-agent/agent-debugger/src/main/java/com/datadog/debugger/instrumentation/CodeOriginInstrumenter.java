@@ -12,6 +12,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Locale;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
@@ -28,8 +29,8 @@ public class CodeOriginInstrumenter extends Instrumenter {
 
   static {
     String className = DebuggerContext.class.getName().replace('.', '/');
-    CAPTURE = format("%s#%s", className, "captureCodeOrigin");
-    MARKER = format("%s#%s", className, "marker");
+    CAPTURE = format(Locale.ROOT, "%s#%s", className, "captureCodeOrigin");
+    MARKER = format(Locale.ROOT, "%s#%s", className, "marker");
   }
 
   public CodeOriginInstrumenter(
@@ -49,7 +50,7 @@ public class CodeOriginInstrumenter extends Instrumenter {
   private static String buildDescription(AbstractInsnNode node) {
     if (!(node instanceof MethodInsnNode)) return "";
     MethodInsnNode method = (MethodInsnNode) node;
-    return format("%s#%s", method.owner, method.name);
+    return format(Locale.ROOT, "%s#%s", method.owner, method.name);
   }
 
   private InsnList codeOriginCall() {
