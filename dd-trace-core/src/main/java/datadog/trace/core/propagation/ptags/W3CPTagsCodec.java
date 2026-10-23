@@ -116,18 +116,19 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
     }
 
-    OtelTraceState otelTraceState = null;
+    // The otel member is kept raw and parsed on first read; see InheritedSamplingState
+    CharSequence rawOtelTraceState = null;
+    int otelOriginalSize = 0;
     if (otelMemberStart != -1) {
       int valueEnd = stripTrailingOWC(value, otelMemberValueStart, otelMemberValueEnd);
-      otelTraceState =
-          OtelTraceState.parse(
-              SubSequence.of(value, otelMemberValueStart, valueEnd),
-              memberContributionSize(value, firstMemberStart, otelMemberStart, otelMemberValueEnd));
+      rawOtelTraceState = SubSequence.of(value, otelMemberValueStart, valueEnd);
+      otelOriginalSize =
+          memberContributionSize(value, firstMemberStart, otelMemberStart, otelMemberValueEnd);
     }
 
     if (ddMemberIndex == -1) {
       // There was no dd member, so create an empty one with the _suffix_
-      return result.withoutDatadogTags(value, 0, -1, -1, otelTraceState);
+      return result.withoutDatadogTags(value, 0, -1, -1, rawOtelTraceState, otelOriginalSize);
     }
 
     List<TagElement> tagPairs = null;
@@ -213,7 +214,12 @@ public class W3CPTagsCodec extends PTagsCodec {
                 return result.invalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
               }
               return result.withoutDatadogTags(
-                  value, firstMemberStart, ddMemberStart, ddMemberValueEnd, otelTraceState);
+                  value,
+                  firstMemberStart,
+                  ddMemberStart,
+                  ddMemberValueEnd,
+                  rawOtelTraceState,
+                  otelOriginalSize);
             }
             if (tagKey.equals(DECISION_MAKER_TAG)) {
               decisionMakerTagValue = tagValue;
@@ -281,7 +287,8 @@ public class W3CPTagsCodec extends PTagsCodec {
             llmObsParentIdTagValue,
             llmObsSampleRateTagValue,
             llmObsSamplingDecisionTagValue),
-        otelTraceState);
+        rawOtelTraceState,
+        otelOriginalSize);
   }
 
   @Override
@@ -1039,7 +1046,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         int firstMemberStart,
         int ddMemberStart,
         int ddMemberValueEnd,
-        OtelTraceState otelTraceState);
+        CharSequence rawOtelTraceState,
+        int otelOriginalSize);
 
     R parsed(
         List<TagElement> tagPairs,
@@ -1056,7 +1064,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         CharSequence lastParentId,
         TagValue orgPropagationMarkerTagValue,
         LLMObsTagValues llmObsTagValues,
-        OtelTraceState otelTraceState);
+        CharSequence rawOtelTraceState,
+        int otelOriginalSize);
   }
 
   private static final class PTagsResult implements Result<PropagationTags> {
@@ -1087,9 +1096,16 @@ public class W3CPTagsCodec extends PTagsCodec {
         int firstMemberStart,
         int ddMemberStart,
         int ddMemberValueEnd,
-        OtelTraceState otelTraceState) {
+        CharSequence rawOtelTraceState,
+        int otelOriginalSize) {
       return empty(
-          tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd, otelTraceState);
+          tagsFactory,
+          value,
+          firstMemberStart,
+          ddMemberStart,
+          ddMemberValueEnd,
+          rawOtelTraceState,
+          otelOriginalSize);
     }
 
     @Override
@@ -1108,7 +1124,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         CharSequence lastParentId,
         TagValue orgPropagationMarkerTagValue,
         LLMObsTagValues llmObsTagValues,
-        OtelTraceState otelTraceState) {
+        CharSequence rawOtelTraceState,
+        int otelOriginalSize) {
       return new W3CPTags(
           tagsFactory,
           tagPairs,
@@ -1125,7 +1142,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           lastParentId,
           orgPropagationMarkerTagValue,
           llmObsTagValues,
-          otelTraceState);
+          rawOtelTraceState,
+          otelOriginalSize);
     }
   }
 
@@ -1152,8 +1170,10 @@ public class W3CPTagsCodec extends PTagsCodec {
             int firstMemberStart,
             int ddMemberStart,
             int ddMemberValueEnd,
-            OtelTraceState otelTraceState) {
-          return new W3CTracestate(value, otelTraceState, PrioritySampling.UNSET, null);
+            CharSequence rawOtelTraceState,
+            int otelOriginalSize) {
+          return new W3CTracestate(
+              value, rawOtelTraceState, otelOriginalSize, PrioritySampling.UNSET, null);
         }
 
         @Override
@@ -1172,14 +1192,16 @@ public class W3CPTagsCodec extends PTagsCodec {
             CharSequence lastParentId,
             TagValue orgPropagationMarkerTagValue,
             LLMObsTagValues llmObsTagValues,
-            OtelTraceState otelTraceState) {
-          return new W3CTracestate(value, otelTraceState, samplingPriority, lastParentId);
+            CharSequence rawOtelTraceState,
+            int otelOriginalSize) {
+          return new W3CTracestate(
+              value, rawOtelTraceState, otelOriginalSize, samplingPriority, lastParentId);
         }
       };
 
   /** Creates tags that preserve unmanaged W3C tracestate members without sampling state. */
   static W3CPTags empty(PTagsFactory factory, String original) {
-    return empty(factory, original, 0, -1, -1, null);
+    return empty(factory, original, 0, -1, -1, null, 0);
   }
 
   private static W3CPTags empty(
@@ -1188,7 +1210,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       int firstMemberStart,
       int ddMemberStart,
       int ddMemberValueEnd,
-      OtelTraceState otelTraceState) {
+      CharSequence rawOtelTraceState,
+      int otelOriginalSize) {
     return new W3CPTags(
         factory,
         null,
@@ -1205,7 +1228,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         null,
         null,
         LLMObsTagValues.EMPTY,
-        otelTraceState);
+        rawOtelTraceState,
+        otelOriginalSize);
   }
 
   private static class W3CPTags extends PTags {
@@ -1242,7 +1266,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         CharSequence lastParentId,
         TagValue orgPropagationMarkerTagValue,
         LLMObsTagValues llmObsTagValues,
-        OtelTraceState otelTraceState) {
+        CharSequence rawOtelTraceState,
+        int otelOriginalSize) {
       super(
           factory,
           tagPairs,
@@ -1255,7 +1280,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           orgPropagationMarkerTagValue,
           llmObsTagValues,
           original,
-          otelTraceState);
+          rawOtelTraceState,
+          otelOriginalSize);
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;
       this.ddMemberValueEnd = ddMemberValueEnd;
