@@ -4,7 +4,7 @@ import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 
-import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
@@ -20,6 +20,7 @@ import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import java.io.IOException;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
@@ -31,9 +32,9 @@ import okhttp3.RequestBody;
 public final class TraceMapperV0_5 implements TraceMapper {
 
   private final WritableFormatter dictionaryWriter;
-  private final DictionaryMapper dictionaryMapper = new DictionaryMapper();
+  private final DictionaryMapper dictionaryMapper;
   private final Map<Object, Integer> encoding = new HashMap<>();
-  private final GrowableBuffer dictionary;
+  private final FlushingBuffer dictionary;
 
   private final MetaWriter metaWriter = new MetaWriter();
 
@@ -45,10 +46,15 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   public TraceMapperV0_5(int dictionarySize, int bufferSize) {
-    // growable buffer is implicitly bounded by the fixed size buffer
-    // the messages themselves are written into
-    this.dictionary = new GrowableBuffer(bufferSize);
+    this.dictionary =
+        new FlushingBuffer(
+            dictionarySize,
+            (count, buffer) -> {
+              // Let the trace writer flush and retry the entire trace with a fresh dictionary.
+              throw new BufferOverflowException();
+            });
     this.dictionaryWriter = new MsgPackWriter(dictionary);
+    this.dictionaryMapper = new DictionaryMapper(dictionarySize);
     this.size = bufferSize;
     reset();
   }
@@ -97,7 +103,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
     final Object target = null == value ? "" : value;
     final Integer encoded = encoding.get(target);
     if (null == encoded) {
-      dictionaryWriter.format(target, dictionaryMapper);
+      if (!dictionaryWriter.format(target, dictionaryMapper)) {
+        throw new BufferOverflowException();
+      }
       final int dictionaryCode = dictionary.messageCount() - 1;
       encoding.put(target, dictionaryCode);
       // this call can fail, but the dictionary has been written to now
@@ -136,18 +144,32 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   @VisibleForTesting
-  GrowableBuffer getDictionary() {
+  FlushingBuffer getDictionary() {
     return dictionary;
   }
 
   private static class DictionaryMapper implements Mapper<Object> {
 
+    private final int maxStringLength;
+
+    private DictionaryMapper(int maxStringLength) {
+      this.maxStringLength = maxStringLength;
+    }
+
     @Override
     public void map(final Object data, final Writable packer) {
+      // Bound temporary UTF-8 allocations as well as the dictionary's backing buffer.
+      if (data instanceof CharSequence && ((CharSequence) data).length() > maxStringLength) {
+        throw new BufferOverflowException();
+      }
       if (data instanceof UTF8BytesString) {
         packer.writeObject(data, null);
       } else {
-        packer.writeString(String.valueOf(data), null);
+        String value = String.valueOf(data);
+        if (value.length() > maxStringLength) {
+          throw new BufferOverflowException();
+        }
+        packer.writeString(value, null);
       }
     }
   }

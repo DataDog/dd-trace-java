@@ -14,6 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
@@ -44,12 +46,14 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
+import org.tabletest.junit.TableTest;
 
 @ExtendWith(WithConfigExtension.class)
 class TraceMapperV05PayloadTest {
@@ -177,6 +181,171 @@ class TraceMapperV05PayloadTest {
         arguments(100 << 10, 100 << 10, 1000, false));
   }
 
+  @TableTest({
+    "scenario          | field    | repeatedValue",
+    "unique resources  | resource | false        ",
+    "unique tags       | tag      | false        ",
+    "unique baggage    | baggage  | false        ",
+    "repeated resource | resource | true         ",
+    "repeated tag      | tag      | true         ",
+    "repeated baggage  | baggage  | true         "
+  })
+  void dictionaryCapacityControlsPayloadFlushes(String field, boolean repeatedValue) {
+    int dictionarySize = 512;
+    TraceMapperV0_5 mapper = new TraceMapperV0_5(dictionarySize, 4096);
+    List<List<PojoSpan>> traces = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      traces.add(
+          Collections.singletonList(
+              spanWithValue(i + 1, field, repeated('a', 128) + (repeatedValue ? "" : i))));
+    }
+    PayloadVerifier verifier = new PayloadVerifier(traces, mapper);
+    AtomicInteger payloadCount = new AtomicInteger();
+    MsgPackWriter packer =
+        new MsgPackWriter(
+            new FlushingBuffer(
+                mapper.messageBufferSize(),
+                (count, buffer) -> {
+                  payloadCount.incrementAndGet();
+                  verifier.accept(count, buffer);
+                }));
+
+    for (List<PojoSpan> trace : traces) {
+      assertTrue(packer.format(trace, mapper));
+    }
+    packer.flush();
+
+    verifier.verifyTracesConsumed();
+    if (repeatedValue) {
+      assertEquals(1, payloadCount.get(), "repeated strings must reuse dictionary entries");
+    } else {
+      assertTrue(payloadCount.get() > 1, "the dictionary must fill before the trace body");
+    }
+    assertEquals(dictionarySize, mapper.getDictionary().capacity());
+  }
+
+  @TableTest({
+    "scenario                | field    | precedingTrace | spanCount | valueLength | character",
+    "large resource          | resource | false          | 1         | 1024        | a        ",
+    "large tag               | tag      | false          | 1         | 1024        | a        ",
+    "large baggage           | baggage  | false          | 1         | 1024        | a        ",
+    "resource after flush    | resource | true           | 1         | 1024        | a        ",
+    "tag after flush         | tag      | true           | 1         | 1024        | a        ",
+    "baggage after flush     | baggage  | true           | 1         | 1024        | a        ",
+    "many resource values    | resource | false          | 8         | 128         | a        ",
+    "many tag values         | tag      | false          | 8         | 128         | a        ",
+    "many baggage values     | baggage  | false          | 8         | 128         | a        ",
+    "many values after flush | resource | true           | 8         | 128         | a        ",
+    "UTF-8 resource          | resource | false          | 1         | 256         | \u20ac   ",
+    "UTF-8 tag               | tag      | false          | 1         | 256         | \u20ac   ",
+    "UTF-8 baggage           | baggage  | false          | 1         | 256         | \u20ac   ",
+    "UTF-8 after flush       | resource | true           | 1         | 256         | \u20ac   "
+  })
+  @Timeout(5)
+  void oversizedTraceIsDroppedAndNextTraceSucceeds(
+      String field, boolean precedingTrace, int spanCount, int valueLength, char character) {
+    int dictionarySize = 512;
+    TraceMapperV0_5 mapper = new TraceMapperV0_5(dictionarySize, 4096);
+    List<PojoSpan> first = Collections.singletonList(plainSpan(1));
+    List<PojoSpan> last = Collections.singletonList(plainSpan(2));
+    PayloadVerifier verifier =
+        new PayloadVerifier(
+            precedingTrace ? Arrays.asList(first, last) : Collections.singletonList(last), mapper);
+    MsgPackWriter packer =
+        new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), verifier));
+    if (precedingTrace) {
+      assertTrue(packer.format(first, mapper));
+    }
+    List<PojoSpan> oversized = new ArrayList<>();
+    for (int i = 0; i < spanCount; i++) {
+      oversized.add(spanWithValue(i + 3, field, repeated((char) (character + i), valueLength)));
+    }
+
+    assertFalse(packer.format(oversized, mapper));
+    assertTrue(mapper.getEncoding().isEmpty());
+    assertEquals(dictionarySize, mapper.getDictionary().capacity());
+    assertTrue(packer.format(last, mapper));
+    packer.flush();
+
+    verifier.verifyTracesConsumed();
+  }
+
+  @TableTest({
+    "scenario            | dictionarySize",
+    "empty dictionary    | 0             ",
+    "string exceeds size | 1             ",
+    "header exceeds size | 7             "
+  })
+  void dictionaryTooSmallForFirstEntryRejectsTrace(int dictionarySize) {
+    TraceMapperV0_5 mapper = new TraceMapperV0_5(dictionarySize, 4096);
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(4096, (count, buffer) -> {}));
+
+    assertFalse(packer.format(Collections.singletonList(plainSpan(1)), mapper));
+    assertTrue(mapper.getEncoding().isEmpty());
+    assertEquals(0, mapper.getDictionary().messageCount());
+    assertEquals(0, mapper.getDictionary().slice().remaining());
+  }
+
+  @TableTest({
+    "scenario        | character | extraBytes | fits ",
+    "ASCII below     | a         | -1         | false",
+    "ASCII exact     | a         | 0          | true ",
+    "ASCII above     | a         | 1          | true ",
+    "multibyte below | \u20ac    | -1         | false",
+    "multibyte exact | \u20ac    | 0          | true ",
+    "multibyte above | \u20ac    | 1          | true "
+  })
+  void dictionaryLimitIncludesEncodedStringsAndHeaders(
+      char character, int extraBytes, boolean fits) {
+    List<PojoSpan> trace =
+        Collections.singletonList(spanWithValue(1, "resource", repeated(character, 128)));
+    TraceMapperV0_5 measuringMapper = new TraceMapperV0_5(4096, 4096);
+    MsgPackWriter measuringPacker =
+        new MsgPackWriter(new FlushingBuffer(4096, (count, buffer) -> {}));
+    assertTrue(measuringPacker.format(trace, measuringMapper));
+    int dictionarySize = measuringMapper.getDictionary().slice().remaining() + extraBytes;
+    TraceMapperV0_5 mapper = new TraceMapperV0_5(dictionarySize, 4096);
+    PayloadVerifier verifier =
+        new PayloadVerifier(
+            fits ? Collections.singletonList(trace) : Collections.emptyList(), mapper);
+    MsgPackWriter packer =
+        new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), verifier));
+
+    assertEquals(fits, packer.format(trace, mapper));
+    packer.flush();
+
+    verifier.verifyTracesConsumed();
+    assertEquals(dictionarySize, mapper.getDictionary().capacity());
+  }
+
+  @Test
+  void oversizedCharSequenceIsRejectedBeforeEncoding() {
+    CharSequence value = mock(CharSequence.class);
+    when(value.length()).thenReturn(Integer.MAX_VALUE);
+    when(value.toString()).thenThrow(new AssertionError("oversized value must not be encoded"));
+    TraceMapperV0_5 mapper = new TraceMapperV0_5(512, 4096);
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(4096, (count, buffer) -> {}));
+
+    assertFalse(packer.format(Collections.singletonList(spanWithValue(1, "tag", value)), mapper));
+    assertTrue(mapper.getEncoding().isEmpty());
+  }
+
+  private static String repeated(char character, int length) {
+    char[] chars = new char[length];
+    Arrays.fill(chars, character);
+    return new String(chars);
+  }
+
+  private static PojoSpan spanWithValue(long spanId, String field, Object value) {
+    return plainSpan(
+        spanId,
+        "resource".equals(field) ? (CharSequence) value : "resource",
+        "baggage".equals(field)
+            ? Collections.singletonMap("baggage", (String) value)
+            : Collections.emptyMap(),
+        "tag".equals(field) ? Collections.singletonMap("tag", value) : Collections.emptyMap());
+  }
+
   @Test
   void processTagsSerialization() {
     assertNotNull(ProcessTags.getTagsForSerialization());
@@ -242,18 +411,26 @@ class TraceMapperV05PayloadTest {
   }
 
   private static PojoSpan plainSpan(long spanId) {
+    return plainSpan(spanId, "resource", Collections.emptyMap(), Collections.emptyMap());
+  }
+
+  private static PojoSpan plainSpan(
+      long spanId,
+      CharSequence resourceName,
+      Map<String, String> baggage,
+      Map<String, Object> tags) {
     return new PojoSpan(
         "service",
         "operation",
-        "resource",
+        resourceName,
         DDTraceId.ONE,
         spanId,
         -1L,
         123L,
         456L,
         0,
-        Collections.emptyMap(),
-        Collections.emptyMap(),
+        baggage,
+        tags,
         "type",
         false,
         0,
@@ -322,6 +499,7 @@ class TraceMapperV05PayloadTest {
           dictionary[i] = unpacker.unpackString();
         }
         int traceCount = unpacker.unpackArrayHeader();
+        assertEquals(messageCount, traceCount);
         for (int i = 0; i < traceCount; ++i) {
           List<PojoSpan> expectedTrace = expectedTraces.get(position++);
           int spanCount = unpacker.unpackArrayHeader();
@@ -419,6 +597,8 @@ class TraceMapperV05PayloadTest {
             assertEquals(expectedSpan.getType(), type);
           }
         }
+        assertFalse(
+            unpacker.hasNext(), "payload must contain only complete dictionary entries and traces");
       } catch (IOException e) {
         fail(e.getMessage());
       } finally {
