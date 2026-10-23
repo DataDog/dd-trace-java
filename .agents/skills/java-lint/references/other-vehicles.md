@@ -1,6 +1,6 @@
 # Other vehicles (only if SpotBugs cannot express the rule)
 
-Use this file after the [SpotBugs skill](../SKILL.md) classification step finds no matching detector. Do not start here.
+Use this file after the [Java lint skill](../SKILL.md) classification step finds no matching detector. Do not start here.
 
 Pick the **narrowest** vehicle that can fail CI with low false positives. One rule per change, same as SpotBugs.
 

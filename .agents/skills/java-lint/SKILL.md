@@ -1,5 +1,5 @@
 ---
-name: spotbugs
+name: java-lint
 description: >-
   Enable one mechanically enforceable lint or static-analysis rule in blocking CI,
   preferring SpotBugs. Use when adding a SpotBugs detector, turning a repetitive PR
@@ -16,7 +16,7 @@ allowed-tools:
   - Write
 ---
 
-# Add a SpotBugs check
+# Add a Java lint rule
 
 Grow the blocking SpotBugs job **one check at a time**. Do not turn this
 into a style-guide dump or a Spotless / google-java-format gate.
