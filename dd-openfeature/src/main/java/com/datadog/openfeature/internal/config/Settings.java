@@ -174,6 +174,12 @@ public final class Settings {
     return Boolean.TRUE.equals(getBoolean(EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED));
   }
 
+  /** Returns the configured experimentation opt-out mode, disabled by default. */
+  public String experimentationOptOutMode() {
+    final String mode = get("feature.flags.experimentation.opt.out.mode");
+    return mode == null ? "disabled" : mode;
+  }
+
   /**
    * @return the Datadog API key, or {@code null} if not set.
    */

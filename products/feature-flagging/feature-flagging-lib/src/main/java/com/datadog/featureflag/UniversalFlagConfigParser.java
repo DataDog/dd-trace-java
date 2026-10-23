@@ -604,13 +604,18 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       if (allocation == null) {
         return null;
       }
+      final Object activation = allocation.randomizationActivatedAt;
+      final Instant parsedActivation =
+          activation instanceof String ? parseInstant((String) activation) : null;
       return Allocation.fromInstants(
           allocation.key,
           allocation.rules,
           allocation.startAt,
           allocation.endAt,
           allocation.splits,
-          allocation.doLog);
+          allocation.doLog,
+          parsedActivation,
+          activation != null && parsedActivation == null);
     }
 
     @Override
@@ -627,6 +632,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     Instant endAt;
     List<Split> splits;
     Boolean doLog;
+    Object randomizationActivatedAt;
   }
 
   @Nullable

@@ -35,6 +35,7 @@ public class Provider extends EventProvider implements Metadata {
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
+  private final ExperimentationOptOutMode experimentationOptOutMode;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
@@ -66,6 +67,8 @@ public class Provider extends EventProvider implements Metadata {
       final Evaluator evaluator,
       final Boolean spanEnrichmentEnabledOverride) {
     this.options = options;
+    this.experimentationOptOutMode =
+        ExperimentationOptOut.resolve(options.experimentationOptOutMode);
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
@@ -230,8 +233,10 @@ public class Provider extends EventProvider implements Metadata {
       return evaluator;
     }
     final Class<?> evaluatorClass = loadEvaluatorClass();
-    final Constructor<?> ctor = evaluatorClass.getConstructor(Runnable.class);
-    return (Evaluator) ctor.newInstance((Runnable) this::onConfigurationChange);
+    final Constructor<?> ctor =
+        evaluatorClass.getConstructor(Runnable.class, ExperimentationOptOutMode.class);
+    return (Evaluator)
+        ctor.newInstance((Runnable) this::onConfigurationChange, experimentationOptOutMode);
   }
 
   @Override
@@ -322,7 +327,17 @@ public class Provider extends EventProvider implements Metadata {
 
     private long timeout = 30;
     private TimeUnit unit = SECONDS;
+    private ExperimentationOptOutMode experimentationOptOutMode = ExperimentationOptOutMode.DEFAULT;
     private Boolean evaluationTelemetryOptOutParameterEnabled;
+
+    /**
+     * Overrides DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE. DEFAULT uses central configuration.
+     * The provider resolves the mode at construction.
+     */
+    public Options experimentationOptOutMode(final ExperimentationOptOutMode mode) {
+      this.experimentationOptOutMode = java.util.Objects.requireNonNull(mode, "mode");
+      return this;
+    }
 
     /**
      * Enables per-evaluation telemetry opt-out through the {@code dd_evaluation_telemetry_opt_out}

@@ -56,6 +56,8 @@ dependencies {
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
+  // Conformance tests exercise the agent parser and provider together.
+  testImplementation(project(":products:feature-flagging:feature-flagging-lib"))
 
   // The main source set gets the bootstrap/config types as compileOnly, so the JMH source set
   // needs them on its own compile and runtime classpath to drive the hook end to end.

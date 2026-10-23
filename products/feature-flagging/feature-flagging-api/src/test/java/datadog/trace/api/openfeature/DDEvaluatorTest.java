@@ -23,8 +23,6 @@ import static org.mockito.Mockito.verify;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
-import com.squareup.moshi.JsonReader;
-import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
@@ -57,7 +55,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -75,23 +72,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 public class DDEvaluatorTest {
 
+  private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
+
   private static final String CANONICAL_FIXTURE_PATH =
       "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
-  private static final Moshi MOSHI =
-      new Moshi.Builder()
-          .add(Date.class, new DateAdapter())
-          .add(ShardAdapter.FACTORY)
-          .add(FlagMapAdapter.FACTORY)
-          .build();
-  private static final JsonAdapter<ServerConfiguration> CONFIG_ADAPTER =
-      MOSHI.adapter(ServerConfiguration.class);
+  private static final Moshi MOSHI = new Moshi.Builder().build();
   private static final Type FIXTURE_LIST_TYPE =
       Types.newParameterizedType(List.class, FixtureCase.class);
   private static final JsonAdapter<List<FixtureCase>> FIXTURE_LIST_ADAPTER =
       MOSHI.adapter(FIXTURE_LIST_TYPE);
-  private static final ThreadLocal<Map<String, String>> INVALID_FLAGS_HOLDER =
-      ThreadLocal.withInitial(HashMap::new);
-  private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
 
   @Test
   public void testInitializeSignalsApplicationProviderActivation() throws Exception {
@@ -640,6 +629,30 @@ public class DDEvaluatorTest {
   }
 
   @Test
+  public void invalidOptOutReportsFixedDiagnosticWithoutCustomerValues() {
+    final String suppliedValue = "private-customer-preference";
+    for (final boolean observeFullEvaluationData : new boolean[] {false, true}) {
+      final DDEvaluator evaluator =
+          new DDEvaluator(mock(Runnable.class), ExperimentationOptOutMode.IMMEDIATE);
+      evaluator.accept(
+          new ServerConfiguration("", "", observeFullEvaluationData, null, emptyMap()));
+      final ProviderEvaluation<?> details =
+          evaluator.evaluate(
+              Boolean.class,
+              "unknown-flag",
+              false,
+              new MutableContext("subject").add(ExperimentationOptOut.ATTRIBUTE, suppliedValue));
+      assertEquals(ErrorCode.INVALID_CONTEXT, details.getErrorCode());
+      assertEquals(false, details.getValue());
+      assertEquals(ExperimentationOptOut.INVALID_TIMESTAMP, details.getErrorMessage());
+      assertFalse(details.getErrorMessage().contains(suppliedValue));
+      assertEquals(
+          observeFullEvaluationData,
+          details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA));
+    }
+  }
+
+  @Test
   public void testAllocationDateAbiAndInstantAccessors() throws Exception {
     final Date startAt = Date.from(Instant.parse("2024-01-01T00:00:00Z"));
     final Date endAt = Date.from(Instant.parse("2024-12-31T23:59:59Z"));
@@ -1015,123 +1028,111 @@ public class DDEvaluatorTest {
   @MethodSource("canonicalTestCases")
   @ParameterizedTest(name = "{0}")
   public void testEvaluateCanonicalFixture(final FixtureCase testCase) throws IOException {
-    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluateCanonicalFixture(testCase, testCase.result, ExperimentationOptOutMode.DISABLED);
+  }
+
+  @MethodSource("immediateOptOutTestCases")
+  @ParameterizedTest(name = "immediate: {0}")
+  public void testImmediateOptOutCanonicalFixture(final FixtureCase testCase) throws IOException {
+    evaluateCanonicalFixture(
+        testCase,
+        testCase.capabilities.get("experimentationOptOutImmediate"),
+        ExperimentationOptOutMode.IMMEDIATE);
+  }
+
+  private static List<FixtureCase> immediateOptOutTestCases() throws IOException {
+    final List<FixtureCase> cases =
+        canonicalTestCases().stream()
+            .filter(testCase -> testCase.capabilities.containsKey("experimentationOptOutImmediate"))
+            .collect(Collectors.toList());
+    assertEquals(28, cases.size(), "The immediate opt-out capability fixtures must execute");
+    return cases;
+  }
+
+  @MethodSource("futureOptOutTestCases")
+  @ParameterizedTest(name = "future: {0}")
+  void futureOptOutCanonicalFixture(final FixtureCase testCase) throws IOException {
+    evaluateCanonicalFixture(
+        testCase,
+        testCase.capabilities.get("experimentationOptOutFutureExperimentsOnly"),
+        ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY);
+  }
+
+  private static List<FixtureCase> futureOptOutTestCases() throws IOException {
+    final List<FixtureCase> cases =
+        canonicalTestCases().stream()
+            .filter(
+                testCase ->
+                    testCase.capabilities.containsKey("experimentationOptOutFutureExperimentsOnly"))
+            .collect(Collectors.toList());
+    assertEquals(44, cases.size(), "The future opt-out capability fixtures must execute");
+    return cases;
+  }
+
+  private void evaluateCanonicalFixture(
+      final FixtureCase testCase,
+      final FixtureResult expected,
+      final ExperimentationOptOutMode mode)
+      throws IOException {
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class), mode);
     evaluator.accept(loadCanonicalConfiguration());
 
     final Class<?> targetType = targetType(testCase.variationType);
     final Object defaultValue = mapFixtureValue(targetType, testCase.defaultValue);
-    final Object expectedValue = mapFixtureValue(targetType, testCase.result.value);
-    final ProviderEvaluation<?> details =
-        evaluate(evaluator, targetType, testCase.flag, defaultValue, context(testCase));
+    final Object expectedValue = mapFixtureValue(targetType, expected.value);
+    final Provider provider =
+        new Provider(new Provider.Options().experimentationOptOutMode(mode), evaluator, false);
+    final ProviderEvaluation<?> details;
+    try {
+      details = evaluate(provider, targetType, testCase.flag, defaultValue, context(testCase));
+    } finally {
+      provider.shutdown();
+    }
 
     assertThat(details.getValue(), equalTo(expectedValue));
-    assertThat(details.getReason(), equalTo(testCase.result.reason));
-    if (testCase.result.variant != null) {
-      assertThat(details.getVariant(), equalTo(testCase.result.variant));
+    assertThat(details.getReason(), equalTo(expected.reason));
+    if (expected.variant != null) {
+      assertThat(details.getVariant(), equalTo(expected.variant));
     }
-    if (testCase.result.errorCode != null) {
-      assertThat(details.getErrorCode(), equalTo(ErrorCode.valueOf(testCase.result.errorCode)));
+    if (expected.errorCode != null) {
+      assertThat(details.getErrorCode(), equalTo(ErrorCode.valueOf(expected.errorCode)));
+      if ("INVALID_CONTEXT".equals(expected.errorCode)) {
+        assertEquals(ExperimentationOptOut.INVALID_TIMESTAMP, details.getErrorMessage());
+      }
+    } else if (!"ERROR".equals(expected.reason)) {
+      assertNull(details.getErrorCode());
     }
-    if (testCase.result.flagMetadata != null
-        && testCase.result.flagMetadata.get("allocationKey") != null) {
+    if (expected.flagMetadata != null && expected.flagMetadata.get("allocationKey") != null) {
       assertThat(
           details.getFlagMetadata().getString("allocationKey"),
-          equalTo(String.valueOf(testCase.result.flagMetadata.get("allocationKey"))));
+          equalTo(String.valueOf(expected.flagMetadata.get("allocationKey"))));
     }
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
   private static ProviderEvaluation<?> evaluate(
-      final DDEvaluator evaluator,
+      final Provider provider,
       final Class<?> targetType,
       final String flag,
       final Object defaultValue,
       final EvaluationContext context) {
-    return evaluator.evaluate((Class) targetType, flag, defaultValue, context);
+    if (targetType == Boolean.class) {
+      return provider.getBooleanEvaluation(flag, (Boolean) defaultValue, context);
+    }
+    if (targetType == Integer.class) {
+      return provider.getIntegerEvaluation(flag, (Integer) defaultValue, context);
+    }
+    if (targetType == Double.class) {
+      return provider.getDoubleEvaluation(flag, (Double) defaultValue, context);
+    }
+    if (targetType == String.class) {
+      return provider.getStringEvaluation(flag, (String) defaultValue, context);
+    }
+    return provider.getObjectEvaluation(flag, (Value) defaultValue, context);
   }
 
   private static ServerConfiguration loadCanonicalConfiguration() throws IOException {
-    INVALID_FLAGS_HOLDER.get().clear();
-    try {
-      final ServerConfiguration config =
-          CONFIG_ADAPTER.fromJson(read(fixtureRoot().resolve("ufc-config.json")));
-      final Map<String, String> invalidFlags = new HashMap<>(INVALID_FLAGS_HOLDER.get());
-      if (!invalidFlags.isEmpty()) {
-        config.invalidFlags = invalidFlags;
-      }
-      validateAndCacheSemverComparands(config);
-      return config;
-    } finally {
-      INVALID_FLAGS_HOLDER.get().clear();
-    }
-  }
-
-  /**
-   * Validates and caches SemVer comparands for all SEMVER_* conditions in the configuration. Flags
-   * with invalid comparands are removed from the flags map and tracked in invalidFlags, matching
-   * the behavior of {@link com.datadog.featureflag.UniversalFlagConfigParser}.
-   */
-  private static void validateAndCacheSemverComparands(final ServerConfiguration config) {
-    if (config.flags == null) {
-      return;
-    }
-    final Map<String, String> invalidFlags =
-        config.invalidFlags == null ? new HashMap<>() : new HashMap<>(config.invalidFlags);
-    final Map<String, Flag> flagsToRemove = new HashMap<>();
-    for (final Map.Entry<String, Flag> entry : config.flags.entrySet()) {
-      final String flagKey = entry.getKey();
-      final Flag flag = entry.getValue();
-      if (flag.allocations == null) {
-        continue;
-      }
-      boolean invalid = false;
-      for (final Allocation allocation : flag.allocations) {
-        if (allocation.rules == null) {
-          continue;
-        }
-        for (final Rule rule : allocation.rules) {
-          if (rule.conditions == null) {
-            continue;
-          }
-          for (final ConditionConfiguration condition : rule.conditions) {
-            if (condition.operator == null) {
-              continue;
-            }
-            switch (condition.operator) {
-              case SEMVER_EQ:
-              case SEMVER_NEQ:
-              case SEMVER_LT:
-              case SEMVER_LTE:
-              case SEMVER_GT:
-              case SEMVER_GTE:
-                if (!(condition.value instanceof String)) {
-                  invalid = true;
-                  break;
-                }
-                final ParsedSemver parsed = ParsedSemver.parse((String) condition.value);
-                if (parsed == null) {
-                  invalid = true;
-                  break;
-                }
-                condition.semverComparand = parsed;
-                break;
-              default:
-                break;
-            }
-          }
-        }
-      }
-      if (invalid) {
-        flagsToRemove.put(flagKey, flag);
-        invalidFlags.put(flagKey, "invalid_semver_comparand");
-      }
-    }
-    for (final String flagKey : flagsToRemove.keySet()) {
-      config.flags.remove(flagKey);
-    }
-    if (!invalidFlags.isEmpty()) {
-      config.invalidFlags = invalidFlags;
-    }
+    return ProductionConfiguration.parse(
+        Files.readAllBytes(fixtureRoot().resolve("ufc-config.json")));
   }
 
   private static List<FixtureCase> canonicalTestCases() throws IOException {
@@ -1208,7 +1209,23 @@ public class DDEvaluatorTest {
   }
 
   private static Object mapFixtureValue(final Class<?> targetType, final Object value) {
-    return DDEvaluator.mapValue(targetType, value);
+    // Keep expected values independent of production conversion and preserve JSON types.
+    if (targetType == Value.class) {
+      return Value.objectToValue(value);
+    }
+    if (targetType == Integer.class) {
+      assertTrue(value instanceof Number);
+      final double number = ((Number) value).doubleValue();
+      assertEquals(number, Math.rint(number));
+      assertTrue(number >= Integer.MIN_VALUE && number <= Integer.MAX_VALUE);
+      return ((Number) value).intValue();
+    }
+    if (targetType == Double.class) {
+      assertTrue(value instanceof Number);
+      return ((Number) value).doubleValue();
+    }
+    assertTrue(targetType.isInstance(value));
+    return value;
   }
 
   private static Map<String, Object> mapOf(final Object... props) {
@@ -1227,6 +1244,7 @@ public class DDEvaluatorTest {
     Object defaultValue;
     String flag;
     FixtureResult result;
+    Map<String, FixtureResult> capabilities = emptyMap();
     String targetingKey;
     String variationType;
     transient String fileName;
@@ -1244,228 +1262,5 @@ public class DDEvaluatorTest {
     String errorCode;
     String variant;
     Map<String, Object> flagMetadata = emptyMap();
-  }
-
-  /**
-   * Mirrors the production parser's binary-compatible uint32 representation for fixture parsing.
-   */
-  private static final class ShardAdapter extends JsonAdapter<Shard> {
-    private static final JsonAdapter.Factory FACTORY =
-        (type, annotations, moshi) -> {
-          if (!annotations.isEmpty() || type != Shard.class) {
-            return null;
-          }
-          return new ShardAdapter(moshi.adapter(ShardJson.class));
-        };
-
-    private final JsonAdapter<ShardJson> delegate;
-
-    private ShardAdapter(final JsonAdapter<ShardJson> delegate) {
-      this.delegate = delegate;
-    }
-
-    @Override
-    public Shard fromJson(final JsonReader reader) throws IOException {
-      final ShardJson shard = delegate.fromJson(reader);
-      if (shard == null) {
-        return null;
-      }
-      final List<ShardRange> ranges;
-      if (shard.ranges == null) {
-        ranges = null;
-      } else {
-        ranges = new ArrayList<>();
-        for (final ShardRangeJson range : shard.ranges) {
-          ranges.add(
-              range == null
-                  ? null
-                  : new ShardRange(
-                      toUnsignedInt(range.start, "range start"),
-                      toUnsignedInt(range.end, "range end")));
-        }
-      }
-      return new Shard(shard.salt, ranges, toUnsignedInt(shard.totalShards, "totalShards"));
-    }
-
-    @Override
-    public void toJson(final JsonWriter writer, final Shard value) {
-      throw new UnsupportedOperationException("Reading only adapter");
-    }
-  }
-
-  private static int toUnsignedInt(final Long value, final String fieldName) {
-    if (value == null) {
-      return 0;
-    }
-    if (value < 0 || value > MAX_UNSIGNED_INT) {
-      throw new IllegalArgumentException("flag contains an invalid " + fieldName + " value");
-    }
-    return value.intValue();
-  }
-
-  private static final class ShardJson {
-    String salt;
-    List<ShardRangeJson> ranges;
-    Long totalShards;
-  }
-
-  private static final class ShardRangeJson {
-    Long start;
-    Long end;
-  }
-
-  /** Reads the flags map with per-flag failure isolation, matching the production parser. */
-  private static final class FlagMapAdapter extends JsonAdapter<Map<String, Flag>> {
-    private static final Type FLAGS_TYPE =
-        Types.newParameterizedType(Map.class, String.class, Flag.class);
-
-    private static final JsonAdapter.Factory FACTORY =
-        (type, annotations, moshi) -> {
-          if (!annotations.isEmpty() || !Types.equals(type, FLAGS_TYPE)) {
-            return null;
-          }
-          return new FlagMapAdapter(moshi.adapter(Flag.class));
-        };
-
-    private final JsonAdapter<Flag> flagAdapter;
-
-    private FlagMapAdapter(final JsonAdapter<Flag> flagAdapter) {
-      this.flagAdapter = flagAdapter;
-    }
-
-    @Override
-    public Map<String, Flag> fromJson(final JsonReader reader) throws IOException {
-      if (reader.peek() == JsonReader.Token.NULL) {
-        return reader.nextNull();
-      }
-      final Map<String, Flag> flags = new HashMap<>();
-      reader.beginObject();
-      while (reader.hasNext()) {
-        final String flagKey = reader.nextName();
-        final Object rawFlag = reader.readJsonValue();
-        try {
-          final Flag flag = flagAdapter.fromJsonValue(rawFlag);
-          if (flag != null) {
-            validateFlag(flagKey, flag);
-            flags.put(flagKey, flag);
-          }
-        } catch (JsonDataException | IllegalArgumentException ignored) {
-          INVALID_FLAGS_HOLDER.get().put(flagKey, "invalid_flag");
-          // A malformed flag must not prevent valid flags in the same configuration from loading.
-        }
-      }
-      reader.endObject();
-      return flags;
-    }
-
-    private static void validateFlag(final String flagKey, final Flag flag) {
-      if (flag.allocations == null) {
-        return;
-      }
-      for (final Allocation allocation : flag.allocations) {
-        if (allocation == null) {
-          continue;
-        }
-        validateConditionOperands(flagKey, allocation);
-        if (allocation.splits == null) {
-          continue;
-        }
-        for (final Split split : allocation.splits) {
-          if (split == null) {
-            continue;
-          }
-          if (split.shards == null) {
-            throw new IllegalArgumentException(
-                "flag \"" + flagKey + "\" contains a split with missing shards");
-          }
-          for (final Shard shard : split.shards) {
-            if (shard == null
-                || Integer.toUnsignedLong(shard.totalShards) == 0
-                || shard.ranges == null) {
-              throw new IllegalArgumentException(
-                  "flag \"" + flagKey + "\" contains invalid shards");
-            }
-            for (final ShardRange range : shard.ranges) {
-              if (range == null) {
-                throw new IllegalArgumentException(
-                    "flag \"" + flagKey + "\" contains an invalid shard range");
-              }
-            }
-          }
-        }
-      }
-    }
-
-    private static void validateConditionOperands(
-        final String flagKey, final Allocation allocation) {
-      if (allocation.rules == null) {
-        return;
-      }
-      for (final Rule rule : allocation.rules) {
-        if (rule == null || rule.conditions == null) {
-          continue;
-        }
-        for (final ConditionConfiguration condition : rule.conditions) {
-          if (condition == null || condition.operator == null) {
-            continue;
-          }
-          switch (condition.operator) {
-            case LT:
-            case LTE:
-            case GT:
-            case GTE:
-              if (!(condition.value instanceof Number)) {
-                throw new IllegalArgumentException(
-                    "flag \"" + flagKey + "\" has a non-numeric condition");
-              }
-              break;
-            case ONE_OF:
-            case NOT_ONE_OF:
-              if (!(condition.value instanceof List)) {
-                throw new IllegalArgumentException(
-                    "flag \"" + flagKey + "\" has a non-list condition");
-              }
-              break;
-            case IS_NULL:
-              if (!(condition.value instanceof Boolean)) {
-                throw new IllegalArgumentException(
-                    "flag \"" + flagKey + "\" has a non-boolean condition");
-              }
-              break;
-            default:
-              break;
-          }
-        }
-      }
-    }
-
-    @Override
-    public void toJson(final JsonWriter writer, final Map<String, Flag> value) {
-      throw new UnsupportedOperationException("Reading only adapter");
-    }
-  }
-
-  private static final class DateAdapter extends JsonAdapter<Date> {
-    @Override
-    public Date fromJson(final JsonReader reader) throws IOException {
-      if (reader.peek() == JsonReader.Token.NULL) {
-        return reader.nextNull();
-      }
-      try {
-        return Date.from(
-            DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(reader.nextString(), Instant::from));
-      } catch (final Exception ignored) {
-        return null;
-      }
-    }
-
-    @Override
-    public void toJson(final JsonWriter writer, final Date value) throws IOException {
-      if (value == null) {
-        writer.nullValue();
-        return;
-      }
-      writer.value(value.toInstant().toString());
-    }
   }
 }

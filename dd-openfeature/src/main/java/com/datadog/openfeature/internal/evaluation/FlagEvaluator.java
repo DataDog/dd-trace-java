@@ -12,6 +12,7 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_F
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static java.util.Arrays.asList;
 
+import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
@@ -59,6 +60,7 @@ public final class FlagEvaluator {
   static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
   private final boolean spanEnrichmentEnabled;
   private final ExposureLookup exposureLookup;
+  private final ExperimentationOptOutMode experimentationOptOutMode;
 
   /**
    * Creates an evaluator.
@@ -67,8 +69,16 @@ public final class FlagEvaluator {
    * @param exposureLookup the lookup telling whether an exposure was already recorded.
    */
   public FlagEvaluator(final boolean spanEnrichmentEnabled, final ExposureLookup exposureLookup) {
+    this(spanEnrichmentEnabled, exposureLookup, ExperimentationOptOutMode.DISABLED);
+  }
+
+  public FlagEvaluator(
+      final boolean spanEnrichmentEnabled,
+      final ExposureLookup exposureLookup,
+      final ExperimentationOptOutMode experimentationOptOutMode) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
     this.exposureLookup = exposureLookup;
+    this.experimentationOptOutMode = experimentationOptOutMode;
   }
 
   public <T> ProviderEvaluation<T> evaluate(
@@ -93,6 +103,20 @@ public final class FlagEvaluator {
         return error(defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData);
       }
 
+      final Instant experimentationCutoff;
+      try {
+        experimentationCutoff = ExperimentationOptOut.cutoff(experimentationOptOutMode, context);
+      } catch (final IllegalArgumentException e) {
+        // This diagnostic is fixed SDK text. It contains no customer context values.
+        return ProviderEvaluation.<T>builder()
+            .value(defaultValue)
+            .reason(Reason.ERROR.name())
+            .errorCode(ErrorCode.INVALID_CONTEXT)
+            .errorMessage(ExperimentationOptOut.INVALID_TIMESTAMP)
+            .flagMetadata(consentMetadata(observeFullEvaluationData))
+            .build();
+      }
+
       final Flag flag = config.flags.get(key);
       if (flag == null) {
         if (config.invalidFlags != null && config.invalidFlags.containsKey(key)) {
@@ -103,6 +127,16 @@ public final class FlagEvaluator {
               observeFullEvaluationData);
         }
         return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
+      }
+
+      if (experimentationCutoff != null
+          && experimentationOptOutMode == ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY
+          && ExperimentationOptOut.hasInvalidActivation(flag.allocations)) {
+        return error(
+            defaultValue,
+            ErrorCode.PARSE_ERROR,
+            "invalid randomizationActivatedAt for flag " + key,
+            observeFullEvaluationData);
       }
 
       if (!flag.enabled) {
@@ -126,6 +160,11 @@ public final class FlagEvaluator {
       final String targetingKey = context.getTargetingKey();
 
       for (final Allocation allocation : flag.allocations) {
+        if (experimentationCutoff != null
+            && ExperimentationOptOut.excludes(
+                experimentationOptOutMode, experimentationCutoff, allocation)) {
+          continue;
+        }
         if (!isAllocationActive(allocation, now)) {
           continue;
         }

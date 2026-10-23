@@ -235,13 +235,17 @@ public final class UniversalFlagConfigParser {
       return null;
     }
     final Map<?, ?> json = asObject(value, "allocation");
+    final Object activation = json.get("randomizationActivatedAt");
+    final Instant parsedActivation = activation instanceof String ? toInstant(activation) : null;
     return new Allocation(
         asString(json.get("key"), "key"),
         toList(json.get("rules"), "rules", UniversalFlagConfigParser::toRule),
         toInstant(json.get("startAt")),
         toInstant(json.get("endAt")),
         toList(json.get("splits"), "splits", UniversalFlagConfigParser::toSplit),
-        lenientBoolean(json.get("doLog")));
+        lenientBoolean(json.get("doLog")),
+        parsedActivation,
+        activation != null && parsedActivation == null);
   }
 
   @Nullable

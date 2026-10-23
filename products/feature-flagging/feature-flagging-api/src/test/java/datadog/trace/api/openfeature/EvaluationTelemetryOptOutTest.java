@@ -66,6 +66,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 /**
  * Exercises real OpenFeature resolution and telemetry hooks, with capture at each output boundary.
@@ -178,6 +179,68 @@ class EvaluationTelemetryOptOutTest {
     evaluate("subject-1", new Value(true));
     assertTelemetryCounts(1);
     assertEquals(1, exposures.size());
+  }
+
+  @TableTest({
+    "scenario         | mode                    | exclude experimentation | suppress telemetry",
+    "neither          | DISABLED                | false                   | false             ",
+    "telemetry only   | DISABLED                | false                   | true              ",
+    "experiments only | IMMEDIATE               | true                    | false             ",
+    "both             | IMMEDIATE               | true                    | true              ",
+    "retained future  | FUTURE_EXPERIMENTS_ONLY | false                   | false             ",
+    "retained private | FUTURE_EXPERIMENTS_ONLY | false                   | true              "
+  })
+  void experimentationAndEvaluationTelemetryControlsRemainIndependent(
+      final ExperimentationOptOutMode mode,
+      final boolean excludeExperimentation,
+      final boolean suppressTelemetry)
+      throws Exception {
+    final Allocation experiment =
+        Allocation.fromInstants(
+            "experiment",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+            true,
+            java.time.Instant.parse("2026-10-19T11:59:59.999999999Z"));
+    final Allocation ordinary =
+        new Allocation(
+            "ordinary",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "off", emptyMap(), 8)),
+            false);
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("on", new Variant("on", 1));
+    variants.put("off", new Variant("off", 2));
+    final Flag flag =
+        new Flag("flag", true, ValueType.INTEGER, variants, asList(experiment, ordinary));
+    FeatureFlaggingGateway.dispatch(
+        new ServerConfiguration("", "", false, null, singletonMap("flag", flag)));
+    final Provider.Options options =
+        new Provider.Options()
+            .experimentationOptOutMode(mode)
+            .enableEvaluationTelemetryOptOutParameter(suppressTelemetry);
+    api.setProviderAndWait(new Provider(options, new DDEvaluator(() -> {}, mode), true));
+
+    final FlagEvaluationDetails<Integer> details =
+        api.getClient()
+            .getIntegerDetails(
+                "flag",
+                0,
+                new MutableContext("subject-1")
+                    .add(PARAMETER, true)
+                    .add(ExperimentationOptOut.ATTRIBUTE, "2026-10-19T12:00:00Z"));
+
+    assertNull(details.getErrorCode());
+    assertEquals(excludeExperimentation ? 2 : 1, details.getValue());
+    assertEquals(excludeExperimentation ? 0 : 1, exposures.size());
+    assertEquals(suppressTelemetry ? 0 : 1, events.size());
+    assertEquals(suppressTelemetry ? 0 : 1, metrics.get());
+    // Without the evaluator's span gate, only logged allocations carry serial-ID metadata.
+    assertEquals(suppressTelemetry || excludeExperimentation ? 0 : 1, spans.size());
   }
 
   @Test

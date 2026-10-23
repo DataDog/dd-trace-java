@@ -22,6 +22,15 @@ import org.junit.jupiter.api.Test;
 class ExposureHookWithoutAgentTest {
 
   @Test
+  void providerConstructionWorksWithoutAgentConfiguration() throws Exception {
+    final ClassLoader loader = new AgentlessClassLoader(getClass().getClassLoader());
+    final Class<?> providerClass =
+        Class.forName("datadog.trace.api.openfeature.Provider", true, loader);
+    final Object provider = providerClass.getConstructor().newInstance();
+    providerClass.getMethod("shutdown").invoke(provider);
+  }
+
+  @Test
   void exposureHookWorksWithoutTheAgentClasses() throws Exception {
     final ClassLoader loader = new AgentlessClassLoader(getClass().getClassLoader());
     Class.forName("datadog.trace.api.openfeature.ExposureHook", true, loader);
@@ -64,11 +73,11 @@ class ExposureHookWithoutAgentTest {
         throws ClassNotFoundException {
       synchronized (getClassLoadingLock(name)) {
         if (name.startsWith("datadog.trace.api.featureflag.")
+            || name.startsWith("datadog.trace.bootstrap.config.provider.")
             || name.startsWith("datadog.trace.api.openfeature.DDEvaluator")) {
           throw new ClassNotFoundException(name);
         }
-        if (name.startsWith("datadog.trace.api.openfeature.ExposureHook")
-            || name.equals("datadog.trace.api.openfeature.SplitFeatureMetadata")) {
+        if (name.startsWith("datadog.trace.api.openfeature.")) {
           Class<?> loaded = findLoadedClass(name);
           if (loaded == null) {
             final byte[] bytes = classBytes(name);

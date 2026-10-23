@@ -81,14 +81,14 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     setup:
     setRemoteConfig("datadog/2/FFE_FLAGS/1/config", rcPayload)
     final request = new Request.Builder()
-      .url("http://localhost:${httpPort}/openfeature/evaluate")
-      .post(RequestBody.create(MediaType.parse('application/json'), JsonOutput.toJson([
-        flag: 'flag-that-does-not-exist',
-        variationType: 'STRING',
-        defaultValue: 'fallback',
-        targetingKey: 'span-enrichment-smoke-test'
-      ])))
-      .build()
+    .url("http://localhost:${httpPort}/openfeature/evaluate")
+    .post(RequestBody.create(MediaType.parse('application/json'), JsonOutput.toJson([
+      flag: 'flag-that-does-not-exist',
+      variationType: 'STRING',
+      defaultValue: 'fallback',
+      targetingKey: 'span-enrichment-smoke-test'
+    ])))
+    .build()
 
     when:
     final response = client.newCall(request).execute()
@@ -98,11 +98,42 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     new JsonSlurper().parse(response.body().byteStream()).value == 'fallback'
     waitForSpan(defaultPoll) { span ->
       span.parentId == 0 &&
-        span.meta['ffe_runtime_defaults'] == '{"flag-that-does-not-exist":"fallback"}'
+      span.meta['ffe_runtime_defaults'] == '{"flag-that-does-not-exist":"fallback"}'
     }
 
     cleanup:
     response.close()
+  }
+
+  void 'test exposures retain allocation changes and suppress repeats'() {
+    setup:
+    final subject = 'exposure-cache-smoke-test'
+    final standard = [flag: 'serial-id-targeting-flag', allocation: 'default-allocation',
+      variant: 'standard', targetingKey: subject, serialId: 200]
+    final vip = [flag: 'serial-id-targeting-flag', allocation: 'vip-allocation',
+      variant: 'vip', targetingKey: subject, serialId: 201]
+
+    when:
+    final results = [[:], [:], [segment: 'vip'], [segment: 'vip'], [:], [:]].collect { attributes ->
+      final testCase = [flag: 'serial-id-targeting-flag', variationType: 'STRING',
+        defaultValue: 'fallback', targetingKey: subject, attributes: attributes]
+      final request = new Request.Builder()
+      .url("http://localhost:${httpPort}/openfeature/evaluate")
+      .post(RequestBody.create(MediaType.parse('application/json'), JsonOutput.toJson(testCase)))
+      .build()
+      final response = client.newCall(request).execute()
+      try {
+        assert response.code() == 200
+        return [testCase: testCase, body: new JsonSlurper().parse(response.body().byteStream())]
+      } finally {
+        response.close()
+      }
+    }
+    final expectedExposures = buildExpectedExposures(results)
+
+    then:
+    expectedExposures == [standard, vip, standard]
+    assertExposures(expectedExposures)
   }
 
   void 'test open feature exposures'() {
@@ -113,8 +144,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     assert !testCases.isEmpty()
 
     when:
-    final results = testCases.collect {
-      testCase ->
+    final results = testCases.collect { testCase ->
       final request = new Request.Builder()
       .url(url)
       .post(RequestBody.create(MediaType.parse('application/json'), JsonOutput.toJson(testCase)))
@@ -123,28 +153,14 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
       final responseBody = new JsonSlurper().parse(response.body().byteStream())
       return [testCase: testCase, response: response, body: responseBody]
     }
-    final expectedExposures = uniqueExpectedExposures(results)
+    final expectedExposures = buildExpectedExposures(results)
 
     then:
     results.every {
       it.response.code() == 200
     }
     !expectedExposures.isEmpty()
-    new PollingConditions(timeout: 10).eventually {
-      final requests = evpProxyMessages*.getV2() as List<Map<String, Object>>
-      final events = requests*.exposures.flatten()
-      assert events.size() == expectedExposures.size()
-      expectedExposures.each {
-        expected ->
-        assert events.find {
-          event ->
-          event.flag.key == expected.flag &&
-          event.allocation.key == expected.allocation &&
-          event.variant.key == expected.variant &&
-          event.subject.id == expected.targetingKey
-        } != null : "Unable to find exposure ${expected}"
-      }
-    }
+    assertExposures(expectedExposures)
   }
 
   @Unroll("test open feature evaluation - #testCase.fileName[#testCase.index] - flag=#testCase.flag")
@@ -206,9 +222,25 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     return result
   }
 
-  private List<Map<String, String>> uniqueExpectedExposures(final List<Map<String, Object>> results) {
+  private void assertExposures(final List<Map<String, Object>> expectedExposures) {
+    new PollingConditions(timeout: 10).eventually {
+      final requests = evpProxyMessages*.getV2() as List<Map<String, Object>>
+      final events = requests*.exposures.flatten().collect {
+        event ->
+        [flag: event.flag.key, allocation: event.allocation.key, variant: event.variant.key,
+          targetingKey: event.subject.id, serialId: event.serial_id]
+      }
+      assert events.countBy {
+        it
+      } == expectedExposures.countBy {
+        it
+      }
+    }
+  }
+
+  private List<Map<String, Object>> buildExpectedExposures(final List<Map<String, Object>> results) {
     final expected = []
-    final seen = [] as Set<String>
+    final previousBySubject = [:]
     results.each { result ->
       final testCase = result.testCase as Map<String, Object>
       final body = result.body as Map<String, Object>
@@ -223,10 +255,12 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
         flag: flag,
         allocation: allocation,
         variant: variant,
-        targetingKey: testCase.targetingKey
+        targetingKey: testCase.targetingKey,
+        serialId: body.flagMetadata?.__dd_split_serial_id
       ]
-      final key = "${exposure.flag}\u0000${exposure.targetingKey}\u0000${exposure.allocation}\u0000${exposure.variant}"
-      if (seen.add(key)) {
+      // The cache stores the last assignment per flag and subject. A -> B -> A emits three events.
+      final key = [flag, testCase.targetingKey]
+      if (previousBySubject.put(key, exposure) != exposure) {
         expected.add(exposure)
       }
     }

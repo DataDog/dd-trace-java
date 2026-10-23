@@ -213,11 +213,18 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
 
   private final Runnable configCallback;
+  private final ExperimentationOptOutMode experimentationOptOutMode;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
 
   public DDEvaluator(final Runnable configCallback) {
+    this(configCallback, ExperimentationOptOutMode.DISABLED);
+  }
+
+  public DDEvaluator(
+      final Runnable configCallback, final ExperimentationOptOutMode experimentationOptOutMode) {
     this.configCallback = configCallback;
+    this.experimentationOptOutMode = experimentationOptOutMode;
   }
 
   @Override
@@ -272,6 +279,20 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         return error(defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData);
       }
 
+      final Instant experimentationCutoff;
+      try {
+        experimentationCutoff = ExperimentationOptOut.cutoff(experimentationOptOutMode, context);
+      } catch (final IllegalArgumentException e) {
+        // This diagnostic is fixed SDK text. It contains no customer context values.
+        return ProviderEvaluation.<T>builder()
+            .value(defaultValue)
+            .reason(Reason.ERROR.name())
+            .errorCode(ErrorCode.INVALID_CONTEXT)
+            .errorMessage(ExperimentationOptOut.INVALID_TIMESTAMP)
+            .flagMetadata(consentMetadata(observeFullEvaluationData))
+            .build();
+      }
+
       final Flag flag = config.flags.get(key);
       if (flag == null) {
         if (config.invalidFlags != null && config.invalidFlags.containsKey(key)) {
@@ -282,6 +303,16 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               observeFullEvaluationData);
         }
         return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
+      }
+
+      if (experimentationCutoff != null
+          && experimentationOptOutMode == ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY
+          && ExperimentationOptOut.hasInvalidActivation(flag.allocations)) {
+        return error(
+            defaultValue,
+            ErrorCode.PARSE_ERROR,
+            "invalid randomizationActivatedAt for flag " + key,
+            observeFullEvaluationData);
       }
 
       if (!flag.enabled) {
@@ -305,6 +336,11 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final String targetingKey = context.getTargetingKey();
 
       for (final Allocation allocation : flag.allocations) {
+        if (experimentationCutoff != null
+            && ExperimentationOptOut.excludes(
+                experimentationOptOutMode, experimentationCutoff, allocation)) {
+          continue;
+        }
         if (!isAllocationActive(allocation, now)) {
           continue;
         }

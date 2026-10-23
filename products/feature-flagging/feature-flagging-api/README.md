@@ -253,3 +253,66 @@ This setting stops exposures only. Flag evaluation events have their own setting
   Configuration path. `offline` is reserved for startup-provided UFC bytes;
   until those bytes are implemented, no network source starts and evaluations
   use defaults.
+
+## Per-subject experimentation opt-out
+
+The standalone provider supports the same behavior through
+`com.datadog.openfeature.Provider` and `com.datadog.openfeature.ExperimentationOptOutMode`.
+The examples below use the legacy provider package.
+
+Set the mode before constructing the provider:
+
+```sh
+DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE=immediate
+```
+
+Pass the subject's stored preference time with each evaluation. Omit the attribute for subjects who can participate.
+
+```java
+OpenFeatureAPI.getInstance().setProviderAndWait(new Provider());
+Client client = OpenFeatureAPI.getInstance().getClient();
+MutableContext context = new MutableContext(subjectId);
+context.add("dd_experimentation_opt_out_at", "2026-10-19T15:30:00Z");
+boolean enabled = client.getBooleanValue("new-route-planner", false, context);
+```
+
+The default mode is `disabled`. In `immediate` mode, a valid RFC3339 timestamp excludes the subject from exposure-logging allocations.
+Timestamp validation uses the same parser as allocation `startAt` and `endAt` timestamps.
+Evaluation continues through ordinary feature allocations. If none match, the SDK returns the application's default value.
+A future timestamp also excludes immediately. It does not schedule exclusion.
+Invalid, null, empty, or non-string attribute values return `INVALID_CONTEXT` and the application's default value.
+Disabled mode ignores the attribute, including invalid values.
+
+Provider options override the environment setting:
+
+```java
+Provider provider = new Provider(new Provider.Options()
+    .experimentationOptOutMode(ExperimentationOptOutMode.DISABLED));
+```
+
+`DEFAULT` uses central SDK configuration. The provider resolves the mode at construction.
+Unsupported configuration values throw `IllegalArgumentException`. Evaluation telemetry remains independent.
+Immediate withdrawal can change an enrolled subject's experience. Account for this change in experiment analysis.
+
+Use `future_experiments_only` or `ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY` to exclude newer experiments.
+Supply the same stored `dd_experimentation_opt_out_at` timestamp with each evaluation.
+For exposure-logging allocations, the provider compares `randomizationActivatedAt` with that timestamp:
+
+| Allocation activation | Behavior |
+| --- | --- |
+| Before the subject's opt-out time | Evaluate normally, including exposure logging |
+| Equal to or after the opt-out time | Skip the allocation and continue ordinary delivery |
+| Missing or null | Skip the allocation because its activation time is unknown |
+
+Ordinary allocations remain available. Missing subject attributes preserve normal evaluation.
+Both enabled modes reject invalid subject timestamps.
+Malformed activation metadata returns `PARSE_ERROR` for the affected flag only in future mode with a valid subject timestamp.
+Disabled mode, immediate mode, and evaluations without a subject timestamp preserve ordinary evaluation.
+Comparisons retain nanosecond precision and account for timezone offsets.
+The cutoff does not depend on the SDK clock. It is not a scheduled change or proof of prior enrollment.
+An older allocation can still assign a subject for the first time.
+
+Enable future mode after the configuration service supplies stable activation timestamps and preserves ordinary fallback allocations.
+Upgrade the Java agent with the provider. An older agent without activation metadata treats all exposure-logging allocations as unknown.
+Keep the subject's stored opt-out time stable across sessions and SDK instances.
+The provider stores no consent history and emits no new event type.
