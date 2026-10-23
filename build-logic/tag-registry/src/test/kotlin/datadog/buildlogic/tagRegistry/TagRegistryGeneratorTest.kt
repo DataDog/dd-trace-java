@@ -799,6 +799,50 @@ class TagRegistryGeneratorTest {
       .withMessageContaining("coloring needs more than 63 slots")
   }
 
+  @Test
+  fun `a tag declared on two sibling span types that share a parent direction is rejected`() {
+    // Two concrete siblings extend one parent, so they share its direction. Declaring the same tag
+    // on each is two same-direction declarations of one name, which has no single identity.
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        rpc.client:
+          abstract: true
+          span-kind: client
+        rpc.a:
+          extends: rpc.client
+          tags: [{dd-name: account, required: optional}]
+        rpc.b:
+          extends: rpc.client
+          tags: [{dd-name: account, required: optional}]
+      """
+    )
+
+    assertThatIllegalArgumentException()
+      .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated")) }
+      .withMessageContaining("declared in both 'rpc.a' and 'rpc.b'")
+  }
+
+  @Test
+  fun `declaring the shared tag once on the parent lets both siblings inherit one identity`() {
+    val conventions = tagConventions(
+      """
+      span_types:
+        rpc.client:
+          abstract: true
+          span-kind: client
+          tags: [{dd-name: account, required: optional}]
+        rpc.a: {extends: rpc.client}
+        rpc.b: {extends: rpc.client}
+      """
+    )
+
+    assertThat(conventions.resolve("rpc.a").map { it.name }).contains("account")
+    assertThat(conventions.resolve("rpc.b").map { it.name }).contains("account")
+    // One declaration, so one tag identity shared by both siblings.
+    assertThat(TagRegistry.build(conventions).tags.filter { it.name == "account" }).hasSize(1)
+  }
+
   private fun tagConventions(@Language("yaml") yamlText: String) = TagConventions.parse(
     ObjectMapper(YAMLFactory()).readValue(
       directory.conventionsFile(yamlText),
