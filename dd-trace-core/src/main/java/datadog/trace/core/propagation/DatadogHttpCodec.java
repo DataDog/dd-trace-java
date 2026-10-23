@@ -273,7 +273,7 @@ class DatadogHttpCodec {
         // Restore the 128-bit TraceId
         traceId = DD128bTraceId.from(highOrderBits, traceIdLow);
       } else {
-        traceId = DDTraceId.from(traceIdString);
+        traceId = DDTraceId.from(traceIdLow, traceIdString);
       }
     }
   }
