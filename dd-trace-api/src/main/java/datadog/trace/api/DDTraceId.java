@@ -40,6 +40,19 @@ public abstract class DDTraceId {
   }
 
   /**
+   * Creates a new {@link DD64bTraceId 64-bit TraceId} from an id already parsed from its {@link
+   * #toString() String representation}, as {@link #from(String)} would without parsing it again.
+   *
+   * @param id The parsed id.
+   * @param s The {@link #toString() String representation} {@code id} was parsed from, which isn't
+   *     checked against it.
+   * @return A new {@link DDTraceId} instance.
+   */
+  public static DDTraceId from(long id, String s) {
+    return DD64bTraceId.create(id, s);
+  }
+
+  /**
    * Creates a new {@link DDTraceId} from the given {@link #toHexString() hexadecimal
    * representation}.
    *
