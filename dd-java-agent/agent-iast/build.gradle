@@ -1,11 +1,10 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import net.ltgt.gradle.errorprone.CheckSeverity
 
 plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.jmh-conventions'
   id 'com.google.protobuf' version '0.10.0'
-  id 'net.ltgt.errorprone' version '3.1.0'
+  id 'dd-trace-java.conventions.nullaway'
   id 'dd-trace-java.version-file'
   id 'dd-trace-java.module.product-subsystem'
 }
@@ -62,8 +61,6 @@ dependencies {
   jmh project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
 
   compileOnly('org.jetbrains:annotations:24.0.0')
-  errorprone('com.uber.nullaway:nullaway:0.14.2')
-  errorprone('com.google.errorprone:error_prone_core:2.50.0')
 }
 
 tasks.named("shadowJar", ShadowJar) {
@@ -111,16 +108,6 @@ tasks.named("forbiddenApisJmh") {
   ignoreFailures = true
 }
 
-tasks.withType(JavaCompile).configureEach {
-  if (name == 'compileJava') {
-    options.compilerArgs.add('--should-stop=ifError=FLOW')
-    options.errorprone {
-      check("NullAway", CheckSeverity.ERROR)
-      option("NullAway:AnnotatedPackages", "com.datadog.iast")
-      disableAllWarnings = true // only errors for now
-    }
-  } else {
-    // disable null away for test and jmh
-    options.errorprone.enabled = false
-  }
+tasks.named('compileJava', JavaCompile) {
+  options.errorprone.option('NullAway:AnnotatedPackages', 'com.datadog.iast')
 }
