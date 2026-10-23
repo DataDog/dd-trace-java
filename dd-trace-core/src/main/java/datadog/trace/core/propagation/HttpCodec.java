@@ -223,11 +223,13 @@ public class HttpCodec {
       ExtractionCache<C> extractionCache = new ExtractionCache<>(carrier, getter);
 
       for (final Extractor extractor : this.extractors) {
+        TagContext extracted;
         if (context != null && extractor instanceof W3CHttpCodec.TraceContextExtractor) {
           // Merging a trace context only needs a few of its parts, so skip building it whole
+          W3CHttpCodec.TraceContextExtractor traceContextExtractor =
+              (W3CHttpCodec.TraceContextExtractor) extractor;
           W3CHttpCodec.TraceContextMerge merge =
-              ((W3CHttpCodec.TraceContextExtractor) extractor)
-                  .extractForMerge(extractionCache, extractionCache);
+              traceContextExtractor.extractForMerge(extractionCache, extractionCache);
           if (merge == null) {
             continue;
           }
@@ -236,8 +238,10 @@ public class HttpCodec {
             continue;
           }
           // A mismatched trace context becomes a span link, which needs all of it
+          extracted = traceContextExtractor.completeExtraction();
+        } else {
+          extracted = extractor.extract(extractionCache, extractionCache);
         }
-        TagContext extracted = extractor.extract(extractionCache, extractionCache);
         // Check if context is valid
         if (extracted instanceof ExtractedContext) {
           ExtractedContext extractedContext = (ExtractedContext) extracted;

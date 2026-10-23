@@ -164,6 +164,11 @@ class W3CHttpCodec {
         final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
       return ((W3CContextInterpreter) interpret(carrier, getter)).buildForMerge();
     }
+
+    /** Builds the whole context that {@link #extractForMerge} last returned the merge parts of. */
+    TagContext completeExtraction() {
+      return interpreter().build();
+    }
   }
 
   private static class W3CContextInterpreter extends ContextInterpreter {

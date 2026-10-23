@@ -31,9 +31,6 @@ public final class W3CTracestate {
 
   /** Parses a {@code tracestate} header value, which may be null. */
   public static W3CTracestate parse(String value) {
-    if (value == null || value.isEmpty()) {
-      return NONE;
-    }
     return W3CPTagsCodec.parseForMerge(value);
   }
 
