@@ -4,6 +4,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
@@ -55,6 +56,11 @@ final class DatadogPTagsCodec extends PTagsCodec {
    */
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
+    return fromHeaderValue(tagsFactory, value, PrioritySampling.UNSET);
+  }
+
+  /** Parses {@code value} into propagation tags that start at {@code samplingPriority}. */
+  PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value, int samplingPriority) {
     if (value == null) {
       return tagsFactory.empty();
     }
@@ -150,6 +156,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
         decisionMakerTagValue,
         traceIdTagValue,
         traceSource,
+        samplingPriority,
         orgPropagationMarkerTagValue,
         LLMObsTagValues.of(
             llmObsTraceIdTagValue,
