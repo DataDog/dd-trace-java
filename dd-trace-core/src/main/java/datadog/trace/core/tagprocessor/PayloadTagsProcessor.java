@@ -245,7 +245,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
 
     @Override
     public void nullValue(PathCursor path) {
-      collectedTags.set(path.toString(tagPrefix), null);
+      // a JSON null sets no tag: on a span, a null value means remove
     }
 
     @Override
