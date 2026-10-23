@@ -166,14 +166,11 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
 
   private volatile boolean topLevel;
 
-  /** The origin of the trace. (eg. Synthetics, CI App) */
-  private volatile CharSequence origin;
-
   private final boolean disableSamplingMechanismValidation;
 
   /**
-   * This span's own propagation tags. Local child spans leave this null until something writes to
-   * it, since trace-level state is read from the local root. Access via {@link
+   * This span's own propagation tags, when they differ from the trace's. Only a non-root span that
+   * is the target of a write (e.g. {@code _dd.p.ts}) gets one. Access via {@link
    * #ownPropagationTags()}.
    */
   private volatile PropagationTags propagationTags;
@@ -439,7 +436,10 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
     if (propagationTags != null) {
       propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
-      this.propagationTags = propagationTags;
+      if (traceCollector.initPropagationTags(propagationTags) != propagationTags) {
+        // the trace already has propagation tags, so these are this span's own
+        this.propagationTags = propagationTags;
+      }
     }
     this.injectBaggageAsTags = injectBaggageAsTags;
     this.injectLinksAsTags = injectLinksAsTags;
@@ -454,14 +454,32 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     }
   }
 
-  /** Returns this span's own propagation tags, creating an empty instance on first use. */
+  /** Returns the trace's propagation tags, creating an empty instance on first use. */
+  private PropagationTags tracePropagationTags() {
+    PropagationTags tags = traceCollector.getPropagationTagsIfPresent();
+    return tags != null ? tags : traceCollector.initPropagationTags(newEmptyPropagationTags());
+  }
+
+  /**
+   * Returns this span's own propagation tags: the trace's for the local root, otherwise an instance
+   * created on first use.
+   */
   private PropagationTags ownPropagationTags() {
-    PropagationTags tags = propagationTags;
+    PropagationTags tags = ownPropagationTagsIfPresent();
     if (tags != null) {
       return tags;
     }
     PropagationTags created = newEmptyPropagationTags();
     return PROPAGATION_TAGS.compareAndSet(this, null, created) ? created : propagationTags;
+  }
+
+  /** This span's own propagation tags, or null if a non-root span has none yet. */
+  private PropagationTags ownPropagationTagsIfPresent() {
+    PropagationTags tags = propagationTags;
+    if (tags != null) {
+      return tags;
+    }
+    return isLocalRoot() ? tracePropagationTags() : null;
   }
 
   @VisibleForTesting
@@ -708,12 +726,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   }
 
   public void forceKeep(byte samplingMechanism) {
-    // set trace level sampling priority
-    getRootSpanContextOrThis().forceKeepThisSpan(samplingMechanism);
-  }
-
-  private void forceKeepThisSpan(byte samplingMechanism) {
-    ownPropagationTags().forceKeep(samplingMechanism);
+    tracePropagationTags().forceKeep(samplingMechanism);
   }
 
   public void addPropagatedTraceSource(final int value) {
@@ -728,31 +741,10 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
    * @return if sampling priority was set by this method invocation
    */
   public boolean setSamplingPriority(final int newPriority, final int newMechanism) {
-    DDSpanContext spanContext = getRootSpanContextOrThis();
-    // set trace level sampling priority
-    return spanContext.setThisSpanSamplingPriority(newPriority, newMechanism);
-  }
-
-  private DDSpanContext getRootSpanContextOrThis() {
-    DDSpanContext rootSpanContext = getRootSpanContextIfDifferent();
-    return rootSpanContext != null ? rootSpanContext : this;
-  }
-
-  private DDSpanContext getRootSpanContextIfDifferent() {
-    if (traceCollector != null) {
-      final DDSpan rootSpan = traceCollector.getRootSpan();
-      if (null != rootSpan && rootSpan.spanContext() != this) {
-        return rootSpan.spanContext();
-      }
-    }
-    return null;
-  }
-
-  private boolean setThisSpanSamplingPriority(final int newPriority, final int newMechanism) {
     if (!validateSamplingPriority(newPriority, newMechanism)) {
       return false;
     }
-    PropagationTags tags = ownPropagationTags();
+    PropagationTags tags = tracePropagationTags();
     boolean updated =
         tags.tryUpdateTraceSamplingPriority(
             newPriority,
@@ -771,18 +763,36 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     return true;
   }
 
+  private DDSpanContext getRootSpanContextOrThis() {
+    DDSpanContext rootSpanContext = getRootSpanContextIfDifferent();
+    return rootSpanContext != null ? rootSpanContext : this;
+  }
+
+  /** Whether this is the local root span's context, or no root span has registered yet. */
+  private boolean isLocalRoot() {
+    return getRootSpanContextIfDifferent() == null;
+  }
+
+  private DDSpanContext getRootSpanContextIfDifferent() {
+    if (traceCollector != null) {
+      final DDSpan rootSpan = traceCollector.getRootSpan();
+      if (null != rootSpan && rootSpan.spanContext() != this) {
+        return rootSpan.spanContext();
+      }
+    }
+    return null;
+  }
+
   public boolean setSamplingPriority(
       final int newPriority,
       final int newMechanism,
       final double sampleRate,
       final long traceIdLowOrderBits,
       final boolean rateLimiterRejected) {
-    DDSpanContext spanContext = getRootSpanContextOrThis();
-    if (!spanContext.validateSamplingPriority(newPriority, newMechanism)) {
+    if (!validateSamplingPriority(newPriority, newMechanism)) {
       return false;
     }
-    return spanContext
-        .ownPropagationTags()
+    return tracePropagationTags()
         .tryUpdateProbabilitySamplingDecision(
             newPriority,
             newMechanism,
@@ -820,7 +830,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
 
   @Override
   public int getSamplingPriority() {
-    return getRootSpanContextOrThis().ownPropagationTags().getSamplingPriority();
+    return tracePropagationTags().getSamplingPriority();
   }
 
   public void setSpanSamplingPriority(double rate, int limit) {
@@ -847,16 +857,11 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     // this is now effectively a no-op - there is no locking.
     // the priority is just CAS'd against UNSET/UNKNOWN, unless it's forced to USER_KEEP/MANUAL
     // but is maintained for backwards compatibility, and returns false when it used to
-    final DDSpan rootSpan = traceCollector.getRootSpan();
-    if (null != rootSpan && rootSpan.spanContext() != this) {
-      return rootSpan.spanContext().lockSamplingPriority();
-    }
-
-    return ownPropagationTags().getSamplingPriority() != PrioritySampling.UNSET;
+    return tracePropagationTags().getSamplingPriority() != PrioritySampling.UNSET;
   }
 
   public CharSequence getOrigin() {
-    return getRootSpanContextOrThis().origin;
+    return traceCollector.getOrigin();
   }
 
   public void beginEndToEnd() {
@@ -990,9 +995,8 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   }
 
   public void setOrigin(final CharSequence origin) {
-    DDSpanContext context = getRootSpanContextOrThis();
-    context.origin = origin;
-    context.ownPropagationTags().updateTraceOrigin(origin);
+    traceCollector.setOrigin(origin);
+    tracePropagationTags().updateTraceOrigin(origin);
   }
 
   public void setMetric(final CharSequence key, final Number value) {
@@ -1478,8 +1482,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
       tags.put(DDTags.THREAD_NAME, threadName.toString());
       int currentSamplingPriority = getSamplingPriority();
       // add _sample_rate tag only on the root/local span owning the decision
-      if (getRootSpanContextIfDifferent() == null
-          && currentSamplingPriority != PrioritySampling.UNSET) {
+      if (isLocalRoot() && currentSamplingPriority != PrioritySampling.UNSET) {
         tags.put(SAMPLE_RATE_KEY, currentSamplingPriority);
       }
       if (httpStatusCode != 0) {
@@ -1544,7 +1547,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     if ((options & ROOT_PROPAGATION_TAGS) != 0) {
       serializedPropagationTags = getPropagationTags();
     } else if ((options & OWN_PROPAGATION_TAGS) != 0) {
-      PropagationTags own = propagationTags;
+      PropagationTags own = ownPropagationTagsIfPresent();
       // Don't retain an instance just to serialize it
       serializedPropagationTags = own != null ? own : newEmptyPropagationTags();
     } else {
@@ -1771,7 +1774,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   }
 
   public PropagationTags getPropagationTags() {
-    return getRootSpanContextOrThis().ownPropagationTags();
+    return tracePropagationTags();
   }
 
   @Override
