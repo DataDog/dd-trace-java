@@ -6,12 +6,12 @@ Pick the **narrowest** vehicle that can fail CI with low false positives. One ru
 
 ## ForbiddenAPIs — unconditional banned call or class
 
-Plugin: `de.thetaphi.forbiddenapis`. Grep for that id (or `apply plugin: "de.thetaphi.forbiddenapis"`) and follow `signaturesFiles` to the shared lists; do not add a new signature file.
+Convention: `dd-trace-java.conventions.forbidden-apis`, which applies `de.thetaphi.forbiddenapis`. Locate it by plugin ID and follow `forbiddenApis.signaturesFiles` to the shared lists; do not add a new signature file.
 
 Two lists exist today:
 
-- `main.txt` — common rules, applied by the default plugin config
-- `instrumentation.txt` — extra rules the instrumentation convention adds on top of `main.txt`
+- `main.txt` - common rules from `dd-trace-java.conventions.forbidden-apis`
+- `instrumentation.txt` - extra rules added by `dd-trace-java.module.instrumentation`
 
 Put a repo-wide ban in `main.txt`. Put a ban that should apply only to instrumentation modules in `instrumentation.txt`. Leave plugin/task enablement in the module configuration.
 
@@ -28,20 +28,20 @@ Use when the rule is “never call this method/class” with **no location quali
    java.lang.System#getenv()
    java.lang.System#getenv(java.lang.String)
    ```
-2. Preserve existing task enablement (they are disabled on purpose).
+2. Preserve task enablement and module overrides. The convention disables Forbidden APIs task names ending in `Test` and sets `ignoreFailures = false`. Inspect the affected modules for further overrides.
 3. Verify:
 
    ```bash
    ./gradlew forbiddenApis -PskipTests
    ```
 
+   Confirm that the tasks covering the changed rule ran with `ignoreFailures = false`. Report any coverage gaps from disabled tasks or module overrides.
+
 Escape hatch already in the codebase: `@SuppressForbidden`. Do not invent a second one.
 
 ## Custom Gradle check — path-scoped or structural
 
-Existing pattern: [`ConfigInversionLinter`](../../../../buildSrc/src/main/kotlin/datadog/gradle/plugin/config/ConfigInversionLinter.kt),
-[`InstrumentationNamingPlugin`](../../../../buildSrc/src/main/kotlin/datadog/gradle/plugin/naming/InstrumentationNamingPlugin.kt).
-JavaParser is already a `buildSrc` dependency.
+Existing patterns: `dd-trace-java.config-inversion-linter` (`ConfigInversionLinter`) and `dd-trace-java.instrumentation-naming` (`InstrumentationNamingPlugin`). Find their plugin registrations and follow the implementation classes and registered tasks. Reuse the existing JavaParser dependency for source checks.
 
 Use when the rule needs source structure or a path filter SpotBugs cannot name, for example:
 
