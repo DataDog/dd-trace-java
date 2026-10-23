@@ -15,7 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
-import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -810,7 +809,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   }
 
   private static String[] buildDictionary(TraceMapperV0_5 mapper) throws Exception {
-    GrowableBuffer dictionaryBuffer = TraceMapperTestBridge.getDictionary(mapper);
+    FlushingBuffer dictionaryBuffer = TraceMapperTestBridge.getDictionary(mapper);
     Map<?, ?> encoding = TraceMapperTestBridge.getEncoding(mapper);
 
     String[] dictionary = new String[encoding.size()];
