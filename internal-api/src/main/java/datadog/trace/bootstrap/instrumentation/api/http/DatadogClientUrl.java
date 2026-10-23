@@ -20,7 +20,9 @@ public final class DatadogClientUrl implements TagExtractor<URI> {
         KnownTags.HTTP_URL_ID,
         URIUtils.lazyValidURL(uri.getScheme(), uri.getHost(), uri.getPort(), uri.getPath()));
     if (Config.get().isHttpClientTagQueryString()) {
-      span.setTag(KnownTags.HTTP_QUERY_STRING_ID, uri.getQuery());
+      span.setTag(
+          KnownTags.HTTP_QUERY_STRING_ID,
+          URIUtils.preserveQueryDelimiters(uri.getRawQuery(), uri.getQuery()));
       span.setTag(DDTags.HTTP_FRAGMENT, uri.getFragment());
     }
   }

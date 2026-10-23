@@ -89,6 +89,30 @@ class QueryObfuscatorTest extends DDJavaSpecification {
   }
 
   @TableTest({
+    "Scenario           | Raw query                                   | Regex         | Expected query                     ",
+    "Encoded ampersand  | token=first%26SECOND_HALF&view=full         |               | <redacted>&view=full               ",
+    "Encoded name       | t%6fken=first%26SECOND_HALF&view=full       |               | <redacted>&view=full               ",
+    "Encoded fragment   | token=first%23SECOND_HALF&view=full         |               | <redacted>&view=full               ",
+    "Safe delimiters    | q=one%26two%23three&view=full               |               | q=one%26two%23three&view=full      ",
+    "Encoded JSON       | data=%7B%22token%22%3A%22first%26LAST%22%7D |               | 'data={<redacted>}'                ",
+    "Custom regex       | private=first%26SECOND_HALF&view=full       | private=[^&]+ | <redacted>&view=full               ",
+    "Disabled redaction | token=first%26SECOND_HALF&view=full         | ''            | token=first%26SECOND_HALF&view=full"
+  })
+  void decodedQueryRedactionPreservesEncodedBoundaries(
+      String rawQuery, String regex, String expectedQuery) {
+    URI uri = URI.create("http://site.com/orders?" + rawQuery);
+    TagMap tags = TagMap.create();
+    tags.put(Tags.HTTP_URL, "http://site.com/orders");
+    tags.put(
+        DDTags.HTTP_QUERY, URIUtils.preserveQueryDelimiters(uri.getRawQuery(), uri.getQuery()));
+
+    new QueryObfuscator(regex).processTags(tags, null, link -> {});
+
+    assertEquals(expectedQuery, tags.get(DDTags.HTTP_QUERY));
+    assertEquals("http://site.com/orders?" + expectedQuery, tags.get(Tags.HTTP_URL));
+  }
+
+  @TableTest({
     "scenario | query                                                          | expectedQuery                   ",
     "token    | key1=val1&token=a0b21ce2-006f-4cc6-95d5-d7b550698482&key2=val2 | 'key1=val1&<redacted>&key2=val2'",
     "app keys | app_key=1111&application_key=2222                              | '<redacted>&<redacted>'         ",

@@ -38,4 +38,11 @@ public interface AgentBridge {
    * @return the span enricher.
    */
   SpanEnricher spanEnricher();
+
+  /**
+   * @return the agent shutdown notifications, sent before the JVM shutdown hooks run, or {@code
+   *     null} if not available, so the SDK must flush from its own JVM shutdown hook.
+   */
+  @Nullable
+  ShutdownSource shutdown();
 }

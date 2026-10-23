@@ -7,6 +7,7 @@ forbiddenapis = "3.11"
 gradle-tooling-api = "8.14.6"
 jsr305 = "3.0.2"
 shadow = "9.4.2"
+spotbugs-gradle-plugin = "6.5.11"
 spotbugs_annotations = "4.10.4"
 
 # Source code formatters
@@ -94,6 +95,7 @@ forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbidden
 gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "gradle-tooling-api" }
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
+spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs-gradle-plugin" }
 
 # DataDog libs and forks
 datadog-okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "datadog-okhttp" }

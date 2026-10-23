@@ -376,12 +376,12 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     decorator.afterStart(span);
     decorator.onRequest(span, new Connection("192.0.2.10", 32100), request, root());
 
-    assertEquals("token=secret&view=full?details#section", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals("token=secret&view=full?details%23section", span.getTag(KnownTags.URL_QUERY_NAME));
 
     span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
     assertEquals("/bad%path", span.getTag(KnownTags.URL_PATH_NAME));
-    assertEquals("<redacted>&view=full?details#section", span.getTag(KnownTags.URL_QUERY_NAME));
+    assertEquals("<redacted>&view=full?details%23section", span.getTag(KnownTags.URL_QUERY_NAME));
   }
 
   @Test
@@ -599,13 +599,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     assertEquals(singletonList(String.valueOf(span.getTag(Tags.PEER_PORT))), ports);
   }
 
-  /**
-   * The query is decoded before obfuscation so that a percent-encoded parameter name cannot hide a
-   * secret from QueryObfuscator, which matches literal names. The trade-off is that url.full does
-   * not round-trips: encoded delimiters in a value come back decoded, so {@code view=a%26b%3Dc}
-   * reads back as two parameters. This matches the query that non-OpenTelemetry client spans
-   * already carry in http.url.
-   */
+  /** Decodes parameter names while preserving encoded delimiters for complete redaction. */
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   @WithConfig(key = HTTP_CLIENT_TAG_QUERY_STRING, value = "true")
@@ -614,7 +608,7 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     URI uri =
         URI.create(
             "https://user:password@example.com/orders"
-                + "?t%6fken=secret&view=a%26b%3Dc&space=hello%20world&plus=%2B#fragment");
+                + "?t%6fken=first%26SECOND_HALF%23LAST&view=a%26b%3Dc&space=hello%20world&plus=%2B#fragment");
 
     if (urlConnection) {
       UrlConnectionDecorator.DECORATE.afterStart(span);
@@ -626,10 +620,10 @@ class HttpDecoratorsOtelSemanticsForkedTest {
     }
     span.processTagsAndBaggage(NO_OP, OWN_PROPAGATION_TAGS);
 
-    // The encoded 'token' name is redacted, at the cost of decoding the safe parameters.
+    // Redact the entire encoded secret and preserve boundaries in safe values.
     assertEquals(
         "https://REDACTED:REDACTED@example.com/orders"
-            + "?<redacted>&view=a&b=c&space=hello world&plus=+#fragment",
+            + "?<redacted>&view=a%26b=c&space=hello world&plus=+#fragment",
         span.getTag(KnownTags.HTTP_URL_OTEL_NAME).toString());
   }
 

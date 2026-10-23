@@ -141,9 +141,12 @@ public abstract class HttpServerUrl {
     @Override
     String query() {
       if (uri.isValid()) {
-        return uri.supportsRaw() && Config.get().isHttpServerRawQueryString()
+        if (!uri.supportsRaw()) {
+          return uri.query();
+        }
+        return Config.get().isHttpServerRawQueryString()
             ? uri.rawQuery()
-            : uri.query();
+            : URIUtils.preserveQueryDelimiters(uri.rawQuery(), uri.query());
       }
       String raw = rawWithoutFragment();
       int queryStart = raw == null ? -1 : raw.indexOf('?');
@@ -153,7 +156,7 @@ public abstract class HttpServerUrl {
       String query = raw.substring(queryStart + 1);
       return Config.get().isHttpServerRawQueryString()
           ? query
-          : decode(query, uri.hasPlusEncodedSpaces());
+          : URIUtils.preserveQueryDelimiters(query, decode(query, uri.hasPlusEncodedSpaces()));
     }
 
     private String rawWithoutFragment() {

@@ -30,4 +30,10 @@ final class NoopAgentBridge implements AgentBridge {
   public SpanEnricher spanEnricher() {
     return SpanEnricher.NOOP;
   }
+
+  @Nullable
+  @Override
+  public ShutdownSource shutdown() {
+    return null;
+  }
 }

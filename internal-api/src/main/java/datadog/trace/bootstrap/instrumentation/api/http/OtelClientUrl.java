@@ -20,7 +20,7 @@ public final class OtelClientUrl implements TagExtractor<URI> {
     span.setTag(KnownTags.HTTP_URL_ID, (Object) new ClientUrl(uri));
     if (Config.get().isHttpClientTagQueryString()) {
       // The obfuscator matches decoded parameter names, including names such as t%6fken.
-      String query = uri.getQuery();
+      String query = URIUtils.preserveQueryDelimiters(uri.getRawQuery(), uri.getQuery());
       if (query != null) {
         span.setTag(KnownTags.URL_QUERY_ID, query);
       }

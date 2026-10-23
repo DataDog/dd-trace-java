@@ -120,6 +120,45 @@ class HttpUrlExtractorsTest {
     verify(span).setTag(KnownTags.URL_QUERY_ID, expectedQuery);
   }
 
+  @TableTest({
+    "Scenario          | Raw query                               | Expected query                       ",
+    "Encoded ampersand | token=first%26LAST&view=full            | token=first%26LAST&view=full         ",
+    "Encoded name      | t%6fken=first%26LAST&view=full          | token=first%26LAST&view=full         ",
+    "Encoded fragment  | token=first%23LAST&view=full            | token=first%23LAST&view=full         ",
+    "Safe delimiters   | q=one%26two%23three&space=hello%20world | q=one%26two%23three&space=hello world"
+  })
+  void clientsPreserveEncodedQueryBoundaries(String rawQuery, String expectedQuery) {
+    URI uri = URI.create("http://host/orders?" + rawQuery);
+    AgentSpan datadog = mock(AgentSpan.class);
+
+    DatadogClientUrl.INSTANCE.extract(uri, datadog);
+    OtelClientUrl.INSTANCE.extract(uri, span);
+
+    verify(datadog).setTag(KnownTags.HTTP_QUERY_STRING_ID, expectedQuery);
+    verify(span).setTag(KnownTags.URL_QUERY_ID, expectedQuery);
+  }
+
+  @TableTest({
+    "Scenario          | Raw query                               | Expected query                       ",
+    "Encoded ampersand | token=first%26LAST&view=full            | token=first%26LAST&view=full         ",
+    "Encoded name      | t%6fken=first%26LAST&view=full          | token=first%26LAST&view=full         ",
+    "Encoded fragment  | token=first%23LAST&view=full            | token=first%23LAST&view=full         ",
+    "Safe delimiters   | q=one%26two%23three&space=hello%20world | q=one%26two%23three&space=hello world"
+  })
+  @WithConfig(key = "http.server.raw.query-string", value = "false")
+  void serversPreserveEncodedQueryBoundaries(String rawQuery, String expectedQuery) {
+    URI uri = URI.create("http://host/orders?" + rawQuery);
+    HttpServerUrl url =
+        HttpServerUrl.fromRequest(new URIDefaultDataAdapter(uri), uri.getPath(), null, null);
+    AgentSpan datadog = mock(AgentSpan.class);
+
+    DatadogServerUrl.INSTANCE.extract(url, datadog);
+    OtelServerUrl.INSTANCE.extract(url, span);
+
+    verify(datadog).setTag(KnownTags.HTTP_QUERY_STRING_ID, expectedQuery);
+    verify(span).setTag(KnownTags.URL_QUERY_ID, expectedQuery);
+  }
+
   @Test
   void otelClientOmitsQueryTagWhenAbsent() {
     OtelClientUrl.INSTANCE.extract(URI.create("http://host/a"), span);
