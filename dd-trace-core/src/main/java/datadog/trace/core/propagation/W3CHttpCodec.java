@@ -13,7 +13,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -135,7 +134,10 @@ class W3CHttpCodec {
 
   /** What merging a trace context into a context extracted before it reads from it. */
   static final class TraceContextMerge {
-    final DDTraceId traceId;
+    /** The 128-bit trace id from the traceparent, as its high and low order bits. */
+    final long traceIdHigh;
+
+    final long traceIdLow;
     final long spanId;
     final W3CTracestate tracestate;
 
@@ -143,8 +145,13 @@ class W3CHttpCodec {
     final int overridingPriority;
 
     private TraceContextMerge(
-        DDTraceId traceId, long spanId, W3CTracestate tracestate, int overridingPriority) {
-      this.traceId = traceId;
+        long traceIdHigh,
+        long traceIdLow,
+        long spanId,
+        W3CTracestate tracestate,
+        int overridingPriority) {
+      this.traceIdHigh = traceIdHigh;
+      this.traceIdLow = traceIdLow;
       this.spanId = spanId;
       this.tracestate = tracestate;
       this.overridingPriority = overridingPriority;
@@ -330,7 +337,20 @@ class W3CHttpCodec {
       return super.build();
     }
 
+    /** The high and low order bits of the trace id {@link #parseTraceParent} last parsed. */
+    private long traceIdHigh;
+
+    private long traceIdLow;
+
     void parseTraceParentHeader(String tp) {
+      parseTraceParent(tp, true);
+    }
+
+    /**
+     * Validates the traceparent and reads its parts. The trace id is built only if {@code
+     * buildTraceId}; its high and low order bits are read either way.
+     */
+    private void parseTraceParent(String tp, boolean buildTraceId) {
       int length = tp == null ? 0 : tp.length();
       if (length < TRACE_PARENT_LENGTH) {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too short");
@@ -341,13 +361,26 @@ class W3CHttpCodec {
       } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
       }
-      DDTraceId traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
-      if (traceId.toLong() == 0) {
+      DD128bTraceId traceId = null;
+      if (buildTraceId) {
+        traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
+        this.traceIdHigh = traceId.toHighOrderLong();
+        this.traceIdLow = traceId.toLong();
+      } else {
+        // as DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true) parses them
+        this.traceIdHigh =
+            LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START, 16, true);
+        this.traceIdLow =
+            LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START + 16, 16, true);
+      }
+      if (traceIdLow == 0) {
         throw new IllegalStateException(
             "Illegal all zero 64 bit trace id "
                 + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
       }
-      this.traceId = traceId;
+      if (traceId != null) {
+        this.traceId = traceId;
+      }
       this.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
       if (this.spanId == 0) {
         throw new IllegalStateException(
@@ -379,20 +412,18 @@ class W3CHttpCodec {
           throw new IllegalStateException(
               "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
         }
-        parseTraceParentHeader(traceparentHeader);
+        // the trace id only needs to be compared, so it's kept as its parts
+        parseTraceParent(traceparentHeader, false);
         tracestate = W3CTracestate.parse(tracestateHeader);
       } catch (RuntimeException e) {
         log.debug("Exception when building context", e);
-        return null;
-      }
-      if (DDTraceId.ZERO.equals(traceId)) {
         return null;
       }
       int overridingPriority =
           overridesTracestatePriority(samplingPriority, tracestate.getSamplingPriority())
               ? samplingPriority
               : PrioritySampling.UNSET;
-      return new TraceContextMerge(traceId, spanId, tracestate, overridingPriority);
+      return new TraceContextMerge(traceIdHigh, traceIdLow, spanId, tracestate, overridingPriority);
     }
 
     void parseTraceStateHeader(String tracestate) {

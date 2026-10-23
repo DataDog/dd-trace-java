@@ -233,7 +233,7 @@ public class HttpCodec {
           if (merge == null) {
             continue;
           }
-          if (traceIdMatch(context.getTraceId(), merge.traceId)) {
+          if (traceIdMatch(context.getTraceId(), merge.traceIdHigh, merge.traceIdLow)) {
             applyTraceContextToFirstContext(context, merge, extractionCache);
             continue;
           }
@@ -364,6 +364,14 @@ public class HttpCodec {
         classifier.accept(keysAndValues.get(i), keysAndValues.get(i + 1));
       }
     }
+  }
+
+  /** {@link #traceIdMatch(DDTraceId, DDTraceId)} against a 128-bit id given by its parts. */
+  private static boolean traceIdMatch(DDTraceId a, long bHigh, long bLow) {
+    if (a instanceof DD128bTraceId) {
+      return a.toHighOrderLong() == bHigh && a.toLong() == bLow;
+    }
+    return a.toLong() == bLow;
   }
 
   /**
