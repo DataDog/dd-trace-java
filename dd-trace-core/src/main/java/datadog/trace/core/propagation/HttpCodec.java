@@ -366,14 +366,6 @@ public class HttpCodec {
     }
   }
 
-  /**
-   * Checks if trace identifier matches, even if they are not encoded using the same size (64-bit vs
-   * 128-bit).
-   *
-   * @param a A trace identifier to check.
-   * @param b Another trace identifier to check.
-   * @return {@code true} if the trace identifiers matches, {@code false} otherwise.
-   */
   /** {@link #traceIdMatch(DDTraceId, DDTraceId)} against a 128-bit id given by its parts. */
   private static boolean traceIdMatch(DDTraceId a, long bHigh, long bLow) {
     if (a instanceof DD128bTraceId) {
@@ -382,6 +374,14 @@ public class HttpCodec {
     return a.toLong() == bLow;
   }
 
+  /**
+   * Checks if trace identifier matches, even if they are not encoded using the same size (64-bit vs
+   * 128-bit).
+   *
+   * @param a A trace identifier to check.
+   * @param b Another trace identifier to check.
+   * @return {@code true} if the trace identifiers matches, {@code false} otherwise.
+   */
   private static boolean traceIdMatch(DDTraceId a, DDTraceId b) {
     if (a instanceof DD128bTraceId && b instanceof DD128bTraceId
         || a instanceof DD64bTraceId && b instanceof DD64bTraceId) {

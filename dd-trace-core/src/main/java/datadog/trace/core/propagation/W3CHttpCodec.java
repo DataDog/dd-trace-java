@@ -343,12 +343,14 @@ class W3CHttpCodec {
     private long traceIdLow;
 
     void parseTraceParentHeader(String tp) {
-      parseTraceParent(tp);
-      this.traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
+      parseTraceParent(tp, true);
     }
 
-    /** Validates the traceparent and reads its parts, except for building the trace id. */
-    private void parseTraceParent(String tp) {
+    /**
+     * Validates the traceparent and reads its parts. The trace id is built only if {@code
+     * buildTraceId}; its high and low order bits are read either way.
+     */
+    private void parseTraceParent(String tp, boolean buildTraceId) {
       int length = tp == null ? 0 : tp.length();
       if (length < TRACE_PARENT_LENGTH) {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too short");
@@ -359,14 +361,25 @@ class W3CHttpCodec {
       } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
       }
-      // as DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true) parses them
-      this.traceIdHigh = LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START, 16, true);
-      this.traceIdLow =
-          LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START + 16, 16, true);
+      DD128bTraceId traceId = null;
+      if (buildTraceId) {
+        traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
+        this.traceIdHigh = traceId.toHighOrderLong();
+        this.traceIdLow = traceId.toLong();
+      } else {
+        // as DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true) parses them
+        this.traceIdHigh =
+            LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START, 16, true);
+        this.traceIdLow =
+            LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START + 16, 16, true);
+      }
       if (traceIdLow == 0) {
         throw new IllegalStateException(
             "Illegal all zero 64 bit trace id "
                 + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
+      }
+      if (traceId != null) {
+        this.traceId = traceId;
       }
       this.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
       if (this.spanId == 0) {
@@ -400,7 +413,7 @@ class W3CHttpCodec {
               "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
         }
         // the trace id only needs to be compared, so it's kept as its parts
-        parseTraceParent(traceparentHeader);
+        parseTraceParent(traceparentHeader, false);
         tracestate = W3CTracestate.parse(tracestateHeader);
       } catch (RuntimeException e) {
         log.debug("Exception when building context", e);
