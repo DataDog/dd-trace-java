@@ -29,7 +29,7 @@ final class TestContextBinder implements ContextBinder {
 
   private static ContextBinder delegate() {
     ContextBinder delegate = ContextProviders.customBinder;
-    if (delegate == TEST_INSTANCE) {
+    if (delegate == null || delegate == TEST_INSTANCE) {
       // fall back to default context binder
       return ObjectStoreContextBinder.INSTANCE;
     } else {

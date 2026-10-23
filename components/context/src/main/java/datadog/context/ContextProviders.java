@@ -1,10 +1,12 @@
 package datadog.context;
 
+import javax.annotation.Nullable;
+
 /** Provides {@link ContextManager} and {@link ContextBinder} implementations. */
 final class ContextProviders {
 
-  static volatile ContextManager customManager;
-  static volatile ContextBinder customBinder;
+  @Nullable static volatile ContextManager customManager;
+  @Nullable static volatile ContextBinder customBinder;
 
   private static final class ProvidedManager {
     static final ContextManager INSTANCE =
