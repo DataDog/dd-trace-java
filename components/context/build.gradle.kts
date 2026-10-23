@@ -1,6 +1,6 @@
 plugins {
   id("dd-trace-java.module.platform-component")
-  id("dd-trace-java.conventions.nullaway")
+  id("dd-trace-java.conventions.jspecify")
 }
 
 dependencies {

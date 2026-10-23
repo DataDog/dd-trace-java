@@ -126,6 +126,7 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
 
     // Prevents conflict with other SLF4J instances. Important for premain.
     relocate 'org.slf4j', 'datadog.slf4j'
+    relocate 'org.jspecify.annotations', 'datadog.trace.bootstrap.jspecify.annotations'
     // Prevent conflicts with flat class-path when using GraalVM native-images
     relocate 'org.jctools', 'datadog.jctools'
     relocate 'net.jpountz', 'datadog.jpountz'
@@ -418,6 +419,8 @@ dependencies {
 
   // Includes for the top level shadow jar
   shadowInclude project(path: ':components:environment', configuration: 'shadow')
+  // Java 8 reflection needs the relocated type annotations on the bootstrap classpath.
+  shadowInclude libs.jspecify
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')

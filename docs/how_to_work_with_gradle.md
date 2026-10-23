@@ -1263,6 +1263,26 @@ The initial adopters outside IAST are `components/context`, `utils/time-utils`, 
 `utils/version-utils`. Other modules can adopt the convention as their nullness contracts
 are checked, keeping source repairs separate from the shared configuration.
 
+For JSpecify contracts, apply `dd-trace-java.conventions.jspecify` instead. It enables
+NullAway's `JSpecifyMode` and checks code covered by `@NullMarked`. Add `@NullMarked` to
+each production package's `package-info.java`; it does not cover subpackages. Context,
+time, and version utilities use this convention. IAST keeps its existing annotations.
+
+The convention adds JSpecify as a compile-only dependency so all source sets can read
+production contracts, and to the test runtime for Java 8 reflection. The agent bundles
+the annotations under `datadog.trace.bootstrap.jspecify.annotations` on its bootstrap
+classpath for Java 8 type reflection. Application `org.jspecify` annotations remain
+independent. Published libraries adopting these contracts should expose JSpecify through
+their `api` dependencies.
+
+Place `@Nullable` on the intended type: `@Nullable Object[]` permits null elements, while
+`Object @Nullable []` permits a null array. Preserve JetBrains `@Contract`, SpotBugs
+suppression annotations, concurrency annotations, and Forbidden APIs annotations. They
+describe contracts beyond JSpecify nullness. Keep their dependencies while consumers remain.
+
+Compiling `@NullMarked` with `--release 8` emits the known `ElementType.MODULE` warning;
+see the [JSpecify compatibility notes](https://github.com/jspecify/jspecify/wiki/version-compatibility).
+
 ### Dependencies on Main Projects
 
 Build tooling remains independent of production code. The tasks it registers can consume
