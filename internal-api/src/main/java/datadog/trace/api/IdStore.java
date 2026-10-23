@@ -15,9 +15,10 @@ import java.util.function.Consumer;
  * <p>A span in the tracer core owns its id store directly ({@link #create}); a {@link TagMap} owns
  * one too.
  *
- * <p>{@link IdStoreFactory} builds every store, so the JVM loads one implementation and class
- * hierarchy analysis devirtualizes every call on an {@code IdStore} without a type guard; nothing
- * that is always loaded may extend this class. No locking: guarded by the owner's lock.
+ * <p>{@link IdStoreFactory} builds every store, so the JVM loads one implementation, {@link
+ * HashIdStore} or {@link DenseIdStore}, and class hierarchy analysis devirtualizes every call on an
+ * {@code IdStore} without a type guard; nothing that is always loaded may extend this class. No
+ * locking: guarded by the owner's lock.
  */
 @Restricted(allowedIn = {"datadog.trace.core"})
 public abstract class IdStore {
