@@ -2166,17 +2166,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
-        RequestContext requestContext =
-            ((DDSpanContext) resolvedParentSpanContext).getRequestContext();
-        if (requestContext != null) {
-          requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
-          requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
-          ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
-        } else {
-          requestContextDataAppSec = null;
-          requestContextDataIast = null;
-          ciVisibilityContextData = null;
-        }
+        // Request-scoped product data lives on the shared trace collector
+        requestContextDataAppSec = null;
+        requestContextDataIast = null;
+        ciVisibilityContextData = null;
         propagationTags = tracer.propagationTagsFactory.empty();
       } else {
         long endToEndStartTime;
