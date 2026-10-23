@@ -55,13 +55,13 @@ final class InheritedSamplingState extends SamplingState {
     return (byte) (pendingChecks | (sampled ? CHECKED_SAMPLED : CHECKED_NOT_SAMPLED));
   }
 
-  /** A copy of this unparsed member under a new decision, with one more pending check. */
-  InheritedSamplingState withCheck(
+  /** A copy of this unparsed member under a new decision and {@code pendingChecks}. */
+  InheritedSamplingState withDecision(
       int samplingPriority,
       String tracestate,
       CharSequence decisionMaker,
       CharSequence knuthSamplingRate,
-      boolean sampled) {
+      byte pendingChecks) {
     return new InheritedSamplingState(
         samplingPriority,
         tracestate,
@@ -69,7 +69,7 @@ final class InheritedSamplingState extends SamplingState {
         knuthSamplingRate,
         rawOtelTraceState,
         otelOriginalSize,
-        withCheck(pendingChecks, sampled));
+        pendingChecks);
   }
 
   boolean isResolved() {
@@ -90,10 +90,6 @@ final class InheritedSamplingState extends SamplingState {
       return rawOtelTraceState;
     }
     return getOtelTraceState();
-  }
-
-  CharSequence rawOtelTraceState() {
-    return rawOtelTraceState;
   }
 
   int otelOriginalSize() {
