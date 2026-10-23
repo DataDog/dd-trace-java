@@ -19,6 +19,7 @@ class NullAwayConventionsPluginTest : GradleFixture() {
       [libraries]
       errorprone = { module = "com.google.errorprone:error_prone_core", version = "2.50.0" }
       nullaway = { module = "com.uber.nullaway:nullaway", version = "0.14.2" }
+      jspecify = { module = "org.jspecify:jspecify", version = "1.0.1" }
       """
     )
     writeRootProject(
@@ -113,6 +114,93 @@ class NullAwayConventionsPluginTest : GradleFixture() {
     val result = run("compileJava")
 
     assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+  }
+
+  @Test
+  fun `JSpecify mode checks nullable type arguments`() {
+    useJSpecify()
+    writeJavaSource(
+      "datadog.example.GenericContract",
+      """
+      package datadog.example;
+      import java.util.List;
+      import org.jspecify.annotations.NullMarked;
+      import org.jspecify.annotations.Nullable;
+      @NullMarked
+      public class GenericContract {
+        public List<String> values(List<@Nullable String> values) { return values; }
+      }
+      """
+    )
+
+    val result = run("compileJava", expectFailure = true)
+
+    assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(FAILED)
+    assertThat(result.output).contains("[NullAway]")
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = ["@Nullable String[]", "@Nullable String..."])
+  fun `JSpecify checks nullable array and varargs elements`(parameterType: String) {
+    useJSpecify()
+    writeJavaSource(
+      "datadog.example.ArrayContract",
+      """
+      package datadog.example;
+      import org.jspecify.annotations.NullMarked;
+      import org.jspecify.annotations.Nullable;
+      @NullMarked
+      public class ArrayContract {
+        public int length($parameterType values) { return values[0].length(); }
+      }
+      """
+    )
+
+    val result = run("compileJava", expectFailure = true)
+
+    assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(FAILED)
+    assertThat(result.output).contains("[NullAway]")
+  }
+
+  @Test
+  fun `JSpecify permits guarded nullable values and leaves unmarked code unchecked`() {
+    useJSpecify()
+    writeJavaSource(
+      "datadog.example.ArrayContract",
+      """
+      package datadog.example;
+      import org.jspecify.annotations.NullMarked;
+      import org.jspecify.annotations.Nullable;
+      @NullMarked
+      public class ArrayContract {
+        public int length(@Nullable String @Nullable ... values) {
+          if (values == null) return 0;
+          int length = 0;
+          for (String value : values) {
+            if (value != null) length += value.length();
+          }
+          return length;
+        }
+      }
+      """
+    )
+    writeViolation("main_java17")
+    writeRootProject("""sourceSets.create("main_java17")""", append = true)
+
+    val result = run("compileJava", "compileMain_java17Java")
+
+    assertThat(result.task(":compileJava")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+    assertThat(result.task(":compileMain_java17Java")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+  }
+
+  private fun useJSpecify() {
+    writeRootProject(
+      """
+      plugins { id("dd-trace-java.conventions.jspecify") }
+      repositories { mavenCentral() }
+      tasks.withType<JavaCompile>().configureEach { options.release = 8 }
+      """
+    )
   }
 
   private fun writeViolation(sourceSet: String) {

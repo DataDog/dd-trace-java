@@ -4,7 +4,7 @@ import static java.lang.Math.max;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** {@link Context} containing a single value. */
 final class SingletonContext implements SelfScopedContext {
@@ -37,7 +37,7 @@ final class SingletonContext implements SelfScopedContext {
         return this;
       }
     } else {
-      Object[] store = new Object[max(this.index, secondIndex) + 1];
+      @Nullable Object[] store = new Object[max(this.index, secondIndex) + 1];
       store[this.index] = this.value;
       store[secondIndex] = secondValue;
       return new IndexedContext(store);
