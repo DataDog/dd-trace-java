@@ -356,6 +356,45 @@ public class ContainerInfoTest extends DDJavaSpecification {
     assertEquals("in-" + ino, ContainerInfo.readEntityID(containerInfo, false, mountPath.toPath()));
   }
 
+  // spotless:off
+  @TableTest({
+    "Scenario             | externalEnv                                                           | expected                                                             ",
+    "unset                |                                                                       |                                                                      ",
+    "empty                | ''                                                                    |                                                                      ",
+    "blank                | '   '                                                                 |                                                                      ",
+    "admission controller | 'it-false,cn-nginx-webserver,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759' | 'it-false,cn-nginx-webserver,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759'",
+    "surrounding spaces   | ' it-false,cn-weblog '                                                | 'it-false,cn-weblog'                                                 ",
+    "not parsed           | 'some unexpected value'                                               | 'some unexpected value'                                              "
+  })
+  // spotless:on
+  void sanitizeExternalEnv(String externalEnv, String expected) {
+    assertEquals(expected, ContainerInfo.sanitizeExternalEnv(externalEnv));
+  }
+
+  @Test
+  void sanitizeExternalEnvKeepsEmbeddedTabs() {
+    // tabs are allowed in HTTP header values
+    assertEquals("it-false,\tcn-weblog", ContainerInfo.sanitizeExternalEnv("it-false,\tcn-weblog"));
+  }
+
+  @Test
+  void sanitizeExternalEnvTrimsSurroundingControlCharacters() {
+    // String.trim() strips all leading and trailing characters <= U+0020, including control
+    // characters, so only embedded invalid characters cause the value to be rejected
+    assertNull(ContainerInfo.sanitizeExternalEnv("\t"));
+    assertNull(ContainerInfo.sanitizeExternalEnv(" \t\n "));
+    assertEquals("it-false", ContainerInfo.sanitizeExternalEnv("\tit-false\t"));
+    assertEquals("it-false", ContainerInfo.sanitizeExternalEnv("\u0001it-false\n"));
+  }
+
+  @Test
+  void sanitizeExternalEnvIgnoresValuesNotAllowedInHeaders() {
+    assertNull(ContainerInfo.sanitizeExternalEnv("it-false,\ncn-weblog"));
+    assertNull(ContainerInfo.sanitizeExternalEnv("it-false,\u0001cn-weblog"));
+    assertNull(ContainerInfo.sanitizeExternalEnv("it-false,cn-w\u00e9blog"));
+    assertNull(ContainerInfo.sanitizeExternalEnv("it-false,cn-weblog\u007f"));
+  }
+
   private static File createTempDir() throws IOException {
     File dir = File.createTempFile("container-info-test-", "-sys-fs-cgroup");
     dir.delete();

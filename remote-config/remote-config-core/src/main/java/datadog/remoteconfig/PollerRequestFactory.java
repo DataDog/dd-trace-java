@@ -1,6 +1,7 @@
 package datadog.remoteconfig;
 
 import com.squareup.moshi.Moshi;
+import datadog.common.container.ContainerInfo;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
@@ -27,6 +28,7 @@ public class PollerRequestFactory {
   private static final String HEADER_DD_API_KEY = "DD-API-KEY";
   private static final String HEADER_CONTAINER_ID = "Datadog-Container-ID";
   private static final String HEADER_ENTITY_ID = "Datadog-Entity-ID";
+  private static final String HEADER_EXTERNAL_ENV = "Datadog-External-Env";
 
   private static final Logger log = LoggerFactory.getLogger(PollerRequestFactory.class);
 
@@ -38,18 +40,17 @@ public class PollerRequestFactory {
   private final String ddVersion;
   private final String hostName;
   private final String tracerVersion;
-  private final String containerId;
-  private final String entityId;
   private final Moshi moshi;
+  private final ContainerInfo containerInfo;
+  private final boolean toAgent;
   final HttpUrl url;
 
-  public PollerRequestFactory(
-      Config config,
-      String tracerVersion,
-      String containerId,
-      String entityId,
-      String url,
-      Moshi moshi) {
+  public PollerRequestFactory(Config config, String tracerVersion, String url, Moshi moshi) {
+    this(config, tracerVersion, url, moshi, ContainerInfo.get());
+  }
+
+  PollerRequestFactory(
+      Config config, String tracerVersion, String url, Moshi moshi, ContainerInfo containerInfo) {
     this.runtimeId = getRuntimeId(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.apiKey = config.getApiKey();
@@ -58,10 +59,11 @@ public class PollerRequestFactory {
     this.hostName = config.getHostName();
     // Semantic Versioning requires build separated with `+`
     this.tracerVersion = tracerVersion.replace('~', '+');
-    this.containerId = containerId;
-    this.entityId = entityId;
     this.url = parseUrl(url);
     this.moshi = moshi;
+    this.containerInfo = containerInfo;
+    // without an explicit remote config URL, requests go to the local Datadog Agent
+    this.toAgent = config.getFinalRemoteConfigUrl() == null;
   }
 
   private static String getRuntimeId(Config config) {
@@ -97,13 +99,26 @@ public class PollerRequestFactory {
     if (this.apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, this.apiKey);
     }
+    if (toAgent) {
+      // only the local Datadog Agent uses the origin detection headers
+      addOriginHeaders(requestBuilder);
+    }
+    return requestBuilder.build();
+  }
+
+  private void addOriginHeaders(Request.Builder requestBuilder) {
+    String containerId = containerInfo.getContainerId();
     if (containerId != null) {
       requestBuilder.addHeader(HEADER_CONTAINER_ID, containerId);
     }
+    String entityId = containerInfo.getEntityId();
     if (entityId != null) {
       requestBuilder.addHeader(HEADER_ENTITY_ID, entityId);
     }
-    return requestBuilder.build();
+    String externalEnv = containerInfo.getExternalEnv();
+    if (externalEnv != null) {
+      requestBuilder.addHeader(HEADER_EXTERNAL_ENV, externalEnv);
+    }
   }
 
   private String buildRemoteConfigRequestJson(

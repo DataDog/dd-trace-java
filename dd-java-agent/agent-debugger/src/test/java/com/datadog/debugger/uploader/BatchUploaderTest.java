@@ -9,9 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.common.container.ContainerInfo;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -34,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /** Unit tests for the snapshot uploader. */
@@ -46,6 +51,8 @@ public class BatchUploaderTest {
   private final Duration REQUEST_IO_OPERATION_TIMEOUT = Duration.ofSeconds(5);
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
   private static final String API_KEY_VALUE = "testkey";
+  private static final String EXTERNAL_ENV =
+      "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759";
 
   @Mock private Config config;
   @Mock private RatelimitedLogger ratelimitedLogger;
@@ -221,38 +228,75 @@ public class BatchUploaderTest {
 
   @Test
   public void testNoContainerId() throws InterruptedException {
-    // we don't explicitly specify a container ID
     server.enqueue(RESPONSE_200);
-    BatchUploader uploaderWithNoContainerId =
-        new BatchUploader(
-            "test", config, url.toString(), ratelimitedLogger, retryPolicy, null, null);
 
-    uploaderWithNoContainerId.upload(SNAPSHOT_BUFFER);
-    uploaderWithNoContainerId.shutdown();
+    RecordedRequest request = uploadToAgentWithOrigin(null, null, null);
 
-    RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertNull(request.getHeader("Datadog-Container-ID"));
+    assertNull(request.getHeader("Datadog-External-Env"));
   }
 
   @Test
   public void testContainerIdHeader() throws InterruptedException {
     server.enqueue(RESPONSE_200);
 
-    BatchUploader uploaderWithContainerId =
-        new BatchUploader(
-            "test",
-            config,
-            url.toString(),
-            ratelimitedLogger,
-            retryPolicy,
-            "testContainerId",
-            "testEntityId");
-    uploaderWithContainerId.upload(SNAPSHOT_BUFFER);
-    uploaderWithContainerId.shutdown();
+    RecordedRequest request =
+        uploadToAgentWithOrigin("testContainerId", "testEntityId", EXTERNAL_ENV);
 
-    RecordedRequest request = server.takeRequest(100, TimeUnit.MILLISECONDS);
     assertEquals("testContainerId", request.getHeader("Datadog-Container-ID"));
     assertEquals("testEntityId", request.getHeader("Datadog-Entity-ID"));
+    assertEquals(EXTERNAL_ENV, request.getHeader("Datadog-External-Env"));
+  }
+
+  @Test
+  public void testExternalEnvHeaderWithoutContainerOrEntityId() throws InterruptedException {
+    // the external env is the origin detection fallback when the container is not identifiable
+    server.enqueue(RESPONSE_200);
+
+    RecordedRequest request = uploadToAgentWithOrigin(null, null, EXTERNAL_ENV);
+
+    assertNull(request.getHeader("Datadog-Container-ID"));
+    assertNull(request.getHeader("Datadog-Entity-ID"));
+    assertEquals(EXTERNAL_ENV, request.getHeader("Datadog-External-Env"));
+  }
+
+  @Test
+  public void testNoOriginHeadersWhenNotUploadingToAgent() throws InterruptedException {
+    // e.g. agentless CI Visibility or an explicit snapshot URL
+    server.enqueue(RESPONSE_200);
+
+    RecordedRequest request =
+        uploadWithOrigin(uploader, "testContainerId", "testEntityId", EXTERNAL_ENV);
+
+    assertNull(request.getHeader("Datadog-Container-ID"));
+    assertNull(request.getHeader("Datadog-Entity-ID"));
+    assertNull(request.getHeader("Datadog-External-Env"));
+  }
+
+  private RecordedRequest uploadToAgentWithOrigin(
+      String containerId, String entityId, String externalEnv) throws InterruptedException {
+    when(config.getAgentUrl()).thenReturn("http://" + url.host() + ":" + url.port());
+    BatchUploader agentUploader =
+        new BatchUploader("test", config, url.toString(), ratelimitedLogger, retryPolicy);
+    try {
+      return uploadWithOrigin(agentUploader, containerId, entityId, externalEnv);
+    } finally {
+      agentUploader.shutdown();
+    }
+  }
+
+  private RecordedRequest uploadWithOrigin(
+      BatchUploader batchUploader, String containerId, String entityId, String externalEnv)
+      throws InterruptedException {
+    ContainerInfo containerInfo = mock(ContainerInfo.class);
+    lenient().when(containerInfo.getContainerId()).thenReturn(containerId);
+    lenient().when(containerInfo.getEntityId()).thenReturn(entityId);
+    lenient().when(containerInfo.getExternalEnv()).thenReturn(externalEnv);
+    try (MockedStatic<ContainerInfo> mocked = mockStatic(ContainerInfo.class)) {
+      mocked.when(ContainerInfo::get).thenReturn(containerInfo);
+      batchUploader.upload(SNAPSHOT_BUFFER);
+    }
+    return server.takeRequest(100, TimeUnit.MILLISECONDS);
   }
 
   @Test

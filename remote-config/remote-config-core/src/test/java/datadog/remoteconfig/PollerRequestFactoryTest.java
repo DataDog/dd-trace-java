@@ -7,8 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.squareup.moshi.Moshi;
+import datadog.common.container.ContainerInfo;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
@@ -19,6 +22,7 @@ import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
+import okhttp3.Request;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -28,6 +32,7 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
   static final String TRACER_VERSION = "v1.2.3";
   static final String CONTAINER_ID = "456";
   static final String ENTITY_ID = "32423";
+  static final String EXTERNAL_ENV = "it-false,cn-weblog,pu-75a2b6d5-3949-4afb-ad0d-92ff0674e759";
   static final String INVALID_REMOTE_CONFIG_URL = "https://invalid.example.com/";
 
   @Test
@@ -43,8 +48,7 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
               + ":1234")
   void remoteConfigRequestFieldsBeenSanitized() {
     PollerRequestFactory factory =
-        new PollerRequestFactory(
-            Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
+        new PollerRequestFactory(Config.get(), TRACER_VERSION, INVALID_REMOTE_CONFIG_URL, null);
 
     RemoteConfigRequest request =
         factory.buildRemoteConfigRequest(
@@ -72,8 +76,7 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
     extraServicesProvider.clear();
     extraServicesProvider.addService(extraService);
     PollerRequestFactory factory =
-        new PollerRequestFactory(
-            Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
+        new PollerRequestFactory(Config.get(), TRACER_VERSION, INVALID_REMOTE_CONFIG_URL, null);
 
     RemoteConfigRequest request =
         factory.buildRemoteConfigRequest(
@@ -90,8 +93,7 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
     }
     ProcessTags.reset(Config.get());
     PollerRequestFactory factory =
-        new PollerRequestFactory(
-            Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
+        new PollerRequestFactory(Config.get(), TRACER_VERSION, INVALID_REMOTE_CONFIG_URL, null);
 
     RemoteConfigRequest request =
         factory.buildRemoteConfigRequest(
@@ -111,6 +113,62 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
       assertNull(entrypointName);
       assertThatJson(json).node("client.client_tracer.process_tags").isAbsent();
     }
+  }
+
+  @Test
+  void configurationRequestCarriesOriginDetectionHeaders() {
+    Request request = newConfigurationRequest(containerInfo(CONTAINER_ID, ENTITY_ID, EXTERNAL_ENV));
+
+    assertEquals(CONTAINER_ID, request.header("Datadog-Container-ID"));
+    assertEquals(ENTITY_ID, request.header("Datadog-Entity-ID"));
+    assertEquals(EXTERNAL_ENV, request.header("Datadog-External-Env"));
+  }
+
+  @Test
+  void configurationRequestCarriesExternalEnvHeaderWithoutContainerOrEntityId() {
+    // the external env is the origin detection fallback when the container is not identifiable
+    Request request = newConfigurationRequest(containerInfo(null, null, EXTERNAL_ENV));
+
+    assertNull(request.header("Datadog-Container-ID"));
+    assertNull(request.header("Datadog-Entity-ID"));
+    assertEquals(EXTERNAL_ENV, request.header("Datadog-External-Env"));
+  }
+
+  @Test
+  void configurationRequestOmitsExternalEnvHeaderWhenUnset() {
+    Request request = newConfigurationRequest(containerInfo(CONTAINER_ID, ENTITY_ID, null));
+
+    assertNull(request.header("Datadog-External-Env"));
+  }
+
+  @Test
+  @WithConfig(key = "remote_config.url", value = "https://rc.example.com/v0.7/config")
+  void configurationRequestOmitsOriginDetectionHeadersWhenNotSentToAgent() {
+    Request request = newConfigurationRequest(containerInfo(CONTAINER_ID, ENTITY_ID, EXTERNAL_ENV));
+
+    assertNull(request.header("Datadog-Container-ID"));
+    assertNull(request.header("Datadog-Entity-ID"));
+    assertNull(request.header("Datadog-External-Env"));
+  }
+
+  private static Request newConfigurationRequest(ContainerInfo containerInfo) {
+    PollerRequestFactory factory =
+        new PollerRequestFactory(
+            Config.get(),
+            TRACER_VERSION,
+            INVALID_REMOTE_CONFIG_URL,
+            new Moshi.Builder().build(),
+            containerInfo);
+    return factory.newConfigurationRequest(Collections.singletonList("ASM"), null, null, 0);
+  }
+
+  private static ContainerInfo containerInfo(
+      String containerId, String entityId, String externalEnv) {
+    ContainerInfo containerInfo = mock(ContainerInfo.class);
+    when(containerInfo.getContainerId()).thenReturn(containerId);
+    when(containerInfo.getEntityId()).thenReturn(entityId);
+    when(containerInfo.getExternalEnv()).thenReturn(externalEnv);
+    return containerInfo;
   }
 
   private static String findMatching(List<String> tags, String regex) {

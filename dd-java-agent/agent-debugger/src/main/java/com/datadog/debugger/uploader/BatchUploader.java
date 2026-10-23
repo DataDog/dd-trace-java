@@ -3,7 +3,6 @@ package com.datadog.debugger.uploader;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DISPATCHER;
 
 import com.datadog.debugger.util.DebuggerMetrics;
-import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
@@ -76,8 +75,6 @@ public class BatchUploader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BatchUploader.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
-  private static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
-  private static final String HEADER_DD_ENTITY_ID = "Datadog-Entity-ID";
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
   static final int MAX_RUNNING_REQUESTS = 10;
   public static final int MAX_ENQUEUED_REQUESTS = 20;
@@ -86,11 +83,10 @@ public class BatchUploader {
   public static final MediaType APPLICATION_GZIP = MediaType.get("application/gzip");
 
   private final String name;
-  private final String containerId;
-  private final String entityId;
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final HttpUrl urlBase;
+  private final boolean toAgent;
   private final Callback responseCallback;
   private final String apiKey;
   private final DebuggerMetrics debuggerMetrics;
@@ -109,37 +105,20 @@ public class BatchUploader {
         retryPolicy);
   }
 
-  BatchUploader(
-      String name,
-      Config config,
-      String endpoint,
-      RatelimitedLogger ratelimitedLogger,
-      RetryPolicy retryPolicy) {
-    this(
-        name,
-        config,
-        endpoint,
-        ratelimitedLogger,
-        retryPolicy,
-        ContainerInfo.get().containerId,
-        ContainerInfo.getEntityId());
-  }
-
   @VisibleForTesting
   BatchUploader(
       String name,
       Config config,
       String endpoint,
       RatelimitedLogger ratelimitedLogger,
-      RetryPolicy retryPolicy,
-      String containerId,
-      String entityId) {
+      RetryPolicy retryPolicy) {
     this.name = name;
     instrumentTheWorld = config.getDynamicInstrumentationInstrumentTheWorld() != null;
     if (endpoint == null || endpoint.length() == 0) {
       throw new IllegalArgumentException("Endpoint url is empty");
     }
     urlBase = HttpUrl.get(endpoint);
+    toAgent = OkHttpUtils.isAgentUrl(urlBase, config);
     LOGGER.debug("Started BatchUploader[{}] with target url {}", name, urlBase);
     apiKey = config.getApiKey();
     this.ratelimitedLogger = ratelimitedLogger;
@@ -153,8 +132,6 @@ public class BatchUploader {
             new SynchronousQueue<>(),
             new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
     this.retryPolicy = retryPolicy;
-    this.containerId = containerId;
-    this.entityId = entityId;
     Duration requestTimeout = Duration.ofSeconds(config.getDynamicInstrumentationUploadTimeout());
     client =
         OkHttpUtils.buildHttpClient(
@@ -266,11 +243,9 @@ public class BatchUploader {
     } else {
       LOGGER.debug("API key is null");
     }
-    if (containerId != null) {
-      requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
-    }
-    if (entityId != null) {
-      requestBuilder.addHeader(HEADER_DD_ENTITY_ID, entityId);
+    if (toAgent) {
+      // only the local Datadog Agent uses the origin detection headers
+      OkHttpUtils.addOriginHeaders(requestBuilder);
     }
     Request request = requestBuilder.build();
     LOGGER.debug("[{}] Sending request: {} CT: {}", name, request, request.body().contentType());

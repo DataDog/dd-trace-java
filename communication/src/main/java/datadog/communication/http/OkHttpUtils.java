@@ -48,7 +48,8 @@ public final class OkHttpUtils {
   private static final String DATADOG_META_LANG_INTERPRETER_VENDOR =
       "Datadog-Meta-Lang-Interpreter-Vendor";
   public static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
-  private static final String DATADOG_ENTITY_ID = "Datadog-Entity-ID";
+  static final String DATADOG_ENTITY_ID = "Datadog-Entity-ID";
+  static final String DATADOG_EXTERNAL_ENV = "Datadog-External-Env";
   public static final String DATADOG_CONTAINER_TAGS_HASH = "Datadog-Container-Tags-Hash";
 
   private static final String DD_API_KEY = "DD-API-KEY";
@@ -238,38 +239,21 @@ public final class OkHttpUtils {
     return client;
   }
 
+  /** Prepares a request to the local Datadog Agent. */
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
-
-    final Request.Builder builder =
-        new Request.Builder()
-            .url(url)
-            .addHeader(DATADOG_META_LANG, "java")
-            .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
-            .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
-            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
-
-    final String containerId = ContainerInfo.get().getContainerId();
-    final String entityId = ContainerInfo.getEntityId();
-    if (containerId != null) {
-      builder.addHeader(DATADOG_CONTAINER_ID, containerId);
-    }
-    if (entityId != null) {
-      builder.addHeader(DATADOG_ENTITY_ID, entityId);
-    }
-
-    for (Map.Entry<String, String> e : headers.entrySet()) {
-      builder.addHeader(e.getKey(), e.getValue());
-    }
-
-    return builder;
+    return prepareRequest(url, headers, ContainerInfo.get(), true);
   }
 
+  /**
+   * Prepares a request to the local Datadog Agent, or directly to the Datadog intake when {@code
+   * agentless}.
+   */
   public static Request.Builder prepareRequest(
       final HttpUrl url,
       final Map<String, String> headers,
       final Config config,
       final boolean agentless) {
-    Request.Builder builder = prepareRequest(url, headers);
+    Request.Builder builder = prepareRequest(url, headers, ContainerInfo.get(), !agentless);
 
     final String apiKey = config.getApiKey();
     if (agentless && apiKey != null) {
@@ -279,6 +263,88 @@ public final class OkHttpUtils {
     }
 
     return builder;
+  }
+
+  /**
+   * Prepares a request to an endpoint that is neither the local Datadog Agent nor the Datadog
+   * intake, so it carries neither origin detection headers nor the API key.
+   */
+  public static Request.Builder prepareExternalRequest(
+      final HttpUrl url, final Map<String, String> headers) {
+    return prepareRequest(url, headers, ContainerInfo.get(), false);
+  }
+
+  static Request.Builder prepareRequest(
+      final HttpUrl url,
+      final Map<String, String> headers,
+      final ContainerInfo containerInfo,
+      final boolean toAgent) {
+    final Request.Builder builder =
+        new Request.Builder()
+            .url(url)
+            .addHeader(DATADOG_META_LANG, "java")
+            .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
+            .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
+            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
+
+    if (toAgent) {
+      addOriginHeaders(builder, containerInfo);
+    }
+
+    for (Map.Entry<String, String> e : headers.entrySet()) {
+      builder.addHeader(e.getKey(), e.getValue());
+    }
+
+    return builder;
+  }
+
+  /**
+   * Adds the origin detection headers ({@code Datadog-Container-ID}, {@code Datadog-Entity-ID} and
+   * {@code Datadog-External-Env}) the Datadog Agent uses to resolve the container the request comes
+   * from, using the values detected by {@link ContainerInfo}. Only the local Datadog Agent uses
+   * them, so they must not be added to requests sent anywhere else.
+   */
+  public static Request.Builder addOriginHeaders(final Request.Builder builder) {
+    return addOriginHeaders(builder, ContainerInfo.get());
+  }
+
+  static Request.Builder addOriginHeaders(
+      final Request.Builder builder, final ContainerInfo containerInfo) {
+    final String containerId = containerInfo.getContainerId();
+    if (containerId != null) {
+      builder.addHeader(DATADOG_CONTAINER_ID, containerId);
+    }
+    final String entityId = containerInfo.getEntityId();
+    if (entityId != null) {
+      builder.addHeader(DATADOG_ENTITY_ID, entityId);
+    }
+    final String externalEnv = containerInfo.getExternalEnv();
+    if (externalEnv != null) {
+      builder.addHeader(DATADOG_EXTERNAL_ENV, externalEnv);
+    }
+    return builder;
+  }
+
+  /** Returns the HTTP URL of the local Datadog Agent, or {@code null} if it cannot be parsed. */
+  public static @Nullable HttpUrl parseAgentUrl(final Config config) {
+    String agentUrl = config.getAgentUrl();
+    if (agentUrl == null) {
+      return null;
+    }
+    if (agentUrl.startsWith("unix:")) {
+      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
+      agentUrl = "http://" + config.getAgentHost() + ":" + config.getAgentPort();
+    }
+    return HttpUrl.parse(agentUrl);
+  }
+
+  /** Returns whether {@code url} targets the local Datadog Agent configured in {@code config}. */
+  public static boolean isAgentUrl(final HttpUrl url, final Config config) {
+    final HttpUrl agentUrl = parseAgentUrl(config);
+    return agentUrl != null
+        && url.scheme().equals(agentUrl.scheme())
+        && url.host().equalsIgnoreCase(agentUrl.host())
+        && url.port() == agentUrl.port();
   }
 
   public static RequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {

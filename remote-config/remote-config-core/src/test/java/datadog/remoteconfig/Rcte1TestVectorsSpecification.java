@@ -77,8 +77,7 @@ class Rcte1TestVectorsSpecification extends DDJavaSpecification {
   void setup() {
     Supplier<String> urlSupplier = URL::toString;
     poller =
-        new DefaultConfigurationPoller(
-            Config.get(), "0.0.0", "containerid", "entityid", urlSupplier, okHttpClient, scheduler);
+        new DefaultConfigurationPoller(Config.get(), "0.0.0", urlSupplier, okHttpClient, scheduler);
   }
 
   private static String getFileContents(String baseFileName) throws IOException {

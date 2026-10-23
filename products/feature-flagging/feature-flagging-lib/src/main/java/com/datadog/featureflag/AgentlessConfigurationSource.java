@@ -1,5 +1,6 @@
 package com.datadog.featureflag;
 
+import static datadog.communication.http.OkHttpUtils.prepareExternalRequest;
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.communication.http.OkHttpUtils.sendWithRetries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_CONFIGURATION_POLLER;
@@ -364,8 +365,12 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         headers.put("If-None-Match", etag);
       }
       // Leave Accept-Encoding unset so OkHttp negotiates gzip and transparently decompresses it.
+      // this source never targets the local Datadog Agent, and only a Datadog-managed endpoint
+      // gets the API key
       final Request request =
-          prepareRequest(endpoint, headers, config, isDatadogManagedEndpoint(endpoint, config))
+          (isDatadogManagedEndpoint(endpoint, config)
+                  ? prepareRequest(endpoint, headers, config, true)
+                  : prepareExternalRequest(endpoint, headers))
               .get()
               .build();
       if (!fetching.compareAndSet(false, true)) {
