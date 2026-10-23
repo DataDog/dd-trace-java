@@ -32,17 +32,16 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
   @VisibleForTesting public static final int MAX_MEMBER_COUNT = 32;
+  private final PTagsResult ptagsResult;
 
-  /** Reused across parses; the codec belongs to one factory, so this is set once. */
-  private volatile PTagsResult ptagsResult;
+  W3CPTagsCodec(PTagsFactory tagsFactory) {
+    this.ptagsResult = new PTagsResult(tagsFactory);
+  }
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
-    PTagsResult result = ptagsResult;
-    if (result == null || result.tagsFactory != tagsFactory) {
-      ptagsResult = result = new PTagsResult(tagsFactory);
-    }
-    return parse(value, result);
+    // the codec belongs to tagsFactory, so its result builds that factory's tags
+    return parse(value, ptagsResult);
   }
 
   /**
