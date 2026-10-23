@@ -190,10 +190,10 @@ tracing remain active. Previously recorded or queued data is not removed.
 
 ## Design notes for contributors
 
-The SDK does not use any dd-trace-java internal module. Its parts that the agent can provide are behind the `com.datadog.openfeature.internal.bridge` SPI:
+The SDK does not use any dd-trace-java internal module. Its parts that the agent can provide are behind the `com.datadog.openfeature.internal.bridge.v1` SPI:
 
 * `AgentBridges.detect()` returns `AgentBridge.NONE` without the agent.
 * The `:dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-1.69` instrumentation replaces its result with a bridge delegating to the agent backend (`products/feature-flagging/feature-flagging-lib`) through the bootstrap `FeatureFlaggingGateway`.
 * The `:dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-1.56` instrumentation keeps the providers released before the bridge (1.56 to 1.68) from linking to the agent bootstrap API they used: they return the caller defaults.
-* The SPI is the only contract crossing SDK and agent versions. It must evolve in a backward compatible way, and the instrumentation references to it are checked by muzzle.
+* The SPI is the only contract crossing SDK and agent versions, and the instrumentation references to it are checked by muzzle. Once released, an SPI version is frozen: only `default` methods can be added. A breaking change goes to a new package (`bridge.v2`), with its own agent instrumentation, and the SDK keeps the previous version for the agents that only implement it. The `japicmpBridge` tasks check each released SPI version against the first SDK release that shipped it.
 * UFC parsing, evaluation, event payloads and batching stay in the SDK. The agent forwards raw Remote Configuration documents and event payloads.

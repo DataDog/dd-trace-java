@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.openfeature;
 
-import com.datadog.openfeature.internal.bridge.ShutdownSource;
+import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 
 /** Notifies the agent shutdown, before the JVM shutdown hooks run. */

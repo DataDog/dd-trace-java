@@ -11,11 +11,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import com.datadog.openfeature.internal.bridge.AgentBridges;
-import com.datadog.openfeature.internal.bridge.ConfigurationSource;
-import com.datadog.openfeature.internal.bridge.EventProxyUnavailableException;
-import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridges;
+import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.v1.EventProxyUnavailableException;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import java.util.function.Consumer;

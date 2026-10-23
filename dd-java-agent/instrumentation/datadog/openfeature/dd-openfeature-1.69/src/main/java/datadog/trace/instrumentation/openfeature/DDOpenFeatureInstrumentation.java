@@ -31,7 +31,7 @@ public class DDOpenFeatureInstrumentation extends InstrumenterModule
 
   @Override
   public String instrumentedType() {
-    return "com.datadog.openfeature.internal.bridge.AgentBridges";
+    return "com.datadog.openfeature.internal.bridge.v1.AgentBridges";
   }
 
   @Override

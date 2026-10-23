@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.openfeature;
 
-import com.datadog.openfeature.internal.bridge.SpanEnricher;
+import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import javax.annotation.Nullable;
 

@@ -9,7 +9,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;

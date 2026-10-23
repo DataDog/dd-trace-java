@@ -1,5 +1,6 @@
 import datadog.gradle.configureCompiler
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
+import me.champeau.gradle.japicmp.JapicmpTask
 
 plugins {
   `java-library`
@@ -56,5 +57,32 @@ tasks.withType<Javadoc>().configureEach {
 tasks.named<Jar>("jar") {
   manifest {
     attributes("Automatic-Module-Name" to "com.datadog.openfeature")
+  }
+}
+
+// The agent bridge SPI versions, with the first SDK release shipping each of them. A released
+// version is frozen (only default methods can be added): check it against that release.
+// TODO Set the v1 baseline once the first SDK release with the agent bridge is published.
+val bridgeSpiBaselines = mapOf<String, String?>(
+  "v1" to null,
+)
+bridgeSpiBaselines.forEach { (spi, baseline) ->
+  if (baseline != null) {
+    val baselineSdk = "com.datadoghq:dd-openfeature:$baseline"
+    val check = tasks.register<JapicmpTask>("japicmpBridge${spi.uppercase()}") {
+      description = "Checks the agent bridge SPI $spi stays compatible with dd-openfeature $baseline."
+      oldArchives.from(configurations.detachedConfiguration(dependencies.create("$baselineSdk@jar")))
+      oldClasspath.from(configurations.detachedConfiguration(dependencies.create(baselineSdk)))
+      newArchives.from(tasks.named<Jar>("jar"))
+      newClasspath.from(configurations.named("runtimeClasspath"))
+      packageIncludes.add("com.datadog.openfeature.internal.bridge.$spi")
+      // The agent implements the SPI: an abstract method added to an interface breaks it.
+      failOnModification.set(true)
+      failOnSourceIncompatibility.set(true)
+      txtOutputFile.set(layout.buildDirectory.file("reports/japicmp/bridge-$spi.txt"))
+    }
+    tasks.named("check") {
+      dependsOn(check)
+    }
   }
 }

@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import java.io.IOException;
@@ -132,8 +132,8 @@ class DDOpenFeatureClassLoaderTest extends AbstractInstrumentationTest {
                               ACC_PUBLIC | (isAbstract ? ACC_ABSTRACT : 0),
                               staticConflict ? "connect" : "additionalMethod",
                               staticConflict
-                                  ? "(Lcom/datadog/openfeature/internal/bridge/AgentBridge;)"
-                                      + "Lcom/datadog/openfeature/internal/bridge/AgentBridge;"
+                                  ? "(Lcom/datadog/openfeature/internal/bridge/v1/AgentBridge;)"
+                                      + "Lcom/datadog/openfeature/internal/bridge/v1/AgentBridge;"
                                   : "()Ljava/lang/String;",
                               null,
                               null);
@@ -179,14 +179,14 @@ class DDOpenFeatureClassLoaderTest extends AbstractInstrumentationTest {
 
   private static Object detect(final ClassLoader loader) throws Exception {
     return loader
-        .loadClass("com.datadog.openfeature.internal.bridge.AgentBridges")
+        .loadClass("com.datadog.openfeature.internal.bridge.v1.AgentBridges")
         .getMethod("detect")
         .invoke(null);
   }
 
   private void rewriteSpi(final String spi, final UnaryOperator<byte[]> rewrite)
       throws IOException {
-    final String resource = "com/datadog/openfeature/internal/bridge/" + spi + ".class";
+    final String resource = "com/datadog/openfeature/internal/bridge/v1/" + spi + ".class";
     final Path target = sdkOverrides.resolve(resource);
     createDirectories(target.getParent());
     try (InputStream input = AgentBridge.class.getClassLoader().getResourceAsStream(resource)) {

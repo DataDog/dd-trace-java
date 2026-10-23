@@ -1,4 +1,4 @@
-package com.datadog.openfeature.internal.bridge;
+package com.datadog.openfeature.internal.bridge.v1;
 
 /**
  * Resolves the {@link AgentBridge} to use. Kept apart from {@link AgentBridge}: the agent injects

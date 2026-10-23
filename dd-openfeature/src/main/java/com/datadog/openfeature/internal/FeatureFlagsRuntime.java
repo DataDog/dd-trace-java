@@ -2,10 +2,10 @@ package com.datadog.openfeature.internal;
 
 import static com.datadog.openfeature.internal.config.Settings.CONFIGURATION_SOURCE_REMOTE_CONFIG;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import com.datadog.openfeature.internal.bridge.ConfigurationSource;
-import com.datadog.openfeature.internal.bridge.EventTransport;
-import com.datadog.openfeature.internal.bridge.ShutdownSource;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.delivery.CdnConfigurationSource;
 import com.datadog.openfeature.internal.delivery.DirectIntakeTransport;
