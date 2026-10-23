@@ -306,7 +306,7 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  void forEach(Consumer<? super EntryReader> consumer) {
+  public void forEach(Consumer<? super EntryReader> consumer) {
     HashSupport.forEach(this.buckets, consumer);
     if (this.parent != null) {
       this.forEachParent(consumer, null, (c, unused, entry) -> c.accept(entry));
@@ -314,7 +314,7 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+  public <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
     HashSupport.forEach(this.buckets, thisObj, consumer);
     if (this.parent != null) {
       this.forEachParent(thisObj, consumer, (t, c, entry) -> c.accept(t, entry));
@@ -322,7 +322,8 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  <T, U> void forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+  public <T, U> void forEach(
+      T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
     HashSupport.forEach(this.buckets, thisObj, otherObj, consumer);
     if (this.parent != null) {
       this.forEachParent(thisObj, otherObj, consumer);

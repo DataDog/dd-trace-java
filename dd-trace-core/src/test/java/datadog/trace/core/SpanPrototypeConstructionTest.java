@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.common.writer.ListWriter;
+import java.lang.reflect.Field;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -85,6 +86,98 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
       assertEquals("test-component", span.getTags().get(COMPONENT));
     } finally {
       span.finish();
+    }
+  }
+
+  @Test
+  void singleSpanBuilderSeedsPrototype() {
+    DDSpan span = (DDSpan) tracer.singleSpanBuilder(prototype, null).start();
+    try {
+      assertEquals("proto.op", span.getOperationName().toString());
+      assertEquals("web", span.getSpanType());
+      assertEquals("test-component", span.getTags().get(COMPONENT));
+      assertEquals(SPAN_KIND_SERVER, span.getSpanKindString());
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void aReusedSingleSpanBuilderDropsThePrototype() {
+    // the thread's reusable builder carried a prototype for the first span; reset must clear it
+    tracer.singleSpanBuilder(prototype, null).start().finish();
+    DDSpan plain = (DDSpan) tracer.singleSpanBuilder("other-instr", "plain.op").start();
+    try {
+      assertNull(plain.getTags().get(COMPONENT));
+      assertNull(plain.getSpanType());
+    } finally {
+      plain.finish();
+    }
+  }
+
+  @Test
+  void applyOverwritingAfterStartStampsThePrototype() {
+    // the decorator path: start by name, then afterStart stamps the prototype over the span
+    DDSpan span = (DDSpan) tracer.startSpan("test-instr", "decorated.op");
+    try {
+      span.applyOverwriting(prototype);
+      assertEquals("web", span.getSpanType());
+      assertEquals("test-component", span.getTags().get(COMPONENT));
+      assertEquals(SPAN_KIND_SERVER, span.getTags().get(SPAN_KIND));
+      assertEquals(SPAN_KIND_SERVER, span.getSpanKindString());
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void applyOverwritingReplacesATagTheSpanAlreadyHas() {
+    DDSpan span = (DDSpan) tracer.startSpan("test-instr", "decorated.op");
+    try {
+      span.setTag(COMPONENT, "earlier");
+      span.applyOverwriting(prototype);
+      assertEquals("test-component", span.getTags().get(COMPONENT)); // the prototype wins
+      assertEquals(SPAN_KIND_SERVER, span.getSpanKindString());
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void theSeedPlanTriesTheBulkPathOnlyWhenTheStoreSupportsIt() throws Exception {
+    // With the hash store (the default) the plan must never be bulk: applyOverwriting would take
+    // the tag lock for a bulk attempt that always fails, then again for its fallback.
+    tracer.buildSpan(prototype, null).start().finish();
+    Object plan = prototype.seedPlan();
+    Field bulk = plan.getClass().getDeclaredField("bulk");
+    bulk.setAccessible(true);
+    assertEquals(prototype.tags().knownStore().supportsBulkSeed(), bulk.getBoolean(plan));
+  }
+
+  @Test
+  void aPrototypesCustomTagIsSeededAndOverwritten() {
+    SpanPrototype withCustom =
+        SpanPrototype.builder()
+            .initInstrumentationName("test-instr")
+            .initOperationName("proto.op")
+            .initKind(SPAN_KIND_SERVER)
+            .initTag("my.custom.constant", "custom-value")
+            .build();
+    DDSpan built = (DDSpan) tracer.buildSpan(withCustom, null).start();
+    try {
+      assertEquals("custom-value", built.getTags().get("my.custom.constant"));
+      assertEquals(SPAN_KIND_SERVER, built.getSpanKindString());
+    } finally {
+      built.finish();
+    }
+
+    DDSpan decorated = (DDSpan) tracer.startSpan("test-instr", "decorated.op");
+    try {
+      decorated.setTag("my.custom.constant", "earlier");
+      decorated.applyOverwriting(withCustom);
+      assertEquals("custom-value", decorated.getTags().get("my.custom.constant"));
+    } finally {
+      decorated.finish();
     }
   }
 
