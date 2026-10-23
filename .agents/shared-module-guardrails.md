@@ -3,7 +3,7 @@
 These rules apply in directories whose `AGENTS.md` links here.
 
 - Leave these modules untouched by default. Implement product features in their own modules using existing
-  contracts. Do not bundle changes to shared modules into a broad product PR.
+  contracts. Do not implement product specific feature into shared modules.
 - Change a shared module only for a concrete goal in that module. Language Platform @DataDog/apm-lang-platform-java should lead such work.
   Outside that team, keep changes tactical and specific to this module. Put them in a separate PR from broader
   product work.
