@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import javax.annotation.Nullable;
+
 /**
  * Builds the {@link IdStore}s of the one implementation this JVM uses: {@link DenseIdStore} when
  * the dense store is on, {@link HashIdStore} otherwise. Rollout scaffolding: the hash store stays
@@ -16,14 +18,23 @@ package datadog.trace.api;
 abstract class IdStoreFactory {
   /** The JVM's store, chosen once by the dense-store flag. */
   static final class Default {
+    /** Whether the dense store is on; folds wherever it is tested. */
+    static final boolean DENSE = Config.get().isTraceDenseTagsEnabled();
+
     static final IdStoreFactory INSTANCE =
-        Config.get().isTraceDenseTagsEnabled()
-            ? DenseIdStoreFactory.INSTANCE
-            : HashIdStoreFactory.INSTANCE;
+        DENSE ? DenseIdStoreFactory.INSTANCE : HashIdStoreFactory.INSTANCE;
   }
 
   /** A fresh store reading through to {@code parent} (may be null). */
-  abstract IdStore create(IdStore parent);
+  final IdStore create(IdStore parent) {
+    return create(parent, null);
+  }
+
+  /**
+   * A fresh store reading through to {@code parent} (may be null), presized from {@code hint} where
+   * the store keeps sized arrays; a null hint presizes nothing.
+   */
+  abstract IdStore create(IdStore parent, @Nullable SizingHint hint);
 
   /** A new empty parentless store, for a frozen map. */
   abstract IdStore createEmpty();
@@ -35,8 +46,8 @@ final class HashIdStoreFactory extends IdStoreFactory {
   private HashIdStoreFactory() {}
 
   @Override
-  IdStore create(IdStore parent) {
-    return new HashIdStore(parent);
+  IdStore create(IdStore parent, @Nullable SizingHint hint) {
+    return new HashIdStore(parent); // buckets aren't sized per span; a hint is only for dense
   }
 
   @Override
@@ -51,8 +62,8 @@ final class DenseIdStoreFactory extends IdStoreFactory {
   private DenseIdStoreFactory() {}
 
   @Override
-  IdStore create(IdStore parent) {
-    return new DenseIdStore(parent);
+  IdStore create(IdStore parent, @Nullable SizingHint hint) {
+    return new DenseIdStore(parent, hint);
   }
 
   @Override

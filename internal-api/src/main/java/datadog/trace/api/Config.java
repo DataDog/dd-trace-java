@@ -3457,7 +3457,7 @@ public class Config {
 
     this.spanBuilderReuseEnabled =
         configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
-    this.traceDenseTagsEnabled = configProvider.getBoolean(TRACE_DENSE_TAGS_ENABLED, false);
+    this.traceDenseTagsEnabled = configProvider.getBoolean(TRACE_DENSE_TAGS_ENABLED, true);
     this.tagNameUtf8CacheSize =
         Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
     this.tagValueUtf8CacheSize =

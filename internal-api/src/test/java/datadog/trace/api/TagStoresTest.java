@@ -183,6 +183,73 @@ class TagStoresTest {
     assertEquals("/a", child.getValue(KnownTags.HTTP_ROUTE_ID));
   }
 
+  /** A frozen-style source: a parentless dense store holding {@code ids}, each set to its name. */
+  private static DenseIdStore denseSource(long... ids) {
+    DenseIdStore source = new DenseIdStore(null);
+    for (long id : ids) {
+      source.set(id, KnownTagCodec.nameOf(id));
+    }
+    return source;
+  }
+
+  @Test
+  void seedAbsentCopiesEveryTagWhenNoneMayBePresent() {
+    DenseIdStore source = denseSource(KnownTags.COMPONENT_ID, KnownTags.SPAN_KIND_ID);
+    DenseIdStore target = new DenseIdStore(null);
+    target.set(KnownTags.HTTP_ROUTE_ID, "/a");
+    assertEquals(
+        0L, source.spanOccupancy & target.spanOccupancy, "test precondition: disjoint slots");
+
+    assertTrue(target.seedAbsent(source));
+    assertEquals(3, target.size());
+    assertEquals("component", target.getValue(KnownTags.COMPONENT_ID));
+    assertEquals("span.kind", target.getValue(KnownTags.SPAN_KIND_ID));
+    assertEquals("/a", target.getValue(KnownTags.HTTP_ROUTE_ID));
+    target.checkIntegrity();
+  }
+
+  @Test
+  void seedAbsentRefusesWhenAnyTagMayBePresent() {
+    DenseIdStore source = denseSource(KnownTags.COMPONENT_ID, KnownTags.SPAN_KIND_ID);
+    DenseIdStore target = new DenseIdStore(null);
+    target.set(KnownTags.COMPONENT_ID, "explicit");
+
+    assertFalse(target.seedAbsent(source));
+    assertEquals(1, target.size(), "nothing copied");
+    assertEquals("explicit", target.getValue(KnownTags.COMPONENT_ID));
+  }
+
+  @Test
+  void seedAbsentRefusesASourceWithAParentOrTombstones() {
+    DenseIdStore parent = denseSource(KnownTags.COMPONENT_ID);
+    DenseIdStore child = new DenseIdStore(parent);
+    child.set(KnownTags.SPAN_KIND_ID, "server");
+    assertFalse(new DenseIdStore(null).seedAbsent(child), "read-through source");
+
+    DenseIdStore tombstoned = new DenseIdStore(parent);
+    tombstoned.remove(KnownTags.COMPONENT_ID);
+    assertFalse(new DenseIdStore(null).seedAbsent(tombstoned), "tombstoned source");
+  }
+
+  @Test
+  void seedAbsentGrowsTheTargetToFit() {
+    DenseIdStore source =
+        denseSource(KnownTags.COMPONENT_ID, KnownTags.SPAN_KIND_ID, KnownTags.HTTP_ROUTE_ID);
+    DenseIdStore target = new DenseIdStore(null); // shared empty arrays: no room yet
+
+    assertTrue(target.seedAbsent(source));
+    assertEquals(3, target.size());
+    assertEquals("http.route", target.getValue(KnownTags.HTTP_ROUTE_ID));
+    target.checkIntegrity();
+  }
+
+  @Test
+  void theHashStoreNeverSeedsInBulk() {
+    HashIdStore target = new HashIdStore(null);
+    assertFalse(target.seedAbsent(denseSource(KnownTags.COMPONENT_ID)));
+    assertFalse(target.seedAbsent(new HashIdStore(null)));
+  }
+
   @Test
   void aTraceLevelTagDoesNotDefeatADenseSpanLevelMissInTheSameSlot() {
     // A local root span holds trace-level and span-level tags in one store, and the two levels are

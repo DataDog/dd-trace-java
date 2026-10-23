@@ -5864,7 +5864,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
         "aliases": []
       }
     ],
