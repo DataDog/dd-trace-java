@@ -3,8 +3,10 @@ package datadog.trace.instrumentation.play26.server
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.KnownTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
 import groovy.transform.CompileStatic
@@ -125,6 +127,9 @@ class AbstractPlayServerTest extends HttpServerTest<Server> {
   @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     def expectedQueryTag = expectedQueryTag(endpoint)
+    def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
+    def requestUrl = endpoint.resolve(address)
+    def expectedPath = Config.get().isHttpServerRawResource() && supportsRaw() ? requestUrl.rawPath : requestUrl.path
     trace.span {
       serviceName expectedServiceName()
       operationName "play.request"
@@ -137,8 +142,16 @@ class AbstractPlayServerTest extends HttpServerTest<Server> {
         "$Tags.PEER_HOST_IPV4" '127.0.0.1'
         "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : '127.0.0.1')
         "$Tags.NETWORK_CLIENT_IP" '127.0.0.1'
-        "$Tags.HTTP_URL" String
-        "$Tags.HTTP_HOSTNAME" address.host
+        if (otelSemantics) {
+          "$Tags.HTTP_URL" null
+          "$Tags.HTTP_HOSTNAME" address.host
+          "$KnownTags.SERVER_PORT_NAME" address.port
+          "$KnownTags.URL_PATH_NAME" expectedPath
+          "$KnownTags.URL_SCHEME_NAME" address.scheme
+        } else {
+          "$Tags.HTTP_URL" String
+          "$Tags.HTTP_HOSTNAME" address.host
+        }
         "$Tags.HTTP_METHOD" String
         // BUG
         //        "$Tags.HTTP_ROUTE" String
@@ -146,7 +159,7 @@ class AbstractPlayServerTest extends HttpServerTest<Server> {
           errorTags(endpoint == CUSTOM_EXCEPTION ? TestHttpErrorHandler.CustomRuntimeException : RuntimeException, endpoint.body)
         }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" expectedQueryTag
+          tag(otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY, expectedQueryTag)
         }
         defaultTags()
       }
