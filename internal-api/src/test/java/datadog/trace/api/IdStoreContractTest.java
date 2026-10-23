@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -388,6 +389,82 @@ class IdStoreContractTest {
 
   @ParameterizedTest
   @MethodSource("stores")
+  void aViewReadsValuesFromEitherStore(Function<IdStore, IdStore> newStore) {
+    IdStore store = newStore.apply(null);
+    store.set(KnownTags.HTTP_ROUTE_ID, "/a");
+    store.set(KnownTags.PEER_PORT_ID, 5432);
+    HashStore names = HashStore.create(null);
+    names.set("my.tag", 7);
+
+    TagMap view = TagMap.viewOf(store, names, false);
+    assertEquals("/a", view.getObject(KnownTags.HTTP_ROUTE_NAME));
+    assertEquals(5432, view.getObject("peer.port"));
+    assertEquals("5432", view.getString("peer.port"));
+    assertEquals(7, view.getObject("my.tag"));
+    assertEquals("7", view.getString("my.tag"));
+    assertNull(view.getObject(KnownTags.HTTP_METHOD_NAME));
+    assertNull(view.getString("other.tag"));
+    assertNull(TagMap.viewOf(store, null, false).getString("my.tag"), "no custom store");
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
+  void aViewReadsPrimitivesThroughAReader(Function<IdStore, IdStore> newStore) {
+    IdStore store = newStore.apply(null);
+    store.set(KnownTags.PEER_PORT_ID, 5432);
+    store.set(KnownTags.DB_INSTANCE_ID, 1.5d);
+    store.set(KnownTags.DD_MEASURED_ID, true);
+    HashStore names = HashStore.create(null);
+    names.set("my.count", 7L);
+
+    TagMap view = TagMap.viewOf(store, names, false);
+    assertEquals(5432, view.getInt("peer.port"));
+    assertEquals(5432L, view.getLong("peer.port"));
+    assertEquals(1.5d, view.getDouble("db.instance"));
+    assertEquals(1.5f, view.getFloat("db.instance"));
+    assertTrue(view.getBoolean(KnownTags.DD_MEASURED_NAME));
+    assertEquals(7L, view.getLong("my.count"));
+    assertEquals(-1, view.getIntOrDefault(KnownTags.HTTP_METHOD_NAME, -1));
+    assertEquals(-1L, view.getLongOrDefault("other.tag", -1L));
+    assertTrue(view.containsKey("peer.port"));
+    assertTrue(view.containsKey("my.count"));
+    assertFalse(view.containsKey("other.tag"));
+
+    EntryReader port = view.getEntryReader(KnownTags.PEER_PORT_ID);
+    assertEquals(5432, port.intValue());
+    assertEquals(KnownTags.PEER_PORT_ID, port.tagId());
+    assertEquals(7L, view.getEntryReader("my.count").longValue());
+    assertNull(view.getEntryReader(KnownTags.HTTP_METHOD_ID));
+    assertNull(TagMap.viewOf(store, null, false).getEntryReader("my.count"), "no custom store");
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
+  void aStreamYieldsEntriesThatStayValidOnceCollected(Function<IdStore, IdStore> newStore) {
+    IdStore store = newStore.apply(null);
+    store.set(KnownTags.HTTP_ROUTE_ID, "/a");
+    store.set(KnownTags.HTTP_METHOD_ID, "GET");
+    store.set(KnownTags.PEER_PORT_ID, 5432);
+    HashStore names = HashStore.create(null);
+    names.set("my.tag", "custom");
+    TagMap view = TagMap.viewOf(store, names, false);
+
+    // collected, then read: each element must still describe its own tag
+    List<EntryReader> collected = view.stream().collect(Collectors.toList());
+    Map<String, Object> byName = new HashMap<>();
+    for (EntryReader entryReader : collected) {
+      assertNull(byName.put(entryReader.tag(), entryReader.objectValue()), entryReader.tag());
+    }
+    Map<String, Object> expected = new HashMap<>();
+    expected.put("http.route", "/a");
+    expected.put("http.method", "GET");
+    expected.put("peer.port", 5432);
+    expected.put("my.tag", "custom");
+    assertEquals(expected, byName);
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
   void settingANullValueRemovesTheTag(Function<IdStore, IdStore> newStore) {
     IdStore parent = newStore.apply(null);
     parent.set(KnownTags.HTTP_ROUTE_ID, "/inherited");
@@ -400,6 +477,31 @@ class IdStoreContractTest {
     assertNull(store.getValue(KnownTags.HTTP_ROUTE_ID));
     assertEquals(0, store.size());
     assertEquals("/inherited", parent.getValue(KnownTags.HTTP_ROUTE_ID), "the parent keeps it");
+  }
+
+  @ParameterizedTest
+  @MethodSource("stores")
+  void aNullValueThroughTheMapApiRemovesTheTag(Function<IdStore, IdStore> newStore) {
+    TagMap view = TagMap.viewOf(newStore.apply(null), HashStore.create(null), false);
+    view.put("http.route", "/a");
+    view.put("my.tag", "custom");
+    view.set("http.method", "GET");
+    view.set("peer.port", 5432);
+
+    assertEquals("/a", view.put("http.route", null), "returns the prior value");
+    assertEquals("custom", view.put("my.tag", null));
+    view.set("http.method", (Object) null);
+    assertEquals(5432, view.getAndSet("peer.port", (Object) null).objectValue());
+    Map<String, Object> withNull = new HashMap<>();
+    withNull.put("http.route", null);
+    view.putAll(withNull); // already absent: still absent
+
+    for (String tag : new String[] {"http.route", "my.tag", "http.method", "peer.port"}) {
+      assertFalse(view.containsKey(tag), tag);
+      assertNull(view.get(tag), tag);
+    }
+    assertEquals(0, view.size());
+    assertTrue(view.isEmpty());
   }
 
   @ParameterizedTest
