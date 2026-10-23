@@ -2364,6 +2364,14 @@
         "aliases": []
       }
     ],
+    "DD_LAMBDA_STRIP_INJECTED_CONTEXT": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_LAMBDA_STRIP_INJECTED_CONTEXT"]
+      }
+    ],
     "DD_LLMOBS_AGENTLESS_ENABLED": [
       {
         "version": "B",

@@ -54,6 +54,7 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE;
 import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.LAMBDA_STRIP_INJECTED_CONTEXT;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
@@ -61,6 +62,7 @@ import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_FORCE;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
+import static datadog.trace.api.config.GeneralConfig.TRACE_LAMBDA_STRIP_INJECTED_CONTEXT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
@@ -3009,6 +3011,33 @@ class ConfigTest {
 
     assertTrue(config.isLlmObsEnabled());
     assertEquals("test-service", config.getLlmObsMlApp());
+  }
+
+  @Test
+  void lambdaStripInjectedContextIsDisabledByDefault() throws Exception {
+    Config config = newConfig();
+
+    assertFalse(config.isLambdaStripInjectedContextEnabled());
+  }
+
+  @Test
+  void lambdaStripInjectedContextCanBeEnabled() throws Exception {
+    Properties properties = new Properties();
+    properties.setProperty(LAMBDA_STRIP_INJECTED_CONTEXT, "true");
+
+    Config config = newConfig(withPropertiesOverride(properties));
+
+    assertTrue(config.isLambdaStripInjectedContextEnabled());
+  }
+
+  @Test
+  void lambdaStripInjectedContextCanBeEnabledWithTraceAlias() throws Exception {
+    Properties properties = new Properties();
+    properties.setProperty(TRACE_LAMBDA_STRIP_INJECTED_CONTEXT, "true");
+
+    Config config = newConfig(withPropertiesOverride(properties));
+
+    assertTrue(config.isLambdaStripInjectedContextEnabled());
   }
 
   @Test
