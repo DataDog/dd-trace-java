@@ -1,5 +1,5 @@
 # dd-trace-api
 
-Public tracing API and configuration keys used by applications and agent modules.
+Module described in [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 Read and follow the [shared module guardrails](../.agents/shared-module-guardrails.md).

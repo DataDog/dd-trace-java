@@ -1,5 +1,5 @@
 # utils
 
-Shared utility modules for configuration, queues, sockets, time, and test support.
+Module described in [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 Read and follow the [shared module guardrails](../.agents/shared-module-guardrails.md).

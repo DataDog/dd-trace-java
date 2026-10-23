@@ -1,6 +1,6 @@
 # dd-java-agent/src
 
-Agent entry point and jar loading code used during premain.
+Module described in [ARCHITECTURE.md](../../ARCHITECTURE.md).
 
 > [!NOTE]
 > `dd-java-agent` both assembles the agent jar and owns startup code under `src`.

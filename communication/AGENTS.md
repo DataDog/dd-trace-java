@@ -1,5 +1,5 @@
 # communication
 
-HTTP transport, agent discovery, and communication objects shared by product modules.
+Module described in [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 Read and follow the [shared module guardrails](../.agents/shared-module-guardrails.md).

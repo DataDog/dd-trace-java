@@ -1,5 +1,5 @@
 # remote-config
 
-Remote configuration API and polling client used by multiple products.
+Module described in [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 Read and follow the [shared module guardrails](../.agents/shared-module-guardrails.md).

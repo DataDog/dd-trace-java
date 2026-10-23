@@ -1,5 +1,5 @@
 # agent-bootstrap
 
-Bootstrap classloader code and startup services visible across the agent.
+Module described in [ARCHITECTURE.md](../../ARCHITECTURE.md).
 
 Read and follow the [shared module guardrails](../../.agents/shared-module-guardrails.md).
