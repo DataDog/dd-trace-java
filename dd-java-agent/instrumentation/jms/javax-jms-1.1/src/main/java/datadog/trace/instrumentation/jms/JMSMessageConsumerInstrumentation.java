@@ -16,6 +16,7 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
 import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
+import static datadog.trace.instrumentation.jms.JMSDecorator.isDataStreamsSupported;
 import static datadog.trace.instrumentation.jms.JMSDecorator.messageTechnology;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -164,7 +165,7 @@ public final class JMSMessageConsumerInstrumentation
 
       if (Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
+        if (isDataStreamsSupported(tech)) {
           DataStreamsTags tags =
               create(tech, INBOUND, consumerState.getConsumerBaseResourceName().toString());
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
