@@ -27,6 +27,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -38,10 +39,14 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanData;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
+import datadog.trace.bootstrap.instrumentation.api.TagContributor;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
@@ -74,7 +79,12 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext, SpanStorage {
+    implements AgentSpanContext,
+        RequestContext,
+        TraceSegment,
+        ProfilerContext,
+        SpanStorage,
+        SpanData {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -672,10 +682,12 @@ public class DDSpanContext
     return measured;
   }
 
-  public void setMeasured(boolean measured) {
+  @Override
+  public DDSpanContext setMeasured(boolean measured) {
     if (measured != this.measured) {
       this.measured = measured;
     }
+    return this;
   }
 
   public boolean isTopLevel() {
@@ -1429,9 +1441,10 @@ public class DDSpanContext
    * @param tag The tag name.
    * @param value The nullable tag value.
    */
-  public void setTag(final String tag, final Object value) {
+  @Override
+  public DDSpanContext setTag(final String tag, final Object value) {
     if (null == tag) {
-      return;
+      return this;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
@@ -1443,11 +1456,13 @@ public class DDSpanContext
         customTagsForWrite().set(tag, value); // already known to be custom
       }
     }
+    return this;
   }
 
-  public void setTag(final String tag, final String value) {
+  @Override
+  public DDSpanContext setTag(final String tag, final String value) {
     if (null == tag) {
-      return;
+      return this;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
@@ -1459,6 +1474,7 @@ public class DDSpanContext
         customTagsForWrite().set(tag, value); // already known to be custom
       }
     }
+    return this;
   }
 
   /*
@@ -1466,39 +1482,44 @@ public class DDSpanContext
    * KnownTagCodec.INTERCEPTED test folds, leaving only the split-by-tags table load; an id set never
    * takes the custom-tag path. An id that names no known tag is ignored, like a null tag.
    */
-  public void setTag(final long tagId, final Object value) {
+  @Override
+  public DDSpanContext setTag(final long tagId, final Object value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return;
+      return this;
     }
     if (null == value) {
       removeTag(tagId);
-      return;
+      return this;
     }
     if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (knownTags) {
         knownTags.set(tagId, value);
       }
     }
+    return this;
   }
 
-  public void setTag(final long tagId, final CharSequence value) {
+  @Override
+  public DDSpanContext setTag(final long tagId, final CharSequence value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return;
+      return this;
     }
     if (null == value) {
       removeTag(tagId);
-      return;
+      return this;
     }
     if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (knownTags) {
         knownTags.set(tagId, value);
       }
     }
+    return this;
   }
 
-  public void setTag(final long tagId, final boolean value) {
+  @Override
+  public DDSpanContext setTag(final long tagId, final boolean value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return;
+      return this;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
@@ -1507,11 +1528,13 @@ public class DDSpanContext
         knownTags.set(tagId, value);
       }
     }
+    return this;
   }
 
-  public void setTag(final long tagId, final int value) {
+  @Override
+  public DDSpanContext setTag(final long tagId, final int value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return;
+      return this;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
@@ -1520,11 +1543,13 @@ public class DDSpanContext
         knownTags.set(tagId, value);
       }
     }
+    return this;
   }
 
-  public void setTag(final long tagId, final long value) {
+  @Override
+  public DDSpanContext setTag(final long tagId, final long value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return;
+      return this;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
@@ -1533,11 +1558,13 @@ public class DDSpanContext
         knownTags.set(tagId, value);
       }
     }
+    return this;
   }
 
-  public void setTag(final long tagId, final float value) {
+  @Override
+  public DDSpanContext setTag(final long tagId, final float value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return;
+      return this;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
@@ -1546,11 +1573,13 @@ public class DDSpanContext
         knownTags.set(tagId, value);
       }
     }
+    return this;
   }
 
-  public void setTag(final long tagId, final double value) {
+  @Override
+  public DDSpanContext setTag(final long tagId, final double value) {
     if (!KnownTagCodec.isKnown(tagId)) {
-      return;
+      return this;
     }
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
@@ -1559,11 +1588,13 @@ public class DDSpanContext
         knownTags.set(tagId, value);
       }
     }
+    return this;
   }
 
-  public void setTag(TagMap.EntryReader entry) {
+  @Override
+  public DDSpanContext setTag(TagMap.EntryReader entry) {
     if (entry == null) {
-      return;
+      return this;
     }
 
     // the interceptor prechecks the entry, to avoid boxing
@@ -1572,6 +1603,7 @@ public class DDSpanContext
         routePut(entry);
       }
     }
+    return this;
   }
 
   /*
@@ -1594,9 +1626,10 @@ public class DDSpanContext
     }
   }
 
-  public void setTag(final String tag, final boolean value) {
+  @Override
+  public DDSpanContext setTag(final String tag, final boolean value) {
     if (null == tag) {
-      return;
+      return this;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
@@ -1606,66 +1639,472 @@ public class DDSpanContext
       synchronized (knownTags) {
         customTagsForWrite().set(tag, value); // already known to be custom
       }
+    }
+    return this;
+  }
+
+  @Override
+  public DDSpanContext setTag(final String tag, final int value) {
+    if (null == tag) {
+      return this;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      synchronized (knownTags) {
+        customTagsForWrite().set(tag, value); // already known to be custom
+      }
+    }
+    return this;
+  }
+
+  @Override
+  public DDSpanContext setTag(final String tag, final long value) {
+    if (null == tag) {
+      return this;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      synchronized (knownTags) {
+        customTagsForWrite().set(tag, value); // already known to be custom
+      }
+    }
+    return this;
+  }
+
+  @Override
+  public DDSpanContext setTag(final String tag, final float value) {
+    if (null == tag) {
+      return this;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      synchronized (knownTags) {
+        customTagsForWrite().set(tag, value); // already known to be custom
+      }
+    }
+    return this;
+  }
+
+  @Override
+  public DDSpanContext setTag(final String tag, final double value) {
+    if (null == tag) {
+      return this;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      synchronized (knownTags) {
+        customTagsForWrite().set(tag, value); // already known to be custom
+      }
+    }
+    return this;
+  }
+
+  /*
+   * The *HoldingLock variants: the same tag semantics as setTag / removeTag / getTag (a null value
+   * removes, the tag interceptor runs), for a caller that already holds the knownTags lock, so a
+   * batch takes the lock once. Only HeldSpanData calls them, during setTagsFrom.
+   */
+
+  void setTagHoldingLock(final String tag, final Object value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (null == value) {
+      removeTagHoldingLock(tag);
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().set(tag, value); // already known to be custom
     }
   }
 
-  public void setTag(final String tag, final int value) {
+  void setTagHoldingLock(final String tag, final String value) {
     if (null == tag) {
       return;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
-      setTag(tagId, value);
-    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
-        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
-      }
+      setTagHoldingLock(tagId, value);
+    } else if (null == value) {
+      removeTagHoldingLock(tag);
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().set(tag, value); // already known to be custom
     }
   }
 
-  public void setTag(final String tag, final long value) {
-    if (null == tag) {
+  void setTagHoldingLock(final long tagId, final Object value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
-    if (tagId != 0) {
-      setTag(tagId, value);
-    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
-        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
-      }
+    if (null == value) {
+      removeTagHoldingLock(tagId);
+      return;
+    }
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
+      knownTags.set(tagId, value);
     }
   }
 
-  public void setTag(final String tag, final float value) {
-    if (null == tag) {
+  void setTagHoldingLock(final long tagId, final CharSequence value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
-    if (tagId != 0) {
-      setTag(tagId, value);
-    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
-        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
-      }
+    if (null == value) {
+      removeTagHoldingLock(tagId);
+      return;
+    }
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
+      knownTags.set(tagId, value);
     }
   }
 
-  public void setTag(final String tag, final double value) {
+  void setTagHoldingLock(final long tagId, final boolean value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.set(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final int value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.set(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final long value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.set(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final float value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.set(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(final long tagId, final double value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBoxHoldingLock(tagId, value);
+    } else {
+      knownTags.set(tagId, value);
+    }
+  }
+
+  void setTagHoldingLock(TagMap.EntryReader entry) {
+    if (entry == null) {
+      return;
+    }
+
+    // the interceptor prechecks the entry, to avoid boxing
+    if (!tagInterceptor.interceptTag(this, entry)) {
+      routePut(entry);
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final boolean value) {
     if (null == tag) {
       return;
     }
     final long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
-      setTag(tagId, value);
+      setTagHoldingLock(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
-      }
+      customTagsForWrite().set(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final int value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().set(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final long value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().set(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final float value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().set(tag, value); // already known to be custom
+    }
+  }
+
+  void setTagHoldingLock(final String tag, final double value) {
+    if (null == tag) {
+      return;
+    }
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTagHoldingLock(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
+      customTagsForWrite().set(tag, value); // already known to be custom
+    }
+  }
+
+  void removeTagHoldingLock(String tag) {
+    if (tagEquals(tag, Tags.SPAN_KIND)) {
+      // Clear the cached ordinal; the tag store still needs to be updated below.
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
+    routeRemoval(tag);
+  }
+
+  void removeTagHoldingLock(long tagId) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagId == KnownTags.SPAN_KIND_ID) {
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
+    knownTags.remove(tagId);
+  }
+
+  private void setBoxHoldingLock(long tagId, Object box) {
+    if (!tagInterceptor.interceptTag(this, tagId, box)) {
+      knownTags.set(tagId, box);
+    }
+  }
+
+  Object getTagHoldingLock(final String key) {
+    switch (key) {
+      case DDTags.THREAD_ID:
+        return threadId;
+      case DDTags.THREAD_NAME:
+        // maintain previously observable type of the thread name :|
+        return threadName.toString();
+      case Tags.HTTP_STATUS:
+      case KnownTags.HTTP_STATUS_CODE_OTEL_NAME:
+        return 0 == httpStatusCode ? null : (int) httpStatusCode;
+      case Tags.SPAN_KIND:
+        return getSpanKindString();
+      default:
+        Object value = unsafeGetTag(key);
+        // maintain previously observable type of http url :|
+        return value == null ? null : Tags.HTTP_URL.equals(key) ? value.toString() : value;
+    }
+  }
+
+  @Override
+  public DDSpanContext setResourceName(final CharSequence resourceName) {
+    setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
+    return this;
+  }
+
+  @Override
+  public DDSpanContext setError(final boolean error) {
+    setErrorFlag(error, ErrorPriorities.DEFAULT);
+    return this;
+  }
+
+  /**
+   * Applies {@code extractor} to {@code source} holding the tag lock once for the whole call: the
+   * extractor's writes go through a {@link HeldSpanData}, which keeps the span's tag semantics but
+   * doesn't lock again. Kept small so it inlines and each call site sees its exact extractor type.
+   */
+  <T> void setTagsFrom(final T source, final TagExtractor<T> extractor) {
+    synchronized (knownTags) {
+      extractor.extract(source, new HeldSpanData(this));
+    }
+  }
+
+  /** {@link #setTagsFrom(Object, TagExtractor)} for a {@link TagContributor}. */
+  void setTagsFrom(final TagContributor contributor) {
+    synchronized (knownTags) {
+      contributor.addTo(new HeldSpanData(this));
+    }
+  }
+
+  /**
+   * The span as a {@link SpanData} for the length of one {@code setTagsFrom} call, which holds the
+   * tag lock throughout: tag writes and reads skip relocking. It must not outlive the call; with
+   * the contributor's call site monomorphic, it is scalar-replaced.
+   */
+  @NoEscape
+  static final class HeldSpanData implements SpanData {
+    private final DDSpanContext span;
+
+    HeldSpanData(DDSpanContext span) {
+      this.span = span;
+    }
+
+    /** The span, checking (with assertions on) that this is still inside its setTagsFrom call. */
+    private DDSpanContext span() {
+      assert Thread.holdsLock(span.knownTags) : "HeldSpanData used outside its setTagsFrom call";
+      return span;
+    }
+
+    @Override
+    public SpanData setTag(String key, Object value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, String value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, boolean value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, int value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, long value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, float value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(String key, double value) {
+      span().setTagHoldingLock(key, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, Object value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, CharSequence value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, boolean value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, int value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, long value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, float value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(long tagId, double value) {
+      span().setTagHoldingLock(tagId, value);
+      return this;
+    }
+
+    @Override
+    public SpanData setTag(TagMap.EntryReader entry) {
+      span().setTagHoldingLock(entry);
+      return this;
+    }
+
+    @Override
+    public Object getTag(String key) {
+      return span().getTagHoldingLock(key);
+    }
+
+    @Override
+    public SpanData setResourceName(CharSequence resourceName) {
+      span().setResourceName(resourceName);
+      return this;
+    }
+
+    @Override
+    public SpanData setError(boolean error) {
+      span().setError(error);
+      return this;
+    }
+
+    @Override
+    public SpanData setMeasured(boolean measured) {
+      span().setMeasured(measured);
+      return this;
     }
   }
 
@@ -1752,7 +2191,8 @@ public class DDSpanContext
     routeSet(tag, value);
   }
 
-  Object getTag(final String key) {
+  @Override
+  public Object getTag(final String key) {
     switch (key) {
       case DDTags.THREAD_ID:
         return threadId;
