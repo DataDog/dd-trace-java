@@ -20,10 +20,7 @@ final class TagValue extends TagElement {
   }
 
   static TagValue from(Encoding encoding, CharSequence s, int start, int end) {
-    if (s == null || isValueInvalid(s, start, end)) {
-      if (log.isDebugEnabled()) {
-        log.debug("Invalid header h: {} s: {} b: {} e: {}", encoding, s, start, end);
-      }
+    if (isInvalid(encoding, s, start, end)) {
       return null;
     }
     if (encoding == Encoding.W3C) {
@@ -40,15 +37,22 @@ final class TagValue extends TagElement {
    * such as a span id. Caching those would never hit, and would evict values that do repeat.
    */
   static TagValue uncached(Encoding encoding, CharSequence s, int start, int end) {
-    if (s == null || isValueInvalid(s, start, end)) {
-      if (log.isDebugEnabled()) {
-        log.debug("Invalid header h: {} s: {} b: {} e: {}", encoding, s, start, end);
-      }
+    if (isInvalid(encoding, s, start, end)) {
       return null;
     }
     return encoding == Encoding.W3C
         ? produceW3C(s, hashW3C(s, start, end), start, end)
         : produceDD(s, hashDD(s, start, end), start, end);
+  }
+
+  private static boolean isInvalid(Encoding encoding, CharSequence s, int start, int end) {
+    if (s == null || isValueInvalid(s, start, end)) {
+      if (log.isDebugEnabled()) {
+        log.debug("Invalid header h: {} s: {} b: {} e: {}", encoding, s, start, end);
+      }
+      return true;
+    }
+    return false;
   }
 
   private static boolean isValueInvalid(CharSequence s, int start, int end) {

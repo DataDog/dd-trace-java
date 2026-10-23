@@ -204,10 +204,7 @@ public class W3CPTagsCodec extends PTagsCodec {
             tagPos = nextTagPos;
             continue;
           }
-          TagValue tagValue =
-              hasUniqueValues(tagKey)
-                  ? TagValue.uncached(Encoding.W3C, value, tagValuePos, tagValueEndsAt)
-                  : TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+          TagValue tagValue = tagValue(Encoding.W3C, tagKey, value, tagValuePos, tagValueEndsAt);
           if (!tagKey.equals(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
             if (!validateTagValue(tagKey, tagValue)) {
               log.warn(
