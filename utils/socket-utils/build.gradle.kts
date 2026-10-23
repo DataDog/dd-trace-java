@@ -16,6 +16,7 @@ dependencies {
   implementation(project(":utils:logging-utils"))
   implementation(libs.slf4j)
   implementation(libs.jnr.unixsocket)
+  implementation(libs.bundles.asm) // JNR's ASM dependencies are supplied at our controlled version.
   testImplementation(files(sourceSets["main_java17"].output))
   jmhImplementation(files(sourceSets["main_java17"].output))
 }
