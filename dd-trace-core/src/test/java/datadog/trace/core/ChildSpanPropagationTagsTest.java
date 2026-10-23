@@ -93,27 +93,37 @@ class ChildSpanPropagationTagsTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void traceSourceOnChildStaysOnChild() {
+  void traceSourceOnChildIsTraceLevel() {
     DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
     DDSpan child = childOf(root);
 
     child.setTag("_dd.p.ts", ProductTraceSource.ASM);
 
-    assertTrue(child.spanContext().hasOwnPropagationTags());
-    assertEquals("02", ownTags(child).get("_dd.p.ts"));
-    assertFalse(root.spanContext().getPropagationTags().createTagMap().containsKey("_dd.p.ts"));
+    assertTraceLevel(root, child, "_dd.p.ts", "02");
   }
 
   @Test
-  void debugPropagationOnChildStaysOnChild() {
+  void debugPropagationOnChildIsTraceLevel() {
     DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
     DDSpan child = childOf(root);
 
     child.setTag("_dd.p.debug", "probe");
 
-    assertTrue(child.spanContext().hasOwnPropagationTags());
-    assertEquals("probe", ownTags(child).get("_dd.p.debug"));
-    assertFalse(root.spanContext().getPropagationTags().createTagMap().containsKey("_dd.p.debug"));
+    assertTraceLevel(root, child, "_dd.p.debug", "probe");
+  }
+
+  /** A tag set on a child lands on the trace: injected, and serialized with the local root. */
+  private void assertTraceLevel(DDSpan root, DDSpan child, String tag, String value) {
+    assertFalse(child.spanContext().hasOwnPropagationTags());
+    PropagationTags trace = root.spanContext().getPropagationTags();
+    assertSame(trace, child.spanContext().getPropagationTags());
+    assertEquals(value, trace.createTagMap().get(tag));
+    assertTrue(
+        trace.headerValue(PropagationTags.HeaderType.DATADOG).contains(tag + "=" + value),
+        trace.headerValue(PropagationTags.HeaderType.DATADOG));
+    assertEquals(value, tags(root, ROOT_PROPAGATION_TAGS).get(tag));
+    assertEquals(value, ownTags(root).get(tag));
+    assertEquals(expectedOwnTags(child), ownTags(child));
   }
 
   private DDSpan extractedRoot(DDTraceId traceId, String header) {
