@@ -44,7 +44,7 @@ jobs:
             }
             // Check title does not contain tags other than a leading APM ticket
             const title = context.payload.pull_request.title
-            const titleCheckFailed = title.replace(/^\[APM[A-Z]*-\d+\]\s+/, '').match(/\[.*\]/)
+            const titleCheckFailed = title.replace(/^(?:🍒 \d+ - )?\[APM[A-Z]*-\d+\]\s+/, '').match(/\[.*\]/)
             if (titleCheckFailed) {
               core.setFailed('Please remove the tag from the pull request title.')
             }
