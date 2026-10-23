@@ -245,7 +245,8 @@ result, not a failure to find something.
   **J7** `substring` → `SubSequence` zero-copy view · **J8** backtracking regex on
   external input → RE2J (ReDoS) · **J9** `Objects.hash(...)` varargs/boxing →
   `HashingUtils` · **J10** hot-path `String.format` → `Strings` · **J11** composite-key
-  maps → `Hashtable`.
+  maps → `Hashtable` · **J13** lock guarding publishable state → compare-and-set on an
+  immutable snapshot (preferred over locks whenever possible).
 - **J2** megamorphic dispatch is **PARKED** — do *not* raise megamorphism findings in
   review yet (kept as author reference only; it needs a standing audit, not per-PR
   flagging). See `checks.md` for why.
@@ -254,4 +255,5 @@ result, not a failure to find something.
   three-tier) — in `checks.md`.
 
 J7–J11 route an *existing* #1/#2/#3 finding to a landed reusable fix — they are not new
-triggers. Don't raise a finding you wouldn't have raised anyway.
+triggers. Don't raise a finding you wouldn't have raised anyway. J13 is the exception: it
+is a trigger in its own right, by policy (prefer compare-and-set over locks).
