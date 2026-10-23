@@ -7,7 +7,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,11 +23,12 @@ import static org.mockito.Mockito.when;
 import com.datadog.openfeature.Provider.Options;
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.LocalHttpServer;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import com.datadog.openfeature.internal.bridge.ConfigurationSource;
-import com.datadog.openfeature.internal.bridge.EventTransport;
-import com.datadog.openfeature.internal.bridge.HealthMetrics;
-import com.datadog.openfeature.internal.bridge.SpanEnricher;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
+import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Flag;
@@ -369,18 +372,58 @@ public class ProviderTest {
     assertThat(error.getCause().getMessage(), equalTo("Feature Flags is disabled"));
   }
 
+  @MethodSource("providerMethods")
+  @ParameterizedTest
+  public <E> void testRemoteConfigurationWithoutCompatibleAgentUsesDefaults(
+      final String flag, final E defaultValue, final EvaluateMethod<E> method) throws Exception {
+    final Provider provider = newRemoteConfigurationProvider(AgentBridge.NONE);
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+
+    assertDoesNotThrow(() -> api.setProviderAndWait(provider));
+    // READY means initialization completed; evaluation details still report unavailable config.
+    assertThat(api.getClient().getProviderState(), equalTo(ProviderState.READY));
+    assertThat(initializationState(provider), equalTo("FALLBACK"));
+    assertFalse(this.evaluator.hasConfiguration());
+    assertNull(this.evaluator.runtime(), "no polling or event delivery starts without RC");
+    final FlagEvaluationDetails<E> result = method.evaluate(api.getClient(), flag, defaultValue);
+    assertThat(result.getValue(), equalTo(defaultValue));
+    assertThat(result.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
+    assertThat(result.getReason(), equalTo("ERROR"));
+    assertNull(result.getVariant());
+    assertTrue(this.cdn.requests().isEmpty(), "explicit RC must not silently switch to CDN");
+  }
+
   @Test
-  public void testRemoteConfigurationWithoutAgentFailsInitialization() {
+  public void testIncompatibleRemoteConfigurationBridgeUsesDefaults() throws Exception {
+    final AgentBridge bridge = mock(AgentBridge.class);
+    when(bridge.healthMetrics()).thenReturn(HealthMetrics.NOOP);
+    when(bridge.remoteConfiguration()).thenThrow(new NoSuchMethodError("older agent RC bridge"));
+    final Provider provider = newRemoteConfigurationProvider(bridge);
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+
+    assertDoesNotThrow(() -> api.setProviderAndWait(provider));
+    assertThat(initializationState(provider), equalTo("FALLBACK"));
+    final FlagEvaluationDetails<String> result =
+        api.getClient().getStringDetails("missing", "caller-default");
+    assertThat(result.getValue(), equalTo("caller-default"));
+    assertThat(result.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
+    assertNull(this.evaluator.runtime());
+    assertDoesNotThrow(api::shutdown);
+  }
+
+  private Provider newRemoteConfigurationProvider(final AgentBridge bridge) {
     final Provider[] providerRef = new Provider[1];
-    final DDEvaluator remoteConfig =
+    this.evaluator =
         new DDEvaluator(
             () -> providerRef[0].onConfigurationChange(),
-            AgentBridge.NONE,
-            TestSettings.of("feature.flags.configuration.source", "remote_config"));
-    providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), remoteConfig);
-
-    assertThrows(
-        FatalError.class, () -> OpenFeatureAPI.getInstance().setProviderAndWait(providerRef[0]));
+            bridge,
+            TestSettings.of(
+                "feature.flags.configuration.source",
+                "remote_config",
+                "feature.flags.configuration.source.agentless.base.url",
+                this.cdn.uri("/").toString()));
+    providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), this.evaluator);
+    return providerRef[0];
   }
 
   @Test
@@ -608,6 +651,11 @@ public class ProviderTest {
     @Override
     public SpanEnricher spanEnricher() {
       return SpanEnricher.NOOP;
+    }
+
+    @Override
+    public ShutdownSource shutdown() {
+      return null;
     }
   }
 }

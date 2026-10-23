@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.reactivestreams;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -20,7 +21,14 @@ import org.reactivestreams.Subscriber;
  * onError, onComplete).
  */
 public class SubscriberInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
+
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    return declaresMethod(isMethod().and(namedOneOf("onNext", "onError", "onComplete")));
+  }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {

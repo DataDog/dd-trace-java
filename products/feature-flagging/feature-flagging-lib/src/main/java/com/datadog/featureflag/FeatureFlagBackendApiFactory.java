@@ -1,16 +1,23 @@
 package com.datadog.featureflag;
 
+import static datadog.communication.EvpProxy.JAVA_TRACING_LIBRARY;
+import static datadog.communication.EvpProxy.ORIGIN_HEADER;
+import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
-import static java.util.Collections.emptyList;
+import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableMap;
 
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import java.net.ConnectException;
+import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 import okhttp3.Response;
 import org.slf4j.Logger;
@@ -20,6 +27,7 @@ import org.slf4j.LoggerFactory;
 final class FeatureFlagBackendApiFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagBackendApiFactory.class);
+  private static final Map<String, String> REQUEST_HEADERS = requestHeaders();
 
   /** Retries connection refusal only; automatic retries and redirects remain disabled. */
   static final HttpRetryPolicy.Factory PRE_SEND_RETRY =
@@ -85,7 +93,7 @@ final class FeatureFlagBackendApiFactory {
       // cached HTTP client uses configured timeouts even when Feature Flagging starts first.
       sharedCommunicationObjects.createRemaining(config);
     }
-    return new BackendApiFactory(config, sharedCommunicationObjects, true);
+    return new BackendApiFactory(config, sharedCommunicationObjects, REQUEST_HEADERS, true);
   }
 
   FeatureFlagBackendApiFactory(
@@ -139,12 +147,20 @@ final class FeatureFlagBackendApiFactory {
   @Nullable
   private String discoverProxyEndpoint(final boolean forceDiscovery) {
     try {
-      // Identity-forwarding requirements belong with SDK identity emission in the identity PR.
-      return backendApiFactory.discoverEvpProxyEndpoint(forceDiscovery, emptyList());
+      // A local route must preserve the identity headers that this sender emits on every batch.
+      return backendApiFactory.discoverEvpProxyEndpoint(
+          forceDiscovery, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
     } catch (final RuntimeException exception) {
       LOGGER.debug("Could not discover the local Feature Flagging route", exception);
       return null;
     }
+  }
+
+  private static Map<String, String> requestHeaders() {
+    final Map<String, String> headers = new HashMap<>(2);
+    headers.put(ORIGIN_HEADER, JAVA_TRACING_LIBRARY);
+    headers.put(ORIGIN_VERSION_HEADER, TracerVersion.TRACER_VERSION);
+    return unmodifiableMap(headers);
   }
 
   private boolean hasDirectCredentials() {

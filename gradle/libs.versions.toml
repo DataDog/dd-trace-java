@@ -2,11 +2,12 @@
 # NOTE: Ranges for some versions are needed to allow instrumentation tests to specify the desired version.
 
 # Build
-develocity = "4.6.0"
+develocity = "4.6.1"
 forbiddenapis = "3.11"
-gradle-tooling-api = "8.14.5"
+gradle-tooling-api = "8.14.6"
 jsr305 = "3.0.2"
 shadow = "9.4.2"
+spotbugs-gradle-plugin = "6.5.11"
 spotbugs_annotations = "4.10.4"
 
 # Source code formatters
@@ -64,7 +65,7 @@ commons = "3.2"
 guava = "33.6.0-jre"
 javaparser = "3.28.2"
 jctools = "4.0.6"
-lz4 = "1.11.4"
+lz4 = "1.12.1"
 re2j = "1.8"
 
 # Logging
@@ -94,6 +95,7 @@ forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbidden
 gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "gradle-tooling-api" }
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
+spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs-gradle-plugin" }
 
 # DataDog libs and forks
 datadog-okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "datadog-okhttp" }

@@ -1,8 +1,11 @@
 package com.datadog.openfeature.internal.exposure;
 
+import static com.datadog.openfeature.internal.EventPipeline.awaitThread;
+
+import com.datadog.openfeature.internal.EventPipeline;
 import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -13,14 +16,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Batches exposure events to the event platform {@code exposures} route. */
-public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable {
+public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExposurePipeline.class);
   public static final int DEFAULT_CAPACITY = 1 << 16; // 65536 elements
   public static final int DEFAULT_FLUSH_INTERVAL_IN_SECONDS = 1;
   private static final int FLUSH_THRESHOLD = 100;
   private static final String EXPOSURES_ROUTE = "exposures";
-  private static final long SHUTDOWN_TIMEOUT_MILLIS = 800;
 
   private final EventQueue<ExposureEvent> queue;
   private final ExposureSerializingHandler serializer;
@@ -51,22 +53,17 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, AutoCloseable 
   }
 
   @Override
-  public void close() {
-    final long deadline =
-        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(SHUTDOWN_TIMEOUT_MILLIS);
+  public void requestShutdown() {
     synchronized (this.lifecycleLock) {
       if (this.closed.compareAndSet(false, true)) {
         this.serializer.requestShutdown();
       }
     }
-    final long remaining = deadline - System.nanoTime();
-    if (Thread.currentThread() != this.serializerThread && remaining > 0) {
-      try {
-        TimeUnit.NANOSECONDS.timedJoin(this.serializerThread, remaining);
-      } catch (final InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
+  }
+
+  @Override
+  public void awaitTermination(final long deadlineNanos) {
+    awaitThread(this.serializerThread, deadlineNanos);
   }
 
   @Override

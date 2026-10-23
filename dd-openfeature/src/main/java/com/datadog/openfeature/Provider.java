@@ -3,8 +3,9 @@ package com.datadog.openfeature;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import com.datadog.openfeature.internal.bridge.AgentBridges;
+import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationUnavailableException;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridges;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
@@ -111,7 +112,13 @@ public class Provider extends EventProvider implements Metadata {
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
     }
-    // Exposure hook: always registered last; no-op when the evaluator is not a Datadog one or is
+    if (options.isEvaluationTelemetryOptOutParameterEnabled(this.settings)) {
+      for (int i = 0; i < hooks.size(); i++) {
+        hooks.set(i, new EvaluationTelemetryOptOutHook(hooks.get(i)));
+      }
+    }
+    // Exposure hook: always registered last, and independent of evaluation telemetry opt-out; no-op
+    // when the evaluator is not a Datadog one or is
     // not initialized.
     hooks.add(new ExposureLoggingHook<>(this::datadogEvaluator));
     this.providerHooks =
@@ -144,6 +151,14 @@ public class Provider extends EventProvider implements Metadata {
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
+    } catch (final RemoteConfigurationUnavailableException e) {
+      // No RC connector means no configuration can arrive in this JVM. Complete registration
+      // without waiting or switching sources. The evaluator has no runtime/configuration and
+      // returns caller defaults with PROVIDER_NOT_READY, never successful flag assignments.
+      // OpenFeature marks the completed registration READY; that does not imply RC is available.
+      initializationState.set(InitializationState.FALLBACK);
+      log.warn("{}; returning caller defaults", e.getMessage());
+      log.debug("Feature Flags Remote Configuration connector unavailable", e);
     } catch (final OpenFeatureError e) {
       markInitializationError();
       throw e;
@@ -310,14 +325,45 @@ public class Provider extends EventProvider implements Metadata {
     INITIALIZING,
     INITIAL_CONFIG_RECEIVED,
     READY,
-    ERROR
+    ERROR,
+    FALLBACK
   }
 
   /** The provider options. */
   public static class Options {
 
-    private long timeout;
-    private TimeUnit unit;
+    private long timeout = 30;
+    private TimeUnit unit = SECONDS;
+    private Boolean evaluationTelemetryOptOutParameterEnabled;
+
+    /**
+     * Enables per-evaluation telemetry opt-out through the {@code dd_evaluation_telemetry_opt_out}
+     * context attribute. Overrides {@code
+     * DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED}, including when false.
+     * Without an explicit option, the provider reads configuration at construction. Disabled by
+     * default.
+     *
+     * <p>Only boolean {@code true} suppresses new Datadog evaluation events, evaluation metrics,
+     * and automatic flag span enrichment. Missing or other values preserve telemetry. This does not
+     * change flag results, exposure logging, application hooks, or previously recorded data.
+     *
+     * <p>The attribute remains available for targeting and exposure reporting. Existing privacy and
+     * reporting settings apply.
+     *
+     * @param enabled whether to honor the attribute; configure before constructing the provider.
+     * @return these options.
+     */
+    public Options enableEvaluationTelemetryOptOutParameter(final boolean enabled) {
+      this.evaluationTelemetryOptOutParameterEnabled = enabled;
+      return this;
+    }
+
+    private boolean isEvaluationTelemetryOptOutParameterEnabled(final Settings settings) {
+      if (this.evaluationTelemetryOptOutParameterEnabled != null) {
+        return this.evaluationTelemetryOptOutParameterEnabled;
+      }
+      return settings.isEvaluationTelemetryPerSubjectOptOutEnabled();
+    }
 
     /**
      * Sets how long provider initialization waits for the initial flag configuration.

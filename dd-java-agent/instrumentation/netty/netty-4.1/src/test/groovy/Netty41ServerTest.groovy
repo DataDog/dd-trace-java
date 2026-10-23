@@ -4,6 +4,7 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.WebsocketClient
 import datadog.trace.agent.test.base.WebsocketServer
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import io.netty.bootstrap.ServerBootstrap
@@ -335,6 +336,9 @@ class Netty41ServerV0Test extends Netty41ServerTest implements TestingNettyHttpN
 class Netty41ServerV1ForkedTest extends Netty41ServerTest implements TestingNettyHttpNamingConventions.ServerV1 {
 }
 
+class Netty41ServerOtelSemanticsForkedTest extends Netty41ServerTest implements TestingNettyHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
+}
+
 
 class WsEndpoint {
   static volatile ChannelHandlerContext activeSession
@@ -350,5 +354,4 @@ class WsEndpoint {
     activeSession = null
   }
 }
-
 

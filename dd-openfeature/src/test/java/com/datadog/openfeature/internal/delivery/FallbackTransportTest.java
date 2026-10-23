@@ -8,8 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.datadog.openfeature.internal.bridge.EventProxyUnavailableException;
-import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.EventProxyUnavailableException;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
 
@@ -42,11 +42,15 @@ class FallbackTransportTest {
   }
 
   @Test
-  void doesNotReplayAmbiguousProxyFailures() throws IOException {
+  void switchesToDirectIntakeForGoodWithoutReplayingAmbiguousProxyFailures() throws IOException {
     doThrow(new IOException("timeout")).when(this.proxy).post("exposures", PAYLOAD);
 
     assertThrows(IOException.class, () -> this.transport.post("exposures", PAYLOAD));
-
     verify(this.direct, never()).post("exposures", PAYLOAD);
+
+    this.transport.post("exposures", PAYLOAD);
+
+    verify(this.proxy, times(1)).post("exposures", PAYLOAD);
+    verify(this.direct, times(1)).post("exposures", PAYLOAD);
   }
 }

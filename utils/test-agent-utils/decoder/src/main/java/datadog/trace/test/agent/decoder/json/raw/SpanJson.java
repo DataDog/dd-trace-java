@@ -6,10 +6,11 @@ import static java.util.Collections.unmodifiableMap;
 
 import com.squareup.moshi.Json;
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.agent.decoder.DecodedSpanEvent;
+import datadog.trace.test.agent.decoder.DecodedSpanEvents;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.agent.decoder.DecodedSpanLinks;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -54,15 +55,17 @@ public final class SpanJson implements DecodedSpan {
   @Json(name = "span_links")
   List<SpanLinkJson> spanLinks;
 
-  // Only present in V1 payload. Kept as compact JSON text (number literals verbatim, see
-  // MessageJson.RawJsonAdapter) and exposed as the events meta tag by #resolveEvents
-  @Json(name = "span_events")
-  @MessageJson.RawJson
-  String spanEvents;
-
   // Decoded from span links meta tag or #spanLinks
   // transient so Moshi does not try to decode it
   transient List<DecodedSpanLink> links;
+
+  // Ony present in V1 payload. Decoded from meta by #resolveEvents otherwise
+  @Json(name = "span_events")
+  List<SpanEventJson> spanEvents;
+
+  // Decoded from span events meta tag or #spanEvents
+  // transient so Moshi does not try to decode it
+  transient List<DecodedSpanEvent> events;
 
   @Override
   public String getService() {
@@ -134,6 +137,11 @@ public final class SpanJson implements DecodedSpan {
     return this.links;
   }
 
+  @Override
+  public List<DecodedSpanEvent> getEvents() {
+    return this.events;
+  }
+
   /**
    * Decodes the span links, from the {@code span_links} field when the agent filled it (the tracer
    * submitted a {@code v1.0} payload) and from the meta tag otherwise.
@@ -154,18 +162,22 @@ public final class SpanJson implements DecodedSpan {
   }
 
   /**
-   * Exposes the {@code span_events} field, when the agent filled it (the tracer submitted a {@code
-   * v1.0} payload), as the {@code events} meta tag, replacing any such tag. The value is the
-   * agent's JSON re-emitted compactly; its member order and attribute shape are the agent's, not
-   * those of the tag the tracer writes for older protocols.
+   * Decodes the span events, from the {@code span_events} field when the agent filled it (the
+   * tracer submitted a {@code v1.0} payload) and from the meta tag otherwise.
    */
   void resolveEvents() {
-    if (this.spanEvents != null) {
-      if (this.meta == null) {
-        this.meta = new HashMap<>();
-      }
-      this.meta.put("events", this.spanEvents);
+    if (this.spanEvents == null) {
+      this.events = DecodedSpanEvents.fromMeta(getMeta());
+      return;
     }
+    List<DecodedSpanEvent> decoded = new ArrayList<>(this.spanEvents.size());
+    for (SpanEventJson spanEvent : this.spanEvents) {
+      if (spanEvent == null) {
+        throw new IllegalStateException("Malformed span_events with a null event: " + this);
+      }
+      decoded.add(spanEvent.toDecodedSpanEvent());
+    }
+    this.events = unmodifiableList(decoded);
   }
 
   @Override
