@@ -63,7 +63,6 @@ public interface DDSpanHelper {
             null,
             null,
             NoopPathwayContext.INSTANCE,
-            false,
             propagationTags);
     setAllTags(rootContext, tags);
     DDSpan root = create("benchmark", System.currentTimeMillis() * 1000, rootContext);

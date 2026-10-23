@@ -121,11 +121,8 @@ public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
             null,
             ciVisibilityContextData,
             NoopPathwayContext.INSTANCE,
-            false,
             propagationTags,
-            ProfilingContextIntegration.NoOp.INSTANCE,
-            true,
-            true);
+            ProfilingContextIntegration.NoOp.INSTANCE);
 
     DDSpan span = DDSpan.create("test", timestamp, context, null);
     for (Map.Entry<String, Object> entry : tags.entrySet()) {
