@@ -86,6 +86,7 @@ public final class CombiningTransformerBuilder
 
   // temporary buffer for collecting advice; reset for each instrumenter
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
+  private final List<ElementMatcher<? super MethodDescription>> methodMatchers = new ArrayList<>();
 
   public CombiningTransformerBuilder(
       AgentBuilder agentBuilder,
@@ -247,6 +248,8 @@ public final class CombiningTransformerBuilder
       advice.add(contextRequestRewriter);
     }
 
+    int prerequisiteCount = advice.size();
+
     // a structural change may contain method advice that works with and without the change
     // we split out the structural change to its own transformation so it can't accidentally
     // turn off the method advice when it's skipped
@@ -260,7 +263,13 @@ public final class CombiningTransformerBuilder
     if (member instanceof Instrumenter.HasMethodAdvice) {
       ((Instrumenter.HasMethodAdvice) member).methodAdvice(this);
     }
-    finishAdviceStack(transformationId);
+    // Full method graphs can select inherited methods, so only filter declared-method graphs.
+    finishAdviceStack(
+        transformationId,
+        member instanceof Instrumenter.HasMethodAdvice
+            && (splitOutStructuralChange || !(member instanceof Instrumenter.HasTypeAdvice))
+            && InstrumenterConfig.get().isResolverSimpleMethodGraph(),
+        prerequisiteCount);
 
     if (splitOutStructuralChange) {
       Instrumenter.WithStructuralChange structuralChange =
@@ -285,8 +294,20 @@ public final class CombiningTransformerBuilder
 
   /** Records the advice collected so far as the stack for this transformationId. */
   private void finishAdviceStack(int transformationId) {
-    transformers[transformationId] = new AdviceStack(advice);
+    finishAdviceStack(transformationId, false, 0);
+  }
+
+  private void finishAdviceStack(
+      int transformationId, boolean filterMethods, int prerequisiteCount) {
+    // Raw matchers ignore methodIgnoreMatcher: only definite misses should skip advice.
+    // Preserve helper and context-store work for empty or disabled advice registrations.
+    ElementMatcher<? super MethodDescription> methodMatcher =
+        filterMethods && !methodMatchers.isEmpty()
+            ? new ElementMatcher.Junction.Disjunction<MethodDescription>(methodMatchers)
+            : null;
+    transformers[transformationId] = new AdviceStack(advice, methodMatcher, prerequisiteCount);
     advice.clear(); // reset for next transformationId
+    methodMatchers.clear();
   }
 
   @Override
@@ -315,6 +336,7 @@ public final class CombiningTransformerBuilder
       return;
     }
     log.debug("Installing advice class {}", adviceClass);
+    recordMethodMatcher(matcher);
     Advice.WithCustomMapping customMapping = Advice.withCustomMapping();
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
@@ -334,6 +356,15 @@ public final class CombiningTransformerBuilder
       forAdvice = forAdvice.include(adviceLoader);
     }
     advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
+  }
+
+  private void recordMethodMatcher(ElementMatcher<? super MethodDescription> matcher) {
+    for (ElementMatcher<? super MethodDescription> existing : methodMatchers) {
+      if (existing == matcher) {
+        return;
+      }
+    }
+    methodMatchers.add(matcher);
   }
 
   public ClassFileTransformer installOn(Instrumentation instrumentation) {
