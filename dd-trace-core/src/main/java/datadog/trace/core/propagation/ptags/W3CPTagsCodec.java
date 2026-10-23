@@ -35,15 +35,27 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
+    return parse(value, new PTagsResult(tagsFactory));
+  }
+
+  /**
+   * Parses {@code value} for merging into another context's propagation tags, keeping only what the
+   * merge reads. Accepts and rejects exactly what {@link #fromHeaderValue} does.
+   */
+  static W3CTracestate parseForMerge(String value) {
+    return parse(value, MERGE_RESULT);
+  }
+
+  private static <R> R parse(String value, Result<R> result) {
     if (value == null || value.isEmpty()) {
-      return tagsFactory.empty();
+      return result.rejected();
     }
 
     int len = value.length();
     // Skip over leading whitespace and empty member list elements
     int firstMemberStart = findNextMember(value, 0);
     if (firstMemberStart == len) {
-      return tagsFactory.empty();
+      return result.rejected();
     }
 
     // Validate the whole tracestate and figure out where the dd member key and value are located
@@ -60,18 +72,18 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
         // TODO should we try to pick up the `dd` member anyway?
-        return tagsFactory.empty();
+        return result.rejected();
       }
       // Validate the member key
       int memberValueStart = validateMemberKey(value, memberStart);
       if (memberValueStart < 0) {
         // TODO should we return one with an error?
-        return tagsFactory.empty();
+        return result.rejected();
       }
       int memberValueEnd = validateMemberValue(value, memberValueStart);
       if (memberValueEnd < 0) {
         // TODO should we return one with an error?
-        return tagsFactory.empty();
+        return result.rejected();
       }
 
       boolean datadogMember =
@@ -94,7 +106,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       memberStart = findNextMember(value, memberValueEnd);
       if (memberStart < 0) {
         // TODO should we return one with an error?
-        return tagsFactory.empty();
+        return result.rejected();
       }
     }
 
@@ -109,7 +121,7 @@ public class W3CPTagsCodec extends PTagsCodec {
 
     if (ddMemberIndex == -1) {
       // There was no dd member, so create an empty one with the _suffix_
-      return empty(tagsFactory, value, otelTraceState);
+      return result.withoutDatadogTags(value, 0, -1, -1, otelTraceState);
     }
 
     List<TagElement> tagPairs = null;
@@ -187,15 +199,10 @@ public class W3CPTagsCodec extends PTagsCodec {
                   value,
                   tagValuePos);
               if (tagKey.equals(TRACE_ID_TAG)) {
-                return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
+                return result.invalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
               }
-              return empty(
-                  tagsFactory,
-                  value,
-                  firstMemberStart,
-                  ddMemberStart,
-                  ddMemberValueEnd,
-                  otelTraceState);
+              return result.withoutDatadogTags(
+                  value, firstMemberStart, ddMemberStart, ddMemberValueEnd, otelTraceState);
             }
             if (tagKey.equals(DECISION_MAKER_TAG)) {
               decisionMakerTagValue = tagValue;
@@ -240,8 +247,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       tagPos = nextTagPos;
     }
-    return new W3CPTags(
-        tagsFactory,
+    return result.parsed(
         tagPairs,
         decisionMakerTagValue,
         traceIdTagValue,
@@ -1001,6 +1007,148 @@ public class W3CPTagsCodec extends PTagsCodec {
     boolean isOnlyMember = memberStart == firstMemberStart && memberEnd == tracestate.length();
     return isOnlyMember ? memberSize : memberSize + 1;
   }
+
+  /** What a parse of a tracestate header turns into, at each of its outcomes. */
+  private interface Result<R> {
+    /** The header is malformed, so nothing from it is kept. */
+    R rejected();
+
+    /** The header is malformed in a way that's reported as a propagation error. */
+    R invalid(String error);
+
+    /** The header is kept, but without Datadog tags: it has none, or they were malformed. */
+    R withoutDatadogTags(
+        String value,
+        int firstMemberStart,
+        int ddMemberStart,
+        int ddMemberValueEnd,
+        OtelTraceState otelTraceState);
+
+    R parsed(
+        List<TagElement> tagPairs,
+        TagValue decisionMakerTagValue,
+        TagValue traceIdTagValue,
+        int traceSource,
+        int samplingPriority,
+        CharSequence origin,
+        String value,
+        int firstMemberStart,
+        int ddMemberStart,
+        int ddMemberValueEnd,
+        int maxUnknownSize,
+        CharSequence lastParentId,
+        TagValue orgPropagationMarkerTagValue,
+        LLMObsTagValues llmObsTagValues,
+        OtelTraceState otelTraceState);
+  }
+
+  private static final class PTagsResult implements Result<PropagationTags> {
+    private final PTagsFactory tagsFactory;
+
+    PTagsResult(PTagsFactory tagsFactory) {
+      this.tagsFactory = tagsFactory;
+    }
+
+    @Override
+    public PropagationTags rejected() {
+      return tagsFactory.empty();
+    }
+
+    @Override
+    public PropagationTags invalid(String error) {
+      return tagsFactory.createInvalid(error);
+    }
+
+    @Override
+    public PropagationTags withoutDatadogTags(
+        String value,
+        int firstMemberStart,
+        int ddMemberStart,
+        int ddMemberValueEnd,
+        OtelTraceState otelTraceState) {
+      return empty(
+          tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd, otelTraceState);
+    }
+
+    @Override
+    public PropagationTags parsed(
+        List<TagElement> tagPairs,
+        TagValue decisionMakerTagValue,
+        TagValue traceIdTagValue,
+        int traceSource,
+        int samplingPriority,
+        CharSequence origin,
+        String value,
+        int firstMemberStart,
+        int ddMemberStart,
+        int ddMemberValueEnd,
+        int maxUnknownSize,
+        CharSequence lastParentId,
+        TagValue orgPropagationMarkerTagValue,
+        LLMObsTagValues llmObsTagValues,
+        OtelTraceState otelTraceState) {
+      return new W3CPTags(
+          tagsFactory,
+          tagPairs,
+          decisionMakerTagValue,
+          traceIdTagValue,
+          traceSource,
+          samplingPriority,
+          origin,
+          value,
+          firstMemberStart,
+          ddMemberStart,
+          ddMemberValueEnd,
+          maxUnknownSize,
+          lastParentId,
+          orgPropagationMarkerTagValue,
+          llmObsTagValues,
+          otelTraceState);
+    }
+  }
+
+  private static final Result<W3CTracestate> MERGE_RESULT =
+      new Result<W3CTracestate>() {
+        @Override
+        public W3CTracestate rejected() {
+          return W3CTracestate.NONE;
+        }
+
+        @Override
+        public W3CTracestate invalid(String error) {
+          return W3CTracestate.NONE;
+        }
+
+        @Override
+        public W3CTracestate withoutDatadogTags(
+            String value,
+            int firstMemberStart,
+            int ddMemberStart,
+            int ddMemberValueEnd,
+            OtelTraceState otelTraceState) {
+          return new W3CTracestate(value, otelTraceState, PrioritySampling.UNSET, null);
+        }
+
+        @Override
+        public W3CTracestate parsed(
+            List<TagElement> tagPairs,
+            TagValue decisionMakerTagValue,
+            TagValue traceIdTagValue,
+            int traceSource,
+            int samplingPriority,
+            CharSequence origin,
+            String value,
+            int firstMemberStart,
+            int ddMemberStart,
+            int ddMemberValueEnd,
+            int maxUnknownSize,
+            CharSequence lastParentId,
+            TagValue orgPropagationMarkerTagValue,
+            LLMObsTagValues llmObsTagValues,
+            OtelTraceState otelTraceState) {
+          return new W3CTracestate(value, otelTraceState, samplingPriority, lastParentId);
+        }
+      };
 
   /** Creates tags that preserve unmanaged W3C tracestate members without sampling state. */
   static W3CPTags empty(PTagsFactory factory, String original) {
