@@ -4,13 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.util.HashMap;
-import java.util.Map;
 import javax.net.SocketFactory;
 
 public class NamedPipeSocketFactory extends SocketFactory {
   private static final String NAMED_PIPE_PREFIX = "\\\\.\\pipe\\";
-  private static final Map<File, NamedPipeSocket> fileToSocket = new HashMap<>();
   private final File pipe;
 
   public NamedPipeSocketFactory(String pipeName) {
@@ -19,19 +16,15 @@ public class NamedPipeSocketFactory extends SocketFactory {
     this.pipe = new File(pipeNameWithPrefix);
   }
 
+  NamedPipeSocketFactory(File pipe) {
+    this.pipe = pipe;
+  }
+
   @Override
   public Socket createSocket() throws IOException {
-    // Getting a new socket is rare enough that simple synchronization is sufficient
-    synchronized (fileToSocket) {
-      NamedPipeSocket socket = fileToSocket.get(pipe);
-
-      if (socket == null || socket.isClosed()) {
-        socket = new NamedPipeSocket(pipe);
-        fileToSocket.put(pipe, socket);
-      }
-
-      return socket;
-    }
+    // Each connection gets its own pipe handle. A shared handle lets a blocked read on one
+    // connection, such as a pooled-connection health check, block every other request.
+    return new NamedPipeSocket(pipe);
   }
 
   @Override
