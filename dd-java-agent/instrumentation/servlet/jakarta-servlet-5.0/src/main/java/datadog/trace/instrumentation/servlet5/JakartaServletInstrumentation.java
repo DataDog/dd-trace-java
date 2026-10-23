@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.servlet5;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
@@ -39,12 +38,16 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String hierarchyMarkerType() {
-    return "jakarta.servlet.http.HttpServlet";
+    return "jakarta.servlet.Servlet";
   }
 
+  /**
+   * Matches every {@code Servlet}, not only {@code HttpServlet}, so that servlets implementing the
+   * interface directly (e.g. {@code FacesServlet}) also get their response wrapped for RUM.
+   */
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(named(hierarchyMarkerType()))
+    return implementsInterface(named(hierarchyMarkerType()))
         .or(implementsInterface(named("jakarta.servlet.FilterChain")));
   }
 
