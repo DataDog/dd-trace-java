@@ -1,3 +1,6 @@
+import datadog.gradle.plugin.HostPlatform
+import java.time.Duration
+
 plugins {
   id 'java-test-fixtures'
   id 'dd-trace-java.module.instrumentation'
@@ -28,6 +31,15 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
+
+tasks.named('test', Test) {
+  if (providers.environmentVariable('CI').isPresent() && HostPlatform.isLinuxArm64()) {
+    // Give tests more time because of Java 11's slow class retransformation on ARM64 (JDK-8139551).
+    timeout.set(javaLauncher.map { launcher ->
+      Duration.ofMinutes(launcher.metadata.languageVersion.asInt() == 11 ? 30 : 20)
+    })
+  }
+}
 
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
