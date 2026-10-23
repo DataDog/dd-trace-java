@@ -2,6 +2,7 @@ package com.datadog.openfeature.internal.delivery;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -12,6 +13,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.datadog.openfeature.internal.LocalHttpServer;
+import com.datadog.openfeature.internal.config.SdkVersion;
 import com.datadog.openfeature.internal.config.TestSettings;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -56,7 +58,7 @@ public class DirectIntakeTransportTest {
   }
 
   @Test
-  void postsJsonWithApiKeyAndTraceHeaders() throws Exception {
+  void postsJsonWithApiKeyTraceAndIdentityHeaders() throws Exception {
     this.server.enqueue(202, null);
 
     transport().post("exposures", "{\"a\":1}".getBytes(UTF_8));
@@ -71,6 +73,9 @@ public class DirectIntakeTransportTest {
     assertEquals(request.header("x-datadog-trace-id"), request.header("x-datadog-parent-id"));
     assertEquals("java", request.header("Datadog-Meta-Lang"));
     assertNull(request.header("X-Datadog-EVP-Subdomain"));
+    assertEquals("dd-trace-java", request.header("DD-EVP-ORIGIN"));
+    assertEquals(SdkVersion.VERSION, request.header("DD-EVP-ORIGIN-VERSION"));
+    assertNotEquals("unknown", request.header("DD-EVP-ORIGIN-VERSION"));
   }
 
   @TableTest({

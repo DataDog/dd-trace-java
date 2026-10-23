@@ -3,7 +3,8 @@ package com.datadog.openfeature.internal.delivery;
 import static java.net.http.HttpClient.Redirect.NEVER;
 import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
 
-import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
+import com.datadog.openfeature.internal.config.SdkVersion;
 import com.datadog.openfeature.internal.config.Settings;
 import java.io.IOException;
 import java.net.URI;
@@ -21,6 +22,9 @@ import javax.annotation.Nullable;
  */
 public final class DirectIntakeTransport implements EventTransport {
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+
+  /** Identifies the events like the agent event proxy does. */
+  static final String ORIGIN = "dd-trace-java";
 
   private final URI intake;
   private final String apiKey;
@@ -62,7 +66,9 @@ public final class DirectIntakeTransport implements EventTransport {
             .header("Content-Type", "application/json")
             .header("dd-api-key", this.apiKey)
             .header("x-datadog-trace-id", this.traceId)
-            .header("x-datadog-parent-id", this.traceId);
+            .header("x-datadog-parent-id", this.traceId)
+            .header("DD-EVP-ORIGIN", ORIGIN)
+            .header("DD-EVP-ORIGIN-VERSION", SdkVersion.VERSION);
     Headers.addMetadata(builder);
     final HttpRequest request = builder.POST(ofByteArray(json)).build();
     final int status;
