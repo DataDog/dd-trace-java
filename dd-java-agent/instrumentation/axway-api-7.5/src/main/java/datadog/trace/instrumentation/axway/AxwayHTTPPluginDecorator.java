@@ -2,12 +2,17 @@ package datadog.trace.instrumentation.axway;
 
 import static java.lang.invoke.MethodType.methodType;
 
+import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.http.DatadogServerUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.HttpServerUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.OtelServerUrl;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
@@ -22,6 +27,8 @@ import org.slf4j.LoggerFactory;
 // request = is com.vordel.circuit.net.State,  connection = com.vordel.dwe.http.ServerTransaction
 public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object, Object, Void> {
   private static final Logger log = LoggerFactory.getLogger(AxwayHTTPPluginDecorator.class);
+  private static final TagExtractor<HttpServerUrl> URL_TAGS =
+      OTEL_SEMANTICS ? OtelServerUrl.INSTANCE : DatadogServerUrl.URL_ONLY;
 
   public static final CharSequence AXWAY_TRY_TRANSACTION =
       UTF8BytesString.create("axway.trytransaction");
@@ -198,10 +205,21 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
    */
   public void onTransaction(AgentSpan span, Object stateInstance) {
     if (span != null) {
-      setStringTagFromStateField(span, Tags.PEER_HOSTNAME, stateInstance, hostField_mh);
-      setStringTagFromStateField(span, Tags.PEER_PORT, stateInstance, portField_mh);
-      setStringTagFromStateField(span, Tags.HTTP_METHOD, stateInstance, methodField_mh);
-      setURLTagFromUriStateField(span, stateInstance);
+      String method = getStringFromStateField(stateInstance, methodField_mh);
+      String host = getStringFromStateField(stateInstance, hostField_mh);
+      String port = getStringFromStateField(stateInstance, portField_mh);
+      if (OTEL_SEMANTICS) {
+        OtelHttpSemantics.setRequestMethod(span, method);
+        OtelHttpSemantics.setMethodResourceName(span, method);
+      } else {
+        span.setTag(KnownTags.PEER_HOSTNAME_ID, host);
+        span.setTag(KnownTags.PEER_PORT_ID, port);
+        span.setTag(KnownTags.HTTP_METHOD_ID, method);
+      }
+      span.setTagsFrom(
+          HttpServerUrl.fromTransaction(
+              getStringFromStateField(stateInstance, uriField_mh), host, port),
+          URL_TAGS);
     }
   }
 
@@ -233,28 +251,13 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
     return new InetSocketAddress(0);
   }
 
-  private static void setStringTagFromStateField(
-      AgentSpan span, String tag, Object stateInstance, MethodHandle mh) {
-    String v = "";
+  private static String getStringFromStateField(Object stateInstance, MethodHandle mh) {
     try {
-      v = (String) mh.invoke(stateInstance);
+      Object value = mh.invoke(stateInstance);
+      return value == null ? null : value.toString();
     } catch (Throwable e) {
-      log.debug(
-          "Can't invoke '{}' on instance '{}'; ; Tag '{}' not set.", mh, stateInstance, tag, e);
-    }
-    span.setTag(tag, v);
-  }
-
-  private static void setURLTagFromUriStateField(AgentSpan span, Object stateInstance) {
-    try {
-      span.setTag(Tags.HTTP_URL, uriField_mh.invoke(stateInstance).toString());
-    } catch (Throwable e) {
-      log.debug(
-          "Can't invoke '{}' on instance '{}'; Tag '{}' not set.",
-          uriField_mh,
-          stateInstance,
-          Tags.HTTP_URL,
-          e);
+      log.debug("Can't invoke '{}' on instance '{}'; value not read.", mh, stateInstance, e);
+      return null;
     }
   }
 }

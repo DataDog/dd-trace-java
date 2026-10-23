@@ -10,6 +10,7 @@ import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.appsec.AppSecContext;
@@ -334,14 +335,16 @@ public class LambdaAppSecHandler {
     }
 
     if (req.host != null) {
-      // No query string: QueryObfuscator obfuscates DDTags.HTTP_QUERY and re-appends it here.
+      // QueryObfuscator sanitizes the separate query tag before appending it to this URL.
       ctx.putTag(
           Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), url.path()));
     }
 
     String query = url.rawQuery();
     if (query != null && !query.isEmpty() && Config.get().isHttpServerTagQueryString()) {
-      ctx.putTag(DDTags.HTTP_QUERY, query);
+      ctx.putTag(
+          Config.get().isTraceOtelSemanticsEnabled() ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY,
+          query);
     }
 
     String userAgent = findHeader(req.headers, "user-agent");
