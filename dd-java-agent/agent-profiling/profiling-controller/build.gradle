@@ -23,6 +23,7 @@ dependencies {
   api project(':internal-api')
   api project(':components:environment')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
+  implementation project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow')
 
   testImplementation libs.bundles.junit5
   testImplementation libs.guava
