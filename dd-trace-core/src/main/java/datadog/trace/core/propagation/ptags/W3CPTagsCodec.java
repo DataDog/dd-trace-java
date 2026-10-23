@@ -33,9 +33,16 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final int MAX_ALLOWED_CHAR = 126;
   @VisibleForTesting public static final int MAX_MEMBER_COUNT = 32;
 
+  /** Reused across parses; the codec belongs to one factory, so this is set once. */
+  private volatile PTagsResult ptagsResult;
+
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
-    return parse(value, new PTagsResult(tagsFactory));
+    PTagsResult result = ptagsResult;
+    if (result == null || result.tagsFactory != tagsFactory) {
+      ptagsResult = result = new PTagsResult(tagsFactory);
+    }
+    return parse(value, result);
   }
 
   /**
@@ -1152,12 +1159,7 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   /** Creates tags that preserve unmanaged W3C tracestate members without sampling state. */
   static W3CPTags empty(PTagsFactory factory, String original) {
-    return empty(factory, original, null);
-  }
-
-  private static W3CPTags empty(
-      PTagsFactory factory, String original, OtelTraceState otelTraceState) {
-    return empty(factory, original, 0, -1, -1, otelTraceState);
+    return empty(factory, original, 0, -1, -1, null);
   }
 
   private static W3CPTags empty(
