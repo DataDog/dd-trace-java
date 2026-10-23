@@ -1,6 +1,12 @@
 FROM debian:bookworm-slim
 
 RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates && \
+    apt-get install -y --only-upgrade ca-certificates && \
+    update-ca-certificates -f && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y procps tini build-essential git curl unzip zip && \
     apt-get -y clean && \
     rm -rf /var/lib/apt/lists/*
@@ -50,3 +56,21 @@ RUN git clone -b okhttp_5.3.x https://github.com/square/okhttp.git
 COPY okhttp_exploration-tests.patch .
 RUN cd okhttp && git apply /exploration-tests/okhttp_exploration-tests.patch
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk use java 17.0.10-tem && cd okhttp && ./gradlew dependencies"
+
+# Remove compromised CA entries from every SDKMAN and Gradle-provisioned JDK.
+RUN set -eu; \
+    mkdir -p "$HOME/.gradle/jdks"; \
+    keytool="$HOME/.sdkman/candidates/java/17.0.10-tem/bin/keytool"; \
+    find "$HOME/.sdkman/candidates/java" "$HOME/.gradle/jdks" -type f -path '*/lib/security/cacerts' | \
+    while IFS= read -r store; do \
+      "$keytool" -list -v -keystore "$store" -storepass changeit | \
+        awk '/^Alias name: / { alias = substr($0, 13) } /^Owner: .*([eE]mSign ECC Root CA - G3|AAA Certificate Services)/ { print alias }' | \
+        while IFS= read -r alias; do \
+          "$keytool" -delete -keystore "$store" -storepass changeit -alias "$alias"; \
+        done; \
+    done
+
+# Do not publish Gradle's generated API jar with its old embedded CA snapshot.
+RUN if [ -d "$HOME/.gradle/caches" ]; then \
+      find "$HOME/.gradle/caches" -type f -path '*/generated-gradle-jars/gradle-api-*.jar' -delete; \
+    fi
