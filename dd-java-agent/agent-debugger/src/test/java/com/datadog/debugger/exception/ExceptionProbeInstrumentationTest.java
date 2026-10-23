@@ -69,6 +69,7 @@ public class ExceptionProbeInstrumentationTest {
 
   private final Instrumentation instr = ByteBuddyAgent.install();
   private final TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
+  private CoreTracer tracer;
   private ClassFileTransformer currentTransformer;
   private final ClassNameFilter classNameFiltering =
       new ClassNameFiltering(
@@ -93,7 +94,7 @@ public class ExceptionProbeInstrumentationTest {
 
   @BeforeEach
   public void before() {
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     tracer.addTraceInterceptor(traceInterceptor);
     probeSampler = new MockSampler();
@@ -110,6 +111,7 @@ public class ExceptionProbeInstrumentationTest {
 
   @AfterEach
   public void after() {
+    tracer.close();
     if (currentTransformer != null) {
       instr.removeTransformer(currentTransformer);
     }
