@@ -3,6 +3,7 @@ package datadog.trace.core.tagprocessor;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.VERSION;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.SpanStorage;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -10,7 +11,7 @@ import datadog.trace.core.DDSpanContext;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public final class InternalTagsAdder extends TagsPostProcessor {
+public final class InternalTagsAdder extends EagerTagsPostProcessor {
   private final UTF8BytesString ddService;
 
   // Prebuilt once to avoid per-span Entry allocation.
@@ -28,7 +29,7 @@ public final class InternalTagsAdder extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      SpanStorage unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     if (spanContext == null) {
       return;
     }
@@ -36,13 +37,13 @@ public final class InternalTagsAdder extends TagsPostProcessor {
     if (!ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
       if (baseServiceEntry != null) {
         // service name != DD_SERVICE
-        unsafeTags.set(baseServiceEntry);
+        unsafeTags.store(baseServiceEntry);
       }
     } else {
       // as per config consistency, the version tag is added across tracers only if
       // the service name is DD_SERVICE and version  tag is not manually set
-      if (versionEntry != null && !unsafeTags.containsKey(VERSION)) {
-        unsafeTags.set(versionEntry);
+      if (versionEntry != null && unsafeTags.load(VERSION) == null) {
+        unsafeTags.store(versionEntry);
       }
     }
   }
