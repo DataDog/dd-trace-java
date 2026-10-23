@@ -123,6 +123,12 @@ public abstract class PropagationTags {
     PropagationTags fromHeaderValue(HeaderType headerType, String value);
 
     /**
+     * Like {@link #fromHeaderValue} for {@link HeaderType#DATADOG}, starting from the trace's
+     * extracted {@code samplingPriority} so it doesn't have to be applied as a later update.
+     */
+    PropagationTags fromDatadogHeaderValue(String value, int samplingPriority);
+
+    /**
      * Returns a fresh PropagationTags that re-encodes only the non-{@code dd} vendor sections of
      * the supplied W3C tracestate. All Datadog-side state (sampling priority, origin, {@code
      * _dd.p.*} tags) is dropped. If {@code originalTracestate} is {@code null} or empty, behaves

@@ -111,6 +111,9 @@ class DatadogHttpCodec {
 
     private final boolean isAwsPropagationEnabled;
 
+    /** The raw x-datadog-tags value, parsed in {@link #build()} once the priority is known. */
+    private String datadogTags;
+
     private DatadogContextInterpreter(Config config) {
       super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
@@ -119,6 +122,12 @@ class DatadogHttpCodec {
     @Override
     public TracePropagationStyle style() {
       return DATADOG;
+    }
+
+    @Override
+    public ContextInterpreter reset(TraceConfig traceConfig) {
+      datadogTags = null;
+      return super.reset(traceConfig);
     }
 
     @Override
@@ -187,7 +196,7 @@ class DatadogHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case DD_TAGS:
-                propagationTags = propagationTagsFactory.fromHeaderValue(HeaderType.DATADOG, value);
+                datadogTags = value;
                 break;
               case OT_BAGGAGE:
                 addBaggageItem(lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), value);
@@ -216,6 +225,16 @@ class DatadogHttpCodec {
 
     @Override
     protected TagContext build() {
+      if (datadogTags != null) {
+        try {
+          propagationTags =
+              propagationTagsFactory.fromDatadogHeaderValue(
+                  datadogTags, inheritedSamplingPriority());
+        } catch (RuntimeException e) {
+          invalidateContext();
+          log.debug("Exception when extracting context", e);
+        }
+      }
       restore128bTraceId();
       return super.build();
     }
