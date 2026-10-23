@@ -159,6 +159,13 @@ public final class TagMap
     }
   }
 
+  /**
+   * A momentary view of one tag: read it where it was obtained and drop it. A reader MUST NOT be
+   * kept past the call that produced it -- not in a field, a collection or a later step. A store
+   * may answer with a flyweight it reuses for the next read or write, so a kept reader can later
+   * report another tag's value. To keep a tag, call {@link #entry()}: an {@link Entry} is the
+   * keepable form. (To be marked {@code @ScopeBounded}, APMLP-2086.)
+   */
   public interface EntryReader {
     public static final byte OBJECT = 1;
 
@@ -449,6 +456,41 @@ public final class TagMap
     volatile String strCache = null;
 
     /**
+     * True for a known tag's tombstone: the marker the hash id store puts in its own buckets to
+     * hide an inherited entry it has removed. Never visible outside the store; see {@link
+     * #tombstoneOf}.
+     */
+    final boolean tombstone;
+
+    /** The shared tombstone per known tag, by serial, created on first use. */
+    private static final Entry[] TOMBSTONES = new Entry[KnownTagCodec.serialLimit()];
+
+    /**
+     * The tombstone for the known tag {@code tagId}: one shared, immutable entry per tag, so
+     * tombstoning a known tag allocates nothing after the first time. Racing first uses may each
+     * build one; either serves, since a tombstone is told apart by {@link #tombstone}, not
+     * identity.
+     */
+    static Entry tombstoneOf(long tagId) {
+      int serial = KnownTagCodec.serialNum(tagId);
+      Entry tombstone = TOMBSTONES[serial];
+      if (tombstone == null || tombstone.tagHash != tagId) {
+        tombstone = new Entry(tagId);
+        TOMBSTONES[serial] = tombstone;
+      }
+      return tombstone;
+    }
+
+    private Entry(long tagId) {
+      super(requireKnownName(tagId));
+      this.tagHash = tagId;
+      this.tombstone = true;
+      this.rawType = OBJECT;
+      this.rawPrim = 0L;
+      this.rawObj = null;
+    }
+
+    /**
      * A custom tag's entry: no registry lookup. A known tag is built from its id instead -- callers
      * that start from a name resolve it once and pick the id or name factory (see {@code
      * TagMap.anyEntryFor}).
@@ -462,6 +504,7 @@ public final class TagMap
       // Resolve the name once: it both validates the id and names the entry.
       super(requireKnownName(tagId));
       this.tagHash = tagId;
+      this.tombstone = false;
 
       this.rawType = type;
       this.rawPrim = prim;
@@ -472,6 +515,7 @@ public final class TagMap
     Entry(long tagId, String customTag, byte type, long prim, Object obj) {
       super(tagId != 0 ? KnownTagCodec.nameOf(tagId) : customTag);
       this.tagHash = tagId != 0 ? tagId : customHash(customTag);
+      this.tombstone = false;
 
       this.rawType = type;
       this.rawPrim = prim;
@@ -2498,6 +2542,31 @@ public final class TagMap
       return null;
     }
 
+    /**
+     * {@link #findInChain} for a known tag: matches on the entry's id, so it needs no name. Only an
+     * entry stored under {@code tagId} has that id, and the hash check filters first.
+     */
+    Entry findInChainById(int hash, long tagId) {
+      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
+        Entry curEntry = curGroup._findById(hash, tagId);
+        if (curEntry != null) return curEntry;
+      }
+      return null;
+    }
+
+    Entry _findById(int hash, long tagId) {
+      if (this.hash0 == hash && this.entry0.tagHash == tagId) {
+        return this.entry0;
+      } else if (this.hash1 == hash && this.entry1.tagHash == tagId) {
+        return this.entry1;
+      } else if (this.hash2 == hash && this.entry2.tagHash == tagId) {
+        return this.entry2;
+      } else if (this.hash3 == hash && this.entry3.tagHash == tagId) {
+        return this.entry3;
+      }
+      return null;
+    }
+
     Entry _find(int hash, String tag) {
       // if ( this._mayContain(hash) ) return null;
 
@@ -2687,86 +2756,6 @@ public final class TagMap
       return existingEntry;
     }
 
-    void forEachInChain(Consumer<? super EntryReader> consumer) {
-      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        curGroup._forEach(consumer);
-      }
-    }
-
-    void _forEach(Consumer<? super EntryReader> consumer) {
-      if (this.entry0 != null) consumer.accept(this.entry0);
-      if (this.entry1 != null) consumer.accept(this.entry1);
-      if (this.entry2 != null) consumer.accept(this.entry2);
-      if (this.entry3 != null) consumer.accept(this.entry3);
-    }
-
-    <T> void forEachInChain(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
-      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        curGroup._forEach(thisObj, consumer);
-      }
-    }
-
-    <T> void _forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
-      if (this.entry0 != null) consumer.accept(thisObj, this.entry0);
-      if (this.entry1 != null) consumer.accept(thisObj, this.entry1);
-      if (this.entry2 != null) consumer.accept(thisObj, this.entry2);
-      if (this.entry3 != null) consumer.accept(thisObj, this.entry3);
-    }
-
-    <T, U> void forEachInChain(
-        T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
-      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        curGroup._forEach(thisObj, otherObj, consumer);
-      }
-    }
-
-    <T, U> void _forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
-      if (this.entry0 != null) consumer.accept(thisObj, otherObj, this.entry0);
-      if (this.entry1 != null) consumer.accept(thisObj, otherObj, this.entry1);
-      if (this.entry2 != null) consumer.accept(thisObj, otherObj, this.entry2);
-      if (this.entry3 != null) consumer.accept(thisObj, otherObj, this.entry3);
-    }
-
-    void fillMapFromChain(Map<? super String, ? super Object> map) {
-      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        curGroup._fillMap(map);
-      }
-    }
-
-    void _fillMap(Map<? super String, ? super Object> map) {
-      Entry entry0 = this.entry0;
-      if (entry0 != null) map.put(entry0.tag, entry0.objectValue());
-
-      Entry entry1 = this.entry1;
-      if (entry1 != null) map.put(entry1.tag, entry1.objectValue());
-
-      Entry entry2 = this.entry2;
-      if (entry2 != null) map.put(entry2.tag, entry2.objectValue());
-
-      Entry entry3 = this.entry3;
-      if (entry3 != null) map.put(entry3.tag, entry3.objectValue());
-    }
-
-    void fillStringMapFromChain(Map<? super String, ? super String> map) {
-      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        curGroup._fillStringMap(map);
-      }
-    }
-
-    void _fillStringMap(Map<? super String, ? super String> map) {
-      Entry entry0 = this.entry0;
-      if (entry0 != null) map.put(entry0.tag, entry0.stringValue());
-
-      Entry entry1 = this.entry1;
-      if (entry1 != null) map.put(entry1.tag, entry1.stringValue());
-
-      Entry entry2 = this.entry2;
-      if (entry2 != null) map.put(entry2.tag, entry2.stringValue());
-
-      Entry entry3 = this.entry3;
-      if (entry3 != null) map.put(entry3.tag, entry3.stringValue());
-    }
-
     BucketGroup cloneChain() {
       BucketGroup thisClone = this._cloneEntries();
 
@@ -2791,15 +2780,15 @@ public final class TagMap
 
     @Override
     public String toString() {
-      StringBuilder ledger = new StringBuilder(32);
-      ledger.append('[');
+      StringBuilder builder = new StringBuilder(32);
+      builder.append('[');
       for (int i = 0; i < BucketGroup.LEN; ++i) {
-        if (i != 0) ledger.append(", ");
+        if (i != 0) builder.append(", ");
 
-        ledger.append(this._entryAt(i));
+        builder.append(this._entryAt(i));
       }
-      ledger.append(']');
-      return ledger.toString();
+      builder.append(']');
+      return builder.toString();
     }
   }
 
