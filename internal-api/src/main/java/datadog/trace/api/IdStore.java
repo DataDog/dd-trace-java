@@ -27,6 +27,11 @@ public abstract class IdStore {
     EntryReader next();
   }
 
+  /** A fresh id store reading through to {@code parent}'s known tags (parent may be null). */
+  public static IdStore create(TagMap parent) {
+    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore);
+  }
+
   /** Throws for an id that names no known tag. */
   static IllegalArgumentException notKnown(long tagId) {
     return new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
