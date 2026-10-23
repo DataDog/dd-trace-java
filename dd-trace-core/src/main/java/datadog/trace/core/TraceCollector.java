@@ -12,6 +12,7 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.common.sampling.PrioritySampler;
+import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.util.TagsHelper;
 import java.io.Closeable;
 import java.io.IOException;
@@ -63,6 +64,15 @@ public abstract class TraceCollector implements AgentTraceCollector, TraceSegmen
   private static final AtomicReferenceFieldUpdater<TraceCollector, Object> CI_VISIBILITY_DATA =
       AtomicReferenceFieldUpdater.newUpdater(
           TraceCollector.class, Object.class, "ciVisibilityContextData");
+  private volatile PropagationTags propagationTags;
+  private static final AtomicReferenceFieldUpdater<TraceCollector, PropagationTags>
+      PROPAGATION_TAGS =
+          AtomicReferenceFieldUpdater.newUpdater(
+              TraceCollector.class, PropagationTags.class, "propagationTags");
+
+  /** The origin of the trace. (eg. Synthetics, CI App) */
+  private volatile CharSequence origin;
+
   private volatile BlockResponseFunction blockResponseFunction;
   private volatile ClientIpAddressData clientIpAddressData;
 
@@ -135,6 +145,30 @@ public abstract class TraceCollector implements AgentTraceCollector, TraceSegmen
   abstract DDSpan getRootSpan();
 
   abstract PublishState onPublish(final DDSpan span);
+
+  /** The trace's propagation tags, or null if no span has supplied them yet. */
+  PropagationTags getPropagationTagsIfPresent() {
+    return propagationTags;
+  }
+
+  /**
+   * Sets the trace's propagation tags unless already set.
+   *
+   * @return the trace's propagation tags, which may not be {@code propagationTags}
+   */
+  PropagationTags initPropagationTags(PropagationTags propagationTags) {
+    return PROPAGATION_TAGS.compareAndSet(this, null, propagationTags)
+        ? propagationTags
+        : this.propagationTags;
+  }
+
+  CharSequence getOrigin() {
+    return origin;
+  }
+
+  void setOrigin(CharSequence origin) {
+    this.origin = origin;
+  }
 
   /**
    * Records the request-scoped product data the trace was started with. Only the first non-null
