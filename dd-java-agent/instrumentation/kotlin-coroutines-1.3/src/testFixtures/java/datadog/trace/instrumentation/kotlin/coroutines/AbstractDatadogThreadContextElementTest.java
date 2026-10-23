@@ -3,11 +3,15 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 import static datadog.trace.instrumentation.kotlin.coroutines.DatadogThreadContextElement.addDatadogElement;
 import static datadog.trace.instrumentation.kotlin.coroutines.DatadogThreadContextElement.cancelDatadogContext;
 import static datadog.trace.instrumentation.kotlin.coroutines.DatadogThreadContextElement.captureDatadogContext;
+import static datadog.trace.instrumentation.kotlin.coroutines.DatadogThreadContextElement.forFlowCollection;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import datadog.context.Context;
+import datadog.context.ContextKey;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +29,47 @@ import org.tabletest.junit.TableTest;
 
 /** Context replacement checks shared by the oldest and latest dependency suites. */
 public abstract class AbstractDatadogThreadContextElementTest {
+  @TableTest({
+    "Scenario        | Flow collection",
+    "Suspension      | false          ",
+    "Flow collection | true           "
+  })
+  void contextCapturedBeforeTracerRegistrationPreservesChanges(boolean flowCollection) {
+    DatadogThreadContextElement element =
+        (DatadogThreadContextElement) addDatadogElement(EmptyCoroutineContext.INSTANCE);
+    AgentTracer.TracerAPI tracer = AgentTracer.get();
+    Context original;
+    try {
+      AgentTracer.forceRegister(AgentTracer.NOOP_TRACER);
+      original = element.updateThreadContext(element);
+    } finally {
+      AgentTracer.forceRegister(tracer);
+    }
+
+    ContextKey<String> key = ContextKey.named("startup-coroutine-context");
+    try {
+      Context.current().with(key, "opened before suspension").swap();
+      if (flowCollection) {
+        forFlowCollection(element, element);
+        Context beforeCollection = element.updateThreadContext(element);
+        try {
+          assertEquals("opened before suspension", Context.current().get(key));
+        } finally {
+          element.restoreThreadContext(element, beforeCollection);
+        }
+      }
+    } finally {
+      element.restoreThreadContext(element, original);
+    }
+
+    original = element.updateThreadContext(element);
+    try {
+      assertEquals("opened before suspension", Context.current().get(key));
+    } finally {
+      element.restoreThreadContext(element, original);
+    }
+  }
+
   @Test
   void completionReleasesOwnerWithoutAllowingAnotherCoroutineToClaimElement() throws Exception {
     DatadogThreadContextElement element =

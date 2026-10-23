@@ -119,9 +119,8 @@ public final class ContinuableScopeManager {
 
     ScopeStack scopeStack = scopeStack();
 
-    final ContinuableScope top = scopeStack.top;
-    if (top != null && span.equals(top.span())) {
-      top.incrementReferences();
+    final ContinuableScope top = scopeStack.top();
+    if (top != null && span.equals(top.span()) && top.retain()) {
       return top;
     }
 
@@ -154,9 +153,8 @@ public final class ContinuableScopeManager {
   private ContextScope activate(final Context context) {
     ScopeStack scopeStack = scopeStack();
 
-    final ContinuableScope top = scopeStack.top;
-    if (top != null && top.context.equals(context)) {
-      top.incrementReferences();
+    final ContinuableScope top = scopeStack.top();
+    if (top != null && top.context.equals(context) && top.retain()) {
       return top;
     }
 
@@ -194,9 +192,8 @@ public final class ContinuableScopeManager {
 
     // optimization: if the top scope is already keeping the same span alive
     // then re-use that scope (avoids allocation) and cancel the continuation
-    final ContinuableScope top = scopeStack.top;
-    if (top != null && top.context.equals(context)) {
-      top.incrementReferences();
+    final ContinuableScope top = scopeStack.top();
+    if (top != null && top.context.equals(context) && top.retain()) {
       if (continuation != null) {
         continuation.cancelFromContinuedScopeClose();
       }
@@ -231,7 +228,7 @@ public final class ContinuableScopeManager {
     ScopeStack scopeStack = scopeStack();
 
     // close any immediately previous iteration scope
-    final ContinuableScope top = scopeStack.top;
+    final ContinuableScope top = scopeStack.top();
     if (top != null && top.source() == ITERATION) {
       if (iterationKeepAlive > 0) { // skip depth check because cancelling is cheap
         cancelRootIterationScopeCleanup(scopeStack, top);
@@ -264,7 +261,7 @@ public final class ContinuableScopeManager {
 
     assert span != null;
 
-    final ContinuableScope top = scopeStack.top;
+    final ContinuableScope top = scopeStack.top();
 
     boolean asyncPropagation = top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
 
@@ -362,32 +359,30 @@ public final class ContinuableScopeManager {
 
   public Context swap(@Nonnull Context context) {
     ScopeStack oldStack = tlsScopeStack.get();
-    ContinuableScope oldScope = oldStack.top;
+    ContinuableScope oldScope = oldStack.top();
 
     ScopeStack newStack;
-    ContinuableScope newScope;
-    if (context instanceof ScopeContext) {
+    if (context instanceof ScopeStackContext) {
       // restore previously swapped context stack
-      newStack = ((ScopeContext) context).restore(profilingContextIntegration);
-      newScope = newStack.top;
+      newStack = ((ScopeStackContext) context).restore(profilingContextIntegration);
     } else if (context != Context.root()) {
       // start a new stack and record the new context as active
       newStack = new ScopeStack(profilingContextIntegration);
-      newScope = new ContinuableScope(this, context, CONTEXT, true, createScopeState(context));
+      ContinuableScope newScope =
+          new ContinuableScope(this, context, CONTEXT, true, createScopeState(context));
       newStack.top = newScope;
     } else {
       // start a new stack with no active context
       newStack = new ScopeStack(profilingContextIntegration);
-      newScope = null;
     }
 
     tlsScopeStack.set(newStack);
-    if (oldScope != newScope && newScope != null) {
-      newScope.beforeActivated();
-      newScope.afterActivated();
+    newStack.pruneClosedTop();
+    if (oldScope != newStack.top()) {
+      newStack.activateCurrentTop();
     }
 
-    return new ScopeContext(oldStack);
+    return newStack.replacing(oldStack);
   }
 
   public ContextContinuation capture(@Nonnull Context context) {
@@ -408,6 +403,22 @@ public final class ContinuableScopeManager {
       traceCollector = AgentTracer.NoopAgentTraceCollector.INSTANCE;
     }
     return new ScopeContinuation(this, context, CONTEXT, traceCollector).register();
+  }
+
+  /**
+   * Returns a context whose scope stack is shared by every thread it is swapped onto. If the
+   * initial context is already shared, the new stack starts from its current top.
+   */
+  public Context sharedContextStack(@Nonnull Context initial) {
+    if (initial instanceof ScopeStackContext) {
+      initial = ((ScopeStackContext) initial).currentContext();
+    }
+    SharedScopeStack sharedStack = new SharedScopeStack(profilingContextIntegration);
+    if (initial != Context.root()) {
+      sharedStack.seed(
+          new ContinuableScope(this, initial, CONTEXT, true, createScopeState(initial)));
+    }
+    return sharedStack.handle;
   }
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {

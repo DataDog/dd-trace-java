@@ -6,6 +6,7 @@ import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 class ContinuableScope implements ContextScope {
 
@@ -26,6 +27,9 @@ class ContinuableScope implements ContextScope {
   private final byte source;
 
   private short referenceCount = 1;
+
+  // set when pushed onto a coroutine's shared scope stack, which other threads can also update
+  private boolean shared;
 
   private final Stateful scopeState;
 
@@ -50,7 +54,7 @@ class ContinuableScope implements ContextScope {
     if (!scopeStack.checkTop(this) && !scopeStack.checkOverdueScopes(this)) {
       if (ContinuableScopeManager.log.isDebugEnabled()) {
         ContinuableScopeManager.log.debug(
-            "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top);
+            "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top());
       }
 
       byte source = source();
@@ -60,7 +64,7 @@ class ContinuableScope implements ContextScope {
       }
     }
 
-    final boolean alive = decrementReferences();
+    final boolean alive = release();
     scopeManager.healthMetrics.onCloseScope();
     if (!alive) {
       scopeState.close();
@@ -105,20 +109,78 @@ class ContinuableScope implements ContextScope {
     }
   }
 
-  final void incrementReferences() {
-    ++referenceCount;
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Set before publishing the scope through SharedScopeStack.liveTop; the flag never "
+              + "changes after publication.")
+  final void markShared() {
+    shared = true;
   }
 
-  /** Decrements ref count -- returns true if the scope is still alive */
-  final boolean decrementReferences() {
+  /** Adds a reference to a live scope -- returns false if the scope was already closed */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Only non-shared scopes use the unlocked write; shared scopes retain under their "
+              + "own monitor in retainShared().")
+  final boolean retain() {
+    if (shared) {
+      return retainShared();
+    }
+    ++referenceCount;
+    return true;
+  }
+
+  private synchronized boolean retainShared() {
+    // another thread may have closed the scope since it was read from the shared stack
+    if (referenceCount <= 0) {
+      return false;
+    }
+    ++referenceCount;
+    return true;
+  }
+
+  /** Removes a reference -- returns true if the scope is still alive */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Only non-shared scopes use the unlocked write; shared scopes release under their "
+              + "own monitor in releaseShared(), including closes from another stack.")
+  final boolean release() {
+    return shared ? releaseShared() : --referenceCount > 0;
+  }
+
+  private synchronized boolean releaseShared() {
+    // the scope may be closed on any thread, whichever stack that thread has swapped in
     return --referenceCount > 0;
   }
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Only non-shared scopes use the unlocked write; shared scopes clear under their "
+              + "own monitor in clearShared().")
   final void clearReferences() {
+    if (shared) {
+      clearShared();
+    } else {
+      referenceCount = 0;
+    }
+  }
+
+  private synchronized void clearShared() {
+    // stops another thread retaining the scope once it's been cleared
     referenceCount = 0;
   }
 
-  /** Returns true if the scope is still alive (non-zero ref count) */
+  /**
+   * Returns true if the scope's reference count is positive.
+   *
+   * <p>For shared scopes, this unlocked read is a best-effort cleanup check. Once closed, a shared
+   * scope cannot be retained again, so a stale read can delay cleanup but cannot cause a live scope
+   * to be removed.
+   */
   final boolean alive() {
     return referenceCount > 0;
   }
@@ -136,6 +198,11 @@ class ContinuableScope implements ContextScope {
     return context;
   }
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Changes are serialized with scope execution, including coroutine handoff between "
+              + "workers. Overlapping scope close/restore callbacks do not modify this flag.")
   public final void setAsyncPropagation(final boolean value) {
     asyncPropagating = value;
   }
@@ -145,10 +212,20 @@ class ContinuableScope implements ContextScope {
     return super.toString() + "->" + context;
   }
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Checkpoint updates are serialized with scope execution; coroutine handoff orders "
+              + "them between workers. Overlapping scope close/restore does not modify checkpoints.")
   public void checkpoint() {
     checkpointCount++;
   }
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "Checkpoint updates are serialized with scope execution; coroutine handoff orders "
+              + "them between workers. Overlapping scope close/restore does not modify checkpoints.")
   public boolean rollback() {
     if (checkpointCount > 0) {
       checkpointCount--;
