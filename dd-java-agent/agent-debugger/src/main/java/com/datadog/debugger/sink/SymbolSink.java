@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
@@ -181,6 +182,7 @@ public class SymbolSink {
   private BatchUploader.MultiPartContent buildEvent(long currentBatch, int attachmentSize) {
     byte[] eventContent =
         String.format(
+                Locale.ROOT,
                 EVENT_FORMAT,
                 serviceName,
                 version,

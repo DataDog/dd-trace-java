@@ -128,7 +128,14 @@ every call. Fix: `static final Pattern`.
 
 **`String.format` / format-string parsing.** Re-parses and allocates per call. Fix: direct
 concatenation, or pre-compute the result. Also watch for locale-dependent formatting crossing the
-wire — a correctness issue on top of the perf one.
+wire - a correctness issue on top of the perf one.
+
+**Explicit locales and charsets.** The shared [forbidden-apis ban list](../../../../gradle/forbiddenApiFilters/main.txt)
+rejects JDK calls that use an implicit locale or charset. Use `Locale.ROOT` for identifiers and
+machine-readable formatting, and the protocol's charset (usually `StandardCharsets.UTF_8`) for
+byte conversions. For intentional JVM defaults, use an explicit default or put `@SuppressForbidden`
+on the smallest scope and explain why in a comment. Passing a locale still leaves `String.format`
+with the parsing and allocation cost described above.
 
 **`Config.get()` per call.** Walks a config-resolution chain; not a free read. Fix: hoist to a
 `static final` field at class initialization. This is the single most recurring DBM finding —

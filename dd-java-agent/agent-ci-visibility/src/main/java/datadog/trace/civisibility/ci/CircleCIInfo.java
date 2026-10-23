@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import java.util.Locale;
 import javax.annotation.Nonnull;
 
 class CircleCIInfo implements CIProviderInfo {
@@ -71,7 +72,8 @@ class CircleCIInfo implements CIProviderInfo {
       return null;
     }
 
-    return String.format("https://app.circleci.com/pipelines/workflows/%s", pipelineId);
+    return String.format(
+        Locale.ROOT, "https://app.circleci.com/pipelines/workflows/%s", pipelineId);
   }
 
   @Override

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jdbc;
 
 import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -65,9 +66,9 @@ public class DBMCommentSizingBenchmark {
           scenario.equals("short_service")
               ? null
               : "00-12345678901234567890123456789012"
-                  + String.format("%02x", i)
+                  + String.format(Locale.ROOT, "%02x", i)
                   + "-98765432109876"
-                  + String.format("%02x", i)
+                  + String.format(Locale.ROOT, "%02x", i)
                   + "-01";
       if (scenario.equals("long_full")) {
         services[i] = repeat("service", 80) + i;

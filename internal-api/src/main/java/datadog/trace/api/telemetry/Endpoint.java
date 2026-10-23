@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -151,7 +152,7 @@ public class Endpoint {
       }
       final List<String> result = new ArrayList<>(methods.size());
       for (E value : methods) {
-        final String methodName = value.name().toUpperCase();
+        final String methodName = value.name().toUpperCase(Locale.ROOT);
         if (METHODS.contains(value.name())) {
           result.add(methodName);
         }

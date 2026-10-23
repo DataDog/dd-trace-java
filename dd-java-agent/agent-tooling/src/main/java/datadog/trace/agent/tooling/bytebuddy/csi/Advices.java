@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -197,8 +198,10 @@ public class Advices {
       if (oldAdvice != null) {
         throw new UnsupportedOperationException(
             String.format(
+                Locale.ROOT,
                 "Advice %s and %s match the same pointcut, this is not yet supported",
-                oldAdvice, advice));
+                oldAdvice,
+                advice));
       }
     }
   }

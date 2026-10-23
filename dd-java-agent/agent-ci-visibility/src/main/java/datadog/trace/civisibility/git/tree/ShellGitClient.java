@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
@@ -194,7 +195,7 @@ public class ShellGitClient implements GitClient {
                     "--update-shallow",
                     "--filter=blob:none",
                     "--recurse-submodules=no",
-                    String.format("--shallow-since='%s'", latestCommitsSince),
+                    String.format(Locale.ROOT, "--shallow-since='%s'", latestCommitsSince),
                     remote,
                     commitSha));
           } else {
@@ -205,7 +206,7 @@ public class ShellGitClient implements GitClient {
                     "--update-shallow",
                     "--filter=blob:none",
                     "--recurse-submodules=no",
-                    String.format("--shallow-since='%s'", latestCommitsSince),
+                    String.format(Locale.ROOT, "--shallow-since='%s'", latestCommitsSince),
                     remote));
           }
 
@@ -482,7 +483,7 @@ public class ShellGitClient implements GitClient {
                     "--format=%H",
                     "-n",
                     String.valueOf(latestCommitsLimit),
-                    String.format("--since='%s'", latestCommitsSince))));
+                    String.format(Locale.ROOT, "--since='%s'", latestCommitsSince))));
   }
 
   /**
@@ -510,7 +511,7 @@ public class ShellGitClient implements GitClient {
           gitArgs[1] = "--objects";
           gitArgs[2] = "--no-object-names";
           gitArgs[3] = "--filter=blob:none";
-          gitArgs[4] = String.format("--since='%s'", latestCommitsSince);
+          gitArgs[4] = String.format(Locale.ROOT, "--since='%s'", latestCommitsSince);
 
           int count = 5;
           for (String commitToSkip : commitsToSkip) {

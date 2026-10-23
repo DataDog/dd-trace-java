@@ -6,8 +6,10 @@ import datadog.trace.api.civisibility.domain.JavaAgent;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,7 +51,8 @@ public class CiVisibilityGradleListener extends BuildAdapter
     try (BufferedReader reader =
         new BufferedReader(
             new InputStreamReader(
-                ClassLoader.getSystemResourceAsStream("dd-java-agent.version")))) {
+                ClassLoader.getSystemResourceAsStream("dd-java-agent.version"),
+                StandardCharsets.UTF_8))) {
       TRACER_VERSION = reader.lines().collect(Collectors.joining());
     } catch (IOException e) {
       throw new RuntimeException("Could not read tracer version from dd-java-agent.version", e);
@@ -222,7 +225,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
       }
       Named namedProvider = (Named) jvmArgumentProvider;
       String providerName = namedProvider.getName();
-      if (!providerName.toLowerCase().contains("jacoco")) {
+      if (!providerName.toLowerCase(Locale.ROOT).contains("jacoco")) {
         continue;
       }
       Iterable<String> arguments = jvmArgumentProvider.asArguments();

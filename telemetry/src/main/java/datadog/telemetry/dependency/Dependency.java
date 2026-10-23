@@ -222,7 +222,7 @@ public final class Dependency {
       md.reset();
       is = new DigestInputStream(is, md);
       while (is.read(buf, 0, buf.length) > 0) {}
-      hash = String.format("%040X", new BigInteger(1, md.digest()));
+      hash = String.format(Locale.ROOT, "%040X", new BigInteger(1, md.digest()));
     }
     log.debug("No maven dependency added {}.{} jar name {} hash {}", name, version, source, hash);
     return new Dependency(name, version, source, hash);

@@ -69,6 +69,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
@@ -358,8 +359,10 @@ public class MetricInstrumenter extends Instrumenter {
               .collect(Collectors.joining(","));
       reportError(
           String.format(
+              Locale.ROOT,
               "Incompatible type for expression: %s with expected types: [%s]",
-              resultType.getClassName(), expectedTypes));
+              resultType.getClassName(),
+              expectedTypes));
       return EMPTY_INSN_LIST;
     }
     resultType = convertIfRequired(resultType, result.insnList);
@@ -422,7 +425,7 @@ public class MetricInstrumenter extends Instrumenter {
         }
         return internalCallMetric(metricProbe, targetLocation, returnContext);
       default:
-        reportError(String.format("Unknown metric kind: %s", metricProbe.getKind()));
+        reportError(String.format(Locale.ROOT, "Unknown metric kind: %s", metricProbe.getKind()));
     }
     return null;
   }

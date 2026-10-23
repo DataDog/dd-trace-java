@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -107,7 +108,7 @@ public class AIGuardInternal implements Evaluator {
     }
     String endpoint = config.getAiGuardEndpoint();
     if (isBlank(endpoint)) {
-      endpoint = String.format("https://app.%s/api/v2/ai-guard", config.getSite());
+      endpoint = String.format(Locale.ROOT, "https://app.%s/api/v2/ai-guard", config.getSite());
     }
     final Map<String, String> headers =
         mapOf(

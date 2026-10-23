@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.util.ConcurrentEnumMap;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Locale;
 import java.util.Map;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
@@ -60,7 +61,7 @@ public abstract class TestEventsHandlerHolder {
     if (handler == null) {
       handler =
           InstrumentationBridge.createTestEventsHandler(
-              framework.name().toLowerCase(),
+              framework.name().toLowerCase(Locale.ROOT),
               suiteStore,
               testStore,
               JUnitPlatformUtils.capabilities(testEngine));

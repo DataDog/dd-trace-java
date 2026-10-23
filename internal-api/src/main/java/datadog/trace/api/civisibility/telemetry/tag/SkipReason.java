@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.telemetry.tag;
 
 import datadog.trace.api.civisibility.telemetry.TagValue;
+import java.util.Locale;
 
 public enum SkipReason implements TagValue {
   ITR("Skipped by Datadog Test Impact Analysis"),
@@ -11,7 +12,7 @@ public enum SkipReason implements TagValue {
 
   SkipReason(String description) {
     this.description = description;
-    this.s = "skip_reason:" + name().toLowerCase();
+    this.s = "skip_reason:" + name().toLowerCase(Locale.ROOT);
   }
 
   public String getDescription() {

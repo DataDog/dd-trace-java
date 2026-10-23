@@ -54,6 +54,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -1173,7 +1174,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       TracerAPI tracer = AgentTracer.get();
       AgentSpan span = tracer != null ? tracer.activeSpan() : null;
       if (span != null) {
-        span.getLocalRootSpan().setTag(format("_dd.ld.probe_id.%s", id), budgetLevel.get());
+        span.getLocalRootSpan()
+            .setTag(format(Locale.ROOT, "_dd.ld.probe_id.%s", id), budgetLevel.get());
       }
     }
   }

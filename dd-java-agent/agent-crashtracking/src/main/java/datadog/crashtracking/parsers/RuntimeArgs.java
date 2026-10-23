@@ -3,6 +3,7 @@ package datadog.crashtracking.parsers;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Utility for normalizing and filtering JVM runtime arguments captured from crash artifacts.
@@ -105,7 +106,7 @@ final class RuntimeArgs {
     }
     int separator = arg.indexOf('=');
     String propertyName = separator >= 0 ? arg.substring(2, separator) : arg.substring(2);
-    String normalizedPropertyName = propertyName.toLowerCase();
+    String normalizedPropertyName = propertyName.toLowerCase(Locale.ROOT);
     for (String keyword : SECRET_PROPERTY_KEYWORDS) {
       if (normalizedPropertyName.contains(keyword)) {
         return true;

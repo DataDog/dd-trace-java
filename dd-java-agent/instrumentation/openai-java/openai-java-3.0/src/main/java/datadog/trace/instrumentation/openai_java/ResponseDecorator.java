@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -549,7 +550,7 @@ public class ResponseDecorator {
               if (!metadata.containsKey("tool_choice")) {
                 toolChoice
                     .types()
-                    .map(v -> v.type().toString().toLowerCase())
+                    .map(v -> v.type().toString().toLowerCase(Locale.ROOT))
                     .ifPresent(v -> metadata.put("tool_choice", v));
               }
               if (!metadata.containsKey("tool_choice") && toolChoice.function().isPresent()) {

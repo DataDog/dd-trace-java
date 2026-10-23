@@ -87,9 +87,10 @@ public class DDIntakeApi extends RemoteApi {
       final String trackName =
           (trackType != null ? trackType.name() : NOOP.name()).toLowerCase(Locale.ROOT);
       if (null == hostUrl) {
-        hostUrl = HttpUrl.get(String.format("https://%s-intake.%s", trackName, site));
+        hostUrl = HttpUrl.get(String.format(Locale.ROOT, "https://%s-intake.%s", trackName, site));
       }
-      final HttpUrl intakeUrl = hostUrl.resolve(String.format("/api/%s/%s", apiVersion, trackName));
+      final HttpUrl intakeUrl =
+          hostUrl.resolve(String.format(Locale.ROOT, "/api/%s/%s", apiVersion, trackName));
       final OkHttpClient client =
           (httpClient != null) ? httpClient : OkHttpUtils.buildHttpClient(intakeUrl, timeoutMillis);
 

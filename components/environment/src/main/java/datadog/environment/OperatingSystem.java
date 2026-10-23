@@ -6,9 +6,11 @@ import static datadog.environment.OperatingSystem.Type.WINDOWS;
 import static java.util.Locale.ROOT;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -88,7 +90,10 @@ public final class OperatingSystem {
   }
 
   private static boolean isMuslProcSelfMaps() throws IOException {
-    try (BufferedReader reader = new BufferedReader(new FileReader("/proc/self/maps"))) {
+    try (BufferedReader reader =
+        new BufferedReader(
+            new InputStreamReader(
+                new FileInputStream("/proc/self/maps"), StandardCharsets.ISO_8859_1))) {
       String line;
       while ((line = reader.readLine()) != null) {
         if (line.contains("-musl-")) {

@@ -16,9 +16,11 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.SortedSet;
@@ -194,7 +196,7 @@ public class JMXFetch {
         return Collections.emptyList();
       }
       log.debug("reading found metricconfigs");
-      Scanner scanner = new Scanner(metricConfigsStream);
+      Scanner scanner = new Scanner(metricConfigsStream, StandardCharsets.UTF_8.name());
       scanner.useDelimiter("\n");
       final List<String> result = new ArrayList<>();
       final SortedSet<String> integrationName = new TreeSet<>();
@@ -240,6 +242,6 @@ public class JMXFetch {
 
   private static String getLogLevel() {
     return SystemProperties.getOrDefault("org.slf4j.simpleLogger.defaultLogLevel", "info")
-        .toUpperCase();
+        .toUpperCase(Locale.ROOT);
   }
 }

@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /** Stores status instrumentation results */
@@ -109,8 +110,15 @@ public class InstrumentationResult {
   @Override
   public String toString() {
     return String.format(
+        Locale.ROOT,
         "InstrumentationResult{typeName='%s', methodName='%s', methodStart=%d, signature='%s',"
             + " sourceFileName='%s', status=%s. diagnostics=%s}",
-        typeName, methodName, methodStart, signature, sourceFileName, status, diagnostics);
+        typeName,
+        methodName,
+        methodStart,
+        signature,
+        sourceFileName,
+        status,
+        diagnostics);
   }
 }

@@ -15,6 +15,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,7 +129,7 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
 
   protected void addStackFrameTags(
       AgentSpan span, Snapshot snapshot, int frameIndex, StackTraceElement stackFrame) {
-    String tagName = String.format(SNAPSHOT_ID_TAG_FMT, frameIndex);
+    String tagName = String.format(Locale.ROOT, SNAPSHOT_ID_TAG_FMT, frameIndex);
     span.setTag(tagName, snapshot.getId());
     LOGGER.debug("add tag to span[{}]: {}: {}", span.getSpanId(), tagName, snapshot.getId());
   }

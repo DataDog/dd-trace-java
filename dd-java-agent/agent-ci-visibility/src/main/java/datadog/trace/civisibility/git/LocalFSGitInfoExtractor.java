@@ -12,6 +12,7 @@ import datadog.trace.civisibility.git.pack.VersionedPackGitInfoExtractor;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -189,7 +190,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       }
 
       // We get the reference in the object getting the bytes until the \n character:
-      final String objectSha = new String(Arrays.copyOfRange(gitObject.getContent(), 0, lf - 1));
+      final String objectSha =
+          new String(Arrays.copyOfRange(gitObject.getContent(), 0, lf - 1), StandardCharsets.UTF_8);
 
       // Here, objectSha = "object $sha1". E.g: "object 44c242675ddf69b7b1f440b4a5d8d24e908d8bef"
       // Split by " " and get the sha in the second position of the array
@@ -235,7 +237,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       // ((byte)32)
       // metadata[0] contains the type (e.g. commit)
       // metadata[1] contains the size (e.g. 261)
-      final String[] metadata = SPACE_PATTERN.split(new String(metadataBytes));
+      final String[] metadata =
+          SPACE_PATTERN.split(new String(metadataBytes, StandardCharsets.UTF_8));
       if (metadata.length != 2) {
         // Unexpected metadata format.
         return GitObject.NOOP;
@@ -410,7 +413,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       return null;
     }
 
-    final String content = new String(Files.readAllBytes(filepath));
+    final String content = new String(Files.readAllBytes(filepath), StandardCharsets.UTF_8);
     if (content.endsWith("\n")) {
       return content.substring(0, content.length() - 1);
     }

@@ -490,7 +490,9 @@ public final class DatadogProfiler {
       if (configuredProfilingModes.contains(MEMLEAK)) {
         cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
         cmd.append(':')
-            .append(String.format("%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
+            .append(
+                String.format(
+                    Locale.ROOT, "%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
       }
     }
     if (configuredProfilingModes.contains(NATIVEMEM)) {

@@ -2,6 +2,7 @@ package com.datadog.debugger.instrumentation;
 
 import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.util.Strings;
+import java.util.Locale;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -62,6 +63,6 @@ public class MethodInfo {
   @Override
   public String toString() {
     return String.format(
-        "MethodInfo{classNode=%s, methodNode=%s}", classNode.name, methodNode.desc);
+        Locale.ROOT, "MethodInfo{classNode=%s, methodNode=%s}", classNode.name, methodNode.desc);
   }
 }

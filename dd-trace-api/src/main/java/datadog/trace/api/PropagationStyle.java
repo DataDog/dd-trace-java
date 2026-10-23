@@ -3,6 +3,7 @@ package datadog.trace.api;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * These are the old propagation styles that have been deprecated in favor of the propagation styles
@@ -26,6 +27,6 @@ public enum PropagationStyle {
   }
 
   public static PropagationStyle valueOfConfigName(String configName) {
-    return valueOf(configName.toUpperCase().trim());
+    return valueOf(configName.toUpperCase(Locale.ROOT).trim());
   }
 }

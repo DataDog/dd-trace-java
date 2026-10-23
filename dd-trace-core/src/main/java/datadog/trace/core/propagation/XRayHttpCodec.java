@@ -17,6 +17,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.DDSpanContext;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -75,6 +76,7 @@ class XRayHttpCodec {
               .append(ROOT_PREFIX)
               .append(
                   String.format(
+                      Locale.ROOT,
                       "%08x",
                       e2eStart > 0
                           ? NANOSECONDS.toSeconds(e2eStart)

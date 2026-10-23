@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -241,7 +242,7 @@ public class ShellCommandExecutor {
 
     } else {
       String m = e.getMessage();
-      if (m != null && m.toLowerCase().contains("no such file or directory")) {
+      if (m != null && m.toLowerCase(Locale.ROOT).contains("no such file or directory")) {
         return ExitCode.EXECUTABLE_MISSING;
       } else {
         return ExitCode.CODE_UNKNOWN;

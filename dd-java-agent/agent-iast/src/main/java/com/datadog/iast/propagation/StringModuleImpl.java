@@ -42,7 +42,10 @@ public class StringModuleImpl implements StringModule {
 
   /** Escaped format patterns * */
   private static final Map<String, String> ESCAPED_PATTERNS =
-      Stream.of("%%", "%n").collect(Collectors.toMap(Function.identity(), String::format));
+      Stream.of("%%", "%n")
+          .collect(
+              Collectors.toMap(
+                  Function.identity(), pattern -> String.format(Locale.ROOT, pattern)));
 
   private static final Ranged END = Ranged.build(Integer.MAX_VALUE, 0);
 
