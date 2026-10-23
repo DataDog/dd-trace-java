@@ -701,7 +701,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -746,7 +746,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -793,7 +793,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -838,7 +838,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -903,7 +903,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -953,7 +953,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -997,7 +997,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1053,7 +1053,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1102,7 +1102,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1134,7 +1134,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1179,7 +1179,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1228,7 +1228,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1272,7 +1272,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1318,7 +1318,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1362,7 +1362,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1405,7 +1405,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1447,7 +1447,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1507,7 +1507,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1555,7 +1555,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1589,7 +1589,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1623,7 +1623,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1658,7 +1658,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1839,7 +1839,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1891,7 +1891,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1938,7 +1938,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -1978,7 +1978,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -2017,7 +2017,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -2079,7 +2079,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -2177,7 +2177,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
