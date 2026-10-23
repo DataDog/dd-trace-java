@@ -10,11 +10,18 @@ tasks.named('test', Test) {
   outputs.upToDateWhen { false }
   outputs.doNotCacheIf('Collect fresh worker diagnostics') { true }
   doFirst {
+    def metadata = javaLauncher.get().metadata
+    if (metadata.languageVersion.asInt() == 11 && !metadata.vendor.toLowerCase().contains('ibm')
+      && System.getProperty('os.arch') in ['aarch64', 'arm64']) {
+      // Avoid accumulating loaded classes and compiled code across agent reinstallations.
+      forkEvery = 1
+      maxParallelForks = 2
+      logger.lifecycle('Concurrent workaround: one class per JVM, at most two workers')
+    }
     if (concurrentDebug.get().toBoolean()) {
       def debugDir = debugDirectory.get().asFile
       debugDir.mkdirs()
       systemProperty 'test.concurrent.debug', 'true'
-      def metadata = javaLauncher.get().metadata
       // OpenJ9 and Java 8 remain timing controls without HotSpot-specific recording flags.
       if (metadata.languageVersion.asInt() >= 11 && !metadata.vendor.toLowerCase().contains('ibm')) {
         def settings = new File(metadata.installationPath.asFile, 'lib/jfr/profile.jfc').getText('UTF-8')
@@ -35,7 +42,7 @@ tasks.named('test', Test) {
         settingsFile.setText(settings, 'UTF-8')
         // Save even if a worker later needs to be killed at the 30-minute task deadline.
         jvmArgs '-XX:+UnlockDiagnosticVMOptions', '-XX:+DebugNonSafepoints', '-XX:+PreserveFramePointer',
-          "-XX:StartFlightRecording=name=concurrent,settings=${settingsFile},filename=${debugDir}/worker.jfr,duration=28m,dumponexit=true,maxsize=256m",
+          "-XX:StartFlightRecording=name=concurrent,settings=${settingsFile},filename=${debugDir},duration=28m,dumponexit=true,maxsize=256m",
           "-Xlog:gc*=info,safepoint*=debug:file=${debugDir}/vm-%p.log:time,uptime,level,tags",
           "-Xlog:redefine+class+timer=info,redefine+class=debug,redefine+class+load=debug:file=${debugDir}/redefine-%p.log:time,uptime,level,tags:filecount=0"
       }
