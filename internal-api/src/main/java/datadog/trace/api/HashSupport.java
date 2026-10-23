@@ -9,35 +9,50 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * The raw bucket mechanics of {@link TagMap}, over one fixed-size {@code Object[]} of buckets of
- * shareable, immutable {@link Entry} objects. A bucket holds a lone Entry directly; colliding
- * entries share a fixed-size {@link BucketGroup}, chained when one fills.
+ * The raw bucket mechanics both tag stores share, over one fixed-size {@code Object[]} of buckets
+ * of shareable, immutable {@link Entry} objects. A bucket holds a lone Entry directly; because
+ * Entries are shared between maps, they cannot form a linked list, so colliding entries share a
+ * fixed-size {@link BucketGroup}, chained when one fills. Removals are assumed rare, so groups are
+ * never consolidated, but an emptied group is unlinked from its chain.
  *
  * <p>Stateless: each operation reports what it did through its return value -- put returns the
- * entry it replaced, remove the entry it removed, merge how much the map grew -- and the calling
- * map keeps its own count. Read-through to a parent map and its tombstones stay with the map.
+ * entry it replaced, remove the entry it removed -- and the calling store keeps its own count.
+ * Copies share Entries and clone only BucketGroup chains. Iteration skips tombstones ({@link
+ * Entry#tombstone}), which only an id store holds.
  */
 final class HashSupport {
   private HashSupport() {}
 
   /** A fresh bucket array; its length must be a power of 2 for bucket masking. */
   static Object[] newBuckets() {
-    // needs to be a power of 2 for bucket masking calculation to work as intended
     return new Object[1 << 4];
   }
 
-  /** The entry for {@code (hash, tag)} in {@code buckets}, or null. */
+  /** The entry for {@code (hash, tag)}, tombstone or not, or null. */
   static Entry find(Object[] buckets, int hash, String tag) {
     return findInBucket(buckets[hash & (buckets.length - 1)], hash, tag);
   }
 
   /**
-   * Finds an entry by hash/tag within a single bucket object (Entry | BucketGroup chain | null).
+   * {@link #find} for a known tag, matching on its id rather than its name, so an id store never
+   * needs a name. {@code hash} is {@code Entry.bucketHash(tagId)}.
    */
+  static Entry findById(Object[] buckets, int hash, long tagId) {
+    Object bucket = buckets[hash & (buckets.length - 1)];
+    if (bucket instanceof Entry) {
+      Entry tagEntry = (Entry) bucket;
+      return tagEntry.tagHash == tagId ? tagEntry : null;
+    } else if (bucket instanceof BucketGroup) {
+      return ((BucketGroup) bucket).findInChainById(hash, tagId);
+    }
+    return null;
+  }
+
+  /** Finds an entry by hash and tag in one bucket: an Entry, a BucketGroup chain, or null. */
   static Entry findInBucket(Object bucket, int hash, String tag) {
     if (bucket instanceof Entry) {
       Entry tagEntry = (Entry) bucket;
-      return tagEntry.matches(tag) ? tagEntry : null;
+      return tagEntry.hash() == hash && tagEntry.matches(tag) ? tagEntry : null;
     } else if (bucket instanceof BucketGroup) {
       return ((BucketGroup) bucket).findInChain(hash, tag);
     }
@@ -58,7 +73,7 @@ final class HashSupport {
       return null;
     } else if (bucket instanceof Entry) {
       Entry existingEntry = (Entry) bucket;
-      if (existingEntry.matches(newEntry.tag)) {
+      if (existingEntry.hash() == newHash && existingEntry.matches(newEntry.tag)) {
         thisBuckets[bucketIndex] = newEntry;
 
         // replaced existing entry - no size change
@@ -91,14 +106,13 @@ final class HashSupport {
   /** Removes the entry for {@code (hash, tag)}, returning it, or null if there was none. */
   static Entry remove(Object[] buckets, int hash, String tag) {
     Object[] thisBuckets = buckets;
-
     int bucketIndex = hash & (thisBuckets.length - 1);
 
     Object bucket = thisBuckets[bucketIndex];
     // null bucket case - do nothing
     if (bucket instanceof Entry) {
       Entry existingEntry = (Entry) bucket;
-      if (existingEntry.matches(tag)) {
+      if (existingEntry.hash() == hash && existingEntry.matches(tag)) {
         thisBuckets[bucketIndex] = null;
 
         return existingEntry;
@@ -128,6 +142,7 @@ final class HashSupport {
    * cloning only BucketGroup chains.
    */
   static void copyInto(Object[] thisBuckets, Object[] thatBuckets) {
+
     // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check
     // elimination
     for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
@@ -149,12 +164,13 @@ final class HashSupport {
 
   /**
    * Merges {@code thatBuckets} into {@code thisBuckets}, sharing Entry objects and cloning only
-   * BucketGroup chains; incoming entries replace existing ones. Returns how much the map grew.
+   * BucketGroup chains; incoming entries replace existing ones. Returns how many it added. Both
+   * arrays must be the same length (stores don't expand, so buckets are perfectly aligned).
    */
   static int merge(Object[] thisBuckets, Object[] thatBuckets) {
     int added = 0;
 
-    // Since TagMap-s don't support expansion, buckets are perfectly aligned
+    // Stores don't expand, so buckets are perfectly aligned
     // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check
     // elimination
     for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
@@ -211,7 +227,7 @@ final class HashSupport {
           Entry incomingEntry = thisNewGroup.findInChain(thisHash, thisEntry.tag());
           if (incomingEntry != null) {
             // there's already an entry w/ the same tag from the incoming TagMap
-            // incoming entry clobbers the existing try, so we're done
+            // incoming entry clobbers the existing entry, so we're done
             thisBuckets[i] = thisNewGroup;
 
             // overlapping group - subtract one for clobbered existing entry
@@ -220,13 +236,13 @@ final class HashSupport {
             // able to add thisEntry into the existing groups
             thisBuckets[i] = thisNewGroup;
 
-            // non overlapping group - existing entry already accounted for in this.size
+            // non overlapping group - existing entry already counted
             added += thisNewGroupSize;
           } else {
             // unable to add into the existing groups
             thisBuckets[i] = new BucketGroup(thisHash, thisEntry, thisNewGroup);
 
-            // non overlapping group - existing entry already accounted for in this.size
+            // non overlapping group - existing entry already counted
             added += thisNewGroupSize;
           }
         }
@@ -265,141 +281,81 @@ final class HashSupport {
     return added;
   }
 
-  /** Visits every entry in {@code buckets}. */
+  /** Visits every entry, skipping tombstones. */
   static void forEach(Object[] buckets, Consumer<? super EntryReader> consumer) {
-    Object[] thisBuckets = buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-
-        consumer.accept(thisEntry);
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        thisGroup.forEachInChain(consumer);
+    for (int i = 0; i < buckets.length; ++i) {
+      Object bucket = buckets[i];
+      if (bucket instanceof Entry) {
+        Entry entry = (Entry) bucket;
+        if (!entry.tombstone) consumer.accept(entry);
+      } else if (bucket instanceof BucketGroup) {
+        for (BucketGroup group = (BucketGroup) bucket; group != null; group = group.prev) {
+          for (int j = 0; j < BucketGroup.LEN; ++j) {
+            Entry entry = group._entryAt(j);
+            if (entry != null && !entry.tombstone) consumer.accept(entry);
+          }
+        }
       }
     }
   }
 
-  /** {@link #forEach(Object[], Consumer)} with a context object for a non-capturing consumer. */
   static <T> void forEach(
       Object[] buckets, T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
-    Object[] thisBuckets = buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-
-        consumer.accept(thisObj, thisEntry);
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        thisGroup.forEachInChain(thisObj, consumer);
+    for (int i = 0; i < buckets.length; ++i) {
+      Object bucket = buckets[i];
+      if (bucket instanceof Entry) {
+        Entry entry = (Entry) bucket;
+        if (!entry.tombstone) consumer.accept(thisObj, entry);
+      } else if (bucket instanceof BucketGroup) {
+        for (BucketGroup group = (BucketGroup) bucket; group != null; group = group.prev) {
+          for (int j = 0; j < BucketGroup.LEN; ++j) {
+            Entry entry = group._entryAt(j);
+            if (entry != null && !entry.tombstone) consumer.accept(thisObj, entry);
+          }
+        }
       }
     }
   }
 
-  /** {@link #forEach(Object[], Consumer)} with two context objects. */
   static <T, U> void forEach(
       Object[] buckets, T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
-    Object[] thisBuckets = buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-
-        consumer.accept(thisObj, otherObj, thisEntry);
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        thisGroup.forEachInChain(thisObj, otherObj, consumer);
+    for (int i = 0; i < buckets.length; ++i) {
+      Object bucket = buckets[i];
+      if (bucket instanceof Entry) {
+        Entry entry = (Entry) bucket;
+        if (!entry.tombstone) consumer.accept(thisObj, otherObj, entry);
+      } else if (bucket instanceof BucketGroup) {
+        for (BucketGroup group = (BucketGroup) bucket; group != null; group = group.prev) {
+          for (int j = 0; j < BucketGroup.LEN; ++j) {
+            Entry entry = group._entryAt(j);
+            if (entry != null && !entry.tombstone) consumer.accept(thisObj, otherObj, entry);
+          }
+        }
       }
     }
   }
 
-  /** Puts every entry in {@code buckets} into {@code map}, by tag, as its object value. */
   static void fillMap(Object[] buckets, Map<? super String, Object> map) {
-    Object[] thisBuckets = buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-
-        map.put(thisEntry.tag, thisEntry.objectValue());
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        thisGroup.fillMapFromChain(map);
-      }
-    }
+    forEach(buckets, map, (m, entry) -> m.put(entry.tag(), entry.objectValue()));
   }
 
-  /** Puts every entry in {@code buckets} into {@code stringMap}, by tag, as its string value. */
-  static void fillStringMap(Object[] buckets, Map<? super String, ? super String> stringMap) {
-    Object[] thisBuckets = buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object thisBucket = thisBuckets[i];
-
-      if (thisBucket instanceof Entry) {
-        Entry thisEntry = (Entry) thisBucket;
-
-        stringMap.put(thisEntry.tag, thisEntry.stringValue());
-      } else if (thisBucket instanceof BucketGroup) {
-        BucketGroup thisGroup = (BucketGroup) thisBucket;
-
-        thisGroup.fillStringMapFromChain(stringMap);
-      }
-    }
+  static void fillStringMap(Object[] buckets, Map<? super String, ? super String> map) {
+    forEach(buckets, map, (m, entry) -> m.put(entry.tag(), entry.stringValue()));
   }
 
-  /** The number of entries in {@code buckets}, counted. */
+  /** The number of live entries, not counting tombstones. Tests only. */
   static int count(Object[] buckets) {
-    Object[] thisBuckets = buckets;
-
-    int size = 0;
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object curBucket = thisBuckets[i];
-
-      if (curBucket instanceof Entry) {
-        size += 1;
-      } else if (curBucket instanceof BucketGroup) {
-        BucketGroup curGroup = (BucketGroup) curBucket;
-        size += curGroup.sizeInChain();
-      }
-    }
-    return size;
+    int[] count = new int[1];
+    forEach(buckets, count, (c, entry) -> c[0]++);
+    return count[0];
   }
 
-  /** Whether {@code buckets} holds no entry, checked bucket by bucket. */
-  static boolean isEmpty(Object[] buckets) {
-    Object[] thisBuckets = buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object curBucket = thisBuckets[i];
-
-      if (curBucket instanceof Entry) {
-        return false;
-      } else if (curBucket instanceof BucketGroup) {
-        BucketGroup curGroup = (BucketGroup) curBucket;
-        if (!curGroup.isEmptyChain()) return false;
-      }
-    }
-
-    return true;
-  }
-
-  /** Checks that every entry in {@code buckets} sits in the bucket its hash selects. */
+  /** Throws if an entry sits in the wrong bucket. Tests only. */
   static void checkBuckets(Object[] buckets) {
+    // Decided to use if ( cond ) throw new IllegalStateException rather than assert
+    // That was done to avoid the extra static initialization needed for an assertion
+    // While that's probably an unnecessary optimization, this method is only called in tests
+
     Object[] thisBuckets = buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -418,11 +374,11 @@ final class HashSupport {
 
         for (BucketGroup curGroup = thisGroup; curGroup != null; curGroup = curGroup.prev) {
           for (int j = 0; j < BucketGroup.LEN; ++j) {
-            Entry thisEntry = curGroup._entryAt(i);
+            Entry thisEntry = curGroup._entryAt(j);
             if (thisEntry == null) continue;
 
             int thisHash = thisEntry.hash();
-            assert curGroup._hashAt(i) == thisHash;
+            assert curGroup._hashAt(j) == thisHash;
 
             int expectedBucket = thisHash & (thisBuckets.length - 1);
             if (expectedBucket != i) {
@@ -434,7 +390,6 @@ final class HashSupport {
     }
   }
 
-  /** The buckets' internal structure, for deep debugging. */
   static String toInternalString(Object[] buckets) {
     Object[] thisBuckets = buckets;
 
@@ -457,5 +412,73 @@ final class HashSupport {
       ledger.append('\n');
     }
     return ledger.toString();
+  }
+
+  /** Whether {@code buckets} holds no entry, checked bucket by bucket. */
+  static boolean isEmpty(Object[] buckets) {
+    Object[] thisBuckets = buckets;
+
+    for (int i = 0; i < thisBuckets.length; ++i) {
+      Object curBucket = thisBuckets[i];
+
+      if (curBucket instanceof Entry) {
+        return false;
+      } else if (curBucket instanceof BucketGroup) {
+        BucketGroup curGroup = (BucketGroup) curBucket;
+        if (!curGroup.isEmptyChain()) return false;
+      }
+    }
+
+    return true;
+  }
+
+  /** Walks a bucket array's raw entries, tombstones included, for an iterator. */
+  static final class BucketWalker {
+    private Object[] buckets;
+    private int bucketIndex;
+    private BucketGroup group;
+    private int groupIndex;
+
+    /** Starts over on {@code buckets}. */
+    void reset(Object[] buckets) {
+      this.buckets = buckets;
+      this.bucketIndex = -1;
+      this.group = null;
+      this.groupIndex = 0;
+    }
+
+    /** The next raw entry, or null when the array is done. */
+    Entry next() {
+      while (this.bucketIndex < this.buckets.length) {
+        if (this.group != null) {
+          for (++this.groupIndex; this.groupIndex < BucketGroup.LEN; ++this.groupIndex) {
+            Entry tagEntry = this.group._entryAt(this.groupIndex);
+            if (tagEntry != null) return tagEntry;
+          }
+
+          // done processing - that group, go to next group
+          this.group = this.group.prev;
+          this.groupIndex = -1;
+        }
+
+        // if the group is null, then we've finished the current bucket - so advance the bucket
+        if (this.group == null) {
+          for (++this.bucketIndex; this.bucketIndex < this.buckets.length; ++this.bucketIndex) {
+            Object bucket = this.buckets[this.bucketIndex];
+
+            if (bucket instanceof Entry) {
+              return (Entry) bucket;
+            } else if (bucket instanceof BucketGroup) {
+              this.group = (BucketGroup) bucket;
+              this.groupIndex = -1;
+
+              break;
+            }
+          }
+        }
+      }
+
+      return null;
+    }
   }
 }
