@@ -129,7 +129,9 @@ class FeatureFlagsRuntimeTest {
     runtime.start();
     try {
       source.listener.accept(EMPTY_UFC);
-      source.listener.accept("{not json".getBytes(StandardCharsets.UTF_8));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> source.listener.accept("{not json".getBytes(StandardCharsets.UTF_8)));
       final List<ServerConfiguration> late = new CopyOnWriteArrayList<>();
       runtime.addConfigurationListener(late::add);
 

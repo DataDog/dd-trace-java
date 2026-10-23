@@ -41,7 +41,9 @@ public final class RemoteConfigurationService implements ConfigurationService {
                     "Remote Configuration returned a malformed flag configuration ({}); retaining the current configuration",
                     e.getClass().getSimpleName(),
                     e);
-                return;
+                // Rejects the document so the agent reports it as not applied.
+                throw new IllegalArgumentException(
+                    "Malformed flag configuration: " + e.getMessage(), e);
               }
               if (configuration != null) {
                 listener.accept(configuration);

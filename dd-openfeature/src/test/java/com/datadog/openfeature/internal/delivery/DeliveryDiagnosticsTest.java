@@ -173,7 +173,9 @@ class DeliveryDiagnosticsTest {
     service.start(configuration -> {});
 
     connector.listener.accept("{\"environment\":{\"name\":\"Test\"},\"flags\":{}}".getBytes(UTF_8));
-    connector.listener.accept("{not json".getBytes(UTF_8));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> connector.listener.accept("{not json".getBytes(UTF_8)));
     connector.listener.accept(null);
 
     assertLogged("subscribing to Remote Configuration");

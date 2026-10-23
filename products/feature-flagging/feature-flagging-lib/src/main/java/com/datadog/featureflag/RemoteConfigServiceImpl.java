@@ -59,7 +59,12 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       this.subscribers.add(subscriber);
       final byte[] document = this.current;
       if (document != null) {
-        subscriber.accept(document);
+        try {
+          subscriber.accept(document);
+        } catch (final RuntimeException e) {
+          // Already reported to Remote Configuration when the document was received.
+          LOGGER.debug("Feature Flags configuration subscriber rejected the current document", e);
+        }
       }
     }
     return () -> this.subscribers.remove(subscriber);
@@ -78,6 +83,15 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
     this.current = null;
   }
 
+  /**
+   * Forwards a configuration document to every subscriber.
+   *
+   * @param configKey the Remote Configuration key.
+   * @param content the raw document, or {@code null} when the configuration is removed.
+   * @param pollingRateHinter the polling rate hinter.
+   * @throws RuntimeException the first subscriber failure, once every subscriber is notified, so
+   *     the poller reports the document as not applied.
+   */
   @Override
   public void accept(
       final String configKey,
@@ -88,12 +102,17 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       this.current = content;
       snapshot = this.subscribers.iterator();
     }
+    RuntimeException failure = null;
     while (snapshot.hasNext()) {
       final Consumer<byte[]> subscriber = snapshot.next();
       try {
         subscriber.accept(content);
       } catch (final RuntimeException e) {
-        LOGGER.debug("Feature Flags configuration subscriber failed", e);
+        if (failure == null) {
+          failure = e;
+        } else {
+          failure.addSuppressed(e);
+        }
       }
     }
     // Logged last: a diagnostic must not get in the way of the delivery.
@@ -104,6 +123,9 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
           "Feature Flagging remote_config configuration received: key={}, bytes={}",
           configKey,
           content.length);
+    }
+    if (failure != null) {
+      throw failure;
     }
   }
 }

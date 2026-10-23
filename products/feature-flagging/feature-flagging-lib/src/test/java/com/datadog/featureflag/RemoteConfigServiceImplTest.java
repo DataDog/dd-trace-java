@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -77,6 +78,56 @@ class RemoteConfigServiceImplTest {
     assertArrayEquals(DOCUMENT, first.get(0));
     assertNull(first.get(1));
     assertEquals(2, second.size());
+  }
+
+  @Test
+  void reportsRejectedDocumentsOnceEverySubscriberIsNotified() {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    final IllegalArgumentException rejection = new IllegalArgumentException("malformed");
+    final IllegalStateException otherRejection = new IllegalStateException("malformed too");
+    final List<byte[]> received = new ArrayList<>();
+    service.subscribe(
+        content -> {
+          throw rejection;
+        });
+    service.subscribe(received::add);
+    service.subscribe(
+        content -> {
+          throw otherRejection;
+        });
+
+    final IllegalArgumentException reported =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
+
+    assertSame(rejection, reported);
+    assertArrayEquals(new Throwable[] {otherRejection}, reported.getSuppressed());
+    assertEquals(1, received.size());
+    assertArrayEquals(DOCUMENT, received.get(0));
+  }
+
+  @Test
+  void lateSubscribersRejectingTheCurrentDocumentStaySubscribed() throws Exception {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+    final List<byte[]> received = new ArrayList<>();
+
+    final AutoCloseable subscription =
+        service.subscribe(
+            content -> {
+              if (content != null) {
+                throw new IllegalArgumentException("malformed");
+              }
+              received.add(null);
+            });
+    service.accept("key", null, mock(PollingRateHinter.class));
+    subscription.close();
+
+    assertEquals(1, received.size());
+    assertNull(received.get(0));
   }
 
   @Test
