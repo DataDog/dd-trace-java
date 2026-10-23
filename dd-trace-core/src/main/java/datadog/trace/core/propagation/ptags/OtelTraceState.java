@@ -137,6 +137,58 @@ final class OtelTraceState implements CharSequence {
         true);
   }
 
+  /**
+   * Whether {@link #parse} would keep {@code raw} as it is, and the consistency checks against
+   * {@code sampled} and not {@code sampled} that are requested would leave it unchanged too,
+   * without parsing it. Accepts only what parse keeps unchanged; when this returns false, parse
+   * decides.
+   */
+  static boolean isUnchangedByChecks(
+      CharSequence raw, boolean checkSampled, boolean checkNotSampled) {
+    if (raw == null || raw.length() == 0 || raw.length() > MAX_VALUE_LENGTH) {
+      return false;
+    }
+    int randomValueStart = -1;
+    int randomValueEnd = -1;
+    int thresholdStart = -1;
+    int thresholdEnd = -1;
+    int start = 0;
+    while (true) {
+      int end = indexOf(raw, ';', start);
+      if (end < 0) {
+        end = raw.length();
+      }
+      int valueStart = start + RANDOM_VALUE_KEY.length();
+      if (startsWith(raw, start, end, RANDOM_VALUE_KEY)) {
+        if (randomValueStart >= 0 || !isLowerHex(raw, valueStart, end, 14, 14)) {
+          return false;
+        }
+        randomValueStart = valueStart;
+        randomValueEnd = end;
+      } else if (startsWith(raw, start, end, THRESHOLD_KEY)) {
+        if (thresholdStart >= 0 || !isLowerHex(raw, valueStart, end, 1, 14)) {
+          return false;
+        }
+        thresholdStart = valueStart;
+        thresholdEnd = end;
+      } else if (!isUnknownField(raw, start, end)) {
+        return false;
+      }
+      if (end == raw.length()) {
+        break;
+      }
+      start = end + 1;
+    }
+    if (randomValueStart < 0 || thresholdStart < 0) {
+      // with nothing to compare, every check is consistent
+      return true;
+    }
+    boolean consistentWithSampled =
+        parseHex(raw, randomValueStart, randomValueEnd)
+            >= parseThreshold(raw, thresholdStart, thresholdEnd);
+    return (!checkSampled || consistentWithSampled) && (!checkNotSampled || !consistentWithSampled);
+  }
+
   private static OtelTraceState parseCanonical(CharSequence value, int originalSize) {
     int randomValueStart = -1;
     int randomValueEnd = -1;

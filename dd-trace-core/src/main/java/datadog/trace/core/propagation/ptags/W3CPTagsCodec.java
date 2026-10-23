@@ -323,10 +323,13 @@ public class W3CPTagsCodec extends PTagsCodec {
       size += originalTracestate.length();
       includesOriginalTracestate = true;
     }
-    CharSequence otelTraceState = samplingState.getOtelTraceState();
+    CharSequence otelTraceState = samplingState.getOtelTraceStateForWrite();
     if (otelTraceState != null) {
       if (includesOriginalTracestate && otelTraceState instanceof OtelTraceState) {
         size -= ((OtelTraceState) otelTraceState).getOriginalSize();
+      } else if (includesOriginalTracestate && samplingState instanceof InheritedSamplingState) {
+        // the unparsed member, written as it arrived
+        size -= ((InheritedSamplingState) samplingState).otelOriginalSize();
       }
       size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
     }
@@ -396,7 +399,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     if (size == 0) {
       String original = samplingState.getTracestate();
       String trimmed = original == null ? null : original.trim();
-      if (canForwardRawTracestate(trimmed, samplingState.getOtelTraceState())) {
+      if (canForwardRawTracestate(trimmed, samplingState.getOtelTraceStateForWrite())) {
         sb.append(trimmed);
         return EMPTY_SIZE + 1;
       }
@@ -859,7 +862,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static boolean appendOtelAndVendorMembers(
       StringBuilder sb, SamplingState samplingState, boolean hasDatadogMember) {
     String original = samplingState.getTracestate();
-    CharSequence otelTraceState = samplingState.getOtelTraceState();
+    CharSequence otelTraceState = samplingState.getOtelTraceStateForWrite();
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
     boolean memberAppended = false;
     boolean preserveOtelPosition = samplingState.preservesInheritedOtelPosition();
@@ -917,7 +920,7 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   public static String rebuildTracestate(SamplingState samplingState) {
     String original = samplingState.getTracestate();
-    CharSequence otelTraceState = samplingState.getOtelTraceState();
+    CharSequence otelTraceState = samplingState.getOtelTraceStateForWrite();
     // TODO Consider a raw passthrough for unchanged state after checking dd= is not duplicated.
     StringBuilder result = new StringBuilder(MAX_HEADER_SIZE);
     int memberCount = 0;
