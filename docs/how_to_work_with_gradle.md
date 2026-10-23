@@ -188,6 +188,32 @@ However, via the command line, `buildSrc/` tests are disabled unless opted in wi
 Repository proxies configured through `MAVEN_REPOSITORY_PROXY` or `GRADLE_PLUGIN_PROXY` are
 propagated to TestKit builds through `repository-proxy.init.gradle.kts`.
 
+### Depot routing in GitLab CI
+
+GitLab CI defaults both `MAVEN_REPOSITORY_PROXY` and `GRADLE_PLUGIN_PROXY` to Depot's Fabric endpoint:
+
+```text
+https://depot-read-api-java.rapid-dependency-management-depot.all-clusters.local-dc.fabric.dog:8443/magicmirror/magicmirror/@current/
+```
+
+The runner must resolve and reach this endpoint, and the JVMs resolving dependencies must trust
+the Datadog CA. This includes the Gradle daemon JVM, which can differ from `JAVA_HOME`, and JVMs
+used by nested builds. Validate these prerequisites in the CI builder images before rolling out
+the endpoint change; changing the URL does not install certificates.
+
+For a manual rollback, override **both** variables when starting a GitLab pipeline with:
+
+```text
+https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/
+```
+
+This is an explicit route override, not automatic failover. Merely listing ISP as a second Gradle
+repository does not provide reliable recovery from connection failures: Gradle stops resolution
+when a repository is disabled by default. Gradle 9.3+ offers the repository-specific
+[`allowInsecureContinueWhenDisabled`](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api.artifacts.repositories/-url-artifact-repository/get-allow-insecure-continue-when-disabled.html)
+opt-in, but it does not configure Maven/Aether or older nested Gradle builds. Automatic failover
+would need separate implementation and validation across those consumers.
+
 ### How Gradle Compiles Build Scripts
 
 During the **Configuration phase**, Gradle doesn't simply execute build scripts top-to-bottom. Instead, it first extracts and processes certain special blocks before compiling the rest of the script. This is necessary because Gradle needs to know which plugins to apply before it can understand the DSL extensions they provide.

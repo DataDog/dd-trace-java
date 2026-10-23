@@ -58,8 +58,10 @@ variables:
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "9.7.1" # must match gradle-wrapper.properties
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
-  MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
-  GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+  # Use Fabric for CI dependency resolution. Requires Fabric DNS/routing and JVM CA trust.
+  # Both variables can be overridden with the ISP URL; see docs/how_to_work_with_gradle.md.
+  MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.rapid-dependency-management-depot.all-clusters.local-dc.fabric.dog:8443/magicmirror/magicmirror/@current/"
+  GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.rapid-dependency-management-depot.all-clusters.local-dc.fabric.dog:8443/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
   BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
   TEST_COUNTS_S3_BUCKET: "dd-trace-java-ci-test-reports"
