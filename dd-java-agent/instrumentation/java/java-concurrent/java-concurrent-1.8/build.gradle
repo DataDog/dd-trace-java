@@ -2,6 +2,46 @@ plugins {
   id 'dd-trace-java.module.instrumentation'
 }
 
+// Experimental diagnostics: profile the test worker, rather than the Gradle daemon.
+def concurrentDebug = providers.gradleProperty('concurrentDebug').orElse('true')
+def debugDirectory = layout.buildDirectory.dir('reports/concurrent-debug/test')
+tasks.named('test', Test) {
+  timeout.set(java.time.Duration.ofMinutes(30))
+  outputs.upToDateWhen { false }
+  outputs.doNotCacheIf('Collect fresh worker diagnostics') { true }
+  doFirst {
+    if (concurrentDebug.get().toBoolean()) {
+      def debugDir = debugDirectory.get().asFile
+      debugDir.mkdirs()
+      systemProperty 'test.concurrent.debug', 'true'
+      def metadata = javaLauncher.get().metadata
+      // OpenJ9 and Java 8 remain timing controls without HotSpot-specific recording flags.
+      if (metadata.languageVersion.asInt() >= 11 && !metadata.vendor.toLowerCase().contains('ibm')) {
+        def settings = new File(metadata.installationPath.asFile, 'lib/jfr/profile.jfc').getText('UTF-8')
+        // Never record environment values, system properties, or process command lines.
+        for (event in [
+            'jdk.InitialEnvironmentVariable',
+            'jdk.InitialSystemProperty',
+            'jdk.JVMInformation',
+            'jdk.SystemProcess',
+            'jdk.ProcessStart',
+            'jdk.SecurityPropertyModification'
+          ]) {
+          settings = settings.replaceAll('(?s)<event name="' + java.util.regex.Pattern.quote(event) + '">.*?</event>', '')
+          settings = settings.replace('</configuration>',
+            '<event name="' + event + '"><setting name="enabled">false</setting></event></configuration>')
+        }
+        def settingsFile = new File(debugDir, 'worker.jfc')
+        settingsFile.setText(settings, 'UTF-8')
+        jvmArgs "-XX:StartFlightRecording=name=concurrent,settings=${settingsFile},filename=${debugDir}/worker.jfr,dumponexit=true,maxsize=256m",
+          "-Xlog:gc*=info,safepoint*=debug:file=${debugDir}/vm-%p.log:time,uptime,level,tags"
+      }
+      logger.lifecycle('Concurrent debug: worker JVM {} ({}), reports {}',
+        metadata.installationPath, metadata.jvmVersion, debugDir)
+    }
+  }
+}
+
 muzzle {
   pass {
     coreJdk()

@@ -427,8 +427,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     assert ServiceLoader.load(InstrumenterModule, InstrumentationSpecification.getClassLoader())
     .iterator()
     .hasNext(): "No instrumentation found"
-    activeTransformer = AgentInstaller.installBytebuddyAgent(
-    INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), false, this)
+    activeTransformer = concurrentDebugPhase('install agent') {
+      AgentInstaller.installBytebuddyAgent(
+      INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), false, this)
+    }
 
     // check for instrumentation issues during installation
     assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
@@ -660,18 +662,31 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   /** Override to clean up things after the agent is removed */
   protected void cleanupAfterAgent() {}
 
+  private def concurrentDebugPhase(String phase, Closure action) {
+    if (!Boolean.getBoolean('test.concurrent.debug')) {
+      return action.call()
+    }
+    long started = System.nanoTime()
+    println "Concurrent debug: ${getClass().name}: ${phase} started"
+    try {
+      return action.call()
+    } finally {
+      println "Concurrent debug: ${getClass().name}: ${phase} took ${(System.nanoTime() - started) / 1_000_000L} ms"
+    }
+  }
+
   void cleanupSpec() {
     def scopeDiagnosticsFailure = reportScopeDiagnosticsForPhase(scopeDiagClassConfig(), "suite cleanup")
     try {
-      TEST_TRACER?.close()
-      TEST_AGENT_WRITER?.close()
+      concurrentDebugPhase('close tracer') { TEST_TRACER?.close() }
+      concurrentDebugPhase('close test-agent writer') { TEST_AGENT_WRITER?.close() }
 
       if (null != activeTransformer) {
-        INSTRUMENTATION.removeTransformer(activeTransformer)
+        concurrentDebugPhase('remove transformer') { INSTRUMENTATION.removeTransformer(activeTransformer) }
         activeTransformer = null
       }
 
-      cleanupAfterAgent()
+      concurrentDebugPhase('cleanup after agent') { cleanupAfterAgent() }
 
       // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
       assert TRANSFORMED_CLASSES_TYPES.findAll {
