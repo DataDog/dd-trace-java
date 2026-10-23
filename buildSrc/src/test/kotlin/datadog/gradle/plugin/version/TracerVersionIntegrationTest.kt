@@ -166,6 +166,23 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
   }
 
   @Test
+  fun `should increment minor on detached HEAD without CI_COMMIT_BRANCH`() {
+    assertTracerVersion(
+      expectedVersion = "1.53.0-SNAPSHOT",
+      // Merge request pipelines, local detached checkouts and other CIs don't set CI_COMMIT_BRANCH
+      unsetEnv = setOf("CI_COMMIT_BRANCH"),
+      beforeGradle = {
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "-c", "release/v1.52.x")
+        writeSettings("// Committed change ", append = true)
+        exec("git", "commit", "-am", "Another commit")
+        exec("git", "switch", "--detach")
+      },
+    )
+  }
+
+  @Test
   fun `should compute version on worktrees`(@TempDir workTreeDir: File) {
     assertTracerVersion(
       expectedVersion = "1.53.0-SNAPSHOT",
