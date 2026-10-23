@@ -465,15 +465,21 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
    * created on first use.
    */
   private PropagationTags ownPropagationTags() {
+    PropagationTags tags = ownPropagationTagsIfPresent();
+    if (tags != null) {
+      return tags;
+    }
+    PropagationTags created = newEmptyPropagationTags();
+    return PROPAGATION_TAGS.compareAndSet(this, null, created) ? created : propagationTags;
+  }
+
+  /** This span's own propagation tags, or null if a non-root span has none yet. */
+  private PropagationTags ownPropagationTagsIfPresent() {
     PropagationTags tags = propagationTags;
     if (tags != null) {
       return tags;
     }
-    if (getRootSpanContextIfDifferent() == null) {
-      return tracePropagationTags();
-    }
-    PropagationTags created = newEmptyPropagationTags();
-    return PROPAGATION_TAGS.compareAndSet(this, null, created) ? created : propagationTags;
+    return getRootSpanContextIfDifferent() == null ? tracePropagationTags() : null;
   }
 
   @VisibleForTesting
@@ -1537,15 +1543,9 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     if ((options & ROOT_PROPAGATION_TAGS) != 0) {
       serializedPropagationTags = getPropagationTags();
     } else if ((options & OWN_PROPAGATION_TAGS) != 0) {
-      PropagationTags own = propagationTags;
-      if (own != null) {
-        serializedPropagationTags = own;
-      } else if (getRootSpanContextIfDifferent() == null) {
-        serializedPropagationTags = tracePropagationTags();
-      } else {
-        // Don't retain an instance just to serialize it
-        serializedPropagationTags = newEmptyPropagationTags();
-      }
+      PropagationTags own = ownPropagationTagsIfPresent();
+      // Don't retain an instance just to serialize it
+      serializedPropagationTags = own != null ? own : newEmptyPropagationTags();
     } else {
       serializedPropagationTags = null;
     }
