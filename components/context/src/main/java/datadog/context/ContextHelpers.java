@@ -7,6 +7,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BinaryOperator;
+import javax.annotation.Nullable;
 
 /**
  * Static helpers to manipulate context collections.
@@ -45,6 +46,7 @@ public final class ContextHelpers {
    * @param <T> The type of the value to look for.
    * @return The first context value found, {@code null} if not found.
    */
+  @Nullable
   public static <T> T findFirst(ContextKey<T> key, Object... carriers) {
     requireNonNull(key, "key cannot be null");
     for (Object carrier : carriers) {
@@ -151,10 +153,12 @@ public final class ContextHelpers {
         }
       }
       // Apply any additional values from nextIndexed if any
-      for (int i = currentIndexed.store.length; i < nextIndexed.store.length; i++) {
-        Object nextValue = nextIndexed.store[i];
-        if (nextValue != null) {
-          store[i] = nextValue;
+      if (store != null) {
+        for (int i = currentIndexed.store.length; i < nextIndexed.store.length; i++) {
+          Object nextValue = nextIndexed.store[i];
+          if (nextValue != null) {
+            store[i] = nextValue;
+          }
         }
       }
       // If store was not allocated, no value from nextIndexed was taken

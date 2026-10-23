@@ -1259,6 +1259,10 @@ By default, checked packages start with `datadog` or `com.datadog`. Modules can 
 `NullAway:AnnotatedPackages` through the Error Prone options on their production compile
 tasks. IAST retains its existing `com.datadog.iast` scope and existing nullness annotations.
 
+The initial adopters outside IAST are `components/context`, `utils/time-utils`, and
+`utils/version-utils`. Other modules can adopt the convention as their nullness contracts
+are checked, keeping source repairs separate from the shared configuration.
+
 ### Dependencies on Main Projects
 
 Build tooling remains independent of production code. The tasks it registers can consume
