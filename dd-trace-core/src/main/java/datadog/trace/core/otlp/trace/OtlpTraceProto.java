@@ -31,6 +31,13 @@ import static datadog.trace.core.otlp.common.OtlpTraceFlags.NO_TRACE_FLAGS;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.REMOTE_TRACE_FLAG;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
+import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.HTTP_STATUS_CODE_KEY;
+import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.HTTP_STATUS_CODE_KEY_DD;
+import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.OPERATION_NAME;
+import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.RESOURCE_NAME;
+import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.SERVICE_NAME_KEY;
+import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.SKIPPED_BAGGAGE_KEYS;
+import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.SPAN_TYPE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -39,7 +46,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.KnownTagCodec;
-import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -51,59 +57,10 @@ import datadog.trace.core.PendingTrace;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
-
-  private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
-  private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
-  private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
-
-  /*
-   * Span fields and intercepted Metadata fields bypass TagMap entry projection. Resolve their
-   * keys through the registry here so OpenTelemetry names stay consistent with entry tags.
-   */
-  private static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
-
-  private static final UTF8BytesString HTTP_STATUS_CODE_KEY =
-      otelKey(KnownTags.HTTP_STATUS_CODE_ID);
-
-  private static final UTF8BytesString HTTP_STATUS_CODE_KEY_DD =
-      UTF8BytesString.create(KnownTags.HTTP_STATUS_CODE_NAME);
-
-  /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
-  private static UTF8BytesString otelKey(long tagId) {
-    return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
-  }
-
-  /**
-   * Keys that baggage must not export as attributes: the attributes this writer emits directly from
-   * span fields and intercepted Metadata fields (the span's own value wins), plus _dd.p.tid, whose
-   * upper 64 bits the OTLP traceId already carries.
-   */
-  private static final Set<String> SKIPPED_BAGGAGE_KEYS =
-      new HashSet<>(
-          Arrays.asList(
-              "_dd.p.tid",
-              SERVICE_NAME_KEY.toString(),
-              RESOURCE_NAME.toString(),
-              OPERATION_NAME.toString(),
-              SPAN_TYPE.toString(),
-              SAMPLING_PRIORITY_KEY.toString(),
-              DD_MEASURED.toString(),
-              DD_TOP_LEVEL.toString(),
-              DD_PARTIAL_VERSION.toString(),
-              DD_WAS_LONG_RUNNING.toString(),
-              THREAD_ID.toString(),
-              THREAD_NAME.toString(),
-              HTTP_STATUS_CODE_KEY.toString(),
-              HTTP_STATUS_CODE_KEY_DD.toString(),
-              ORIGIN_KEY.toString(),
-              PROCESS_TAGS_KEY.toString()));
 
   private OtlpTraceProto() {}
 
