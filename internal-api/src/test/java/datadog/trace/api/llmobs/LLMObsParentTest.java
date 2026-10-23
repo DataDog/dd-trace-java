@@ -14,6 +14,7 @@ import datadog.trace.api.llmobs.LLMObsParent.Source;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 class LLMObsParentTest {
 
@@ -175,21 +176,67 @@ class LLMObsParentTest {
   }
 
   /**
-   * Context that arrived without a parent id or a verdict still continues the caller's trace: the
-   * span is not a root, so it neither claims a parent of its own nor rolls a decision.
+   * Context that arrived with a parent but no verdict still continues the caller's trace: the span
+   * is not a root, so it does not roll a decision of its own.
    */
   @Test
-  void propagatedContextWithoutParentIdOrVerdictIsNotARoot() {
+  void propagatedContextWithoutAVerdictIsNotARoot() {
     LLMObsParent parent =
         LLMObsParent.resolve(
             span(
                 TRACE,
                 new LLMObsPropagationValues(
-                    WIRE_TRACE_ID, "upstream-app", null, null, null, null, null, null)));
+                    WIRE_TRACE_ID, "upstream-app", null, null, null, "555", null, null)));
 
     assertEquals(Source.PROPAGATED, parent.source);
     assertFalse(parent.isRoot());
+    assertEquals("555", parent.parentId);
+    assertNull(parent.sampleRate);
+    assertNull(parent.samplingDecision);
+  }
+
+  /**
+   * A caller with no LLMObs span active still sends its ml_app and a trace id of its own, with a
+   * parent id of "undefined". There is no parent to continue, so the span is a root and inherits
+   * none of it, matching dd-trace-py.
+   */
+  @TableTest({
+    "scenario  | parentId   ",
+    "undefined | 'undefined'",
+    "empty     | ''         "
+  })
+  void propagatedContextWithoutAParentSpanIsARoot(String parentId) {
+    assertPropagatedContextIsIgnored(parentId);
+  }
+
+  @Test
+  void propagatedContextWithAMissingParentIdIsARoot() {
+    assertPropagatedContextIsIgnored(null);
+  }
+
+  private static void assertPropagatedContextIsIgnored(String parentId) {
+    LLMObsParent parent =
+        LLMObsParent.resolve(
+            span(
+                TRACE,
+                new LLMObsPropagationValues(
+                    WIRE_TRACE_ID,
+                    "upstream-app",
+                    "upstream-session",
+                    "555",
+                    "planner-agent",
+                    parentId,
+                    "0.25",
+                    LLMObsContext.SAMPLING_DECISION_DROPPED)));
+
+    assertEquals(Source.NONE, parent.source);
+    assertTrue(parent.isRoot());
     assertEquals(LLMObsContext.ROOT_SPAN_ID, parent.parentId);
+    assertNull(parent.traceId);
+    assertNull(parent.mlApp);
+    assertNull(parent.sessionId);
+    assertNull(parent.parentAgentSpanId);
+    assertNull(parent.parentAgentName);
     assertNull(parent.sampleRate);
     assertNull(parent.samplingDecision);
   }

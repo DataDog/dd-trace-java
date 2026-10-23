@@ -16,7 +16,8 @@ import javax.annotation.Nullable;
  *       the span. A context from another trace (leaked across an async boundary, or left open by a
  *       previously handled message) contributes nothing.
  *   <li>The {@code _dd.p.llmobs_*} values that arrived on the inbound request, from {@link
- *       AgentSpanContext#getExtractedLLMObsValues()}.
+ *       AgentSpanContext#getExtractedLLMObsValues()}, but only when they name a parent span. With a
+ *       parent id that is missing or {@code undefined}, none of them are used.
  * </ol>
  *
  * <p>If neither applies the span is the root of its own LLMObs trace, which {@link #isRoot()}
@@ -124,7 +125,13 @@ public final class LLMObsParent {
     }
 
     LLMObsPropagationValues propagated = span.spanContext().getExtractedLLMObsValues();
-    if (propagated != null) {
+    // Only a caller that names a parent span is continued. A caller with no LLMObs span active
+    // sends a parent id of "undefined" alongside its ml_app and a trace id of its own, and that
+    // span is a root here, matching dd-trace-py's activation.
+    if (propagated != null
+        && propagated.parentId != null
+        && !propagated.parentId.isEmpty()
+        && !LLMObsContext.ROOT_SPAN_ID.equals(propagated.parentId)) {
       String parentAgentSpanId = emptyToNull(propagated.parentAgentSpanId);
       // Adopted together or not at all: a rate means nothing without the decision it produced, and
       // a lone decision would be read against this service's rate rather than the one behind it.
@@ -133,9 +140,7 @@ public final class LLMObsParent {
               && emptyToNull(propagated.samplingDecision) != null;
       return new LLMObsParent(
           Source.PROPAGATED,
-          propagated.parentId != null && !propagated.parentId.isEmpty()
-              ? propagated.parentId
-              : LLMObsContext.ROOT_SPAN_ID,
+          propagated.parentId,
           // Adopt the caller's LLMObs trace id so the trace stays whole across the boundary. It
           // arrives as decimal and is stored as hex.
           LLMObsTraceId.fromWire(propagated.traceId),

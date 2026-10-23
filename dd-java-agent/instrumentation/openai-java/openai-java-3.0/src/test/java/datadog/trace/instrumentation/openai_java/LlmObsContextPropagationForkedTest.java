@@ -546,6 +546,37 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
         openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
   }
 
+  @Test
+  void openAiRequestSpanIsAnLlmObsRootWhenTheUpstreamSentNoParentSpan() throws Exception {
+    // A caller with no LLMObs span active still sends its ml_app, session and a trace id of its
+    // own, but a parent id of "undefined". There is nothing to continue, so none of it is adopted.
+    String noParent =
+        UPSTREAM_TAGS.replace(
+            "_dd.p.llmobs_parent_id=" + UPSTREAM_PARENT_ID, "_dd.p.llmobs_parent_id=undefined");
+    try (ServerScope ignored =
+        startServerScope(
+            inboundHeaders(
+                noParent
+                    + ",_dd.p.llmobs_sr=0.25,_dd.p.llmobs_sd="
+                    + LLMObsContext.SAMPLING_DECISION_DROPPED))) {
+      openAiClient.chat().completions().create(buildMinimalChatParams());
+    }
+
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+    assertEquals(LLMObsContext.ROOT_SPAN_ID, openAiSpan.getTag("_ml_obs_tag.parent_id"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.trace_id"));
+    assertEquals(Config.get().getLlmObsMlApp(), openAiSpan.getTag("_ml_obs_tag.ml_app"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.session_id"));
+    assertNull(openAiSpan.getTag("_ml_obs_tag.pagent_span_id"));
+    // Rolled locally at the configured rate of 1.0, not the upstream drop at 0.25.
+    assertEquals(
+        LLMObsContext.SAMPLING_DECISION_SAMPLED,
+        openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+    assertEquals("1", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
+  }
+
   /** The upstream LLMObs trace id, deliberately not the APM one, in the hex form it is stored. */
   private static final String UPSTREAM_LLMOBS_TRACE_ID = "6ab41f6e00000000fea4f6b7295bd5e9";
 
