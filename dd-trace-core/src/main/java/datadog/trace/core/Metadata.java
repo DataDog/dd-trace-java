@@ -105,17 +105,19 @@ public final class Metadata {
   }
 
   /**
-   * The trace's global tags ({@code DD_TAGS}, or their remote-config override). {@link #getTags()}
-   * already includes them, below the span defaults and the span's own tags; this lets a serializer
-   * that writes them once per payload, such as an OTLP resource, tell them apart.
+   * The trace's global tags ({@code DD_TAGS}, or their remote-config override, which keeps the
+   * configured {@code env} and {@code version}). {@link #getTags()} already includes them, below
+   * the span defaults and the span's own tags; this lets a serializer that writes them once per
+   * payload, such as an OTLP resource, tell them apart.
    */
   public TagMap getGlobalTags() {
     return globalTags;
   }
 
   /**
-   * The trace's span defaults ({@code DD_SPAN_TAGS} and tracer-defined tags such as {@code env}),
-   * without the global tags. {@link #getTags()} already includes them, below the span's own tags.
+   * The trace's span defaults ({@code DD_TRACE_SPAN_TAGS} and tracer-defined tags such as {@code
+   * env}), without the global tags; only the tracer-defined tags while a remote-config override is
+   * active. {@link #getTags()} already includes them, below the span's own tags.
    */
   public TagMap getSpanDefaultTags() {
     return spanDefaultTags;
