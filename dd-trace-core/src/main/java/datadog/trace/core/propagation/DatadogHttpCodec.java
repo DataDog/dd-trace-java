@@ -16,6 +16,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
@@ -114,6 +115,14 @@ class DatadogHttpCodec {
     /** The raw x-datadog-tags value, parsed in {@link #build()} once the priority is known. */
     private String datadogTags;
 
+    /**
+     * The x-datadog-trace-id value and its parsed low order bits. The trace id is built in {@link
+     * #build()}, once x-datadog-tags may have given its high order bits.
+     */
+    private String traceIdString;
+
+    private long traceIdLow;
+
     private DatadogContextInterpreter(Config config) {
       super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
@@ -127,6 +136,8 @@ class DatadogHttpCodec {
     @Override
     public ContextInterpreter reset(TraceConfig traceConfig) {
       datadogTags = null;
+      traceIdString = null;
+      traceIdLow = 0;
       return super.reset(traceConfig);
     }
 
@@ -181,7 +192,10 @@ class DatadogHttpCodec {
           if (null != value) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DDTraceId.from(firstHeaderValue(value));
+                // parsed as DDTraceId.from does, so an invalid id fails here as before
+                String traceIdValue = firstHeaderValue(value);
+                traceIdLow = LongStringUtils.parseUnsignedLong(traceIdValue);
+                traceIdString = traceIdValue;
                 break;
               case SPAN_ID:
                 spanId = DDSpanId.from(firstHeaderValue(value));
@@ -235,7 +249,7 @@ class DatadogHttpCodec {
           log.debug("Exception when extracting context", e);
         }
       }
-      restore128bTraceId();
+      buildTraceId();
       return super.build();
     }
 
@@ -248,14 +262,18 @@ class DatadogHttpCodec {
       }
     }
 
-    private void restore128bTraceId() {
+    private void buildTraceId() {
+      if (traceIdString == null) {
+        return;
+      }
       long highOrderBits;
-      // Check if the low-order 64 bits of the TraceId, and propagation tags were parsed
-      if (traceId != DDTraceId.ZERO
+      if (traceIdLow != 0
           && propagationTags != null
           && (highOrderBits = propagationTags.getTraceIdHighOrderBits()) != 0) {
         // Restore the 128-bit TraceId
-        traceId = DD128bTraceId.from(highOrderBits, traceId.toLong());
+        traceId = DD128bTraceId.from(highOrderBits, traceIdLow);
+      } else {
+        traceId = DDTraceId.from(traceIdString);
       }
     }
   }
