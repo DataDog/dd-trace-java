@@ -1,6 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.apicontract.Restricted;
+import datadog.trace.api.SizingHint;
 import datadog.trace.api.TagMap;
+import javax.annotation.Nullable;
 
 /**
  * A baked-once, frozen descriptor of a span's constant initial state — the per-decorator constants
@@ -29,6 +32,23 @@ public final class SpanPrototype {
   private final CharSequence spanType;
   private final CharSequence integrationName;
   private final TagMap tags; // frozen
+
+  /**
+   * The tracer core's plan for seeding these tags into a span (whether they can be copied in bulk,
+   * and the span kind they carry), built on first use. Racy by design: the plan is immutable, so a
+   * reader sees null or a complete plan, and two threads building it at once just build it twice.
+   */
+  private Object seedPlan;
+
+  /**
+   * The dense-store sizing hints for spans that use this prototype's own operation name, in the
+   * entry-span and child-span lanes, resolved on first use so later spans skip the table lookup.
+   * Racy like {@link #seedPlan}: a hint is stable for its operation name, so two threads resolving
+   * it at once agree.
+   */
+  private SizingHint entryHint;
+
+  private SizingHint childHint;
 
   private SpanPrototype(final Builder builder) {
     this.instrumentationName = builder.instrumentationName;
@@ -62,6 +82,51 @@ public final class SpanPrototype {
   /** The frozen constant tags — the internal seed applied at span construction. */
   public TagMap tags() {
     return tags;
+  }
+
+  /** The tracer core's seed plan for these tags, or null before the first span uses it. */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public Object seedPlan() {
+    return seedPlan;
+  }
+
+  /** Records the tracer core's seed plan for these tags; see {@link #seedPlan()}. */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public void seedPlan(Object plan) {
+    this.seedPlan = plan;
+  }
+
+  /**
+   * The sizing hint for a span built from this prototype with {@code operationName}, in the
+   * entry-span or child-span lane; null with the dense store off. Hints are keyed by operation
+   * name, like {@link SizingHint#forOperation}: when the span uses the prototype's own operation
+   * name, the hint is resolved once per lane and cached here, so the span skips the table lookup; a
+   * span given a different operation name gets that name's hint from the table, so spans of unlike
+   * operations never share one.
+   */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  @Nullable
+  public SizingHint sizingHint(boolean entrySpan, @Nullable CharSequence operationName) {
+    CharSequence own = this.operationName;
+    if (own == null || !sameName(own, operationName)) {
+      return SizingHint.forOperation(operationName, entrySpan);
+    }
+    SizingHint hint = entrySpan ? this.entryHint : this.childHint;
+    if (hint == null) {
+      hint = SizingHint.forOperation(own, entrySpan);
+      if (entrySpan) {
+        this.entryHint = hint;
+      } else {
+        this.childHint = hint;
+      }
+    }
+    return hint;
+  }
+
+  /** Whether {@code name} is {@code own}: the same instance, or the same characters. */
+  private static boolean sameName(CharSequence own, @Nullable CharSequence name) {
+    // toString() is O(1) for the String and UTF8BytesString operation names we see
+    return own == name || (name != null && own.toString().equals(name.toString()));
   }
 
   public static final class Builder {
