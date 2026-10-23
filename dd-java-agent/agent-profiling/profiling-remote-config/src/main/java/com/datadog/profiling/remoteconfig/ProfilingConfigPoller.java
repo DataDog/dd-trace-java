@@ -38,6 +38,8 @@ public final class ProfilingConfigPoller {
   }
 
   public void start(Config config, SharedCommunicationObjects sco) {
+    log.debug("Starting profiling remote config");
+
     ConfigurationPoller poller = sco.configurationPoller(config);
     if (poller == null) {
       log.debug("Remote config is not enabled, not subscribing to APM_PROFILING");

@@ -19,11 +19,14 @@ import org.slf4j.LoggerFactory;
  * Starts, restarts or stops the profiler according to the active {@code APM_PROFILING} configs.
  * Remote values take precedence over the local configuration; when no remote config is active the
  * local configuration applies again.
+ *
+ * <p>This handler can be created before the profiler is initialized. Configs received before the
+ * profiler is available are buffered and applied once {@link #setProfilingSystem} is called.
  */
 final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   private static final Logger log = LoggerFactory.getLogger(ProfilingRemoteConfigHandler.class);
 
-  private final ProfilingSystem profilingSystem;
+  private volatile ProfilingSystem profilingSystem;
   private final ConfigProvider localConfig;
   private final boolean runWithLocalConfig;
   private final Function<Map<String, String>, ConfigProvider> remoteConfigFactory;
@@ -31,11 +34,31 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
 
   // the remote values currently applied, null when the local configuration applies
   private Map<String, String> appliedValues;
+  // configs received before the profiler was available
+  private Map<String, String> pendingConfigsById;
   private boolean closed;
 
   /**
+   * Creates a handler without a profiling system. The profiler must be set later via {@link
+   * #setProfilingSystem}.
+   *
    * @param runWithLocalConfig whether the profiler should run when no remote config is active
    */
+  ProfilingRemoteConfigHandler(ConfigProvider localConfig, boolean runWithLocalConfig) {
+    this(
+        null,
+        localConfig,
+        runWithLocalConfig,
+        ConfigProvider::withRemoteOverride,
+        DatadogProfiler::isAnyProfilingModeEnabled);
+  }
+
+  /**
+   * @param runWithLocalConfig whether the profiler should run when no remote config is active
+   * @deprecated Use {@link #ProfilingRemoteConfigHandler(ConfigProvider, boolean)} and {@link
+   *     #setProfilingSystem} instead
+   */
+  @Deprecated
   ProfilingRemoteConfigHandler(
       ProfilingSystem profilingSystem, ConfigProvider localConfig, boolean runWithLocalConfig) {
     this(
@@ -59,12 +82,36 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     this.anyProfilingEnabled = anyProfilingEnabled;
   }
 
+  /**
+   * Sets the profiling system. If configs were received before this call, they are applied
+   * immediately.
+   */
+  synchronized void setProfilingSystem(ProfilingSystem profilingSystem) {
+    this.profilingSystem = profilingSystem;
+    if (pendingConfigsById != null) {
+      log.debug("Applying buffered APM_PROFILING remote config");
+      Map<String, String> pending = pendingConfigsById;
+      pendingConfigsById = null;
+      applyConfigs(pending);
+    }
+  }
+
   @Override
   public synchronized void onConfigsChanged(Map<String, String> configsById) {
     if (closed) {
       log.debug("Profiling is shut down, ignoring APM_PROFILING remote config");
       return;
     }
+    if (profilingSystem == null) {
+      log.debug("Profiler not yet initialized, buffering APM_PROFILING remote config");
+      pendingConfigsById = configsById;
+      return;
+    }
+    applyConfigs(configsById);
+  }
+
+  /** Applies the given configs to the profiling system. Must be called with the lock held. */
+  private void applyConfigs(Map<String, String> configsById) {
     final Map<String, String> values =
         configsById.isEmpty() ? null : ProfilingConfigMerger.merge(configsById);
     if (Objects.equals(values, appliedValues)) {
