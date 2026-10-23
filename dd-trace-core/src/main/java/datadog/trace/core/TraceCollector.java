@@ -10,6 +10,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.core.propagation.PropagationTags;
@@ -72,6 +73,9 @@ public abstract class TraceCollector implements AgentTraceCollector, TraceSegmen
 
   /** The origin of the trace. (eg. Synthetics, CI App) */
   private volatile CharSequence origin;
+
+  /** The W3C baggage extracted with the trace, held for the local root's serialization. */
+  private volatile Baggage w3cBaggage;
 
   private volatile BlockResponseFunction blockResponseFunction;
   private volatile ClientIpAddressData clientIpAddressData;
@@ -160,6 +164,17 @@ public abstract class TraceCollector implements AgentTraceCollector, TraceSegmen
     return PROPAGATION_TAGS.compareAndSet(this, null, propagationTags)
         ? propagationTags
         : this.propagationTags;
+  }
+
+  /** Sets the extracted W3C baggage unless already set. */
+  void initW3CBaggage(Baggage w3cBaggage) {
+    if (this.w3cBaggage == null) {
+      this.w3cBaggage = w3cBaggage;
+    }
+  }
+
+  Baggage getW3CBaggage() {
+    return w3cBaggage;
   }
 
   CharSequence getOrigin() {
