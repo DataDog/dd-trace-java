@@ -60,6 +60,12 @@ public class PTagsFactory implements PropagationTags.Factory {
   }
 
   @Override
+  public final PropagationTags fromDatadogHeaderValue(String value, int samplingPriority) {
+    return ((DatadogPTagsCodec) DEC_ENC_MAP.get(DATADOG))
+        .fromHeaderValue(this, value, samplingPriority);
+  }
+
+  @Override
   public final PropagationTags emptyW3C(String originalTracestate) {
     if (originalTracestate == null || originalTracestate.isEmpty()) {
       return empty();
@@ -74,14 +80,37 @@ public class PTagsFactory implements PropagationTags.Factory {
       int productTraceSource,
       TagValue orgPropagationMarkerTagValue,
       @Nonnull LLMObsTagValues llmObsTagValues) {
+    return createValid(
+        tagPairs,
+        decisionMakerTagValue,
+        traceIdTagValue,
+        productTraceSource,
+        PrioritySampling.UNSET,
+        orgPropagationMarkerTagValue,
+        llmObsTagValues);
+  }
+
+  PropagationTags createValid(
+      List<TagElement> tagPairs,
+      TagValue decisionMakerTagValue,
+      TagValue traceIdTagValue,
+      int productTraceSource,
+      int samplingPriority,
+      TagValue orgPropagationMarkerTagValue,
+      @Nonnull LLMObsTagValues llmObsTagValues) {
     return new PTags(
         this,
         tagPairs,
         decisionMakerTagValue,
         traceIdTagValue,
         productTraceSource,
+        samplingPriority,
+        null,
+        null,
         orgPropagationMarkerTagValue,
-        llmObsTagValues);
+        llmObsTagValues,
+        null,
+        null);
   }
 
   PropagationTags createInvalid(String error) {
