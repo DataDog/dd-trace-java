@@ -76,6 +76,22 @@ final class InheritedSamplingState extends SamplingState {
     return resolved != null;
   }
 
+  /**
+   * Writes the raw member when parsing it and applying the pending checks would leave it as is,
+   * which is the usual case when relaying a trace unchanged, so injection doesn't have to parse it.
+   */
+  @Override
+  public CharSequence getOtelTraceStateForWrite() {
+    if (resolved == null
+        && OtelTraceState.isUnchangedByChecks(
+            rawOtelTraceState,
+            (pendingChecks & CHECKED_SAMPLED) != 0,
+            (pendingChecks & CHECKED_NOT_SAMPLED) != 0)) {
+      return rawOtelTraceState;
+    }
+    return getOtelTraceState();
+  }
+
   CharSequence rawOtelTraceState() {
     return rawOtelTraceState;
   }
