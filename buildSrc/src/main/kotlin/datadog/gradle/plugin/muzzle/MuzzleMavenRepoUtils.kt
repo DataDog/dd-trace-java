@@ -21,9 +21,14 @@ import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.version.Version
 import org.gradle.api.GradleException
 import org.gradle.api.logging.Logging
+import java.net.URI
 import java.nio.file.Files
 
 internal object MuzzleMavenRepoUtils {
+  private const val DEPOT_JAVA_HOST = "depot-read-api-java.us1.ddbuild.io"
+  private const val DEPOT_JAVA_FABRIC_URL =
+    "https://depot-read-api-java.rapid-dependency-management-depot.all-clusters.local-dc.fabric.dog:8443/" +
+      "magicmirror/magicmirror/@current/"
   private val log = Logging.getLogger(MuzzleMavenRepoUtils::class.java)
   private val backoffDelaysSeconds = listOf(5L, 10L, 30L)
 
@@ -34,17 +39,31 @@ internal object MuzzleMavenRepoUtils {
    * be reused across builds with different MAVEN_REPOSITORY_PROXY values.
    */
   @JvmStatic
-  fun defaultMuzzleRepos(): List<RemoteRepository> {
+  fun defaultMuzzleRepos(): List<RemoteRepository> =
+    defaultMuzzleRepos(System.getenv("MAVEN_REPOSITORY_PROXY"))
+
+  internal fun defaultMuzzleRepos(mavenProxyUrl: String?): List<RemoteRepository> {
     val central = RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
-    val mavenProxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
     return if (mavenProxyUrl == null) {
       listOf(central)
     } else {
       val proxy = RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
       // TODO: temporary hack for Maven Central rate limiting
-      listOf(proxy /*, central*/)
+      if (isDepotJavaProxy(mavenProxyUrl)) {
+        val fabricProxy = RemoteRepository.Builder(
+          "central-proxy-fabric",
+          "default",
+          DEPOT_JAVA_FABRIC_URL
+        ).build()
+        listOf(fabricProxy, proxy /*, central*/)
+      } else {
+        listOf(proxy /*, central*/)
+      }
     }
   }
+
+  private fun isDepotJavaProxy(url: String): Boolean =
+    runCatching { URI(url).host.equals(DEPOT_JAVA_HOST, ignoreCase = true) }.getOrDefault(false)
 
   /**
    * Create new RepositorySystem for muzzle's Maven/Aether resolutions.
