@@ -70,7 +70,6 @@ public class PendingTraceTest extends PendingTraceTestBase {
             null,
             null,
             NoopPathwayContext.INSTANCE,
-            false,
             PropagationTags.factory().empty()),
         null);
   }

@@ -422,7 +422,6 @@ public class DDSpanTest extends DDCoreJavaSpecification {
             null,
             null,
             NoopPathwayContext.INSTANCE,
-            false,
             PropagationTags.factory().empty());
     assertEquals(expectTopLevel, context.isTopLevel());
   }
