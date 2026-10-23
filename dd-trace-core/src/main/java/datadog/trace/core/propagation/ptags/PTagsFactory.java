@@ -500,8 +500,8 @@ public class PTagsFactory implements PropagationTags.Factory {
       }
       clearCachedHeader(W3C);
       samplingState =
-          inherited.withCheck(
-              samplingPriority, tracestate, decisionMaker, knuthSamplingRate, samplingPriority > 0);
+          inherited.withDecision(
+              samplingPriority, tracestate, decisionMaker, knuthSamplingRate, pendingChecks);
       return true;
     }
 
