@@ -182,26 +182,28 @@ class EvaluationTelemetryOptOutTest {
   }
 
   @TableTest({
-    "Scenario         | Exclude experimentation | Suppress telemetry",
-    "neither          | false                   | false             ",
-    "telemetry only   | false                   | true              ",
-    "experiments only | true                    | false             ",
-    "both             | true                    | true              "
+    "scenario         | mode                    | exclude experimentation | suppress telemetry",
+    "neither          | DISABLED                | false                   | false             ",
+    "telemetry only   | DISABLED                | false                   | true              ",
+    "experiments only | IMMEDIATE               | true                    | false             ",
+    "both             | IMMEDIATE               | true                    | true              ",
+    "retained future  | FUTURE_EXPERIMENTS_ONLY | false                   | false             ",
+    "retained private | FUTURE_EXPERIMENTS_ONLY | false                   | true              "
   })
   void experimentationAndEvaluationTelemetryControlsRemainIndependent(
-      final boolean excludeExperimentation, final boolean suppressTelemetry) throws Exception {
-    final ExperimentationOptOutMode mode =
-        excludeExperimentation
-            ? ExperimentationOptOutMode.IMMEDIATE
-            : ExperimentationOptOutMode.DISABLED;
+      final ExperimentationOptOutMode mode,
+      final boolean excludeExperimentation,
+      final boolean suppressTelemetry)
+      throws Exception {
     final Allocation experiment =
-        new Allocation(
+        Allocation.fromInstants(
             "experiment",
             null,
             null,
             null,
             singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
-            true);
+            true,
+            java.time.Instant.parse("2026-10-19T11:59:59.999999999Z"));
     final Allocation ordinary =
         new Allocation(
             "ordinary",

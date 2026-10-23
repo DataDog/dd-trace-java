@@ -9,6 +9,7 @@ import dev.openfeature.sdk.Value;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -79,12 +80,25 @@ final class ExperimentationOptOut {
     throw new IllegalArgumentException(INVALID_TIMESTAMP);
   }
 
+  /** Checks prepared activation states before selecting an allocation. */
+  static boolean hasInvalidActivation(final List<Allocation> allocations) {
+    if (!ActivationSupport.INVALID_STATE_AVAILABLE || allocations == null) {
+      return false;
+    }
+    for (final Allocation allocation : allocations) {
+      if (allocation != null && allocation.invalidRandomizationActivation) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   static boolean excludes(
       final ExperimentationOptOutMode mode, final Instant cutoff, final Allocation allocation) {
     if (cutoff == null) {
       return false;
     }
-    if (Boolean.FALSE.equals(allocation.doLog)) {
+    if (!Boolean.TRUE.equals(allocation.doLog)) {
       return false;
     }
     return mode == ExperimentationOptOutMode.IMMEDIATE
@@ -101,8 +115,18 @@ final class ExperimentationOptOut {
     }
   }
 
+  static boolean supportsInvalidActivation(final Class<?> allocationType) {
+    try {
+      return allocationType.getField("invalidRandomizationActivation").getType() == boolean.class;
+    } catch (ReflectiveOperationException | LinkageError | SecurityException unavailable) {
+      return false;
+    }
+  }
+
   /** Probe only when future mode is evaluated; older agents have unknown activation. */
   private static final class ActivationSupport {
     private static final boolean AVAILABLE = supportsActivation(Allocation.class);
+    private static final boolean INVALID_STATE_AVAILABLE =
+        supportsInvalidActivation(Allocation.class);
   }
 }

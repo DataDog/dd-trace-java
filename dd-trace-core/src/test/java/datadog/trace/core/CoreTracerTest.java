@@ -50,7 +50,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
@@ -645,10 +644,21 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   /**
    * Remote config {@code tracing_tags} overrides the global tags ({@code DD_TAGS}), and removing
    * the override restores them, matching system-tests' {@code
-   * TestDynamicConfigV2.test_tracing_client_tracing_tags}.
+   * TestDynamicConfigV2.test_tracing_client_tracing_tags}. The override replaces the span tags
+   * ({@code DD_TRACE_SPAN_TAGS}) too, even when it's empty.
    */
-  @Test
-  void remoteConfigTracingTagsOverrideGlobalTags() throws Exception {
+  @TableTest({
+    "scenario                  | localTagsKey    | overrideTags          | expectedWithOverride",
+    "DD_TAGS                   | tags            | '[\"rc_key:rc_val\"]' | [rc_key: rc_val]    ",
+    "DD_TRACE_SPAN_TAGS        | trace.span.tags | '[\"rc_key:rc_val\"]' | [rc_key: rc_val]    ",
+    "empty, DD_TRACE_SPAN_TAGS | trace.span.tags | '[]'                  | [:]                 "
+  })
+  void remoteConfigTracingTagsOverrideGlobalTags(
+      String scenario,
+      String localTagsKey,
+      String overrideTags,
+      Map<String, String> expectedWithOverride)
+      throws Exception {
     ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
     ConfigurationPoller poller = mock(ConfigurationPoller.class);
     SharedCommunicationObjects sco = createScoWithPoller(poller);
@@ -662,31 +672,95 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
         .when(poller)
         .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
-    Properties properties = new Properties();
-    properties.setProperty(GeneralConfig.TAGS, "local_key:local_val");
+    injectSysConfig(localTagsKey, "local_key:local_val");
     CoreTracer tracer =
-        CoreTracer.builder()
-            .withProperties(properties)
-            .sharedCommunicationObjects(sco)
-            .pollForTracingConfiguration()
-            .build();
+        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
     unclosedTracers.add(tracer);
 
     try {
       Map<String, String> localTags = buildStringMap("local_key", "local_val");
       assertEquals(localTags, tracer.captureTraceConfig().mergedTracerTags);
 
-      String json = "{\"lib_config\":{\"tracing_tags\": [\"rc_key:rc_val\"]}}";
+      String json = "{\"lib_config\":{\"tracing_tags\": " + overrideTags + "}}";
       capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
       capturedUpdater[0].commit(null);
 
-      assertEquals(
-          buildStringMap("rc_key", "rc_val"), tracer.captureTraceConfig().mergedTracerTags);
+      assertEquals(expectedWithOverride, tracer.captureTraceConfig().mergedTracerTags);
 
       capturedUpdater[0].remove(key, null);
       capturedUpdater[0].commit(null);
 
       assertEquals(localTags, tracer.captureTraceConfig().mergedTracerTags);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /**
+   * The config snapshot keeps the global tags apart from the span defaults, so an OTLP export can
+   * carry the global tags as resource attributes. A remote config override replaces both.
+   */
+  @Test
+  void configSnapshotSeparatesGlobalTagsFromSpanDefaults() throws Exception {
+    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
+    ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+    ProductListener[] capturedUpdater = {null};
+    doAnswer(
+            inv -> {
+              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+              return null;
+            })
+        .when(poller)
+        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+    injectSysConfig(GeneralConfig.TAGS, "global_key:global_val,shared_key:global_val");
+    injectSysConfig(TracerConfig.SPAN_TAGS, "span_key:span_val,shared_key:span_val");
+    injectSysConfig(GeneralConfig.ENV, "prod");
+    injectSysConfig(GeneralConfig.VERSION, "1.2.3");
+    CoreTracer tracer =
+        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    unclosedTracers.add(tracer);
+
+    try {
+      Map<String, String> spanDefaults =
+          buildStringMap("span_key", "span_val", "shared_key", "span_val", "env", "prod");
+
+      ConfigSnapshot config = tracer.captureTraceConfig();
+      // Config adds DD_ENV and DD_VERSION to the global tags
+      assertEquals(
+          buildStringMap(
+              "global_key", "global_val",
+              "shared_key", "global_val",
+              "env", "prod",
+              "version", "1.2.3"),
+          config.globalTags);
+      assertEquals(spanDefaults, config.spanDefaultTags);
+      assertEquals(
+          buildStringMap(
+              "global_key", "global_val",
+              "span_key", "span_val",
+              "shared_key", "span_val",
+              "env", "prod"),
+          config.mergedTracerTags);
+
+      String json = "{\"lib_config\":{\"tracing_tags\": [\"rc_key:rc_val\"]}}";
+      capturedUpdater[0].accept(key, json.getBytes(StandardCharsets.UTF_8), null);
+      capturedUpdater[0].commit(null);
+
+      config = tracer.captureTraceConfig();
+      // the override keeps the configured env and version
+      assertEquals(
+          buildStringMap("rc_key", "rc_val", "env", "prod", "version", "1.2.3"), config.globalTags);
+      assertEquals(buildStringMap("env", "prod"), config.spanDefaultTags);
+      assertEquals(buildStringMap("rc_key", "rc_val", "env", "prod"), config.mergedTracerTags);
+
+      capturedUpdater[0].remove(key, null);
+      capturedUpdater[0].commit(null);
+
+      config = tracer.captureTraceConfig();
+      assertEquals(spanDefaults, config.spanDefaultTags);
     } finally {
       tracer.close();
     }

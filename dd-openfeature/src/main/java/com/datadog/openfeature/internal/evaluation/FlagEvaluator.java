@@ -129,6 +129,16 @@ public final class FlagEvaluator {
         return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
       }
 
+      if (experimentationCutoff != null
+          && experimentationOptOutMode == ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY
+          && ExperimentationOptOut.hasInvalidActivation(flag.allocations)) {
+        return error(
+            defaultValue,
+            ErrorCode.PARSE_ERROR,
+            "invalid randomizationActivatedAt for flag " + key,
+            observeFullEvaluationData);
+      }
+
       if (!flag.enabled) {
         return ProviderEvaluation.<T>builder()
             .value(defaultValue)
@@ -150,8 +160,9 @@ public final class FlagEvaluator {
       final String targetingKey = context.getTargetingKey();
 
       for (final Allocation allocation : flag.allocations) {
-        if (ExperimentationOptOut.excludes(
-            experimentationOptOutMode, experimentationCutoff, allocation)) {
+        if (experimentationCutoff != null
+            && ExperimentationOptOut.excludes(
+                experimentationOptOutMode, experimentationCutoff, allocation)) {
           continue;
         }
         if (!isAllocationActive(allocation, now)) {

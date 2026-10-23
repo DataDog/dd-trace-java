@@ -208,6 +208,15 @@ class ExperimentationOptOutTest {
     assertTrue(ExperimentationOptOut.supportsActivation(Allocation.class));
     assertFalse(ExperimentationOptOut.supportsActivation(Object.class));
     assertFalse(ExperimentationOptOut.supportsActivation(WrongActivationType.class));
+    assertTrue(ExperimentationOptOut.supportsInvalidActivation(Allocation.class));
+    assertFalse(ExperimentationOptOut.supportsInvalidActivation(Object.class));
+    assertFalse(ExperimentationOptOut.supportsInvalidActivation(WrongActivationType.class));
+    assertTrue(ExperimentationOptOut.supportsActivation(PreviousActivationType.class));
+    assertFalse(ExperimentationOptOut.supportsInvalidActivation(PreviousActivationType.class));
+  }
+
+  public static class PreviousActivationType {
+    public Instant randomizationActivatedAt;
   }
 
   public static class WrongActivationType {

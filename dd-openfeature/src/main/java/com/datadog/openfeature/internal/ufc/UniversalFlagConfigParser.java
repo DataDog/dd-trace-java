@@ -235,6 +235,8 @@ public final class UniversalFlagConfigParser {
       return null;
     }
     final Map<?, ?> json = asObject(value, "allocation");
+    final Object activation = json.get("randomizationActivatedAt");
+    final Instant parsedActivation = activation instanceof String ? toInstant(activation) : null;
     return new Allocation(
         asString(json.get("key"), "key"),
         toList(json.get("rules"), "rules", UniversalFlagConfigParser::toRule),
@@ -242,19 +244,8 @@ public final class UniversalFlagConfigParser {
         toInstant(json.get("endAt")),
         toList(json.get("splits"), "splits", UniversalFlagConfigParser::toSplit),
         lenientBoolean(json.get("doLog")),
-        toActivation(json.get("randomizationActivatedAt")));
-  }
-
-  @Nullable
-  private static Instant toActivation(@Nullable final Object value) {
-    if (value == null) {
-      return null;
-    }
-    final Instant instant = value instanceof String ? toInstant(value) : null;
-    if (instant == null) {
-      throw new IllegalArgumentException("flag contains an invalid randomizationActivatedAt value");
-    }
-    return instant;
+        parsedActivation,
+        activation != null && parsedActivation == null);
   }
 
   @Nullable

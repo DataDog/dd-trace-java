@@ -305,7 +305,9 @@ For exposure-logging allocations, the provider compares `randomizationActivatedA
 | Missing or null | Skip the allocation because its activation time is unknown |
 
 Ordinary allocations remain available. Missing subject attributes preserve normal evaluation.
-Both enabled modes reject invalid subject timestamps. Malformed activation metadata rejects the affected flag with `PARSE_ERROR` in every mode.
+Both enabled modes reject invalid subject timestamps.
+Malformed activation metadata returns `PARSE_ERROR` for the affected flag only in future mode with a valid subject timestamp.
+Disabled mode, immediate mode, and evaluations without a subject timestamp preserve ordinary evaluation.
 Comparisons retain nanosecond precision and account for timezone offsets.
 The cutoff does not depend on the SDK clock. It is not a scheduled change or proof of prior enrollment.
 An older allocation can still assign a subject for the first time.

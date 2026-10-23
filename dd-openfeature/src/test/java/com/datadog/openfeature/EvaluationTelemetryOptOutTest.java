@@ -601,20 +601,31 @@ class EvaluationTelemetryOptOutTest {
   }
 
   @TableTest({
-    "scenario         | exclude experimentation | suppress telemetry",
-    "neither          | false                   | false             ",
-    "telemetry only   | false                   | true              ",
-    "experiments only | true                    | false             ",
-    "both             | true                    | true              "
+    "scenario         | mode                    | exclude experimentation | suppress telemetry",
+    "neither          | DISABLED                | false                   | false             ",
+    "telemetry only   | DISABLED                | false                   | true              ",
+    "experiments only | IMMEDIATE               | true                    | false             ",
+    "both             | IMMEDIATE               | true                    | true              ",
+    "retained future  | FUTURE_EXPERIMENTS_ONLY | false                   | false             ",
+    "retained private | FUTURE_EXPERIMENTS_ONLY | false                   | true              "
   })
   void experimentationAndEvaluationTelemetryControlsRemainIndependent(
-      final boolean excludeExperimentation, final boolean suppressTelemetry) throws Exception {
-    final ExperimentationOptOutMode mode =
-        excludeExperimentation
-            ? ExperimentationOptOutMode.IMMEDIATE
-            : ExperimentationOptOutMode.DISABLED;
+      final ExperimentationOptOutMode mode,
+      final boolean excludeExperimentation,
+      final boolean suppressTelemetry)
+      throws Exception {
     final ServerConfiguration configuration = defaultConfiguration();
     final Flag flag = configuration.flags.get("flag");
+    final Allocation original = flag.allocations.get(0);
+    final Allocation experiment =
+        new Allocation(
+            original.key,
+            original.rules,
+            original.startAt,
+            original.endAt,
+            original.splits,
+            original.doLog,
+            java.time.Instant.parse("2026-10-19T11:59:59.999999999Z"));
     final Allocation ordinary =
         new Allocation(
             "ordinary",
@@ -626,8 +637,7 @@ class EvaluationTelemetryOptOutTest {
     final Map<String, Variant> variants = new HashMap<>(flag.variations);
     variants.put("off", new Variant("off", 2));
     final Flag withFallback =
-        new Flag(
-            "flag", true, ValueType.INTEGER, variants, asList(flag.allocations.get(0), ordinary));
+        new Flag("flag", true, ValueType.INTEGER, variants, asList(experiment, ordinary));
     this.evaluator =
         new CapturingEvaluator(
             new ServerConfiguration("", "", false, null, singletonMap("flag", withFallback)), mode);

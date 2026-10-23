@@ -63,11 +63,11 @@ class CanonicalFixtureTest {
   }
 
   static List<FixtureCase> futureOptOutTestCases() throws IOException {
-    return optOutTestCases("experimentationOptOutFutureExperimentsOnly", 42);
+    return optOutTestCases("experimentationOptOutFutureExperimentsOnly", 44);
   }
 
   static List<FixtureCase> immediateOptOutTestCases() throws IOException {
-    return optOutTestCases("experimentationOptOutImmediate", 26);
+    return optOutTestCases("experimentationOptOutImmediate", 28);
   }
 
   @SuppressWarnings("unchecked")

@@ -8,6 +8,7 @@ import dev.openfeature.sdk.Value;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -62,13 +63,26 @@ public final class ExperimentationOptOut {
     throw new IllegalArgumentException(INVALID_TIMESTAMP);
   }
 
+  /** Checks prepared activation states before selecting an allocation. */
+  static boolean hasInvalidActivation(final List<Allocation> allocations) {
+    if (allocations == null) {
+      return false;
+    }
+    for (final Allocation allocation : allocations) {
+      if (allocation != null && allocation.invalidRandomizationActivation) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** Excludes before targeting; unknown activation does not qualify as older. */
   static boolean excludes(
       final ExperimentationOptOutMode mode, final Instant cutoff, final Allocation allocation) {
     if (cutoff == null) {
       return false;
     }
-    if (Boolean.FALSE.equals(allocation.doLog)) {
+    if (!Boolean.TRUE.equals(allocation.doLog)) {
       return false;
     }
     return mode == ExperimentationOptOutMode.IMMEDIATE

@@ -15,10 +15,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 class RandomizationActivationTest {
   @ParameterizedTest
   @ValueSource(strings = {"true", "42", "[]", "{}", "\"bad\"", "\"\"", "\"2026-02-30T12:00:00Z\""})
-  void rejectsMalformedActivationOnlyForAffectedFlag(final String activation) throws Exception {
+  void preservesMalformedActivationForEvaluationPolicy(final String activation) throws Exception {
     final ServerConfiguration config = parse(activation);
-    assertFalse(config.flags.containsKey("target"));
-    assertEquals("invalid_flag", config.invalidFlags.get("target"));
+    assertTrue(config.flags.containsKey("target"));
+    assertTrue(config.flags.get("target").allocations.get(0).invalidRandomizationActivation);
+    assertNull(config.flags.get("target").allocations.get(0).randomizationActivatedAt);
     assertTrue(config.flags.containsKey("neighbor"));
   }
 
@@ -29,6 +30,7 @@ class RandomizationActivationTest {
     final ServerConfiguration config = parse(activation);
     assertTrue(config.invalidFlags == null || config.invalidFlags.isEmpty());
     assertNull(config.flags.get("target").allocations.get(0).randomizationActivatedAt);
+    assertFalse(config.flags.get("target").allocations.get(0).invalidRandomizationActivation);
   }
 
   @ParameterizedTest

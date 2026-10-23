@@ -14,6 +14,9 @@ public final class Allocation {
   /** First activation of this allocation's randomization; null means unknown. */
   public final Instant randomizationActivatedAt;
 
+  /** Invalid activation is retained for future-mode evaluation errors. */
+  public final boolean invalidRandomizationActivation;
+
   public Allocation(
       final String key,
       final List<Rule> rules,
@@ -32,6 +35,18 @@ public final class Allocation {
       final List<Split> splits,
       final Boolean doLog,
       final Instant randomizationActivatedAt) {
+    this(key, rules, startAt, endAt, splits, doLog, randomizationActivatedAt, false);
+  }
+
+  public Allocation(
+      final String key,
+      final List<Rule> rules,
+      final Instant startAt,
+      final Instant endAt,
+      final List<Split> splits,
+      final Boolean doLog,
+      final Instant randomizationActivatedAt,
+      final boolean invalidRandomizationActivation) {
     this.key = key;
     this.rules = rules;
     this.startAt = startAt;
@@ -39,5 +54,6 @@ public final class Allocation {
     this.splits = splits;
     this.doLog = doLog;
     this.randomizationActivatedAt = randomizationActivatedAt;
+    this.invalidRandomizationActivation = invalidRandomizationActivation;
   }
 }
