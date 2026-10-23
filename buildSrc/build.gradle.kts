@@ -96,6 +96,7 @@ repositories {
 dependencies {
   implementation(gradleApi())
   implementation(libs.forbiddenapis)
+  implementation(libs.errorprone.gradle.plugin)
   implementation(libs.spotbugs.gradle.plugin) {
     // Select the plugin's Java 11 variant while buildSrc still has to targets Java 8 for muzzle workers.
     attributes {
