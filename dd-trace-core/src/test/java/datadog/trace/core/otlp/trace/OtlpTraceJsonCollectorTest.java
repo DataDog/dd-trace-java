@@ -438,6 +438,25 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @Test
+  void baggageDoesNotDuplicateDirectlyWrittenAttributes() throws IOException {
+    AgentSpan span = TRACER.startSpan("test", "op.direct");
+    span.setResourceName("direct.op");
+    span.setBaggageItem("resource.name", "baggage.resource");
+    span.setBaggageItem("operation.name", "baggage.operation");
+    span.setBaggageItem("thread.name", "baggage.thread");
+    span.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) span));
+    Map<String, Object> parsed = onlySpan(collector.collectTraces());
+
+    // each key must appear once, with the span's own value
+    assertEquals(asList("direct.op"), attributeValues(parsed, "resource.name"));
+    assertEquals(asList("op.direct"), attributeValues(parsed, "operation.name"));
+    assertEquals(asList(Thread.currentThread().getName()), attributeValues(parsed, "thread.name"));
+  }
+
+  @Test
   void poisonedSpanResetsCollectorForNextTrace() throws IOException {
     // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
     DDSpan realSpan = startAndFinish("op.first", "GET /first", null);

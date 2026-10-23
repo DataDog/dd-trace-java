@@ -777,13 +777,65 @@ class OtlpTraceProtoTest {
     assertEquals("baggage.value", childAttributes.get("baggage.key"));
   }
 
+  @Test
+  void baggageDoesNotDuplicateDirectlyWrittenAttributes() throws IOException {
+    AgentSpan span = TRACER.startSpan("test", "op.direct");
+    span.setResourceName("direct.op");
+    span.setBaggageItem("resource.name", "baggage.resource");
+    span.setBaggageItem("operation.name", "baggage.operation");
+    span.setBaggageItem("thread.name", "baggage.thread");
+    span.finish();
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList((CoreSpan<?>) span));
+    List<String[]> attributes =
+        parseStringAttributeListsBySpanName(collector.collectTraces()).get("direct.op");
+    assertNotNull(attributes, "span must be exported");
+
+    // each key must appear once, with the span's own value
+    assertEquals(asList("direct.op"), stringAttributeValues(attributes, "resource.name"));
+    assertEquals(asList("op.direct"), stringAttributeValues(attributes, "operation.name"));
+    assertEquals(
+        asList(Thread.currentThread().getName()), stringAttributeValues(attributes, "thread.name"));
+  }
+
+  /** Returns the values of every attribute with the given key, keeping duplicates. */
+  private static List<String> stringAttributeValues(List<String[]> attributes, String key) {
+    List<String> values = new ArrayList<>();
+    for (String[] attribute : attributes) {
+      if (key.equals(attribute[0])) {
+        values.add(attribute[1]);
+      }
+    }
+    return values;
+  }
+
   /** Maps each span name to its string-valued attributes. */
   private static Map<String, Map<String, String>> parseStringAttributesBySpanName(
+      OtlpPayload payload) throws IOException {
+    Map<String, Map<String, String>> result = new HashMap<>();
+    parseStringAttributeListsBySpanName(payload)
+        .forEach(
+            (name, attributes) -> {
+              Map<String, String> attributeMap = new HashMap<>();
+              for (String[] attribute : attributes) {
+                attributeMap.put(attribute[0], attribute[1]);
+              }
+              result.put(name, attributeMap);
+            });
+    return result;
+  }
+
+  /**
+   * Maps each span name to its raw string-valued attributes, as {key, value} pairs in wire order,
+   * keeping duplicate keys.
+   */
+  private static Map<String, List<String[]>> parseStringAttributeListsBySpanName(
       OtlpPayload payload) throws IOException {
     CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
     tracesData.readTag(); // field 1: TracesData.resource_spans
     CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
-    Map<String, Map<String, String>> result = new HashMap<>();
+    Map<String, List<String[]>> result = new HashMap<>();
     while (!resourceSpans.isAtEnd()) {
       int tag = resourceSpans.readTag();
       if (WireFormat.getTagFieldNumber(tag) != 2) {
@@ -799,7 +851,7 @@ class OtlpTraceProtoTest {
         }
         CodedInputStream spanData = scopeSpans.readBytes().newCodedInput();
         String name = null;
-        Map<String, String> attributes = new HashMap<>();
+        List<String[]> attributes = new ArrayList<>();
         while (!spanData.isAtEnd()) {
           int spanTag = spanData.readTag();
           switch (WireFormat.getTagFieldNumber(spanTag)) {
@@ -807,7 +859,10 @@ class OtlpTraceProtoTest {
               name = spanData.readString();
               break;
             case 9:
-              readStringKeyValue(spanData.readBytes().newCodedInput(), attributes);
+              String[] attribute = readStringKeyValue(spanData.readBytes().newCodedInput());
+              if (attribute != null) {
+                attributes.add(attribute);
+              }
               break;
             default:
               spanData.skipField(spanTag);
@@ -820,11 +875,10 @@ class OtlpTraceProtoTest {
   }
 
   /**
-   * Reads a {@code KeyValue { string key = 1; AnyValue value = 2; }} into the map when its value is
-   * an {@code AnyValue { string string_value = 1; }}.
+   * Reads a {@code KeyValue { string key = 1; AnyValue value = 2; }} as {key, value} when its value
+   * is an {@code AnyValue { string string_value = 1; }}, otherwise returns null.
    */
-  private static void readStringKeyValue(CodedInputStream keyValue, Map<String, String> into)
-      throws IOException {
+  private static String[] readStringKeyValue(CodedInputStream keyValue) throws IOException {
     String key = null;
     String value = null;
     while (!keyValue.isAtEnd()) {
@@ -848,9 +902,7 @@ class OtlpTraceProtoTest {
           keyValue.skipField(tag);
       }
     }
-    if (key != null && value != null) {
-      into.put(key, value);
-    }
+    return key != null && value != null ? new String[] {key, value} : null;
   }
 
   @Test

@@ -51,7 +51,10 @@ import datadog.trace.core.PendingTrace;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
@@ -59,8 +62,6 @@ public final class OtlpTraceProto {
   private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
-
-  private static final String TRACE_ID_HIGH_TAG = "_dd.p.tid";
 
   /*
    * Span fields and intercepted Metadata fields bypass TagMap entry projection. Resolve their
@@ -78,6 +79,31 @@ public final class OtlpTraceProto {
   private static UTF8BytesString otelKey(long tagId) {
     return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
   }
+
+  /**
+   * Keys that baggage must not export as attributes: the attributes this writer emits directly from
+   * span fields and intercepted Metadata fields (the span's own value wins), plus _dd.p.tid, whose
+   * upper 64 bits the OTLP traceId already carries.
+   */
+  private static final Set<String> SKIPPED_BAGGAGE_KEYS =
+      new HashSet<>(
+          Arrays.asList(
+              "_dd.p.tid",
+              SERVICE_NAME_KEY.toString(),
+              RESOURCE_NAME.toString(),
+              OPERATION_NAME.toString(),
+              SPAN_TYPE.toString(),
+              SAMPLING_PRIORITY_KEY.toString(),
+              DD_MEASURED.toString(),
+              DD_TOP_LEVEL.toString(),
+              DD_PARTIAL_VERSION.toString(),
+              DD_WAS_LONG_RUNNING.toString(),
+              THREAD_ID.toString(),
+              THREAD_NAME.toString(),
+              HTTP_STATUS_CODE_KEY.toString(),
+              HTTP_STATUS_CODE_KEY_DD.toString(),
+              ORIGIN_KEY.toString(),
+              PROCESS_TAGS_KEY.toString()));
 
   private OtlpTraceProto() {}
 
@@ -338,11 +364,10 @@ public final class OtlpTraceProto {
       TagMap tags = metadata.getTags();
 
       // Baggage carries the propagation tags (e.g. the _dd.p.dm sampling decision maker) and any
-      // baggage items injected as tags, as in the Datadog mappers. Span tags win on a key clash,
-      // which also keeps OTLP attribute keys unique. _dd.p.tid is skipped: the OTLP traceId already
-      // carries the upper 64 bits of the trace id.
+      // baggage items injected as tags, as in the Datadog mappers. Span tags and the attributes
+      // written directly above win on a key clash, which keeps OTLP attribute keys unique.
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        if (TRACE_ID_HIGH_TAG.equals(entry.getKey()) || tags.containsKey(entry.getKey())) {
+        if (SKIPPED_BAGGAGE_KEYS.contains(entry.getKey()) || tags.containsKey(entry.getKey())) {
           continue;
         }
         writeTag(buf, 9, LEN_WIRE_TYPE);
