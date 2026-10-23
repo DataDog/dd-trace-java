@@ -102,7 +102,10 @@ final class DatadogPTagsCodec extends PTagsCodec {
         return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
       }
       TagKey tagKey = TagKey.from(Encoding.DATADOG, value, tagPos, tagKeyEndsAt);
-      TagValue tagValue = TagValue.from(Encoding.DATADOG, value, tagValuePos, tagValueEndsAt);
+      TagValue tagValue =
+          hasUniqueValues(tagKey)
+              ? TagValue.uncached(Encoding.DATADOG, value, tagValuePos, tagValueEndsAt)
+              : TagValue.from(Encoding.DATADOG, value, tagValuePos, tagValueEndsAt);
       if (tagKey != null) {
         if (!tagKey.equals(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
           if (!validateTagValue(tagKey, tagValue)) {

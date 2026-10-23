@@ -194,11 +194,15 @@ public class W3CPTagsCodec extends PTagsCodec {
       } else if (keyLength == 1 && c == 'o') {
         origin = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
       } else if (keyLength == 1 && c == 'p') {
-        lastParentId = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+        // a span id, so it never repeats
+        lastParentId = TagValue.uncached(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
       } else {
         TagKey tagKey = TagKey.from(Encoding.W3C, value, tagPos, tagKeyEndsAt);
         if (tagKey != null) {
-          TagValue tagValue = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+          TagValue tagValue =
+              hasUniqueValues(tagKey)
+                  ? TagValue.uncached(Encoding.W3C, value, tagValuePos, tagValueEndsAt)
+                  : TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
           if (!tagKey.equals(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
             if (!validateTagValue(tagKey, tagValue)) {
               log.warn(

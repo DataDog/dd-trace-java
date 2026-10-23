@@ -35,6 +35,22 @@ final class TagValue extends TagElement {
     }
   }
 
+  /**
+   * Like {@link #from(Encoding, CharSequence, int, int)}, for a value unique to one trace or span,
+   * such as a span id. Caching those would never hit, and would evict values that do repeat.
+   */
+  static TagValue uncached(Encoding encoding, CharSequence s, int start, int end) {
+    if (s == null || isValueInvalid(s, start, end)) {
+      if (log.isDebugEnabled()) {
+        log.debug("Invalid header h: {} s: {} b: {} e: {}", encoding, s, start, end);
+      }
+      return null;
+    }
+    return encoding == Encoding.W3C
+        ? produceW3C(s, hashW3C(s, start, end), start, end)
+        : produceDD(s, hashDD(s, start, end), start, end);
+  }
+
   private static boolean isValueInvalid(CharSequence s, int start, int end) {
     return start < 0 || end <= 0 || s.length() < end;
   }
