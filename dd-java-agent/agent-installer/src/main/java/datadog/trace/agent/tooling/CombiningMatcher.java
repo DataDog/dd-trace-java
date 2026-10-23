@@ -5,6 +5,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.RETRANSFORMER;
 
 import datadog.trace.agent.tooling.bytebuddy.matcher.CustomExcludes;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ProxyClassIgnores;
+import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.time.TimeUtils;
 import datadog.trace.util.AgentTaskScheduler;
@@ -12,8 +13,10 @@ import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -45,13 +48,25 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
 
   private final BitSet knownTypesMask;
   private final MatchRecorder[] matchers;
+  private final Map<String, LambdaMatchRecorder[]> lambdaMatchers;
 
   private volatile boolean deferring;
 
   CombiningMatcher(
-      Instrumentation instrumentation, BitSet knownTypesMask, List<MatchRecorder> matchers) {
+      Instrumentation instrumentation,
+      BitSet knownTypesMask,
+      List<MatchRecorder> matchers,
+      Map<String, List<LambdaMatchRecorder>> lambdaMatchers) {
     this.knownTypesMask = knownTypesMask;
     this.matchers = matchers.toArray(new MatchRecorder[0]);
+    if (lambdaMatchers != null && !lambdaMatchers.isEmpty()) {
+      this.lambdaMatchers = new HashMap<>();
+      lambdaMatchers.forEach(
+          (name, recorders) ->
+              this.lambdaMatchers.put(name, recorders.toArray(new LambdaMatchRecorder[0])));
+    } else {
+      this.lambdaMatchers = null;
+    }
 
     if (DEFER_MATCHING) {
       scheduleResumeMatching(instrumentation, InstrumenterConfig.get().deferIntegrationsUntil());
@@ -66,15 +81,44 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
       Class<?> classBeingRedefined,
       ProtectionDomain pd) {
 
+    String lambdaInterface = null;
+
     // check initial requests to see if we should defer matching until retransformation
     if (DEFER_MATCHING && null == classBeingRedefined && deferring && isDeferred(classLoader)) {
-      return false;
+      // Generated lambda classes cannot be retransformed because they are not yet defined here.
+      if (null == lambdaMatchers || null == (lambdaInterface = TypePoolFacade.lambdaInterface())) {
+        return false;
+      }
     }
 
     BitSet ids = recordedMatches.get();
     ids.clear();
 
     long fromTick = InstrumenterMetrics.tick();
+    if (null != lambdaMatchers && null == lambdaInterface) {
+      lambdaInterface = TypePoolFacade.lambdaInterface();
+    }
+    if (null != lambdaInterface) {
+      LambdaMatchRecorder[] recorders = lambdaMatchers.get(lambdaInterface);
+      if (null != recorders) {
+        for (LambdaMatchRecorder recorder : recorders) {
+          try {
+            recorder.record(target, classLoader, ids);
+          } catch (Throwable e) {
+            if (log.isDebugEnabled()) {
+              log.debug(
+                  "Lambda instrumentation matcher unexpected exception - interface={} matcher={}",
+                  lambdaInterface,
+                  recorder.describe(),
+                  e);
+            }
+          }
+        }
+      }
+      InstrumenterMetrics.matchType(fromTick);
+      return !ids.isEmpty();
+    }
+
     knownTypesIndex.apply(target.getName(), knownTypesMask, ids);
     if (ids.isEmpty()) {
       InstrumenterMetrics.knownTypeMiss(fromTick);
