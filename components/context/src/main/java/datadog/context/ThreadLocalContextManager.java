@@ -2,7 +2,7 @@ package datadog.context;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** {@link ContextManager} that uses a {@link ThreadLocal} to track context per thread. */
 final class ThreadLocalContextManager implements ContextManager {
