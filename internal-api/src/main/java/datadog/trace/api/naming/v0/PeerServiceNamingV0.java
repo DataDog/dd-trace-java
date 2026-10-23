@@ -1,6 +1,6 @@
 package datadog.trace.api.naming.v0;
 
-import datadog.trace.api.TagMap;
+import datadog.trace.api.SpanStorage;
 import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 
@@ -12,5 +12,5 @@ public class PeerServiceNamingV0 implements NamingSchema.ForPeerService {
 
   @Nonnull
   @Override
-  public void tags(@Nonnull final TagMap unsafeTags) {}
+  public void tags(@Nonnull final SpanStorage unsafeTags) {}
 }
