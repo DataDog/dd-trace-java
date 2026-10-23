@@ -1515,7 +1515,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   @Deprecated
   @Override
   public Object put(@Nonnull String tag, Object value) {
-    TagMap.Entry entry = this.getAndSet(anyEntryFor(tag, value));
+    // a null value removes the tag, rather than mapping it to null as HashMap would
+    TagMap.Entry entry =
+        value == null ? this.getAndRemove(tag) : this.getAndSet(anyEntryFor(tag, value));
     return entry == null ? null : entry.objectValue();
   }
 
@@ -1569,7 +1571,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return tagId != 0 ? Entry.newDoubleEntry(tagId, value) : Entry.newDoubleEntry(tag, value);
   }
 
-  public void set(@Nonnull String tag, @Nonnull Object value) {
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(@Nonnull String tag, @Nullable Object value) {
+    if (value == null) {
+      this.getAndRemove(tag);
+      return;
+    }
     long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
@@ -1578,7 +1585,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
-  public void set(@Nonnull String tag, @Nonnull CharSequence value) {
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(@Nonnull String tag, @Nullable CharSequence value) {
+    if (value == null) {
+      this.getAndRemove(tag);
+      return;
+    }
     long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
@@ -1693,11 +1705,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
-  public void set(long tagId, @Nonnull Object value) {
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(long tagId, @Nullable Object value) {
+    if (value == null) {
+      this.getAndRemove(tagId);
+      return;
+    }
     this.putEntry(Entry.newAnyEntry(tagId, value));
   }
 
-  public void set(long tagId, @Nonnull CharSequence value) {
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(long tagId, @Nullable CharSequence value) {
+    if (value == null) {
+      this.getAndRemove(tagId);
+      return;
+    }
     this.putEntry(Entry.newObjectEntry(tagId, value));
   }
 
@@ -1810,11 +1832,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public Entry getAndSet(@Nonnull String tag, Object value) {
-    return this.getAndSet(anyEntryFor(tag, value));
+    return value == null ? this.getAndRemove(tag) : this.getAndSet(anyEntryFor(tag, value));
   }
 
   public Entry getAndSet(@Nonnull String tag, CharSequence value) {
-    return this.getAndSet(objectEntryFor(tag, value));
+    return value == null ? this.getAndRemove(tag) : this.getAndSet(objectEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, boolean value) {
