@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.json.JsonMapper;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -20,7 +21,6 @@ import datadog.trace.bootstrap.otlp.logs.OtlpScopedLogsVisitor;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;

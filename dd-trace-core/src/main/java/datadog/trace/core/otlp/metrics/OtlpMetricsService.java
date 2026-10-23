@@ -2,13 +2,13 @@ package datadog.trace.core.otlp.metrics;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
 import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.CountDownLatch;

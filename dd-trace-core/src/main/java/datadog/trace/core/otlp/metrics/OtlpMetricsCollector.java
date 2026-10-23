@@ -1,7 +1,7 @@
 package datadog.trace.core.otlp.metrics;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import java.util.function.Consumer;
 
 /** Collects metrics ready for export. */

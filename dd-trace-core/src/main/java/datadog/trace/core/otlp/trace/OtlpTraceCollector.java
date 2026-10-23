@@ -2,8 +2,8 @@ package datadog.trace.core.otlp.trace;
 
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.trace.core.CoreSpan;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import java.util.List;
 
 /** Collects traces ready for export. */

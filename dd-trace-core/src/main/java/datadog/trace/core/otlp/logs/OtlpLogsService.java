@@ -3,12 +3,12 @@ package datadog.trace.core.otlp.logs;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_LOGS_EXPORTER;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpGrpcSender;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
