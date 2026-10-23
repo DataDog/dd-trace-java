@@ -1,5 +1,10 @@
 plugins {
   id("dd-trace-java.module.platform-component")
+  id("dd-trace-java.conventions.errorprone")
+}
+
+nullAway {
+  basePackage = "datadog.context"
 }
 
 dependencies {

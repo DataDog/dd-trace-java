@@ -15,7 +15,7 @@ public final class Propagators {
       synchronizedMap(new IdentityHashMap<>());
   private static final RegisteredPropagator NOOP =
       RegisteredPropagator.of(NoopPropagator.INSTANCE, false);
-  private static volatile Propagator defaultPropagator = null;
+  private static volatile Propagator defaultPropagator = NoopPropagator.INSTANCE;
   private static volatile boolean rebuildDefaultPropagator = true;
 
   private Propagators() {}
