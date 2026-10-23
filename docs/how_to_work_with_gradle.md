@@ -1242,6 +1242,23 @@ that must change together across plugins.
 
 See Gradle's [plugin development guide](https://docs.gradle.org/current/userguide/implementing_gradle_plugins_binary.html).
 
+### Nullness Checks
+
+The `dd-trace-java.conventions.nullaway` convention runs NullAway during production Java
+compilation. It disables other Error Prone checks and reports nullness violations as errors.
+Modules opt in by applying the convention alongside their module plugin.
+
+The convention checks `main` and `main_javaN` source sets compiled with JDK 21 or later.
+It preserves the configured compiler and bytecode target. Source sets requiring older
+compilers remain unchecked, including the Java 8 compilation in `agent-bootstrap` and
+`internal-api`, the Java 6 premain pre-check, and the JDK 11 JFR implementation.
+Tests and benchmarks are unchecked. Generated sources under `build/generated` and code
+marked with `@Generated` are excluded. Keep vendored code outside the checked packages.
+
+By default, checked packages start with `datadog` or `com.datadog`. Modules can override
+`NullAway:AnnotatedPackages` through the Error Prone options on their production compile
+tasks. IAST retains its existing `com.datadog.iast` scope and existing nullness annotations.
+
 ### Dependencies on Main Projects
 
 Build tooling remains independent of production code. The tasks it registers can consume
