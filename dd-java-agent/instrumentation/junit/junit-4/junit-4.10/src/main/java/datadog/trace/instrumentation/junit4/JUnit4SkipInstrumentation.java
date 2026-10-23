@@ -85,7 +85,11 @@ public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
       SkipReason skipReason =
           TestEventsHandlerHolder.HANDLERS
               .get(TestFrameworkInstrumentation.JUNIT4)
-              .skipReason(test);
+              .skipReason(
+                  test,
+                  JUnit4Utils.toTestSourceData(description),
+                  JUnit4Utils.getCategories(
+                      description.getTestClass(), JUnit4Utils.getTestMethod(description)));
       if (skipReason == null) {
         return null;
       }

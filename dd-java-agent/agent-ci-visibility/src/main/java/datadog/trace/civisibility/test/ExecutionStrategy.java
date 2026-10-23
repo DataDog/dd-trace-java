@@ -2,6 +2,7 @@ package datadog.trace.civisibility.test;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.config.TestExclusions;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -21,6 +22,7 @@ import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -91,16 +93,21 @@ public class ExecutionStrategy {
 
   @Nullable
   public SkipReason skipReason(TestIdentifier test) {
+    return skipReason(test, TestSourceData.UNKNOWN, Collections.emptyList());
+  }
+
+  public SkipReason skipReason(
+      TestIdentifier test, TestSourceData source, Collection<String> tags) {
     if (test == null) {
       return null;
     }
 
     // test should not be skipped if it is an attempt to fix, independent of TIA or Disabled
-    if (isAttemptToFix(test)) {
+    if (isAttemptToFix(test) && !TestExclusions.noAutoRetry(source, tags)) {
       return null;
     }
 
-    if (isDisabled(test)) {
+    if (isDisabled(test) && !TestExclusions.preventFailureSuppression(source, tags)) {
       return SkipReason.DISABLED;
     }
 
@@ -126,34 +133,35 @@ public class ExecutionStrategy {
       return Regular.INSTANCE;
     }
 
-    if (isAttemptToFix(test)) {
+    boolean noAutoRetry = TestExclusions.noAutoRetry(testSource, testTags);
+    boolean quarantined =
+        isQuarantined(test) && !TestExclusions.preventFailureSuppression(testSource, testTags);
+    if (isAttemptToFix(test) && !noAutoRetry) {
       return new AttemptToFix(
           executionSettings.getTestManagementSettings().getAttemptToFixRetries());
     }
 
-    if (isEFDApplicable(test, testSource, testTags)) {
+    if (!noAutoRetry && isEFDApplicable(test, testSource, testTags)) {
       // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
       // but we don't care if we go "a bit" over the limit, it does not have to be precise
       earlyFlakeDetectionsUsed.incrementAndGet();
       return new EarlyFlakeDetection(
           executionSettings.getEarlyFlakeDetectionSettings().getExecutionsByDuration(),
-          isQuarantined(test));
+          quarantined);
     }
 
-    if (isAutoRetryApplicable(test)) {
+    if (!noAutoRetry && isAutoRetryApplicable(test)) {
       // check-then-act with "autoRetriesUsed" is not atomic here,
       // but we don't care if we go "a bit" over the limit, it does not have to be precise
       if (executionSettings.getDynamicAutoTestRetrySettings().isEnabled()) {
         return new DynamicAutoTestRetry(
-            executionSettings.getDynamicAutoTestRetrySettings(),
-            isQuarantined(test),
-            autoRetriesUsed);
+            executionSettings.getDynamicAutoTestRetrySettings(), quarantined, autoRetriesUsed);
       }
       return new AutoTestRetry(
-          config.getCiVisibilityFlakyRetryCount(), isQuarantined(test), autoRetriesUsed);
+          config.getCiVisibilityFlakyRetryCount(), quarantined, autoRetriesUsed);
     }
 
-    if (isQuarantined(test)) {
+    if (quarantined) {
       return new Quarantine();
     }
 
