@@ -34,7 +34,7 @@ public class PTagsFactory implements PropagationTags.Factory {
   public PTagsFactory(int xDatadogTagsLimit) {
     this.xDatadogTagsLimit = xDatadogTagsLimit;
     DEC_ENC_MAP.put(DATADOG, new DatadogPTagsCodec(xDatadogTagsLimit));
-    DEC_ENC_MAP.put(W3C, new W3CPTagsCodec());
+    DEC_ENC_MAP.put(W3C, new W3CPTagsCodec(this));
   }
 
   boolean isPropagationTagsDisabled() {
