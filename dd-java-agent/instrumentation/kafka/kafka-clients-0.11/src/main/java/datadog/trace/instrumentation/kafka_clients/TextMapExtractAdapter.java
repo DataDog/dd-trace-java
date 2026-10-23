@@ -6,6 +6,7 @@ import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCED_KEY;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.Functions;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
 import java.nio.ByteBuffer;
@@ -20,14 +21,21 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
   private static final Logger log = LoggerFactory.getLogger(TextMapExtractAdapter.class);
 
   public static final TextMapExtractAdapter GETTER =
-      new TextMapExtractAdapter(Config.get().isKafkaClientBase64DecodingEnabled());
+      new TextMapExtractAdapter(
+          Config.get().isKafkaClientBase64DecodingEnabled(),
+          Config.get().isKafkaClientBase64DecodingGuardEnabled());
 
   private final Function<byte[], String> headerValueTransformer;
   private final Base64.Decoder decoder;
 
   public TextMapExtractAdapter(boolean decodeBase64Headers) {
+    this(decodeBase64Headers, true);
+  }
+
+  public TextMapExtractAdapter(boolean decodeBase64Headers, boolean guardEnabled) {
     if (decodeBase64Headers) {
-      this.headerValueTransformer = BASE64_DECODE;
+      this.headerValueTransformer =
+          guardEnabled ? new Functions.GuardedBase64Decode()::tryApply : BASE64_DECODE;
       this.decoder = Base64.getDecoder();
     } else {
       this.headerValueTransformer = UTF8_BYTES_TO_STRING;
