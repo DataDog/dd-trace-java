@@ -39,7 +39,6 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.util.TestThrowables;
 import java.io.Closeable;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -276,7 +275,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     assertFalse(child2.hasSamplingPriority());
   }
 
-  static Stream<Arguments> originSetOnlyOnRootSpanArguments() {
+  static Stream<Arguments> originIsSharedByLocalTraceArguments() {
     return Stream.of(
         arguments("TagContext", new TagContext("some-origin", TagMap.fromMap(new HashMap<>()))),
         arguments(
@@ -291,9 +290,8 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   }
 
   @ParameterizedTest
-  @MethodSource("originSetOnlyOnRootSpanArguments")
-  void originSetOnlyOnRootSpan(String scenario, AgentSpanContext extractedContext)
-      throws Exception {
+  @MethodSource("originIsSharedByLocalTraceArguments")
+  void originIsSharedByLocalTrace(String scenario, AgentSpanContext extractedContext) {
     DDSpanContext parent =
         (DDSpanContext)
             tracer
@@ -305,14 +303,10 @@ public class DDSpanTest extends DDCoreJavaSpecification {
         (DDSpanContext)
             tracer.buildSpan("datadog", "testChild1").asChildOf(parent).start().spanContext();
 
+    assertSame(parent.getTraceCollector(), child.getTraceCollector());
+    assertEquals("some-origin", parent.getTraceCollector().getOrigin().toString());
     assertEquals("some-origin", parent.getOrigin().toString());
-    // Access field directly instead of getter.
-    Field originField = DDSpanContext.class.getDeclaredField("origin");
-    originField.setAccessible(true);
-    assertEquals("some-origin", originField.get(parent).toString());
     assertEquals("some-origin", child.getOrigin().toString());
-    // Access field directly instead of getter.
-    assertNull(originField.get(child));
   }
 
   static Stream<Arguments> isRootSpanArguments() {
