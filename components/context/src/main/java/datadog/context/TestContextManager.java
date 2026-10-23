@@ -43,7 +43,7 @@ final class TestContextManager implements ContextManager {
 
   private static ContextManager delegate() {
     ContextManager delegate = ContextProviders.customManager;
-    if (delegate == TEST_INSTANCE) {
+    if (delegate == null || delegate == TEST_INSTANCE) {
       // fall back to default context manager
       return ThreadLocalContextManager.INSTANCE;
     } else {
