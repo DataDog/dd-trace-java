@@ -9,6 +9,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
+import datadog.communication.HttpResponseException;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
@@ -144,6 +145,11 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
       }
       // Stop accepting new dispatches without waiting for producers already inside accept().
       FeatureFlaggingGateway.removeExposureListener(this);
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug(
+            "Feature Flagging exposure shutdown requested: queued={}; pending exposures get one final best-effort flush; processor completion is reported separately",
+            queue.size());
+      }
       // Polling wakes within 100 ms. An interrupt can race with, or abort, the final POST.
       serializer.requestShutdown();
     }
@@ -152,6 +158,13 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
   @Override
   public void awaitTermination(final long deadlineNanos) {
     FeatureFlagEventWriter.awaitThread(serializerThread, deadlineNanos);
+    // The final POST is not interrupted, so it can outlive the shutdown budget.
+    if (serializerThread.isAlive()
+        && serializerThread != Thread.currentThread()
+        && LOGGER.isDebugEnabled()) {
+      LOGGER.debug(
+          "Feature Flagging exposure shutdown wait expired; final delivery continues in the background");
+    }
   }
 
   @Override
@@ -160,7 +173,12 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
     // passes this check can race past the final drain and be dropped. Stale gateway dispatches
     // entering after shutdown starts are rejected without extending the shutdown wait.
     if (!closed.get()) {
-      queue.offer(event);
+      final boolean queued = queue.offer(event);
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("Feature Flagging exposure {}", queued ? "queued" : "dropped: queue full");
+      }
+    } else if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("Feature Flagging exposure dropped: writer shutting down");
     }
   }
 
@@ -233,7 +251,10 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
           }
         }
       }
-      LOGGER.debug("exposure processor worker exited. submitting exposures stopped.");
+      LOGGER.debug(
+          "Feature Flagging exposure processor stopped after final flush; queued={}, buffered={}",
+          queue.size(),
+          buffer.size());
     }
 
     private void runDutyCycle() throws InterruptedException {
@@ -268,6 +289,7 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
         buffer.add(event);
         return true;
       }
+      LOGGER.debug("Feature Flagging exposure suppressed: duplicate");
       return false;
     }
 
@@ -291,11 +313,23 @@ public class ExposureWriterImpl implements ExposureWriter, FeatureFlagEventWrite
         return;
       }
       try {
+        LOGGER.debug("Feature Flagging exposure flush starting: count={}", this.buffer.size());
         evpPublisher.post(EXPOSURES_ROUTE, payload);
+        LOGGER.debug("Feature Flagging exposure flush delivered: count={}", this.buffer.size());
       } catch (AgentlessFeatureFlagBackendApi.UnavailableRouteException ignored) {
         // The shared selector reports unavailable/recovered transitions once for both writers.
       } catch (Exception e) {
-        LOGGER.debug("Could not submit exposures", e);
+        if (e instanceof HttpResponseException) {
+          LOGGER.debug(
+              "Feature Flagging exposure flush failed: HTTP {}; dropping batch",
+              ((HttpResponseException) e).getStatusCode(),
+              e);
+        } else {
+          LOGGER.debug(
+              "Feature Flagging exposure flush failed: {}; dropping batch",
+              e.getClass().getSimpleName(),
+              e);
+        }
       } finally {
         // Best-effort delivery must not retry an ambiguously accepted batch. A later definitive
         // proxy rejection could otherwise replay the same exposures through direct intake.

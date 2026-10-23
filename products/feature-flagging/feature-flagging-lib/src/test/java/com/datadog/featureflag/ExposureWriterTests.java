@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,12 +27,18 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.ThrowableProxy;
+import ch.qos.logback.core.read.ListAppender;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.HttpResponseException;
 import datadog.communication.IntakeApi;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -51,6 +58,7 @@ import datadog.trace.api.featureflag.exposure.Variant;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.test.util.PollingConditions;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
@@ -65,6 +73,7 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -80,6 +89,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
 import org.tabletest.junit.TableTest;
 
 class ExposureWriterTests {
@@ -168,6 +178,137 @@ class ExposureWriterTests {
     }
   }
 
+  @TableTest({
+    "Scenario            | Fails | Status | Outcome                                    ",
+    "Successful delivery | false |        | 'flush delivered'                          ",
+    "Transport failure   | true  |        | 'flush failed: IOException; dropping batch'",
+    "HTTP rejection      | true  | 403    | 'flush failed: HTTP 403; dropping batch'   "
+  })
+  void distinguishesQueuedFromDeliveredExposures(boolean fails, Integer status, String outcome)
+      throws Exception {
+    Logger logger = (Logger) LoggerFactory.getLogger(ExposureWriterImpl.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.list = new CopyOnWriteArrayList<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    BackendApi backend = mock(BackendApi.class);
+    IOException failure =
+        status == null
+            ? new IOException("connection reset")
+            : new HttpResponseException(status, "exposure batch rejected");
+    if (fails) {
+      when(backend.post(any(), any(), any(), any(), eq(false))).thenThrow(failure);
+    }
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            16,
+            1,
+            MILLISECONDS,
+            () -> backend,
+            mockConfig("test-service"),
+            ExposureWriterImpl.SHUTDOWN_TIMEOUT_MILLIS);
+    try {
+      writer.init();
+      writer.accept(buildExposures(1).get(0));
+      poll.eventually(
+          () ->
+              assertTrue(
+                  appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(outcome))));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(e -> e.getFormattedMessage().contains("exposure queued")));
+      assertEquals(
+          !fails,
+          appender.list.stream()
+              .anyMatch(e -> e.getFormattedMessage().contains("flush delivered")));
+      if (fails) {
+        ILoggingEvent event =
+            appender.list.stream()
+                .filter(e -> e.getFormattedMessage().contains(outcome))
+                .findFirst()
+                .get();
+        assertSame(failure, ((ThrowableProxy) event.getThrowableProxy()).getThrowable());
+      }
+    } finally {
+      writer.close();
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
+      appender.stop();
+    }
+  }
+
+  @TableTest({
+    "Scenario            | Fails | Outcome                                               ",
+    "in-flight delivered | false | 'flush delivered'                                     ",
+    "in-flight timed out | true  | 'flush failed: SocketTimeoutException; dropping batch'"
+  })
+  void reportsShutdownWithPendingAndInFlightExposures(boolean fails, String outcome)
+      throws Exception {
+    Logger logger = (Logger) LoggerFactory.getLogger(ExposureWriterImpl.class);
+    Level previous = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.list = new CopyOnWriteArrayList<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    CountDownLatch inFlight = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    AtomicLong posts = new AtomicLong();
+    BackendApi backend = mock(BackendApi.class);
+    when(backend.post(any(), any(), any(), any(), eq(false)))
+        .thenAnswer(
+            invocation -> {
+              // Only the first delivery blocks; the final flush after it returns immediately.
+              if (posts.incrementAndGet() == 1) {
+                inFlight.countDown();
+                release.await();
+                if (fails) {
+                  throw new SocketTimeoutException("destination timed out during shutdown");
+                }
+              }
+              return null;
+            });
+    List<ExposureEvent> exposures = buildExposures(3);
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(16, 1, MILLISECONDS, () -> backend, mockConfig("shutdown"), 100);
+    try {
+      writer.init();
+      writer.accept(exposures.get(0));
+      assertTrue(inFlight.await(5000, MILLISECONDS));
+      writer.accept(exposures.get(1));
+      writer.close();
+      writer.accept(exposures.get(2));
+      assertTrue(writer.isSerializerThreadAlive());
+      release.countDown();
+      poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(e -> e.getFormattedMessage().contains("shutdown requested: queued=1;")));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(e -> e.getFormattedMessage().contains("shutdown wait expired")));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(e -> e.getFormattedMessage().contains("dropped: writer shutting down")));
+      assertTrue(appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(outcome)));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(
+                  e ->
+                      e.getFormattedMessage()
+                          .contains("stopped after final flush; queued=0, buffered=0")));
+      verify(backend, times(2)).post(any(), any(), any(), any(), eq(false));
+    } finally {
+      release.countDown();
+      writer.close();
+      logger.detachAppender(appender);
+      logger.setLevel(previous);
+      appender.stop();
+    }
+  }
+
   @Test
   void testExposureRequestsCarrySdkIdentity() throws Exception {
     // Exercise the production writer and factory on the fixed Remote Config EVP v2 route.
@@ -191,6 +332,36 @@ class ExposureWriterTests {
           });
     } finally {
       sharedCommunicationObjects.agentHttpClient.connectionPool().evictAll();
+    }
+  }
+
+  @Test
+  void logsExposuresDroppedWhenQueueIsFull() {
+    Logger logger = (Logger) LoggerFactory.getLogger(ExposureWriterImpl.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    Config config = mockConfig("test-service");
+
+    // The writer is not initialized, so no serializer thread drains the queue.
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
+      for (ExposureEvent exposure : buildExposures(17)) {
+        writer.accept(exposure);
+      }
+
+      assertEquals(16, writer.queueSize());
+      assertEquals(
+          1,
+          appender.list.stream()
+              .filter(e -> e.getFormattedMessage().contains("exposure dropped: queue full"))
+              .count());
+    } finally {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
     }
   }
 
@@ -575,16 +746,36 @@ class ExposureWriterTests {
   void testSerializationFailureDoesNotPoisonFollowingExposures() throws Exception {
     Config config = mockConfig("test-service");
     ExposureEvent validExposure = buildExposure();
+    Logger logger = (Logger) LoggerFactory.getLogger(ExposureWriterImpl.class);
+    Level previousLevel = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.list = new CopyOnWriteArrayList<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.ERROR);
 
     try (ExposureWriterImpl writer =
         new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
       writer.init();
       writer.accept(buildExposure(singletonMap("invalid", (Object) Double.NaN)));
 
-      MILLISECONDS.sleep(300); // wait for the invalid batch to be dropped
+      poll.eventually(
+          () -> {
+            assertEquals(1, appender.list.size());
+            ILoggingEvent event = appender.list.get(0);
+            assertTrue(event.getFormattedMessage().contains("Could not serialize exposures"));
+            assertNotNull(event.getThrowableProxy());
+            assertEquals(
+                IllegalArgumentException.class.getName(), event.getThrowableProxy().getClassName());
+            assertTrue(event.getThrowableProxy().getMessage().contains("NaN"));
+          });
       writer.accept(validExposure);
 
       poll.eventually(() -> assertExposures(allExposures(), singletonList(validExposure)));
+    } finally {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
     }
   }
 

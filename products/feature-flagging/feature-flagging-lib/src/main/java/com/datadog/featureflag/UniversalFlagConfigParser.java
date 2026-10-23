@@ -75,6 +75,12 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       final ServerConfiguration configuration = parse(reader);
       requireEndOfDocument(reader);
       return configuration;
+    } catch (IOException | RuntimeException e) {
+      LOGGER.debug(
+          "Feature Flagging remote_config configuration rejected: malformed UFC payload ({})",
+          e.getClass().getSimpleName(),
+          e);
+      throw e;
     }
   }
 
@@ -235,9 +241,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
                         + allocIdx
                         + " rule has condition with operator \""
                         + condition.operator
-                        + "\" and invalid semantic version \""
-                        + condition.value
-                        + "\"");
+                        + "\" and invalid semantic version");
               }
               condition.semverComparand = parsed;
               break;
@@ -365,28 +369,44 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         return reader.nextNull();
       }
       final Map<String, Flag> flags = new HashMap<>();
+      int receivedFlags = 0;
+      int rejectedFlags = 0;
       reader.beginObject();
       while (reader.hasNext()) {
         final String flagKey = reader.nextName();
+        receivedFlags++;
         final Object rawFlag = reader.readJsonValue();
         try {
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
           if (flag != null) {
             validateFlag(flagKey, flag);
             flags.put(flagKey, flag);
+          } else {
+            rejectedFlags++;
+            LOGGER.debug(
+                "Feature Flagging rejected flag {} during configuration parsing: null flag",
+                flagKey);
           }
         } catch (JsonDataException | IllegalArgumentException error) {
+          rejectedFlags++;
           INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_FLAG);
           if (error instanceof InvalidSemverComparandException) {
             INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_SEMVER_COMPARAND);
           }
           LOGGER.warn(
-              "Dropping malformed FFE flag {} during remote config deserialization: {}",
+              "Feature Flagging rejected flag {} during configuration parsing: {}",
               flagKey,
               error.toString());
         }
       }
       reader.endObject();
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug(
+            "Feature Flagging configuration flags parsed: receivedFlags={}, usableFlags={}, rejectedFlags={}",
+            receivedFlags,
+            flags.size(),
+            rejectedFlags);
+      }
       return flags;
     }
 

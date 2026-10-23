@@ -1,5 +1,7 @@
 package datadog.trace.api.openfeature;
 
+import static datadog.trace.api.openfeature.Provider.debugQuietly;
+
 import dev.openfeature.sdk.ErrorCode;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
@@ -42,7 +44,7 @@ class FlagEvalMetrics implements Closeable {
               .setDescription(METRIC_DESC)
               .build();
 
-      log.debug("Flag evaluation metrics initialized");
+      debugQuietly(log, "Flag evaluation metrics initialized");
     } catch (NoClassDefFoundError e) {
       log.error(
           "OpenTelemetry API is not on the classpath — evaluation metrics disabled. Add"

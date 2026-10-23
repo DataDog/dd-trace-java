@@ -52,6 +52,10 @@ public class FeatureFlaggingSystem {
       return;
     }
 
+    LOGGER.debug(
+        "Feature Flagging enabled; configuration source={}, env={}",
+        config.getFeatureFlaggingConfigurationSource(),
+        config.getEnv());
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
       final FeatureFlaggingGateway.ActivationListener activationListener =
           () -> activateAgentless(sco, config, systemInitializer);
@@ -93,6 +97,8 @@ public class FeatureFlaggingSystem {
         SHUTDOWN_HOOK = hook;
       }
     } catch (final RuntimeException | Error e) {
+      LOGGER.debug(
+          "Feature Flagging system initialization failed: {}", e.getClass().getSimpleName());
       stop();
       throw e;
     }
@@ -164,6 +170,7 @@ public class FeatureFlaggingSystem {
     final String configurationSource = config.getFeatureFlaggingConfigurationSource();
     if (CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(configurationSource)) {
       if (!config.isRemoteConfigEnabled()) {
+        LOGGER.warn("Feature Flagging remote_config source requires DD_REMOTE_CONFIG_ENABLED=true");
         throw new IllegalStateException("Feature Flagging system started without RC");
       }
       return new RemoteConfigServiceImpl(sco, config);

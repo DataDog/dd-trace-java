@@ -17,6 +17,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -45,6 +49,8 @@ import java.util.List;
 import java.util.Map;
 import okio.Buffer;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,6 +59,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 import org.tabletest.junit.TableTest;
 
 @ExtendWith(MockitoExtension.class)
@@ -88,6 +95,81 @@ class RemoteConfigServiceImplTest {
 
     verify(poller).removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     verify(poller).removeListeners(Product.FFE_FLAGS);
+  }
+
+  @Nested
+  class Diagnostics {
+    private final Logger logger = (Logger) LoggerFactory.getLogger(RemoteConfigServiceImpl.class);
+    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private Level previousLevel;
+    private RemoteConfigServiceImpl service;
+
+    @BeforeEach
+    void captureLogs() {
+      previousLevel = logger.getLevel();
+      logger.setLevel(Level.DEBUG);
+      appender.start();
+      logger.addAppender(appender);
+      final SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
+      when(sco.configurationPoller(any(Config.class))).thenReturn(mock(ConfigurationPoller.class));
+      service = new RemoteConfigServiceImpl(sco, Config.get());
+      FeatureFlaggingGateway.addConfigListener(listener);
+    }
+
+    @AfterEach
+    void restoreLogging() {
+      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
+    }
+
+    @Test
+    void reportsAppliedConfiguration() throws Exception {
+      final ServerConfiguration config = deserialize(emptyConfig());
+
+      service.accept("datadog/2/FFE_FLAGS/config/config", config, mock(PollingRateHinter.class));
+
+      verify(listener).accept(config);
+      assertLogged(
+          "configuration applied: key=datadog/2/FFE_FLAGS/config/config, flags=0, configurationEnv=Test, createdAt=2024-04-17T19:40:53.716Z");
+    }
+
+    @Test
+    void reportsAppliedConfigurationWithoutFlagsOrEnvironment() {
+      final ServerConfiguration config = new ServerConfiguration(null, null, null, null, null);
+
+      service.accept("config", config, mock(PollingRateHinter.class));
+
+      verify(listener).accept(config);
+      assertLogged(
+          "configuration applied: key=config, flags=missing, configurationEnv=null, createdAt=null");
+    }
+
+    @Test
+    void reportsRemovedConfiguration() {
+      service.accept("config", null, mock(PollingRateHinter.class));
+
+      verify(listener).accept(null);
+      assertLogged("configuration removed");
+    }
+
+    @Test
+    void omitsAppliedConfigurationDetailsWhenDebugIsDisabled() throws Exception {
+      logger.setLevel(Level.INFO);
+      final ServerConfiguration config = deserialize(emptyConfig());
+
+      service.accept("config", config, mock(PollingRateHinter.class));
+
+      verify(listener).accept(config);
+      assertTrue(appender.list.isEmpty());
+    }
+
+    private void assertLogged(final String text) {
+      assertTrue(
+          appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(text)),
+          "Missing log: " + text);
+    }
   }
 
   @Test

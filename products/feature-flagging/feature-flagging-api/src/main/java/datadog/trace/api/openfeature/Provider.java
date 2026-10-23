@@ -89,7 +89,7 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(4);
+    final List<Hook> hooks = new ArrayList<>(5);
     if (flagEvalMetricsHook != null) {
       hooks.add(flagEvalMetricsHook);
     }
@@ -117,40 +117,81 @@ public class Provider extends EventProvider implements Metadata {
     } catch (LinkageError e) {
       log.warn("Feature flag exposure reporting is unavailable with the installed agent", e);
     }
+    // Local debug diagnostics are not telemetry, so evaluation telemetry opt-out does not apply.
+    final DebugLoggingHook debugLoggingHook = DebugLoggingHook.createIfEnabled();
+    if (debugLoggingHook != null) {
+      hooks.add(debugLoggingHook);
+    } else if (DebugLoggingHook.TRACE_DEBUG) {
+      // DD_TRACE_DEBUG cannot raise application logger levels, so name the missing second gate.
+      try {
+        log.warn(
+            "DD_TRACE_DEBUG is enabled, but DEBUG is disabled for datadog.trace.api.openfeature in"
+                + " the application's logging configuration; provider debug diagnostics are off."
+                + " Enable DEBUG for that category before constructing the Provider.");
+      } catch (Throwable ignored) {
+        // A failing logging backend must not prevent provider construction.
+      }
+    }
     this.providerHooks =
         hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
 
     // Announce the span-enrichment state at startup (matches the reference implementation).
     // "enabled" only when the gate is on (the capture hook was constructed), otherwise "disabled".
-    if (spanEnrichmentHook != null) {
-      log.info("{} span enrichment enabled", METADATA);
-    } else {
-      log.info("{} span enrichment disabled", METADATA);
+    try {
+      if (spanEnrichmentHook != null) {
+        log.info("{} span enrichment enabled", METADATA);
+      } else {
+        log.info("{} span enrichment disabled", METADATA);
+      }
+    } catch (Throwable ignored) {
+      // A failing logging backend must not prevent provider construction.
     }
   }
 
   @Override
   public void initialize(final EvaluationContext context) throws Exception {
+    debugQuietly(
+        log,
+        "Feature Flagging provider initializing; timeout={} {}",
+        options.getTimeout(),
+        options.getUnit());
     initializationState.set(InitializationState.INITIALIZING);
     try {
       evaluator = buildEvaluator();
       if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
         if (markInitialConfigReceivedReady()) {
+          debugQuietly(log, "Feature Flagging provider initialized successfully");
           return;
         }
         markInitializationError();
+        debugQuietly(
+            log,
+            "Feature Flagging provider initialization timed out waiting for usable configuration");
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
       if (!evaluator.hasConfiguration() || !markSuccessfulInitializationReady()) {
         markInitializationError();
+        debugQuietly(
+            log, "Feature Flagging provider initialization failed: configuration unavailable");
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
+      debugQuietly(log, "Feature Flagging provider initialized successfully");
     } catch (final OpenFeatureError e) {
+      debugQuietly(
+          log,
+          "Feature Flagging provider initialization failed: errorCode={}",
+          e.getErrorCode(),
+          e);
       markInitializationError();
       throw e;
     } catch (final Throwable e) {
+      debugQuietly(
+          log,
+          "Feature Flagging provider initialization failed: {}; verify the Java agent and feature flag configuration",
+          e.getClass().getSimpleName(),
+          e);
       markInitializationError();
       throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
     }
@@ -174,6 +215,7 @@ public class Provider extends EventProvider implements Metadata {
     if (state == InitializationState.ERROR
         && initializationState.compareAndSet(
             InitializationState.ERROR, InitializationState.READY)) {
+      debugQuietly(log, "Feature Flagging provider ready after configuration recovery");
       emit(
           ProviderEvent.PROVIDER_READY,
           ProviderEventDetails.builder().message("Provider ready").build());
@@ -182,6 +224,7 @@ public class Provider extends EventProvider implements Metadata {
     if (initializationState.get() != InitializationState.READY) {
       return;
     }
+    debugQuietly(log, "Feature Flagging provider configuration changed");
     emit(
         ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
         ProviderEventDetails.builder().message("New configuration received").build());
@@ -195,6 +238,7 @@ public class Provider extends EventProvider implements Metadata {
     if (!initializationState.compareAndSet(InitializationState.READY, InitializationState.ERROR)) {
       return;
     }
+    debugQuietly(log, "Feature Flagging provider configuration unavailable");
     emit(
         ProviderEvent.PROVIDER_ERROR,
         ProviderEventDetails.builder()
@@ -249,6 +293,7 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public void shutdown() {
+    debugQuietly(log, "Feature Flagging provider shutting down");
     if (flagEvalMetrics != null) {
       flagEvalMetrics.shutdown();
     }
@@ -257,6 +302,35 @@ public class Provider extends EventProvider implements Metadata {
     // feature-flagging subsystem, not per provider.
     if (evaluator != null) {
       evaluator.shutdown();
+    }
+    debugQuietly(
+        log,
+        "Feature Flagging provider shutdown complete; configuration listener detached; agent owns exposure delivery and shutdown");
+  }
+
+  /**
+   * Logs a provider diagnostic only when {@code DD_TRACE_DEBUG} is enabled; a failing logging
+   * backend never changes provider behavior.
+   */
+  static void debugQuietly(final Logger log, final String message) {
+    if (!DebugLoggingHook.TRACE_DEBUG) {
+      return;
+    }
+    try {
+      log.debug(message);
+    } catch (Throwable ignored) {
+      // Diagnostics must never interrupt construction, initialization, evaluation, or shutdown.
+    }
+  }
+
+  static void debugQuietly(final Logger log, final String format, final Object... arguments) {
+    if (!DebugLoggingHook.TRACE_DEBUG) {
+      return;
+    }
+    try {
+      log.debug(format, arguments);
+    } catch (Throwable ignored) {
+      // Diagnostics must never interrupt construction, initialization, evaluation, or shutdown.
     }
   }
 

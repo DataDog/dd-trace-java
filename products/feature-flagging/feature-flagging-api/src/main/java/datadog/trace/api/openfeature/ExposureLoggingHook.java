@@ -1,5 +1,7 @@
 package datadog.trace.api.openfeature;
 
+import static datadog.trace.api.openfeature.Provider.debugQuietly;
+
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
@@ -45,16 +47,22 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final Map<String, Object> hints) {
     try {
       if (details == null || details.getErrorCode() != null) {
+        debugQuietly(
+            log, "Feature Flagging exposure suppressed: evaluation failed or details unavailable");
         return;
       }
       final ImmutableMetadata metadata = details.getFlagMetadata();
       if (metadata == null) {
+        debugQuietly(log, "Feature Flagging exposure suppressed: metadata unavailable");
         return;
       }
       // The ImmutableMetadata getters build a debug message for every absent key.
       final Map<String, Object> values = metadata.asUnmodifiableMap();
       if (!Boolean.TRUE.equals(values.get(DDEvaluator.METADATA_DO_LOG))
           || !Boolean.FALSE.equals(values.get(DDEvaluator.METADATA_EXPOSURE_CACHE_HIT))) {
+        debugQuietly(
+            log,
+            "Feature Flagging exposure suppressed: allocation logging disabled or exposure already recorded");
         return;
       }
       final String flag = details.getFlagKey();
@@ -64,6 +72,9 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final String variantKey = details.getVariant();
       final EvaluationContext context = ctx == null ? null : ctx.getCtx();
       if (allocationKey == null || variantKey == null || context == null) {
+        debugQuietly(
+            log,
+            "Feature Flagging exposure suppressed: allocation, variant, or context unavailable");
         return;
       }
       final Object serialValue = values.get(DDEvaluator.METADATA_SPLIT_SERIAL_ID);
@@ -81,6 +92,10 @@ class ExposureLoggingHook<T> implements Hook<T> {
                 serialId,
                 SplitFeatureMetadata.featuresWithPrefix(
                     metadata, DDEvaluator.METADATA_EXPOSURE_FEATURE_PREFIX)));
+        debugQuietly(log, "Feature Flagging exposure dispatched to agent listeners");
+      } else {
+        debugQuietly(
+            log, "Feature Flagging exposure suppressed: Datadog exposure logging disabled");
       }
     } catch (LinkageError e) {
       // Never let exposure reporting break flag evaluation.

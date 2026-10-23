@@ -8,6 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.squareup.moshi.JsonQualifier;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
@@ -21,8 +25,77 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 
 class JsonApiUfcResponseParserTest {
+
+  @Test
+  void countsNullAndMalformedFlagsWithoutChangingTheirEvaluationSemantics() throws Exception {
+    Logger logger = (Logger) LoggerFactory.getLogger(UniversalFlagConfigParser.class);
+    Level previous = logger.getLevel();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.DEBUG);
+    try {
+      ServerConfiguration config = parse(wrap("{\"flags\":{\"null-flag\":null,\"bad\":42}}"));
+      assertTrue(config.flags.isEmpty());
+      assertEquals(1, config.invalidFlags.size());
+      assertFalse(config.invalidFlags.containsKey("null-flag"));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(
+                  event ->
+                      event
+                          .getFormattedMessage()
+                          .contains("receivedFlags=2, usableFlags=0, rejectedFlags=2")));
+      assertTrue(
+          appender.list.stream()
+              .anyMatch(event -> event.getFormattedMessage().contains("null flag")));
+    } finally {
+      logger.detachAppender(appender);
+      logger.setLevel(previous);
+      appender.stop();
+    }
+  }
+
+  @Test
+  void rejectedFlagWarningsRetainStructuralReasonsWithoutSemverComparands() throws Exception {
+    final Logger logger = (Logger) LoggerFactory.getLogger(UniversalFlagConfigParser.class);
+    final Level previousLevel = logger.getLevel();
+    final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    logger.setLevel(Level.WARN);
+    try {
+      final ServerConfiguration configuration =
+          parse(
+              wrap(
+                  configWithFlags(
+                      booleanFlag(
+                          "missing-shards",
+                          ",\"allocations\":[{\"key\":\"allocation\",\"splits\":[{}]}]"),
+                      booleanFlag(
+                          "invalid-semver",
+                          allocation(
+                              "allocation",
+                              "[{\"conditions\":[{\"attribute\":\"version\",\"operator\":\"SEMVER_EQ\",\"value\":\"secret-comparand\"}]}]")))));
+
+      assertEquals("invalid_flag", configuration.invalidFlags.get("missing-shards"));
+      assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("invalid-semver"));
+      assertEquals(2, appender.list.size());
+      assertTrue(appender.list.get(0).getFormattedMessage().contains("InvalidFlagException:"));
+      assertTrue(appender.list.get(0).getFormattedMessage().contains("split with missing shards"));
+      assertTrue(
+          appender.list.get(1).getFormattedMessage().contains("InvalidSemverComparandException:"));
+      assertTrue(appender.list.get(1).getFormattedMessage().contains("invalid semantic version"));
+      assertFalse(appender.list.get(1).getFormattedMessage().contains("secret-comparand"));
+    } finally {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
+    }
+  }
 
   @Test
   void parsesJsonApiMembersInAnyOrder() throws Exception {
