@@ -234,7 +234,6 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
             null,
             null,
             NoopPathwayContext.INSTANCE,
-            false,
             PropagationTags.factory().empty());
     Constructor<DDSpan> ctor =
         DDSpan.class.getDeclaredConstructor(

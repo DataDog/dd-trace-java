@@ -535,7 +535,6 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
             null,
             null,
             NoopPathwayContext.INSTANCE,
-            false,
             PropagationTags.factory().empty());
     return DDSpan.create("test", timestampMicro, context, null);
   }
@@ -561,7 +560,6 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
             null,
             null,
             NoopPathwayContext.INSTANCE,
-            false,
             PropagationTags.factory().empty());
     return DDSpan.create("test", 0, context, null);
   }
