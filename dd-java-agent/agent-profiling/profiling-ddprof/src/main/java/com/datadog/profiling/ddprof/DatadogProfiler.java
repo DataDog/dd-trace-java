@@ -107,9 +107,50 @@ public final class DatadogProfiler {
   }
 
   private final AtomicBoolean recordingFlag = new AtomicBoolean(false);
-  private final ConfigProvider configProvider;
   private final JavaProfiler profiler;
-  private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
+  // replaced by reconfigure(), read once per recording start
+  private volatile RecordingSettings settings;
+  // keeps the settings from changing while a recording is starting
+  private final Object settingsLock = new Object();
+
+  /**
+   * The config-driven part of the profiling command, which can change between recordings. Context
+   * attributes are not part of it since they can't be changed at runtime.
+   */
+  static final class RecordingSettings {
+    final ConfigProvider configProvider;
+    final EnumSet<ProfilingMode> profilingModes;
+
+    private RecordingSettings(ConfigProvider configProvider, EnumSet<ProfilingMode> modes) {
+      this.configProvider = configProvider;
+      this.profilingModes = modes;
+    }
+
+    static RecordingSettings from(ConfigProvider configProvider) {
+      // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so
+      //  configuration can be consistent with JFR event control
+      EnumSet<ProfilingMode> modes = EnumSet.noneOf(ProfilingMode.class);
+      if (isAllocationProfilingEnabled(configProvider)) {
+        modes.add(ALLOCATION);
+      }
+      if (isMemoryLeakProfilingEnabled(configProvider)) {
+        modes.add(MEMLEAK);
+      }
+      if (isCpuProfilerEnabled(configProvider)) {
+        modes.add(CPU);
+      }
+      if (isWallClockProfilerEnabled(configProvider)) {
+        modes.add(WALL);
+      }
+      if (isNativeMemoryProfilingEnabled(configProvider)) {
+        modes.add(NATIVEMEM);
+      }
+      if (isNativeSocketProfilingEnabled(configProvider)) {
+        modes.add(NATIVESOCKET);
+      }
+      return new RecordingSettings(configProvider, modes);
+    }
+  }
 
   private final ContextSetter contextSetter;
 
@@ -218,7 +259,6 @@ public final class DatadogProfiler {
   private final Path recordingsPath;
 
   private DatadogProfiler(ConfigProvider configProvider) {
-    this.configProvider = configProvider;
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
     this.detailedDebugLogging =
         configProvider.getBoolean(
@@ -229,26 +269,7 @@ public final class DatadogProfiler {
           "Unable to instantiate datadog profiler", reasonNotLoaded);
     }
 
-    // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
-    //  can be consistent with JFR event control
-    if (isAllocationProfilingEnabled(configProvider)) {
-      profilingModes.add(ALLOCATION);
-    }
-    if (isMemoryLeakProfilingEnabled(configProvider)) {
-      profilingModes.add(MEMLEAK);
-    }
-    if (isCpuProfilerEnabled(configProvider)) {
-      profilingModes.add(CPU);
-    }
-    if (isWallClockProfilerEnabled(configProvider)) {
-      profilingModes.add(WALL);
-    }
-    if (isNativeMemoryProfilingEnabled(configProvider)) {
-      profilingModes.add(NATIVEMEM);
-    }
-    if (isNativeSocketProfilingEnabled(configProvider)) {
-      profilingModes.add(NATIVESOCKET);
-    }
+    this.settings = RecordingSettings.from(configProvider);
     Set<String> contextAttributes = getContextAttributes(configProvider);
     this.orderedContextAttributes = getOrderedContextAttributes(contextAttributes, configProvider);
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
@@ -349,8 +370,45 @@ public final class DatadogProfiler {
     }
   }
 
+  /**
+   * @return whether the given configuration enables any Datadog profiler mode (cpu, wall,
+   *     allocation, ...)
+   */
+  public static boolean isAnyProfilingModeEnabled(ConfigProvider configProvider) {
+    return !RecordingSettings.from(configProvider).profilingModes.isEmpty();
+  }
+
+  /** The profiling modes of the current settings, as an {@code EnumSet} copy. */
   public Set<ProfilingMode> enabledModes() {
-    return profilingModes;
+    return EnumSet.copyOf(settings.profilingModes);
+  }
+
+  /**
+   * Applies a new configuration, used by the next recording's start command. It can only be done
+   * while no recording is running, since a running recording keeps the command it was started with.
+   * The context attributes and the native library can't be changed at runtime, so these keep their
+   * initial configuration.
+   *
+   * @param configProvider the new configuration
+   * @throws IllegalStateException if a recording is running
+   */
+  public void reconfigure(ConfigProvider configProvider) {
+    List<String> requestedAttributes = getOrderedContextAttributes(configProvider);
+    if (!requestedAttributes.equals(orderedContextAttributes)) {
+      log.warn(
+          "Datadog profiler context attributes can't be changed at runtime, keeping {} instead of {}",
+          orderedContextAttributes,
+          requestedAttributes);
+    }
+    RecordingSettings newSettings = RecordingSettings.from(configProvider);
+    synchronized (settingsLock) {
+      if (recordingFlag.get()) {
+        throw new IllegalStateException(
+            "Datadog profiler can't be reconfigured while a recording is running");
+      }
+      settings = newSettings;
+    }
+    log.debug("Datadog profiler reconfigured, modes: {}", newSettings.profilingModes);
   }
 
   public boolean isActive() {
@@ -372,24 +430,30 @@ public final class DatadogProfiler {
   }
 
   Path newRecording() throws IOException, IllegalStateException {
-    if (recordingFlag.compareAndSet(false, true)) {
-      Path recFile = Files.createTempFile(recordingsPath, "dd-profiler-", ".jfr");
-      String cmd = cmdStartProfiling(recFile);
-      try {
-        String rslt = executeProfilerCmd(cmd);
-        log.debug("DatadogProfiler.execute({}) = {}", cmd, rslt);
-      } catch (IOException | IllegalStateException e) {
-        if (log.isDebugEnabled()) {
-          log.warn("Unable to start Datadog profiler recording", e);
-        } else {
-          log.warn("Unable to start Datadog profiler recording: {}", e.getMessage());
-        }
-        recordingFlag.set(false);
-        throw e;
+    final RecordingSettings settings;
+    synchronized (settingsLock) {
+      if (!recordingFlag.compareAndSet(false, true)) {
+        throw new IllegalStateException("Datadog profiler session has already been started");
       }
-      return recFile;
+      // reconfigure() can't replace the settings once the flag is set
+      settings = this.settings;
     }
-    throw new IllegalStateException("Datadog profiler session has already been started");
+    try {
+      Path recFile = Files.createTempFile(recordingsPath, "dd-profiler-", ".jfr");
+      String cmd = cmdStartProfiling(settings, orderedContextAttributes, recFile);
+      String rslt = executeProfilerCmd(cmd);
+      log.debug("DatadogProfiler.execute({}) = {}", cmd, rslt);
+      return recFile;
+    } catch (IOException | IllegalStateException e) {
+      if (log.isDebugEnabled()) {
+        log.warn("Unable to start Datadog profiler recording", e);
+      } else {
+        log.warn("Unable to start Datadog profiler recording: {}", e.getMessage());
+      }
+      // allow a later start, possibly with another configuration
+      recordingFlag.set(false);
+      throw e;
+    }
   }
 
   void dump(Path path) {
@@ -397,6 +461,14 @@ public final class DatadogProfiler {
   }
 
   String cmdStartProfiling(Path file) throws IllegalStateException {
+    return cmdStartProfiling(settings, orderedContextAttributes, file);
+  }
+
+  static String cmdStartProfiling(
+      RecordingSettings settings, List<String> orderedContextAttributes, Path file)
+      throws IllegalStateException {
+    final ConfigProvider configProvider = settings.configProvider;
+    final Set<ProfilingMode> profilingModes = settings.profilingModes;
     // 'start' = start, 'jfr=7' = store in JFR format ready for concatenation
     int safemode = getSafeMode(configProvider);
     if (safemode != ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT) {
@@ -435,7 +507,7 @@ public final class DatadogProfiler {
         }
       } else {
         // using cpu time schedule
-        int interval = getCpuInterval();
+        int interval = getCpuInterval(configProvider);
         if (JavaVirtualMachine.isJ9())
           interval =
               interval == ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT

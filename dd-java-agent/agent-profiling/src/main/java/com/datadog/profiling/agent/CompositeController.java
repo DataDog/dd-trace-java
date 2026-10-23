@@ -68,6 +68,16 @@ public class CompositeController implements Controller {
     return new CompositeOngoingRecording(recordings);
   }
 
+  @Override
+  public void configure(ControllerContext context) {
+    controllers.forEach(controller -> controller.configure(context));
+  }
+
+  @Override
+  public void reconfigure(ConfigProvider configProvider) {
+    controllers.forEach(controller -> controller.reconfigure(configProvider));
+  }
+
   private static class CompositeOngoingRecording implements OngoingRecording {
 
     private final List<OngoingRecording> recordings;

@@ -9,7 +9,8 @@ public enum ProfilingEnablement {
   ENABLED(true, "manual"),
   DISABLED(false),
   AUTO(true),
-  INJECTED(true);
+  INJECTED(true),
+  ARMED(true);
 
   private static final Logger logger = LoggerFactory.getLogger(Profiling.class);
 
@@ -57,6 +58,8 @@ public enum ProfilingEnablement {
         return ENABLED;
       case "auto":
         return AUTO;
+      case "armed":
+        return ARMED;
       default:
         return DISABLED;
     }
@@ -70,6 +73,7 @@ public enum ProfilingEnablement {
       case "false":
       case "true":
       case "auto":
+      case "armed":
         return;
       // values 1 and 0 are accepted for backwards compatibility
       case "1":
@@ -77,7 +81,7 @@ public enum ProfilingEnablement {
         return;
       default:
         logger.warn(
-            "Invalid value for 'dd.profiling.enabled' (DD_PROFILING_ENABLED) detected: {}. Valid values are 'true', 'false' and 'auto'.",
+            "Invalid value for 'dd.profiling.enabled' (DD_PROFILING_ENABLED) detected: {}. Valid values are 'true', 'false', 'auto' and 'armed'.",
             value);
     }
   }

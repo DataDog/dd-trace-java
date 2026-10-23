@@ -54,12 +54,13 @@ class ProfilingConfigPollerTest {
 
   @TableTest({
     "Scenario | Enablement | Expected",
-    "auto     | AUTO       | true    ",
+    "armed    | ARMED      | true    ",
+    "auto     | AUTO       | false   ",
     "enabled  | ENABLED    | false   ",
     "injected | INJECTED   | false   ",
     "disabled | DISABLED   | false   "
   })
-  void enabledOnlyForAutoEnablement(ProfilingEnablement enablement, boolean expected) {
+  void enabledOnlyForArmedEnablement(ProfilingEnablement enablement, boolean expected) {
     when(config.getProfilingEnablement()).thenReturn(enablement);
 
     assertEquals(expected, ProfilingConfigPoller.isEnabled(config));

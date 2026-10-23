@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.controller;
 
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import javax.annotation.Nonnull;
 
 /**
@@ -34,4 +35,12 @@ public interface Controller {
       throws UnsupportedEnvironmentException;
 
   default void configure(ControllerContext context) {}
+
+  /**
+   * Applies a new configuration to the recordings created from now on. Only called while no
+   * recording is running.
+   *
+   * @param configProvider the new configuration
+   */
+  default void reconfigure(ConfigProvider configProvider) {}
 }

@@ -62,6 +62,22 @@ class ConfigProviderTest {
   }
 
   @Test
+  @WithConfig(key = "profiling.ddprof.cpu.interval.ms", value = "11")
+  @WithConfig(key = "profiling.ddprof.wall.interval.ms", value = "33")
+  void remoteOverrideTakesPrecedenceOverOtherSources() {
+    Map<String, String> remote = new HashMap<>();
+    remote.put("profiling.ddprof.cpu.interval.ms", "22");
+
+    ConfigProvider provider = ConfigProvider.withRemoteOverride(remote);
+
+    assertEquals(22, provider.getInteger("profiling.ddprof.cpu.interval.ms", 10));
+    // keys without a remote value still come from the regular sources
+    assertEquals(33, provider.getInteger("profiling.ddprof.wall.interval.ms", 50));
+    assertEquals(
+        11, ConfigProvider.getInstance().getInteger("profiling.ddprof.cpu.interval.ms", 10));
+  }
+
+  @Test
   @WithConfig(
       key = "TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING",
       value = "/a:env,/b:env",

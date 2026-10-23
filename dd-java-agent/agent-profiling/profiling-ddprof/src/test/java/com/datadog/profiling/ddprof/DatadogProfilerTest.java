@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.controller.OngoingRecording;
@@ -595,6 +596,56 @@ class DatadogProfilerTest {
             + " it doesn't overwrite the span-derived value just written to an app-owned offset");
     profiler.clearSpanContext();
     profiler.clearContextValue("foo");
+  }
+
+  @Test
+  void reconfigureChangesStartCommand() throws Exception {
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(configProvider(true, false, false, false));
+    Path targetFile = Paths.get("/tmp/target.jfr");
+    String cpuCommand = profiler.cmdStartProfiling(targetFile);
+    assertTrue(cpuCommand.contains(",cpu="), cpuCommand);
+    assertFalse(cpuCommand.contains(",wall="), cpuCommand);
+
+    profiler.reconfigure(configProvider(false, true, false, false));
+
+    String wallCommand = profiler.cmdStartProfiling(targetFile);
+    assertFalse(wallCommand.contains(",cpu="), wallCommand);
+    assertTrue(wallCommand.contains(",wall="), wallCommand);
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.WALL));
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.CPU));
+  }
+
+  @Test
+  void restartWithNewConfiguration() throws Exception {
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(configProvider(true, false, false, false));
+    if (profiler.isActive()) {
+      log.warn("Datadog profiler is already running. Skipping the test.");
+      return;
+    }
+
+    OngoingRecording first = profiler.start();
+    assertNotNull(first);
+    try {
+      assertThrows(
+          IllegalStateException.class,
+          () -> profiler.reconfigure(configProvider(false, true, false, false)));
+    } finally {
+      first.stop().release();
+      first.close();
+    }
+
+    profiler.reconfigure(configProvider(false, true, false, false));
+    OngoingRecording second = profiler.start();
+    assertNotNull(second);
+    try {
+      assertTrue(profiler.isActive());
+      assertTrue(profiler.enabledModes().contains(ProfilingMode.WALL));
+    } finally {
+      second.stop().release();
+      second.close();
+    }
   }
 
   private static ConfigProvider configProvider(

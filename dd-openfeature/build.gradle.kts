@@ -43,3 +43,7 @@ jmh {
 tasks.withType<JavaCompile>().configureEach {
   configureCompiler(JavaVersion.VERSION_11)
 }
+
+tasks.withType<Javadoc>().configureEach {
+  javadocTool = javaToolchains.javadocToolFor(java.toolchain)
+}

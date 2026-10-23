@@ -32,9 +32,9 @@ public final class ProfilingConfigPoller {
     this.handler = handler;
   }
 
-  /** Profiling remote config is only active when profiling is enabled with {@code auto}. */
+  /** Profiling remote config is only active when profiling is enabled with {@code armed}. */
   public static boolean isEnabled(Config config) {
-    return config.getProfilingEnablement() == ProfilingEnablement.AUTO;
+    return config.getProfilingEnablement() == ProfilingEnablement.ARMED;
   }
 
   public void start(Config config, SharedCommunicationObjects sco) {

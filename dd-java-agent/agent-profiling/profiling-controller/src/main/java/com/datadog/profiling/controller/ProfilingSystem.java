@@ -34,35 +34,48 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Sets up the profiling strategy and schedules the profiling recordings. */
+/**
+ * Sets up the profiling strategy and schedules the profiling recordings.
+ *
+ * <p>Lifecycle: {@link #init()} creates the profiler(s) without starting them, {@link #start()}
+ * starts recording and the snapshot scheduler, and {@link #stop(boolean)} stops both. The system
+ * can be started again after it was stopped.
+ */
 public final class ProfilingSystem {
   private static final Logger log = LoggerFactory.getLogger(ProfilingSystem.class);
   static final String RECORDING_NAME = "dd-profiling";
 
   private static final long TERMINATION_TIMEOUT = 10;
 
-  private final AgentTaskScheduler scheduler;
   private final ConfigProvider configProvider;
-  private final Controller controller;
-  private final ControllerContext.Snapshot context;
+  private final ControllerFactory controllerFactory;
   // For now only support one callback. Multiplex as needed.
   private final RecordingDataListener dataListener;
+  // a stopped scheduler can't be restarted, so each start gets a new one
+  private final Supplier<AgentTaskScheduler> schedulerFactory;
 
   private final Duration startupDelay;
   private final Duration uploadPeriod;
   private final boolean isStartingFirst;
 
-  private OngoingRecording recording;
-  private SnapshotRecording snapshotRecording;
+  // created by init() and kept across restarts
+  private Controller controller;
+  private ControllerContext.Snapshot context;
+
+  // set by start() and cleared by stop()
+  private AgentTaskScheduler scheduler;
+  private volatile OngoingRecording recording;
+  private volatile SnapshotRecording snapshotRecording;
   private volatile boolean started = false;
 
   /**
    * Constructor.
    *
-   * @param controller implementation specific controller of profiling machinery
+   * @param controllerFactory creates the implementation specific controller of profiling machinery
    * @param dataListener the listener for data being produced
    * @param startupDelay delay before starting jfr
    * @param startupDelayRandomRange randomization range for startup delay
@@ -72,8 +85,7 @@ public final class ProfilingSystem {
    */
   public ProfilingSystem(
       final ConfigProvider configProvider,
-      final Controller controller,
-      final ControllerContext.Snapshot context,
+      final ControllerFactory controllerFactory,
       final RecordingDataListener dataListener,
       final Duration startupDelay,
       final Duration startupDelayRandomRange,
@@ -82,36 +94,33 @@ public final class ProfilingSystem {
       throws ConfigurationException {
     this(
         configProvider,
-        controller,
-        context,
+        controllerFactory,
         dataListener,
         startupDelay,
         startupDelayRandomRange,
         uploadPeriod,
         isStartingFirst,
-        new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER),
+        () -> new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER),
         ThreadLocalRandom.current());
   }
 
   ProfilingSystem(
       final ConfigProvider configProvider,
-      final Controller controller,
-      final ControllerContext.Snapshot context,
+      final ControllerFactory controllerFactory,
       final RecordingDataListener dataListener,
       final Duration baseStartupDelay,
       final Duration startupDelayRandomRange,
       final Duration uploadPeriod,
       final boolean isStartingFirst,
-      final AgentTaskScheduler scheduler,
+      final Supplier<AgentTaskScheduler> schedulerFactory,
       final ThreadLocalRandom threadLocalRandom)
       throws ConfigurationException {
     this.configProvider = configProvider;
-    this.controller = controller;
-    this.context = context;
+    this.controllerFactory = controllerFactory;
     this.dataListener = dataListener;
     this.uploadPeriod = uploadPeriod;
     this.isStartingFirst = isStartingFirst;
-    this.scheduler = scheduler;
+    this.schedulerFactory = schedulerFactory;
 
     if (baseStartupDelay.isNegative()) {
       throw new ConfigurationException("Startup delay must not be negative.");
@@ -131,32 +140,89 @@ public final class ProfilingSystem {
     startupDelay = randomizeDuration(threadLocalRandom, baseStartupDelay, startupDelayRandomRange);
   }
 
-  public final void start() {
+  /**
+   * Creates the profiler(s) without starting them. Calling it again after a successful init is a
+   * no-op.
+   *
+   * @throws UnsupportedEnvironmentException if no profiler is supported in this environment
+   */
+  public synchronized void init() throws UnsupportedEnvironmentException {
+    if (controller != null) {
+      return;
+    }
+    final ControllerContext controllerContext = new ControllerContext();
+    controller = controllerFactory.create(controllerContext);
+    context = controllerContext.snapshot();
+    log.debug("Profiling system initialized");
+  }
+
+  /**
+   * Starts recording and the periodic snapshots, initializing the profiler(s) first if needed.
+   * Calling it while already started is a no-op.
+   *
+   * @throws UnsupportedEnvironmentException if no profiler is supported in this environment
+   */
+  public void start() throws UnsupportedEnvironmentException {
+    start(false);
+  }
+
+  /**
+   * Starts recording and the periodic snapshots, initializing the profiler(s) first if needed.
+   * Calling it while already started is a no-op.
+   *
+   * @param immediately whether to start recording right away, instead of after the startup delay
+   *     unless starting first; only safe once 'main' has started
+   * @throws UnsupportedEnvironmentException if no profiler is supported in this environment
+   */
+  public synchronized void start(boolean immediately) throws UnsupportedEnvironmentException {
+    if (scheduler != null) {
+      log.debug("Profiling system is already started");
+      return;
+    }
+    init();
+
+    final AgentTaskScheduler scheduler = schedulerFactory.get();
+    this.scheduler = scheduler;
     log.debug(
-        "Starting profiling system: startupDelay={}ms, uploadPeriod={}ms, isStartingFirst={}",
+        "Starting profiling system: startupDelay={}ms, uploadPeriod={}ms, isStartingFirst={}, immediately={}",
         startupDelay.toMillis(),
         uploadPeriod.toMillis(),
-        isStartingFirst);
+        isStartingFirst,
+        immediately);
 
-    if (isStartingFirst) {
-      startProfilingRecording();
+    if (immediately || isStartingFirst) {
+      try {
+        startProfilingRecording(scheduler);
+      } catch (RuntimeException e) {
+        this.scheduler = null;
+        scheduler.shutdown(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
+        throw e;
+      }
     } else {
       // Delay JFR initialization. This code is run from 'premain' and there is a known bug in JVM
       // which makes it crash if JFR is run before 'main' starts.
       // See https://bugs.openjdk.java.net/browse/JDK-8227011 and
       // https://bugs.openjdk.java.net/browse/JDK-8233197.
       scheduler.schedule(
-          ProfilingSystem::startProfilingRecording,
+          system -> system.startProfilingRecording(scheduler),
           this,
           startupDelay.toMillis(),
           TimeUnit.MILLISECONDS);
     }
   }
 
-  private void startProfilingRecording() {
+  // runs on the scheduler thread, so it must not lock 'this': stop() holds it while joining that
+  // thread
+  private void startProfilingRecording(final AgentTaskScheduler scheduler) {
     try {
       final Instant now = Instant.now();
-      recording = controller.createRecording(RECORDING_NAME, context);
+      final OngoingRecording recording = controller.createRecording(RECORDING_NAME, context);
+      if (scheduler.isShutdown()) {
+        // stopped while the recording was being created
+        stopRecording(recording);
+        return;
+      }
+      this.recording = recording;
       scheduler.scheduleAtFixedRate(
           SnapshotRecording::snapshot,
           snapshotRecording = createSnapshotRecording(now),
@@ -211,30 +277,85 @@ public final class ProfilingSystem {
     return new SnapshotRecording(now);
   }
 
-  void shutdown() {
-    shutdown(false);
+  void stop() {
+    stop(true);
   }
 
-  /** Shuts down the profiling system. */
-  public final void shutdown(boolean snapshot) {
+  /**
+   * Stops recording and tears down the snapshot scheduler. The profiler(s) stay initialized, so the
+   * system can be started again. Calling it while not started is a no-op.
+   *
+   * @param snapshot whether to take a last snapshot before stopping
+   */
+  public synchronized void stop(boolean snapshot) {
+    final AgentTaskScheduler scheduler = this.scheduler;
+    if (scheduler == null) {
+      return;
+    }
+    this.scheduler = null;
     scheduler.shutdown(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
 
-    if (snapshotRecording != null) {
-      if (snapshot) {
-        snapshotRecording.snapshot(true);
-      }
-      snapshotRecording = null;
+    // Here we assume that the scheduler thread has terminated and we can stop the running
+    // recording
+    final SnapshotRecording snapshotRecording = this.snapshotRecording;
+    this.snapshotRecording = null;
+    if (snapshot && snapshotRecording != null) {
+      snapshotRecording.snapshot(true);
     }
 
-    // Here we assume that all other threads have been shutdown and we can close running
-    // recording
+    final OngoingRecording recording = this.recording;
+    this.recording = null;
     if (recording != null) {
-      recording.close();
+      stopRecording(recording);
     }
 
     started = false;
   }
 
+  private static void stopRecording(final OngoingRecording recording) {
+    try {
+      // stopping, and not only closing, is what allows a new recording to be started later
+      final RecordingData data = recording.stop();
+      if (data != null) {
+        data.release();
+      }
+    } catch (final Throwable t) {
+      log.debug("Failed to stop profiling recording", t);
+    } finally {
+      recording.close();
+    }
+  }
+
+  /**
+   * Applies a new configuration to the profiler(s), used from the next {@link #start()}. The
+   * profiler(s) are initialized first if needed.
+   *
+   * @param configProvider the new configuration
+   * @throws UnsupportedEnvironmentException if no profiler is supported in this environment
+   * @throws IllegalStateException if the system is running
+   */
+  public synchronized void reconfigure(ConfigProvider configProvider)
+      throws UnsupportedEnvironmentException {
+    if (scheduler != null) {
+      throw new IllegalStateException("Profiling system can't be reconfigured while running");
+    }
+    init();
+    controller.reconfigure(configProvider);
+    // refresh the context, e.g. so JFR knows which events the Datadog profiler now takes over
+    final ControllerContext controllerContext = new ControllerContext();
+    controllerContext.setDatadogProfilerUnavailableReason(
+        context.getDatadogProfilerUnavailableReason());
+    controller.configure(controllerContext);
+    context = controllerContext.snapshot();
+    log.debug("Profiling system reconfigured");
+  }
+
+  /** Whether the system was started and not stopped since, even if not recording yet. */
+  public synchronized boolean isRunning() {
+    return scheduler != null;
+  }
+
+  /** Whether a recording is in progress. */
   public boolean isStarted() {
     return started;
   }

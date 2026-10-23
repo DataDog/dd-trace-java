@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
   implementation libs.slf4j
+  implementation libs.moshi
   // SharedCommunicationObjects and the remote-config API (transitively)
   api project(':communication')
   api project(':internal-api')

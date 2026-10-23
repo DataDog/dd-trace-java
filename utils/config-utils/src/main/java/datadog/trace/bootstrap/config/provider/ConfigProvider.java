@@ -563,6 +563,18 @@ public final class ConfigProvider {
     }
   }
 
+  /**
+   * Creates a provider where the given remote configuration values, keyed by config name (e.g.
+   * {@code profiling.ddprof.cpu.enabled}), take precedence over every other source.
+   */
+  public static ConfigProvider withRemoteOverride(Map<String, String> remoteValues) {
+    ConfigProvider.Source[] defaultSources = getInstance().sources;
+    ConfigProvider.Source[] sources = new ConfigProvider.Source[defaultSources.length + 1];
+    sources[0] = new MapConfigSource(new HashMap<>(remoteValues), key -> key, ConfigOrigin.REMOTE);
+    System.arraycopy(defaultSources, 0, sources, 1, defaultSources.length);
+    return new ConfigProvider(sources);
+  }
+
   public static ConfigProvider withPropertiesOverride(Properties properties) {
     PropertiesConfigSource providedConfigSource = new PropertiesConfigSource(properties, false);
     Properties configProperties =
