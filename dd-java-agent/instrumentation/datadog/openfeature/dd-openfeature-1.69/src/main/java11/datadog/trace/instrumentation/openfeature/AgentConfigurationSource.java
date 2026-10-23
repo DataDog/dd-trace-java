@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.openfeature;
 
-import com.datadog.openfeature.internal.bridge.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import java.util.function.Consumer;
 

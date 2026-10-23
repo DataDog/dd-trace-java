@@ -20,9 +20,9 @@ import static org.mockito.Mockito.when;
 import com.datadog.openfeature.internal.ConfigurationService;
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import com.datadog.openfeature.internal.bridge.HealthMetrics;
-import com.datadog.openfeature.internal.bridge.SpanEnricher;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
@@ -82,7 +82,7 @@ import org.junit.jupiter.params.provider.ValueSource;
  * {@link ExposureHook} evaluations.
  *
  * <p>The provider reads its settings from the real system properties and environment through {@link
- * com.datadog.openfeature.internal.bridge.AgentBridges#detect()}, so the configuration scenarios
+ * com.datadog.openfeature.internal.bridge.v1.AgentBridges#detect()}, so the configuration scenarios
  * use the system property; the environment fallback is covered by {@code SettingsTest}.
  */
 class EvaluationTelemetryOptOutTest {

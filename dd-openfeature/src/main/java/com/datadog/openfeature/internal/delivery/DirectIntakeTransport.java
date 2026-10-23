@@ -3,7 +3,7 @@ package com.datadog.openfeature.internal.delivery;
 import static java.net.http.HttpClient.Redirect.NEVER;
 import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
 
-import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import com.datadog.openfeature.internal.config.Settings;
 import java.io.IOException;
 import java.net.URI;

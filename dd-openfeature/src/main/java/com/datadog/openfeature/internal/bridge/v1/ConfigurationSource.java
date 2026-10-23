@@ -1,4 +1,4 @@
-package com.datadog.openfeature.internal.bridge;
+package com.datadog.openfeature.internal.bridge.v1;
 
 import java.util.function.Consumer;
 
