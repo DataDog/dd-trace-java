@@ -1514,8 +1514,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
       if (traceCollector.getTracer().isInjectBaggageAsTags()) {
         baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
         // W3C baggage is only extracted onto the local root
-        Baggage w3cBaggage =
-            getRootSpanContextIfDifferent() == null ? traceCollector.getW3CBaggage() : null;
+        Baggage w3cBaggage = isLocalRoot() ? traceCollector.getW3CBaggage() : null;
         if (w3cBaggage != null) {
           injectW3CBaggageTags(baggageItemsWithPropagationTags, w3cBaggage);
         }
