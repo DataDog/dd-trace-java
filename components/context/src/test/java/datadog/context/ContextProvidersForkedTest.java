@@ -12,6 +12,31 @@ import org.junit.jupiter.api.Test;
 
 class ContextProvidersForkedTest {
   @Test
+  void testUnsetTestingProvidersUseDefaults() {
+    assertTrue(ContextBinder.allowTesting());
+    assertTrue(ContextManager.allowTesting());
+    ContextBinder binder = ContextProviders.customBinder;
+    ContextManager manager = ContextProviders.customManager;
+    try {
+      ContextProviders.customBinder = null;
+      ContextProviders.customManager = null;
+      Context context = root().with(STRING_KEY, "value");
+      Object carrier = new Object();
+      context.attachTo(carrier);
+      assertSame(context, Context.from(carrier));
+      assertSame(context, Context.detachFrom(carrier));
+      try (ContextScope scope = context.attach()) {
+        assertSame(context, scope.context());
+        assertSame(context, Context.current());
+      }
+      assertSame(root(), Context.current());
+    } finally {
+      ContextProviders.customBinder = binder;
+      ContextProviders.customManager = manager;
+    }
+  }
+
+  @Test
   void testCustomBinder() {
     assertTrue(ContextBinder.allowTesting());
 
