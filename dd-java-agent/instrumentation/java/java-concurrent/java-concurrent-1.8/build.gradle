@@ -4,6 +4,8 @@ plugins {
 
 // Experimental diagnostics: profile the test worker, rather than the Gradle daemon.
 def concurrentDebug = providers.gradleProperty('concurrentDebug').orElse('true')
+def concurrentForkEvery = providers.gradleProperty('concurrentForkEvery')
+  .orElse(providers.environmentVariable('CONCURRENT_FORK_EVERY')).orElse('1')
 def debugDirectory = layout.buildDirectory.dir('reports/concurrent-debug/test')
 tasks.named('test', Test) {
   timeout.set(java.time.Duration.ofMinutes(30))
@@ -13,10 +15,14 @@ tasks.named('test', Test) {
     def metadata = javaLauncher.get().metadata
     if (metadata.languageVersion.asInt() == 11 && !metadata.vendor.toLowerCase().contains('ibm')
       && System.getProperty('os.arch') in ['aarch64', 'arm64']) {
-      // Avoid accumulating loaded classes and compiled code across agent reinstallations.
-      forkEvery = 1
-      maxParallelForks = 2
-      logger.lifecycle('Concurrent workaround: one class per JVM, at most two workers')
+      // Filter before Gradle forks: JUnit discovery otherwise starts empty workers for helpers
+      // and generated Groovy closures. TestFanout does not follow the *Test naming convention.
+      include '**/*Test.class', '**/TestFanout.class'
+      exclude '**/*$*', '**/CompletableFuturePromiseTest.class', '**/ExecutorInstrumentationTest.class'
+      forkEvery = concurrentForkEvery.get().toLong()
+      maxParallelForks = forkEvery == 0 ? 1 : 2
+      logger.lifecycle('Concurrent workaround: {} classes per JVM (0 = shared), {} workers',
+        forkEvery, maxParallelForks)
     }
     if (concurrentDebug.get().toBoolean()) {
       def debugDir = debugDirectory.get().asFile
@@ -25,14 +31,16 @@ tasks.named('test', Test) {
       // OpenJ9 and Java 8 remain timing controls without HotSpot-specific recording flags.
       if (metadata.languageVersion.asInt() >= 11 && !metadata.vendor.toLowerCase().contains('ibm')) {
         def settings = new File(metadata.installationPath.asFile, 'lib/jfr/profile.jfc').getText('UTF-8')
-        // Never record environment values, system properties, or process command lines.
+        // Omit secret-bearing metadata and unrelated old-object sampling. The latter crashed
+        // inside ObjectSampleCheckpoint during local Java 11 validation with retransformation.
         for (event in [
             'jdk.InitialEnvironmentVariable',
             'jdk.InitialSystemProperty',
             'jdk.JVMInformation',
             'jdk.SystemProcess',
             'jdk.ProcessStart',
-            'jdk.SecurityPropertyModification'
+            'jdk.SecurityPropertyModification',
+            'jdk.OldObjectSample'
           ]) {
           settings = settings.replaceAll('(?s)<event name="' + java.util.regex.Pattern.quote(event) + '">.*?</event>', '')
           settings = settings.replace('</configuration>',
