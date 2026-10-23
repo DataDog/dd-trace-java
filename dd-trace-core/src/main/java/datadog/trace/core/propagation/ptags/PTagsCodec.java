@@ -361,8 +361,20 @@ abstract class PTagsCodec {
 
   protected abstract boolean isEmpty(StringBuilder sb, int size);
 
+  /**
+   * Whether values of {@code tagKey} are validated. {@link #validateTagValue} checks only these, so
+   * a key missing here goes unvalidated everywhere rather than only where this is consulted.
+   */
+  static boolean hasValidatedValues(TagKey tagKey) {
+    return tagKey.equals(DECISION_MAKER_TAG)
+        || tagKey.equals(TRACE_ID_TAG)
+        || tagKey.equals(TRACE_SOURCE_TAG);
+  }
+
   protected static boolean validateTagValue(TagKey tagKey, TagValue tagValue) {
-    if (tagKey.equals(DECISION_MAKER_TAG) && !validateDecisionMakerTag(tagValue)) {
+    if (!hasValidatedValues(tagKey)) {
+      return true;
+    } else if (tagKey.equals(DECISION_MAKER_TAG) && !validateDecisionMakerTag(tagValue)) {
       return false;
     } else if (tagKey.equals(TRACE_ID_TAG) && !validateTraceId(tagValue)) {
       return false;

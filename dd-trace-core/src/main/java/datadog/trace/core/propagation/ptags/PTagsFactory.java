@@ -955,7 +955,8 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public void updateW3CTracestateFrom(W3CTracestate source, int overridingPriority) {
       if (source.rawOtelTraceState == null) {
-        setW3CTracestate(source.tracestate, W3CPTagsCodec.extractOtelTraceState(source.tracestate));
+        // the parse already looked for an otel member, so there is none
+        setW3CTracestate(source.tracestate, null);
         return;
       }
       // Keep the otel member unparsed; its consistency checks wait for the first read
