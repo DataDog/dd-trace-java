@@ -88,6 +88,24 @@ public class PTagsFactory implements PropagationTags.Factory {
       int samplingPriority,
       TagValue orgPropagationMarkerTagValue,
       @Nonnull LLMObsTagValues llmObsTagValues) {
+    return createValid(
+        tagPairs,
+        decisionMakerTagValue,
+        traceIdTagValue,
+        productTraceSource,
+        PrioritySampling.UNSET,
+        orgPropagationMarkerTagValue,
+        llmObsTagValues);
+  }
+
+  PropagationTags createValid(
+      List<TagElement> tagPairs,
+      TagValue decisionMakerTagValue,
+      TagValue traceIdTagValue,
+      int productTraceSource,
+      int samplingPriority,
+      TagValue orgPropagationMarkerTagValue,
+      @Nonnull LLMObsTagValues llmObsTagValues) {
     return new PTags(
         this,
         tagPairs,
