@@ -18,6 +18,7 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.SpanContents;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -68,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext {
+    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext, SpanContents {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -1395,6 +1396,31 @@ public class DDSpanContext
     }
   }
 
+  /*
+   * SpanContents: the span's tags read and written straight from storage, with no interception.
+   * Unsynchronized, like unsafeGetTag: callers hold the span's tag lock, as post-processing does.
+   */
+
+  @Override
+  public Object getObject(String tag) {
+    return unsafeTags.getObject(tag);
+  }
+
+  @Override
+  public String getString(String tag) {
+    return unsafeTags.getString(tag);
+  }
+
+  @Override
+  public void set(String tag, Object value) {
+    unsafeTags.set(tag, value);
+  }
+
+  @Override
+  public void set(TagMap.EntryReader entry) {
+    unsafeTags.set(entry);
+  }
+
   /**
    * This is not thread-safe and must only be used when it can be guaranteed that the context will
    * not be mutated. This is internal API and must not be exposed to users.
@@ -1500,7 +1526,7 @@ public class DDSpanContext
 
   void earlyProcessTags(AppendableSpanLinks links) {
     synchronized (unsafeTags) {
-      TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
+      TagsPostProcessorFactory.eagerProcessor().processTags(this, this, links);
     }
   }
 

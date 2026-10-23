@@ -2,7 +2,7 @@ package datadog.trace.core.tagprocessor;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.TagMap;
+import datadog.trace.api.SpanContents;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
@@ -12,7 +12,7 @@ import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
-public final class PeerServiceCalculator extends TagsPostProcessor {
+public final class PeerServiceCalculator extends EagerTagsPostProcessor {
   private final NamingSchema.ForPeerService peerServiceNaming;
 
   private final Map<String, String> peerServiceMapping;
@@ -34,7 +34,7 @@ public final class PeerServiceCalculator extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      SpanContents unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     Object peerService = unsafeTags.getObject(Tags.PEER_SERVICE);
     // the user set it
     if (peerService != null) {
@@ -52,12 +52,12 @@ public final class PeerServiceCalculator extends TagsPostProcessor {
     // we have no peer.service and we do not compute defaults. Leave the map untouched
   }
 
-  private void remapPeerService(TagMap unsafeTags, Object value) {
+  private void remapPeerService(SpanContents unsafeTags, Object value) {
     if (value != null) {
       String mapped = peerServiceMapping.get(value);
       if (mapped != null) {
-        unsafeTags.put(Tags.PEER_SERVICE, mapped);
-        unsafeTags.put(DDTags.PEER_SERVICE_REMAPPED_FROM, value);
+        unsafeTags.set(Tags.PEER_SERVICE, mapped);
+        unsafeTags.set(DDTags.PEER_SERVICE_REMAPPED_FROM, value);
       }
     }
   }

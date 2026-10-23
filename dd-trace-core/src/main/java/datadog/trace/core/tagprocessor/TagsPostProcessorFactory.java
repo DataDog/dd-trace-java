@@ -9,11 +9,11 @@ public final class TagsPostProcessorFactory {
   private static boolean addRemoteHostname = true;
 
   private static class Lazy {
-    private static TagsPostProcessor eagerProcessor = createEagerChain();
+    private static EagerTagsPostProcessor eagerProcessor = createEagerChain();
     private static TagsPostProcessor lazyProcessor = createLazyChain();
 
-    private static TagsPostProcessor createEagerChain() {
-      final List<TagsPostProcessor> processors = new ArrayList<>(3);
+    private static EagerTagsPostProcessor createEagerChain() {
+      final List<EagerTagsPostProcessor> processors = new ArrayList<>(3);
       processors.add(new PeerServiceCalculator());
       if (addInternalTags) {
         processors.add(
@@ -24,7 +24,7 @@ public final class TagsPostProcessorFactory {
       if (Config.get().isTraceResourceRenamingEnabled()) {
         processors.add(new HttpEndpointPostProcessor());
       }
-      return new PostProcessorChain(processors.toArray(new TagsPostProcessor[0]));
+      return new EagerPostProcessorChain(processors.toArray(new EagerTagsPostProcessor[0]));
     }
 
     private static TagsPostProcessor createLazyChain() {
@@ -54,7 +54,7 @@ public final class TagsPostProcessorFactory {
     }
   }
 
-  public static TagsPostProcessor eagerProcessor() {
+  public static EagerTagsPostProcessor eagerProcessor() {
     return Lazy.eagerProcessor;
   }
 

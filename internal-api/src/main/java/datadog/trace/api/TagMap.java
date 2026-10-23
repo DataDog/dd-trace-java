@@ -48,7 +48,8 @@ import javax.annotation.Nullable;
  *   <li>adaptive collision
  * </ul>
  */
-public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryReader> {
+public final class TagMap
+    implements Map<String, Object>, Iterable<TagMap.EntryReader>, SpanContents {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
   // Frozen view over a length-1 array: bucket masking needs a power-of-two array length (size 0
   // would fail with ArrayIndexOutOfBoundsException, size 1 works), and the private constructor

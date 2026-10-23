@@ -2,6 +2,7 @@ package datadog.trace.api.endpoint;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 
+import datadog.trace.api.WritableSpanContents;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,9 +51,7 @@ public class EndpointResolver {
    */
   @Nullable
   public String resolveEndpoint(
-      java.util.Map<String, Object> unsafeTags,
-      @Nullable String httpRoute,
-      @Nullable String httpUrl) {
+      WritableSpanContents unsafeTags, @Nullable String httpRoute, @Nullable String httpUrl) {
     if (!enabled) {
       return null;
     }
@@ -61,7 +60,7 @@ public class EndpointResolver {
     if (alwaysSimplifiedEndpoint) {
       String endpoint = computeEndpoint(httpUrl);
       if (endpoint != null) {
-        unsafeTags.put(HTTP_ENDPOINT, endpoint);
+        unsafeTags.set(HTTP_ENDPOINT, endpoint);
       }
       return endpoint;
     }
@@ -74,7 +73,7 @@ public class EndpointResolver {
     // Compute endpoint from URL and tag the span
     String endpoint = computeEndpoint(httpUrl);
     if (endpoint != null) {
-      unsafeTags.put(HTTP_ENDPOINT, endpoint);
+      unsafeTags.set(HTTP_ENDPOINT, endpoint);
     }
     return endpoint;
   }

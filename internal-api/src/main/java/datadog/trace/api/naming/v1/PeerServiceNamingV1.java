@@ -1,7 +1,7 @@
 package datadog.trace.api.naming.v1;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.api.TagMap;
+import datadog.trace.api.SpanContents;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -53,7 +53,7 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     return true;
   }
 
-  private void resolve(@Nonnull final TagMap unsafeTags) {
+  private void resolve(@Nonnull final SpanContents unsafeTags) {
     final Object component = unsafeTags.getObject(Tags.COMPONENT);
     // avoid issues with UTF8ByteString or others
     final String componentString = component == null ? null : component.toString();
@@ -71,7 +71,8 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     resolveBy(unsafeTags, DEFAULT_PRECURSORS);
   }
 
-  private boolean resolveBy(@Nonnull final TagMap unsafeTags, @Nullable final String[] precursors) {
+  private boolean resolveBy(
+      @Nonnull final SpanContents unsafeTags, @Nullable final String[] precursors) {
     if (precursors == null) {
       return false;
     }
@@ -90,16 +91,16 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     return true;
   }
 
-  private void set(@Nonnull final TagMap unsafeTags, Object value, String source) {
+  private void set(@Nonnull final SpanContents unsafeTags, Object value, String source) {
     if (value != null) {
-      unsafeTags.put(Tags.PEER_SERVICE, value);
-      unsafeTags.put(DDTags.PEER_SERVICE_SOURCE, source);
+      unsafeTags.set(Tags.PEER_SERVICE, value);
+      unsafeTags.set(DDTags.PEER_SERVICE_SOURCE, source);
     }
   }
 
   @Nonnull
   @Override
-  public void tags(@Nonnull final TagMap unsafeTags) {
+  public void tags(@Nonnull final SpanContents unsafeTags) {
     // check span.kind eligibility
     final Object kind = unsafeTags.getObject(Tags.SPAN_KIND);
     if (Tags.SPAN_KIND_CLIENT.equals(kind) || Tags.SPAN_KIND_PRODUCER.equals(kind)) {
