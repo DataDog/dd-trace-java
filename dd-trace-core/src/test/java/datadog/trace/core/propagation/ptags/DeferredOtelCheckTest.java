@@ -22,7 +22,7 @@ class DeferredOtelCheckTest {
 
     tags.updateTraceSamplingPriority(SAMPLER_DROP, EXTERNAL_OVERRIDE);
 
-    CharSequence otelTraceState = tags.samplingState().getOtelTraceState();
+    CharSequence otelTraceState = tags.getOtelTraceState(tags.samplingState());
     assertFalse(otelTraceState.toString().contains("th:"), otelTraceState.toString());
   }
 

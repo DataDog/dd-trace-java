@@ -1,6 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -39,8 +39,8 @@ class OtelMemberForWriteTest {
   void writtenContentMatchesTheParsedMember() {
     for (String member : MEMBERS) {
       for (int checks = 0; checks < 4; ++checks) {
-        CharSequence parsed = state(member, checks).getOtelTraceState();
-        CharSequence written = state(member, checks).getOtelTraceStateForWrite();
+        CharSequence parsed = member(member).otelTraceState(pending(checks));
+        CharSequence written = member(member).otelTraceStateForWrite(pending(checks));
         assertEquals(
             parsed == null ? null : parsed.toString(),
             written == null ? null : written.toString(),
@@ -51,20 +51,20 @@ class OtelMemberForWriteTest {
 
   @Test
   void unchangedMemberIsWrittenRawWithoutParsing() {
-    InheritedSamplingState consistent = state("rv:c8b1e2d3f4a596;th:8", sampledCheck());
-    CharSequence written = consistent.getOtelTraceStateForWrite();
+    W3CTracestate consistent = member("rv:c8b1e2d3f4a596;th:8");
+    CharSequence written = consistent.otelTraceStateForWrite(sampledCheck());
     assertTrue(written instanceof SubSequence, String.valueOf(written));
-    assertFalse(consistent.isResolved());
+    assertFalse(consistent.isResolved(sampledCheck()));
 
-    InheritedSamplingState inconsistent = state("rv:c8b1e2d3f4a596;th:8", notSampledCheck());
-    assertTrue(inconsistent.getOtelTraceStateForWrite() instanceof OtelTraceState);
+    W3CTracestate inconsistent = member("rv:c8b1e2d3f4a596;th:8");
+    assertTrue(inconsistent.otelTraceStateForWrite(notSampledCheck()) instanceof OtelTraceState);
   }
 
   @Test
   void parsedMemberIsWrittenAsParsed() {
-    InheritedSamplingState state = state("rv:c8b1e2d3f4a596;th:8", sampledCheck());
-    CharSequence parsed = state.getOtelTraceState();
-    assertSame(parsed, state.getOtelTraceStateForWrite());
+    W3CTracestate member = member("rv:c8b1e2d3f4a596;th:8");
+    CharSequence parsed = member.otelTraceState(sampledCheck());
+    assertSame(parsed, member.otelTraceStateForWrite(sampledCheck()));
   }
 
   private static byte sampledCheck() {
@@ -75,7 +75,7 @@ class OtelMemberForWriteTest {
     return InheritedSamplingState.withCheck(InheritedSamplingState.NO_CHECKS, false);
   }
 
-  private static InheritedSamplingState state(String member, int checks) {
+  private static byte pending(int checks) {
     byte pending = InheritedSamplingState.NO_CHECKS;
     if ((checks & 1) != 0) {
       pending = InheritedSamplingState.withCheck(pending, true);
@@ -83,18 +83,17 @@ class OtelMemberForWriteTest {
     if ((checks & 2) != 0) {
       pending = InheritedSamplingState.withCheck(pending, false);
     }
-    return state(member, pending);
+    return pending;
   }
 
-  private static InheritedSamplingState state(String member, byte pending) {
+  private static W3CTracestate member(String member) {
     String tracestate = "dd=s:1,ot=" + member;
     int start = tracestate.indexOf("ot=") + 3;
-    return new InheritedSamplingState(
-        SAMPLER_KEEP,
-        null,
-        null,
+    return new W3CTracestate(
+        tracestate,
         SubSequence.of(tracestate, start, tracestate.length()),
         Objects.requireNonNull(member).length() + 4,
-        pending);
+        UNSET,
+        null);
   }
 }

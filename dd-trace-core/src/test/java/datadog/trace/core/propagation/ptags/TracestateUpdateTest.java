@@ -35,7 +35,7 @@ class TracestateUpdateTest {
 
     ptags.updateW3CTracestate(WITH_OTEL_MEMBER);
 
-    CharSequence otel = ptags.samplingState().getOtelTraceState();
+    CharSequence otel = ptags.getOtelTraceState(ptags.samplingState());
     assertNotNull(otel);
     assertEquals("rv:0123456789abcd;th:8", otel.toString());
   }
@@ -43,11 +43,11 @@ class TracestateUpdateTest {
   @Test
   void otelMemberIsDroppedWithItsTracestate() {
     PropagationTags ptags = FACTORY.fromHeaderValue(W3C, WITH_OTEL_MEMBER);
-    assertNotNull(ptags.samplingState().getOtelTraceState());
+    assertNotNull(ptags.getOtelTraceState(ptags.samplingState()));
 
     ptags.updateW3CTracestate("vendor=state");
 
-    assertNull(ptags.samplingState().getOtelTraceState());
+    assertNull(ptags.getOtelTraceState(ptags.samplingState()));
     assertEquals("vendor=state", ptags.getW3CTracestate());
   }
 }

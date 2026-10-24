@@ -77,16 +77,13 @@ public abstract class PropagationTags {
     }
 
     /**
-     * Whether writing the {@code ot} member at its position in {@code tracestate}, the trace's raw
-     * tracestate, leaves it unchanged. Cached, as a state with an {@code ot} member belongs to one
-     * trace, whose tracestate doesn't change once the trace is shared.
+     * Whether writing {@code otelTraceState}, this state's {@code ot} member as it's written, at
+     * the member's position in {@code tracestate}, the trace's raw tracestate, leaves it unchanged.
+     * Cached, as a state with its own {@code ot} member is never shared, and its trace's tracestate
+     * doesn't change once the trace is.
      */
-    public boolean preservesInheritedOtelPosition(String tracestate) {
-      if (tracestate == null) {
-        return false;
-      }
-      CharSequence otelTraceState = getOtelTraceStateForWrite();
-      if (otelTraceState == null) {
+    public boolean preservesOtelPosition(String tracestate, CharSequence otelTraceState) {
+      if (tracestate == null || otelTraceState == null) {
         return false;
       }
       byte position = otelPosition;
@@ -166,6 +163,12 @@ public abstract class PropagationTags {
   public abstract int getSamplingPriority();
 
   public abstract SamplingState samplingState();
+
+  /**
+   * The {@code ot} tracestate member of {@code samplingState}, a state of these tags. Read it here
+   * rather than from the state, which may defer to a member these tags hold.
+   */
+  public abstract CharSequence getOtelTraceState(SamplingState samplingState);
 
   public abstract void updateTraceOrigin(CharSequence origin);
 
