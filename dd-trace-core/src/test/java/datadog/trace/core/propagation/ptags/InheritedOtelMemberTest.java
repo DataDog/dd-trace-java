@@ -60,6 +60,18 @@ class InheritedOtelMemberTest {
     assertTrue(member.isResolved(NO_CHECKS));
   }
 
+  /** A read under more checks than an earlier one applies them, rather than reusing the parse. */
+  @Test
+  void readUnderOtherChecksAppliesThem() {
+    // rv >= th, so the member is only consistent with a sampled decision
+    W3CTracestate member = member("rv:ef284ace7a91e1;th:e6666666666668");
+    byte sampled = InheritedSamplingState.withCheck(NO_CHECKS, true);
+    byte both = InheritedSamplingState.withCheck(sampled, false);
+
+    assertEquals("rv:ef284ace7a91e1;th:e6666666666668", member.otelTraceState(sampled).toString());
+    assertEquals("rv:ef284ace7a91e1", member.otelTraceState(both).toString());
+  }
+
   @Test
   void repeatedReadsReturnOneInstance() {
     W3CTracestate member = member("rv:ef284ace7a91e1;th:e6666666666668");
