@@ -2,6 +2,7 @@ package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.SamplingMechanism.EXTERNAL_OVERRIDE;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -21,6 +22,18 @@ class DeferredOtelCheckTest {
     assertEquals(SAMPLER_DROP, tags.getSamplingPriority());
 
     tags.updateTraceSamplingPriority(SAMPLER_DROP, EXTERNAL_OVERRIDE);
+
+    CharSequence otelTraceState = tags.getOtelTraceState(tags.samplingState());
+    assertFalse(otelTraceState.toString().contains("th:"), otelTraceState.toString());
+  }
+
+  @Test
+  void lockingTheDecisionMakerKeepsPendingChecks() {
+    PropagationTags tags = PropagationTags.factory().fromHeaderValue(W3C, TRACESTATE);
+    tags.updateTraceSamplingPriority(SAMPLER_DROP, EXTERNAL_OVERRIDE);
+
+    tags.updateAndLockDecisionMaker(
+        PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.dm=-3"));
 
     CharSequence otelTraceState = tags.getOtelTraceState(tags.samplingState());
     assertFalse(otelTraceState.toString().contains("th:"), otelTraceState.toString());
