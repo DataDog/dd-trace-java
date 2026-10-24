@@ -111,9 +111,6 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   static class PTags extends PropagationTags {
     private static final String EMPTY = "";
-    private static final SamplingState EMPTY_SAMPLING_STATE =
-        new SamplingState(PrioritySampling.UNSET, null, null, null, null);
-
     protected final PTagsFactory factory;
 
     // tags that don't require any modifications and propagated as-is
@@ -165,6 +162,90 @@ public class PTagsFactory implements PropagationTags.Factory {
       for (int mechanism = 0; mechanism < DECISION_MAKER_TAG_VALUES.length; ++mechanism) {
         DECISION_MAKER_TAG_VALUES[mechanism] = TagValue.from("-" + mechanism);
       }
+    }
+
+    /**
+     * Shared states for decisions with no tracestate, otel member or sampling rate, indexed by
+     * {@link #sharedPriorityIndex} and {@link #sharedDecisionMakerIndex}. States are immutable, so
+     * a trace whose decision is one of these, as an extracted priority or a manual keep almost
+     * always is, doesn't build its own.
+     */
+    private static final SamplingState[][] SHARED_SAMPLING_STATES =
+        new SamplingState[5][DECISION_MAKER_TAG_VALUES.length + 1];
+
+    static {
+      int[] priorities = {
+        PrioritySampling.UNSET,
+        PrioritySampling.USER_DROP,
+        PrioritySampling.SAMPLER_DROP,
+        PrioritySampling.SAMPLER_KEEP,
+        PrioritySampling.USER_KEEP
+      };
+      for (int priority : priorities) {
+        SamplingState[] row = SHARED_SAMPLING_STATES[sharedPriorityIndex(priority)];
+        row[0] = new SamplingState(priority, null, null, null, null);
+        for (int mechanism = 0; mechanism < DECISION_MAKER_TAG_VALUES.length; ++mechanism) {
+          row[mechanism + 1] =
+              new SamplingState(priority, null, null, DECISION_MAKER_TAG_VALUES[mechanism], null);
+        }
+      }
+    }
+
+    /**
+     * A state for this decision, shared when it has no tracestate, otel member or sampling rate,
+     * and a priority and decision maker that {@link #SHARED_SAMPLING_STATES} covers.
+     */
+    static SamplingState samplingState(
+        int samplingPriority,
+        String tracestate,
+        CharSequence otelTraceState,
+        TagValue decisionMaker,
+        TagValue knuthSamplingRate) {
+      if (tracestate == null && otelTraceState == null && knuthSamplingRate == null) {
+        int priorityIndex = sharedPriorityIndex(samplingPriority);
+        int decisionMakerIndex = sharedDecisionMakerIndex(decisionMaker);
+        if (priorityIndex >= 0 && decisionMakerIndex >= 0) {
+          return SHARED_SAMPLING_STATES[priorityIndex][decisionMakerIndex];
+        }
+      }
+      return new SamplingState(
+          samplingPriority, tracestate, otelTraceState, decisionMaker, knuthSamplingRate);
+    }
+
+    private static int sharedPriorityIndex(int samplingPriority) {
+      if (samplingPriority == PrioritySampling.UNSET) {
+        return 0;
+      }
+      return samplingPriority >= PrioritySampling.USER_DROP
+              && samplingPriority <= PrioritySampling.USER_KEEP
+          ? samplingPriority - PrioritySampling.USER_DROP + 1
+          : -1;
+    }
+
+    /**
+     * 0 for no decision maker, the mechanism + 1 for a shared {@code -<mechanism>}, otherwise -1.
+     */
+    private static int sharedDecisionMakerIndex(TagValue decisionMaker) {
+      if (decisionMaker == null) {
+        return 0;
+      }
+      int length = decisionMaker.length();
+      if (length < 2 || length > 3 || decisionMaker.charAt(0) != '-') {
+        return -1;
+      }
+      int mechanism = 0;
+      for (int i = 1; i < length; ++i) {
+        char c = decisionMaker.charAt(i);
+        if (c < '0' || c > '9') {
+          return -1;
+        }
+        mechanism = mechanism * 10 + (c - '0');
+      }
+      // equals rejects spellings like -01 that name a mechanism but don't match its value
+      return mechanism < DECISION_MAKER_TAG_VALUES.length
+              && DECISION_MAKER_TAG_VALUES[mechanism].equals(decisionMaker)
+          ? mechanism + 1
+          : -1;
     }
 
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
@@ -436,7 +517,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         return current;
       }
       clearCachedHeader(W3C);
-      return new SamplingState(
+      return samplingState(
           samplingPriority,
           current.getTracestate(),
           nextOtelTraceState,
@@ -497,12 +578,7 @@ public class PTagsFactory implements PropagationTags.Factory {
             otelOriginalSize,
             InheritedSamplingState.NO_CHECKS);
       }
-      if (samplingPriority == PrioritySampling.UNSET
-          && tracestate == null
-          && decisionMakerTagValue == null) {
-        return EMPTY_SAMPLING_STATE;
-      }
-      return new SamplingState(samplingPriority, tracestate, null, decisionMakerTagValue, null);
+      return samplingState(samplingPriority, tracestate, null, decisionMakerTagValue, null);
     }
 
     /**
@@ -1043,7 +1119,7 @@ public class PTagsFactory implements PropagationTags.Factory {
           nextOtelTraceState = nextOtelTraceState.withoutThreshold();
         }
         next =
-            new SamplingState(
+            samplingState(
                 samplingPriority,
                 tracestate,
                 nextOtelTraceState,
@@ -1075,7 +1151,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       do {
         current = samplingState;
         next =
-            new SamplingState(
+            samplingState(
                 current.getSamplingPriority(),
                 current.getTracestate(),
                 otelTraceStateOf(current),
