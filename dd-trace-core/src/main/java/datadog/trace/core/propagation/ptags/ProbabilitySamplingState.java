@@ -23,12 +23,11 @@ final class ProbabilitySamplingState extends SamplingState {
 
   ProbabilitySamplingState(
       int samplingPriority,
-      String tracestate,
       CharSequence decisionMaker,
       CharSequence knuthSamplingRate,
       long traceIdLowOrderBits,
       double sampleRate) {
-    super(samplingPriority, tracestate, null, decisionMaker, knuthSamplingRate);
+    super(samplingPriority, null, decisionMaker, knuthSamplingRate);
     this.traceIdLowOrderBits = traceIdLowOrderBits;
     this.sampleRate = sampleRate;
   }

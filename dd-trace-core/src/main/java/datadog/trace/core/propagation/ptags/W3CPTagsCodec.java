@@ -11,7 +11,6 @@ import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import datadog.trace.util.SubSequence;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -293,12 +292,6 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   @Override
-  @SuppressWarnings("StringEquality")
-  @SuppressFBWarnings(
-      value = "ES_COMPARING_STRINGS_WITH_EQ",
-      justification =
-          "Identity determines whether the sampling state retains this PTags instance's raw "
-              + "tracestate, allowing its parsed size metadata to be reused.")
   protected int estimateHeaderSize(
       PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
     int size = EMPTY_SIZE + 1;
@@ -314,11 +307,9 @@ public class W3CPTagsCodec extends PTagsCodec {
     if (lastParent != null) {
       size += lastParent.length() + 3;
     }
-    String originalTracestate = samplingState.getTracestate();
+    String originalTracestate = pTags.tracestate;
     boolean includesOriginalTracestate = false;
-    if (originalTracestate != null
-        && pTags instanceof W3CPTags
-        && originalTracestate == pTags.tracestate) {
+    if (originalTracestate != null && pTags instanceof W3CPTags) {
       W3CPTags w3CPTags = (W3CPTags) pTags;
       size += w3CPTags.maxUnknownSize;
       if (w3CPTags.ddMemberStart != -1) {
@@ -403,7 +394,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       size = 0;
     }
     if (size == 0) {
-      String original = samplingState.getTracestate();
+      String original = ptags.tracestate;
       String trimmed = original == null ? null : original.trim();
       if (canForwardRawTracestate(trimmed, samplingState.getOtelTraceStateForWrite())) {
         sb.append(trimmed);
@@ -411,7 +402,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
     }
     // Append the managed OTel member and all other non-Datadog list-members
-    if (appendOtelAndVendorMembers(sb, samplingState, size != 0)) {
+    if (appendOtelAndVendorMembers(sb, samplingState, ptags.tracestate, size != 0)) {
       // We don't care about the total size in bytes here, but only the fact that we added something
       // that should be returned
       size = Math.max(size, EMPTY_SIZE + 1);
@@ -866,12 +857,11 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static boolean appendOtelAndVendorMembers(
-      StringBuilder sb, SamplingState samplingState, boolean hasDatadogMember) {
-    String original = samplingState.getTracestate();
+      StringBuilder sb, SamplingState samplingState, String original, boolean hasDatadogMember) {
     CharSequence otelTraceState = samplingState.getOtelTraceStateForWrite();
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
     boolean memberAppended = false;
-    boolean preserveOtelPosition = samplingState.preservesInheritedOtelPosition();
+    boolean preserveOtelPosition = samplingState.preservesInheritedOtelPosition(original);
     if (!preserveOtelPosition && otelTraceState != null && remainingMembers > 0) {
       appendMember(sb, OTEL_MEMBER_KEY, otelTraceState.toString());
       remainingMembers--;
@@ -924,8 +914,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     return otelMemberCount == 1;
   }
 
-  public static String rebuildTracestate(SamplingState samplingState) {
-    String original = samplingState.getTracestate();
+  public static String rebuildTracestate(SamplingState samplingState, String original) {
     CharSequence otelTraceState = samplingState.getOtelTraceStateForWrite();
     // TODO Consider a raw passthrough for unchanged state after checking dd= is not duplicated.
     StringBuilder result = new StringBuilder(MAX_HEADER_SIZE);

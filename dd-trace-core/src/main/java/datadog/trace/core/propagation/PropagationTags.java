@@ -35,7 +35,6 @@ public abstract class PropagationTags {
     private static final byte OTEL_POSITION_REPLACED = 2;
 
     private final int samplingPriority;
-    private final String tracestate;
     private final CharSequence otelTraceState;
     private final CharSequence decisionMaker;
     private final CharSequence knuthSamplingRate;
@@ -43,12 +42,10 @@ public abstract class PropagationTags {
 
     public SamplingState(
         int samplingPriority,
-        String tracestate,
         CharSequence otelTraceState,
         CharSequence decisionMaker,
         CharSequence knuthSamplingRate) {
       this.samplingPriority = samplingPriority;
-      this.tracestate = tracestate;
       this.otelTraceState = otelTraceState;
       this.decisionMaker = decisionMaker;
       this.knuthSamplingRate = knuthSamplingRate;
@@ -56,10 +53,6 @@ public abstract class PropagationTags {
 
     public int getSamplingPriority() {
       return samplingPriority;
-    }
-
-    public String getTracestate() {
-      return tracestate;
     }
 
     /** The {@code ot} tracestate member, which a subclass may build on first read. */
@@ -83,7 +76,12 @@ public abstract class PropagationTags {
       return knuthSamplingRate;
     }
 
-    public boolean preservesInheritedOtelPosition() {
+    /**
+     * Whether writing the {@code ot} member at its position in {@code tracestate}, the trace's raw
+     * tracestate, leaves it unchanged. Cached, as a state with an {@code ot} member belongs to one
+     * trace, whose tracestate doesn't change once the trace is shared.
+     */
+    public boolean preservesInheritedOtelPosition(String tracestate) {
       if (tracestate == null) {
         return false;
       }

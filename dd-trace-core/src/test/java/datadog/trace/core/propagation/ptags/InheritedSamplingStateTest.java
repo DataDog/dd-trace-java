@@ -74,7 +74,7 @@ class InheritedSamplingStateTest {
   }
 
   private static InheritedSamplingState state(String raw, byte checks) {
-    return new InheritedSamplingState(SAMPLER_KEEP, null, null, null, raw, ORIGINAL_SIZE, checks);
+    return new InheritedSamplingState(SAMPLER_KEEP, null, null, raw, ORIGINAL_SIZE, checks);
   }
 
   /** What extraction did before deferring: parse, then check at each step. */
