@@ -210,6 +210,49 @@ public class PTagsFactory implements PropagationTags.Factory {
       return new SamplingState(samplingPriority, otelTraceState, decisionMaker, knuthSamplingRate);
     }
 
+    /**
+     * Shared {@link InheritedSamplingState}s, by pending checks, {@link #sharedPriorityIndex} and
+     * {@link #sharedDecisionMakerIndex}. Filled on first use; a racing fill builds an equal state.
+     */
+    private static final InheritedSamplingState[] SHARED_INHERITED_SAMPLING_STATES =
+        new InheritedSamplingState
+            [InheritedSamplingState.CHECK_COMBINATIONS
+                * SHARED_SAMPLING_STATES.length
+                * SHARED_SAMPLING_STATES[0].length];
+
+    /** An inherited state for this decision, shared when it has no sampling rate. */
+    static SamplingState inheritedSamplingState(
+        int samplingPriority,
+        TagValue decisionMaker,
+        TagValue knuthSamplingRate,
+        byte pendingChecks) {
+      if (knuthSamplingRate == null) {
+        int priorityIndex = sharedPriorityIndex(samplingPriority);
+        int decisionMakerIndex = sharedDecisionMakerIndex(decisionMaker);
+        if (priorityIndex >= 0 && decisionMakerIndex >= 0) {
+          int index =
+              (pendingChecks * SHARED_SAMPLING_STATES.length + priorityIndex)
+                      * SHARED_SAMPLING_STATES[0].length
+                  + decisionMakerIndex;
+          InheritedSamplingState shared = SHARED_INHERITED_SAMPLING_STATES[index];
+          if (shared == null) {
+            shared =
+                new InheritedSamplingState(
+                    samplingPriority,
+                    decisionMakerIndex == 0
+                        ? null
+                        : DECISION_MAKER_TAG_VALUES[decisionMakerIndex - 1],
+                    null,
+                    pendingChecks);
+            SHARED_INHERITED_SAMPLING_STATES[index] = shared;
+          }
+          return shared;
+        }
+      }
+      return new InheritedSamplingState(
+          samplingPriority, decisionMaker, knuthSamplingRate, pendingChecks);
+    }
+
     private static int sharedPriorityIndex(int samplingPriority) {
       if (samplingPriority == PrioritySampling.UNSET) {
         return 0;
@@ -271,10 +314,12 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile TagValue traceIdHighOrderBitsHexTagValue;
 
     /**
-     * The original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C tracestate
-     * header</a> value.
+     * The trace's <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C tracestate
+     * header</a> value: null, the value, or, when it has an {@code ot} member, a {@link
+     * W3CTracestate} that also holds the member for an {@link InheritedSamplingState}. Only
+     * extraction sets it, before the trace is shared. Read it through {@link #tracestate()}.
      */
-    protected volatile String tracestate;
+    private volatile Object tracestate;
 
     /**
      * The {@link PTagsFactory#PROPAGATION_ERROR_TAG_KEY propagation tag error} value, {@code null
@@ -308,10 +353,17 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.tagPairs = tagPairs;
       this.canChangeDecisionMaker = decisionMakerTagValue == null;
       this.traceSource = traceSource;
-      this.tracestate = tracestate;
-      this.samplingState =
-          initialSamplingState(
-              samplingPriority, rawOtelTraceState, otelOriginalSize, decisionMakerTagValue);
+      if (rawOtelTraceState != null) {
+        this.tracestate =
+            new W3CTracestate(
+                tracestate, rawOtelTraceState, otelOriginalSize, PrioritySampling.UNSET, null);
+        this.samplingState =
+            inheritedSamplingState(
+                samplingPriority, decisionMakerTagValue, null, InheritedSamplingState.NO_CHECKS);
+      } else {
+        this.tracestate = tracestate;
+        this.samplingState = samplingState(samplingPriority, null, decisionMakerTagValue, null);
+      }
       this.origin = origin;
       this.lastParentId = lastParentId;
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
@@ -504,7 +556,7 @@ public class PTagsFactory implements PropagationTags.Factory {
           nextDecisionMakerTagValue(
               current, samplingPriority, samplingMechanism, updateDecisionMaker);
       if (current.getSamplingPriority() == samplingPriority
-          && current.getOtelTraceState() == nextOtelTraceState
+          && otelTraceStateOf(current) == nextOtelTraceState
           && Objects.equals(current.getDecisionMaker(), nextDecisionMakerTagValue)
           && Objects.equals(current.getKnuthSamplingRate(), nextKnuthSamplingRateTagValue)) {
         return current;
@@ -554,23 +606,6 @@ public class PTagsFactory implements PropagationTags.Factory {
       return nextDecisionMakerTagValue;
     }
 
-    private static SamplingState initialSamplingState(
-        int samplingPriority,
-        CharSequence rawOtelTraceState,
-        int otelOriginalSize,
-        TagValue decisionMakerTagValue) {
-      if (rawOtelTraceState != null) {
-        return new InheritedSamplingState(
-            samplingPriority,
-            decisionMakerTagValue,
-            null,
-            rawOtelTraceState,
-            otelOriginalSize,
-            InheritedSamplingState.NO_CHECKS);
-      }
-      return samplingState(samplingPriority, null, decisionMakerTagValue, null);
-    }
-
     /**
      * Records a decision against an extracted otel member that hasn't been parsed, without parsing
      * it. For an external override or unknown mechanism, reconciling the member is only a
@@ -585,7 +620,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         TagValue knuthSamplingRate,
         boolean updateDecisionMaker) {
       if (!(current instanceof InheritedSamplingState)
-          || ((InheritedSamplingState) current).isResolved()
+          || inheritedOtelMember().isResolved(((InheritedSamplingState) current).pendingChecks())
           || (samplingMechanism != SamplingMechanism.EXTERNAL_OVERRIDE
               && samplingMechanism != SamplingMechanism.UNKNOWN)) {
         return null;
@@ -604,7 +639,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         return current;
       }
       clearCachedHeader(W3C);
-      return inherited.withDecision(
+      return inheritedSamplingState(
           samplingPriority, decisionMaker, knuthSamplingRate, pendingChecks);
     }
 
@@ -1026,7 +1061,47 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public String getW3CTracestate() {
-      return this.tracestate;
+      return tracestate();
+    }
+
+    /** The trace's tracestate header value, or null. */
+    final String tracestate() {
+      Object current = tracestate;
+      return current instanceof W3CTracestate
+          ? ((W3CTracestate) current).tracestate
+          : (String) current;
+    }
+
+    /**
+     * The trace's inherited {@code ot} member, which an {@link InheritedSamplingState} defers to.
+     */
+    final W3CTracestate inheritedOtelMember() {
+      return (W3CTracestate) tracestate;
+    }
+
+    @Override
+    public CharSequence getOtelTraceState(SamplingState samplingState) {
+      return otelTraceStateOf(samplingState);
+    }
+
+    /** The {@code ot} member of {@code samplingState} as it's written. */
+    CharSequence getOtelTraceStateForWrite(SamplingState samplingState) {
+      if (samplingState instanceof InheritedSamplingState) {
+        return inheritedOtelMember()
+            .otelTraceStateForWrite(((InheritedSamplingState) samplingState).pendingChecks());
+      }
+      return samplingState.getOtelTraceStateForWrite();
+    }
+
+    /**
+     * Whether writing {@code otelTraceState}, the {@code ot} member of {@code samplingState} as
+     * it's written, at the member's position in the tracestate leaves the tracestate unchanged.
+     */
+    boolean preservesOtelPosition(SamplingState samplingState, CharSequence otelTraceState) {
+      if (samplingState instanceof InheritedSamplingState) {
+        return inheritedOtelMember().preservesOtelPosition(otelTraceState);
+      }
+      return samplingState.preservesOtelPosition(tracestate(), otelTraceState);
     }
 
     @Override
@@ -1035,7 +1110,9 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (cache == null || cache.samplingState != samplingState) {
         cache =
             new TracestateCacheEntry(
-                samplingState, W3CPTagsCodec.rebuildTracestate(samplingState, tracestate));
+                samplingState,
+                W3CPTagsCodec.rebuildTracestate(
+                    tracestate(), getOtelTraceStateForWrite(samplingState)));
         tracestateCache = cache;
       }
       return cache.tracestate;
@@ -1069,7 +1146,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         // as the trace context's own priority override reconciles its member
         pendingChecks = InheritedSamplingState.withCheck(pendingChecks, overridingPriority > 0);
       }
-      setTracestate(source.tracestate);
+      setTracestate(source);
       SamplingState current;
       SamplingState next;
       do {
@@ -1081,12 +1158,10 @@ public class PTagsFactory implements PropagationTags.Factory {
               InheritedSamplingState.withCheck(nextPendingChecks, samplingPriority > 0);
         }
         next =
-            new InheritedSamplingState(
+            inheritedSamplingState(
                 samplingPriority,
                 getDecisionMakerTagValue(current),
                 getKnuthSamplingRateTagValue(current),
-                source.rawOtelTraceState,
-                source.otelOriginalSize,
                 nextPendingChecks);
       } while (!SAMPLING_STATE_UPDATER.compareAndSet(this, current, next));
       clearCachedHeader(W3C);
@@ -1115,16 +1190,22 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     /**
-     * Replaces the trace's tracestate. Only extraction does this, before the trace is shared, so
-     * the tracestate needn't be published together with the sampling state.
+     * Replaces the trace's tracestate, a header value or a {@link W3CTracestate} holding its {@code
+     * ot} member. Only extraction does this, before the trace is shared, so the tracestate needn't
+     * be published together with the sampling state.
      */
-    private void setTracestate(String tracestate) {
+    private void setTracestate(Object tracestate) {
       this.tracestate = tracestate;
       tracestateCache = null;
       clearCachedHeader(W3C);
     }
 
-    private static OtelTraceState otelTraceStateOf(SamplingState samplingState) {
+    /** The {@code ot} member of {@code samplingState}, parsing an inherited one on first read. */
+    private OtelTraceState otelTraceStateOf(SamplingState samplingState) {
+      if (samplingState instanceof InheritedSamplingState) {
+        return inheritedOtelMember()
+            .otelTraceState(((InheritedSamplingState) samplingState).pendingChecks());
+      }
       return (OtelTraceState) samplingState.getOtelTraceState();
     }
 
@@ -1145,11 +1226,17 @@ public class PTagsFactory implements PropagationTags.Factory {
       do {
         current = samplingState;
         next =
-            samplingState(
-                current.getSamplingPriority(),
-                otelTraceStateOf(current),
-                decisionMakerTagValue,
-                getKnuthSamplingRateTagValue(current));
+            current instanceof InheritedSamplingState
+                ? inheritedSamplingState(
+                    current.getSamplingPriority(),
+                    decisionMakerTagValue,
+                    getKnuthSamplingRateTagValue(current),
+                    ((InheritedSamplingState) current).pendingChecks())
+                : samplingState(
+                    current.getSamplingPriority(),
+                    otelTraceStateOf(current),
+                    decisionMakerTagValue,
+                    getKnuthSamplingRateTagValue(current));
       } while (!SAMPLING_STATE_UPDATER.compareAndSet(this, current, next));
       if (decisionMakerTagValue != null) {
         clearCachedHeader(DATADOG);

@@ -115,7 +115,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
     }
 
-    // The otel member is kept raw and parsed on first read; see InheritedSamplingState
+    // The otel member is kept raw and parsed on first read; see W3CTracestate
     CharSequence rawOtelTraceState = null;
     int otelOriginalSize = 0;
     if (otelMemberStart != -1) {
@@ -307,7 +307,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     if (lastParent != null) {
       size += lastParent.length() + 3;
     }
-    String originalTracestate = pTags.tracestate;
+    String originalTracestate = pTags.tracestate();
     boolean includesOriginalTracestate = false;
     if (originalTracestate != null && pTags instanceof W3CPTags) {
       W3CPTags w3CPTags = (W3CPTags) pTags;
@@ -320,13 +320,13 @@ public class W3CPTagsCodec extends PTagsCodec {
       size += originalTracestate.length();
       includesOriginalTracestate = true;
     }
-    CharSequence otelTraceState = samplingState.getOtelTraceStateForWrite();
+    CharSequence otelTraceState = pTags.getOtelTraceStateForWrite(samplingState);
     if (otelTraceState != null) {
       if (includesOriginalTracestate && otelTraceState instanceof OtelTraceState) {
         size -= ((OtelTraceState) otelTraceState).getOriginalSize();
       } else if (includesOriginalTracestate && samplingState instanceof InheritedSamplingState) {
         // the unparsed member, written as it arrived
-        size -= ((InheritedSamplingState) samplingState).otelOriginalSize();
+        size -= pTags.inheritedOtelMember().otelOriginalSize;
       }
       size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
     }
@@ -394,15 +394,15 @@ public class W3CPTagsCodec extends PTagsCodec {
       size = 0;
     }
     if (size == 0) {
-      String original = ptags.tracestate;
+      String original = ptags.tracestate();
       String trimmed = original == null ? null : original.trim();
-      if (canForwardRawTracestate(trimmed, samplingState.getOtelTraceStateForWrite())) {
+      if (canForwardRawTracestate(trimmed, ptags.getOtelTraceStateForWrite(samplingState))) {
         sb.append(trimmed);
         return EMPTY_SIZE + 1;
       }
     }
     // Append the managed OTel member and all other non-Datadog list-members
-    if (appendOtelAndVendorMembers(sb, samplingState, ptags.tracestate, size != 0)) {
+    if (appendOtelAndVendorMembers(sb, ptags, samplingState, size != 0)) {
       // We don't care about the total size in bytes here, but only the fact that we added something
       // that should be returned
       size = Math.max(size, EMPTY_SIZE + 1);
@@ -816,7 +816,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         || w3CPTags.ddMemberStart >= w3CPTags.ddMemberValueEnd) {
       return size;
     }
-    String original = w3CPTags.tracestate;
+    String original = w3CPTags.tracestate();
     int elementStart = w3CPTags.ddMemberStart + EMPTY_SIZE; // skip over 'dd='
     int okSize = size;
     while (elementStart < w3CPTags.ddMemberValueEnd && size < MAX_HEADER_SIZE) {
@@ -857,11 +857,15 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static boolean appendOtelAndVendorMembers(
-      StringBuilder sb, SamplingState samplingState, String original, boolean hasDatadogMember) {
-    CharSequence otelTraceState = samplingState.getOtelTraceStateForWrite();
+      StringBuilder sb, PTags ptags, SamplingState samplingState, boolean hasDatadogMember) {
+    String original = ptags.tracestate();
+    CharSequence otelTraceState = ptags.getOtelTraceStateForWrite(samplingState);
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
     boolean memberAppended = false;
-    boolean preserveOtelPosition = samplingState.preservesInheritedOtelPosition(original);
+    boolean preserveOtelPosition =
+        original != null
+            && otelTraceState != null
+            && ptags.preservesOtelPosition(samplingState, otelTraceState);
     if (!preserveOtelPosition && otelTraceState != null && remainingMembers > 0) {
       appendMember(sb, OTEL_MEMBER_KEY, otelTraceState.toString());
       remainingMembers--;
@@ -914,8 +918,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     return otelMemberCount == 1;
   }
 
-  public static String rebuildTracestate(SamplingState samplingState, String original) {
-    CharSequence otelTraceState = samplingState.getOtelTraceStateForWrite();
+  public static String rebuildTracestate(String original, CharSequence otelTraceState) {
     // TODO Consider a raw passthrough for unchanged state after checking dd= is not duplicated.
     StringBuilder result = new StringBuilder(MAX_HEADER_SIZE);
     int memberCount = 0;
@@ -1226,18 +1229,18 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static class W3CPTags extends PTags {
-    /** The index of the first tracestate list-member position in {@link #tracestate}. */
+    /** The index of the first tracestate list-member position in the tracestate. */
     private final int firstMemberStart;
 
     /**
-     * The index of the Datadog tracestate list-member (dd=) position in {@link #tracestate}, {@code
-     * -1 if Datadog list-member not found}.
+     * The index of the Datadog tracestate list-member (dd=) position in the tracestate, {@code -1
+     * if Datadog list-member not found}.
      */
     private final int ddMemberStart;
 
     /**
-     * The index of the end Datadog tracestate list-member (dd=) in {@link #tracestate}, {@code -1
-     * if Datadog list-member not found}.
+     * The index of the end Datadog tracestate list-member (dd=) in the tracestate, {@code -1 if
+     * Datadog list-member not found}.
      */
     private final int ddMemberValueEnd;
 

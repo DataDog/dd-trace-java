@@ -120,6 +120,6 @@ class ProbabilitySamplingStateTest {
     assertNull(
         OtelTraceState.fromProbabilityDecision(TRACE_ID_LOW_ORDER_BITS, 0.1, SAMPLER_KEEP)
             .forNonProbabilityDecision());
-    assertNull(ptags.samplingState().getOtelTraceState());
+    assertNull(ptags.getOtelTraceState(ptags.samplingState()));
   }
 }

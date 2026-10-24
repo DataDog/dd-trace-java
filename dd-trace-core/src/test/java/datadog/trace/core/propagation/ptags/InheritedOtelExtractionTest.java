@@ -95,6 +95,8 @@ class InheritedOtelExtractionTest extends DDCoreJavaSpecification {
   private static void assertUnparsed(PropagationTags tags) {
     InheritedSamplingState state =
         assertInstanceOf(InheritedSamplingState.class, tags.samplingState());
-    assertFalse(state.isResolved(), "a leaf must not parse the inherited otel member");
+    assertFalse(
+        ((PTagsFactory.PTags) tags).inheritedOtelMember().isResolved(state.pendingChecks()),
+        "a leaf must not parse the inherited otel member");
   }
 }
