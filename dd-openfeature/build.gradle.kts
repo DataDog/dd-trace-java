@@ -4,22 +4,27 @@ import me.champeau.gradle.japicmp.JapicmpTask
 
 plugins {
   `java-library`
-  idea
-  id("dd-trace-java.conventions.java")
+  id("dd-trace-java.module.distributable.api")
   id("dd-trace-java.version-file")
   id("dd-trace-java.jmh-conventions")
 }
 
 description = "Datadog OpenFeature provider SDK."
 
-configure<TestJvmConstraintsExtension> {
-  minJavaVersion.set(JavaVersion.VERSION_11)
+// Set both JAR and Maven artifact name
+val openFeatureArtifactId = "dd-openfeature"
+base {
+  archivesName.set(openFeatureArtifactId)
 }
 
-idea {
-  module {
-    jdkName = "11"
+publishing {
+  publications.withType<MavenPublication>().configureEach {
+    artifactId = openFeatureArtifactId
   }
+}
+
+configure<TestJvmConstraintsExtension> {
+  minJavaVersion.set(JavaVersion.VERSION_11)
 }
 
 java {
@@ -43,6 +48,16 @@ jmh {
 
 tasks.withType<JavaCompile>().configureEach {
   configureCompiler(JavaVersion.VERSION_11)
+}
+
+tasks.withType<Javadoc>().configureEach {
+  javadocTool = javaToolchains.javadocToolFor(java.toolchain)
+}
+
+tasks.named<Jar>("jar") {
+  manifest {
+    attributes("Automatic-Module-Name" to "com.datadog.openfeature")
+  }
 }
 
 // The agent bridge SPI versions, with the first SDK release shipping each of them. A released
@@ -70,4 +85,26 @@ bridgeSpiBaselines.forEach { (spi, baseline) ->
       dependsOn(check)
     }
   }
+}
+
+// The public API, outside the internal packages, must stay compatible with the previous release:
+// each release keeps the API of all the previous ones. The previous release is the latest one
+// before the version being built, so release branches compare against their own line.
+val publicApiBaseline = "(,${version.toString().removeSuffix("-SNAPSHOT")})"
+val japicmpPublicApi = tasks.register<JapicmpTask>("japicmpPublicApi") {
+  description = "Checks the public API stays compatible with the previous dd-openfeature release."
+  val baselineSdk = "com.datadoghq:dd-openfeature:$publicApiBaseline"
+  oldArchives.from(configurations.detachedConfiguration(dependencies.create("$baselineSdk@jar")))
+  oldClasspath.from(configurations.detachedConfiguration(dependencies.create(baselineSdk)))
+  newArchives.from(tasks.named<Jar>("jar"))
+  newClasspath.from(configurations.named("runtimeClasspath"))
+  packageIncludes.addAll("com.datadog.openfeature", "datadog.trace.api.openfeature")
+  failOnModification.set(true)
+  failOnSourceIncompatibility.set(true)
+  // TODO Remove once the baseline is 1.69.0 or later: earlier releases link the agent bootstrap API.
+  ignoreMissingClasses.set(true)
+  txtOutputFile.set(layout.buildDirectory.file("reports/japicmp/public-api.txt"))
+}
+tasks.named("check") {
+  dependsOn(japicmpPublicApi)
 }
