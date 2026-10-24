@@ -49,6 +49,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -98,6 +100,35 @@ class RemoteConfigServiceImplTest {
     assertFalse(config.flags.containsKey("malformed-flag"));
     assertTrue(config.flags.containsKey("valid-flag"));
     assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"null", "\"true\"", "\"false\"", "0", "1", "[]", "{}"})
+  void rejectsInvalidDoLogAndKeepsSiblingFlag(final String wireValue) throws Exception {
+    final String json = configWithSiblingSerialIds("1");
+    final String updated =
+        wireValue == null
+            ? json.replaceFirst(",\\s*\"doLog\": true", "")
+            : json.replaceFirst("\"doLog\": true", "\"doLog\": " + wireValue);
+
+    final ServerConfiguration config = deserialize(updated);
+
+    assertFalse(config.flags.containsKey("malformed-flag"));
+    assertEquals("invalid_flag", config.invalidFlags.get("malformed-flag"));
+    assertTrue(config.flags.containsKey("valid-flag"));
+    assertEquals(Integer.valueOf(7), serialIdOf(config));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void acceptsExplicitDoLog(final boolean doLog) throws Exception {
+    final String json = configWithSerialId("7").replace("\"doLog\": true", "\"doLog\": " + doLog);
+
+    final ServerConfiguration config = deserialize(json);
+
+    assertEquals(doLog, config.flags.get("valid-flag").allocations.get(0).doLog);
+    assertEquals(Integer.valueOf(7), serialIdOf(config));
   }
 
   @Test
