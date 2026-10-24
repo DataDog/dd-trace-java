@@ -9,6 +9,7 @@ import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -463,6 +464,65 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @Test
+  void propagationTagsAreWrittenOnTheLocalRootSpanOnly() throws IOException {
+    AgentSpan root = TRACER.startSpan("test", "op.root");
+    root.setResourceName("root.op");
+    // 128-bit trace ids are on by default, so the root carries a _dd.p.tid propagation tag
+    assertNotEquals(0, root.getTraceId().toHighOrderLong());
+    ((DDSpan) root)
+        .spanContext()
+        .getPropagationTags()
+        .tryUpdateProbabilitySamplingDecision(
+            PrioritySampling.USER_KEEP,
+            SamplingMechanism.REMOTE_ADAPTIVE_RULE,
+            0.5,
+            false,
+            root.getTraceId().toLong(),
+            true);
+    root.setBaggageItem("baggage.key", "baggage.value");
+    AgentSpan child = TRACER.startSpan("test", "op.child", root.spanContext());
+    child.setResourceName("child.op");
+    child.finish();
+    root.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) root, (CoreSpan<?>) child));
+    List<Map<String, Object>> parsedSpans = allSpans(collector.collectTraces());
+
+    Map<String, Object> parsedRoot = spanNamed(parsedSpans, "root.op");
+    assertEquals(asList("-12"), attributeValues(parsedRoot, "_dd.p.dm"));
+    assertEquals(asList("0.5"), attributeValues(parsedRoot, "_dd.p.ksr"));
+    // the OTLP traceId already carries the upper 64 bits
+    assertFalse(attributeKeys(parsedRoot).contains("_dd.p.tid"), "_dd.p.tid must not be exported");
+    assertEquals(asList("baggage.value"), attributeValues(parsedRoot, "baggage.key"));
+
+    Map<String, Object> parsedChild = spanNamed(parsedSpans, "child.op");
+    for (String key : attributeKeys(parsedChild)) {
+      assertFalse(key.startsWith("_dd.p."), "child span must not carry " + key);
+    }
+    assertEquals(asList("baggage.value"), attributeValues(parsedChild, "baggage.key"));
+  }
+
+  @Test
+  void baggageDoesNotDuplicateDirectlyWrittenAttributes() throws IOException {
+    AgentSpan span = TRACER.startSpan("test", "op.direct");
+    span.setResourceName("direct.op");
+    span.setBaggageItem("resource.name", "baggage.resource");
+    span.setBaggageItem("operation.name", "baggage.operation");
+    span.setBaggageItem("thread.name", "baggage.thread");
+    span.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) span));
+    Map<String, Object> parsed = onlySpan(collector.collectTraces());
+
+    // each key must appear once, with the span's own value
+    assertEquals(asList("direct.op"), attributeValues(parsed, "resource.name"));
+    assertEquals(asList("op.direct"), attributeValues(parsed, "operation.name"));
+    assertEquals(asList(Thread.currentThread().getName()), attributeValues(parsed, "thread.name"));
+  }
+
+  @Test
   void poisonedSpanResetsCollectorForNextTrace() throws IOException {
     // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
     DDSpan realSpan = startAndFinish("op.first", "GET /first", null);
@@ -609,6 +669,13 @@ class OtlpTraceJsonCollectorTest {
       result.add((Map<String, Object>) span);
     }
     return result;
+  }
+
+  private static Map<String, Object> spanNamed(List<Map<String, Object>> spans, String name) {
+    return spans.stream()
+        .filter(s -> name.equals(s.get("name")))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError(name + " span not found"));
   }
 
   @SuppressWarnings("unchecked")
