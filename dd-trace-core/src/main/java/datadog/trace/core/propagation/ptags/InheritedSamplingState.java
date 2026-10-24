@@ -38,13 +38,12 @@ final class InheritedSamplingState extends SamplingState {
 
   InheritedSamplingState(
       int samplingPriority,
-      String tracestate,
       CharSequence decisionMaker,
       CharSequence knuthSamplingRate,
       CharSequence rawOtelTraceState,
       int otelOriginalSize,
       byte pendingChecks) {
-    super(samplingPriority, tracestate, null, decisionMaker, knuthSamplingRate);
+    super(samplingPriority, null, decisionMaker, knuthSamplingRate);
     this.rawOtelTraceState = rawOtelTraceState;
     this.otelOriginalSize = otelOriginalSize;
     this.pendingChecks = pendingChecks;
@@ -58,13 +57,11 @@ final class InheritedSamplingState extends SamplingState {
   /** A copy of this unparsed member under a new decision and {@code pendingChecks}. */
   InheritedSamplingState withDecision(
       int samplingPriority,
-      String tracestate,
       CharSequence decisionMaker,
       CharSequence knuthSamplingRate,
       byte pendingChecks) {
     return new InheritedSamplingState(
         samplingPriority,
-        tracestate,
         decisionMaker,
         knuthSamplingRate,
         rawOtelTraceState,

@@ -165,10 +165,10 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     /**
-     * Shared states for decisions with no tracestate, otel member or sampling rate, indexed by
-     * {@link #sharedPriorityIndex} and {@link #sharedDecisionMakerIndex}. States are immutable, so
-     * a trace whose decision is one of these, as an extracted priority or a manual keep almost
-     * always is, doesn't build its own.
+     * Shared states for decisions with no otel member or sampling rate, indexed by {@link
+     * #sharedPriorityIndex} and {@link #sharedDecisionMakerIndex}. States are immutable, so a trace
+     * whose decision is one of these, as an extracted priority or a manual keep almost always is,
+     * doesn't build its own.
      */
     private static final SamplingState[][] SHARED_SAMPLING_STATES =
         new SamplingState[5][DECISION_MAKER_TAG_VALUES.length + 1];
@@ -183,33 +183,31 @@ public class PTagsFactory implements PropagationTags.Factory {
       };
       for (int priority : priorities) {
         SamplingState[] row = SHARED_SAMPLING_STATES[sharedPriorityIndex(priority)];
-        row[0] = new SamplingState(priority, null, null, null, null);
+        row[0] = new SamplingState(priority, null, null, null);
         for (int mechanism = 0; mechanism < DECISION_MAKER_TAG_VALUES.length; ++mechanism) {
           row[mechanism + 1] =
-              new SamplingState(priority, null, null, DECISION_MAKER_TAG_VALUES[mechanism], null);
+              new SamplingState(priority, null, DECISION_MAKER_TAG_VALUES[mechanism], null);
         }
       }
     }
 
     /**
-     * A state for this decision, shared when it has no tracestate, otel member or sampling rate,
-     * and a priority and decision maker that {@link #SHARED_SAMPLING_STATES} covers.
+     * A state for this decision, shared when it has no otel member or sampling rate, and a priority
+     * and decision maker that {@link #SHARED_SAMPLING_STATES} covers.
      */
     static SamplingState samplingState(
         int samplingPriority,
-        String tracestate,
         CharSequence otelTraceState,
         TagValue decisionMaker,
         TagValue knuthSamplingRate) {
-      if (tracestate == null && otelTraceState == null && knuthSamplingRate == null) {
+      if (otelTraceState == null && knuthSamplingRate == null) {
         int priorityIndex = sharedPriorityIndex(samplingPriority);
         int decisionMakerIndex = sharedDecisionMakerIndex(decisionMaker);
         if (priorityIndex >= 0 && decisionMakerIndex >= 0) {
           return SHARED_SAMPLING_STATES[priorityIndex][decisionMakerIndex];
         }
       }
-      return new SamplingState(
-          samplingPriority, tracestate, otelTraceState, decisionMaker, knuthSamplingRate);
+      return new SamplingState(samplingPriority, otelTraceState, decisionMaker, knuthSamplingRate);
     }
 
     private static int sharedPriorityIndex(int samplingPriority) {
@@ -313,11 +311,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.tracestate = tracestate;
       this.samplingState =
           initialSamplingState(
-              samplingPriority,
-              tracestate,
-              rawOtelTraceState,
-              otelOriginalSize,
-              decisionMakerTagValue);
+              samplingPriority, rawOtelTraceState, otelOriginalSize, decisionMakerTagValue);
       this.origin = origin;
       this.lastParentId = lastParentId;
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
@@ -426,7 +420,6 @@ public class PTagsFactory implements PropagationTags.Factory {
           next =
               new ProbabilitySamplingState(
                   samplingPriority,
-                  current.getTracestate(),
                   nextDecisionMakerTagValue,
                   nextKnuthSamplingRate,
                   traceIdLowOrderBits,
@@ -496,7 +489,6 @@ public class PTagsFactory implements PropagationTags.Factory {
       clearCachedHeader(W3C);
       return samplingState(
           samplingPriority,
-          current.getTracestate(),
           nextOtelTraceState,
           nextDecisionMakerTagValue,
           nextKnuthSamplingRateTagValue);
@@ -541,21 +533,19 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private static SamplingState initialSamplingState(
         int samplingPriority,
-        String tracestate,
         CharSequence rawOtelTraceState,
         int otelOriginalSize,
         TagValue decisionMakerTagValue) {
       if (rawOtelTraceState != null) {
         return new InheritedSamplingState(
             samplingPriority,
-            tracestate,
             decisionMakerTagValue,
             null,
             rawOtelTraceState,
             otelOriginalSize,
             InheritedSamplingState.NO_CHECKS);
       }
-      return samplingState(samplingPriority, tracestate, null, decisionMakerTagValue, null);
+      return samplingState(samplingPriority, null, decisionMakerTagValue, null);
     }
 
     /**
@@ -619,11 +609,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       }
       clearCachedHeader(W3C);
       return inherited.withDecision(
-          samplingPriority,
-          current.getTracestate(),
-          decisionMaker,
-          knuthSamplingRate,
-          pendingChecks);
+          samplingPriority, decisionMaker, knuthSamplingRate, pendingChecks);
     }
 
     private static OtelTraceState reconcileOtelTraceState(
@@ -1062,7 +1048,8 @@ public class PTagsFactory implements PropagationTags.Factory {
       TracestateCacheEntry cache = tracestateCache;
       if (cache == null || cache.samplingState != samplingState) {
         cache =
-            new TracestateCacheEntry(samplingState, W3CPTagsCodec.rebuildTracestate(samplingState));
+            new TracestateCacheEntry(
+                samplingState, W3CPTagsCodec.rebuildTracestate(samplingState, tracestate));
         tracestateCache = cache;
       }
       return cache.tracestate;
@@ -1096,6 +1083,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         // as the trace context's own priority override reconciles its member
         pendingChecks = InheritedSamplingState.withCheck(pendingChecks, overridingPriority > 0);
       }
+      setTracestate(source.tracestate);
       SamplingState current;
       SamplingState next;
       do {
@@ -1109,18 +1097,17 @@ public class PTagsFactory implements PropagationTags.Factory {
         next =
             new InheritedSamplingState(
                 samplingPriority,
-                source.tracestate,
                 getDecisionMakerTagValue(current),
                 getKnuthSamplingRateTagValue(current),
                 source.rawOtelTraceState,
                 source.otelOriginalSize,
                 nextPendingChecks);
       } while (!SAMPLING_STATE_UPDATER.compareAndSet(this, current, next));
-      this.tracestate = source.tracestate;
       clearCachedHeader(W3C);
     }
 
     private void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {
+      setTracestate(tracestate);
       SamplingState current;
       SamplingState next;
       do {
@@ -1135,12 +1122,19 @@ public class PTagsFactory implements PropagationTags.Factory {
         next =
             samplingState(
                 samplingPriority,
-                tracestate,
                 nextOtelTraceState,
                 getDecisionMakerTagValue(current),
                 getKnuthSamplingRateTagValue(current));
-      } while (!SAMPLING_STATE_UPDATER.compareAndSet(this, current, next));
+      } while (next != current && !SAMPLING_STATE_UPDATER.compareAndSet(this, current, next));
+    }
+
+    /**
+     * Replaces the trace's tracestate. Only extraction does this, before the trace is shared, so
+     * the tracestate needn't be published together with the sampling state.
+     */
+    private void setTracestate(String tracestate) {
       this.tracestate = tracestate;
+      tracestateCache = null;
       clearCachedHeader(W3C);
     }
 
@@ -1167,7 +1161,6 @@ public class PTagsFactory implements PropagationTags.Factory {
         next =
             samplingState(
                 current.getSamplingPriority(),
-                current.getTracestate(),
                 otelTraceStateOf(current),
                 decisionMakerTagValue,
                 getKnuthSamplingRateTagValue(current));

@@ -91,7 +91,6 @@ class OtelMemberForWriteTest {
     int start = tracestate.indexOf("ot=") + 3;
     return new InheritedSamplingState(
         SAMPLER_KEEP,
-        tracestate,
         null,
         null,
         SubSequence.of(tracestate, start, tracestate.length()),
