@@ -1,6 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.core.propagation.ptags.InheritedSamplingState.NO_CHECKS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -10,7 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
-class InheritedSamplingStateTest {
+/** The trace's inherited {@code ot} member parses on first read under its pending checks. */
+class InheritedOtelMemberTest {
   private static final int ORIGINAL_SIZE = 40;
 
   /**
@@ -40,41 +41,53 @@ class InheritedSamplingStateTest {
         if (checkNotSampled) {
           checks = InheritedSamplingState.withCheck(checks, false);
         }
-        InheritedSamplingState state = state(raw, checks);
+        W3CTracestate member = member(raw);
 
         String sampledFirst = eager(raw, checkSampled, checkNotSampled, true);
         String notSampledFirst = eager(raw, checkSampled, checkNotSampled, false);
         assertEquals(sampledFirst, notSampledFirst, "check order mustn't matter");
-        assertEquals(sampledFirst, String.valueOf(state.getOtelTraceState()));
+        assertEquals(sampledFirst, String.valueOf(member.otelTraceState(checks)));
       }
     }
   }
 
   @Test
   void parsesOnlyOnFirstRead() {
-    InheritedSamplingState state = state("rv:ef284ace7a91e1;th:e6666666666668", NO_CHECKS);
+    W3CTracestate member = member("rv:ef284ace7a91e1;th:e6666666666668");
 
-    assertFalse(state.isResolved());
-    state.getOtelTraceState();
-    assertTrue(state.isResolved());
+    assertFalse(member.isResolved(NO_CHECKS));
+    member.otelTraceState(NO_CHECKS);
+    assertTrue(member.isResolved(NO_CHECKS));
+  }
+
+  /** A read under more checks than an earlier one applies them, rather than reusing the parse. */
+  @Test
+  void readUnderOtherChecksAppliesThem() {
+    // rv >= th, so the member is only consistent with a sampled decision
+    W3CTracestate member = member("rv:ef284ace7a91e1;th:e6666666666668");
+    byte sampled = InheritedSamplingState.withCheck(NO_CHECKS, true);
+    byte both = InheritedSamplingState.withCheck(sampled, false);
+
+    assertEquals("rv:ef284ace7a91e1;th:e6666666666668", member.otelTraceState(sampled).toString());
+    assertEquals("rv:ef284ace7a91e1", member.otelTraceState(both).toString());
   }
 
   @Test
   void repeatedReadsReturnOneInstance() {
-    InheritedSamplingState state = state("rv:ef284ace7a91e1;th:e6666666666668", NO_CHECKS);
+    W3CTracestate member = member("rv:ef284ace7a91e1;th:e6666666666668");
 
-    assertSame(state.getOtelTraceState(), state.getOtelTraceState());
+    assertSame(member.otelTraceState(NO_CHECKS), member.otelTraceState(NO_CHECKS));
   }
 
   @Test
   void keepsOriginalSizeForTheHeaderEstimate() {
-    InheritedSamplingState state = state("rv:ef284ace7a91e1;th:e6666666666668", NO_CHECKS);
+    W3CTracestate member = member("rv:ef284ace7a91e1;th:e6666666666668");
 
-    assertEquals(ORIGINAL_SIZE, ((OtelTraceState) state.getOtelTraceState()).getOriginalSize());
+    assertEquals(ORIGINAL_SIZE, member.otelTraceState(NO_CHECKS).getOriginalSize());
   }
 
-  private static InheritedSamplingState state(String raw, byte checks) {
-    return new InheritedSamplingState(SAMPLER_KEEP, null, null, null, raw, ORIGINAL_SIZE, checks);
+  private static W3CTracestate member(String raw) {
+    return new W3CTracestate("ot=" + raw, raw, ORIGINAL_SIZE, UNSET, null);
   }
 
   /** What extraction did before deferring: parse, then check at each step. */
