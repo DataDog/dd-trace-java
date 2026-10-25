@@ -22,6 +22,8 @@ import spock.lang.Shared
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING
+import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING
+import datadog.trace.api.normalize.HttpResourceNames
 
 import java.util.function.BiFunction
 
@@ -88,6 +90,33 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     true          | null
     false         | [method: "test-method", url: testUrl, path: '/somepath']
     true          | [method: "test-method", url: testUrl, path: '/somepath']
+  }
+
+  def "test onRequest with host-aware client path mapping"() {
+    setup:
+    injectSysConfig(
+      TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING,
+      "auth.provider-a.com/oauth2/token:provider_a_oauth")
+    HttpResourceNames.INSTANCE = null
+    def decorator = newDecorator()
+    def req = [method: "POST", url: new URI("https://auth.provider-a.com:443/oauth2/token"), path: "/oauth2/token"]
+
+    when:
+    decorator.onRequest(span, req)
+
+    then:
+    1 * span.setTag(Tags.HTTP_METHOD, req.method)
+    1 * span.setTag(Tags.HTTP_URL, { it.toString() == "https://auth.provider-a.com/oauth2/token" })
+    1 * span.setTag(DDTags.HTTP_QUERY, null)
+    1 * span.setTag(DDTags.HTTP_FRAGMENT, null)
+    1 * span.setTag(Tags.PEER_HOSTNAME, req.url.host)
+    1 * span.setTag(Tags.PEER_PORT, req.url.port)
+    1 * span.setResourceName({ it as String == "POST provider_a_oauth" }, ResourceNamePriorities.HTTP_CLIENT_CONFIG_PATTERN_MATCH)
+    1 * span.traceConfig() >> AgentTracer.traceConfig()
+    0 * _
+
+    cleanup:
+    HttpResourceNames.INSTANCE = null
   }
 
   def "test url handling for #url"() {

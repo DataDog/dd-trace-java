@@ -19,17 +19,50 @@ public class HttpResourceDecorator {
   private HttpResourceDecorator() {}
 
   public final void withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
-    HttpResourceNames.setForClient(span, method, path, false);
+    withClientPath(span, method, null, path);
+  }
+
+  /**
+   * Sets the HTTP client resource name on the given span using the HTTP method, host, and path.
+   * Enables disambiguation of identical URL paths across different target hosts via custom path
+   * resource name mappings.
+   *
+   * @param span the span to update
+   * @param method the HTTP method
+   * @param host the HTTP target host (may be {@code null})
+   * @param path the HTTP path
+   * @return the modified span
+   */
+  public final AgentSpan withClientPath(
+      final AgentSpan span,
+      final CharSequence method,
+      final CharSequence host,
+      final CharSequence path) {
+    return HttpResourceNames.setForClient(span, method, host, path, false);
   }
 
   public final void withServerPath(
       AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
+    withServerPath(span, method, null, path, encoded);
+  }
+
+  /**
+   * Sets the HTTP server resource name on the given span using the HTTP method, host, and path.
+   *
+   * @param span the span to update
+   * @param method the HTTP method
+   * @param host the HTTP server/host (may be {@code null})
+   * @param path the HTTP path
+   * @param encoded whether the path is encoded
+   */
+  public final void withServerPath(
+      AgentSpan span, CharSequence method, CharSequence host, CharSequence path, boolean encoded) {
     if (!shouldSetUrlResourceName) {
       span.setResourceName(DEFAULT_RESOURCE_NAME);
       return;
     }
 
-    HttpResourceNames.setForServer(span, method, path, encoded);
+    HttpResourceNames.setForServer(span, method, host, path, encoded);
   }
 
   public final void withRoute(

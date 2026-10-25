@@ -143,7 +143,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
             span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
           }
           if (shouldSetResourceName()) {
-            HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
+            HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getHost(), url.getPath());
           }
           // SSRF exploit prevention check
           onHttpClientRequest(span, url.toString());

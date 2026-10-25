@@ -72,10 +72,15 @@ public class HttpResourceNames {
 
   public static AgentSpan setForServer(
       AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
+    return setForServer(span, method, null, path, encoded);
+  }
+
+  public static AgentSpan setForServer(
+      AgentSpan span, CharSequence method, CharSequence host, CharSequence path, boolean encoded) {
     if (path == null) {
       return span;
     }
-    Pair<CharSequence, Byte> result = computeForServer(method, path, encoded);
+    Pair<CharSequence, Byte> result = computeForServer(method, host, path, encoded);
     if (result.hasLeft()) {
       span.setResourceName(result.getLeft(), result.getRight());
     }
@@ -85,10 +90,17 @@ public class HttpResourceNames {
 
   public static Pair<CharSequence, Byte> computeForServer(
       CharSequence method, @Nonnull CharSequence path, boolean encoded) {
+    return computeForServer(method, null, path, encoded);
+  }
+
+  public static Pair<CharSequence, Byte> computeForServer(
+      CharSequence method, CharSequence host, @Nonnull CharSequence path, boolean encoded) {
     byte priority;
 
     String resourcePath =
-        instance().serverAntPatternHttpPathNormalizer.normalize(path.toString(), encoded);
+        instance()
+            .serverAntPatternHttpPathNormalizer
+            .normalize(host == null ? null : host.toString(), path.toString(), encoded);
     if (resourcePath != null) {
       priority = ResourceNamePriorities.HTTP_SERVER_CONFIG_PATTERN_MATCH;
     } else {
@@ -101,10 +113,17 @@ public class HttpResourceNames {
 
   public static Pair<CharSequence, Byte> computeForClient(
       CharSequence method, @Nonnull CharSequence path, boolean encoded) {
+    return computeForClient(method, null, path, encoded);
+  }
+
+  public static Pair<CharSequence, Byte> computeForClient(
+      CharSequence method, CharSequence host, @Nonnull CharSequence path, boolean encoded) {
     byte priority;
 
     String resourcePath =
-        instance().clientAntPatternHttpPathNormalizer.normalize(path.toString(), encoded);
+        instance()
+            .clientAntPatternHttpPathNormalizer
+            .normalize(host == null ? null : host.toString(), path.toString(), encoded);
     if (resourcePath != null) {
       priority = ResourceNamePriorities.HTTP_CLIENT_CONFIG_PATTERN_MATCH;
     } else {
@@ -116,10 +135,15 @@ public class HttpResourceNames {
 
   public static AgentSpan setForClient(
       AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
+    return setForClient(span, method, null, path, encoded);
+  }
+
+  public static AgentSpan setForClient(
+      AgentSpan span, CharSequence method, CharSequence host, CharSequence path, boolean encoded) {
     if (path == null) {
       return span;
     }
-    Pair<CharSequence, Byte> result = computeForClient(method, path, encoded);
+    Pair<CharSequence, Byte> result = computeForClient(method, host, path, encoded);
     if (result.hasLeft()) {
       span.setResourceName(result.getLeft(), result.getRight());
     }

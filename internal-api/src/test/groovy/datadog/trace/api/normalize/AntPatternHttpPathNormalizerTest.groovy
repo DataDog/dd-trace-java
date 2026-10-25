@@ -52,7 +52,7 @@ class AntPatternHttpPathNormalizerTest extends DDSpecification {
     "/test7.htm"                                 | []                              | "7"
     "/test7.html"                                | []                              | "7"
     "/test7.html5"                               | []                              | "7"
-    "/test8.html"                                | []                              | null
+    "/test8.html"                                | []                              | "8"
     "/fail"                                      | []                              | null
     //spotless:on
   }
@@ -78,18 +78,41 @@ class AntPatternHttpPathNormalizerTest extends DDSpecification {
     path << [null, "com/test.jsp", "/com/test.jspx", "/com/datadoghq"]
   }
 
-  def "ignore patterns that aren't patterns"() {
+  def "matches exact paths without wildcards"() {
     given:
     def matchers = [
-      "/not/a/pattern": "1"
+      "/exact/path": "1"
     ]
     AntPatternHttpPathNormalizer normalizer = new AntPatternHttpPathNormalizer(matchers)
 
     when:
-    String result = normalizer.normalize("/not/a/pattern")
+    String result = normalizer.normalize("/exact/path")
 
     then:
-    result == null
+    result == "1"
+  }
+
+  def "matches host-prefixed patterns"() {
+    given:
+    def matchers = [
+      "host-a.com/oauth2/token"  : "host_a_oauth",
+      "*.example.com/oauth2/*"   : "example_oauth",
+      "https://secure.com/api/*" : "secure_api",
+      "/oauth2/token"            : "{host}_oauth"
+    ]
+    AntPatternHttpPathNormalizer normalizer = new AntPatternHttpPathNormalizer(matchers)
+
+    expect:
+    normalizer.normalize(host, path, false) == expected
+
+    where:
+    host               | path            | expected
+    "host-a.com"       | "/oauth2/token" | "host_a_oauth"
+    "auth.example.com" | "/oauth2/token" | "example_oauth"
+    "secure.com"       | "/api/v1"       | "secure_api"
+    "other.com"        | "/oauth2/token" | "other.com_oauth"
+    null               | "/oauth2/token" | "_oauth"
+    "host-a.com"       | "/unknown/path" | null
   }
 
   def "keep the original path "() {

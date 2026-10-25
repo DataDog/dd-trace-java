@@ -58,7 +58,7 @@ public class UrlInstrumentation extends InstrumenterModule.Tracing
         try (final ContextScope scope = activateSpan(span)) {
           DECORATE.afterStart(span);
           DECORATE.onURL(span, url);
-          HTTP_RESOURCE_DECORATOR.withClientPath(span, null, url.getPath());
+          HTTP_RESOURCE_DECORATOR.withClientPath(span, null, url.getHost(), url.getPath());
 
           span.setError(true);
           span.addThrowable(throwable);

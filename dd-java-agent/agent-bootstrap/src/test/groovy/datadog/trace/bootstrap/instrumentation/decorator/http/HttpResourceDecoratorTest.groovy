@@ -123,6 +123,87 @@ class HttpResourceDecoratorTest extends DDSpecification {
     span.resourceName.toString() == "GET /a/foo"
   }
 
+  def "disambiguates identical paths across different hosts"() {
+    setup:
+    injectSysConfig(
+      TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING,
+      "host-a.com/oauth2/token:host_a_oauth,host-b.com/oauth2/token:host_b_oauth")
+
+    AgentSpan spanA = tracer.startSpan("test", "test")
+    AgentSpan spanB = tracer.startSpan("test", "test")
+
+    when:
+    decorator().withClientPath(spanA, "POST", "host-a.com", "/oauth2/token")
+    decorator().withClientPath(spanB, "POST", "host-b.com", "/oauth2/token")
+
+    then:
+    spanA.resourceName.toString() == "POST host_a_oauth"
+    spanB.resourceName.toString() == "POST host_b_oauth"
+  }
+
+  def "matches wildcard host in client path mapping"() {
+    setup:
+    injectSysConfig(
+      TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING,
+      "*.example.com/oauth2/token:example_oauth")
+
+    AgentSpan span = tracer.startSpan("test", "test")
+
+    when:
+    decorator().withClientPath(span, "POST", "auth.example.com", "/oauth2/token")
+
+    then:
+    span.resourceName.toString() == "POST example_oauth"
+  }
+
+  def "interpolates {host} placeholder in client path mapping"() {
+    setup:
+    injectSysConfig(
+      TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING,
+      "/oauth2/token:{host}_oauth")
+
+    AgentSpan span = tracer.startSpan("test", "test")
+
+    when:
+    decorator().withClientPath(span, "POST", "auth.provider-a.com", "/oauth2/token")
+
+    then:
+    span.resourceName.toString() == "POST auth.provider-a.com_oauth"
+  }
+
+  def "standard path-only mappings work when host is null or unmatched"() {
+    setup:
+    injectSysConfig(
+      TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING,
+      "/oauth2/token:oauth")
+
+    AgentSpan spanNullHost = tracer.startSpan("test", "test")
+    AgentSpan spanUnmatchedHost = tracer.startSpan("test", "test")
+
+    when:
+    decorator().withClientPath(spanNullHost, "POST", null, "/oauth2/token")
+    decorator().withClientPath(spanUnmatchedHost, "POST", "unmatched-host.com", "/oauth2/token")
+
+    then:
+    spanNullHost.resourceName.toString() == "POST oauth"
+    spanUnmatchedHost.resourceName.toString() == "POST oauth"
+  }
+
+  def "backward compatibility: 3-arg withClientPath delegates to null host"() {
+    setup:
+    injectSysConfig(
+      TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING,
+      "/oauth2/token:oauth")
+
+    AgentSpan span = tracer.startSpan("test", "test")
+
+    when:
+    decorator().withClientPath(span, "POST", "/oauth2/token")
+
+    then:
+    span.resourceName.toString() == "POST oauth"
+  }
+
   // Need a new one for every test after config injection
   private static HttpResourceDecorator decorator() {
     return new HttpResourceDecorator()
