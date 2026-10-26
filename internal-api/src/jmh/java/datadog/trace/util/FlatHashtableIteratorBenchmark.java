@@ -120,7 +120,7 @@ public class FlatHashtableIteratorBenchmark {
   @Setup(Level.Trial)
   public void setUp() {
     // Sparse so the bucket is one contiguous run with a clean terminating empty slot.
-    table = FlatHashtable.create(ItEntry.class, BUCKET_SIZE, FlatHashtable.LOW_LOAD_FACTOR);
+    table = FlatHashtable.create(BUCKET_SIZE, FlatHashtable.LOW_LOAD_FACTOR, ItEntry[]::new);
     for (int i = 0; i < BUCKET_SIZE; ++i) {
       FlatHashtable.insert(table, new ItEntry(BUCKET_HASH, i)); // all share the hash => one bucket
     }
