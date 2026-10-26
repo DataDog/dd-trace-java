@@ -1570,9 +1570,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         return false;
       }
       // shadowed by a nearer level's local entry
-      Object[] nearerBuckets = nearer.buckets;
-      Object nearerBucket = nearerBuckets[hash & (nearerBuckets.length - 1)];
-      if (HashSupport.findInBucket(nearerBucket, hash, tag) != null) {
+      if (HashSupport.find(nearer.buckets, hash, tag) != null) {
         return false;
       }
     }
