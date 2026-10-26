@@ -124,19 +124,22 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     0 * _
 
     where:
-    tagQueryString | url                                                   | expectedUrl           | expectedQuery      | expectedFragment      | hostname | port | expectedPath
-    false          | null                                                  | null                  | null               | null                  | null     | null | "/"
-    false          | ""                                                    | "/"                   | ""                 | null                  | null     | null | "/"
-    false          | "/path?query"                                         | "/path"               | ""                 | null                  | null     | null | "/path"
-    false          | "https://host:0"                                      | "https://host/"       | ""                 | null                  | "host"   | null | "/"
-    false          | "https://host/path"                                   | "https://host/path"   | ""                 | null                  | "host"   | null | "/path"
-    false          | "http://host:99/path?query#fragment"                  | "http://host:99/path" | ""                 | null                  | "host"   | 99   | "/path"
-    true           | null                                                  | null                  | null               | null                  | null     | null | "/"
-    true           | ""                                                    | "/"                   | null               | null                  | null     | null | "/"
-    true           | "/path?encoded+%28query%29%3F"                        | "/path"               | "encoded+(query)?" | null                  | null     | null | "/path"
-    true           | "https://host:0"                                      | "https://host/"       | null               | null                  | "host"   | null | "/"
-    true           | "https://host/path"                                   | "https://host/path"   | null               | null                  | "host"   | null | "/path"
-    true           | "http://host:99/path?query#encoded+%28fragment%29%3F" | "http://host:99/path" | "query"            | "encoded+(fragment)?" | "host"   | 99   | "/path"
+    tagQueryString | url                                                   | expectedUrl           | expectedQuery               | expectedFragment      | hostname | port | expectedPath
+    false          | null                                                  | null                  | null                        | null                  | null     | null | "/"
+    false          | ""                                                    | "/"                   | ""                          | null                  | null     | null | "/"
+    false          | "/path?query"                                         | "/path"               | ""                          | null                  | null     | null | "/path"
+    false          | "https://host:0"                                      | "https://host/"       | ""                          | null                  | "host"   | null | "/"
+    false          | "https://host/path"                                   | "https://host/path"   | ""                          | null                  | "host"   | null | "/path"
+    false          | "http://host:99/path?query#fragment"                  | "http://host:99/path" | ""                          | null                  | "host"   | 99   | "/path"
+    true           | null                                                  | null                  | null                        | null                  | null     | null | "/"
+    true           | ""                                                    | "/"                   | null                        | null                  | null     | null | "/"
+    true           | "/path?encoded+%28query%29%3F"                        | "/path"               | "encoded+(query)?"          | null                  | null     | null | "/path"
+    true           | "https://host:0"                                      | "https://host/"       | null                        | null                  | "host"   | null | "/"
+    true           | "https://host/path"                                   | "https://host/path"   | null                        | null                  | "host"   | null | "/path"
+    true           | "http://host:99/path?query#encoded+%28fragment%29%3F" | "http://host:99/path" | "query"                     | "encoded+(fragment)?" | "host"   | 99   | "/path"
+    true           | "http://host/path?token=first%26SECOND_HALF"          | "http://host/path"    | "token=first%26SECOND_HALF" | null                  | "host"   | null | "/path"
+    true           | "http://host/path?t%6fken=first%26SECOND_HALF"        | "http://host/path"    | "token=first%26SECOND_HALF" | null                  | "host"   | null | "/path"
+    true           | "http://host/path?q=one%26two%23three"                | "http://host/path"    | "q=one%26two%23three"       | null                  | "host"   | null | "/path"
 
     req = [url: url == null ? null : new URI(url)]
   }
