@@ -98,10 +98,10 @@ public final class OtlpTraceJson {
     if (span.getSpanType() != null) {
       writeSpanTag(writer, SPAN_TYPE, span.getSpanType());
     }
-    // Like the Datadog mappers, only serialize propagation tags (_dd.p.dm, _dd.p.ksr...) once per
-    // trace segment: on the local root span, which owns them.
+    // Export root propagation tags on the span selected by the collector for sampling tags,
+    // including when the exported trace contains no local root span.
     span.processTagsAndBaggage(
-        metaWriter, span.getLocalRootSpan() == span ? ROOT_PROPAGATION_TAGS : 0);
+        metaWriter, metaWriter.includeSamplingTags ? ROOT_PROPAGATION_TAGS : 0);
     writer.endArray();
 
     if (!links.isEmpty()) {

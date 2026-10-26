@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -735,9 +736,76 @@ class OtlpTraceProtoTest {
   }
 
   @Test
-  void propagationTagsAreWrittenOnTheLocalRootSpanOnly() throws IOException {
+  void propagationTagsAreWrittenOncePerTraceOnTheSpanSelectedForSamplingTags() throws IOException {
+    AgentSpan root = startRootWithPropagationTags("root.op");
+    AgentSpan child = startChild(root, "child.op");
+    child.finish();
+    root.finish();
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList((CoreSpan<?>) root, (CoreSpan<?>) child));
+    Map<String, List<String[]>> attributesBySpan =
+        parseStringAttributeListsBySpanName(collector.collectTraces());
+
+    // the payload buffer is prepending, so the collector selects the first exported span
+    assertEquals(asList("root.op", "child.op"), new ArrayList<>(attributesBySpan.keySet()));
+    assertPropagationTagsOnlyOn(attributesBySpan, "root.op", "root.op", "child.op");
+  }
+
+  @Test
+  void partialFlushWithoutTheLocalRootStillCarriesPropagationTags() throws IOException {
+    AgentSpan root = startRootWithPropagationTags("root.op");
+    AgentSpan first = startChild(root, "first.child");
+    AgentSpan second = startChild(root, "second.child");
+    first.finish();
+    second.finish();
+
+    // a partial flush exports finished children while the local root is still open
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList((CoreSpan<?>) first, (CoreSpan<?>) second));
+    Map<String, List<String[]>> attributesBySpan =
+        parseStringAttributeListsBySpanName(collector.collectTraces());
+    root.finish();
+
+    assertEquals(asList("first.child", "second.child"), new ArrayList<>(attributesBySpan.keySet()));
+    assertPropagationTagsOnlyOn(attributesBySpan, "first.child", "first.child", "second.child");
+  }
+
+  @Test
+  void propagationTagsAreWrittenOnceForEachTraceInThePayload() throws IOException {
+    AgentSpan rootA = startRootWithPropagationTags("a.root");
+    AgentSpan childA = startChild(rootA, "a.child");
+    AgentSpan rootB = startRootWithPropagationTags("b.root");
+    AgentSpan firstB = startChild(rootB, "b.first");
+    AgentSpan secondB = startChild(rootB, "b.second");
+    AgentSpan rootC = startRootWithPropagationTags("c.root");
+    assertNotEquals(rootA.getTraceId(), rootB.getTraceId(), "trace IDs must be distinct");
+    assertNotEquals(rootB.getTraceId(), rootC.getTraceId(), "trace IDs must be distinct");
+    childA.finish();
+    rootA.finish();
+    firstB.finish();
+    secondB.finish();
+    rootC.finish();
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList((CoreSpan<?>) rootA, (CoreSpan<?>) childA));
+    // partial flush of trace B, without its local root
+    collector.addTrace(asList((CoreSpan<?>) firstB, (CoreSpan<?>) secondB));
+    collector.addTrace(asList((CoreSpan<?>) rootC));
+    Map<String, List<String[]>> attributesBySpan =
+        parseStringAttributeListsBySpanName(collector.collectTraces());
+    rootB.finish();
+
+    assertEquals(5, attributesBySpan.size(), "all spans must be exported");
+    assertPropagationTagsOnlyOn(attributesBySpan, "a.root", "a.root", "a.child");
+    assertPropagationTagsOnlyOn(attributesBySpan, "b.first", "b.first", "b.second");
+    assertPropagationTagsOnlyOn(attributesBySpan, "c.root", "c.root");
+  }
+
+  /** Starts a local root span with a probability sampling decision and a baggage item. */
+  private static AgentSpan startRootWithPropagationTags(String resourceName) {
     AgentSpan root = TRACER.startSpan("test", "op.root");
-    root.setResourceName("root.op");
+    root.setResourceName(resourceName);
     // 128-bit trace ids are on by default, so the root carries a _dd.p.tid propagation tag
     assertNotEquals(0, root.getTraceId().toHighOrderLong());
     ((DDSpan) root)
@@ -751,30 +819,38 @@ class OtlpTraceProtoTest {
             root.getTraceId().toLong(),
             true);
     root.setBaggageItem("baggage.key", "baggage.value");
-    AgentSpan child = TRACER.startSpan("test", "op.child", root.spanContext());
-    child.setResourceName("child.op");
-    child.finish();
-    root.finish();
+    return root;
+  }
 
-    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
-    collector.addTrace(asList((CoreSpan<?>) root, (CoreSpan<?>) child));
-    Map<String, Map<String, String>> attributesBySpan =
-        parseStringAttributesBySpanName(collector.collectTraces());
+  private static AgentSpan startChild(AgentSpan parent, String resourceName) {
+    AgentSpan child = TRACER.startSpan("test", "op.child", parent.spanContext());
+    child.setResourceName(resourceName);
+    return child;
+  }
 
-    Map<String, String> rootAttributes = attributesBySpan.get("root.op");
-    assertNotNull(rootAttributes, "root span must be exported");
-    assertEquals("-11", rootAttributes.get("_dd.p.dm"));
-    assertEquals("0.5", rootAttributes.get("_dd.p.ksr"));
-    // the OTLP traceId already carries the upper 64 bits
-    assertFalse(rootAttributes.containsKey("_dd.p.tid"), "_dd.p.tid must not be exported");
-    assertEquals("baggage.value", rootAttributes.get("baggage.key"));
-
-    Map<String, String> childAttributes = attributesBySpan.get("child.op");
-    assertNotNull(childAttributes, "child span must be exported");
-    for (String key : childAttributes.keySet()) {
-      assertFalse(key.startsWith("_dd.p."), "child span must not carry " + key);
+  /**
+   * Asserts that, among the exported spans of one trace, only {@code carrier} has the root
+   * propagation tags (once each), and that every span keeps its baggage.
+   */
+  private static void assertPropagationTagsOnlyOn(
+      Map<String, List<String[]>> attributesBySpan, String carrier, String... traceSpans) {
+    for (String spanName : traceSpans) {
+      List<String[]> attributes = attributesBySpan.get(spanName);
+      assertNotNull(attributes, spanName + " must be exported");
+      if (spanName.equals(carrier)) {
+        assertEquals(asList("-11"), stringAttributeValues(attributes, "_dd.p.dm"), spanName);
+        assertEquals(asList("0.5"), stringAttributeValues(attributes, "_dd.p.ksr"), spanName);
+        // the OTLP traceId already carries the upper 64 bits
+        assertEquals(
+            emptyList(), stringAttributeValues(attributes, "_dd.p.tid"), "_dd.p.tid not exported");
+      } else {
+        for (String[] attribute : attributes) {
+          assertFalse(
+              attribute[0].startsWith("_dd.p."), spanName + " must not carry " + attribute[0]);
+        }
+      }
+      assertEquals(asList("baggage.value"), stringAttributeValues(attributes, "baggage.key"));
     }
-    assertEquals("baggage.value", childAttributes.get("baggage.key"));
   }
 
   @Test
@@ -810,32 +886,16 @@ class OtlpTraceProtoTest {
     return values;
   }
 
-  /** Maps each span name to its string-valued attributes. */
-  private static Map<String, Map<String, String>> parseStringAttributesBySpanName(
-      OtlpPayload payload) throws IOException {
-    Map<String, Map<String, String>> result = new HashMap<>();
-    parseStringAttributeListsBySpanName(payload)
-        .forEach(
-            (name, attributes) -> {
-              Map<String, String> attributeMap = new HashMap<>();
-              for (String[] attribute : attributes) {
-                attributeMap.put(attribute[0], attribute[1]);
-              }
-              result.put(name, attributeMap);
-            });
-    return result;
-  }
-
   /**
-   * Maps each span name to its raw string-valued attributes, as {key, value} pairs in wire order,
-   * keeping duplicate keys.
+   * Maps each span name, in wire order, to its raw string-valued attributes, as {key, value} pairs
+   * keeping their order and duplicate keys.
    */
   private static Map<String, List<String[]>> parseStringAttributeListsBySpanName(
       OtlpPayload payload) throws IOException {
     CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
     tracesData.readTag(); // field 1: TracesData.resource_spans
     CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
-    Map<String, List<String[]>> result = new HashMap<>();
+    Map<String, List<String[]>> result = new LinkedHashMap<>();
     while (!resourceSpans.isAtEnd()) {
       int tag = resourceSpans.readTag();
       if (WireFormat.getTagFieldNumber(tag) != 2) {
