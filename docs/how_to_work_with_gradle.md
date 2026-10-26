@@ -316,6 +316,12 @@ Gradle tasks declare **inputs** (what they read) and **outputs** (what they prod
 - **Incremental builds**: If inputs haven't changed, the task is `UP-TO-DATE` and skipped
 - **Build caching**: Outputs can be stored and retrieved (`FROM-CACHE`) across builds
 
+> [!WARNING]
+> Task fingerprinting must include every condition that can affect a cacheable task's outputs.
+> If an untracked condition changes, the cache key stays the same and Gradle may reuse outputs
+> produced under different conditions. A task with untracked output dependencies must not use
+> the build cache.
+
 #### Declaring Inputs and Outputs
 
 ##### In custom task class

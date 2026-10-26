@@ -33,7 +33,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.6.0"
+  id("com.gradle.develocity") version "4.6.1"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -164,7 +164,6 @@ include(":dd-java-agent:agent-aiguard")
 // Feature Flagging
 include(
   ":products:feature-flagging:feature-flagging-agent",
-  ":products:feature-flagging:feature-flagging-api",
   ":products:feature-flagging:feature-flagging-bootstrap",
   ":products:feature-flagging:feature-flagging-config",
   ":products:feature-flagging:feature-flagging-lib"
