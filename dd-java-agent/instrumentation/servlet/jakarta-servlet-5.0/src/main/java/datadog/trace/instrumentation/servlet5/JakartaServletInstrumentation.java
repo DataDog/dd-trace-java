@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.servlet5;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
@@ -17,6 +18,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -38,17 +40,22 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String hierarchyMarkerType() {
+    // every servlet implements it, so class-loaders without it cannot match either branch below
     return "jakarta.servlet.Servlet";
   }
 
   /**
-   * Matches every {@code Servlet}, not only {@code HttpServlet}, so that servlets implementing the
-   * interface directly (e.g. {@code FacesServlet}) also get their response wrapped for RUM.
+   * Tracing only needs {@code HttpServlet}, but RUM injection also has to wrap the response of
+   * servlets implementing {@code Servlet} directly, such as {@code FacesServlet}. The wider matcher
+   * is only used when RUM is enabled, to avoid transforming extra classes for everyone else.
    */
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()))
-        .or(implementsInterface(named("jakarta.servlet.FilterChain")));
+    ElementMatcher.Junction<TypeDescription> servletMatcher =
+        InstrumenterConfig.get().isRumEnabled()
+            ? implementsInterface(named(hierarchyMarkerType()))
+            : hasSuperType(named("jakarta.servlet.http.HttpServlet"));
+    return servletMatcher.or(implementsInterface(named("jakarta.servlet.FilterChain")));
   }
 
   @Override
