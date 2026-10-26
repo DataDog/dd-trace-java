@@ -54,6 +54,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
@@ -873,6 +874,55 @@ class OtlpTraceProtoTest {
     assertEquals(asList("op.direct"), stringAttributeValues(attributes, "operation.name"));
     assertEquals(
         asList(Thread.currentThread().getName()), stringAttributeValues(attributes, "thread.name"));
+  }
+
+  @ParameterizedTest(name = "{0} {1} -> {2}")
+  @CsvSource({
+    "client, peer.hostname, server.address",
+    "server, http.hostname, server.address",
+    "server, network.client.ip, network.peer.address"
+  })
+  void baggageDoesNotDuplicateDirectionScopedAttributes(String kind, String tag, String otelName)
+      throws IOException {
+    List<String[]> attributes = exportWithDirectionalBaggage(true, kind, tag, otelName);
+
+    // the tag is exported under its direction-specific name, once, with the span's own value
+    assertEquals(asList("span.value"), stringAttributeValues(attributes, otelName));
+    assertTrue(stringAttributeValues(attributes, tag).isEmpty(), "expected no " + tag);
+  }
+
+  @Test
+  void baggageIsKeptWhenOtelSemanticsDisabled() throws IOException {
+    // without the rename the tag keeps its Datadog name, so the baggage key is distinct
+    List<String[]> attributes =
+        exportWithDirectionalBaggage(false, "client", "peer.hostname", "server.address");
+
+    assertEquals(asList("span.value"), stringAttributeValues(attributes, "peer.hostname"));
+    assertEquals(asList("baggage.value"), stringAttributeValues(attributes, "server.address"));
+  }
+
+  private static List<String[]> exportWithDirectionalBaggage(
+      boolean otelSemanticsEnabled, String kind, String tag, String baggageKey) throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(otelSemanticsEnabled);
+      configMock.when(Config::get).thenReturn(config);
+
+      AgentSpan span = TRACER.startSpan("test", "op.directionalBaggage");
+      span.setResourceName("directional.baggage");
+      span.setTag(SPAN_KIND, kind);
+      span.setTag(tag, "span.value");
+      span.setBaggageItem(baggageKey, "baggage.value");
+      span.finish();
+
+      OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+      collector.addTrace(asList((CoreSpan<?>) span));
+      List<String[]> attributes =
+          parseStringAttributeListsBySpanName(collector.collectTraces()).get("directional.baggage");
+      assertNotNull(attributes, "span must be exported");
+      return attributes;
+    }
   }
 
   /** Returns the values of every attribute with the given key, keeping duplicates. */

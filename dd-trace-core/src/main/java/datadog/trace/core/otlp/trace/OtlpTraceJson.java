@@ -241,19 +241,26 @@ public final class OtlpTraceJson {
       }
 
       TagMap tags = metadata.getTags();
+      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
+      Integer direction = KnownTagCodec.directionOf(tags);
+      boolean otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
 
       // Baggage carries the propagation tags (e.g. the _dd.p.dm sampling decision maker) and any
       // baggage items injected as tags, as in the Datadog mappers. Span tags and the attributes
-      // written directly above win on a key clash, which keeps OTLP attribute keys unique.
+      // written directly above win on a key clash, which keeps OTLP attribute keys unique. Under
+      // OTel semantics some tags are exported under a direction-dependent name (peer.port is
+      // server.port on a client span), so the baggage key is also resolved for this direction.
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        if (SKIPPED_BAGGAGE_KEYS.contains(entry.getKey()) || tags.containsKey(entry.getKey())) {
+        long directionalTagId =
+            otelSemantics ? KnownTagCodec.directionalKeyOf(entry.getKey(), direction) : 0;
+        if (SKIPPED_BAGGAGE_KEYS.contains(entry.getKey())
+            || tags.containsKey(entry.getKey())
+            || (directionalTagId != 0 && tags.getEntry(directionalTagId) != null)) {
           continue;
         }
         writeAttribute(writer, STRING_ATTRIBUTE, entry.getKey(), entry.getValue());
       }
 
-      // The direction is computed once per span; boxing -1..2 hits the Integer cache.
-      Integer direction = KnownTagCodec.directionOf(tags);
       tags.forEach(writer, direction, OtlpTraceJson::writeSpanTag);
 
       // reset for next span

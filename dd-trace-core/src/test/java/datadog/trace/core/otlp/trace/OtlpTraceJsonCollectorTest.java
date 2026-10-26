@@ -537,6 +537,51 @@ class OtlpTraceJsonCollectorTest {
     assertEquals(asList(Thread.currentThread().getName()), attributeValues(parsed, "thread.name"));
   }
 
+  @TableTest({
+    "scenario         | kind   | tag               | otelName            ",
+    "client hostname  | client | peer.hostname     | server.address      ",
+    "server hostname  | server | http.hostname     | server.address      ",
+    "server client ip | server | network.client.ip | network.peer.address"
+  })
+  void baggageDoesNotDuplicateDirectionScopedAttributes(String kind, String tag, String otelName)
+      throws IOException {
+    Map<String, Object> parsed = exportWithDirectionalBaggage(true, kind, tag, otelName);
+
+    // the tag is exported under its direction-specific name, once, with the span's own value
+    assertEquals(asList("span.value"), attributeValues(parsed, otelName));
+    assertTrue(attributeValues(parsed, tag).isEmpty(), "expected no " + tag);
+  }
+
+  @Test
+  void baggageIsKeptWhenOtelSemanticsDisabled() throws IOException {
+    // without the rename the tag keeps its Datadog name, so the baggage key is distinct
+    Map<String, Object> parsed =
+        exportWithDirectionalBaggage(false, "client", "peer.hostname", "server.address");
+
+    assertEquals(asList("span.value"), attributeValues(parsed, "peer.hostname"));
+    assertEquals(asList("baggage.value"), attributeValues(parsed, "server.address"));
+  }
+
+  private static Map<String, Object> exportWithDirectionalBaggage(
+      boolean otelSemanticsEnabled, String kind, String tag, String baggageKey) throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(otelSemanticsEnabled);
+      configMock.when(Config::get).thenReturn(config);
+
+      AgentSpan span = TRACER.startSpan("test", "op.directionalBaggage");
+      span.setTag(SPAN_KIND, kind);
+      span.setTag(tag, "span.value");
+      span.setBaggageItem(baggageKey, "baggage.value");
+      span.finish();
+
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList((CoreSpan<?>) span));
+      return onlySpan(collector.collectTraces());
+    }
+  }
+
   @Test
   void poisonedSpanResetsCollectorForNextTrace() throws IOException {
     // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
