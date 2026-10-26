@@ -3,6 +3,7 @@ package datadog.trace.agent.test.scopediag;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
@@ -10,11 +11,7 @@ import datadog.context.ContextContinuation;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import datadog.trace.test.util.PollingConditions;
-import java.lang.reflect.Field;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.FutureTask;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -51,12 +48,13 @@ class ScopeDiagnosticsAdmissionTest {
             });
     Thread carrier = new Thread(callbacks, "diagnostic-carrier");
     carrier.setDaemon(true);
-    Field lock = ScopeDiagnostics.class.getDeclaredField("lifecycleLock");
-    lock.setAccessible(true);
-    synchronized (lock.get(instance())) {
+    ScopeDiagnostics.INSTANCE.lifecycleLock.lock();
+    try {
       carrier.start();
       // A carrier must return even when the diagnostic monitor's owner cannot run yet.
       callbacks.get(5, SECONDS);
+    } finally {
+      ScopeDiagnostics.INSTANCE.lifecycleLock.unlock();
     }
     ScopeDiagnostics.stop();
 
@@ -94,7 +92,7 @@ class ScopeDiagnosticsAdmissionTest {
     waiter.setDaemon(true);
     waiter.start();
     try {
-      Object diagnostics = instance();
+      Object diagnostics = ScopeDiagnostics.INSTANCE;
       new PollingConditions(5)
           .eventually(() -> assertEquals(diagnostics, LockSupport.getBlocker(waiter)));
       ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
@@ -121,132 +119,62 @@ class ScopeDiagnosticsAdmissionTest {
     assertTrue(ScopeDiagnostics.report().records().isEmpty());
   }
 
-  @TableTest({
-    "Scenario | Reset",
-    "reset    | true ",
-    "stop     | false"
-  })
-  void staleProducerCannotRetainEventsAfterRecordingEnds(boolean reset) throws Exception {
+  @Test
+  void stopRetainsReservationsWhoseStackCaptureIsStillInFlight() throws Exception {
     ScopeDiagnostics.startRecording();
     Object window = ScopeDiagnostics.recordingWindow();
-    Field queueField = ScopeDiagnostics.class.getDeclaredField("pendingEvents");
-    queueField.setAccessible(true);
-    Object diagnostics = instance();
-    Object originalQueue = queueField.get(diagnostics);
-    AtomicBoolean firstAdd = new AtomicBoolean(true);
-    ConcurrentLinkedQueue<Runnable> delayedQueue =
-        new ConcurrentLinkedQueue<Runnable>() {
-          @Override
-          public boolean add(Runnable event) {
-            if (firstAdd.getAndSet(false)) {
-              // End recording after the callback's window check but before publication.
-              if (reset) {
-                ScopeDiagnostics.reset();
-              } else {
-                ScopeDiagnostics.stop();
-              }
-            }
-            return super.add(event);
-          }
-        };
-    try {
-      queueField.set(diagnostics, delayedQueue);
-      ScopeDiagnostics.recordCapture(
-          window, Context.root().capture(), DDTraceId.from(1), 2, "stale", (byte) 0);
-      // Do not call report/reset here: either would hide a stale item retained in the static queue.
-      assertTrue(delayedQueue.isEmpty());
-    } finally {
-      queueField.set(diagnostics, originalQueue);
-    }
-  }
-
-  @TableTest({
-    "Operation ",
-    "report    ",
-    "stop      ",
-    "quiescence"
-  })
-  void drainingDoesNotChaseNewEvents(String operation) throws Exception {
-    ScopeDiagnostics.startRecording();
-    ScopeDiagnostics.recordCapture(
-        ScopeDiagnostics.recordingWindow(),
-        Context.root().capture(),
-        DDTraceId.from(1),
-        2,
-        "incomplete",
-        (byte) 0);
-    ConcurrentLinkedQueue<Runnable> queue = pendingEvents();
-    AtomicBoolean producing = new AtomicBoolean(true);
-    AtomicInteger consumed = new AtomicInteger();
-    Runnable event =
-        new Runnable() {
-          @Override
-          public void run() {
-            consumed.incrementAndGet();
-            if (producing.get()) {
-              queue.add(this);
-            }
-          }
-        };
-    queue.add(event);
-    FutureTask<Void> reader =
+    ContextContinuation continuation = Context.root().capture();
+    ScopeDiagnostics.recordCapture(window, continuation, DDTraceId.from(1), 2, "op", (byte) 0);
+    DiagnosticEventBuffer.Event reservation = ((DiagnosticEventBuffer) window).reserve();
+    ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
+    FutureTask<Void> stopping =
         new FutureTask<>(
             () -> {
-              switch (operation) {
-                case "report":
-                  ScopeDiagnostics.report();
-                  break;
-                case "stop":
-                  ScopeDiagnostics.stop();
-                  break;
-                case "quiescence":
-                  ScopeDiagnostics.awaitQuiescence(20);
-                  break;
-                default:
-                  throw new AssertionError(operation);
-              }
+              ScopeDiagnostics.stop();
               return null;
             });
-    Thread consumer = new Thread(reader, "diagnostic-reader");
-    consumer.setDaemon(true);
-    consumer.start();
+    Thread stopper = new Thread(stopping, "diagnostic-stop");
+    stopper.setDaemon(true);
+    stopper.start();
     try {
-      reader.get(5, SECONDS);
-      assertTrue(consumed.get() > 0);
+      new PollingConditions(5).eventually(() -> assertNull(ScopeDiagnostics.recordingWindow()));
+      // Publish after stop closes admission; the reservation still belongs to this recording.
+      reservation.publish(() -> {});
+      stopping.get(5, SECONDS);
+      assertEquals(0, ScopeDiagnostics.report().leakCount());
     } finally {
-      producing.set(false);
-      consumer.join(5000);
+      reservation.publishIfAbsent();
+      stopper.join(5000);
     }
   }
 
   @Test
-  void expiredQuiescenceBudgetLeavesBacklogForTheReport() throws Exception {
+  void callbacksConsumeEventsWithoutWaitingForAReport() {
     ScopeDiagnostics.startRecording();
+    DiagnosticEventBuffer window = (DiagnosticEventBuffer) ScopeDiagnostics.recordingWindow();
     ScopeDiagnostics.recordCapture(
-        ScopeDiagnostics.recordingWindow(),
-        Context.root().capture(),
-        DDTraceId.from(1),
-        2,
-        "incomplete",
-        (byte) 0);
-    ScopeDiagnostics.awaitQuiescence(0);
-    assertFalse(pendingEvents().isEmpty());
+        window, Context.root().capture(), DDTraceId.from(1), 2, "op", (byte) 0);
+    assertFalse(window.hasPending());
+  }
+
+  @Test
+  void firstResolutionAndDuplicateReleaseArePreservedBehindDelayedAdmission() {
+    ScopeDiagnostics.startRecording();
+    DiagnosticEventBuffer window = (DiagnosticEventBuffer) ScopeDiagnostics.recordingWindow();
+    ContextContinuation continuation = Context.root().capture();
+    ScopeDiagnostics.recordCapture(window, continuation, DDTraceId.from(1), 2, "op", (byte) 0);
+    DiagnosticEventBuffer.Event delayed = window.reserve();
+    ScopeDiagnostics.recordResolve(window, continuation, false, 1, false);
+    ScopeDiagnostics.recordResolve(window, continuation, true, 2, false);
+    ScopeDiagnostics.recordResolve(window, continuation, true, 3, true);
+    delayed.publish(() -> {});
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
-    assertEquals(1, report.leakCount());
-    assertTrue(pendingEvents().isEmpty());
-  }
-
-  @SuppressWarnings("unchecked")
-  private static ConcurrentLinkedQueue<Runnable> pendingEvents() throws Exception {
-    Field queue = ScopeDiagnostics.class.getDeclaredField("pendingEvents");
-    queue.setAccessible(true);
-    return (ConcurrentLinkedQueue<Runnable>) queue.get(instance());
-  }
-
-  private static Object instance() throws Exception {
-    Field instance = ScopeDiagnostics.class.getDeclaredField("INSTANCE");
-    instance.setAccessible(true);
-    return instance.get(null);
+    ContinuationRecord record = report.records().get(0);
+    assertEquals(ContinuationStatus.FINISHED, record.status());
+    assertEquals(1, record.terminal().nanos);
+    assertEquals(1, record.extraTerminals().size());
+    assertEquals(3, record.extraTerminals().get(0).nanos);
+    assertEquals(1, report.doubleCount());
   }
 
   @Test
