@@ -70,7 +70,10 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
     return () -> this.subscribers.remove(subscriber);
   }
 
-  /** Unregisters the Feature Flags product and drops the subscribers. */
+  /**
+   * Unregisters the Feature Flags product, releases the poller started by {@link #start()} and
+   * drops the subscribers.
+   */
   public synchronized void close() {
     if (!this.started) {
       return;
@@ -79,6 +82,7 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
     LOGGER.debug("Feature Flagging remote_config configuration source stopped");
     this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     this.configurationPoller.removeListeners(FFE_FLAGS);
+    this.configurationPoller.stop();
     this.subscribers.clear();
     this.current = null;
   }
