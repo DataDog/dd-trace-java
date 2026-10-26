@@ -92,6 +92,15 @@ configurations.configureEach {
   }
 }
 
+// JNR must use our controlled ASM version, matching the core embedded in dd-instrument-java.
+dependencies.components.withModule('com.github.jnr:jnr-ffi') {
+  allVariants {
+    withDependencies {
+      removeAll { it.group == 'org.ow2.asm' }
+    }
+  }
+}
+
 CachedData.deps.shared = [
   // Force specific version of okio required by com.squareup.moshi:moshi
   // When all of the dependencies are declared in dd-trace-core, moshi overrides the okhttp's

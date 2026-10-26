@@ -55,7 +55,7 @@ jafar = "0.16.0"
 jol = "0.17"
 
 # Web & Network
-jnr-unixsocket = "0.38.25"
+jnr-unixsocket = "0.39.6"
 
 # Cryptography
 cafe_crypto = "0.1.0"
@@ -192,7 +192,7 @@ testing-okhttp3 = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhtt
 
 [bundles]
 # Bytecode manipulations & codegen
-asm = ["asm", "asm-commons"]
+asm = ["asm", "asm-commons", "asm-util"]
 cafe-crypto = ["cafe-crypto-curve25519", "cafe-crypto-ed25519"]
 
 # Profiling

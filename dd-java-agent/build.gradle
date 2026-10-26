@@ -165,7 +165,7 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/com/sun/jna/openbsd-*/**'
     exclude '**/com/sun/jna/sunos-*/**'
 
-    // Minimize JFFI, removing native libraries for unsupported environments
+    // Minimize JNR/JFFI for unsupported environments
     exclude '**/jni/*-AIX/**'
     exclude '**/jni/*-DragonFlyBSD/**'
     exclude '**/jni/*-FreeBSD/**'
@@ -177,6 +177,26 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/jni/sparcv9-Linux/**'
     exclude '**/jni/*-OpenBSD/**'
     exclude '**/jni/*-SunOS/**'
+    exclude '**/jnr/constants/platform/aix/**'
+    exclude '**/jnr/constants/platform/dragonflybsd/**'
+    exclude '**/jnr/constants/platform/freebsd/**'
+    exclude '**/jnr/constants/platform/linux/loongarch64/**'
+    exclude '**/jnr/constants/platform/linux/mips64el/**'
+    exclude '**/jnr/constants/platform/linux/powerpc64/**'
+    exclude '**/jnr/constants/platform/linux/s390x/**'
+    exclude '**/jnr/constants/platform/openbsd/**'
+    exclude '**/jnr/constants/platform/solaris/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/aix/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/dragonfly/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/freebsd/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/ibmi/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/openbsd/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/solaris/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/loongarch64/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/mips*/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/ppc*/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/s390*/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/sparc*/**'
 
     final String projectName = "${project.name}"
 
