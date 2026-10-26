@@ -5,6 +5,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.Logging
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.kotlin.dsl.property
 import java.io.File
@@ -48,7 +49,7 @@ class TracerVersionPlugin @Inject constructor(
       // Not a git repository
       extension.defaultVersion.get()
     } else {
-      val currentBranchProvider = gitCurrentBranchProvider(repoWorkingDirectory)
+      val currentBranchProvider = currentBranchProvider(repoWorkingDirectory)
       providerFactory.zip(
         currentBranchProvider.flatMap { currentBranch ->
           // Use --first-parent only on release branches so they stay anchored to their own
@@ -79,6 +80,18 @@ class TracerVersionPlugin @Inject constructor(
     logger.lifecycle("Tracer build version: {}", buildVersion)
     return buildVersion
   }
+
+  private fun currentBranchProvider(
+    repoWorkingDirectory: File
+  ): Provider<String> =
+    gitCurrentBranchProvider(repoWorkingDirectory).zip(
+      providerFactory.environmentVariable("CI_COMMIT_BRANCH").orElse("")
+    ) { gitBranch, ciBranch ->
+      // GitLab checks out a detached HEAD, where git reports "HEAD" instead of the branch name.
+      // Pipelines that don't set CI_COMMIT_BRANCH to the release branch itself (merge requests,
+      // merge queue working branches) still get the next minor version.
+      if (gitBranch == "HEAD" && ciBranch.isNotBlank()) ciBranch else gitBranch
+    }
 
   private fun gitCurrentBranchProvider(
     repoWorkingDirectory: File

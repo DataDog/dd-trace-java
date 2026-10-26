@@ -21,6 +21,8 @@ class SampleTraceSmokeTest {
           .jar(System.getProperty("datadog.smoketest.agent.shadowJar.path"))
           // tests tracer as a jar sending sample traces instead of a javaagent
           .noAgent()
+          .skipScopeContinuationCheck(
+              "Exercises the agent JAR as a CLI without premain; the companion requires an installed Java agent.")
           .backend(BACKEND)
           .placeholder("agent.host", () -> BACKEND.url().getHost())
           .placeholder("agent.port", () -> Integer.toString(BACKEND.port()))

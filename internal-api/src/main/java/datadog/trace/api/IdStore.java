@@ -15,8 +15,8 @@ import java.util.function.Consumer;
  * <p>A span in the tracer core owns its id store directly ({@link #create}); a {@link TagMap} owns
  * one too.
  *
- * <p>Values move by {@code load} and {@code store}, as through {@link SpanStorage}; entries by
- * {@code getEntry}, {@code put} and {@code remove}.
+ * <p>Values move by {@code load} and {@code store}, as through {@link TagStore}; entries by {@code
+ * getEntry}, {@code put} and {@code remove}.
  *
  * <p>{@link IdStoreFactory} builds every store, so the JVM loads one implementation and class
  * hierarchy analysis devirtualizes every call on an {@code IdStore} without a type guard; nothing

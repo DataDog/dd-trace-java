@@ -1,6 +1,6 @@
 package com.datadog.openfeature.internal.config;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Locale;
 import java.util.function.UnaryOperator;

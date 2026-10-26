@@ -181,6 +181,12 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
   }
 
   DDSpan realSpan() throws Exception {
+    // A real config snapshot, since serialization reads the trace's tag levels from it. Its type
+    // isn't visible from this package, so it's held as an Object and matched by name below.
+    CoreTracer tracer = CoreTracer.builder().writer(new ListWriter()).build();
+    Object traceConfig = tracer.captureTraceConfig();
+    tracer.close();
+
     // getTracer() and mapServiceName() are package-private in TraceCollector; use a custom
     // Answer to handle them at runtime without compile-time accessibility issues
     PendingTrace trace =
@@ -192,6 +198,9 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
                 // Use RETURNS_DEFAULTS so getTagInterceptor() returns null (matching Groovy Stub
                 // behavior)
                 return mock(CoreTracer.class);
+              }
+              if (returnType.getSimpleName().equals("ConfigSnapshot")) {
+                return traceConfig;
               }
               if (returnType == String.class) {
                 Object[] args = invocation.getArguments();
