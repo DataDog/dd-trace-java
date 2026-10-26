@@ -17,7 +17,6 @@ import dev.openfeature.sdk.ProviderEvaluation;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -32,26 +31,20 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
-/** Runs pinned Lean policy cases through the production parser and evaluator. */
-class ExperimentationOptOutConformanceTest {
+/** Exercises experimentation opt-out through the production parser and evaluator. */
+class ExperimentationOptOutProviderTest {
   private static final String ATTRIBUTE = "dd_experimentation_opt_out_at";
   private static final String CUTOFF = "2026-10-19T12:00:00Z";
 
   @SuppressWarnings("unchecked")
   static Stream<Arguments> policyCases() throws Exception {
-    final byte[] bytes = Files.readAllBytes(fixture("java-policy-v1-cases.json"));
-    assertEquals("289a5d2dca4a7e5dd1e0428b4c56e9c1660668375aab67b71c91b27b9391f4e2", sha256(bytes));
+    final byte[] bytes = Files.readAllBytes(fixture("cases.json"));
     final List<Map<String, Object>> cases = (List<Map<String, Object>>) JsonReading.read(bytes);
     assertEquals(90, cases.size());
-    final byte[] profileBytes = Files.readAllBytes(fixture("java-policy-v1.json"));
-    assertEquals(
-        "ad281f827a0e57a0aa4528157d5ab4a967bc0233cbae5d563f7408fe9f4017ff", sha256(profileBytes));
-    final Map<String, Object> profile = (Map<String, Object>) JsonReading.read(profileBytes);
     final Set<Object> ids = new HashSet<>();
     for (final Map<String, Object> testCase : cases) {
       assertTrue(ids.add(testCase.get("id")), "duplicate policy case");
     }
-    assertEquals(new HashSet<>((List<?>) profile.get("included_ids")), ids);
     return cases.stream().map(testCase -> Arguments.of(testCase.get("id"), testCase));
   }
 
@@ -261,14 +254,6 @@ class ExperimentationOptOutConformanceTest {
       }
       directory = directory.getParent();
     }
-    throw new IllegalStateException("Missing pinned experimentation opt-out fixture " + name);
-  }
-
-  private static String sha256(final byte[] bytes) throws Exception {
-    final StringBuilder hash = new StringBuilder();
-    for (final byte value : MessageDigest.getInstance("SHA-256").digest(bytes)) {
-      hash.append(String.format(Locale.ROOT, "%02x", value & 0xff));
-    }
-    return hash.toString();
+    throw new IllegalStateException("Missing experimentation opt-out fixture " + name);
   }
 }

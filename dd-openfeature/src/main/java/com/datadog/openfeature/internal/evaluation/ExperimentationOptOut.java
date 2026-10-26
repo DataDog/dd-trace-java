@@ -54,7 +54,7 @@ public final class ExperimentationOptOut {
     final Value value = context.getValue(ATTRIBUTE);
     if (value != null && value.isString()) {
       try {
-        // Use the allocation startAt/endAt parser's timestamp contract.
+        // Use the same timestamp parser as allocation startAt/endAt.
         return DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(value.asString(), Instant::from);
       } catch (final DateTimeException e) {
         // Do not expose the supplied context value in the diagnostic.

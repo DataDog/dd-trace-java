@@ -6,18 +6,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/absent/missing/0",
-    "kind": "policy"
+    "id": "disabled/absent/missing/0"
   },
   {
     "args": {
@@ -26,18 +19,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/absent/missing/1",
-    "kind": "policy"
+    "id": "disabled/absent/missing/1"
   },
   {
     "args": {
@@ -46,18 +32,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/absent/invalid/0",
-    "kind": "policy"
+    "id": "disabled/absent/invalid/0"
   },
   {
     "args": {
@@ -66,18 +45,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/absent/invalid/1",
-    "kind": "policy"
+    "id": "disabled/absent/invalid/1"
   },
   {
     "args": {
@@ -86,18 +58,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/absent/before/0",
-    "kind": "policy"
+    "id": "disabled/absent/before/0"
   },
   {
     "args": {
@@ -106,18 +71,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/absent/before/1",
-    "kind": "policy"
+    "id": "disabled/absent/before/1"
   },
   {
     "args": {
@@ -126,18 +84,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/absent/equal/0",
-    "kind": "policy"
+    "id": "disabled/absent/equal/0"
   },
   {
     "args": {
@@ -146,18 +97,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/absent/equal/1",
-    "kind": "policy"
+    "id": "disabled/absent/equal/1"
   },
   {
     "args": {
@@ -166,18 +110,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/absent/after/0",
-    "kind": "policy"
+    "id": "disabled/absent/after/0"
   },
   {
     "args": {
@@ -186,18 +123,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/absent/after/1",
-    "kind": "policy"
+    "id": "disabled/absent/after/1"
   },
   {
     "args": {
@@ -206,18 +136,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/valid/missing/0",
-    "kind": "policy"
+    "id": "disabled/valid/missing/0"
   },
   {
     "args": {
@@ -226,18 +149,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/valid/missing/1",
-    "kind": "policy"
+    "id": "disabled/valid/missing/1"
   },
   {
     "args": {
@@ -246,18 +162,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/valid/invalid/0",
-    "kind": "policy"
+    "id": "disabled/valid/invalid/0"
   },
   {
     "args": {
@@ -266,18 +175,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/valid/invalid/1",
-    "kind": "policy"
+    "id": "disabled/valid/invalid/1"
   },
   {
     "args": {
@@ -286,18 +188,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/valid/before/0",
-    "kind": "policy"
+    "id": "disabled/valid/before/0"
   },
   {
     "args": {
@@ -306,18 +201,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/valid/before/1",
-    "kind": "policy"
+    "id": "disabled/valid/before/1"
   },
   {
     "args": {
@@ -326,18 +214,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/valid/equal/0",
-    "kind": "policy"
+    "id": "disabled/valid/equal/0"
   },
   {
     "args": {
@@ -346,18 +227,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/valid/equal/1",
-    "kind": "policy"
+    "id": "disabled/valid/equal/1"
   },
   {
     "args": {
@@ -366,18 +240,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/valid/after/0",
-    "kind": "policy"
+    "id": "disabled/valid/after/0"
   },
   {
     "args": {
@@ -386,18 +253,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/valid/after/1",
-    "kind": "policy"
+    "id": "disabled/valid/after/1"
   },
   {
     "args": {
@@ -406,18 +266,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/invalid/missing/0",
-    "kind": "policy"
+    "id": "disabled/invalid/missing/0"
   },
   {
     "args": {
@@ -426,18 +279,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/invalid/missing/1",
-    "kind": "policy"
+    "id": "disabled/invalid/missing/1"
   },
   {
     "args": {
@@ -446,18 +292,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/invalid/invalid/0",
-    "kind": "policy"
+    "id": "disabled/invalid/invalid/0"
   },
   {
     "args": {
@@ -466,18 +305,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/invalid/invalid/1",
-    "kind": "policy"
+    "id": "disabled/invalid/invalid/1"
   },
   {
     "args": {
@@ -486,18 +318,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/invalid/before/0",
-    "kind": "policy"
+    "id": "disabled/invalid/before/0"
   },
   {
     "args": {
@@ -506,18 +331,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/invalid/before/1",
-    "kind": "policy"
+    "id": "disabled/invalid/before/1"
   },
   {
     "args": {
@@ -526,18 +344,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/invalid/equal/0",
-    "kind": "policy"
+    "id": "disabled/invalid/equal/0"
   },
   {
     "args": {
@@ -546,18 +357,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/invalid/equal/1",
-    "kind": "policy"
+    "id": "disabled/invalid/equal/1"
   },
   {
     "args": {
@@ -566,18 +370,11 @@
       "doLog": false,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/invalid/after/0",
-    "kind": "policy"
+    "id": "disabled/invalid/after/0"
   },
   {
     "args": {
@@ -586,18 +383,11 @@
       "doLog": true,
       "mode": "disabled"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/disabled/invalid/after/1",
-    "kind": "policy"
+    "id": "disabled/invalid/after/1"
   },
   {
     "args": {
@@ -606,18 +396,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/absent/missing/0",
-    "kind": "policy"
+    "id": "immediate/absent/missing/0"
   },
   {
     "args": {
@@ -626,18 +409,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/absent/missing/1",
-    "kind": "policy"
+    "id": "immediate/absent/missing/1"
   },
   {
     "args": {
@@ -646,18 +422,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/absent/invalid/0",
-    "kind": "policy"
+    "id": "immediate/absent/invalid/0"
   },
   {
     "args": {
@@ -666,18 +435,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/absent/invalid/1",
-    "kind": "policy"
+    "id": "immediate/absent/invalid/1"
   },
   {
     "args": {
@@ -686,18 +448,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/absent/before/0",
-    "kind": "policy"
+    "id": "immediate/absent/before/0"
   },
   {
     "args": {
@@ -706,18 +461,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/absent/before/1",
-    "kind": "policy"
+    "id": "immediate/absent/before/1"
   },
   {
     "args": {
@@ -726,18 +474,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/absent/equal/0",
-    "kind": "policy"
+    "id": "immediate/absent/equal/0"
   },
   {
     "args": {
@@ -746,18 +487,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/absent/equal/1",
-    "kind": "policy"
+    "id": "immediate/absent/equal/1"
   },
   {
     "args": {
@@ -766,18 +500,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/absent/after/0",
-    "kind": "policy"
+    "id": "immediate/absent/after/0"
   },
   {
     "args": {
@@ -786,18 +513,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/absent/after/1",
-    "kind": "policy"
+    "id": "immediate/absent/after/1"
   },
   {
     "args": {
@@ -806,18 +526,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/valid/missing/0",
-    "kind": "policy"
+    "id": "immediate/valid/missing/0"
   },
   {
     "args": {
@@ -826,18 +539,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": true
     },
-    "id": "policy/immediate/valid/missing/1",
-    "kind": "policy"
+    "id": "immediate/valid/missing/1"
   },
   {
     "args": {
@@ -846,18 +552,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/valid/invalid/0",
-    "kind": "policy"
+    "id": "immediate/valid/invalid/0"
   },
   {
     "args": {
@@ -866,18 +565,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": true
     },
-    "id": "policy/immediate/valid/invalid/1",
-    "kind": "policy"
+    "id": "immediate/valid/invalid/1"
   },
   {
     "args": {
@@ -886,18 +578,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/valid/before/0",
-    "kind": "policy"
+    "id": "immediate/valid/before/0"
   },
   {
     "args": {
@@ -906,18 +591,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": true
     },
-    "id": "policy/immediate/valid/before/1",
-    "kind": "policy"
+    "id": "immediate/valid/before/1"
   },
   {
     "args": {
@@ -926,18 +604,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/valid/equal/0",
-    "kind": "policy"
+    "id": "immediate/valid/equal/0"
   },
   {
     "args": {
@@ -946,18 +617,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": true
     },
-    "id": "policy/immediate/valid/equal/1",
-    "kind": "policy"
+    "id": "immediate/valid/equal/1"
   },
   {
     "args": {
@@ -966,18 +630,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/immediate/valid/after/0",
-    "kind": "policy"
+    "id": "immediate/valid/after/0"
   },
   {
     "args": {
@@ -986,18 +643,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": true
     },
-    "id": "policy/immediate/valid/after/1",
-    "kind": "policy"
+    "id": "immediate/valid/after/1"
   },
   {
     "args": {
@@ -1006,18 +656,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/immediate/invalid/missing/0",
-    "kind": "policy"
+    "id": "immediate/invalid/missing/0"
   },
   {
     "args": {
@@ -1026,18 +669,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/immediate/invalid/missing/1",
-    "kind": "policy"
+    "id": "immediate/invalid/missing/1"
   },
   {
     "args": {
@@ -1046,18 +682,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/immediate/invalid/invalid/0",
-    "kind": "policy"
+    "id": "immediate/invalid/invalid/0"
   },
   {
     "args": {
@@ -1066,18 +695,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/immediate/invalid/invalid/1",
-    "kind": "policy"
+    "id": "immediate/invalid/invalid/1"
   },
   {
     "args": {
@@ -1086,18 +708,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/immediate/invalid/before/0",
-    "kind": "policy"
+    "id": "immediate/invalid/before/0"
   },
   {
     "args": {
@@ -1106,18 +721,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/immediate/invalid/before/1",
-    "kind": "policy"
+    "id": "immediate/invalid/before/1"
   },
   {
     "args": {
@@ -1126,18 +734,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/immediate/invalid/equal/0",
-    "kind": "policy"
+    "id": "immediate/invalid/equal/0"
   },
   {
     "args": {
@@ -1146,18 +747,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/immediate/invalid/equal/1",
-    "kind": "policy"
+    "id": "immediate/invalid/equal/1"
   },
   {
     "args": {
@@ -1166,18 +760,11 @@
       "doLog": false,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/immediate/invalid/after/0",
-    "kind": "policy"
+    "id": "immediate/invalid/after/0"
   },
   {
     "args": {
@@ -1186,18 +773,11 @@
       "doLog": true,
       "mode": "immediate"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/immediate/invalid/after/1",
-    "kind": "policy"
+    "id": "immediate/invalid/after/1"
   },
   {
     "args": {
@@ -1206,18 +786,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/absent/missing/0",
-    "kind": "policy"
+    "id": "future_experiments_only/absent/missing/0"
   },
   {
     "args": {
@@ -1226,18 +799,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/absent/missing/1",
-    "kind": "policy"
+    "id": "future_experiments_only/absent/missing/1"
   },
   {
     "args": {
@@ -1246,18 +812,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/absent/invalid/0",
-    "kind": "policy"
+    "id": "future_experiments_only/absent/invalid/0"
   },
   {
     "args": {
@@ -1266,18 +825,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/absent/invalid/1",
-    "kind": "policy"
+    "id": "future_experiments_only/absent/invalid/1"
   },
   {
     "args": {
@@ -1286,18 +838,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/absent/before/0",
-    "kind": "policy"
+    "id": "future_experiments_only/absent/before/0"
   },
   {
     "args": {
@@ -1306,18 +851,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/absent/before/1",
-    "kind": "policy"
+    "id": "future_experiments_only/absent/before/1"
   },
   {
     "args": {
@@ -1326,18 +864,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/absent/equal/0",
-    "kind": "policy"
+    "id": "future_experiments_only/absent/equal/0"
   },
   {
     "args": {
@@ -1346,18 +877,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/absent/equal/1",
-    "kind": "policy"
+    "id": "future_experiments_only/absent/equal/1"
   },
   {
     "args": {
@@ -1366,18 +890,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/absent/after/0",
-    "kind": "policy"
+    "id": "future_experiments_only/absent/after/0"
   },
   {
     "args": {
@@ -1386,18 +903,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/absent/after/1",
-    "kind": "policy"
+    "id": "future_experiments_only/absent/after/1"
   },
   {
     "args": {
@@ -1406,18 +916,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/valid/missing/0",
-    "kind": "policy"
+    "id": "future_experiments_only/valid/missing/0"
   },
   {
     "args": {
@@ -1426,18 +929,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": true
     },
-    "id": "policy/future_experiments_only/valid/missing/1",
-    "kind": "policy"
+    "id": "future_experiments_only/valid/missing/1"
   },
   {
     "args": {
@@ -1446,18 +942,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "PARSE_ERROR",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/valid/invalid/0",
-    "kind": "policy"
+    "id": "future_experiments_only/valid/invalid/0"
   },
   {
     "args": {
@@ -1466,18 +955,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "PARSE_ERROR",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/valid/invalid/1",
-    "kind": "policy"
+    "id": "future_experiments_only/valid/invalid/1"
   },
   {
     "args": {
@@ -1486,18 +968,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/valid/before/0",
-    "kind": "policy"
+    "id": "future_experiments_only/valid/before/0"
   },
   {
     "args": {
@@ -1506,18 +981,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/valid/before/1",
-    "kind": "policy"
+    "id": "future_experiments_only/valid/before/1"
   },
   {
     "args": {
@@ -1526,18 +994,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/valid/equal/0",
-    "kind": "policy"
+    "id": "future_experiments_only/valid/equal/0"
   },
   {
     "args": {
@@ -1546,18 +1007,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": true
     },
-    "id": "policy/future_experiments_only/valid/equal/1",
-    "kind": "policy"
+    "id": "future_experiments_only/valid/equal/1"
   },
   {
     "args": {
@@ -1566,18 +1020,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/valid/after/0",
-    "kind": "policy"
+    "id": "future_experiments_only/valid/after/0"
   },
   {
     "args": {
@@ -1586,18 +1033,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "NONE",
       "exclude": true
     },
-    "id": "policy/future_experiments_only/valid/after/1",
-    "kind": "policy"
+    "id": "future_experiments_only/valid/after/1"
   },
   {
     "args": {
@@ -1606,18 +1046,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/invalid/missing/0",
-    "kind": "policy"
+    "id": "future_experiments_only/invalid/missing/0"
   },
   {
     "args": {
@@ -1626,18 +1059,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/invalid/missing/1",
-    "kind": "policy"
+    "id": "future_experiments_only/invalid/missing/1"
   },
   {
     "args": {
@@ -1646,18 +1072,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/invalid/invalid/0",
-    "kind": "policy"
+    "id": "future_experiments_only/invalid/invalid/0"
   },
   {
     "args": {
@@ -1666,18 +1085,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/invalid/invalid/1",
-    "kind": "policy"
+    "id": "future_experiments_only/invalid/invalid/1"
   },
   {
     "args": {
@@ -1686,18 +1098,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/invalid/before/0",
-    "kind": "policy"
+    "id": "future_experiments_only/invalid/before/0"
   },
   {
     "args": {
@@ -1706,18 +1111,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/invalid/before/1",
-    "kind": "policy"
+    "id": "future_experiments_only/invalid/before/1"
   },
   {
     "args": {
@@ -1726,18 +1124,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/invalid/equal/0",
-    "kind": "policy"
+    "id": "future_experiments_only/invalid/equal/0"
   },
   {
     "args": {
@@ -1746,18 +1137,11 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/invalid/equal/1",
-    "kind": "policy"
+    "id": "future_experiments_only/invalid/equal/1"
   },
   {
     "args": {
@@ -1766,18 +1150,11 @@
       "doLog": false,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/invalid/after/0",
-    "kind": "policy"
+    "id": "future_experiments_only/invalid/after/0"
   },
   {
     "args": {
@@ -1786,17 +1163,10 @@
       "doLog": true,
       "mode": "future_experiments_only"
     },
-    "decision_ids": [
-      "D002",
-      "D004",
-      "D010",
-      "D011"
-    ],
     "expected": {
       "error": "INVALID_CONTEXT",
       "exclude": false
     },
-    "id": "policy/future_experiments_only/invalid/after/1",
-    "kind": "policy"
+    "id": "future_experiments_only/invalid/after/1"
   }
 ]
