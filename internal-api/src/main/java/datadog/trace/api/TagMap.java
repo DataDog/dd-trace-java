@@ -1454,8 +1454,23 @@ public final class TagMap
   }
 
   @Override
+  public Object load(long tagId) {
+    return this.knownStore.getValue(tagId);
+  }
+
+  @Override
+  public String loadString(long tagId) {
+    return this.knownStore.getString(tagId);
+  }
+
+  @Override
   public void store(String tag, Object value) {
     this.set(tag, value);
+  }
+
+  @Override
+  public void store(long tagId, Object value) {
+    this.set(tagId, value);
   }
 
   @Override

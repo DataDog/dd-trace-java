@@ -2251,11 +2251,30 @@ public class DDSpanContext
   }
 
   @Override
+  public Object load(long tagId) {
+    return knownTags.getValue(tagId);
+  }
+
+  @Override
+  public String loadString(long tagId) {
+    return knownTags.getString(tagId);
+  }
+
+  @Override
   public void store(String tag, Object value) {
     if (value == null) {
       routeRemoval(tag);
     } else {
       routeSet(tag, value);
+    }
+  }
+
+  @Override
+  public void store(long tagId, Object value) {
+    if (value == null) {
+      knownTags.remove(tagId);
+    } else {
+      knownTags.set(tagId, value);
     }
   }
 
