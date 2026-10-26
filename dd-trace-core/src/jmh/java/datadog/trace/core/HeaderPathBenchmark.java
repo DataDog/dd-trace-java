@@ -134,7 +134,8 @@ public class HeaderPathBenchmark {
   }
 
   /**
-   * Fails fast if the headers aren't actually extracted and injected, which would measure nothing.
+   * Fails fast if the headers aren't actually extracted and injected, or if the outbound call
+   * doesn't continue the extracted trace, either of which would measure something else.
    */
   void checkPropagation() {
     Context parent = Propagators.defaultPropagator().extract(root(), inbound, GETTER);
@@ -143,8 +144,13 @@ public class HeaderPathBenchmark {
     }
     Outbound outbound = new Outbound();
     request(outbound);
-    if (!outbound.headers.containsKey("x-datadog-trace-id")) {
+    String injectedTraceId = outbound.headers.get("x-datadog-trace-id");
+    if (injectedTraceId == null) {
       throw new IllegalStateException("nothing injected: " + outbound.headers);
+    }
+    if (!headers.equals("none") && !injectedTraceId.equals(TRACE_ID_LOW)) {
+      throw new IllegalStateException(
+          "outbound call didn't continue the extracted trace: " + outbound.headers);
     }
   }
 
@@ -194,7 +200,7 @@ public class HeaderPathBenchmark {
     server.setTag(Tags.HTTP_ROUTE, "/owners/{ownerId}");
     server.setTag(Tags.PEER_PORT, 54321);
 
-    try (ContextScope serverScope = parent.with(server).attach()) {
+    try (ContextScope serverScope = tracer.attach(parent.with(server))) {
       for (int i = 0; i < JDBC_SPANS; ++i) {
         AgentSpan jdbc = tracer.startSpan(JDBC_INSTRUMENTATION, JDBC_OPERATION);
         jdbc.applyOverwriting(jdbcProto);
@@ -216,7 +222,7 @@ public class HeaderPathBenchmark {
       client.setTag(Tags.PEER_HOSTNAME, "inventory.internal");
       client.setTag(Tags.PEER_PORT, 8080);
       Propagators.defaultPropagator()
-          .inject(Context.current().with(client), outbound.headers, SETTER);
+          .inject(tracer.currentContext().with(client), outbound.headers, SETTER);
       client.setHttpStatusCode(200);
       client.finish();
     }

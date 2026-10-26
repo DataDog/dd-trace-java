@@ -1,13 +1,14 @@
 package datadog.trace.core.tagprocessor;
 
+import static datadog.trace.api.KnownTags.DD_PEER_SERVICE_REMAPPED_FROM_ID;
+import static datadog.trace.api.KnownTags.PEER_SERVICE_ID;
+
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.SpanStorage;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -35,7 +36,7 @@ public final class PeerServiceCalculator extends EagerTagsPostProcessor {
   @Override
   public void processTags(
       SpanStorage unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    Object peerService = unsafeTags.load(Tags.PEER_SERVICE);
+    Object peerService = unsafeTags.load(PEER_SERVICE_ID);
     // the user set it
     if (peerService != null) {
       if (canRemap) {
@@ -46,7 +47,7 @@ public final class PeerServiceCalculator extends EagerTagsPostProcessor {
       // calculate the defaults (if any)
       peerServiceNaming.tags(unsafeTags);
       // only remap if the mapping is not empty (saves one get)
-      remapPeerService(unsafeTags, canRemap ? unsafeTags.load(Tags.PEER_SERVICE) : null);
+      remapPeerService(unsafeTags, canRemap ? unsafeTags.load(PEER_SERVICE_ID) : null);
       return;
     }
     // we have no peer.service and we do not compute defaults. Leave the map untouched
@@ -56,8 +57,8 @@ public final class PeerServiceCalculator extends EagerTagsPostProcessor {
     if (value != null) {
       String mapped = peerServiceMapping.get(value);
       if (mapped != null) {
-        unsafeTags.store(Tags.PEER_SERVICE, mapped);
-        unsafeTags.store(DDTags.PEER_SERVICE_REMAPPED_FROM, value);
+        unsafeTags.store(PEER_SERVICE_ID, mapped);
+        unsafeTags.store(DD_PEER_SERVICE_REMAPPED_FROM_ID, value);
       }
     }
   }

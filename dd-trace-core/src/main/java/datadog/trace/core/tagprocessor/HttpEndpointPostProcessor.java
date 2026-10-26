@@ -1,8 +1,8 @@
 package datadog.trace.core.tagprocessor;
 
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
+import static datadog.trace.api.KnownTags.HTTP_METHOD_ID;
+import static datadog.trace.api.KnownTags.HTTP_ROUTE_ID;
+import static datadog.trace.api.KnownTags.HTTP_URL_ID;
 
 import datadog.trace.api.SpanStorage;
 import datadog.trace.api.endpoint.EndpointResolver;
@@ -61,13 +61,13 @@ public class HttpEndpointPostProcessor extends EagerTagsPostProcessor {
       return;
     }
 
-    if (unsafeTags.load(HTTP_METHOD) == null) {
+    if (unsafeTags.load(HTTP_METHOD_ID) == null) {
       return;
     }
 
     try {
-      String httpRoute = unsafeTags.loadString(HTTP_ROUTE);
-      String httpUrl = unsafeTags.loadString(HTTP_URL);
+      String httpRoute = unsafeTags.loadString(HTTP_ROUTE_ID);
+      String httpUrl = unsafeTags.loadString(HTTP_URL_ID);
       endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
     } catch (Throwable t) {
       log.debug("Error processing HTTP endpoint for span {}", spanContext.getSpanId(), t);
