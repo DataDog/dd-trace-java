@@ -132,14 +132,14 @@ class TagStoresTest {
     assertTrue(KnownTagCodec.isTraceLevel(KnownTags.RUNTIME_ID));
 
     HashIdStore traceLevel = new HashIdStore(null);
-    traceLevel.set(KnownTags.RUNTIME_ID, "abc");
+    traceLevel.store(KnownTags.RUNTIME_ID, "abc");
     HashIdStore span = new HashIdStore(traceLevel);
     long other =
         spanLevelId == KnownTags.HTTP_ROUTE_ID ? KnownTags.COMPONENT_ID : KnownTags.HTTP_ROUTE_ID;
-    span.set(other, "/a");
+    span.store(other, "/a");
 
     assertNull(span.getEntryReader(spanLevelId));
-    assertEquals("abc", span.getValue(KnownTags.RUNTIME_ID));
+    assertEquals("abc", span.load(KnownTags.RUNTIME_ID));
   }
 
   @Test
@@ -152,13 +152,13 @@ class TagStoresTest {
   @Test
   void theIdStoreSetsEveryValueShape() {
     HashIdStore ids = new HashIdStore(null);
-    ids.set(KnownTags.COMPONENT_ID, (Object) new StringBuilder("jdbc"));
-    ids.set(KnownTags.HTTP_ROUTE_ID, "/a");
-    ids.set(KnownTags.DD_PROFILING_ENABLED_ID, true);
-    ids.set(KnownTags.HTTP_STATUS_CODE_ID, 200);
-    ids.set(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
-    ids.set(KnownTags.DB_POOL_NAME_ID, 1.5f);
-    ids.set(KnownTags.DB_INSTANCE_ID, 2.25d);
+    ids.store(KnownTags.COMPONENT_ID, (Object) new StringBuilder("jdbc"));
+    ids.store(KnownTags.HTTP_ROUTE_ID, "/a");
+    ids.store(KnownTags.DD_PROFILING_ENABLED_ID, true);
+    ids.store(KnownTags.HTTP_STATUS_CODE_ID, 200);
+    ids.store(KnownTags.HTTP_RESEND_COUNT_ID, 2L);
+    ids.store(KnownTags.DB_POOL_NAME_ID, 1.5f);
+    ids.store(KnownTags.DB_INSTANCE_ID, 2.25d);
 
     TagMap checked = TagMap.create();
     checked.set(KnownTags.COMPONENT_ID, ids.getEntryReader(KnownTags.COMPONENT_ID).objectValue());
@@ -233,8 +233,8 @@ class TagStoresTest {
     // a direction-scoped OpenTelemetry name is resolved at the OpenTelemetry boundary, not here
     assertEquals(0L, KnownTagCodec.keyOf("server.address"));
 
-    ids.set(KnownTags.HTTP_ROUTE_ID, "/a");
-    names.set("my.tag", "custom");
+    ids.store(KnownTags.HTTP_ROUTE_ID, "/a");
+    names.store("my.tag", "custom");
 
     TagMap view = TagMap.viewOf(ids, names, false);
     assertEquals("/a", view.getEntry(KnownTags.HTTP_ROUTE_NAME).stringValue());
@@ -252,30 +252,30 @@ class TagStoresTest {
     IdStore ids = IdStore.create(parent);
     HashStore borrowed = HashStore.inheritedFrom(parent);
     assertSame(parent.nameStore, borrowed);
-    assertEquals("/inherited", ids.getValue(KnownTags.HTTP_ROUTE_ID));
-    assertEquals("c", borrowed.get("inherited.custom").stringValue());
+    assertEquals("/inherited", ids.load(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("c", borrowed.getEntry("inherited.custom").stringValue());
 
     HashStore own = HashStore.create(borrowed);
-    own.set("own", "o");
-    assertEquals("c", own.get("inherited.custom").stringValue());
-    assertNull(borrowed.get("own"));
+    own.store("own", "o");
+    assertEquals("c", own.getEntry("inherited.custom").stringValue());
+    assertNull(borrowed.getEntry("own"));
   }
 
   @Test
   void theCustomStoreSetsEveryValueShape() {
     HashStore names = HashStore.create(null);
-    names.set("o", (Object) "obj");
-    names.set("s", "v");
-    names.set("b", true);
-    names.set("i", 1);
-    names.set("l", 2L);
-    names.set("f", 3f);
-    names.set("d", 4d);
+    names.store("o", (Object) "obj");
+    names.store("s", "v");
+    names.store("b", true);
+    names.store("i", 1);
+    names.store("l", 2L);
+    names.store("f", 3f);
+    names.store("d", 4d);
     assertNull(names.getAndPut(TagMap.Entry.create("p", "x")));
     assertEquals("x", names.put(TagMap.Entry.create("p", "y")).stringValue());
 
-    assertEquals(true, names.get("b").objectValue());
-    assertEquals(4d, names.get("d").objectValue());
+    assertEquals(true, names.getEntry("b").objectValue());
+    assertEquals(4d, names.getEntry("d").objectValue());
     assertEquals(8, names.size());
   }
 
@@ -290,10 +290,10 @@ class TagStoresTest {
 
     view.set(KnownTags.HTTP_METHOD_NAME, "GET");
     view.set("own", "o");
-    assertEquals("GET", ids.getValue(KnownTags.HTTP_METHOD_ID));
+    assertEquals("GET", ids.load(KnownTags.HTTP_METHOD_ID));
     assertFalse(view.isCustomStoreBorrowed());
     assertNotSame(borrowed, view.customStore());
-    assertEquals("o", view.customStore().get("own").stringValue());
+    assertEquals("o", view.customStore().getEntry("own").stringValue());
   }
 
   @Test
@@ -452,7 +452,7 @@ class TagStoresTest {
   @Test
   void aCustomStoreRejectsAKnownTagsName() {
     HashStore names = new HashStore(null);
-    assertThrows(AssertionError.class, () -> names.get(KnownTags.HTTP_ROUTE_NAME));
+    assertThrows(AssertionError.class, () -> names.getEntry(KnownTags.HTTP_ROUTE_NAME));
     assertThrows(AssertionError.class, () -> names.remove(KnownTags.HTTP_ROUTE_NAME));
   }
 }
