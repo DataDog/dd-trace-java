@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.openfeature;
 
-import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.FEATURE_FLAGS;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -26,7 +25,8 @@ public class DDOpenFeatureInstrumentation extends InstrumenterModule
 
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(FEATURE_FLAGS);
+    // The SDK must also learn when the agent configuration disables Feature Flags.
+    return true;
   }
 
   @Override
@@ -43,6 +43,7 @@ public class DDOpenFeatureInstrumentation extends InstrumenterModule
       packageName + ".AgentHealthMetrics",
       packageName + ".AgentShutdownSource",
       packageName + ".AgentSpanEnricher",
+      packageName + ".DisabledAgentBridge",
       packageName + ".JavaAgentBridge",
     };
   }

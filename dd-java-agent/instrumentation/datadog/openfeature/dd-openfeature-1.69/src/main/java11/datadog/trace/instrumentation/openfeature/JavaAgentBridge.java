@@ -9,6 +9,7 @@ import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import java.lang.reflect.Method;
 import javax.annotation.Nullable;
@@ -22,7 +23,8 @@ public final class JavaAgentBridge implements AgentBridge {
           && implementsSpi(EventTransport.class, AgentEventProxy.class)
           && implementsSpi(HealthMetrics.class, AgentHealthMetrics.class)
           && implementsSpi(SpanEnricher.class, AgentSpanEnricher.class)
-          && implementsSpi(ShutdownSource.class, AgentShutdownSource.class);
+          && implementsSpi(ShutdownSource.class, AgentShutdownSource.class)
+          && implementsSpi(AgentBridge.class, DisabledAgentBridge.class);
 
   private final FeatureFlaggingGateway.Backend backend;
   private final HealthMetrics healthMetrics;
@@ -39,11 +41,18 @@ public final class JavaAgentBridge implements AgentBridge {
    *
    * @param fallback the bridge to use if the agent backend is not started or the SDK SPI is
    *     incompatible.
-   * @return the agent bridge, or the fallback one.
+   * @return the agent bridge, the disabled one if the agent configuration disables Feature Flags,
+   *     or the fallback one.
    */
   public static AgentBridge connect(final AgentBridge fallback) {
+    if (!SPI_COMPATIBLE) {
+      return fallback;
+    }
+    if (!InstrumenterConfig.get().isFeatureFlaggingEnabled()) {
+      return DisabledAgentBridge.INSTANCE;
+    }
     final FeatureFlaggingGateway.Backend backend = FeatureFlaggingGateway.backend();
-    return backend == null || !SPI_COMPATIBLE ? fallback : new JavaAgentBridge(backend);
+    return backend == null ? fallback : new JavaAgentBridge(backend);
   }
 
   private static boolean implementsSpi(final Class<?> spi, final Class<?> implementation) {
