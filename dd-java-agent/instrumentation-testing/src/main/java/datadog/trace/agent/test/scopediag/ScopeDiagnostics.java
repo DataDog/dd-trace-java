@@ -86,6 +86,7 @@ public final class ScopeDiagnostics {
     synchronized (INSTANCE.lifecycleLock) {
       INSTANCE.drainEvents();
       INSTANCE.recordingWindow = null;
+      INSTANCE.pendingEvents.clear();
     }
     INSTANCE.wakeQuiescenceWaiters();
   }
@@ -129,7 +130,7 @@ public final class ScopeDiagnostics {
     try {
       while (!waiter.isInterrupted()) {
         synchronized (INSTANCE.lifecycleLock) {
-          INSTANCE.drainEvents();
+          INSTANCE.drainEvents(deadline);
           if (INSTANCE.recordingWindow == null || !INSTANCE.snapshot().hasIncompleteLifecycles()) {
             return;
           }
@@ -242,13 +243,19 @@ public final class ScopeDiagnostics {
     }
     // Capture the originating thread and call site before handing the event to the report reader.
     ScopeEvent event = type == null ? null : INSTANCE.event(type, nanos);
-    INSTANCE.pendingEvents.add(
+    Runnable pending =
         () -> {
           if (window == INSTANCE.recordingWindow) {
             handler.accept(event);
           }
-        });
-    INSTANCE.wakeQuiescenceWaiters();
+        };
+    INSTANCE.pendingEvents.add(pending);
+    // Reset/stop may have cleared the queue while this callback was constructing its event.
+    if (window != INSTANCE.recordingWindow) {
+      INSTANCE.pendingEvents.remove(pending);
+    } else {
+      INSTANCE.wakeQuiescenceWaiters();
+    }
   }
 
   private void wakeQuiescenceWaiters() {
@@ -259,10 +266,26 @@ public final class ScopeDiagnostics {
 
   /** Only recording controls and report readers consume events, under the lifecycle lock. */
   private void drainEvents() {
-    Runnable event;
-    while ((event = pendingEvents.poll()) != null) {
+    drainEvents(0);
+  }
+
+  /** A zero deadline drains the published prefix without a time budget. */
+  private void drainEvents(long deadline) {
+    // Each drain needs its own boundary: a timed-out drain may leave its marker in the queue.
+    Runnable boundary = new DrainBoundary();
+    pendingEvents.add(boundary);
+    while (deadline == 0 || System.nanoTime() - deadline < 0) {
+      Runnable event = pendingEvents.poll();
+      if (event == null || event == boundary) {
+        return;
+      }
       event.run();
     }
+  }
+
+  private static final class DrainBoundary implements Runnable {
+    @Override
+    public void run() {}
   }
 
   static void recordCapture(
