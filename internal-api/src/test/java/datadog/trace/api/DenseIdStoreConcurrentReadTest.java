@@ -28,7 +28,7 @@ class DenseIdStoreConcurrentReadTest {
     }
     DenseIdStore store = new DenseIdStore(null);
     for (long id : ids) {
-      store.set(id, KnownTagCodec.nameOf(id)); // each value names its own tag
+      store.store(id, KnownTagCodec.nameOf(id)); // each value names its own tag
     }
     TagMap shared = TagMap.viewOf(store, null, false);
 

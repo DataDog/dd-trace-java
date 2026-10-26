@@ -15,6 +15,9 @@ import java.util.function.Consumer;
  * <p>A span in the tracer core owns its id store directly ({@link #create}); a {@link TagMap} owns
  * one too.
  *
+ * <p>Values move by {@code load} and {@code store}, as through {@link SpanStorage}; entries by
+ * {@code getEntry}, {@code put} and {@code remove}.
+ *
  * <p>{@link IdStoreFactory} builds every store, so the JVM loads one implementation, {@link
  * HashIdStore} or {@link DenseIdStore}, and class hierarchy analysis devirtualizes every call on an
  * {@code IdStore} without a type guard; nothing that is always loaded may extend this class. No
@@ -66,32 +69,32 @@ public abstract class IdStore {
    * {@link #getEntryReader}'s value, boxed if necessary, or null -- for a caller that needs only
    * the value, so a store that keeps known tags without an Entry per tag can answer without one.
    */
-  public abstract Object getValue(long tagId);
+  public abstract Object load(long tagId);
 
   /**
-   * {@link #getValue} as a String, or null. A store that keeps an Entry per tag answers with the
+   * {@link #load} as a String, or null. A store that keeps an Entry per tag answers with the
    * Entry's cached string, so a numeric tag read repeatedly, as the serializer does, is formatted
    * once.
    */
-  public abstract String getString(long tagId);
+  public abstract String loadString(long tagId);
 
   /*
-   * Sets a known tag without validating its id: the caller has checked KnownTagCodec.isKnown.
+   * Stores a known tag without validating its id: the caller has checked KnownTagCodec.isKnown.
    */
 
-  public abstract void set(long tagId, Object value);
+  public abstract void store(long tagId, Object value);
 
-  public abstract void set(long tagId, CharSequence value);
+  public abstract void store(long tagId, CharSequence value);
 
-  public abstract void set(long tagId, boolean value);
+  public abstract void store(long tagId, boolean value);
 
-  public abstract void set(long tagId, int value);
+  public abstract void store(long tagId, int value);
 
-  public abstract void set(long tagId, long value);
+  public abstract void store(long tagId, long value);
 
-  public abstract void set(long tagId, float value);
+  public abstract void store(long tagId, float value);
 
-  public abstract void set(long tagId, double value);
+  public abstract void store(long tagId, double value);
 
   /**
    * Inserts or replaces a known tag, returning the local entry it replaced (or null). Does not
