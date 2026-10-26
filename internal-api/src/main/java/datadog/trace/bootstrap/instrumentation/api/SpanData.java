@@ -7,10 +7,10 @@ import datadog.trace.api.TagMap;
  * the span's full tag semantics (a null value removes the tag, and the tag interceptor runs), and
  * the few span-level fields that aren't yet tags.
  *
- * <p>The intercepted counterpart of {@link datadog.trace.api.SpanStorage}, which loads and stores
- * raw. It uses the span's own vocabulary, {@code getTag}/{@code setTag}, so contributor code reads
- * like span code. Unlike OpenTelemetry's {@code SpanData}, it is not a snapshot: writes go to the
- * live span.
+ * <p>The intercepted counterpart of {@link datadog.trace.api.TagStore}, which loads and stores raw.
+ * It uses the span's own vocabulary, {@code getTag}/{@code setTag}, so contributor code reads like
+ * span code. Unlike OpenTelemetry's {@code SpanData}, it is not a snapshot: writes go to the live
+ * span.
  *
  * <p>{@link AgentSpan#setTagsFrom} may hand its contributor a short-lived {@code SpanData} that
  * holds the span's tag lock for the whole call, so a run of {@code setTag} calls takes the lock

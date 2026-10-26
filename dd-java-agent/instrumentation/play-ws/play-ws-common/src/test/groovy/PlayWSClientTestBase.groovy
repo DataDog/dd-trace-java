@@ -58,6 +58,11 @@ abstract class PlayWSClientTestBase extends HttpClientTest {
   }
 
   @Override
+  boolean emitsUrlFragment() {
+    return false
+  }
+
+  @Override
   int version() {
     return 0
   }

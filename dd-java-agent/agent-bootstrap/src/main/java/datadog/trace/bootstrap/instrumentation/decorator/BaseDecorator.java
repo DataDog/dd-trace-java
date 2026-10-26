@@ -14,7 +14,6 @@ import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -224,12 +223,12 @@ public abstract class BaseDecorator {
   }
 
   public void setPeerPort(AgentSpan span, String port) {
-    span.setTag(Tags.PEER_PORT, port);
+    span.setTag(KnownTags.PEER_PORT_ID, port);
   }
 
   public void setPeerPort(AgentSpan span, int port) {
     if (port > UNSET_PORT) {
-      span.setTag(Tags.PEER_PORT, port);
+      span.setTag(KnownTags.PEER_PORT_ID, port);
     }
   }
 

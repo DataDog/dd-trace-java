@@ -142,9 +142,9 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
-    // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
-    private static volatile double cachedKsrRate = Double.NaN;
-    private static volatile TagValue cachedKsrTagValue;
+    // The rate and its value are published together, so a reader can't pair one decision's rate
+    // with another's value; racing writers only replace each other's entry.
+    private static volatile KnuthSamplingRateEntry cachedKnuthSamplingRate;
 
     // Size of the trace-level tags only; the per-injection LLMObs tags are added on top of it by
     // DatadogPTagsCodec, so they are deliberately not part of what this caches.
@@ -503,13 +503,23 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (Double.isNaN(rate)) {
         return null;
       }
-      if (Double.compare(cachedKsrRate, rate) == 0) {
-        return cachedKsrTagValue;
+      KnuthSamplingRateEntry cached = cachedKnuthSamplingRate;
+      if (cached != null && Double.compare(cached.rate, rate) == 0) {
+        return cached.tagValue;
       }
       TagValue value = TagValue.from(formatKnuthSamplingRate(rate));
-      cachedKsrTagValue = value;
-      cachedKsrRate = rate;
+      cachedKnuthSamplingRate = new KnuthSamplingRateEntry(rate, value);
       return value;
+    }
+
+    private static final class KnuthSamplingRateEntry {
+      final double rate;
+      final TagValue tagValue;
+
+      KnuthSamplingRateEntry(double rate, TagValue tagValue) {
+        this.rate = rate;
+        this.tagValue = tagValue;
+      }
     }
 
     /**

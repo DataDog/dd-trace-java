@@ -48,8 +48,7 @@ import javax.annotation.Nullable;
  *   <li>adaptive collision
  * </ul>
  */
-public final class TagMap
-    implements Map<String, Object>, Iterable<TagMap.EntryReader>, SpanStorage {
+public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryReader>, TagStore {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
   // Built from the JVM's chosen store's createEmpty(); IdStoreFactory explains why that is safe
   // during TagMap's <clinit>, whichever class initializes first.
@@ -1441,7 +1440,7 @@ public final class TagMap
     return entry == null ? null : entry.stringValue();
   }
 
-  /* SpanStorage, for standalone maps handed to the pipeline: TagMap's own get and set. */
+  /* TagStore, for standalone maps handed to the pipeline: TagMap's own get and set. */
 
   @Override
   public Object load(String tag) {

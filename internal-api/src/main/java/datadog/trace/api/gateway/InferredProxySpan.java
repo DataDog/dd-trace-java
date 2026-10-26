@@ -1,27 +1,27 @@
 package datadog.trace.api.gateway;
 
 import static datadog.context.ContextKey.named;
-import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.HTTP_SERVER_DECORATOR;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.MANUAL_INSTRUMENTATION;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_USER_AGENT;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
+import datadog.trace.bootstrap.instrumentation.api.http.DatadogServerUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.HttpServerUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.OtelServerUrl;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +42,9 @@ public class InferredProxySpan implements ImplicitContextKeyed {
   static final String PROXY_REGION = "x-dd-proxy-region";
   static final Map<String, String> SUPPORTED_PROXIES;
   static final String INSTRUMENTATION_NAME = "inferred_proxy";
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
+  private static final TagExtractor<HttpServerUrl> URL_TAGS =
+      OTEL_SEMANTICS ? OtelServerUrl.INSTANCE : DatadogServerUrl.URL_ONLY;
 
   static {
     SUPPORTED_PROXIES = new HashMap<>();
@@ -95,7 +98,6 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     String path = header(PROXY_PATH);
     String resourcePath = header(PROXY_RESOURCE_PATH);
     String domainName = header(PROXY_DOMAIN_NAME);
-
     AgentSpan span = AgentTracer.get().startSpan(INSTRUMENTATION_NAME, proxy, extracted, startTime);
 
     // Service: value of x-dd-proxy-domain-name or global config if not found
@@ -104,24 +106,25 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     span.setServiceName(serviceName, INSTRUMENTATION_NAME);
 
     // Component: aws-apigateway or aws-httpapi
-    span.setTag(COMPONENT, proxySystem);
+    span.setTag(KnownTags.COMPONENT_ID, proxySystem);
 
     // Span kind: server
-    span.setTag(SPAN_KIND, SPAN_KIND_SERVER);
+    span.setTag(KnownTags.SPAN_KIND_ID, SPAN_KIND_SERVER);
 
     // SpanType: web
-    span.setTag(SPAN_TYPE, "web");
+    span.setTag(KnownTags.SPAN_TYPE_ID, "web");
 
-    // Http.method - value of x-dd-proxy-httpmethod
-    span.setTag(HTTP_METHOD, httpMethod);
+    if (OTEL_SEMANTICS) {
+      OtelHttpSemantics.setRequestMethod(span, httpMethod);
+    } else {
+      span.setTag(KnownTags.HTTP_METHOD_ID, httpMethod);
+    }
+    span.setTagsFrom(HttpServerUrl.fromInferredProxy(domainName, path), URL_TAGS);
 
-    // Http.url - https:// + x-dd-proxy-domain-name + x-dd-proxy-path
-    span.setTag(
-        HTTP_URL,
-        domainName != null && !domainName.isEmpty() ? "https://" + domainName + path : path);
-
-    // Http.route - value of x-dd-proxy-resource-path (or x-dd-proxy-path as fallback)
-    span.setTag(HTTP_ROUTE, resourcePath != null && !resourcePath.isEmpty() ? resourcePath : path);
+    // A concrete path is not a route under the OTel conventions. Keep the legacy fallback only
+    // while Datadog semantics are active.
+    String route = resourcePath != null && !resourcePath.isEmpty() ? resourcePath : null;
+    span.setTag(KnownTags.HTTP_ROUTE_ID, OTEL_SEMANTICS ? route : route != null ? route : path);
 
     // "stage" - value of x-dd-proxy-stage
     span.setTag("stage", header(STAGE));
@@ -153,12 +156,18 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     // _dd.inferred_span = 1 (indicates that this is an inferred span)
     span.setTag("_dd.inferred_span", 1);
 
-    // Resource Name: <Method> <Route> when route available, else <Method> <Path>
-    // Prefer x-dd-proxy-resource-path (route) over x-dd-proxy-path (path)
+    // Resource Name: OTel uses <Method> <Route> or just <Method>; Datadog keeps the historical
+    // fallback to <Method> <Path> when no route is available.
     // Use MANUAL_INSTRUMENTATION priority to prevent TagInterceptor from overriding
-    String routeOrPath = resourcePath != null && !resourcePath.isEmpty() ? resourcePath : path;
-    String resourceName =
-        httpMethod != null && routeOrPath != null ? httpMethod + " " + routeOrPath : null;
+    String resourceName;
+    if (OTEL_SEMANTICS) {
+      String spanNameMethod = OtelHttpSemantics.spanNameMethod(httpMethod);
+      resourceName = route != null ? spanNameMethod + " " + route : spanNameMethod;
+    } else {
+      String routeOrPath = route != null ? route : path;
+      resourceName =
+          httpMethod != null && routeOrPath != null ? httpMethod + " " + routeOrPath : null;
+    }
     if (resourceName != null) {
       span.setResourceName(resourceName, MANUAL_INSTRUMENTATION);
     }
@@ -290,11 +299,14 @@ public class InferredProxySpan implements ImplicitContextKeyed {
       this.span.setHttpStatusCode(statusCode);
       boolean isError = Config.get().getHttpServerErrorStatuses().get(statusCode);
       this.span.setError(isError, HTTP_SERVER_DECORATOR);
+      if (OTEL_SEMANTICS && isError) {
+        OtelHttpSemantics.setErrorType(this.span, statusCode);
+      }
     }
 
     Object userAgent = serviceEntrySpan.getTag(HTTP_USER_AGENT);
     if (userAgent != null) {
-      this.span.setTag(HTTP_USER_AGENT, userAgent.toString());
+      this.span.setTag(KnownTags.HTTP_USERAGENT_ID, userAgent.toString());
     }
 
     // Forward the Datadog scan/test markers so the API endpoint reducer can keep
