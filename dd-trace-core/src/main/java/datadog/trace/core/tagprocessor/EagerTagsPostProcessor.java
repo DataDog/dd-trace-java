@@ -1,12 +1,12 @@
 package datadog.trace.core.tagprocessor;
 
-import datadog.trace.api.SpanStorage;
+import datadog.trace.api.TagStore;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 
 /**
  * A tag post-processor run on the application thread as a span finishes. It works on the span's
- * {@link SpanStorage} rather than a {@code TagMap}, so the span needn't build one for it.
+ * {@link TagStore} rather than a {@code TagMap}, so the span needn't build one for it.
  */
 public abstract class EagerTagsPostProcessor {
   /**
@@ -17,5 +17,5 @@ public abstract class EagerTagsPostProcessor {
    * @param spanLinks the span's links
    */
   public abstract void processTags(
-      SpanStorage storage, DDSpanContext spanContext, AppendableSpanLinks spanLinks);
+      TagStore storage, DDSpanContext spanContext, AppendableSpanLinks spanLinks);
 }

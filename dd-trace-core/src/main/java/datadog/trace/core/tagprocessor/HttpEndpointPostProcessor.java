@@ -4,7 +4,7 @@ import static datadog.trace.api.KnownTags.HTTP_METHOD_ID;
 import static datadog.trace.api.KnownTags.HTTP_ROUTE_ID;
 import static datadog.trace.api.KnownTags.HTTP_URL_ID;
 
-import datadog.trace.api.SpanStorage;
+import datadog.trace.api.TagStore;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
@@ -55,7 +55,7 @@ public class HttpEndpointPostProcessor extends EagerTagsPostProcessor {
 
   @Override
   public void processTags(
-      SpanStorage unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     if (!endpointResolver.isEnabled()) {
       log.debug("EndpointResolver is not enabled, skipping HTTP endpoint post processing");
       return;

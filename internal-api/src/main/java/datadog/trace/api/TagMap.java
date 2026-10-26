@@ -48,8 +48,7 @@ import javax.annotation.Nullable;
  *   <li>adaptive collision
  * </ul>
  */
-public final class TagMap
-    implements Map<String, Object>, Iterable<TagMap.EntryReader>, SpanStorage {
+public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryReader>, TagStore {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
   // Frozen view over a length-1 array: bucket masking needs a power-of-two array length (size 0
   // would fail with ArrayIndexOutOfBoundsException, size 1 works), and the private constructor
@@ -1347,7 +1346,7 @@ public final class TagMap
     return entry == null ? null : entry.stringValue();
   }
 
-  /* SpanStorage, for standalone maps handed to the pipeline: TagMap's own get and set. */
+  /* TagStore, for standalone maps handed to the pipeline: TagMap's own get and set. */
 
   @Override
   public Object load(String tag) {
