@@ -11,15 +11,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import datadog.trace.api.featureflag.SpanEnrichmentEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 /**
- * Write-tier listener suite: the agent-side {@link SpanEnrichmentWriter} translates {@link
- * SpanEnrichmentEvent}s from the flag-eval seam into per-local-root accumulator state (resolving
- * the active root through an injectable resolver so no static tracer is needed).
+ * Write-tier suite: the agent-side {@link SpanEnrichmentWriter} translates the evaluations recorded
+ * by the SDK into per-local-root accumulator state (resolving the active root through an injectable
+ * resolver so no static tracer is needed).
  */
 class SpanEnrichmentWriterTest {
 
@@ -37,7 +36,7 @@ class SpanEnrichmentWriterTest {
   void serialIdWithDoLogAndTargetingKeyRecordsSerialAndSubject() {
     final AgentSpan root = rootSpan();
     final SpanEnrichmentWriter writer = writerFor(root);
-    writer.accept(SpanEnrichmentEvent.serialId(42, true, "user-1"));
+    writer.serialId(42, true, "user-1");
 
     final SpanEnrichmentAccumulator state = writer.states().peek(root);
     assertNotNull(state);
@@ -49,7 +48,7 @@ class SpanEnrichmentWriterTest {
   void serialIdWithoutDoLogRecordsNoSubject() {
     final AgentSpan root = rootSpan();
     final SpanEnrichmentWriter writer = writerFor(root);
-    writer.accept(SpanEnrichmentEvent.serialId(7, false, "user-1"));
+    writer.serialId(7, false, "user-1");
 
     final SpanEnrichmentAccumulator state = writer.states().peek(root);
     assertTrue(state.serialIdsView().contains(7));
@@ -60,7 +59,7 @@ class SpanEnrichmentWriterTest {
   void serialIdWithNullTargetingKeyRecordsNoSubject() {
     final AgentSpan root = rootSpan();
     final SpanEnrichmentWriter writer = writerFor(root);
-    writer.accept(SpanEnrichmentEvent.serialId(9, true, null));
+    writer.serialId(9, true, null);
 
     final SpanEnrichmentAccumulator state = writer.states().peek(root);
     assertTrue(state.serialIdsView().contains(9));
@@ -71,7 +70,7 @@ class SpanEnrichmentWriterTest {
   void runtimeDefaultRecordsDefault() {
     final AgentSpan root = rootSpan();
     final SpanEnrichmentWriter writer = writerFor(root);
-    writer.accept(SpanEnrichmentEvent.runtimeDefault("flag", Collections.singletonMap("k", "v")));
+    writer.runtimeDefault("flag", Collections.singletonMap("k", "v"));
 
     final SpanEnrichmentAccumulator state = writer.states().peek(root);
     assertNotNull(state);
@@ -81,23 +80,15 @@ class SpanEnrichmentWriterTest {
   @Test
   void noActiveSpanAccumulatesNothing() {
     final SpanEnrichmentWriter writer = new SpanEnrichmentWriter(() -> null);
-    writer.accept(SpanEnrichmentEvent.serialId(1, true, "user-1"));
+    writer.serialId(1, true, "user-1");
     assertTrue(writer.states().isEmpty(), "no active span => no accumulator state");
-  }
-
-  @Test
-  void nullEventIsANoOp() {
-    final AgentSpan root = rootSpan();
-    final SpanEnrichmentWriter writer = writerFor(root);
-    writer.accept(null);
-    assertTrue(writer.states().isEmpty());
   }
 
   @Test
   void endToEndAccumulateThenFlush() {
     final AgentSpan root = rootSpan();
     final SpanEnrichmentWriter writer = writerFor(root);
-    writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
+    writer.serialId(5, false, null);
 
     writer.interceptor().onTraceComplete(Collections.singletonList(root));
     verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "BQ=="); // {5} -> 0x05
@@ -109,7 +100,7 @@ class SpanEnrichmentWriterTest {
     final AgentSpan root = rootSpan();
     // Registrar always rejects → nothing would ever flush the state, so we must not accumulate.
     final SpanEnrichmentWriter writer = new SpanEnrichmentWriter(() -> root, interceptor -> false);
-    writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
+    writer.serialId(5, false, null);
     assertTrue(
         writer.states().isEmpty(), "no accumulation when the interceptor cannot be registered");
   }
@@ -151,12 +142,11 @@ class SpanEnrichmentWriterTest {
   }
 
   @Test
-  void initSubscribesAndCloseClearsState() {
+  void closeClearsState() {
     final AgentSpan root = rootSpan();
     final SpanEnrichmentWriter writer = writerFor(root);
-    writer.init();
     try {
-      writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
+      writer.serialId(5, false, null);
       assertNotNull(writer.states().peek(root));
     } finally {
       writer.close();
@@ -168,21 +158,21 @@ class SpanEnrichmentWriterTest {
   void runtimeDefaultWithNullFlagKeyIsIgnored() {
     final AgentSpan root = rootSpan();
     final SpanEnrichmentWriter writer = writerFor(root);
-    writer.accept(SpanEnrichmentEvent.runtimeDefault(null, "v"));
+    writer.runtimeDefault(null, "v");
     // No serial id and null flag key → nothing recorded (getOrCreate ran, but no data added).
     final SpanEnrichmentAccumulator state = writer.states().peek(root);
     assertTrue(state == null || !state.hasData());
   }
 
   @Test
-  void acceptSwallowsResolverErrors() {
+  void recordingSwallowsResolverErrors() {
     final SpanEnrichmentWriter writer =
         new SpanEnrichmentWriter(
             () -> {
               throw new RuntimeException("resolver boom");
             });
     // Must not propagate — enrichment can never break flag evaluation.
-    writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
+    writer.serialId(5, false, null);
     assertTrue(writer.states().isEmpty());
   }
 
@@ -196,7 +186,7 @@ class SpanEnrichmentWriterTest {
               throw new RuntimeException("register boom");
             });
     // Registration throws → swallowed, not latched, and nothing accumulates (never flushable).
-    writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
+    writer.serialId(5, false, null);
     assertTrue(writer.states().isEmpty());
   }
 
@@ -204,8 +194,8 @@ class SpanEnrichmentWriterTest {
   void distinctEventsUnderSameRootShareAccumulator() {
     final AgentSpan root = rootSpan();
     final SpanEnrichmentWriter writer = writerFor(root);
-    writer.accept(SpanEnrichmentEvent.serialId(100, false, null));
-    writer.accept(SpanEnrichmentEvent.serialId(108, false, null));
+    writer.serialId(100, false, null);
+    writer.serialId(108, false, null);
     assertEquals(1, writer.states().size(), "same root => one shared accumulator");
     verify(root, never()).setTag(anyString(), anyString());
   }
