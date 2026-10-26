@@ -19,6 +19,7 @@ testJvmConstraints {
 
 // there are tests with jersey2 and grizzly on the grizzly-http-2.3.20 module
 addTestSuiteForDir('jersey2JettyTest', 'jersey2JettyTest')
+addForkedTestTask('jersey2JettyTest')
 addTestSuiteForDir('jersey3JettyTest', 'jersey3JettyTest')
 addTestSuiteForDir('latestDepTest', 'test')
 
