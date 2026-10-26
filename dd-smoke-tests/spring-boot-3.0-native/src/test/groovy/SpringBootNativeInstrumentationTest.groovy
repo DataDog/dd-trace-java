@@ -29,6 +29,11 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
+  @Override
+  protected String skipScopeContinuationCheckReason() {
+    'Native images cannot load the JVM diagnostic companion agent or retransform tracer classes.'
+  }
+
   @Shared
   @TempDir
   def testJfrDir
