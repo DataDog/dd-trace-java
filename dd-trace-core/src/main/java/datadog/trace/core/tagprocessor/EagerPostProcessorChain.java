@@ -1,6 +1,6 @@
 package datadog.trace.core.tagprocessor;
 
-import datadog.trace.api.SpanStorage;
+import datadog.trace.api.TagStore;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 import java.util.Objects;
@@ -16,7 +16,7 @@ public final class EagerPostProcessorChain extends EagerTagsPostProcessor {
 
   @Override
   public void processTags(
-      SpanStorage storage, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagStore storage, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     for (final EagerTagsPostProcessor processor : chain) {
       processor.processTags(storage, spanContext, spanLinks);
     }

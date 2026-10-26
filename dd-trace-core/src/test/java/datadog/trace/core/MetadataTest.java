@@ -54,6 +54,8 @@ class MetadataTest {
         Thread.currentThread().getId(),
         UTF8BytesString.create("main"),
         TagMap.fromMap(emptyMap()),
+        TagMap.EMPTY,
+        TagMap.EMPTY,
         emptyMap(),
         0,
         false,
