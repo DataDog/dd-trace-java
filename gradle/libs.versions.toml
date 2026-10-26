@@ -2,7 +2,7 @@
 # NOTE: Ranges for some versions are needed to allow instrumentation tests to specify the desired version.
 
 # Build
-develocity = "4.6.0"
+develocity = "4.6.1"
 forbiddenapis = "3.11"
 gradle-tooling-api = "8.14.6"
 jsr305 = "3.0.2"
@@ -65,7 +65,7 @@ commons = "3.2"
 guava = "33.6.0-jre"
 javaparser = "3.28.2"
 jctools = "4.0.6"
-lz4 = "1.11.4"
+lz4 = "1.12.1"
 re2j = "1.8"
 
 # Logging

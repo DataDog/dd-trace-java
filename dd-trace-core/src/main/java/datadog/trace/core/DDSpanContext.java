@@ -1567,11 +1567,14 @@ public class DDSpanContext
                 : serializedPropagationTags.createTagMap();
       }
 
+      CoreTracer.ConfigSnapshot traceConfig = traceCollector.getTraceConfig();
       consumer.accept(
           new Metadata(
               threadId,
               threadName,
               unsafeTags,
+              traceConfig.globalTags,
+              traceConfig.spanDefaultTags,
               baggageItemsWithPropagationTags,
               getSamplingPriority(),
               measured,
