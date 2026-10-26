@@ -22,8 +22,11 @@ public final class ContinuationAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void exit(
-        @Advice.This Object self, @Advice.Enter long ddActivateNanos, @Advice.Return Object scope) {
-      ScopeContinuationProbe.onActivate(self, scope, ddActivateNanos);
+        @Advice.This Object self,
+        @Advice.Enter long ddActivateNanos,
+        @Advice.Return Object scope,
+        @Advice.FieldValue("count") int count) {
+      ScopeContinuationProbe.onActivate(self, scope, ddActivateNanos, count);
     }
   }
 

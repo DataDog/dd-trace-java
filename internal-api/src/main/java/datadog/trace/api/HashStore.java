@@ -17,8 +17,8 @@ import java.util.function.Consumer;
  * custom tag names (asserted): a known tag is resolved to its id first, and goes to the {@link
  * IdStore}.
  *
- * <p>Values move by {@code store}, as through {@link SpanStorage}; entries by {@code getEntry},
- * {@code put} and {@code remove}.
+ * <p>Values move by {@code store}, as through {@link TagStore}; entries by {@code getEntry}, {@code
+ * put} and {@code remove}.
  *
  * <p>Created lazily by its owner -- a {@link TagMap}, or a span in the tracer core -- on the first
  * custom write ({@link #create}); until then the owner borrows its parent's custom store, if any,

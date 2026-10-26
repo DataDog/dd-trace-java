@@ -3,8 +3,8 @@ package datadog.trace.core.tagprocessor;
 import static datadog.trace.api.KnownTags.DD_BASE_SERVICE_ID;
 import static datadog.trace.api.KnownTags.VERSION_ID;
 
-import datadog.trace.api.SpanStorage;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TagStore;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
@@ -29,7 +29,7 @@ public final class InternalTagsAdder extends EagerTagsPostProcessor {
 
   @Override
   public void processTags(
-      SpanStorage unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     if (spanContext == null) {
       return;
     }

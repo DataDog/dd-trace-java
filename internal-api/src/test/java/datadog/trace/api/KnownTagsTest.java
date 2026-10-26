@@ -41,8 +41,17 @@ class KnownTagsTest {
         Arguments.of(Tags.PEER_SERVICE, KnownTags.PEER_SERVICE_ID),
         Arguments.of(DDTags.PEER_SERVICE_REMAPPED_FROM, KnownTags.DD_PEER_SERVICE_REMAPPED_FROM_ID),
         Arguments.of(Tags.HTTP_METHOD, KnownTags.HTTP_METHOD_ID),
+        Arguments.of(
+            KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_NAME, KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID),
         Arguments.of(Tags.HTTP_ROUTE, KnownTags.HTTP_ROUTE_ID),
         Arguments.of(Tags.HTTP_URL, KnownTags.HTTP_URL_ID),
+        Arguments.of(Tags.HTTP_HOSTNAME, KnownTags.HTTP_HOSTNAME_ID),
+        Arguments.of(KnownTags.SERVER_PORT_NAME, KnownTags.SERVER_PORT_ID),
+        Arguments.of(KnownTags.URL_PATH_NAME, KnownTags.URL_PATH_ID),
+        Arguments.of(KnownTags.HTTP_QUERY_STRING_NAME, KnownTags.HTTP_QUERY_STRING_ID),
+        Arguments.of(KnownTags.URL_QUERY_NAME, KnownTags.URL_QUERY_ID),
+        Arguments.of(KnownTags.URL_SCHEME_NAME, KnownTags.URL_SCHEME_ID),
+        Arguments.of(KnownTags.NETWORK_CLIENT_IP_NAME, KnownTags.NETWORK_CLIENT_IP_ID),
         Arguments.of(Tags.PEER_HOSTNAME, KnownTags.PEER_HOSTNAME_ID),
         Arguments.of(Tags.PEER_HOST_IPV4, KnownTags.PEER_IPV4_ID),
         Arguments.of(Tags.PEER_HOST_IPV6, KnownTags.PEER_IPV6_ID),
@@ -161,6 +170,28 @@ class KnownTagsTest {
     assertEquals(0L, KnownTagCodec.keyOf("definitely.not.a.known.tag"));
     assertEquals(0L, KnownTagCodec.keyOf("http.statuscode")); // close-but-not-listed
     assertEquals(0L, KnownTagCodec.keyOf(""));
+  }
+
+  @Test
+  void networkPeerAddressIsNotADirectionFreeAliasForClientIp() {
+    assertEquals(0L, KnownTagCodec.keyOf("network.peer.address"));
+    assertNull(KnownTagCodec.openTelemetryNameOf(KnownTags.NETWORK_CLIENT_IP_ID));
+  }
+
+  @TableTest({
+    "Scenario     | Kind     | Expected Name       ",
+    "server       | server   | network.peer.address",
+    "consumer     | consumer | network.peer.address",
+    "client       | client   | network.client.ip   ",
+    "producer     | producer | network.client.ip   ",
+    "internal     | internal | network.client.ip   ",
+    "unknown kind |          | network.client.ip   "
+  })
+  void networkClientIpIsRenamedOnlyOnInboundSpans(String kind, String expectedName) {
+    assertEquals(
+        expectedName,
+        KnownTagCodec.openTelemetryTagOf(
+            KnownTags.NETWORK_CLIENT_IP_ID, KnownTagCodec.directionOfKind(kind)));
   }
 
   /**

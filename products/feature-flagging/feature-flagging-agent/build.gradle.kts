@@ -1,7 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.DependencyFilter
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import org.gradle.api.Action
-import org.gradle.kotlin.dsl.project
 
 plugins {
   `java-library`
