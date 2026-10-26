@@ -27,6 +27,78 @@ A smoke test is also how you check what an instrumentation does to a running app
 > The two are complements, not alternatives.
 > Use an instrumentation test to pin the hooks and the trace shape, and a smoke test to check the instrumentation works in an application where every other instrumentation is loaded too.
 
+## Scope and continuation diagnostics
+
+The shared JUnit and Spock smoke harnesses enable scope/continuation diagnostics by default.
+Gradle adds a **test-only companion agent**, after the built Datadog agent, to install the same
+lifecycle probes used by instrumentation tests into the application's tracer class loader.
+The production agent artifact and its strict-write configuration are unchanged.
+
+- `SmokeServerApp` and `AbstractServerSmokeTest` record each test's work, including per-test teardown,
+  then allow a bounded cleanup grace period before checking. Server startup and suite shutdown are
+  outside these windows.
+  Continuations captured outside a window remain visible when used during it, but their outstanding
+  holds are not test-owned leaks. Scopes opened during the window must still be closed, and resuming
+  a resolved continuation is a violation even when it was resolved before the window began.
+- `SmokeCliApp` and other legacy `AbstractSmokeTest` applications record from before `main` until
+  exit, or until the harness checks them before stopping a still-running process. This includes
+  first-use static initialization. Concurrent application shutdown hooks are not guaranteed to finish
+  before the diagnostic snapshot. The grace period returns immediately when no incomplete lifecycles
+  are recorded; increasing it does not ensure that later shutdown-hook work is covered. Tests that
+  require cleanup coverage must complete that cleanup before requesting the snapshot.
+
+Smoke diagnostics allow up to 2 seconds for incomplete lifecycles to finish, returning as soon as
+all recorded lifecycles are complete. Set
+`-Ddatadog.smoketest.scopeDiagnostics.quiescenceMillis=5000` on the Gradle invocation to override
+this budget (0–10000 ms). Instrumentation tests retain their 250 ms default. The grace period
+cannot establish completion for an application that keeps producing background work; tests must
+finish their work before requesting a snapshot.
+
+Legacy applications are checked alive before each feature independently of diagnostics. Batch
+fixtures that may finish before a feature must override `expectsProcessAliveBeforeEachTest()` to return
+`false`; skipping diagnostics does not disable the liveness check.
+
+Leaks and invalid lifecycle operations fail the test with a summary and capture/resume/cleanup
+timeline. Reports are kept under `build/reports/scope-diagnostics-*`. Missing or malformed reports
+and failed probe installation fail explicitly; they are not clean results.
+Legacy launchers must preserve `defaultJavaProperties`, including when passing them through an
+environment variable to a shell wrapper. Each child receives its own diagnostic endpoint.
+Launchers that embed JVM options in a file, such as OpenLiberty's `jvm.options`, override
+`replaceScopeDiagnosticsArgument()` to replace the placeholder in that file and report whether it
+was found. Keep the companion after the Datadog agent in the child JVM's options.
+
+Fix the lifecycle or test ownership problem first. A genuinely intermittent failure may be marked
+`@Flaky` with a tracked explanation. A proven diagnostic incompatibility can use
+`.skipScopeContinuationCheck("specific reason")` on the JUnit builder, or override
+`skipScopeContinuationCheckReason()` in Spock. Blank reasons are rejected. Native-image applications
+cannot run this JVM companion; tests intentionally crashing or aborting before it can report also
+need an explicit exception. JUnit `.noAgent()` launches do not install diagnostics.
+Legacy tests deliberately running without the agent need a documented opt-out, as do injection
+guardrail tests where the companion would itself count as an extra agent and change the scenario.
+Disabling error-log checks does not disable this check, and relaxing strict trace writes is not a fix.
+
+To exclude individual checks from enforcement while preserving their recorded findings, use
+`.disableScopeContinuationChecks("specific reason", LEAKED, NEVER_CLOSED)` on the JUnit builder
+(with static imports from `ScopeDiagnosticsCheck`). In Spock, override
+`disabledScopeContinuationChecks()` and `disabledScopeContinuationChecksReason()`. A nonblank
+reason is required, and selective exclusions cannot be combined with a full recording opt-out.
+All other checks retain the instrumentation diagnostic's enforcement policy. Reports distinguish
+enforced, advisory, and excluded findings and retain the full timeline and exclusion reason.
+
+Custom launchers pass the control directory to the companion:
+
+```text
+-javaagent:/path/scope-diagnostics-agent.jar=/path/control
+```
+
+The directory contains a `config` Java properties file with `mode=cli` or `mode=server`.
+Optional `quiescenceMillis=2000` controls the cleanup budget (0–10000 ms).
+Optional `disabledChecks=LEAKED,NEVER_CLOSED` and `reason=known fixture` entries configure exclusions.
+Unknown checks and missing exclusion reasons fail installation. Supported checks are `LEAKED`,
+`LATE_FINISH`, `DOUBLE_FINISH`, `ACTIVATE_AFTER_RESOLVE`, `CLOSE_WRONG_THREAD`, and `NEVER_CLOSED`.
+`ScopeDiagnosticsClient(reportsDirectory, name, cli, reason, checks...)` writes this configuration;
+`javaAgentArgument()` returns the launch argument. Values need no URL encoding.
+
 ## Your first smoke test
 
 A complete smoke test for a small web application serving two endpoints, with one test method per endpoint:
