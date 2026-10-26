@@ -1,6 +1,8 @@
 package datadog.smoketest
 
 import static datadog.smoketest.KnownLogExclusion.isKnownFlakyTestLogEntry
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
+import static java.nio.file.StandardOpenOption.WRITE
 
 import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck
@@ -314,9 +316,10 @@ abstract class ProcessManager extends Specification {
       boolean found = options.any {
         it.contains(SCOPE_DIAGNOSTICS_ARGUMENT)
       }
+      // Older Java 8 ZIP providers default to CREATE_NEW when no open options are supplied.
       Files.write(optionsFile, options.collect {
         it.replace(SCOPE_DIAGNOSTICS_ARGUMENT, argument)
-      })
+      }, WRITE, TRUNCATE_EXISTING)
       return found
     }
   }
