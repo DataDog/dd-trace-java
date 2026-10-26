@@ -155,8 +155,10 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
 
     // Minimize JNA, removing native libraries for unsupported environments
     exclude '**/com/sun/jna/aix-*/**'
+    exclude '**/com/sun/jna/dragonflybsd-*/**'
     exclude '**/com/sun/jna/freebsd-*/**'
     exclude '**/com/sun/jna/linux-armel/**'
+    exclude '**/com/sun/jna/linux-loongarch64/**'
     exclude '**/com/sun/jna/linux-mips64el/**'
     exclude '**/com/sun/jna/linux-ppc/**'
     exclude '**/com/sun/jna/linux-ppc64le/**'

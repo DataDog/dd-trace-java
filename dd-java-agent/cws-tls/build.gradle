@@ -10,8 +10,7 @@ plugins {
 excludedClassesCoverage += ['datadog.cws.erpc.*', 'datadog.cws.tls.*',]
 
 dependencies {
-  implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
-  implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
+  implementation libs.jna.core
 
   implementation project(':internal-api')
   implementation project(':dd-trace-api')
@@ -22,9 +21,8 @@ dependencies {
 tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 
-  // exclude 'jna' this since it's available in the instrumentation jar
+  // JNA is available in the instrumentation jar.
   dependencies {
     exclude(dependency("net.java.dev.jna:jna"))
-    exclude(dependency("net.java.dev.jna:jna-platform"))
   }
 }
