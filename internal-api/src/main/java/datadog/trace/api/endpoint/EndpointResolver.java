@@ -2,7 +2,7 @@ package datadog.trace.api.endpoint;
 
 import static datadog.trace.api.KnownTags.HTTP_ENDPOINT_ID;
 
-import datadog.trace.api.SpanStorage;
+import datadog.trace.api.TagStore;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +51,7 @@ public class EndpointResolver {
    */
   @Nullable
   public String resolveEndpoint(
-      SpanStorage unsafeTags, @Nullable String httpRoute, @Nullable String httpUrl) {
+      TagStore unsafeTags, @Nullable String httpRoute, @Nullable String httpUrl) {
     if (!enabled) {
       return null;
     }

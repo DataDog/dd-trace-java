@@ -23,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
+import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -710,7 +711,7 @@ class InferredProxySpanTests {
 
     verify(inferredSpan).setHttpStatusCode(503);
     verify(inferredSpan).setError(true, HTTP_SERVER_DECORATOR);
-    verify(inferredSpan).setTag(HTTP_USER_AGENT, "curl/8.0");
+    verify(inferredSpan).setTag(KnownTags.HTTP_USERAGENT_ID, "curl/8.0");
     verify(inferredSpan).setTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, "scan-uuid");
     verify(inferredSpan).setTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, "test-uuid");
     verify(inferredSpan).publish();
