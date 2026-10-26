@@ -61,6 +61,10 @@ jobs:
   main:
     needs:
     - build
+    strategy:
+      fail-fast: false
+      matrix:
+        library: [java, java_lambda]
     # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
     uses: DataDog/system-tests/.github/workflows/system-tests.yml@main # system tests are pinned on release branches only
     permissions:
@@ -68,7 +72,7 @@ jobs:
       id-token: write
       packages: write
     with:
-      library: java
+      library: ${{ matrix.library }}
        # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
       ref: "main" # system tests are pinned on release branches only
       binaries_artifact: binaries
