@@ -11,6 +11,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.Locale;
@@ -81,11 +82,11 @@ public class DDEvpProxyApi extends RemoteApi {
 
     public DDEvpProxyApi build() {
       final String trackName = trackType.name().toLowerCase(Locale.ROOT);
-      final String subdomain = String.format(Locale.ROOT, "%s-intake", trackName);
+      final String subdomain = Strings.format("%s-intake", trackName);
 
       final HttpUrl evpProxyUrl = agentUrl.resolve(evpProxyEndpoint);
       final HttpUrl proxiedApiUrl =
-          evpProxyUrl.resolve(String.format(Locale.ROOT, "api/%s/%s", apiVersion, trackName));
+          evpProxyUrl.resolve(Strings.format("api/%s/%s", apiVersion, trackName));
 
       final OkHttpClient client =
           (httpClient != null)

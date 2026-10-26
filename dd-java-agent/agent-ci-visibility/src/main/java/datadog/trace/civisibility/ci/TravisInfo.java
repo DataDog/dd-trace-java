@@ -9,7 +9,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
-import java.util.Locale;
+import datadog.trace.util.Strings;
 import javax.annotation.Nonnull;
 
 class TravisInfo implements CIProviderInfo {
@@ -101,7 +101,7 @@ class TravisInfo implements CIProviderInfo {
     if (repoSlug == null || repoSlug.isEmpty()) {
       return null;
     }
-    return String.format(Locale.ROOT, "https://github.com/%s.git", repoSlug);
+    return Strings.format("https://github.com/%s.git", repoSlug);
   }
 
   private String buildCiPipelineName() {

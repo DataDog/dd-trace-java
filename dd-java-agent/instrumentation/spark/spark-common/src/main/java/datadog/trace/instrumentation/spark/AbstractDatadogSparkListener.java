@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -827,11 +828,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         ExceptionFailure exceptionFailure = (ExceptionFailure) reason;
 
         taskSpan.setErrorMessage(
-            String.format(
-                Locale.ROOT,
-                "%s: %s",
-                exceptionFailure.className(),
-                exceptionFailure.description()));
+            Strings.format("%s: %s", exceptionFailure.className(), exceptionFailure.description()));
         taskSpan.setTag(DDTags.ERROR_STACK, exceptionFailure.fullStackTrace());
       } else {
         taskSpan.setErrorMessage(reason.toErrorString());

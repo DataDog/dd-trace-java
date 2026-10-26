@@ -4,15 +4,14 @@ import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
 import static java.lang.Integer.parseInt;
-import static java.lang.String.format;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult.Status;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.util.Strings;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Locale;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
@@ -29,8 +28,8 @@ public class CodeOriginInstrumenter extends Instrumenter {
 
   static {
     String className = DebuggerContext.class.getName().replace('.', '/');
-    CAPTURE = format(Locale.ROOT, "%s#%s", className, "captureCodeOrigin");
-    MARKER = format(Locale.ROOT, "%s#%s", className, "marker");
+    CAPTURE = Strings.format("%s#%s", className, "captureCodeOrigin");
+    MARKER = Strings.format("%s#%s", className, "marker");
   }
 
   public CodeOriginInstrumenter(
@@ -50,7 +49,7 @@ public class CodeOriginInstrumenter extends Instrumenter {
   private static String buildDescription(AbstractInsnNode node) {
     if (!(node instanceof MethodInsnNode)) return "";
     MethodInsnNode method = (MethodInsnNode) node;
-    return format(Locale.ROOT, "%s#%s", method.owner, method.name);
+    return Strings.format("%s#%s", method.owner, method.name);
   }
 
   private InsnList codeOriginCall() {

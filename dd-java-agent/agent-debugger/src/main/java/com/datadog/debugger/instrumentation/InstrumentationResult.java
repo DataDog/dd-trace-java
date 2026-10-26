@@ -3,10 +3,10 @@ package com.datadog.debugger.instrumentation;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.util.Strings;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /** Stores status instrumentation results */
@@ -109,16 +109,9 @@ public class InstrumentationResult {
   @Generated
   @Override
   public String toString() {
-    return String.format(
-        Locale.ROOT,
+    return Strings.format(
         "InstrumentationResult{typeName='%s', methodName='%s', methodStart=%d, signature='%s',"
             + " sourceFileName='%s', status=%s. diagnostics=%s}",
-        typeName,
-        methodName,
-        methodStart,
-        signature,
-        sourceFileName,
-        status,
-        diagnostics);
+        typeName, methodName, methodStart, signature, sourceFileName, status, diagnostics);
   }
 }

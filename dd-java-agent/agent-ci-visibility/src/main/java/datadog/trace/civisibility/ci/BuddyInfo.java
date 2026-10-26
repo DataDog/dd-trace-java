@@ -9,7 +9,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
-import java.util.Locale;
+import datadog.trace.util.Strings;
 import javax.annotation.Nonnull;
 
 class BuddyInfo implements CIProviderInfo {
@@ -81,7 +81,7 @@ class BuddyInfo implements CIProviderInfo {
     if (pipelineNumber == null) {
       return pipelineId;
     }
-    return String.format(Locale.ROOT, "%s/%s", pipelineId, pipelineNumber);
+    return Strings.format("%s/%s", pipelineId, pipelineNumber);
   }
 
   private PersonInfo buildGitCommiter() {

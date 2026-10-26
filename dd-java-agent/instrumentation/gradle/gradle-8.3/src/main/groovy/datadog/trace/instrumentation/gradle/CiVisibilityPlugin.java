@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -101,15 +102,13 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
                 project
                     .getDependencies()
                     .create(
-                        String.format(
-                            Locale.ROOT,
+                        Strings.format(
                             "com.datadoghq:dd-javac-plugin:%s",
                             extension.getCompilerPluginVersion())),
                 project
                     .getDependencies()
                     .create(
-                        String.format(
-                            Locale.ROOT,
+                        Strings.format(
                             "com.datadoghq:dd-javac-plugin-client:%s",
                             extension.getCompilerPluginVersion())));
 

@@ -12,6 +12,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.Locale;
@@ -87,10 +88,10 @@ public class DDIntakeApi extends RemoteApi {
       final String trackName =
           (trackType != null ? trackType.name() : NOOP.name()).toLowerCase(Locale.ROOT);
       if (null == hostUrl) {
-        hostUrl = HttpUrl.get(String.format(Locale.ROOT, "https://%s-intake.%s", trackName, site));
+        hostUrl = HttpUrl.get(Strings.format("https://%s-intake.%s", trackName, site));
       }
       final HttpUrl intakeUrl =
-          hostUrl.resolve(String.format(Locale.ROOT, "/api/%s/%s", apiVersion, trackName));
+          hostUrl.resolve(Strings.format("/api/%s/%s", apiVersion, trackName));
       final OkHttpClient client =
           (httpClient != null) ? httpClient : OkHttpUtils.buildHttpClient(intakeUrl, timeoutMillis);
 

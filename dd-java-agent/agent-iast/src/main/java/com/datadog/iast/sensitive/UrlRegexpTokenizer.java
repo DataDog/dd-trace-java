@@ -3,7 +3,7 @@ package com.datadog.iast.sensitive;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.util.Ranged;
 import com.google.re2j.Pattern;
-import java.util.Locale;
+import datadog.trace.util.Strings;
 
 /**
  * @see <a href="https://www.rfc-editor.org/rfc/rfc1738>Uniform Resource Locators (URL)</a>
@@ -14,9 +14,9 @@ public class UrlRegexpTokenizer extends AbstractRegexTokenizer {
   private static final String QUERY_FRAGMENT_GROUP = "QUERY";
 
   private static final String AUTHORITY =
-      String.format(Locale.ROOT, "^(?:[^:]+:)?//(?P<%s>[^@]+)@", AUTHORITY_GROUP);
+      Strings.format("^(?:[^:]+:)?//(?P<%s>[^@]+)@", AUTHORITY_GROUP);
   private static final String QUERY_FRAGMENT =
-      String.format(Locale.ROOT, "[?#&]([^=&;]+)=(?P<%s>[^?#&]+)", QUERY_FRAGMENT_GROUP);
+      Strings.format("[?#&]([^=&;]+)=(?P<%s>[^?#&]+)", QUERY_FRAGMENT_GROUP);
 
   private static final Pattern PATTERN =
       Pattern.compile(String.join("|", AUTHORITY, QUERY_FRAGMENT));

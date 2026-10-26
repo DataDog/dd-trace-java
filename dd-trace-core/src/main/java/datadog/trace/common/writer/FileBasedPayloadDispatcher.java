@@ -24,6 +24,7 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -35,7 +36,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -331,8 +331,7 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     long pid = PidHelper.getPidAsLong();
     long seq = sequence.getAndIncrement();
 
-    String filename =
-        String.format(Locale.ROOT, "%s-%d-%d-%d.json", filePrefix, timestampNs, pid, seq);
+    String filename = Strings.format("%s-%d-%d-%d.json", filePrefix, timestampNs, pid, seq);
     File target = new File(outputDir, filename);
     File tmp = new File(outputDir, filename + ".tmp");
 

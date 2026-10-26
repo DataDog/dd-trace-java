@@ -22,6 +22,7 @@ import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.SizeCheckedInputStream;
+import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -37,7 +38,6 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -475,11 +475,9 @@ public class DefaultConfigurationPoller
     }
     StringBuilder aggregateMessage = new StringBuilder();
     aggregateMessage.append(
-        String.format(
-            Locale.ROOT, "Failed to apply configuration due to %d errors:%n", errors.size()));
+        Strings.format("Failed to apply configuration due to %d errors:%n", errors.size()));
     for (int i = 0; i < errors.size(); i++) {
-      aggregateMessage.append(
-          String.format(Locale.ROOT, " (%d) %s%n", i + 1, errors.get(i).getMessage()));
+      aggregateMessage.append(Strings.format(" (%d) %s%n", i + 1, errors.get(i).getMessage()));
     }
     return aggregateMessage.toString();
   }

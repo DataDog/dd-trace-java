@@ -3,8 +3,8 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.agent.tooling.AgentInstaller;
+import datadog.trace.util.Strings;
 import java.lang.instrument.Instrumentation;
-import java.util.Locale;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -83,11 +83,7 @@ public class CallSiteBenchmark {
       String expected = instrumentation == null ? "Hello!" : "Hello! [Transformed]";
       if (!expected.equals(response)) {
         throw new RuntimeException(
-            String.format(
-                Locale.ROOT,
-                "Wrong response, expected '%s' but received '%s'",
-                expected,
-                response));
+            Strings.format("Wrong response, expected '%s' but received '%s'", expected, response));
       }
     }
   }

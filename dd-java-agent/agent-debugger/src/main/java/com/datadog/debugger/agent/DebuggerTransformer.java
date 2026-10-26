@@ -721,7 +721,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (methodName != null) {
       String signature = definition.getWhere().getSignature();
       signature = signature == null ? "" : signature;
-      String msg = String.format(Locale.ROOT, CANNOT_FIND_METHOD, className, methodName, signature);
+      String msg = Strings.format(CANNOT_FIND_METHOD, className, methodName, signature);
       reportErrorForAllProbes(singletonList(definition), msg);
       return;
     }
@@ -731,7 +731,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   private void reportInstrumentationFails(
       List<ProbeDefinition> definitions, String className, String errorMsg) {
-    String msg = String.format(Locale.ROOT, INSTRUMENTATION_FAILS, className, errorMsg);
+    String msg = Strings.format(INSTRUMENTATION_FAILS, className, errorMsg);
     reportErrorForAllProbes(definitions, msg);
   }
 

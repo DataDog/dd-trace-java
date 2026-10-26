@@ -7,6 +7,7 @@ import datadog.environment.SystemProperties;
 import datadog.logging.IOLogger;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.Strings;
 import datadog.trace.util.TempLocationManager;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -19,7 +20,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
@@ -135,12 +135,9 @@ public class JfrCliHelper {
           .forEach(
               event -> {
                 ioLogger.error(
-                    String.format(
-                        Locale.ROOT,
+                    Strings.format(
                         "Event: %s, size = %d, count = %d",
-                        event.getType(),
-                        event.getSize(),
-                        event.getCount()));
+                        event.getType(), event.getSize(), event.getCount()));
               });
     } catch (Exception e) {
       ioLogger.error("Failed to gather information on recording", e);

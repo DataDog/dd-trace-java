@@ -7,7 +7,7 @@ import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.InsecureAuthProtocolModule;
-import java.util.Locale;
+import datadog.trace.util.Strings;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -40,8 +40,7 @@ public class InsecureAuthProtocolModuleImpl extends SinkModuleBase
     if (authScheme == null) {
       return;
     }
-    final Evidence result =
-        new Evidence(String.format(Locale.ROOT, "Authorization : %s", authScheme));
+    final Evidence result = new Evidence(Strings.format("Authorization : %s", authScheme));
     report(VulnerabilityType.INSECURE_AUTH_PROTOCOL, result);
   }
 

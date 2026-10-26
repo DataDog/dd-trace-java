@@ -29,9 +29,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.instrumentation.iastinstrumenter.SourceMapperImpl;
+import datadog.trace.util.Strings;
 import datadog.trace.util.stacktrace.StackWalker;
 import java.util.Iterator;
-import java.util.Locale;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
@@ -135,7 +135,7 @@ public abstract class SinkModuleBase {
         value = origin;
       } else {
         valueRanges = Ranges.forObject((Source) taintable.$$DD$getSource(), type.mark());
-        value = String.format(Locale.ROOT, "Tainted reference detected in " + value.getClass());
+        value = Strings.format("Tainted reference detected in " + value.getClass());
       }
     } else {
       final TaintedObject tainted = to.get(value);

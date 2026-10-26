@@ -11,7 +11,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
-import java.util.Locale;
+import datadog.trace.util.Strings;
 import javax.annotation.Nonnull;
 
 class AzurePipelinesInfo implements CIProviderInfo {
@@ -145,18 +145,12 @@ class AzurePipelinesInfo implements CIProviderInfo {
       final String buildId,
       final String jobId,
       final String taskId) {
-    return String.format(
-        Locale.ROOT,
-        "%s%s/_build/results?buildId=%s&view=logs&j=%s&t=%s",
-        uri,
-        project,
-        buildId,
-        jobId,
-        taskId);
+    return Strings.format(
+        "%s%s/_build/results?buildId=%s&view=logs&j=%s&t=%s", uri, project, buildId, jobId, taskId);
   }
 
   private String buildCiPipelineUrl(final String uri, final String project, final String buildId) {
-    return String.format(Locale.ROOT, "%s%s/_build/results?buildId=%s", uri, project, buildId);
+    return Strings.format("%s%s/_build/results?buildId=%s", uri, project, buildId);
   }
 
   private PersonInfo buildGitCommitAuthor() {

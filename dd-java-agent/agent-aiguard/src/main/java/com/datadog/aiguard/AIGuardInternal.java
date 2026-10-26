@@ -34,6 +34,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -41,7 +42,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -108,7 +108,7 @@ public class AIGuardInternal implements Evaluator {
     }
     String endpoint = config.getAiGuardEndpoint();
     if (isBlank(endpoint)) {
-      endpoint = String.format(Locale.ROOT, "https://app.%s/api/v2/ai-guard", config.getSite());
+      endpoint = Strings.format("https://app.%s/api/v2/ai-guard", config.getSite());
     }
     final Map<String, String> headers =
         mapOf(

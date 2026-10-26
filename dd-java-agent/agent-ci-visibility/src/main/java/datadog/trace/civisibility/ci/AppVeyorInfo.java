@@ -10,7 +10,6 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.util.Strings;
-import java.util.Locale;
 import javax.annotation.Nonnull;
 
 class AppVeyorInfo implements CIProviderInfo {
@@ -66,7 +65,7 @@ class AppVeyorInfo implements CIProviderInfo {
     if (messageBody == null) {
       return messageSubject;
     }
-    return String.format(Locale.ROOT, "%s%n%s", messageSubject, messageBody);
+    return Strings.format("%s%n%s", messageSubject, messageBody);
   }
 
   @Override
@@ -127,14 +126,13 @@ class AppVeyorInfo implements CIProviderInfo {
 
   private String buildGitRepositoryUrl(final String repoProvider, final String repoName) {
     if ("github".equals(repoProvider) && (repoName != null && !repoName.isEmpty())) {
-      return String.format(Locale.ROOT, "https://github.com/%s.git", repoName);
+      return Strings.format("https://github.com/%s.git", repoName);
     }
     return null;
   }
 
   private String buildPipelineUrl(final String repoName, final String buildId) {
-    return String.format(
-        Locale.ROOT, "https://ci.appveyor.com/project/%s/builds/%s", repoName, buildId);
+    return Strings.format("https://ci.appveyor.com/project/%s/builds/%s", repoName, buildId);
   }
 
   private PersonInfo buildGitCommitAuthor() {

@@ -95,7 +95,8 @@ Wildcard imports (`import x.*` or `import static x.*`) are disallowed — see th
 
 The shared [forbidden-apis ban list](gradle/forbiddenApiFilters/main.txt) requires explicit
 locales and charsets in checked source sets. Use `Locale.ROOT` for identifiers and
-machine-readable formatting. Use the protocol's charset, usually `StandardCharsets.UTF_8`,
+machine-readable formatting. Modules that already depend on `internal-api` can use `Strings.format(...)`,
+which applies `Locale.ROOT`. Use the protocol's charset, usually `StandardCharsets.UTF_8`,
 for byte conversions.
 
 When a JVM default is intentional, pass `Locale.getDefault(...)` or `Charset.defaultCharset()`

@@ -6,7 +6,7 @@ import datadog.trace.civisibility.ipc.ModuleSignal;
 import datadog.trace.civisibility.ipc.Signal;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalType;
-import java.util.Locale;
+import datadog.trace.util.Strings;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -42,11 +42,9 @@ public class ModuleSignalRouter {
         moduleHandlersById.get(moduleId);
     if (handlersByType == null) {
       String message =
-          String.format(
-              Locale.ROOT,
+          Strings.format(
               "Could not find signal handlers for module ID %s, test execution result will be ignored: %s",
-              moduleId,
-              result);
+              moduleId, result);
       LOGGER.warn(message);
       return new ErrorResponse(message);
     }

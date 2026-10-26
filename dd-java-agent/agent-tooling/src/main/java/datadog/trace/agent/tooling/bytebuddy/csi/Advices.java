@@ -8,12 +8,12 @@ import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.CallSites;
 import datadog.trace.agent.tooling.csi.InvokeAdvice;
 import datadog.trace.agent.tooling.csi.InvokeDynamicAdvice;
+import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -197,11 +197,9 @@ public class Advices {
           methodAdvices.put(descriptor, TypedAdvice.withType(advice, type));
       if (oldAdvice != null) {
         throw new UnsupportedOperationException(
-            String.format(
-                Locale.ROOT,
+            Strings.format(
                 "Advice %s and %s match the same pointcut, this is not yet supported",
-                oldAdvice,
-                advice));
+                oldAdvice, advice));
       }
     }
   }

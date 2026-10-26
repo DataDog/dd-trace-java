@@ -22,9 +22,9 @@ import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.http.DatadogServerUrl;
 import datadog.trace.bootstrap.instrumentation.api.http.HttpServerUrl;
 import datadog.trace.bootstrap.instrumentation.api.http.OtelServerUrl;
+import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
@@ -209,8 +209,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
       return null; // Unknown proxy type
     }
 
-    return String.format(
-        Locale.ROOT, "arn:%s:apigateway:%s::/%s/%s", partition, region, resourceType, apiId);
+    return Strings.format("arn:%s:apigateway:%s::/%s/%s", partition, region, resourceType, apiId);
   }
 
   /**

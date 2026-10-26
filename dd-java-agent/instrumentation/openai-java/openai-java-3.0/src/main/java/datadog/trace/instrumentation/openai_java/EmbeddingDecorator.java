@@ -8,10 +8,10 @@ import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -78,11 +78,7 @@ public class EmbeddingDecorator {
           firstEmbedding._embedding().asKnown().orElse(Collections.emptyList()).size();
       span.setTag(
           CommonTags.OUTPUT,
-          String.format(
-              Locale.ROOT,
-              "[%d embedding(s) returned with size %d]",
-              embeddingCount,
-              embeddingSize));
+          Strings.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize));
     }
   }
 
