@@ -45,9 +45,13 @@
 # client's on an inbound one), is declared once per direction, each in a directional mixin. The
 # declarations merge into ONE tag with one id; only its OpenTelemetry name depends on the span's
 # direction. Any other repeated declaration is still an error.
-# Name resolution does not yet know a span's direction, so only renames that apply in every direction
-# resolve a name to a tag. A directional rename, including one under `span-kind: internal` (spans with
-# no direction), is applied only when a span's tags are emitted under OpenTelemetry names.
+# A directional rename may also be another tag's Datadog name: server.port is peer.port on outbound
+# spans, and its own tag (the server's port) in every other direction.
+# The tracer core resolves names without a direction, so only renames that apply in every direction
+# resolve a name to a tag there. A directional rename, including one under `span-kind: internal`, is
+# applied when a span's tags are emitted under OpenTelemetry names, and by the OpenTelemetry API,
+# which knows its span's kind. Instrumentation that knows its direction writes by id, through
+# KnownTags.Inbound / Outbound / Internal.
 # `span-kind-neutral: true` widens a directional rename to every direction -- the author's assertion
 # that OTel only uses that name for this tag (db.system, say, only ever names a database). It is
 # interim, and goes away once resolution is direction-aware. A rename on a concrete type with no
@@ -108,12 +112,13 @@ span_types:
     abstract: true
     extends: base
     tags:
-      - { dd-name: http.method,              type: string, required: required,    otel-name: http.request.method }
-      - { dd-name: http.status_code,         type: int,    required: conditional, otel-name: http.response.status_code }
-      - { dd-name: network.protocol.version, type: string, required: recommended }  # passes through: dd-name already is the OTel name
-      - { dd-name: http.url,                 type: string, required: required,    otel-name: url.full }
-      - { dd-name: http.fragment.string,     type: string, required: optional }  # only when query strings are tagged
-      - { dd-name: http.endpoint,            type: string, required: optional }  # simplified endpoint, when resource renaming is on  # shared by http.server and http.client => one otel-name. url.full is the client-correct rename; server's spec mapping (url.path + url.scheme + url.query) is a one-to-many split reserved for the derivation layer (needs span.kind). TODO(otel): server split.
+      - { dd-name: http.method,                  type: string, required: required,    otel-name: http.request.method }
+      - { dd-name: http.request.method_original, type: string, required: conditional }  # OTel-only; set only while OTel semantics are enabled
+      - { dd-name: http.status_code,             type: int,    required: conditional, otel-name: http.response.status_code }
+      - { dd-name: network.protocol.version,     type: string, required: recommended }  # passes through: dd-name already is the OTel name
+      - { dd-name: http.url,                     type: string, required: required,    otel-name: url.full }
+      - { dd-name: http.fragment.string,         type: string, required: optional }  # only when query strings are tagged
+      - { dd-name: http.endpoint,                type: string, required: optional }  # simplified endpoint, when resource renaming is on  # shared by http.server and http.client => one otel-name. url.full is the client-correct rename; server's spec mapping (url.path + url.scheme + url.query) is a one-to-many split reserved for the derivation layer (needs span.kind). TODO(otel): server split.
 
   http.server:
     extends: http
@@ -122,8 +127,12 @@ span_types:
     tags:
       - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
       - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }  # inbound only; on outbound spans server.address is peer.hostname
+      - { dd-name: server.port,       type: int,    required: conditional }  # the server's own port; on outbound spans server.port is peer.port
       - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original, span-kind-neutral: true }
-      - { dd-name: http.query.string, type: string, required: recommended }  # not a rename: url.query is also carried inside url.full, while http.url excludes the query (QueryObfuscator re-appends it)
+      - { dd-name: url.path,          type: string, required: conditional }  # OTel-only; server replacement for http.url
+      - { dd-name: url.scheme,        type: string, required: conditional }  # OTel-only; server replacement for http.url
+      - { dd-name: http.query.string, type: string, required: recommended }
+      - { dd-name: url.query,         type: string, required: conditional }  # OTel-only; kept separate from http.query.string
       - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address, span-kind-neutral: true }
       # Inbound only: the client's socket address. Server spans also carry that address in peer.ipv4 /
       # peer.ipv6, so do not map those inbound too, or the attribute is exported twice.
@@ -382,7 +391,7 @@ mixins:
   inbound_peer:
     span-kind: server
     tags:
-      - { dd-name: peer.port, type: int, otel-name: client.port }
+      - { dd-name: peer.port,            type: int, otel-name: client.port }
 
   # code_origin — the debugger's code origin, on entry spans (and their local root), annotated
   # controller methods' handler spans, and @Trace spans.

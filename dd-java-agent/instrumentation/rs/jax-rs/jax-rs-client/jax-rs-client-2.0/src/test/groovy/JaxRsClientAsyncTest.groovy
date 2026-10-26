@@ -1,6 +1,7 @@
 import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
 import org.glassfish.jersey.client.ClientConfig
@@ -92,6 +93,10 @@ class JerseyClientAsyncTest extends JaxRsClientAsyncTest {
   boolean testCircularRedirects() {
     false
   }
+}
+
+@Timeout(5)
+class JerseyClientOtelSemanticsForkedTest extends JerseyClientAsyncTest implements TestingOtelHttpSemantics {
 }
 
 abstract class ResteasyClientAsyncTest extends JaxRsClientAsyncTest {

@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
 }
 
 testJvmConstraints {
@@ -9,6 +10,7 @@ testJvmConstraints {
 // test that webflux5 instrumentation works for webflux6 too
 addTestSuite('iastTest')
 addTestSuite('bootTest')
+addForkedTestTask('bootTest')
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepBootTest', 'latestDepTest', 'bootTest')
@@ -25,7 +27,6 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0')
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-promise-4.0')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')

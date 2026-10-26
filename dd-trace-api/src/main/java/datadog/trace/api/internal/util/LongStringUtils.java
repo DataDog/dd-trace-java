@@ -111,7 +111,7 @@ public class LongStringUtils {
         if (ok < 0) {
           throw new NumberFormatException("Illegal character in " + s);
         }
-        if (first > MAX_FIRST_PART) {
+        if (Long.compareUnsigned(first, MAX_FIRST_PART) > 0) {
           throw numberFormatOutOfLongRange(s);
         }
         long guard = first * 10;

@@ -5,11 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import com.datadog.openfeature.internal.bridge.ConfigurationSource;
-import com.datadog.openfeature.internal.bridge.EventTransport;
-import com.datadog.openfeature.internal.bridge.HealthMetrics;
-import com.datadog.openfeature.internal.bridge.SpanEnricher;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
+import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -107,6 +108,37 @@ class SettingsTest {
   }
 
   @TableTest({
+    "scenario                       | agent   | property | environment | enabled",
+    "default                        |         |          |             | false  ",
+    "environment enables            |         |          | 'true'      | true   ",
+    "environment disabled           |         |          | 'false'     | false  ",
+    "invalid environment            |         |          | 'invalid'   | false  ",
+    "blank environment              |         |          | ''          | false  ",
+    "property overrides environment |         | 'false'  | 'true'      | false  ",
+    "property enables               |         | 'true'   | 'false'     | true   ",
+    "blank property falls back      |         | ' '      | 'true'      | true   ",
+    "agent overrides property       | 'false' | 'true'   | 'true'      | false  ",
+    "agent enables                  | 'true'  | 'false'  | 'false'     | true   "
+  })
+  void readsTheEvaluationTelemetryPerSubjectOptOutToggle(
+      final String agent, final String property, final String environment, final boolean enabled) {
+    final Map<String, String> bridge = new HashMap<>();
+    putIfNotNull(bridge, "feature.flags.evaluation.telemetry.per.subject.opt.out.enabled", agent);
+    final Map<String, String> properties = new HashMap<>();
+    putIfNotNull(
+        properties, "dd.feature.flags.evaluation.telemetry.per.subject.opt.out.enabled", property);
+    final Map<String, String> variables = new HashMap<>();
+    putIfNotNull(
+        variables,
+        "DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED",
+        environment);
+    final Settings settings =
+        new Settings(new SettingAgentBridge(bridge), properties::get, variables::get);
+
+    assertEquals(enabled, settings.isEvaluationTelemetryPerSubjectOptOutEnabled());
+  }
+
+  @TableTest({
     "scenario | value  | interval",
     "valid    | '10'   | 10      ",
     "zero     | '0'    | 30      ",
@@ -198,6 +230,11 @@ class SettingsTest {
     @Override
     public SpanEnricher spanEnricher() {
       return SpanEnricher.NOOP;
+    }
+
+    @Override
+    public ShutdownSource shutdown() {
+      return null;
     }
   }
 }

@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
 }
 
 muzzle {
@@ -16,7 +17,6 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'biz.paluch.redis', name: 'lettuce', version: '4.0.Final'
 
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation group: 'com.github.codemonstur', name: 'embedded-redis', version: '1.4.3'
   testImplementation group: 'biz.paluch.redis', name: 'lettuce', version: '4.0.Final'
 

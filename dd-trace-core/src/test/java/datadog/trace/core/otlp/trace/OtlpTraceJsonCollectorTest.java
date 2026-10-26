@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -39,6 +40,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
@@ -96,6 +98,24 @@ class OtlpTraceJsonCollectorTest {
         attrKeys.contains("http.method"),
         "renamed tag must not also appear under its Datadog name; got " + attrKeys);
     assertTrue(
+        attrKeys.contains("url.query"),
+        "renamed tag must use its OpenTelemetry name; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("http.query.string"),
+        "renamed tag must not also appear under its Datadog name; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("network.peer.address"),
+        "renamed tag must use its OpenTelemetry name; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("network.client.ip"),
+        "renamed tag must not also appear under its Datadog name; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.address"),
+        "canonical OpenTelemetry tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.port"),
+        "canonical OpenTelemetry tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
         attrKeys.contains("custom.unregistered"),
         "a tag the registry does not name passes through unchanged; got " + attrKeys);
   }
@@ -113,6 +133,26 @@ class OtlpTraceJsonCollectorTest {
         attrKeys.contains("http.request.method"),
         "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
             + attrKeys);
+    assertTrue(
+        attrKeys.contains("http.query.string"),
+        "tag must use its Datadog name when OTel semantics are disabled; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("url.query"),
+        "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
+            + attrKeys);
+    assertTrue(
+        attrKeys.contains("network.client.ip"),
+        "tag must use its Datadog name when OTel semantics are disabled; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("network.peer.address"),
+        "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
+            + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.address"),
+        "canonical tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.port"),
+        "canonical tag must pass through unchanged; got " + attrKeys);
     assertTrue(
         attrKeys.contains("custom.unregistered"),
         "a tag the registry does not name passes through unchanged; got " + attrKeys);
@@ -148,6 +188,79 @@ class OtlpTraceJsonCollectorTest {
     }
   }
 
+  @TableTest({
+    "scenario   | kind     | tag         | expectedPort",
+    "server tag | server   | server.port | 8080        ",
+    "client tag | client   | peer.port   | 8080        ",
+    "internal   | internal | server.port | 8080        "
+  })
+  void serverPortIsEmittedOnceInEveryDirection(String kind, String tag, long expectedPort)
+      throws IOException {
+    List<Object> ports = exportedServerPorts(kind, span -> span.setTag(tag, 8080));
+
+    assertEquals(1, ports.size(), "server.port must be emitted once; got " + ports);
+    assertEquals(String.valueOf(expectedPort), String.valueOf(ports.get(0)));
+  }
+
+  /**
+   * Ids are trusted: the server's own port written by id on a client span, beside peer.port (which
+   * is server.port there too), is exported twice rather than reconciled.
+   */
+  @Test
+  void aTagWrittenByIdOnTheWrongSideIsExportedAsWritten() throws IOException {
+    List<Object> ports =
+        exportedServerPorts(
+            "client",
+            span -> {
+              span.setTag(KnownTags.SERVER_PORT_ID, 8080);
+              span.setTag(KnownTags.PEER_PORT_ID, 443);
+            });
+
+    assertEquals(2, ports.size(), "got " + ports);
+  }
+
+  private static List<Object> exportedServerPorts(String kind, Consumer<AgentSpan> tagger)
+      throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
+      configMock.when(Config::get).thenReturn(config);
+
+      AgentSpan agentSpan = TRACER.startSpan("test", "op.serverPort");
+      agentSpan.setTag(SPAN_KIND, kind);
+      tagger.accept(agentSpan);
+      agentSpan.finish();
+
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList((CoreSpan<?>) agentSpan));
+      return attributeValues(onlySpan(collector.collectTraces()), "server.port");
+    }
+  }
+
+  @TableTest({
+    "Scenario | Kind    ",
+    "client   | client  ",
+    "producer | producer"
+  })
+  void outboundNetworkPeerAddressDoesNotSetClientIp(String kind) throws IOException {
+    AgentSpan agentSpan = TRACER.startSpan("test", "op.peer-address");
+    agentSpan.setTag(SPAN_KIND, kind);
+    agentSpan.setTag("network.peer.address", "192.0.2.10");
+    agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
+    agentSpan.finish();
+
+    assertEquals("192.0.2.10", agentSpan.getTag("network.peer.address"));
+    assertNull(agentSpan.getTag("network.client.ip"));
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) agentSpan));
+    Set<String> attrKeys = attributeKeys(onlySpan(collector.collectTraces()));
+
+    assertTrue(attrKeys.contains("network.peer.address"));
+    assertFalse(attrKeys.contains("network.client.ip"));
+  }
+
   private static Set<String> collectTagsAttributeKeys(boolean otelSemanticsEnabled)
       throws IOException {
     Config realConfig = Config.get();
@@ -157,8 +270,13 @@ class OtlpTraceJsonCollectorTest {
       configMock.when(Config::get).thenReturn(config);
 
       AgentSpan agentSpan = TRACER.startSpan("test", "op.tagged");
+      agentSpan.setTag(SPAN_KIND, SPAN_KIND_SERVER);
       agentSpan.setResourceName("GET /api");
       agentSpan.setTag("http.method", "GET");
+      agentSpan.setTag(otelSemanticsEnabled ? "url.query" : "http.query.string", "view=full");
+      agentSpan.setTag("network.client.ip", "192.0.2.10");
+      agentSpan.setTag("server.address", "example.com");
+      agentSpan.setTag("server.port", 443);
       agentSpan.setTag("custom.unregistered", "value");
       agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
       agentSpan.finish();
@@ -498,6 +616,18 @@ class OtlpTraceJsonCollectorTest {
     List<Object> links = (List<Object>) span.get("links");
     assertEquals(1, links.size());
     return (Map<String, Object>) links.get(0);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Object> attributeValues(Map<String, Object> span, String key) {
+    List<Object> values = new ArrayList<>();
+    for (Object attribute : (List<Object>) span.get("attributes")) {
+      Map<String, Object> entry = (Map<String, Object>) attribute;
+      if (key.equals(entry.get("key"))) {
+        values.add(((Map<String, Object>) entry.get("value")).values().iterator().next());
+      }
+    }
+    return values;
   }
 
   @SuppressWarnings("unchecked")

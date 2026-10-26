@@ -15,10 +15,9 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import datadog.trace.util.TagsHelper;
-import java.nio.file.Path;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -30,6 +29,14 @@ import org.junit.jupiter.params.provider.ValueSource;
 public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
 
   private static final ProbeId PROBE_ID = new ProbeId("123356536", 1);
+
+  @BeforeEach
+  public void beforeEach() {
+    removableJvmArgs.add("-Ddd.trace.enabled=false");
+    additionalJvmArgs.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+    additionalJvmArgs.add(
+        "-Ddd.trace.methods=datadog.smoketest.debugger.controller.WebController[processWithArg]");
+  }
 
   @ParameterizedTest(name = "Process tags enabled ''{0}''")
   @ValueSource(booleans = {true, false})
@@ -201,14 +208,5 @@ public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
     processRequests(
         requestReceived::get,
         () -> String.format("timeout requestReceived=%s", requestReceived.get()));
-  }
-
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add(
-        "-Ddd.trace.methods=datadog.smoketest.debugger.controller.WebController[processWithArg]");
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
   }
 }
