@@ -47,7 +47,7 @@ class TraceMapperTest extends DDCoreJavaSpecification {
     // expressions inside for-loops are not, so we only assert the critical outcomes
     assertNotNull(sink.captured);
     FlushingBuffer dictionaryBuffer = TraceMapperTestBridge.getDictionary(traceMapper);
-    ByteBuffer dictionaryBytes = dictionaryBuffer.slice();
+    ByteBuffer dictionaryBytes = dictionaryBuffer.completedMessages();
     Map<String, String> meta = new HashMap<>();
 
     try (MessageUnpacker dictionaryUnpacker = MessagePack.newDefaultUnpacker(dictionaryBytes)) {

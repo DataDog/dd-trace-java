@@ -50,7 +50,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
         new FlushingBuffer(
             dictionarySize,
             (count, buffer) -> {
-              // Let the trace writer flush and retry the entire trace with a fresh dictionary.
+              // Escape the dictionary writer's local reset: completed traces still reference these
+              // entries. The trace writer must publish them before resetting and retrying the
+              // trace.
               throw new BufferOverflowException();
             });
     this.dictionaryWriter = new MsgPackWriter(dictionary);
@@ -118,7 +120,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   @Override
   public Payload newPayload() {
-    return new PayloadV0_5(dictionary.slice(), dictionary.messageCount());
+    return new PayloadV0_5(dictionary.completedMessages(), dictionary.messageCount());
   }
 
   @Override
@@ -150,26 +152,57 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   private static class DictionaryMapper implements Mapper<Object> {
 
-    private final int maxStringLength;
+    private final int capacity;
 
-    private DictionaryMapper(int maxStringLength) {
-      this.maxStringLength = maxStringLength;
+    private DictionaryMapper(int capacity) {
+      this.capacity = capacity;
     }
 
     @Override
     public void map(final Object data, final Writable packer) {
       // Bound temporary UTF-8 allocations as well as the dictionary's backing buffer.
-      if (data instanceof CharSequence && ((CharSequence) data).length() > maxStringLength) {
+      if (data instanceof CharSequence && ((CharSequence) data).length() > capacity) {
         throw new BufferOverflowException();
       }
+      String value = String.valueOf(data);
+      checkEncodedSize(value);
       if (data instanceof UTF8BytesString) {
         packer.writeObject(data, null);
       } else {
-        String value = String.valueOf(data);
-        if (value.length() > maxStringLength) {
+        packer.writeString(value, null);
+      }
+    }
+
+    private void checkEncodedSize(String value) {
+      // Each UTF-16 code unit needs at most three UTF-8 bytes, plus at most five header bytes.
+      // Avoid scanning ordinary short strings on dictionary misses.
+      if ((long) value.length() * 3 + 5 <= capacity) {
+        return;
+      }
+      long length = value.length();
+      for (int i = 0; i < value.length(); i++) {
+        char c = value.charAt(i);
+        if (c < 0x80) {
+          // One byte, already counted.
+        } else if (c < 0x800) {
+          length++;
+        } else if (Character.isHighSurrogate(c)
+            && i + 1 < value.length()
+            && Character.isLowSurrogate(value.charAt(i + 1))) {
+          length += 2;
+          i++;
+        } else if (!Character.isSurrogate(c)) {
+          length += 2;
+        }
+        // Unpaired surrogates use String.getBytes(UTF_8)'s one-byte replacement ('?').
+        if (length > capacity) {
           throw new BufferOverflowException();
         }
-        packer.writeString(value, null);
+      }
+      // Match MsgPackWriter.writeStringHeader, including its STR8 encoding from 16 bytes.
+      int headerSize = length < 0x10 ? 1 : length < 0x100 ? 2 : length < 0x10000 ? 3 : 5;
+      if (length + headerSize > capacity) {
+        throw new BufferOverflowException();
       }
     }
   }

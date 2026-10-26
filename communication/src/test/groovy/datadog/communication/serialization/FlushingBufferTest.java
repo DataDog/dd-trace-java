@@ -53,19 +53,19 @@ public class FlushingBufferTest {
   }
 
   @Test
-  public void sliceExcludesUnfinishedMessageWithoutChangingWritePosition() {
+  public void completedMessagesExcludesUnfinishedMessageWithoutChangingWritePosition() {
     FlushingBuffer buffer = new FlushingBuffer(8, (count, data) -> {});
     buffer.put((byte) 1);
     buffer.mark();
     buffer.put((byte) 2);
 
-    assertEquals(1, buffer.slice().remaining());
-    assertEquals(1, buffer.slice().get());
+    assertEquals(1, buffer.completedMessages().remaining());
+    assertEquals(1, buffer.completedMessages().get());
 
     buffer.put((byte) 3);
     buffer.mark();
-    assertEquals(3, buffer.slice().remaining());
-    assertEquals(2, buffer.slice().get(1));
-    assertEquals(3, buffer.slice().get(2));
+    assertEquals(3, buffer.completedMessages().remaining());
+    assertEquals(2, buffer.completedMessages().get(1));
+    assertEquals(3, buffer.completedMessages().get(2));
   }
 }

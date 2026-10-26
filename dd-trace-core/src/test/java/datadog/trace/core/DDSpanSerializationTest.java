@@ -813,7 +813,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     Map<?, ?> encoding = TraceMapperTestBridge.getEncoding(mapper);
 
     String[] dictionary = new String[encoding.size()];
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(dictionaryBuffer.slice());
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(dictionaryBuffer.completedMessages());
     for (int i = 0; i < dictionary.length; ++i) {
       dictionary[i] = unpacker.unpackString();
     }

@@ -21,7 +21,7 @@ public final class FlushingBuffer implements StreamingBuffer {
   }
 
   /** Returns a view of complete messages, excluding any unfinished message. */
-  public ByteBuffer slice() {
+  public ByteBuffer completedMessages() {
     ByteBuffer slice = buffer.duplicate();
     slice.position(0);
     slice.limit(mark);
