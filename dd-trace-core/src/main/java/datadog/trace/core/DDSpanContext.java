@@ -1412,8 +1412,23 @@ public class DDSpanContext
   }
 
   @Override
+  public Object load(long tagId) {
+    return unsafeTags.load(tagId);
+  }
+
+  @Override
+  public String loadString(long tagId) {
+    return unsafeTags.loadString(tagId);
+  }
+
+  @Override
   public void store(String tag, Object value) {
     unsafeTags.set(tag, value);
+  }
+
+  @Override
+  public void store(long tagId, Object value) {
+    unsafeTags.set(tagId, value);
   }
 
   @Override
