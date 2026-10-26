@@ -15,7 +15,7 @@ package datadog.trace.api;
  * <p>This is the first slice: only what the eager tag post-processors need. Typed loads and
  * primitive stores come as more of the pipeline moves to it.
  */
-public interface SpanStorage {
+public interface TagStore {
   /** The tag's value, or null when it's absent. */
   Object load(String tag);
 

@@ -18,8 +18,8 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
-import datadog.trace.api.SpanStorage;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TagStore;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -69,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext, SpanStorage {
+    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext, TagStore {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -1397,7 +1397,7 @@ public class DDSpanContext
   }
 
   /*
-   * SpanStorage: the span's tags, loaded and stored with no interception.
+   * TagStore: the span's tags, loaded and stored with no interception.
    * Unsynchronized, like unsafeGetTag: callers hold the span's tag lock, as post-processing does.
    */
 
