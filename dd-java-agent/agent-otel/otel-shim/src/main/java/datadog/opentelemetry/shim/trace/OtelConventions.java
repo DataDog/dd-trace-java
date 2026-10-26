@@ -1,9 +1,6 @@
 package datadog.opentelemetry.shim.trace;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
-import static datadog.trace.api.DDTags.ERROR_MSG;
-import static datadog.trace.api.DDTags.ERROR_STACK;
-import static datadog.trace.api.DDTags.ERROR_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
@@ -19,6 +16,7 @@ import static java.util.Collections.emptyMap;
 import static java.util.Locale.ROOT;
 
 import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -171,16 +169,16 @@ public final class OtelConventions {
     // Handle exception message
     Object value =
         attributes.computeIfAbsent(EXCEPTION_MESSAGE_ATTRIBUTE, k -> exception.getMessage());
-    span.setTag(ERROR_MSG, value);
+    span.setTag(KnownTags.ERROR_MESSAGE_ID, value);
     // Handle exception type
     value =
         attributes.computeIfAbsent(EXCEPTION_TYPE_ATTRIBUTE, k -> exception.getClass().getName());
-    span.setTag(ERROR_TYPE, value);
+    span.setTag(KnownTags.ERROR_TYPE_ID, value);
     // Handle exception stacktrace
     value =
         attributes.computeIfAbsent(
             EXCEPTION_STACK_TRACE_ATTRIBUTE, k -> stringifyErrorStack(exception));
-    span.setTag(ERROR_STACK, value);
+    span.setTag(KnownTags.ERROR_STACK_ID, value);
   }
 
   static String stringifyErrorStack(Throwable error) {
