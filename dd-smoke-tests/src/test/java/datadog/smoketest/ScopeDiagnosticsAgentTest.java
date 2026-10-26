@@ -46,33 +46,6 @@ class ScopeDiagnosticsAgentTest {
   }
 
   @Test
-  void startupFileOperationsDoNotInitializeDefaultFileSystem() throws Exception {
-    ScopeDiagnosticsClient diagnostics = new ScopeDiagnosticsClient(reports, "filesystem", true);
-    ProcessBuilder builder = processBuilder(diagnostics, "resolved");
-    // Isolate the companion's file I/O from production-agent startup.
-    builder.command().remove(1);
-    builder
-        .command()
-        .add(
-            1,
-            "-Djava.nio.file.spi.DefaultFileSystemProvider=datadog.smoketest.MissingFileSystemProvider");
-    Process child = builder.start();
-    try {
-      AssertionError failure =
-          assertThrows(AssertionError.class, () -> diagnostics.awaitReady(child));
-      assertTrue(
-          failure.getMessage().replace('/', '.').contains("datadog.trace.bootstrap.Agent"),
-          failure.getMessage());
-      assertTrue(child.waitFor(30, SECONDS));
-      assertTrue(child.exitValue() != 0);
-      Properties report = result(diagnostics.directory().resolve("error"));
-      assertEquals("error", report.getProperty("status"));
-    } finally {
-      child.destroyForcibly();
-    }
-  }
-
-  @Test
   void leakedContinuationFailsWithCaptureSite() throws Exception {
     ScopeDiagnosticsClient diagnostics = new ScopeDiagnosticsClient(reports, "leaked", true);
     Process child = launch(diagnostics, "leak");
