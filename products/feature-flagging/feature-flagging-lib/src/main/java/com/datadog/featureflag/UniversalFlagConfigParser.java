@@ -117,6 +117,10 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       if (allocation == null) {
         continue;
       }
+      if (allocation.doLog == null) {
+        throw new InvalidFlagException(
+            "flag \"" + flagKey + "\" contains an allocation without a boolean doLog");
+      }
       validateConditionOperands(flagKey, allocation);
       if (allocation.splits == null) {
         continue;
@@ -399,7 +403,8 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
 
   /**
    * Reads a boxed Boolean tolerantly: JSON null and wrong-typed values (string, number, object,
-   * array) map to null rather than aborting the enclosing object's parse. Downstream reads must use
+   * array) map to null rather than aborting the enclosing object's parse. Required fields such as
+   * allocation.doLog are then rejected by flag validation. Optional fields use
    * Boolean.TRUE.equals(field) so null resolves to the privacy-preserving default.
    *
    * <p>Only applies to Boolean.class (not primitive boolean), so mandatory primitive-boolean fields
