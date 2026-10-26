@@ -13,11 +13,11 @@ public abstract class EagerTagsPostProcessor {
   /**
    * Processes the span's tags.
    *
-   * @param storage the span's tags as stored, to read and write; the caller holds the span's tag
+   * @param unsafeTags the span's tags as stored, to read and write; the caller holds the span's tag
    *     lock
    * @param spanContext the span, for its other properties
    * @param spanLinks the span's links
    */
   public abstract void processTags(
-      TagStore storage, DDSpanContext spanContext, AppendableSpanLinks spanLinks);
+      TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks);
 }
