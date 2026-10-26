@@ -15,6 +15,10 @@
 #               the INTERCEPTED bit, so a setter called with a constant id folds the interception test
 #               away. TagInterceptor's switch is the authority on what each one does; a test there
 #               keeps this list and the switch in agreement.
+# java_names  — KnownTags constant bases that replace a tag's sanitized name. Each tag's constants are
+#               its name upper-cased with every other character as '_', plus _NAME, _ID and so on, so
+#               two names that differ only in punctuation (aws.service, aws_service) would generate
+#               the same constants. Generation fails on such a clash until one is renamed here.
 # ---------------------------------------------------------------------------
 
 span_types:
@@ -162,3 +166,6 @@ intercepted:
   - http.method
   - http.url
   - http.status_code
+
+java_names:
+  aws_service: TOP_LEVEL_AWS_SERVICE  # as InstrumentationTags names it; aws.service keeps AWS_SERVICE
