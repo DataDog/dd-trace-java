@@ -236,8 +236,22 @@ class RemoteConfigServiceImplTest {
     verify(poller, times(1))
         .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     verify(poller, times(1)).removeListeners(Product.FFE_FLAGS);
-    verify(poller, never()).stop();
+    verify(poller, times(1)).stop();
     assertEquals(0, received.size());
+  }
+
+  @Test
+  void restartsBalancePollerReferences() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+
+    service.start();
+    service.close();
+    service.subscribe(content -> {});
+    service.close();
+
+    verify(poller, times(2)).start();
+    verify(poller, times(2)).stop();
   }
 
   @Nested
