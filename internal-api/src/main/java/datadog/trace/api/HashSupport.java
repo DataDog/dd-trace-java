@@ -49,7 +49,7 @@ final class HashSupport {
   }
 
   /** Finds an entry by hash and tag in one bucket: an Entry, a BucketGroup chain, or null. */
-  static Entry findInBucket(Object bucket, int hash, String tag) {
+  private static Entry findInBucket(Object bucket, int hash, String tag) {
     if (bucket instanceof Entry) {
       Entry tagEntry = (Entry) bucket;
       return tagEntry.hash() == hash && tagEntry.matches(tag) ? tagEntry : null;
