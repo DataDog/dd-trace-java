@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Counts the lines added from the merge base of two revisions, excluding moved lines and lock files.
+# Counts the lines added from the merge base of two revisions, excluding moved lines, test code and resources, and lock files.
 # Usage: count-added-lines.sh <base> [head]
 #
 # Moved lines (blocks of at least 20 alphanumeric characters deleted and added elsewhere, even
@@ -23,5 +23,7 @@ git \
   --find-renames \
   --no-ext-diff \
   "$BASE" "$HEAD" \
-  -- . ':(exclude,glob)**/gradle.lockfile' |
+  -- . \
+  ':(exclude,glob)**/src/test/**' \
+  ':(exclude,glob)**/gradle.lockfile' |
   awk '/^\033\[32m\+/ { count++ } END { print count + 0 }'
