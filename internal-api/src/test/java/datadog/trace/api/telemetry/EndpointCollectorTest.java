@@ -23,7 +23,7 @@ class EndpointCollectorTest extends DDJavaSpecification {
   }
 
   @Test
-  void setIterator() {
+  void drainSuppliedEndpointsViaIterator() {
     // setup
     List<String> methods = new ArrayList<>(METHODS);
     List<Endpoint> expected = new ArrayList<>();
