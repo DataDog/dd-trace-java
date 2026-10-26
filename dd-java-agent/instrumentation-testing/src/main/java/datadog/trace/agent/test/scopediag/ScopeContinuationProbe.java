@@ -86,7 +86,7 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  public static void onActivate(Object self, Object returnedScope, long activateNanos) {
+  public static void onActivate(Object self, Object returnedScope, long activateNanos, int count) {
     Object window = ScopeDiagnostics.recordingWindow();
     if (window == null) {
       return;
@@ -94,8 +94,11 @@ public final class ScopeContinuationProbe {
     try {
       ContextContinuation continuation = (ContextContinuation) self;
       if (returnedScope == NoopScope.INSTANCE) {
-        // A noop result may indicate activation after resolution.
-        ScopeDiagnostics.recordActivateFailed(window, continuation);
+        // Cancellation remains observable even when resolution happened in an earlier window.
+        // Concurrent failed resumes can transiently increment the negative cancellation count.
+        if (count < 0) {
+          ScopeDiagnostics.recordActivateFailed(window, continuation);
+        }
         return;
       }
       AgentSpan span = AgentSpan.fromContext(continuation.context());

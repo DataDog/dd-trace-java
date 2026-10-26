@@ -6,6 +6,11 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
   private static final long EXIT_TIMEOUT_MINUTES = 2
 
   @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     String testJar = System.getProperty("datadog.smoketest.osgi.appJar.path")
     assert new File(testJar).isFile()

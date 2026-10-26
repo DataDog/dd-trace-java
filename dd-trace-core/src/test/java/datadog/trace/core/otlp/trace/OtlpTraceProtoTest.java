@@ -373,6 +373,11 @@ class OtlpTraceProtoTest {
         Arguments.of(
             "span with string tag", asList(taggedSpan("tagged.op", tags("http.method", "GET")))),
         Arguments.of(
+            "server query uses the configured namespace",
+            asList(
+                kindSpan("GET /api/users", SPAN_KIND_SERVER)
+                    .extraTags(tags("http.query.string", "view=full")))),
+        Arguments.of(
             "span with long tag", asList(taggedSpan("tagged.op", tags("http.status_code", 200L)))),
         Arguments.of(
             "span with boolean tag",

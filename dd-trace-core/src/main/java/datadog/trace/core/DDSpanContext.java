@@ -18,8 +18,8 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
-import datadog.trace.api.SpanStorage;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TagStore;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -69,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext, SpanStorage {
+    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext, TagStore {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -1397,8 +1397,12 @@ public class DDSpanContext
   }
 
   /*
-   * SpanStorage: the span's tags, loaded and stored with no interception.
-   * Unsynchronized, like unsafeGetTag: callers hold the span's tag lock, as post-processing does.
+   * TagStore: the span's tags as stored, loaded and stored with no locking, interception or
+   * interpretation -- the storage beneath the span, as a Map was beneath a TagMap. A span isn't
+   * conceptually a TagStore. It implements one so post-processing is handed the span's storage
+   * without allocating: a wrapper would be free only if escape analysis removed it, and the
+   * post-processor chain's dispatch loop defeats that. Callers hold the span's tag lock, as
+   * post-processing does.
    */
 
   @Override
@@ -1608,11 +1612,14 @@ public class DDSpanContext
                 : serializedPropagationTags.createTagMap();
       }
 
+      CoreTracer.ConfigSnapshot traceConfig = traceCollector.getTraceConfig();
       consumer.accept(
           new Metadata(
               threadId,
               threadName,
               unsafeTags,
+              traceConfig.globalTags,
+              traceConfig.spanDefaultTags,
               baggageItemsWithPropagationTags,
               getSamplingPriority(),
               measured,
