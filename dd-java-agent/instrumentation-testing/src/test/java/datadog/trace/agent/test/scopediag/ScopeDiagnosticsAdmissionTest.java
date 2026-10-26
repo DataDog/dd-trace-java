@@ -7,8 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 class ScopeDiagnosticsAdmissionTest {
   @AfterEach
@@ -26,7 +28,8 @@ class ScopeDiagnosticsAdmissionTest {
     // The tracer has resolved, but its exit advice has not reached the recorder yet.
     ScopeDiagnostics.recordActivateFailed(window, continuation);
     assertEquals(1, ScopeDiagnostics.report().records().get(0).failedActivations().size());
-    assertEquals(0, ScopeDiagnostics.report().activateAfterResolveCount());
+    assertEquals(1, ScopeDiagnostics.report().activateAfterResolveCount());
+    assertEquals(0, ScopeDiagnostics.report().leakCount());
     ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
 
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
@@ -36,11 +39,31 @@ class ScopeDiagnosticsAdmissionTest {
   }
 
   @Test
-  void failedActivationWithoutAnObservedContinuationIsIgnored() {
+  void failedActivationWithoutAnObservedContinuationIsRecorded() {
     ScopeDiagnostics.startRecording();
     ScopeDiagnostics.recordActivateFailed(
         ScopeDiagnostics.recordingWindow(), Context.root().capture());
-    assertTrue(ScopeDiagnostics.report().records().isEmpty());
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(1, report.records().size());
+    assertEquals(1, report.activateAfterResolveCount());
+    assertEquals(0, report.leakCount());
+    assertEquals(ContinuationStatus.RESOLVED, report.records().get(0).status());
+    assertTrue(report.records().get(0).orphan);
+  }
+
+  @TableTest({
+    "Scenario                 | Count       | Failures",
+    "cancelled                | -1073741824 | 1       ",
+    "concurrent failed resume | -1073741823 | 1       ",
+    "duplicate cleanup        | -1073741825 | 1       ",
+    "not cancelled            | 0           | 0       ",
+    "activation limit         | 2147483647  | 0       "
+  })
+  void noopResumeRequiresCancellationEvidence(int count, int failures) {
+    ScopeDiagnostics.startRecording();
+    ScopeContinuationProbe.onActivate(
+        Context.root().capture(), NoopScope.INSTANCE, System.nanoTime(), count);
+    assertEquals(failures, ScopeDiagnostics.report().activateAfterResolveCount());
   }
 
   @Test

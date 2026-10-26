@@ -125,6 +125,7 @@ dependencies {
   testImplementation libs.testcontainers
   testImplementation project(':utils:test-junit-utils')
   testImplementation project(':utils:test-junit-converter-utils')
+  testImplementation testFixtures(project(':internal-api'))
 
   traceAgentTestImplementation libs.testcontainers
 }

@@ -101,7 +101,16 @@ public final class ScopeDiagnostics {
 
   /** Gives asynchronous cleanup a bounded opportunity to resolve lifecycles still in flight. */
   public static void awaitQuiescence() {
-    long deadline = System.nanoTime() + DEFAULT_QUIESCENCE_TIMEOUT_MILLIS * 1_000_000L;
+    awaitQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MILLIS);
+  }
+
+  /** Waits up to the supplied budget for recorded lifecycles to complete. */
+  public static void awaitQuiescence(long timeoutMillis) {
+    if (timeoutMillis < 0 || timeoutMillis > Long.MAX_VALUE / 1_000_000L) {
+      throw new IllegalArgumentException(
+          "Invalid scope diagnostics quiescence budget: " + timeoutMillis);
+    }
+    long deadline = System.nanoTime() + timeoutMillis * 1_000_000L;
     synchronized (INSTANCE.lifecycleLock) {
       while (INSTANCE.recordingWindow != null && INSTANCE.snapshot().hasIncompleteLifecycles()) {
         long remaining = deadline - System.nanoTime();
@@ -343,11 +352,9 @@ public final class ScopeDiagnostics {
 
     void onActivateFailed(ContextContinuation id) {
       try {
-        ContinuationRecord record = records.get(id);
-        // Resolution advice can arrive after a concurrent failed resume.
-        if (record != null) {
-          record.addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED));
-        }
+        // The probe observed cancellation; capture and resolution need not be in this window.
+        recordFor(id, DDTraceId.ZERO, 0, null, (byte) -1)
+            .addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED));
       } catch (Throwable ignored) {
       }
     }
