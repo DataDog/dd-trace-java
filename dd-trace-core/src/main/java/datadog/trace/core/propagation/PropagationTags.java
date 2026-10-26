@@ -24,7 +24,11 @@ import java.util.Map;
  */
 public abstract class PropagationTags {
 
-  public static final class SamplingState {
+  /**
+   * An immutable snapshot of the trace's sampling decision. Not final only so that a fresh
+   * probability decision can defer building its OpenTelemetry tracestate until it's read.
+   */
+  public static class SamplingState {
     private static final byte OTEL_POSITION_UNKNOWN = 0;
     private static final byte OTEL_POSITION_PRESERVED = 1;
     private static final byte OTEL_POSITION_REPLACED = 2;
@@ -57,6 +61,7 @@ public abstract class PropagationTags {
       return tracestate;
     }
 
+    /** The {@code ot} tracestate member, which a subclass may build on first read. */
     public CharSequence getOtelTraceState() {
       return otelTraceState;
     }
@@ -70,7 +75,11 @@ public abstract class PropagationTags {
     }
 
     public boolean preservesInheritedOtelPosition() {
-      if (tracestate == null || otelTraceState == null) {
+      if (tracestate == null) {
+        return false;
+      }
+      CharSequence otelTraceState = getOtelTraceState();
+      if (otelTraceState == null) {
         return false;
       }
       byte position = otelPosition;
