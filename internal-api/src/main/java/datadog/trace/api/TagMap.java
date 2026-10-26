@@ -1450,14 +1450,12 @@ public final class TagMap
 
   @Override
   public Object load(long tagId) {
-    Entry entry = this.getEntry(tagId);
-    return entry == null ? null : entry.objectValue();
+    return this.knownStore.getValue(tagId);
   }
 
   @Override
   public String loadString(long tagId) {
-    Entry entry = this.getEntry(tagId);
-    return entry == null ? null : entry.stringValue();
+    return this.knownStore.getString(tagId);
   }
 
   @Override
