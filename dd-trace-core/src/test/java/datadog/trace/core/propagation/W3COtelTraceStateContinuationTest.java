@@ -91,6 +91,7 @@ class W3COtelTraceStateContinuationTest extends DDCoreJavaSpecification {
     when(config.getTracePropagationStylesToExtract())
         .thenReturn(new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT)));
     when(config.getxDatadogTagsMaxLength()).thenReturn(DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
+    when(config.isApmTracingEnabled()).thenReturn(true);
 
     CoreTracer tracer = tracerBuilder().build();
     try {
@@ -134,6 +135,7 @@ class W3COtelTraceStateContinuationTest extends DDCoreJavaSpecification {
     when(config.getTracePropagationStylesToExtract())
         .thenReturn(new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT)));
     when(config.getxDatadogTagsMaxLength()).thenReturn(DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
+    when(config.isApmTracingEnabled()).thenReturn(true);
 
     CoreTracer tracer = tracerBuilder().build();
     try {

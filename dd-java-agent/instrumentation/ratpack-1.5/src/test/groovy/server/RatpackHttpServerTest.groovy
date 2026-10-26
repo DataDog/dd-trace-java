@@ -3,8 +3,11 @@ package server
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.KnownTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.ratpack.RatpackServerDecorator
@@ -31,15 +34,6 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   @Override
   String expectedOperationName() {
     "netty.request"
-  }
-
-  @Override
-  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
-    if (endpoint == PATH_PARAM) {
-      'GET /path/:id/param'
-    } else {
-      super.expectedResourceName(endpoint, method, address)
-    }
   }
 
   @Override
@@ -89,7 +83,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
   String testPathParam() {
-    true
+    '/path/:id/param'
   }
 
   @Override
@@ -109,8 +103,20 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
+  boolean testBlockFailure() {
+    true
+  }
+
+  @Override
+  BlockFailureVariant blockFailureVariant() {
+    // Ratpack's own blocking call site for request headers lives in the Netty instrumentation;
+    // path params are published by PathBindingPublishingHandler, a Ratpack-specific call site.
+    BlockFailureVariant.PATH_PARAMS
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
-    return String
+    return endpoint == PATH_PARAM ? testPathParam() : endpoint.rawPath
   }
 
   @Override
@@ -126,6 +132,9 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
+    def requestUrl = endpoint.resolve(address)
+    def expectedRoute = expectedServerSpanRoute(endpoint)
     trace.span {
       serviceName expectedServiceName()
       operationName "ratpack.handler"
@@ -137,21 +146,34 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" "127.0.0.1" // This span ignores "x-forwards-from".
         "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_URL" String
-        "$Tags.HTTP_HOSTNAME" "${address.host}"
+        if (otelSemantics) {
+          "$Tags.HTTP_URL" null
+          "$Tags.HTTP_HOSTNAME" address.host
+          "$KnownTags.SERVER_PORT_NAME" address.port
+          "$KnownTags.URL_PATH_NAME" requestUrl.rawPath
+          "$KnownTags.URL_SCHEME_NAME" address.scheme
+        } else {
+          "$Tags.HTTP_URL" String
+          "$Tags.HTTP_HOSTNAME" "${address.host}"
+        }
         "$Tags.HTTP_METHOD" String
         "$Tags.HTTP_STATUS" Integer
-        "$Tags.HTTP_ROUTE" String
+        "$Tags.HTTP_ROUTE" expectedRoute
         "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : '127.0.0.1')
         "$Tags.NETWORK_CLIENT_IP" '127.0.0.1'
         if (endpoint == EXCEPTION) {
           errorTags(Exception, EXCEPTION.body)
+        } else if (otelSemantics && endpoint == ERROR) {
+          "$DDTags.ERROR_TYPE" endpoint.status.toString()
         }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.rawQuery
+          tag(otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY, endpoint.rawQuery)
         }
         defaultTags()
       }
     }
   }
+}
+
+class RatpackHttpServerOtelSemanticsForkedTest extends RatpackHttpServerTest implements TestingOtelHttpSemantics {
 }

@@ -1,19 +1,13 @@
 package datadog.trace.core.taginterceptor;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
-import static datadog.trace.api.DDTags.MEASURED;
-import static datadog.trace.api.DDTags.ORIGIN_KEY;
-import static datadog.trace.api.DDTags.SPAN_TYPE;
-import static datadog.trace.api.KnownTags.DB_STATEMENT_OTEL_NAME;
-import static datadog.trace.api.KnownTags.HTTP_METHOD_OTEL_NAME;
-import static datadog.trace.api.KnownTags.HTTP_STATUS_CODE_OTEL_NAME;
-import static datadog.trace.api.KnownTags.HTTP_URL_OTEL_NAME;
+import static datadog.trace.api.KnownTags.COMPONENT_ID;
+import static datadog.trace.api.KnownTags.LANGUAGE_ID;
+import static datadog.trace.api.KnownTags.SERVLET_CONTEXT_ID;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_TAGS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_SAMPLING_PRIORITY;
@@ -28,6 +22,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.config.GeneralConfig;
@@ -57,12 +52,14 @@ public class TagInterceptor {
   private final boolean splitByServletContext;
   private final String inferredServiceName;
 
-  /** Decorator identity tags in split-by-tags precedence order, highest first. */
-  private static final String[] PROTOTYPE_SPLIT_BY_TAGS_PRECEDENCE = {
-    Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY
-  };
+  /**
+   * Whether each known tag, indexed by serial, is a split-by-tags entry. Sized to every known
+   * serial and never changed after construction, so the check is a single load.
+   */
+  private final boolean[] splitServiceSerials;
 
-  private final Set<String> splitServiceTags;
+  /** split-by-tags entries naming custom tags; null when there are none. */
+  private final Set<String> splitServiceCustomNames;
 
   private final boolean shouldSet404ResourceName;
   private final boolean shouldSetUrlResourceAsName;
@@ -85,9 +82,10 @@ public class TagInterceptor {
       boolean jeeSplitByDeployment) {
     this.isServiceNameSetByUser = isServiceNameSetByUser;
     this.inferredServiceName = inferredServiceName;
-    this.splitServiceTags = withCanonicalNames(splitServiceTags);
+    this.splitServiceSerials = knownTagSerials(splitServiceTags);
+    this.splitServiceCustomNames = customTagNames(splitServiceTags);
     this.ruleFlags = ruleFlags;
-    splitByServletContext = this.splitServiceTags.contains(SERVLET_CONTEXT);
+    splitByServletContext = isSplitServiceTag(SERVLET_CONTEXT_ID);
 
     shouldSet404ResourceName =
         ruleFlags.isEnabled(URL_AS_RESOURCE_NAME)
@@ -98,29 +96,64 @@ public class TagInterceptor {
   }
 
   /**
-   * Adds the Datadog name of each configured tag: entries set on the span builder arrive under it,
-   * so a tag configured by its OpenTelemetry name (e.g. {@code db.system}) would otherwise be
-   * missed.
+   * Marks, by serial, each known tag that {@code names} names under any of its names, so a tag set
+   * by id or by its OpenTelemetry name matches too.
    */
-  private static Set<String> withCanonicalNames(Set<String> tags) {
-    Set<String> result = null;
-    for (String tag : tags) {
-      String canonical = KnownTagCodec.canonicalTagName(tag);
-      if (!canonical.equals(tag) && !tags.contains(canonical)) {
-        if (result == null) {
-          result = new HashSet<>(tags);
+  private static boolean[] knownTagSerials(Set<String> names) {
+    boolean[] serials = new boolean[KnownTagCodec.serialLimit()];
+    if (names.isEmpty()) {
+      return serials;
+    }
+    Set<String> canonicalNames = new HashSet<>();
+    for (String name : names) {
+      canonicalNames.add(KnownTagCodec.canonicalTagName(name));
+    }
+    for (int serial = 1; serial < serials.length; ++serial) {
+      serials[serial] =
+          canonicalNames.contains(KnownTagCodec.nameOf(KnownTagCodec.makeTagId(serial)));
+    }
+    return serials;
+  }
+
+  /** The names in {@code names} that do not resolve to a known tag, or null when there are none. */
+  private static Set<String> customTagNames(Set<String> names) {
+    Set<String> custom = null;
+    for (String name : names) {
+      if (KnownTagCodec.keyOf(name) == 0) {
+        if (custom == null) {
+          custom = new HashSet<>();
         }
-        result.add(canonical);
+        custom.add(name);
       }
     }
-    return result == null ? tags : result;
+    return custom;
+  }
+
+  /** Requires a known id, whose serial is always in range of the table. */
+  private boolean isSplitServiceTag(long tagId) {
+    return splitServiceSerials[KnownTagCodec.serialNum(tagId)];
+  }
+
+  private boolean isSplitServiceTag(String customTag) {
+    Set<String> names = splitServiceCustomNames;
+    return names != null && names.contains(customTag);
   }
 
   public boolean needsIntercept(TagMap map) {
     for (TagMap.EntryReader entry : map) {
-      if (needsIntercept(entry.tag())) return true;
+      if (needsIntercept(entry)) return true;
     }
     return false;
+  }
+
+  public boolean needsIntercept(TagMap.EntryReader entry) {
+    long tagId = entry.tagId();
+    return tagId != 0 ? needsIntercept(tagId) : isSplitServiceTag(entry.tag());
+  }
+
+  /** Whether a custom tag (one with no id) may be routed; only split-by-tags routes them. */
+  public boolean needsInterceptCustomTag(String customTag) {
+    return isSplitServiceTag(customTag);
   }
 
   public boolean needsIntercept(Map<String, ?> map) {
@@ -130,131 +163,137 @@ public class TagInterceptor {
     return false;
   }
 
-  public boolean needsIntercept(String tag) {
-    switch (tag) {
-      case DDTags.RESOURCE_NAME:
-      case Tags.DB_STATEMENT:
-      case DB_STATEMENT_OTEL_NAME:
-      case DDTags.SERVICE_NAME:
-      case "service":
-      case Tags.PEER_SERVICE:
-      case DDTags.MANUAL_KEEP:
-      case DDTags.MANUAL_DROP:
-      case Tags.ASM_KEEP:
-      case Tags.AI_GUARD_KEEP:
-      case Tags.SAMPLING_PRIORITY:
-      case Tags.PROPAGATED_TRACE_SOURCE:
-      case Tags.PROPAGATED_DEBUG:
-      case SERVLET_CONTEXT:
-      case SPAN_TYPE:
-      case ANALYTICS_SAMPLE_RATE:
-      case Tags.ERROR:
-      case HTTP_STATUS:
-      case HTTP_STATUS_CODE_OTEL_NAME:
-      case HTTP_METHOD:
-      case HTTP_METHOD_OTEL_NAME:
-      case HTTP_URL:
-      case HTTP_URL_OTEL_NAME:
-      case ORIGIN_KEY:
-      case MEASURED:
-      case Tags.SPAN_KIND:
-        return true;
+  /**
+   * Whether {@link #interceptTag(DDSpanContext, long, Object)} may route the tag. With a constant
+   * id, the {@link KnownTagCodec#INTERCEPTED} test folds to a constant, leaving only the
+   * split-by-tags table load at run time. {@code tagId} must be a known id.
+   */
+  public boolean needsIntercept(long tagId) {
+    return KnownTagCodec.isIntercepted(tagId) || isSplitServiceTag(tagId);
+  }
 
-      default:
-        return splitServiceTags.contains(tag);
-    }
+  public boolean needsIntercept(String tag) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? needsIntercept(tagId) : isSplitServiceTag(tag);
   }
 
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {
-    switch (tag) {
-      case DDTags.RESOURCE_NAME:
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? interceptTag(span, tagId, value) : interceptCustomTag(span, tag, value);
+  }
+
+  /**
+   * Routes a known tag to a span field or a sampling directive. Returns true when the tag was
+   * consumed, false when it should still be stored. Every tag with a case here carries the {@link
+   * KnownTagCodec#INTERCEPTED} bit, declared in {@code tag-conventions-java.yaml}.
+   *
+   * <p>This method is deliberately too big for C2 to inline, so the handler bodies stay out of
+   * {@code DDSpanContext.setTag}'s compiled code; {@code TagInterceptorInliningTest} pins that.
+   */
+  public boolean interceptTag(DDSpanContext span, long tagId, Object value) {
+    switch (KnownTagCodec.serialNum(tagId)) {
+      case KnownTags.RESOURCE_NAME_SERIAL_NUM:
         return interceptResourceName(span, value);
-      case Tags.DB_STATEMENT:
-      case DB_STATEMENT_OTEL_NAME:
+      case KnownTags.DB_STATEMENT_SERIAL_NUM:
         return interceptDbStatement(span, value);
-      case DDTags.SERVICE_NAME:
-      case "service":
+      case KnownTags.SERVICE_SERIAL_NUM:
         return interceptServiceName(SERVICE_NAME, span, value);
-      case Tags.PEER_SERVICE:
+      case KnownTags.PEER_SERVICE_SERIAL_NUM:
         // we still need to intercept and add this tag when the user manually set
         span.setTag(DDTags.PEER_SERVICE_SOURCE, Tags.PEER_SERVICE);
         return interceptServiceName(PEER_SERVICE, span, value);
-      case DDTags.MANUAL_KEEP:
+      case KnownTags.MANUAL_KEEP_SERIAL_NUM:
         if (asBoolean(value)) {
           span.forceKeep();
           return true;
         }
         return false;
-      case DDTags.MANUAL_DROP:
+      case KnownTags.MANUAL_DROP_SERIAL_NUM:
         return interceptSamplingPriority(
             FORCE_MANUAL_DROP, USER_DROP, SamplingMechanism.MANUAL, span, value);
-      case Tags.ASM_KEEP:
+      case KnownTags.ASM_KEEP_SERIAL_NUM:
         if (asBoolean(value)) {
           span.forceKeep(SamplingMechanism.APPSEC);
           return true;
         }
         return false;
-      case Tags.AI_GUARD_KEEP:
+      case KnownTags.AI_GUARD_KEEP_SERIAL_NUM:
         if (asBoolean(value)) {
           span.forceKeep(SamplingMechanism.AI_GUARD);
           return true;
         }
         return false;
-      case Tags.SAMPLING_PRIORITY:
+      case KnownTags.SAMPLING_PRIORITY_SERIAL_NUM:
         return interceptSamplingPriority(span, value);
-      case Tags.PROPAGATED_TRACE_SOURCE:
+      case KnownTags.DD_P_TS_SERIAL_NUM:
         if (value instanceof Integer) {
           span.addPropagatedTraceSource((Integer) value);
           return true;
         }
         return false;
-      case Tags.PROPAGATED_DEBUG:
+      case KnownTags.DD_P_DEBUG_SERIAL_NUM:
         span.updateDebugPropagation(String.valueOf(value));
         return true;
-      case SERVLET_CONTEXT:
+      case KnownTags.SERVLET_CONTEXT_SERIAL_NUM:
         return interceptServletContext(span, value);
-      case SPAN_TYPE:
+      case KnownTags.SPAN_TYPE_SERIAL_NUM:
         return interceptSpanType(span, value);
-      case ANALYTICS_SAMPLE_RATE:
+      case KnownTags.DD1_SR_EAUSR_SERIAL_NUM:
         return interceptAnalyticsSampleRate(span, value);
-      case Tags.ERROR:
+      case KnownTags.ERROR_SERIAL_NUM:
         return interceptError(span, value);
-      case HTTP_STATUS:
-      case HTTP_STATUS_CODE_OTEL_NAME:
+      case KnownTags.HTTP_STATUS_CODE_SERIAL_NUM:
         // not set internally but may come from manual instrumentation
         return interceptHttpStatusCode(span, value);
-      case HTTP_METHOD:
-      case HTTP_METHOD_OTEL_NAME:
-      case HTTP_URL:
-      case HTTP_URL_OTEL_NAME:
-        return interceptUrlResourceAsNameRule(span, tag, value);
-      case ORIGIN_KEY:
+      case KnownTags.HTTP_METHOD_SERIAL_NUM:
+      case KnownTags.HTTP_URL_SERIAL_NUM:
+        return interceptUrlResourceAsNameRule(span, tagId, value);
+      case KnownTags.DD_ORIGIN_SERIAL_NUM:
         return interceptOrigin(span, value);
-      case MEASURED:
+      case KnownTags.DD_MEASURED_SERIAL_NUM:
         return interceptMeasured(span, value);
-      case Tags.SPAN_KIND:
+      case KnownTags.SPAN_KIND_SERIAL_NUM:
         // Cache the ordinal for fast isOutbound() checks.
         // Return false so the value is still stored in unsafeTags for serialization.
         span.setSpanKindOrdinal(String.valueOf(value));
         return false;
       default:
-        return intercept(span, tag, value);
+        return isSplitServiceTag(tagId) && splitService(span, value);
     }
   }
 
-  private boolean interceptUrlResourceAsNameRule(DDSpanContext span, String tag, Object value) {
+  /**
+   * Routes an entry by its id, or by its name when it is a custom tag. Prechecks, so a primitive
+   * entry that needs no interception is never boxed.
+   */
+  public boolean interceptTag(DDSpanContext span, TagMap.EntryReader entry) {
+    long tagId = entry.tagId();
+    if (tagId != 0) {
+      return needsIntercept(tagId) && interceptTag(span, tagId, entry.objectValue());
+    }
+    return isSplitServiceTag(entry.tag()) && splitService(span, entry.objectValue());
+  }
+
+  /** Routes a custom tag -- one with no id. */
+  public boolean interceptCustomTag(DDSpanContext span, String customTag, Object value) {
+    return isSplitServiceTag(customTag) && splitService(span, value);
+  }
+
+  private static boolean splitService(DDSpanContext span, Object value) {
+    span.setServiceName(String.valueOf(value), SPLIT_BY_TAGS);
+    return true;
+  }
+
+  private boolean interceptUrlResourceAsNameRule(DDSpanContext span, long tagId, Object value) {
     if (shouldSetUrlResourceAsName) {
-      if (HTTP_METHOD.equals(tag) || HTTP_METHOD_OTEL_NAME.equals(tag)) {
+      // Read by Datadog name only: entries are stored under it whichever spelling set them.
+      if (tagId == KnownTags.HTTP_METHOD_ID) {
         final Object url = span.unsafeGetTag(HTTP_URL);
         if (url != null) {
           setResourceFromUrl(span, value.toString(), url);
         }
-      } else if (HTTP_URL.equals(tag) || HTTP_URL_OTEL_NAME.equals(tag)) {
-        // the method may have been set under either spelling -- see HTTP_METHOD_OTEL_NAME.
-        Object method = span.unsafeGetTag(HTTP_METHOD);
-        if (method == null) {
-          method = span.unsafeGetTag(HTTP_METHOD_OTEL_NAME);
-        }
+      } else {
+        final Object method = span.unsafeGetTag(HTTP_METHOD);
         setResourceFromUrl(span, method != null ? method.toString() : null, value);
       }
     }
@@ -295,26 +334,19 @@ public class TagInterceptor {
    * its interception never reaches the split-by-tags check.)
    */
   public void resolveSplitByTagsPrecedence(DDSpanContext span, TagMap prototypeTags) {
-    if (splitServiceTags.isEmpty()) {
-      return;
-    }
-    for (String tag : PROTOTYPE_SPLIT_BY_TAGS_PRECEDENCE) {
-      if (splitServiceTags.contains(tag)) {
-        Object value = prototypeTags.getObject(tag);
-        if (value != null) {
-          span.setServiceName(String.valueOf(value), SPLIT_BY_TAGS);
-          return;
-        }
+    if (isSplitServiceTag(COMPONENT_ID)) {
+      TagMap.Entry component = prototypeTags.getEntry(COMPONENT_ID);
+      if (component != null) {
+        splitService(span, component.objectValue());
+        return;
       }
     }
-  }
-
-  private boolean intercept(DDSpanContext span, String tag, Object value) {
-    if (splitServiceTags.contains(tag)) {
-      span.setServiceName(String.valueOf(value), SPLIT_BY_TAGS);
-      return true;
+    if (isSplitServiceTag(LANGUAGE_ID)) {
+      TagMap.Entry language = prototypeTags.getEntry(LANGUAGE_ID);
+      if (language != null) {
+        splitService(span, language.objectValue());
+      }
     }
-    return false;
   }
 
   private boolean interceptResourceName(DDSpanContext span, Object value) {

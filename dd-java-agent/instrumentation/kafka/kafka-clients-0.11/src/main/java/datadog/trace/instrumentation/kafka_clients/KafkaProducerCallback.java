@@ -48,7 +48,7 @@ public class KafkaProducerCallback implements Callback {
         callback.onCompletion(metadata, exception);
       }
     }
-    if (metadata == null) {
+    if (metadata == null || exception != null || metadata.partition() < 0) {
       return;
     }
 

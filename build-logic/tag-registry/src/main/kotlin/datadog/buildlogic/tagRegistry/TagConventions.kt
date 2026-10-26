@@ -9,6 +9,8 @@ class TagConventions private constructor(
   private val spanTypes: Map<String, SpanType>,
   private val mixins: Map<String, Mixin>,
   private val traceLevel: List<Tag>,
+  /** Datadog names the tracer intercepts on the set-path, from the tracer overlay. */
+  val interceptedNames: Set<String> = emptySet(),
 ) {
   /**
    * A tag's identity: its Datadog name, plus the direction when that name is declared once per
@@ -62,10 +64,6 @@ class TagConventions private constructor(
     /** The Datadog-namespace name, shared by the tags of a name declared per direction. */
     val ddName: String
       get() = identity.ddName
-
-    /** The direction of a tag declared per direction, or null for every other tag. */
-    val sharedNameDirection: Direction?
-      get() = identity.direction
   }
 
   /**
@@ -241,6 +239,57 @@ class TagConventions private constructor(
     /** The type's own or nearest inherited `span-kind` direction, or null when none is declared. */
     private fun directionOf(spanTypes: Map<String, SpanType>, st: SpanType): Direction? = chainOf(spanTypes, st.name).firstNotNullOfOrNull { it.direction }
 
+    /** The tracer overlay's `tags`, as a mixin that applies to no span type; empty when none. */
+    private fun overlayMixin(overlay: Map<String, Any?>): Map<String, Mixin> {
+      val tags = tagList(overlay["tags"])
+      if (tags.isEmpty()) return emptyMap()
+      return mapOf(
+        OVERLAY_MIXIN to
+          Mixin(name = OVERLAY_MIXIN, appliesAll = false, appliesTo = emptySet(), tags = tags, refs = emptyList())
+      )
+    }
+
+    /** A span type declaration, from the shared conventions or a tracer overlay. */
+    @Suppress("UNCHECKED_CAST")
+    private fun parseSpanType(name: String, v: Any?): SpanType {
+      require(v is Map<*, *>) { "span type '$name' must be a mapping" }
+      val m = v as Map<String, Any?>
+      require(m["abstract"] == null || m["abstract"] is Boolean) { "span type '$name' abstract must be a boolean" }
+      require(m["extends"] == null || m["extends"] is String) { "span type '$name' extends must be a span type name" }
+      val include = m["include"]
+      require(include == null || (include is List<*> && include.all { it is String })) {
+        "span type '$name' include must be a list of mixin names"
+      }
+      return SpanType(
+        name = name,
+        abstract = (m["abstract"] as? Boolean) ?: false,
+        extends = m["extends"] as? String,
+        include = (m["include"] as? List<String>) ?: emptyList(),
+        tags = tagList(m["tags"]),
+        refs = refList(m["tags"]),
+        direction = parseDirection(m, "span type '$name'"),
+      )
+    }
+
+    /** A mixin declaration, from the shared conventions or a tracer overlay. */
+    @Suppress("UNCHECKED_CAST")
+    private fun parseMixin(name: String, v: Any?): Mixin {
+      require(v is Map<*, *>) { "mixin '$name' must be a mapping" }
+      val m = v as Map<String, Any?>
+      val applies = m["applies"]
+      require(applies == null || applies == "all" || (applies is List<*> && applies.all { it is String })) {
+        "mixin '$name' applies must be 'all' or a list of span types"
+      }
+      return Mixin(
+        name = name,
+        appliesAll = applies == "all",
+        appliesTo = if (applies is List<*>) (applies as List<String>).toSet() else emptySet(),
+        tags = tagList(m["tags"]),
+        refs = refList(m["tags"]),
+        direction = parseDirection(m, "mixin '$name'"),
+      )
+    }
+
     /** Reads `span-kind` as the direction it sets, or null when absent. */
     private fun parseDirection(m: Map<String, Any?>, owner: String): Direction? {
       val spanKind = m["span-kind"]
@@ -250,55 +299,68 @@ class TagConventions private constructor(
       return (spanKind as String?)?.let { SPAN_KIND_DIRECTIONS.getValue(it) }
     }
 
+    /** The synthetic mixin holding the tracer overlay's tags; it applies to no span type. */
+    const val OVERLAY_MIXIN = "tracer overlay"
+
+    /**
+     * Parses [root], the language-agnostic conventions, plus [overlay], this tracer's own additions:
+     * `tags` declares keys that exist only to be routed (e.g. `resource.name`), so each is
+     * intercepted; `span_types` declares this tracer's own span types, each extending a shared one
+     * (e.g. servlet's request extends http.server); `mixins` declares this tracer's cross-cutting
+     * tags, each mixin pushed onto span types with `applies`; and `intercepted` adds the declared
+     * tags the tracer also routes.
+     */
     @Suppress("UNCHECKED_CAST")
-    fun parse(root: Map<String, Any?>): TagConventions {
+    fun parse(root: Map<String, Any?>, overlay: Map<String, Any?> = emptyMap()): TagConventions {
       for (section in listOf("span_types", "mixins", "trace_level")) {
         require(root[section] == null || root[section] is Map<*, *>) { "$section must be a mapping" }
       }
-      val spanTypesRaw = (root["span_types"] as? Map<String, Any?>) ?: emptyMap()
-      val parsedSpanTypes =
-        spanTypesRaw.mapValues { (name, v) ->
-          require(v is Map<*, *>) { "span type '$name' must be a mapping" }
-          val m = v as Map<String, Any?>
-          require(m["abstract"] == null || m["abstract"] is Boolean) {
-            "span type '$name' abstract must be a boolean"
-          }
-          require(m["extends"] == null || m["extends"] is String) {
-            "span type '$name' extends must be a span type name"
-          }
-          val include = m["include"]
-          require(include == null || (include is List<*> && include.all { it is String })) {
-            "span type '$name' include must be a list of mixin names"
-          }
-          SpanType(
-            name = name,
-            abstract = (m["abstract"] as? Boolean) ?: false,
-            extends = m["extends"] as? String,
-            include = (m["include"] as? List<String>) ?: emptyList(),
-            tags = tagList(m["tags"]),
-            refs = refList(m["tags"]),
-            direction = parseDirection(m, "span type '$name'"),
-          )
+      val overlayKeys = setOf("tags", "span_types", "mixins", "intercepted")
+      require(overlay.keys.all { it in overlayKeys }) {
+        "the tracer overlay may only declare $overlayKeys, not ${overlay.keys - overlayKeys}"
+      }
+      require(refList(overlay["tags"]).isEmpty()) { "tracer overlay tags must be declarations, not refs" }
+      val interceptedRaw = overlay["intercepted"]
+      require(interceptedRaw == null || (interceptedRaw is List<*> && interceptedRaw.all { it is String })) {
+        "intercepted must be a list of Datadog tag names"
+      }
+      // An overlay tag exists only to be routed, so it is intercepted without being listed.
+      val intercepted =
+        ((interceptedRaw as? List<String>) ?: emptyList()).toSet() +
+          tagList(overlay["tags"]).map { it.ddName }
+      val rootSpanTypes = ((root["span_types"] as? Map<String, Any?>) ?: emptyMap()).mapValues { (name, v) -> parseSpanType(name, v) }
+      require(overlay["span_types"] == null || overlay["span_types"] is Map<*, *>) {
+        "tracer overlay span_types must be a mapping"
+      }
+      // A tracer's span type extends a shared concept with tags only this tracer sets (servlet's
+      // request on http.server, say).
+      val overlaySpanTypes =
+        ((overlay["span_types"] as? Map<String, Any?>) ?: emptyMap()).mapValues { (name, v) ->
+          require(name !in rootSpanTypes) { "tracer overlay span type '$name' reuses the name of a shared span type" }
+          val spanType = parseSpanType(name, v)
+          require(spanType.extends != null) { "tracer overlay span type '$name' must extend a span type" }
+          spanType
         }
+      val parsedSpanTypes = rootSpanTypes + overlaySpanTypes
 
-      val mixinsRaw = (root["mixins"] as? Map<String, Any?>) ?: emptyMap()
-      val parsedMixins =
-        mixinsRaw.mapValues { (name, v) ->
-          require(v is Map<*, *>) { "mixin '$name' must be a mapping" }
-          val m = v as Map<String, Any?>
-          val applies = m["applies"]
-          require(applies == null || applies == "all" || (applies is List<*> && applies.all { it is String })) {
-            "mixin '$name' applies must be 'all' or a list of span types"
+      require(overlay["mixins"] == null || overlay["mixins"] is Map<*, *>) {
+        "tracer overlay mixins must be a mapping"
+      }
+      val rootMixins = ((root["mixins"] as? Map<String, Any?>) ?: emptyMap()).mapValues { (name, v) -> parseMixin(name, v) }
+      // A shared span type can't `include` a tracer's mixin by name, so an overlay mixin pushes
+      // itself onto shared types with `applies`.
+      val overlayMixins =
+        ((overlay["mixins"] as? Map<String, Any?>) ?: emptyMap()).mapValues { (name, v) ->
+          require(name !in rootMixins && name != OVERLAY_MIXIN) {
+            "tracer overlay mixin '$name' reuses the name of a shared mixin"
           }
-          Mixin(
-            name = name,
-            appliesAll = applies == "all",
-            appliesTo = if (applies is List<*>) (applies as List<String>).toSet() else emptySet(),
-            tags = tagList(m["tags"]),
-            refs = refList(m["tags"]),
-            direction = parseDirection(m, "mixin '$name'"),
-          )
+          val mixin = parseMixin(name, v)
+          require(mixin.appliesAll || mixin.appliesTo.isNotEmpty()) {
+            "tracer overlay mixin '$name' must say which span types it applies to"
+          }
+          mixin
         }
+      val parsedMixins = rootMixins + overlayMixins + overlayMixin(overlay)
 
       for (spanType in parsedSpanTypes.values) {
         for (included in spanType.include) {
@@ -342,7 +404,12 @@ class TagConventions private constructor(
           )
         }
       validateOtelNameScope(spanTypes, mixins, traceLevel)
-      return TagConventions(spanTypes, mixins, traceLevel)
+      val conv = TagConventions(spanTypes, mixins, traceLevel, intercepted)
+      val declared = conv.allDeclaredTags().map { it.ddName }.toSet()
+      for (name in intercepted) {
+        require(name in declared) { "intercepted tag '$name' is not declared" }
+      }
+      return conv
     }
 
     /**

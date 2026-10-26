@@ -2,6 +2,7 @@ import datadog.appsec.api.blocking.Blocking
 import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
@@ -208,4 +209,7 @@ class UndertowTest extends HttpServerTest<Undertow> {
       Collections.emptyMap()
     }
   }
+}
+
+class UndertowOtelSemanticsForkedTest extends UndertowTest implements TestingOtelHttpSemantics {
 }

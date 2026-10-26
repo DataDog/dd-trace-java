@@ -5,7 +5,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha '454a97647cbc16ab7fd20e917aa31532ba7532eb' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
+    ref: &apm_sdks_benchmarks_sha 'bffc4e99f65d0accac069b87162891742c555efa' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -56,15 +56,15 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "9.8.1" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "9.8.2" # must match gradle-wrapper.properties
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
-  BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
+  BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the ddoghq/images repo
   BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
   TEST_COUNTS_S3_BUCKET: "dd-trace-java-ci-test-reports"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 26
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 27
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -104,7 +104,6 @@ workflow:
       - "17"
       - "21"
       - "25"
-      - "27" # JDK 27 TODO: remove after GA (tip will move to 27)
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -307,7 +306,7 @@ maven-central-pre-release-check:
       # See https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
       # Use the staging API search endpoint to validate the tokens without relying on a specific deployment
       AUTHORIZATION_HEADER="Authorization: Bearer $(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64)"
-      if ! curl --silent --show-error --fail \
+      if ! curl --silent --show-error --fail --retry 5 --retry-delay 2 --retry-connrefused \
         "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any" \
         --header "$AUTHORIZATION_HEADER" \
         > /dev/null; then
@@ -852,7 +851,8 @@ muzzle-dep-report:
     # Enable for default test JVMs or for NON_DEFAULT_JVMS
     - if: '$NON_DEFAULT_JVMS == "true"'
       when: on_success
-    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+    # [ci: NON_DEFAULT_JVMS] with any other parameters in the commit message.
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bNON_DEFAULT_JVMS\b[^\]]*\]/'
       when: on_success
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: on_success
@@ -866,7 +866,7 @@ muzzle-dep-report:
     - job: build
       artifacts: false
   variables:
-    DEFAULT_TEST_JVMS: /^(11|17|21|25|27|tip)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
+    DEFAULT_TEST_JVMS: /^(11|17|21|25|tip)$/
     TEST_JVM_ARGS: "-Xshare:off"
   rules:
     # Java 8 is excluded from the arm64 test matrix for all distributions.
@@ -887,10 +887,15 @@ muzzle-dep-report:
     - if: '$NON_DEFAULT_JVMS == "true"'
       when: on_success
       allow_failure: true
-    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+    # On feature branches/PRs, [ci: ARM64] in the commit message runs the default JVM subset,
+    # and [ci: ARM64, NON_DEFAULT_JVMS] runs all JVMs. [ci: NON_DEFAULT_JVMS] alone only affects amd64.
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bARM64\b[^\]]*\]/ && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bNON_DEFAULT_JVMS\b[^\]]*\]/'
       when: on_success
       allow_failure: true
-    # Keep the default JVM subset available for manual runs on feature branches/PRs.
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bARM64\b[^\]]*\]/ && $testJvm =~ $DEFAULT_TEST_JVMS'
+      when: on_success
+      allow_failure: true
+    # Otherwise keep the default JVM subset available for manual runs.
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
@@ -995,6 +1000,8 @@ test_inst:
 
 test_inst_arm64:
   extends: .test_job_arm64_with_test_agent
+  # Instrumentation tests are slower on arm64 runners than the 1h default allows.
+  timeout: 75 minutes
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
@@ -1019,7 +1026,7 @@ test_inst_latest:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
+      - testJvm: ["8", "17", "21", "25", "tip"]
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -1032,7 +1039,7 @@ test_inst_latest_arm64:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
+      - testJvm: ["17", "21", "25", "tip"]
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -1102,7 +1109,7 @@ test_debugger:
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|27|tip|semeru8)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip|semeru8)$/
   parallel:
     matrix: *test_matrix
   # avoid running coverage for semeru8, semeru11, semeru17 and ibm8 as some tests are disabled and therefore cannot reach the
@@ -1206,7 +1213,9 @@ test_smoke_graalvm_arm64:
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
-    NON_DEFAULT_JVMS: "true"
+    # Treat the GraalVM JVMs as this job's defaults, so it follows the arm64 rules like the other arm64 jobs:
+    # automatic on master and the merge queue, manual on PRs unless the commit message contains [ci: ARM64].
+    DEFAULT_TEST_JVMS: /^graalvm(17|21|25)$/
   parallel:
     matrix:
       - testJvm: ["graalvm17", "graalvm21", "graalvm25"]

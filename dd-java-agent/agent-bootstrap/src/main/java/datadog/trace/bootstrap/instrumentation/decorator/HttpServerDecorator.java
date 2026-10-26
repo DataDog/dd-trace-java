@@ -13,7 +13,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.function.TriConsumer;
@@ -34,12 +34,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
-import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.http.DatadogServerUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.HttpServerUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.OtelServerUrl;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
@@ -68,13 +72,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
+  protected static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
+  private static final TagExtractor<HttpServerUrl> URL_TAGS =
+      OTEL_SEMANTICS ? OtelServerUrl.INSTANCE : DatadogServerUrl.INSTANCE;
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
   protected static final boolean SHOULD_SET_404_RESOURCE_NAME =
-      Config.get().isRuleEnabled("URLAsResourceNameRule")
+      !OTEL_SEMANTICS
+          && Config.get().isRuleEnabled("URLAsResourceNameRule")
           && Config.get().isRuleEnabled("Status404Rule")
           && Config.get().isRuleEnabled("Status404Decorator");
   private static final boolean SHOULD_SET_URL_RESOURCE_NAME =
-      Config.get().isRuleEnabled("URLAsResourceNameRule");
+      !OTEL_SEMANTICS && Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
   private static final String DEFAULT_INSTRUMENTATION_NAME = "http-server";
@@ -323,15 +331,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       String userAgent = extracted.getUserAgent();
       if (userAgent != null) {
-        span.setTag(Tags.HTTP_USER_AGENT, userAgent);
+        span.setTag(KnownTags.HTTP_USERAGENT_ID, userAgent);
       }
     }
 
     if (request != null) {
       String method = method(request);
-      span.setTag(Tags.HTTP_METHOD, method);
+      if (OTEL_SEMANTICS) {
+        OtelHttpSemantics.setRequestMethod(span, method);
+        OtelHttpSemantics.setMethodResourceName(span, method);
+      } else {
+        span.setTag(KnownTags.HTTP_METHOD_ID, method);
+      }
 
-      // Copy of HttpClientDecorator url handling
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
@@ -339,24 +351,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           boolean valid = url.isValid();
           String path = encoded ? url.rawPath() : url.path();
-          if (valid) {
-            span.setTag(
-                Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
-          } else if (supportsRaw) {
-            span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
-          }
-          if (extracted != null && extracted.getXForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
-          } else if (url.host() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, url.host());
-          }
-
-          if (valid && config.isHttpServerTagQueryString()) {
-            String query =
-                supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
-            span.setTag(DDTags.HTTP_QUERY, query);
-            span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
-          }
+          span.setTagsFrom(
+              HttpServerUrl.fromRequest(
+                  url,
+                  path,
+                  extracted,
+                  // Only OTel origin resolution uses Host to resolve ports after a scheme change.
+                  OTEL_SEMANTICS && extracted != null && extracted.getXForwardedProto() != null
+                      ? getRequestHeader(request, "Host")
+                      : null),
+              URL_TAGS);
           Flow<Void> flow = callIGCallbackURI(span, url, method);
           if (flow.getAction() instanceof RequestBlockingAction) {
             span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
@@ -380,6 +384,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String inferredAddressStr = null;
+    boolean clientIpTagged = false;
     if (shouldResolveIp && extracted != null) {
       InetAddress inferredAddress = ClientIpAddressResolver.resolve(extracted, span);
       // the peer address should be used if:
@@ -398,7 +403,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
         if (shouldTagIps) {
-          span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
+          span.setTag(KnownTags.HTTP_CLIENT_IP_ID, inferredAddressStr);
+          clientIpTagged = true;
         }
       }
     } else if (shouldTagIps && span.getLocalRootSpan() != span) {
@@ -410,18 +416,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       AgentSpan localRootSpan = span.getLocalRootSpan();
       Object clientIp = localRootSpan.getTag(Tags.HTTP_CLIENT_IP);
       if (clientIp != null) {
-        span.setTag(Tags.HTTP_CLIENT_IP, clientIp);
+        span.setTag(KnownTags.HTTP_CLIENT_IP_ID, clientIp);
+        clientIpTagged = true;
       }
     }
 
     if (peerIp != null) {
       if (peerIp.indexOf(':') > 0) {
-        span.setTag(Tags.PEER_HOST_IPV6, peerIp);
+        span.setTag(KnownTags.PEER_IPV6_ID, peerIp);
       } else {
-        span.setTag(Tags.PEER_HOST_IPV4, peerIp);
+        span.setTag(KnownTags.PEER_IPV4_ID, peerIp);
       }
       if (shouldTagIps) {
-        span.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+        span.setTag(KnownTags.NETWORK_CLIENT_IP_ID, peerIp);
+        if (OTEL_SEMANTICS
+            && !clientIpTagged
+            && span.getTag(KnownTags.HTTP_CLIENT_IP_OTEL_NAME) == null) {
+          span.setTag(KnownTags.HTTP_CLIENT_IP_ID, peerIp);
+        }
       }
     }
     if (shouldStashIps && (peerIp != null || inferredAddressStr != null)) {
@@ -483,6 +495,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       // Anyway, we def don't want it applied to blocked requests
       if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
         span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
+      }
+      if (OTEL_SEMANTICS && SERVER_ERROR_STATUSES.get(status)) {
+        OtelHttpSemantics.setErrorType(span, status);
       }
     }
 

@@ -97,6 +97,13 @@ Wildcard imports (`import x.*` or `import static x.*`) are disallowed — see th
 
 When opening a pull request, please open it as a [draft](https://github.blog/2019-02-14-introducing-draft-pull-requests/) to not auto-assign reviewers before the pull request is in a reviewable state.
 
+### Dependency changes
+
+When adding, updating, or removing dependencies, regenerate the `gradle.lockfile` files for all affected modules
+and include them in the same PR.
+This applies to changes in build scripts and `gradle/libs.versions.toml`.
+Follow the [lockfile update workflow](docs/how_to_work_with_gradle.md#updating-lock-files) before requesting review.
+
 ### Title format
 
 Pull request titles should briefly describe the proposed changes in a way that makes sense for the users.

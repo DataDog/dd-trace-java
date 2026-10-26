@@ -227,9 +227,11 @@ public class HashtableD2Benchmark {
       BenchmarkUtils.warmUpHashDispatch(bh);
     }
 
+    // Level.Iteration, not Trial: this rebuilds the table and the HashMap, so each iteration must
+    // start from a fresh, identically-sized state rather than inheriting mutated counters.
     @Setup(Level.Iteration)
     public void setUp() {
-      table = new Hashtable.D2<>(CAPACITY);
+      table = Hashtable.D2.createBounded(D2Counter.class, CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       k1s = SOURCE_K1;
       k2s = SOURCE_K2;

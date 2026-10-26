@@ -1,0 +1,16 @@
+{
+    "pull_request": {
+        "number": 7884,
+        "draft": false,
+        "labels": [
+            {
+                "name": "comp: api"
+            },
+            {
+                "name": "type: feature"
+            }
+        ],
+        "title": "[APMLP-1234] PR title that starts with Jira ticket",
+        "body": "# What Does This Do\n\nThis PR introduces a workflow that checks PRs contributing guidelines."
+    }
+}

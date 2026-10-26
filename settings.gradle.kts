@@ -33,7 +33,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.6.0"
+  id("com.gradle.develocity") version "4.6.1"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -345,6 +345,7 @@ include(
   ":dd-java-agent:instrumentation:cxf-2.1",
   ":dd-java-agent:instrumentation:datadog:asm:iast-instrumenter",
   ":dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin",
+  ":dd-java-agent:instrumentation:datadog:openfeature:dd-openfeature-1.69",
   ":dd-java-agent:instrumentation:datadog:profiling:enable-wallclock-profiling",
   ":dd-java-agent:instrumentation:datadog:profiling:exception-profiling",
   ":dd-java-agent:instrumentation:datadog:tracing:trace-annotation",
@@ -481,6 +482,7 @@ include(
   ":dd-java-agent:instrumentation:lettuce:lettuce-5.0",
   ":dd-java-agent:instrumentation:liberty:liberty-20.0",
   ":dd-java-agent:instrumentation:liberty:liberty-23.0",
+  ":dd-java-agent:instrumentation:liberty:liberty-appsec-common",
   ":dd-java-agent:instrumentation:log4j:log4j-1.2.4",
   ":dd-java-agent:instrumentation:log4j:log4j-2.0",
   ":dd-java-agent:instrumentation:log4j:log4j-2.7",

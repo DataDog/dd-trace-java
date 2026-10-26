@@ -45,7 +45,7 @@ class SmokeTestAppPluginTest {
     project.apply<JavaPlugin>()
     val task = project.tasks.create("nestedBuild", NestedGradleBuild::class.java)
     val userHome = File(project.projectDir, "gradle-user-home")
-    val daemonDir = userHome.resolve("daemon/8.14.5")
+    val daemonDir = userHome.resolve("daemon/8.14.6")
     assertThat(daemonDir.mkdirs()).isTrue()
     val staleLog = daemonDir.resolve("daemon-${ProcessHandle.current().pid()}.out.log")
     staleLog.writeText("reused PID")
@@ -198,7 +198,7 @@ class SmokeTestAppPluginTest {
     project.plugins.apply("dd-trace-java.smoke-test-app")
 
     val extension = project.extensions.getByType<SmokeTestAppExtension>()
-    extension.gradleVersion.set("8.14.5")
+    extension.gradleVersion.set("8.14.6")
     extension.gradleDistributionBaseUrl.set("https://mass.example")
     extension.gradleApp {
       taskName.set("packageApp")
@@ -216,7 +216,7 @@ class SmokeTestAppPluginTest {
       .isEqualTo(project.layout.projectDirectory.dir("application").asFile)
     assertThat(task.applicationBuildDir.get().asFile)
       .isEqualTo(project.layout.buildDirectory.dir("application").get().asFile)
-    assertThat(task.gradleVersion.get()).isEqualTo("8.14.5")
+    assertThat(task.gradleVersion.get()).isEqualTo("8.14.6")
     assertThat(task.gradleDistributionBaseUrl.get()).isEqualTo("https://mass.example")
     assertThat(task.tasksToRun.get()).containsExactly("assemble", "check")
     assertThat(task.buildArguments.get()).containsExactly("-Ddemo=true")
@@ -326,13 +326,13 @@ class SmokeTestAppPluginTest {
 
   @Test
   fun `Gradle distribution URI routes through MASS artifact path`() {
-    assertThat(gradleDistributionUri("https://mass.example", "8.14.5").toString())
+    assertThat(gradleDistributionUri("https://mass.example", "8.14.6").toString())
       .isEqualTo(
-        "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.5-bin.zip",
+        "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.6-bin.zip",
       )
-    assertThat(gradleDistributionUri("https://mass.example/", "8.14.5").toString())
+    assertThat(gradleDistributionUri("https://mass.example/", "8.14.6").toString())
       .isEqualTo(
-        "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.5-bin.zip",
+        "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.6-bin.zip",
       )
   }
 
