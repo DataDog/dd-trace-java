@@ -354,7 +354,7 @@ build:
   script:
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew --version
-    - ./gradlew clean :dd-java-agent:shadowJar :dd-java-agent:check :dd-trace-api:jar :dd-trace-ot:shadowJar :products:feature-flagging:feature-flagging-api:jar -PskipTests -x spotlessCheck $GRADLE_ARGS
+    - ./gradlew clean :dd-java-agent:shadowJar :dd-java-agent:check :dd-trace-api:jar :dd-trace-ot:shadowJar :dd-openfeature:jar -PskipTests -x spotlessCheck $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
     - echo "BUILD_JOB_ID=$CI_JOB_ID" >> build.env
@@ -364,7 +364,7 @@ build:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
-      - 'workspace/products/feature-flagging/feature-flagging-api/build/libs/*.jar'
+      - 'workspace/dd-openfeature/build/libs/*.jar'
       - 'upstream.env'
       - '.gradle/daemon/*/*.out.log'
     reports:
@@ -481,11 +481,11 @@ publish-artifacts-to-s3:
     - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-agent.jar
     - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-api.jar
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-ot.jar
-    - aws s3 cp workspace/products/feature-flagging/feature-flagging-api/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-openfeature.jar
+    - aws s3 cp workspace/dd-openfeature/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-openfeature.jar
     - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar
     - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-api.jar
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-ot.jar
-    - aws s3 cp workspace/products/feature-flagging/feature-flagging-api/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar
+    - aws s3 cp workspace/dd-openfeature/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar
     - |
       cat << EOF > links.json 
         {
@@ -583,6 +583,7 @@ validate_build:
     - cp workspace/dd-java-agent/build/libs/*.jar reference-artifacts/
     - cp workspace/dd-trace-api/build/libs/*.jar reference-artifacts/
     - cp workspace/dd-trace-ot/build/libs/*.jar reference-artifacts/
+    - cp workspace/dd-openfeature/build/libs/*.jar reference-artifacts/
     # Scheduled builds refresh dependency locks before creating the reference artifacts.
     # Refresh them here as well so the candidate uses the same dependency resolution.
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
@@ -596,6 +597,7 @@ validate_build:
         cp workspace/dd-java-agent/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
         cp workspace/dd-trace-api/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
         cp workspace/dd-trace-ot/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
+        cp workspace/dd-openfeature/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
         exit 1
       fi
   after_script:

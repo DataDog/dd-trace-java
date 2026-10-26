@@ -1,7 +1,7 @@
 package com.datadog.openfeature;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.evaluation.ConfigurationStore;
 import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
