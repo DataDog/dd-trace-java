@@ -254,6 +254,23 @@ class PayloadTagsProcessorTest extends DDJavaSpecification {
   }
 
   @Test
+  void nullRemovesEarlierValueAtSamePath() {
+    PayloadTagsProcessor ptp = tagsProcessor("p", Collections.emptyList(), 10, 758);
+
+    Map<String, Object> st =
+        spanTags(
+            "p",
+            pv(pc().push("j1"), "{'x': 'old', 'x': null, 'y': 1}"),
+            pv(pc().push("v"), "old"),
+            pv(pc().push("v"), null));
+
+    TagMap unsafeTags = TagMap.fromMap(st);
+    ptp.processTags(unsafeTags, null, link -> {});
+
+    assertEquals(mapOf("p.j1.y", 1), unsafeTags);
+  }
+
+  @Test
   void expandSerializedEscapedInnerJsonWithinInnerJson() throws IOException {
     Buffer b0 = new Buffer();
     JsonWriter.of(b0)
