@@ -1,8 +1,10 @@
 # Experimentation opt-out policy cases
 
-These 90 cases come from `DataDog/ffe-system-test-data@0520866bedb8c059df9c493cfe27ad294390c603`,
+These 90 cases come from `DataDog/ffe-system-test-data@64ea4a312f2167c7d48c7df642ae1e5d0a9327de`,
 under `contracts/experimentation-opt-out/evidence/sdk-refresh-20261022/`.
-Both Java implementation owners run the same cases through their production parser and evaluator.
+The standalone provider and deprecated provider alias share the production parser and evaluator.
+The native conformance test runs all 90 cases through that evaluator.
+The profile and corpus are byte-identical to the original adoption revision.
 
 The profile covers D002, D004, D010 and D011. It excludes browser timestamp grammar and transport behavior.
 The Java parser grammar and existing provider initialization behavior remain unchanged.

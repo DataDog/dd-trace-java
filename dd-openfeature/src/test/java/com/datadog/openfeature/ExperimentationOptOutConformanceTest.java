@@ -1,12 +1,14 @@
 package com.datadog.openfeature;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.internal.JsonReading;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.LocalHttpServer;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import dev.openfeature.sdk.ErrorCode;
@@ -16,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -27,6 +30,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 /** Runs pinned Lean policy cases through the production parser and evaluator. */
 class ExperimentationOptOutConformanceTest {
@@ -119,6 +123,76 @@ class ExperimentationOptOutConformanceTest {
     final ProviderEvaluation<String> notReady =
         evaluate(null, "future_experiments_only", "invalid", "missing");
     assertEquals(ErrorCode.PROVIDER_NOT_READY, notReady.getErrorCode());
+  }
+
+  @TableTest({
+    "Scenario        | deprecatedAlias | mode                    | expectedValue",
+    "SDK disabled    | false           | DISABLED                | experiment   ",
+    "SDK immediate   | false           | IMMEDIATE               | ordinary     ",
+    "SDK future      | false           | FUTURE_EXPERIMENTS_ONLY | ordinary     ",
+    "alias disabled  | true            | DISABLED                | experiment   ",
+    "alias immediate | true            | IMMEDIATE               | ordinary     ",
+    "alias future    | true            | FUTURE_EXPERIMENTS_ONLY | ordinary     "
+  })
+  @SuppressWarnings("deprecation")
+  void publicProvidersApplyOptOutAfterHttpConfiguration(
+      final boolean deprecatedAlias,
+      final ExperimentationOptOutMode mode,
+      final String expectedValue)
+      throws Exception {
+    try (final LocalHttpServer server = new LocalHttpServer()) {
+      server.otherwise(
+          200,
+          "{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":"
+              + configuration(activation("equal"), "true", false)
+              + "}}");
+      final Map<String, String> previousProperties = new HashMap<>();
+      final Map<String, String> properties =
+          Map.of(
+              "dd.feature.flags.enabled", "true",
+              "dd.feature.flags.configuration.source", "agentless",
+              "dd.feature.flags.configuration.source.agentless.base.url",
+                  server.uri("/").toString(),
+              "dd.feature.flags.experimentation.opt.out.mode", "invalid-overridden-mode",
+              "dd.api.key", "");
+      properties.forEach(
+          (key, value) -> previousProperties.put(key, System.setProperty(key, value)));
+      try {
+        final Provider.Options options =
+            deprecatedAlias
+                ? new datadog.trace.api.openfeature.Provider.Options()
+                : new Provider.Options();
+        options.initTimeout(5, SECONDS).experimentationOptOutMode(mode);
+        final Provider provider =
+            deprecatedAlias
+                ? new datadog.trace.api.openfeature.Provider(
+                    (datadog.trace.api.openfeature.Provider.Options) options)
+                : new Provider(options);
+        // The policy is resolved at construction, before initialization or later option changes.
+        options.experimentationOptOutMode(ExperimentationOptOutMode.DEFAULT);
+        final MutableContext context = new MutableContext("subject").add(ATTRIBUTE, CUTOFF);
+        try {
+          provider.initialize(context);
+          final ProviderEvaluation<String> result =
+              provider.getStringEvaluation("target", "default", context);
+          assertNull(result.getErrorCode());
+          assertEquals(expectedValue, result.getValue());
+          assertEquals(expectedValue, result.getFlagMetadata().getString("allocationKey"));
+          assertTrue(server.requests().size() > 0);
+        } finally {
+          provider.shutdown();
+        }
+      } finally {
+        previousProperties.forEach(
+            (key, value) -> {
+              if (value == null) {
+                System.clearProperty(key);
+              } else {
+                System.setProperty(key, value);
+              }
+            });
+      }
+    }
   }
 
   private static ProviderEvaluation<String> evaluate(

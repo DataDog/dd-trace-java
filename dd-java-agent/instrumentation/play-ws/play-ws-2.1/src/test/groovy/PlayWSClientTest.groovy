@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import play.libs.ws.StandaloneWSClient
 import play.libs.ws.StandaloneWSRequest
 import play.libs.ws.StandaloneWSResponse
@@ -8,6 +9,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import spock.lang.Shared
+import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
 
@@ -128,4 +130,8 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
   def cleanupSpec() {
     wsClient?.close()
   }
+}
+
+@Timeout(5)
+class PlayWSClientOtelSemanticsForkedTest extends PlayJavaWSClientTest implements TestingOtelHttpSemantics {
 }

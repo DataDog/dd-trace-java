@@ -38,6 +38,8 @@ Provider provider = new Provider(new Provider.Options()
 `DEFAULT` reads the normal SDK configuration sources, including
 `-Ddd.feature.flags.experimentation.opt.out.mode=immediate`.
 The provider resolves the mode at construction. Unsupported values throw `IllegalArgumentException`.
+The deprecated `datadog.trace.api.openfeature.Provider` alias uses the same evaluator
+and accepts the same `com.datadog.openfeature.ExperimentationOptOutMode` options.
 
 This setting is independent of evaluation telemetry opt-out.
 Immediate withdrawal can change an enrolled subject's experience. Account for this change in experiment analysis.

@@ -4,8 +4,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationUnavailableException;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import com.datadog.openfeature.internal.bridge.AgentBridges;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridges;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.evaluation.ExperimentationOptOut;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;

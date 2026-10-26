@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.Provider;
-import com.datadog.openfeature.internal.bridge.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import dev.openfeature.sdk.MutableContext;

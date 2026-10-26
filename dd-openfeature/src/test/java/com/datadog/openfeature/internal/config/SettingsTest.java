@@ -5,12 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.datadog.openfeature.internal.bridge.AgentBridge;
-import com.datadog.openfeature.internal.bridge.ConfigurationSource;
-import com.datadog.openfeature.internal.bridge.EventTransport;
-import com.datadog.openfeature.internal.bridge.HealthMetrics;
-import com.datadog.openfeature.internal.bridge.ShutdownSource;
-import com.datadog.openfeature.internal.bridge.SpanEnricher;
+import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
+import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
+import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
