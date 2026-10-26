@@ -75,9 +75,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * designs apart — {@code reserveAndFill} and {@code reserveRefused} each see a single outcome, so
  * C2 prunes the branch that never runs and there is no merge left to defeat escape analysis.
  *
- * <p>{@link ThirdBackingWorkQueue} is the third type, and lives in this source set rather than in
- * the module: the question is what a third backing <i>would</i> cost, and shipping one to find out
- * would answer a different question.
+ * <p>{@link MegamorphicCallSiteWorkQueue} is the third type, and lives in this source set rather
+ * than in the module: the question is what a third backing <i>would</i> cost, and shipping one to
+ * find out would answer a different question.
  */
 @Fork(2)
 @Warmup(iterations = 3, time = 1)
@@ -137,7 +137,7 @@ public class AdmissionBenchmark {
             : WorkQueues.createMpmcQueue(1024);
     third =
         backings == Backings.THREE
-            ? new ThirdBackingWorkQueue<>(1024)
+            ? new MegamorphicCallSiteWorkQueue<>(1024)
             : WorkQueues.createMpscQueue(1024);
   }
 
