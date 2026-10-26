@@ -1,6 +1,10 @@
 package datadog.trace.api.naming.v1;
 
-import datadog.trace.api.DDTags;
+import static datadog.trace.api.KnownTags.COMPONENT_ID;
+import static datadog.trace.api.KnownTags.DD_PEER_SERVICE_SOURCE_ID;
+import static datadog.trace.api.KnownTags.PEER_SERVICE_ID;
+import static datadog.trace.api.KnownTags.SPAN_KIND_ID;
+
 import datadog.trace.api.SpanStorage;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -54,7 +58,7 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
   }
 
   private void resolve(@Nonnull final SpanStorage unsafeTags) {
-    final Object component = unsafeTags.load(Tags.COMPONENT);
+    final Object component = unsafeTags.load(COMPONENT_ID);
     // avoid issues with UTF8ByteString or others
     final String componentString = component == null ? null : component.toString();
     final String override = overridesByComponent.get(componentString);
@@ -93,8 +97,8 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
 
   private void set(@Nonnull final SpanStorage unsafeTags, Object value, String source) {
     if (value != null) {
-      unsafeTags.store(Tags.PEER_SERVICE, value);
-      unsafeTags.store(DDTags.PEER_SERVICE_SOURCE, source);
+      unsafeTags.store(PEER_SERVICE_ID, value);
+      unsafeTags.store(DD_PEER_SERVICE_SOURCE_ID, source);
     }
   }
 
@@ -102,7 +106,7 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
   @Override
   public void tags(@Nonnull final SpanStorage unsafeTags) {
     // check span.kind eligibility
-    final Object kind = unsafeTags.load(Tags.SPAN_KIND);
+    final Object kind = unsafeTags.load(SPAN_KIND_ID);
     if (Tags.SPAN_KIND_CLIENT.equals(kind) || Tags.SPAN_KIND_PRODUCER.equals(kind)) {
       // we can calculate the peer service now
       resolve(unsafeTags);

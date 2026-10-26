@@ -1360,8 +1360,25 @@ public final class TagMap
   }
 
   @Override
+  public Object load(long tagId) {
+    Entry entry = this.getEntry(tagId);
+    return entry == null ? null : entry.objectValue();
+  }
+
+  @Override
+  public String loadString(long tagId) {
+    Entry entry = this.getEntry(tagId);
+    return entry == null ? null : entry.stringValue();
+  }
+
+  @Override
   public void store(String tag, Object value) {
     this.set(tag, value);
+  }
+
+  @Override
+  public void store(long tagId, Object value) {
+    this.set(tagId, value);
   }
 
   @Override
