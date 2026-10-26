@@ -16,9 +16,9 @@ public final class EagerPostProcessorChain extends EagerTagsPostProcessor {
 
   @Override
   public void processTags(
-      TagStore storage, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     for (final EagerTagsPostProcessor processor : chain) {
-      processor.processTags(storage, spanContext, spanLinks);
+      processor.processTags(unsafeTags, spanContext, spanLinks);
     }
   }
 }
