@@ -1180,7 +1180,7 @@ public class DDSpanContext
       return;
     }
     if (this.customTagsBorrowed) {
-      if (custom.get(name) == null) {
+      if (custom.getEntry(name) == null) {
         return; // nothing to hide: keep borrowing
       }
       custom = customTagsForWrite();
@@ -1214,49 +1214,49 @@ public class DDSpanContext
 
   private void routeSet(long key, String tag, Object value) {
     if (key != 0) {
-      knownTags.set(key, value);
+      knownTags.store(key, value);
     } else {
-      customTagsForWrite().set(tag, value);
+      customTagsForWrite().store(tag, value);
     }
   }
 
   private void routeSet(long key, String tag, CharSequence value) {
     if (key != 0) {
-      knownTags.set(key, value);
+      knownTags.store(key, value);
     } else {
-      customTagsForWrite().set(tag, value);
+      customTagsForWrite().store(tag, value);
     }
   }
 
   private void routeSet(long key, String tag, int value) {
     if (key != 0) {
-      knownTags.set(key, value);
+      knownTags.store(key, value);
     } else {
-      customTagsForWrite().set(tag, value);
+      customTagsForWrite().store(tag, value);
     }
   }
 
   private void routeSet(long key, String tag, long value) {
     if (key != 0) {
-      knownTags.set(key, value);
+      knownTags.store(key, value);
     } else {
-      customTagsForWrite().set(tag, value);
+      customTagsForWrite().store(tag, value);
     }
   }
 
   private void routeSet(long key, String tag, float value) {
     if (key != 0) {
-      knownTags.set(key, value);
+      knownTags.store(key, value);
     } else {
-      customTagsForWrite().set(tag, value);
+      customTagsForWrite().store(tag, value);
     }
   }
 
   private void routeSet(long key, String tag, double value) {
     if (key != 0) {
-      knownTags.set(key, value);
+      knownTags.store(key, value);
     } else {
-      customTagsForWrite().set(tag, value);
+      customTagsForWrite().store(tag, value);
     }
   }
 
@@ -1415,10 +1415,10 @@ public class DDSpanContext
   private boolean isPresent(TagMap.EntryReader entry) {
     long key = entry.tagId(); // the reader already carries its id: no name lookup
     if (key != 0) {
-      return knownTags.getValue(key) != null;
+      return knownTags.load(key) != null;
     }
     HashStore custom = customTags;
-    return custom != null && custom.get(entry.tag()) != null;
+    return custom != null && custom.getEntry(entry.tag()) != null;
   }
 
   /**
@@ -1444,7 +1444,7 @@ public class DDSpanContext
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1460,7 +1460,7 @@ public class DDSpanContext
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1480,7 +1480,7 @@ public class DDSpanContext
     }
     if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (knownTags) {
-        knownTags.set(tagId, value);
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1495,7 +1495,7 @@ public class DDSpanContext
     }
     if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (knownTags) {
-        knownTags.set(tagId, value);
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1508,7 +1508,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (knownTags) {
-        knownTags.set(tagId, value);
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1521,7 +1521,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (knownTags) {
-        knownTags.set(tagId, value);
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1534,7 +1534,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (knownTags) {
-        knownTags.set(tagId, value);
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1547,7 +1547,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (knownTags) {
-        knownTags.set(tagId, value);
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1560,7 +1560,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (knownTags) {
-        knownTags.set(tagId, value);
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1593,7 +1593,7 @@ public class DDSpanContext
   private void setBox(long tagId, Object box) {
     if (!tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (knownTags) {
-        knownTags.set(tagId, box);
+        knownTags.store(tagId, box);
       }
     }
   }
@@ -1608,7 +1608,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1623,7 +1623,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1638,7 +1638,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1653,7 +1653,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1668,7 +1668,7 @@ public class DDSpanContext
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (knownTags) {
-        customTagsForWrite().set(tag, value); // already known to be custom
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1787,10 +1787,10 @@ public class DDSpanContext
   public Object load(String tag) {
     long key = KnownTagCodec.keyOf(tag);
     if (key != 0) {
-      return knownTags.getValue(key);
+      return knownTags.load(key);
     }
     HashStore custom = customTags;
-    TagMap.Entry entry = custom == null ? null : custom.get(tag);
+    TagMap.Entry entry = custom == null ? null : custom.getEntry(tag);
     return entry == null ? null : entry.objectValue();
   }
 
@@ -1798,21 +1798,21 @@ public class DDSpanContext
   public String loadString(String tag) {
     long key = KnownTagCodec.keyOf(tag);
     if (key != 0) {
-      return knownTags.getString(key);
+      return knownTags.loadString(key);
     }
     HashStore custom = customTags;
-    TagMap.Entry entry = custom == null ? null : custom.get(tag);
+    TagMap.Entry entry = custom == null ? null : custom.getEntry(tag);
     return entry == null ? null : entry.stringValue();
   }
 
   @Override
   public Object load(long tagId) {
-    return knownTags.getValue(tagId);
+    return knownTags.load(tagId);
   }
 
   @Override
   public String loadString(long tagId) {
-    return knownTags.getString(tagId);
+    return knownTags.loadString(tagId);
   }
 
   @Override
@@ -1829,7 +1829,7 @@ public class DDSpanContext
     if (value == null) {
       knownTags.remove(tagId);
     } else {
-      knownTags.set(tagId, value);
+      knownTags.store(tagId, value);
     }
   }
 
@@ -1867,7 +1867,7 @@ public class DDSpanContext
     if (tagId == 0) {
       return null;
     }
-    return knownTags.getValue(tagId);
+    return knownTags.load(tagId);
   }
 
   /**

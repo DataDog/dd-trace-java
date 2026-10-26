@@ -71,7 +71,7 @@ class SizingHintTableForkedTest {
   /** Sets the first {@code n} known tags. */
   private static void fill(IdStore store, int n) {
     for (int i = 0; i < n; ++i) {
-      store.set(KNOWN_IDS.get(i), "v" + i);
+      store.store(KNOWN_IDS.get(i), "v" + i);
     }
     assertEquals(n, store.size());
   }

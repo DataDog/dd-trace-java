@@ -17,10 +17,10 @@ import javax.annotation.Nullable;
  * KnownTagCodec#idOf}) only where a reader asks for it. Values are boxed: a primitive set by id is
  * stored as its wrapper.
  *
- * <p>Point reads that need only the value ({@link #getValue}) build nothing. Those that return a
- * reader or an Entry build their own ({@link #getEntryReader}, {@link #getEntry}), so concurrent
- * reads of a frozen store shared between threads never share state. Only writes answer their prior
- * value with this store's one reused flyweight, valid until the store's next operation (see {@link
+ * <p>Point reads that need only the value ({@link #load}) build nothing. Those that return a reader
+ * or an Entry build their own ({@link #getEntryReader}, {@link #getEntry}), so concurrent reads of
+ * a frozen store shared between threads never share state. Only writes answer their prior value
+ * with this store's one reused flyweight, valid until the store's next operation (see {@link
  * IdStore}).
  *
  * <p>Removing a tag that hides nothing inherited swaps the last slot into its place. Removing a tag
@@ -386,7 +386,7 @@ final class DenseIdStore extends IdStore {
    */
   @Override
   public EntryReader getEntryReader(long tagId) {
-    Object value = this.getValue(tagId);
+    Object value = this.load(tagId);
     if (value == null) {
       return null;
     }
@@ -397,12 +397,12 @@ final class DenseIdStore extends IdStore {
 
   @Override
   public TagMap.Entry getEntry(long tagId) {
-    Object value = this.getValue(tagId);
+    Object value = this.load(tagId);
     return value == null ? null : TagMap.Entry.newAnyEntry(tagId, value);
   }
 
   @Override
-  public Object getValue(long tagId) {
+  public Object load(long tagId) {
     if (!KnownTagCodec.isKnown(tagId)) {
       throw notKnown(tagId);
     }
@@ -410,8 +410,8 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  public String getString(long tagId) {
-    Object value = this.getValue(tagId);
+  public String loadString(long tagId) {
+    Object value = this.load(tagId);
     return value == null ? null : value.toString();
   }
 
@@ -430,46 +430,46 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  public void set(long tagId, Object value) {
+  public void store(long tagId, Object value) {
     if (value == null) {
       this.remove(tagId); // a null value removes the tag
       return;
     }
-    this.store(tagId, value);
+    this.storeLocal(tagId, value);
   }
 
   @Override
-  public void set(long tagId, CharSequence value) {
+  public void store(long tagId, CharSequence value) {
     if (value == null) {
       this.remove(tagId); // a null value removes the tag
       return;
     }
-    this.store(tagId, value);
+    this.storeLocal(tagId, value);
   }
 
   @Override
-  public void set(long tagId, boolean value) {
-    this.store(tagId, Boolean.valueOf(value));
+  public void store(long tagId, boolean value) {
+    this.storeLocal(tagId, Boolean.valueOf(value));
   }
 
   @Override
-  public void set(long tagId, int value) {
-    this.store(tagId, Integer.valueOf(value));
+  public void store(long tagId, int value) {
+    this.storeLocal(tagId, Integer.valueOf(value));
   }
 
   @Override
-  public void set(long tagId, long value) {
-    this.store(tagId, Long.valueOf(value));
+  public void store(long tagId, long value) {
+    this.storeLocal(tagId, Long.valueOf(value));
   }
 
   @Override
-  public void set(long tagId, float value) {
-    this.store(tagId, Float.valueOf(value));
+  public void store(long tagId, float value) {
+    this.storeLocal(tagId, Float.valueOf(value));
   }
 
   @Override
-  public void set(long tagId, double value) {
-    this.store(tagId, Double.valueOf(value));
+  public void store(long tagId, double value) {
+    this.storeLocal(tagId, Double.valueOf(value));
   }
 
   @Override
@@ -479,7 +479,7 @@ final class DenseIdStore extends IdStore {
       return null; // a reader with nothing to store is a no-op, as for TagMap.set
     }
     long tagId = entryReader.tagId();
-    return this.readerOf(tagId, this.store(tagId, value));
+    return this.readerOf(tagId, this.storeLocal(tagId, value));
   }
 
   @Override
@@ -548,8 +548,8 @@ final class DenseIdStore extends IdStore {
     return this.readerOf(tagId, local);
   }
 
-  /** Sets a known tag's value, returning the prior local value, or null. Builds no Entry. */
-  private Object store(long tagId, Object value) {
+  /** Stores a known tag's value, returning the prior local value, or null. Builds no Entry. */
+  private Object storeLocal(long tagId, Object value) {
     char serial = (char) KnownTagCodec.serialNum(tagId);
     long bit = slotBit(tagId);
     int level = levelOf(tagId);
@@ -802,7 +802,7 @@ final class DenseIdStore extends IdStore {
     for (int i = 0; i < that.used; ++i) {
       Object value = that.values[i];
       if (value != TOMBSTONE) {
-        this.store(KnownTagCodec.idOf(that.serials[i]), value);
+        this.storeLocal(KnownTagCodec.idOf(that.serials[i]), value);
       }
     }
   }

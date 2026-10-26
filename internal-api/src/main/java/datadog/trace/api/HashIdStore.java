@@ -103,19 +103,19 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public Object getValue(long tagId) {
+  public Object load(long tagId) {
     Entry entry = this.getEntry(tagId);
     return entry == null ? null : entry.objectValue();
   }
 
   @Override
-  public String getString(long tagId) {
+  public String loadString(long tagId) {
     Entry entry = this.getEntry(tagId);
     return entry == null ? null : entry.stringValue();
   }
 
   @Override
-  public void set(long tagId, Object value) {
+  public void store(long tagId, Object value) {
     if (value == null) {
       this.remove(tagId); // a null value removes the tag
       return;
@@ -124,7 +124,7 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public void set(long tagId, CharSequence value) {
+  public void store(long tagId, CharSequence value) {
     if (value == null) {
       this.remove(tagId); // a null value removes the tag
       return;
@@ -133,27 +133,27 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
-  public void set(long tagId, boolean value) {
+  public void store(long tagId, boolean value) {
     this.put(Entry.newBooleanEntry(tagId, value));
   }
 
   @Override
-  public void set(long tagId, int value) {
+  public void store(long tagId, int value) {
     this.put(Entry.newIntEntry(tagId, value));
   }
 
   @Override
-  public void set(long tagId, long value) {
+  public void store(long tagId, long value) {
     this.put(Entry.newLongEntry(tagId, value));
   }
 
   @Override
-  public void set(long tagId, float value) {
+  public void store(long tagId, float value) {
     this.put(Entry.newFloatEntry(tagId, value));
   }
 
   @Override
-  public void set(long tagId, double value) {
+  public void store(long tagId, double value) {
     this.put(Entry.newDoubleEntry(tagId, value));
   }
 

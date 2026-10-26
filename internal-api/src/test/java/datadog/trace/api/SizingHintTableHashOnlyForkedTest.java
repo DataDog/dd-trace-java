@@ -31,8 +31,8 @@ class SizingHintTableHashOnlyForkedTest {
   void theHashStoreIgnoresAHint() {
     SizingHint hint = new SizingHint("registry.off.direct");
     IdStore store = IdStore.create(null, hint);
-    store.set(KnownTags.COMPONENT_ID, "okhttp");
-    store.set(KnownTags.DD_BASE_SERVICE_ID, "svc");
+    store.store(KnownTags.COMPONENT_ID, "okhttp");
+    store.store(KnownTags.DD_BASE_SERVICE_ID, "svc");
     store.recordSize();
 
     assertSame(HashIdStore.class, store.getClass());

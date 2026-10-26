@@ -1362,7 +1362,7 @@ public final class TagMap
       return null;
     }
     if (this.nameStoreBorrowed) {
-      if (nameStore.get(tag) == null) {
+      if (nameStore.getEntry(tag) == null) {
         return null; // nothing to hide: keep borrowing
       }
       nameStore = this.nameStoreForWrite(); // hiding an inherited tag needs a tombstone of our own
@@ -1420,10 +1420,10 @@ public final class TagMap
   public Object getObject(String tag) {
     long key = KnownTagCodec.keyOf(tag);
     if (key != 0) {
-      return this.knownStore.getValue(key);
+      return this.knownStore.load(key);
     }
     HashStore nameStore = this.nameStore;
-    Entry entry = nameStore == null ? null : nameStore.get(tag);
+    Entry entry = nameStore == null ? null : nameStore.getEntry(tag);
     return entry == null ? null : entry.objectValue();
   }
 
@@ -1434,10 +1434,10 @@ public final class TagMap
   public String getString(String tag) {
     long key = KnownTagCodec.keyOf(tag);
     if (key != 0) {
-      return this.knownStore.getString(key);
+      return this.knownStore.loadString(key);
     }
     HashStore nameStore = this.nameStore;
-    Entry entry = nameStore == null ? null : nameStore.get(tag);
+    Entry entry = nameStore == null ? null : nameStore.getEntry(tag);
     return entry == null ? null : entry.stringValue();
   }
 
@@ -1455,12 +1455,12 @@ public final class TagMap
 
   @Override
   public Object load(long tagId) {
-    return this.knownStore.getValue(tagId);
+    return this.knownStore.load(tagId);
   }
 
   @Override
   public String loadString(long tagId) {
-    return this.knownStore.getString(tagId);
+    return this.knownStore.loadString(tagId);
   }
 
   @Override
@@ -1570,7 +1570,7 @@ public final class TagMap
       return this.knownStore.getEntry(key);
     }
     HashStore nameStore = this.nameStore;
-    return nameStore == null ? null : nameStore.get(tag);
+    return nameStore == null ? null : nameStore.getEntry(tag);
   }
 
   /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
@@ -1589,7 +1589,7 @@ public final class TagMap
       return this.knownStore.getEntryReader(key);
     }
     HashStore nameStore = this.nameStore;
-    return nameStore == null ? null : nameStore.get(tag);
+    return nameStore == null ? null : nameStore.getEntry(tag);
   }
 
   /** {@link #getEntryReader(String)} for a known tag id. */

@@ -17,6 +17,9 @@ import java.util.function.Consumer;
  * custom tag names (asserted): a known tag is resolved to its id first, and goes to the {@link
  * IdStore}.
  *
+ * <p>Values move by {@code store}, as through {@link SpanStorage}; entries by {@code getEntry},
+ * {@code put} and {@code remove}.
+ *
  * <p>Created lazily by its owner -- a {@link TagMap}, or a span in the tracer core -- on the first
  * custom write ({@link #create}); until then the owner borrows its parent's custom store, if any,
  * read-only. No locking: guarded by the owner's lock.
@@ -126,7 +129,7 @@ public final class HashStore {
   }
 
   /** The custom tag {@code tag}'s entry, reading through to the parent chain. */
-  public Entry get(String tag) {
+  public Entry getEntry(String tag) {
     assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; look it up by its id";
     return this.get(tag, Entry.bucketHash(Entry.customHash(tag)));
   }
@@ -147,10 +150,10 @@ public final class HashStore {
   }
 
   /*
-   * Sets the custom tag {@code tag}, which must not be a known tag's name.
+   * Stores the custom tag {@code tag}, which must not be a known tag's name.
    */
 
-  public void set(String tag, Object value) {
+  public void store(String tag, Object value) {
     if (value == null) {
       this.remove(tag); // a null value removes the tag
       return;
@@ -158,7 +161,7 @@ public final class HashStore {
     this.put(Entry.newAnyEntry(tag, value));
   }
 
-  public void set(String tag, CharSequence value) {
+  public void store(String tag, CharSequence value) {
     if (value == null) {
       this.remove(tag); // a null value removes the tag
       return;
@@ -166,23 +169,23 @@ public final class HashStore {
     this.put(Entry.newObjectEntry(tag, value));
   }
 
-  public void set(String tag, boolean value) {
+  public void store(String tag, boolean value) {
     this.put(Entry.newBooleanEntry(tag, value));
   }
 
-  public void set(String tag, int value) {
+  public void store(String tag, int value) {
     this.put(Entry.newIntEntry(tag, value));
   }
 
-  public void set(String tag, long value) {
+  public void store(String tag, long value) {
     this.put(Entry.newLongEntry(tag, value));
   }
 
-  public void set(String tag, float value) {
+  public void store(String tag, float value) {
     this.put(Entry.newFloatEntry(tag, value));
   }
 
-  public void set(String tag, double value) {
+  public void store(String tag, double value) {
     this.put(Entry.newDoubleEntry(tag, value));
   }
 
