@@ -1,5 +1,6 @@
 package datadog.trace.agent.test.scopediag;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
@@ -14,6 +15,10 @@ final class DiagnosticEventBuffer {
   // A successful CAS reserves FIFO order before stack capture; the volatile next/action writes
   // publish the link and payload separately. Only the consumer touches consumed and draining.
   private final AtomicReference<Event> tail = new AtomicReference<>(consumed);
+
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "Only consumer methods access this field, while holding the lifecycle lock")
   private boolean draining;
 
   Event reserve() {

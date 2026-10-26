@@ -2,6 +2,7 @@ package datadog.trace.agent.test.scopediag;
 
 import datadog.context.ContextContinuation;
 import datadog.trace.api.DDTraceId;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -44,8 +45,17 @@ public final class ScopeDiagnostics {
       Collections.newSetFromMap(new IdentityHashMap<ContextContinuation, Boolean>());
   private long seq;
   private long scopeSeq;
+
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_64BIT_PRIMITIVE",
+      justification = "All reads and writes, including Listener callbacks, hold lifecycleLock")
   private long incompleteContinuations;
+
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_64BIT_PRIMITIVE",
+      justification = "All reads and writes, including Listener callbacks, hold lifecycleLock")
   private long incompleteScopes;
+
   private volatile DiagnosticEventBuffer recordingWindow;
   private volatile StackFilter stackFilter = new StackFilter(DEFAULT_MAX_FRAMES);
 
