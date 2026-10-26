@@ -24,6 +24,10 @@ import org.jctools.queues.varhandle.SpscVarHandleArrayQueue;
  *       performance and without relying on {@code sun.misc.Unsafe}.
  *   <li>For Java 8, {@code JCTools}-based wrappers are used instead.
  * </ul>
+ *
+ * <p>Use these factories for direct JCTools queue operations like {@code offer}, {@code poll}, or
+ * {@code fill}. Use {@link WorkQueues} for cancellable reservations, batch capacity claims,
+ * closeable queues, or processing with retry strategies.
  */
 public final class Queues {
 
