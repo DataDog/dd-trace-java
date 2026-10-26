@@ -687,6 +687,54 @@ class TagRegistryGeneratorTest {
     assertThat(conv.resolve("http.server").map { it.ddName }).containsExactlyInAnyOrder("service", "http.route")
   }
 
+  @Test
+  fun `constants keep the full suffix even when the name already ends with it`() {
+    val yaml = directory.conventionsFile(
+      "span_types: {base: {tags: [{dd-name: cluster.id}, {dd-name: destination.name}]}}"
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val knownTags = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(knownTags)
+      .contains(
+        "String CLUSTER_ID_NAME = \"cluster.id\"",
+        "long CLUSTER_ID_ID = ",
+        "String DESTINATION_NAME_NAME = \"destination.name\"",
+        "long DESTINATION_NAME_ID = "
+      )
+      .doesNotContain("long CLUSTER_ID = ", "String DESTINATION_NAME = ")
+  }
+
+  @Test
+  fun `names that generate the same constant are rejected with how to fix it`() {
+    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: aws.service}, {dd-name: aws_service}]}}")
+
+    assertThatIllegalArgumentException()
+      .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated")) }
+      .withMessageContaining("Tags 'aws.service' and 'aws_service' both generate the constant AWS_SERVICE_NAME")
+      .withMessageContaining("tag-conventions-java.yaml")
+      .withMessageContaining("java_names:\n    aws_service: <UPPER_CASE_BASE>")
+  }
+
+  @Test
+  fun `java_names gives a tag its own constants`() {
+    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: aws.service}, {dd-name: aws_service}]}}")
+    val overlay = directory.writeFile("overlay.yaml", "java_names: {aws_service: TOP_LEVEL_AWS_SERVICE}")
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output, overlay)
+
+    assertThat(contents(output).getValue("java/datadog/trace/api/KnownTags.java"))
+      .contains(
+        "String AWS_SERVICE_NAME = \"aws.service\"",
+        "String TOP_LEVEL_AWS_SERVICE_NAME = \"aws_service\"",
+        "long TOP_LEVEL_AWS_SERVICE_ID = ",
+        "int TOP_LEVEL_AWS_SERVICE_SERIAL_NUM = "
+      )
+  }
+
   @TableTest(
     """
           scenario           | overlay                      | message
@@ -698,6 +746,8 @@ class TagRegistryGeneratorTest {
           mixin reusing a shared name | 'mixins: {peer: {applies: [base], tags: [{dd-name: x.y}]}}' | reuses the name
           type with no extends | 'span_types: {servlet.request: {tags: [{dd-name: servlet.path}]}}' | must extend a span type
           type reusing a shared name | 'span_types: {base: {extends: base}}' | reuses the name of a shared span type
+          java name of no tag | 'java_names: {missing: MISSING}' | names no registered tag
+          java name not a constant | 'java_names: {service: svc}' | not to an upper-case Java identifier
           """
   )
   fun `invalid tracer overlays are rejected`(overlay: String, message: String) {
