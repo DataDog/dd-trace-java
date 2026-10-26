@@ -29,7 +29,7 @@ class KnownTagsTest {
   /** (name, id) pairs across the groups — keyOf returns the id verbatim. */
   static Stream<Arguments> knownTags() {
     return Stream.of(
-        Arguments.of(DDTags.PARENT_ID, KnownTags.DD_PARENT_ID),
+        Arguments.of(DDTags.PARENT_ID, KnownTags.DD_PARENT_ID_ID),
         Arguments.of(DDTags.BASE_SERVICE, KnownTags.DD_BASE_SERVICE_ID),
         Arguments.of(Tags.VERSION, KnownTags.VERSION_ID),
         Arguments.of("env", KnownTags.ENV_ID),
@@ -92,7 +92,7 @@ class KnownTagsTest {
         Arguments.of(KnownTags.VERSION_ID),
         Arguments.of(KnownTags.ENV_ID),
         Arguments.of(KnownTags.LANGUAGE_ID),
-        Arguments.of(KnownTags.RUNTIME_ID),
+        Arguments.of(KnownTags.RUNTIME_ID_ID),
         Arguments.of(KnownTags.DD_TRACER_HOST_ID),
         Arguments.of(KnownTags.DD_DJM_ENABLED_ID));
   }
@@ -253,7 +253,7 @@ class KnownTagsTest {
   /** Tags reachable only through a mixin whose {@code applies:} target is not modeled. */
   static Stream<Arguments> declarationOnlyMixinTags() {
     return Stream.of(
-        Arguments.of(KnownTags.TEST_NAME, KnownTags.TEST_NAME_ID),
+        Arguments.of(KnownTags.TEST_NAME_NAME, KnownTags.TEST_NAME_ID),
         Arguments.of(KnownTags.TEST_SUITE_NAME, KnownTags.TEST_SUITE_ID),
         Arguments.of(KnownTags.TEST_STATUS_NAME, KnownTags.TEST_STATUS_ID),
         Arguments.of(KnownTags.TEST_FRAMEWORK_NAME, KnownTags.TEST_FRAMEWORK_ID));
