@@ -11,6 +11,7 @@ import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABL
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -246,6 +247,7 @@ class OtlpResourceJsonTest {
 
   @Test
   void cannedFragmentsMatchTheirProtoCounterparts() throws IOException {
+    Map<String, String> globalTags = singletonMap("team", "checkout");
     assertEquals(
         parseResourceAttributesFromProto(OtlpResourceProto.RESOURCE_MESSAGE),
         parseResourceAttributes(OtlpResourceJson.RESOURCE_FRAGMENT));
@@ -253,8 +255,8 @@ class OtlpResourceJsonTest {
         parseResourceAttributesFromProto(OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS),
         parseResourceAttributes(OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS));
     assertEquals(
-        parseResourceAttributesFromProto(OtlpResourceProto.TRACE_RESOURCE_MESSAGE),
-        parseResourceAttributes(OtlpResourceJson.TRACE_RESOURCE_FRAGMENT));
+        parseResourceAttributesFromProto(OtlpResourceProto.buildTraceResourceMessage(globalTags)),
+        parseResourceAttributes(OtlpResourceJson.buildTraceResourceFragment(globalTags)));
   }
 
   // ── parsing helpers ───────────────────────────────────────────────────────

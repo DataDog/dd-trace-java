@@ -43,9 +43,15 @@ final class OtlpResourceAttributes {
 
   /**
    * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
+   *
+   * <p>{@code globalTags} (none when null) are the trace's from its config snapshot, so the trace
+   * resource follows remote config tag changes, or {@code config.getGlobalTags()} for the others.
    */
   static void visitResourceAttributes(
-      Config config, Map<String, Object> extraAttributes, BiConsumer<String, Object> visitor) {
+      Config config,
+      Map<String, ?> globalTags,
+      Map<String, Object> extraAttributes,
+      BiConsumer<String, Object> visitor) {
     String serviceName = config.getServiceName();
     String env = config.getEnv();
     String version = config.getVersion();
@@ -67,16 +73,16 @@ final class OtlpResourceAttributes {
     visitor.accept("telemetry.sdk.version", TRACER_VERSION);
     visitor.accept("telemetry.sdk.language", "java");
 
-    config
-        .getGlobalTags()
-        .forEach(
-            (key, value) -> {
-              // ignore global tags replaced by canonical or extra resource attributes
-              if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
-                  && !extraAttributes.containsKey(key)) {
-                visitor.accept(key, value);
-              }
-            });
+    if (globalTags != null) {
+      globalTags.forEach(
+          (key, value) -> {
+            // ignore global tags replaced by canonical or extra resource attributes
+            if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
+                && !extraAttributes.containsKey(key)) {
+              visitor.accept(key, String.valueOf(value));
+            }
+          });
+    }
 
     extraAttributes.forEach(visitor);
   }

@@ -1,11 +1,12 @@
 package datadog.trace.core.otlp.trace;
 
-import static datadog.trace.core.otlp.common.OtlpResourceProto.TRACE_RESOURCE_MESSAGE;
+import static datadog.trace.core.otlp.common.OtlpResourceProto.buildTraceResourceMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordScopedSpansMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanLinkMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanMessage;
 
 import datadog.communication.serialization.GrowableBuffer;
+import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.core.CoreSpan;
@@ -27,7 +28,7 @@ import java.util.List;
  * span message and its chunked span-links to the scoped chunks. Once the scope is complete we add
  * the first part of the scoped spans message and all its chunks (span messages and any span-links)
  * to the payload. Once all the span data has been chunked we add the enclosing resource span
- * message to the start of the payload.
+ * message, carrying the payload's global tags, to the start of the payload.
  */
 public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
@@ -48,10 +49,15 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
 
+  // resource for the last global tags seen; they rarely change, so it's rarely rebuilt
+  private TagMap resourceGlobalTags;
+  private byte[] resourceMessage;
+
   /** Adds the given trace spans to the collector. */
   @Override
   public void addTrace(List<? extends CoreSpan<?>> spans) {
     if (!payloadStarted) {
+      payloadGlobalTags = globalTagsOf(spans);
       start();
       payloadStarted = true;
     }
@@ -99,6 +105,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   /** Cleanup elements used to collect trace data. */
   private void stop() {
     payloadStarted = false;
+    payloadGlobalTags = null;
 
     buf.reset();
     protobuf.reset();
@@ -148,12 +155,20 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
       return OtlpPayload.EMPTY;
     }
 
-    // prepend the canned resource chunk
-    payloadBytes += protobuf.recordMessage(TRACE_RESOURCE_MESSAGE);
+    // prepend the resource chunk, which carries the payload's global tags
+    payloadBytes += protobuf.recordMessage(resourceMessage());
 
     // finally prepend the total length of all collected chunks
     protobuf.recordMessage(buf, 1, payloadBytes);
     return protobuf.toPayload();
+  }
+
+  private byte[] resourceMessage() {
+    if (resourceMessage == null || resourceGlobalTags != payloadGlobalTags) {
+      resourceMessage = buildTraceResourceMessage(payloadGlobalTags);
+      resourceGlobalTags = payloadGlobalTags;
+    }
+    return resourceMessage;
   }
 
   // called once we've processed all spans in a specific scope
