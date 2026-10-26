@@ -31,50 +31,50 @@ class TagStoreTest extends DDCoreJavaSpecification {
 
   @Test
   void storedByIdLoadsByName() {
-    forEachStorage(
-        storage -> {
-          storage.store(HTTP_ROUTE_ID, "/users/{id}");
+    forEachTagStore(
+        tags -> {
+          tags.store(HTTP_ROUTE_ID, "/users/{id}");
 
-          assertEquals("/users/{id}", storage.load(HTTP_ROUTE));
-          assertEquals("/users/{id}", storage.load(HTTP_ROUTE_ID));
+          assertEquals("/users/{id}", tags.load(HTTP_ROUTE));
+          assertEquals("/users/{id}", tags.load(HTTP_ROUTE_ID));
         });
   }
 
   @Test
   void storedByNameLoadsById() {
-    forEachStorage(
-        storage -> {
-          storage.store(HTTP_ROUTE, "/users/{id}");
+    forEachTagStore(
+        tags -> {
+          tags.store(HTTP_ROUTE, "/users/{id}");
 
-          assertEquals("/users/{id}", storage.load(HTTP_ROUTE_ID));
+          assertEquals("/users/{id}", tags.load(HTTP_ROUTE_ID));
         });
   }
 
   @Test
   void loadStringByIdConverts() {
-    forEachStorage(
-        storage -> {
-          storage.store(HTTP_STATUS_CODE_ID, 404);
+    forEachTagStore(
+        tags -> {
+          tags.store(HTTP_STATUS_CODE_ID, 404);
 
-          assertEquals("404", storage.loadString(HTTP_STATUS_CODE_ID));
-          assertEquals("404", storage.loadString(HTTP_STATUS));
+          assertEquals("404", tags.loadString(HTTP_STATUS_CODE_ID));
+          assertEquals("404", tags.loadString(HTTP_STATUS));
         });
   }
 
   @Test
   void nullStoredByIdRemoves() {
-    forEachStorage(
-        storage -> {
-          storage.store(HTTP_ROUTE, "/users/{id}");
+    forEachTagStore(
+        tags -> {
+          tags.store(HTTP_ROUTE, "/users/{id}");
 
-          storage.store(HTTP_ROUTE_ID, null);
+          tags.store(HTTP_ROUTE_ID, null);
 
-          assertNull(storage.load(HTTP_ROUTE));
-          assertNull(storage.loadString(HTTP_ROUTE_ID));
+          assertNull(tags.load(HTTP_ROUTE));
+          assertNull(tags.loadString(HTTP_ROUTE_ID));
         });
   }
 
-  private void forEachStorage(Consumer<TagStore> check) {
+  private void forEachTagStore(Consumer<TagStore> check) {
     check.accept(TagMap.create());
 
     DDSpan span = (DDSpan) tracer.buildSpan("test", "span").start();
