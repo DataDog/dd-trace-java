@@ -2,8 +2,8 @@ package datadog.trace.api;
 
 /**
  * A span's tags as stored, for the tracer core's processing pipeline: loads and stores go straight
- * to storage, with no interception. Thread safety is up to the implementation; {@code
- * DDSpanContext}'s expects the span's tag lock to be held.
+ * to storage, with no interception or interpretation. Thread safety is up to the implementation;
+ * {@code DDSpanContext}'s expects the span's tag lock to be held.
  *
  * <p>Its own verbs, {@code load} and {@code store}, keep it apart from {@link TagMap}'s {@code
  * get}/{@code set} and the span's intercepted {@code getTag}/{@code setTag}, so a type can offer
@@ -11,9 +11,6 @@ package datadog.trace.api;
  *
  * <p>A known tag can be addressed by its {@link KnownTags} id or by its name, and both address the
  * same tag. Prefer the id: it skips classifying the name on every call. A custom tag has no id.
- *
- * <p>This is the first slice: only what the eager tag post-processors need. Typed loads and
- * primitive stores come as more of the pipeline moves to it.
  */
 public interface TagStore {
   /** The tag's value, or null when it's absent. */

@@ -1397,8 +1397,12 @@ public class DDSpanContext
   }
 
   /*
-   * TagStore: the span's tags, loaded and stored with no interception.
-   * Unsynchronized, like unsafeGetTag: callers hold the span's tag lock, as post-processing does.
+   * TagStore: the span's tags as stored, loaded and stored with no locking, interception or
+   * interpretation -- the storage beneath the span, as a Map was beneath a TagMap. A span isn't
+   * conceptually a TagStore. It implements one so post-processing is handed the span's storage
+   * without allocating: a wrapper would be free only if escape analysis removed it, and the
+   * post-processor chain's dispatch loop defeats that. Callers hold the span's tag lock, as
+   * post-processing does.
    */
 
   @Override
