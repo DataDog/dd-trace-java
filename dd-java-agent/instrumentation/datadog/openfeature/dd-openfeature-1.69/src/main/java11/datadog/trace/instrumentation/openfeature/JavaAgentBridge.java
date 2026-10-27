@@ -17,6 +17,8 @@ import javax.annotation.Nullable;
 /** The bridge backed by the agent Feature Flags backend. */
 public final class JavaAgentBridge implements AgentBridge {
   // Muzzle checks calls, but not the SPI methods implemented by these helpers.
+  // TODO APMLP-1512 Drop this check once dd-openfeature 1.69.0 is released: the japicmpBridgeV1
+  //  task then keeps the frozen bridge.v1 SPI compatible with the helpers implementing it.
   private static final boolean SPI_COMPATIBLE =
       implementsSpi(AgentBridge.class, JavaAgentBridge.class)
           && implementsSpi(ConfigurationSource.class, AgentConfigurationSource.class)
