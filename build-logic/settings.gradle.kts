@@ -57,6 +57,7 @@ rootProject.name = "build-logic"
 
 include(
   ":conventions",
+  ":inline-of-duty",
   ":smoke-test",
   ":tag-registry",
 )

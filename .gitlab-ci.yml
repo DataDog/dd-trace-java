@@ -65,6 +65,9 @@ variables:
   TEST_COUNTS_S3_BUCKET: "dd-trace-java-ci-test-reports"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 27
+  INLINE_OF_DUTY:
+    description: "Capture and report JIT decisions during HotSpot test jobs"
+    value: "true"
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -794,6 +797,13 @@ muzzle-dep-report:
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='$TEST_JVM_ARGS -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - ./gradlew --version
+    - >
+      if [ "$INLINE_OF_DUTY" = "true" ]; then
+      case "$testJvm" in
+      ibm*|semeru*) echo "JIT Inlining Report skipped for non-HotSpot test JVM $testJvm" ;;
+      *) export ORG_GRADLE_PROJECT_inlineOfDuty=true ;;
+      esac;
+      fi
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
     - *restore_pretest_env
@@ -824,6 +834,8 @@ muzzle-dep-report:
       - ./profiles.tar
       - ./results
       - './test_counts_*.json'
+      - workspace/build/reports/inline-of-duty/
+      - workspace/build/inline-of-duty/captures/${CI_PIPELINE_ID}/${CI_JOB_ID}/
       - '.gradle/daemon/*/*.out.log'
     reports:
       junit: results/*.xml
@@ -1231,6 +1243,71 @@ test_smoke_semeru8_debugger:
     CACHE_TYPE: "smoke"
     NON_DEFAULT_JVMS: "true"
     testJvm: "semeru8"
+
+aggregate_inline_of_duty:
+  extends: .gradle_build
+  stage: test-summary
+  variables:
+    <<: *tier_l_variables
+    CACHE_TYPE: "base"
+  # Keep the stage barrier and GitLab's default artifact fan-in. In particular,
+  # do not set needs/dependencies: matrix jobs are selected dynamically by rules.
+  # Only dependency caches are restored; workspace captures come from job artifacts.
+  cache:
+    - *dependency_cache
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$INLINE_OF_DUTY == "true"'
+      when: always
+    - when: never
+  script:
+    - export INLINE_OF_DUTY_INPUT="$CI_PROJECT_DIR/workspace/build/inline-of-duty/captures/$CI_PIPELINE_ID"
+    - mkdir -p "$INLINE_OF_DUTY_INPUT"
+    - ./gradlew inlineOfDutyReport -PinlineOfDutyInput="$INLINE_OF_DUTY_INPUT" -PinlineOfDutyOutput="$CI_PROJECT_DIR/inline-of-duty-pipeline" -PinlineOfDutyPipelineReport $GRADLE_ARGS
+    - |
+      if [ -z "$(find "$INLINE_OF_DUTY_INPUT" -type f -name 'hotspot*.log' -print -quit)" ]; then
+        echo "No JIT Inlining Report worker captures were available for pipeline $CI_PIPELINE_ID" >&2
+        exit 1
+      fi
+      echo "JIT Inlining Report (pipeline): ${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/inline-of-duty-pipeline/index.html"
+  after_script:
+    - |
+      if [ -s inline-of-duty-pipeline/summary.md ]; then
+        printf '\n[Aggregate report](%s/-/jobs/%s/artifacts/file/inline-of-duty-pipeline/index.html)\n' "$CI_PROJECT_URL" "$CI_JOB_ID" >> inline-of-duty-pipeline/summary.md
+        cat inline-of-duty-pipeline/summary.md
+      fi
+  artifacts:
+    when: always
+    name: "inline-of-duty-${CI_PIPELINE_ID}"
+    expose_as: "JIT Inlining Report (pipeline)"
+    paths:
+      - inline-of-duty-pipeline/
+
+post_jit_inlining_comment:
+  stage: test-summary
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  needs:
+    - job: aggregate_inline_of_duty
+      artifacts: true
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  # Serialize updates, including retries and overlapping pipelines on the same ref.
+  resource_group: jit-inlining-comment-$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH =~ /^(release\/|mq-working-branch-|gh-readonly-queue\/)/'
+      when: never
+    - if: '$INLINE_OF_DUTY == "true" && $CI_COMMIT_BRANCH'
+      when: always
+    - when: never
+  # Posting is diagnostic; a GitHub outage must not change the test outcome.
+  allow_failure: true
+  script:
+    - bash .gitlab/post_jit_inlining_comment.sh
 
 aggregate_test_counts:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
