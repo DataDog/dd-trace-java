@@ -2,6 +2,7 @@ package datadog.trace.core.otlp.trace;
 
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.TagMap;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
@@ -10,6 +11,10 @@ import java.util.List;
 
 /** Collects traces ready for export. */
 public abstract class OtlpTraceCollector {
+
+  /** The startup global tags, for a trace whose config snapshot can't be read. */
+  private static final TagMap CONFIG_GLOBAL_TAGS =
+      TagMap.fromMapImmutable(Config.get().getGlobalTags());
 
   /** The global tags of the payload being collected; null until its first trace. */
   protected TagMap payloadGlobalTags;
@@ -29,8 +34,7 @@ public abstract class OtlpTraceCollector {
    * needs a payload of its own.
    */
   public final boolean sharesResource(List<? extends CoreSpan<?>> spans) {
-    TagMap globalTags = globalTagsOf(spans);
-    return payloadGlobalTags == null || globalTags == null || globalTags == payloadGlobalTags;
+    return payloadGlobalTags == null || globalTagsOf(spans) == payloadGlobalTags;
   }
 
   protected final boolean shouldExport(CoreSpan<?> span) {
@@ -38,9 +42,14 @@ public abstract class OtlpTraceCollector {
         || span.getTag(SPAN_SAMPLING_MECHANISM_TAG) != null; // span-level sampling priority
   }
 
-  /** The trace's global tags, shared by all its spans; null when they can't be read. */
+  /**
+   * The trace's global tags, shared by all its spans; the startup global tags when its config
+   * snapshot can't be read.
+   */
   protected static TagMap globalTagsOf(List<? extends CoreSpan<?>> spans) {
     CoreSpan<?> first = spans.isEmpty() ? null : spans.get(0);
-    return first instanceof DDSpan ? ((DDSpan) first).spanContext().getGlobalTags() : null;
+    return first instanceof DDSpan
+        ? ((DDSpan) first).spanContext().getGlobalTags()
+        : CONFIG_GLOBAL_TAGS;
   }
 }
