@@ -40,6 +40,42 @@ class FixedSizeCacheTest extends DDJavaSpecification {
   }
 
   @Test
+  void nullResultsAreCachedAndHitsDoNotRequireAProducer() {
+    DDCache<String, String> cache = DDCaches.newFixedSizeCache(4);
+    AtomicInteger calls = new AtomicInteger();
+    assertEquals(null, cache.computeIfAbsent(null, null));
+    assertEquals(
+        null,
+        cache.computeIfAbsent(
+            "key",
+            key -> {
+              calls.incrementAndGet();
+              return null;
+            }));
+    assertEquals(null, cache.computeIfAbsent("key", null));
+    assertEquals(1, calls.get());
+  }
+
+  @Test
+  void failedProducerLeavesCollidingEntriesIntact() {
+    DDCache<TKey, String> cache = DDCaches.newFixedSizeCache(15);
+    cache.computeIfAbsent(new TKey(1, 1, "one"), key -> "one");
+    cache.computeIfAbsent(new TKey(6, 6, "six"), key -> "six");
+    cache.computeIfAbsent(new TKey(10, 10, "ten"), key -> "ten");
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            cache.computeIfAbsent(
+                new TKey(1, 11, "eleven"),
+                key -> {
+                  throw new IllegalStateException();
+                }));
+    assertEquals("one", cache.computeIfAbsent(new TKey(1, 1, "one"), null));
+    assertEquals("six", cache.computeIfAbsent(new TKey(6, 6, "six"), null));
+    assertEquals("ten", cache.computeIfAbsent(new TKey(10, 10, "ten"), null));
+  }
+
+  @Test
   void cacheCanBeExplicitlyCleared() {
     DDCache<String, String> fsCache = DDCaches.newFixedSizeCache(15);
 

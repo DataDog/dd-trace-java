@@ -74,29 +74,30 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
 
     int h = hash(key);
     int firstPos = h & mask;
-    V value;
+    Pair<K, V> current = elements[firstPos];
+    if (current != null && equals(key, current)) {
+      return current.getRight();
+    }
+    return computeAfterFirstProbe(key, producer, h, firstPos, current);
+  }
 
-    // try to find a slot or a match 3 times
-    for (int i = 1; true; i++) {
+  private V computeAfterFirstProbe(
+      K key, Function<K, ? extends V> producer, int h, int firstPos, Pair<K, V> first) {
+    // Retain the first observation; another thread may have replaced that slot in the meantime.
+    if (first == null) {
+      return produceAndStoreValue(key, producer, firstPos);
+    }
+    for (int i = 2; i <= 3; i++) {
+      h = rehash(h);
       int pos = h & mask;
       Pair<K, V> current = elements[pos];
       if (current == null) {
-        // we found an empty slot, so store the value there
-        value = produceAndStoreValue(key, producer, pos);
-        break;
+        return produceAndStoreValue(key, producer, pos);
       } else if (equals(key, current)) {
-        // we found a cached key, so use that value
-        value = current.getRight();
-        break;
-      } else if (i == 3) {
-        // all 3 slots have been taken, so overwrite the first one
-        value = produceAndStoreValue(key, producer, firstPos);
-        break;
+        return current.getRight();
       }
-      // slot was occupied by someone else, so try another slot
-      h = rehash(h);
     }
-    return value;
+    return produceAndStoreValue(key, producer, firstPos);
   }
 
   @Override
