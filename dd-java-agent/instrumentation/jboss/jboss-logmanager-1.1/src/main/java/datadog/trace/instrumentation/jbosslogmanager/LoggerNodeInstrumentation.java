@@ -22,7 +22,7 @@ import org.jboss.logmanager.ExtLogRecord;
 import org.jboss.logmanager.MDC;
 
 @AutoService(InstrumenterModule.class)
-public class LoggerNodeInstrumentation extends InstrumenterModule.ContextTracking
+public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public LoggerNodeInstrumentation() {
     super("jboss-logmanager");
