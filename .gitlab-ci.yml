@@ -487,7 +487,12 @@ publish-artifacts-to-s3:
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-ot.jar
     - aws s3 cp workspace/dd-openfeature/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar
     - |
-      cat << EOF > links.json 
+      # Print the agent version and public jar links so they are easy to copy from the DDCI UI
+      echo "Version of dd-java-agent: ${UPSTREAM_TRACER_VERSION}"
+      echo "Public Link to dd-java-agent.jar: https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar"
+      echo "Public Link to dd-openfeature.jar: https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar"
+    - |
+      cat << EOF > links.json
         {
           "S3 Links": [
             {
