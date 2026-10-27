@@ -62,6 +62,13 @@ jobs:
           name: binaries
           path: workspace/system-tests-binaries/
 
+      - name: Upload Lambda artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: binaries-lambda
+          path: workspace/dd-java-agent/build/libs/dd-java-agent-*.jar
+          if-no-files-found: error
+
   main:
     needs:
     - build
@@ -79,7 +86,7 @@ jobs:
       library: ${{ matrix.library }}
        # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
       ref: "main" # system tests are pinned on release branches only
-      binaries_artifact: binaries
+      binaries_artifact: ${{ matrix.library == 'java_lambda' && 'binaries-lambda' || 'binaries' }}
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
       excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
