@@ -16,6 +16,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.servlet.handlers.ServletRequestContext;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.ServletRequest;
 import net.bytebuddy.asm.Advice;
 
@@ -56,7 +57,8 @@ public final class JakartaServletInstrumentation extends InstrumenterModule.Trac
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(
         @Advice.Argument(0) final HttpServerExchange exchange,
-        @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
+        @Advice.Argument(1) final ServletRequestContext servletRequestContext,
+        @Advice.Argument(3) final DispatcherType dispatcherType) {
       ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation != null) {
         AgentSpan undertowSpan = spanFromContext(continuation.context());
@@ -65,7 +67,11 @@ public final class JakartaServletInstrumentation extends InstrumenterModule.Trac
         undertowSpan.setSpanName(SERVLET_REQUEST);
 
         undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
-        undertowSpan.setTag(SERVLET_PATH, exchange.getRelativePath());
+        // Forward, include, error and async dispatches happen inside the original request, so they
+        // must not overwrite the original servlet path.
+        if (dispatcherType == DispatcherType.REQUEST) {
+          undertowSpan.setTag(SERVLET_PATH, exchange.getRelativePath());
+        }
       }
     }
   }

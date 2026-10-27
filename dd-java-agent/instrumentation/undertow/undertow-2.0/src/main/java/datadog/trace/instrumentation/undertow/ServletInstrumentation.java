@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.servlet.handlers.ServletPathMatch;
 import io.undertow.servlet.handlers.ServletRequestContext;
+import javax.servlet.DispatcherType;
 import javax.servlet.ServletRequest;
 import javax.servlet.http.MappingMatch;
 import net.bytebuddy.asm.Advice;
@@ -64,7 +65,8 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(
         @Advice.Argument(0) final HttpServerExchange exchange,
-        @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
+        @Advice.Argument(1) final ServletRequestContext servletRequestContext,
+        @Advice.Argument(3) final DispatcherType dispatcherType) {
       ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation != null) {
         AgentSpan undertowSpan = spanFromContext(continuation.context());
@@ -73,21 +75,26 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
         undertowSpan.setSpanName(SERVLET_REQUEST);
 
         undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
-        String relativePath = exchange.getRelativePath();
+        // Forward, include, error and async dispatches happen inside the original request, so they
+        // must not rename it: the root span keeps describing what the client asked for.
+        if (dispatcherType == DispatcherType.REQUEST) {
+          String relativePath = exchange.getRelativePath();
 
-        ServletPathMatch servletPathMatch = servletRequestContext.getServletPathMatch();
-        if (UndertowDecorator.UNDERTOW_LEGACY_TRACING
-            && servletPathMatch != null
-            && servletPathMatch.getMappingMatch() != MappingMatch.DEFAULT) {
-          // Set the route unless the mapping match is default, this way we prevent setting route
-          // for a non-existing resource. Otherwise, it'd set a non-existing resource name with
-          // higher priority than 404 resource, so it wouldn't be able to set resource 404 later in
-          // the onResponse instrumentation.
-          HTTP_RESOURCE_DECORATOR.withRoute(
-              undertowSpan, exchange.getRequestMethod().toString(), relativePath, false);
+          ServletPathMatch servletPathMatch = servletRequestContext.getServletPathMatch();
+          if (UndertowDecorator.UNDERTOW_LEGACY_TRACING
+              && servletPathMatch != null
+              && servletPathMatch.getMappingMatch() != MappingMatch.DEFAULT) {
+            // Set the route unless the mapping match is default, this way we prevent setting route
+            // for a non-existing resource. Otherwise, it'd set a non-existing resource name with
+            // higher priority than 404 resource, so it wouldn't be able to set resource 404 later
+            // in
+            // the onResponse instrumentation.
+            HTTP_RESOURCE_DECORATOR.withRoute(
+                undertowSpan, exchange.getRequestMethod().toString(), relativePath, false);
+          }
+          // The servlet.path tag is expected even for a non-existing resource.
+          undertowSpan.setTag(SERVLET_PATH, relativePath);
         }
-        // The servlet.path tag is expected even for a non-existing resource.
-        undertowSpan.setTag(SERVLET_PATH, relativePath);
       }
     }
   }

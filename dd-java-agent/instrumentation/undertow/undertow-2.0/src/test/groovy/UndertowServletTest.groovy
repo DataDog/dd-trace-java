@@ -14,6 +14,7 @@ import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
 import io.undertow.websockets.jsr.WebSocketDeploymentInfo
 import okhttp3.MediaType
+import okhttp3.Request
 import okhttp3.RequestBody
 import spock.lang.IgnoreIf
 
@@ -45,6 +46,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOC
 
 abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
+  private static final String FORWARDING_PATH = "/dispatch/forward"
+  private static final String INCLUDING_PATH = "/dispatch/include"
 
   private final static String MULTIPART_CONTENT_TYPE =
   'multipart/form-data; charset=utf-8; boundary=------------------------943d3207457896a3'
@@ -70,6 +73,8 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
         .setDeploymentName("servletContext.war")
         .addServlet(new ServletInfo("SuccessServlet", SuccessServlet).addMapping(SUCCESS.getPath()))
         .addServlet(new ServletInfo("ForwardedServlet", ForwardedServlet).addMapping(FORWARDED.getPath()))
+        .addServlet(new ServletInfo("ForwardingServlet", ForwardingServlet).addMapping(FORWARDING_PATH))
+        .addServlet(new ServletInfo("IncludingServlet", IncludingServlet).addMapping(INCLUDING_PATH))
         .addServlet(new ServletInfo("QueryEncodedBothServlet", QueryEncodedBothServlet).addMapping(QUERY_ENCODED_BOTH.getPath()))
         .addServlet(new ServletInfo("QueryEncodedServlet", QueryEncodedServlet).addMapping(QUERY_ENCODED_QUERY.getPath()))
         .addServlet(new ServletInfo("QueryParamServlet", QueryServlet).addMapping(QUERY_PARAM.getPath()))
@@ -329,6 +334,34 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     where:
     method = "GET"
     body = null
+  }
+
+  def "internal #dispatch keeps the original request's resource and servlet path"() {
+    setup:
+    def request = new Request.Builder().url(address.resolve(path.substring(1)).toURL()).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    DDSpan serverSpan = TEST_WRITER.flatten().find {
+      it.parentId == 0
+    }
+
+    then:
+    serverSpan.resourceName.toString() == (generateHttpRoute() ? "GET $path" : "GET /$CONTEXT$path")
+    serverSpan.tags["servlet.path"] == path
+    serverSpan.tags[Tags.HTTP_ROUTE] == (generateHttpRoute() ? path : null)
+
+    where:
+    dispatch  | path
+    "forward" | FORWARDING_PATH
+    "include" | INCLUDING_PATH
   }
 
   // Pins the block-telemetry-3 wiring added to FormDataParserInstrumentation (urlencoded body,
