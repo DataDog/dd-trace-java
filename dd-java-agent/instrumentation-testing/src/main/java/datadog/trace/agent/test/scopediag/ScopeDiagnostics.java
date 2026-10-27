@@ -147,6 +147,20 @@ public final class ScopeDiagnostics {
 
   /** Waits up to the supplied budget for recorded lifecycles to complete. */
   public static void awaitQuiescence(long timeoutMillis) {
+    awaitQuiescence(timeoutMillis, false);
+  }
+
+  /** Waits for cleanup and closes admission without a gap for a new lifecycle to enter. */
+  public static void stopAfterQuiescence() {
+    stopAfterQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MILLIS);
+  }
+
+  /** Stops at quiescence, or retains incomplete lifecycles when the budget expires. */
+  public static void stopAfterQuiescence(long timeoutMillis) {
+    awaitQuiescence(timeoutMillis, true);
+  }
+
+  private static void awaitQuiescence(long timeoutMillis, boolean stop) {
     if (timeoutMillis < 0 || timeoutMillis > Long.MAX_VALUE / 1_000_000L) {
       throw new IllegalArgumentException(
           "Invalid scope diagnostics quiescence budget: " + timeoutMillis);
@@ -159,15 +173,28 @@ public final class ScopeDiagnostics {
         INSTANCE.lifecycleLock.lock();
         try {
           INSTANCE.drainEvents(true, deadline, false);
-          if (INSTANCE.recordingWindow == null || !INSTANCE.hasIncompleteLifecycles()) {
+          DiagnosticEventBuffer window = INSTANCE.recordingWindow;
+          if (window == null) {
             return;
+          }
+          if (!INSTANCE.hasIncompleteLifecycles()) {
+            if (!stop) {
+              return;
+            }
+            // Producers reserve outside lifecycleLock. The CAS must also see an empty buffer;
+            // otherwise an admitted scope could be opened here and lose its subsequent close.
+            if (window.closeIfEmpty()) {
+              INSTANCE.recordingWindow = null;
+              INSTANCE.wakeQuiescenceWaiters();
+              return;
+            }
           }
         } finally {
           INSTANCE.lifecycleLock.unlock();
         }
         long remaining = deadline - System.nanoTime();
         if (remaining <= 0) {
-          return;
+          break;
         }
         // Registration precedes the predicate check; an enqueue racing with park retains its
         // permit.
@@ -175,6 +202,9 @@ public final class ScopeDiagnostics {
       }
     } finally {
       INSTANCE.quiescenceWaiters.remove(waiter);
+    }
+    if (stop) {
+      stop();
     }
   }
 
