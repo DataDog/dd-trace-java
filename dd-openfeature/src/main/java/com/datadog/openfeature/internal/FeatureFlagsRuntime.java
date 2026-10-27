@@ -104,7 +104,6 @@ public final class FeatureFlagsRuntime {
     final ConfigurationService source;
     final EventTransport transport;
     if (remoteConfig) {
-      // TODO Support Remote Configuration without the Datadog Java agent.
       final ConfigurationSource remoteConfiguration;
       try {
         remoteConfiguration = bridge.remoteConfiguration();
