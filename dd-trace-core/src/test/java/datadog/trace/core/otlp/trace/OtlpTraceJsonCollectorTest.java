@@ -563,14 +563,10 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @TableTest({
-    "scenario                  | otelSemantics | baggageKey          | httpMethod    |"
-        + " httpRequestMethod",
-    "otel off, otel-name key   | false         | http.request.method | span.value    |"
-        + " baggage.value    ",
-    "otel on, otel-name key    | true          | http.request.method |               | span.value  "
-        + "     ",
-    "otel on, datadog-name key | true          | http.method         | baggage.value | span.value  "
-        + "     "
+    "scenario       | otelSemantics | baggageKey          | httpMethod    | httpRequestMethod",
+    "off, otel name | false         | http.request.method | span.value    | baggage.value    ",
+    "on, otel name  | true          | http.request.method |               | span.value       ",
+    "on, dd name    | true          | http.method         | baggage.value | span.value       "
   })
   void baggageIsSkippedOnlyWhenATagIsExportedUnderTheSameKey(
       boolean otelSemantics, String baggageKey, String httpMethod, String httpRequestMethod)
