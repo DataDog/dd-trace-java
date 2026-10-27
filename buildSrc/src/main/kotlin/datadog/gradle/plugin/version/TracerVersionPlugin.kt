@@ -93,6 +93,20 @@ class TracerVersionPlugin @Inject constructor(
       if (gitBranch == "HEAD" && ciBranch.isNotBlank()) ciBranch else gitBranch
     }
 
+  /**
+   * Checks whether a build checked out on that exact tag may use it as the release version.
+   *
+   * In GitLab, only the pipeline of the tag itself builds a release version. Other pipelines on
+   * the tagged commit, like the master one, build the next snapshot version, so they never publish
+   * the release a second time.
+   *
+   * @param tag the tag, with its prefix
+   * @return whether the tag can be used as the release version
+   */
+  private fun isReleaseTag(tag: String): Boolean =
+    !providerFactory.environmentVariable("GITLAB_CI").isPresent ||
+      tag == providerFactory.environmentVariable("CI_COMMIT_TAG").orNull
+
   private fun gitCurrentBranchProvider(
     repoWorkingDirectory: File
   ) = providerFactory.of(GitCommandValueSource::class.java) {
@@ -143,7 +157,7 @@ class TracerVersionPlugin @Inject constructor(
       ?: return extension.defaultVersion.get()
 
     val (lastTagVersion, describeTrailer) = matchResult.destructured
-    val hasLaterCommits = describeTrailer.isNotBlank()
+    val hasLaterCommits = describeTrailer.isNotBlank() || !isReleaseTag("$tagPrefix$lastTagVersion")
     val version = Version.parse(lastTagVersion).let {
       if (hasLaterCommits) {
         it.nextVersion()
@@ -164,7 +178,7 @@ class TracerVersionPlugin @Inject constructor(
       }
 
       if (hasLaterCommits) {
-        append(if (extension.useSnapshot.get()) "-SNAPSHOT" else describeTrailer)
+        append(if (extension.useSnapshot.get() || describeTrailer.isBlank()) "-SNAPSHOT" else describeTrailer)
       }
 
       if (describeTrailer.endsWith("-dirty")) {

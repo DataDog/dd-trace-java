@@ -104,12 +104,12 @@ workflow:
       - "17"
       - "21"
       - "25"
-      - "semeru11"
       - "oracle8"
       - "zulu8"
       - "semeru8"
       - "ibm8"
       - "zulu11"
+      - "semeru11"
       - "semeru17"
       - "tip"
     CI_SPLIT: ["1/1"]
@@ -487,7 +487,12 @@ publish-artifacts-to-s3:
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-ot.jar
     - aws s3 cp workspace/dd-openfeature/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar
     - |
-      cat << EOF > links.json 
+      # Print the agent version and public jar links so they are easy to copy from the DDCI UI
+      echo "Version of dd-java-agent: ${UPSTREAM_TRACER_VERSION}"
+      echo "Public Link to dd-java-agent.jar: https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar"
+      echo "Public Link to dd-openfeature.jar: https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar"
+    - |
+      cat << EOF > links.json
         {
           "S3 Links": [
             {
@@ -875,6 +880,13 @@ muzzle-dep-report:
     # Java 8 JVMs are very slow on AARCH64.
     - if: '$testJvm =~ /^(8|oracle8|zulu8|semeru8|ibm8)$/'
       when: never
+    # Java 11 is opt-in on arm64; HotSpot has very slow class retransformation.
+    # Vendor JVMs still follow the non-default JVM selection rules below.
+    - if: '$testJvm == "11" && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
+      when: on_success
+      allow_failure: true
+    - if: '$testJvm =~ /11$/ && $CI_COMMIT_MESSAGE !~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
+      when: never
     # arm64 tests are newly introduced to the merge queue and master. Keep them
     # non-blocking (allow_failure) for now so we can collect stability stats and
     # fix flaky/failing jobs without blocking the whole team. Remove allow_failure
@@ -890,7 +902,7 @@ muzzle-dep-report:
       when: on_success
       allow_failure: true
     # On feature branches/PRs, [ci: ARM64] in the commit message runs the default JVM subset,
-    # and [ci: ARM64, NON_DEFAULT_JVMS] runs all JVMs. [ci: NON_DEFAULT_JVMS] alone only affects amd64.
+    # and [ci: ARM64, NON_DEFAULT_JVMS] runs all eligible JVMs. [ci: NON_DEFAULT_JVMS] alone only affects amd64.
     - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bARM64\b[^\]]*\]/ && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bNON_DEFAULT_JVMS\b[^\]]*\]/'
       when: on_success
       allow_failure: true
