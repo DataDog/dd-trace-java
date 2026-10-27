@@ -125,7 +125,7 @@ class InlineOfDutyPluginTest {
   }
 
   @Test
-  void missingWorkerLogsFailReportingInsteadOfShowingAnEmptySuccess() throws Exception {
+  void missingWorkerLogsProducePartialReportWithoutFailingTests() throws Exception {
     singleProject();
     Files.writeString(
         directory.resolve("build.gradle"),
@@ -140,14 +140,29 @@ class InlineOfDutyPluginTest {
         }
         """,
         java.nio.file.StandardOpenOption.APPEND);
-    BuildResult result = runner("test", "-PinlineOfDuty").buildAndFail();
+    BuildResult result = runner("test", "-PinlineOfDuty").build();
     assertEquals(TaskOutcome.SUCCESS, result.task(":test").getOutcome());
-    assertEquals(TaskOutcome.FAILED, result.task(":inlineOfDutyReport").getOutcome());
-    assertTrue(result.getOutput().contains("Missing worker logs for captured test task"));
+    assertEquals(TaskOutcome.SUCCESS, result.task(":inlineOfDutyReport").getOutcome());
+    assertTrue(result.getOutput().contains("JIT Inlining Report is partial"));
     assertTrue(report().contains("capture_errors"));
     assertTrue(
         Files.readString(directory.resolve("build/reports/inline-of-duty/index.html"))
             .contains("Missing worker logs for captured test task"));
+    assertTrue(
+        Files.readString(reportRoot().resolve("summary.md")).contains("results are partial"));
+  }
+
+  @Test
+  void malformedWorkerLogProducesPartialReportWithoutFailingAggregation() throws Exception {
+    singleProject();
+    write("existing/run/test/hotspot_pid123.log", "<hotspot_log><task");
+    BuildResult result = runner("inlineOfDutyReport", "-PinlineOfDutyInput=existing").build();
+    assertEquals(null, result.task(":test"));
+    assertEquals(TaskOutcome.SUCCESS, result.task(":inlineOfDutyReport").getOutcome());
+    assertTrue(result.getOutput().contains("JIT Inlining Report is partial"));
+    assertTrue(report().contains("\"complete\":false"));
+    assertTrue(
+        Files.readString(reportRoot().resolve("summary.md")).contains("results are partial"));
   }
 
   @Test

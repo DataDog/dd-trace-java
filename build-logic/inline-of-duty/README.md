@@ -52,8 +52,10 @@ The manifest also records pipeline/job IDs and the producing job name.
 This mode schedules no tests and can aggregate several captured runs. Copied logs
 are deduplicated by content. No raw-log input is modified. Empty inputs produce a
 zero-worker report; an explicit missing input directory fails. Missing worker logs
-for a captured test task and malformed/truncated logs fail reporting after writing
-diagnostics. A failed test remains a failed Gradle build even when reporting succeeds.
+for a captured test task and malformed/truncated logs mark the report partial, with
+warnings in the HTML, JSON and PR summary. Incomplete worker logs cannot support
+persistent-refusal findings. A failed test remains a failed Gradle build even when
+reporting succeeds.
 
 Options:
 
@@ -118,9 +120,10 @@ are published with `when: always`, alongside existing JUnit results and reports.
 
 The `aggregate_inline_of_duty` job runs in `test-summary`, after regular amd64 and
 arm64 test stages. Its `when: always` rule includes pipelines with failed test
-shards. It uses GitLab's default prior-stage artifact download, preserving the
-stage barrier without a hard-coded list of matrix job variants. See GitLab's
-[artifact download rules](https://docs.gitlab.com/ci/jobs/job_artifacts/#fetching-artifacts).
+shards. Test jobs upload compressed JIT captures to the same S3 bucket used for
+test counts. The aggregate downloads only those captures, preserving the stage
+barrier without fetching every test job's full artifact archive. Retries replace
+the previous capture for the same logical test shard.
 
 The job selects only the current pipeline's namespaced captures and runs the
 existing JVM-native `inlineOfDutyReport` task. It recomputes the dataset union by

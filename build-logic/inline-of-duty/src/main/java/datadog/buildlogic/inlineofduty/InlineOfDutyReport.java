@@ -121,15 +121,17 @@ public abstract class InlineOfDutyReport extends DefaultTask {
     LogAnalyzer.writeReports(report, input, output, getTop().get(), getFullEvidence().get());
     getLogger().lifecycle("JIT Inlining Report: {}", output.resolve("index.html"));
     List<?> captures = (List<?>) report.get("captures");
-    boolean incomplete =
+    long incompleteCount =
         captures.stream()
-            .anyMatch(capture -> !Boolean.TRUE.equals(((Map<?, ?>) capture).get("complete")));
-    if (!captureErrors.isEmpty()) {
-      throw new GradleException(String.join("; ", captureErrors));
-    }
-    if (incomplete) {
-      throw new GradleException(
-          "Incomplete JIT capture; partial reports were written to " + output);
+            .filter(capture -> !Boolean.TRUE.equals(((Map<?, ?>) capture).get("complete")))
+            .count();
+    if (!captureErrors.isEmpty() || incompleteCount > 0) {
+      getLogger()
+          .warn(
+              "JIT Inlining Report is partial: {} task(s) without worker logs, {} incomplete worker log(s); see {}",
+              captureErrors.size(),
+              incompleteCount,
+              output.resolve("index.html"));
     }
   }
 }
