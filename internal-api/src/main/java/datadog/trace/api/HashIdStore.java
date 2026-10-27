@@ -307,7 +307,11 @@ final class HashIdStore extends IdStore {
 
   @Override
   void forEach(Consumer<? super EntryReader> consumer) {
-    HashSupport.forEach(this.buckets, consumer);
+    if (this.hasTombstones) {
+      HashSupport.forEachLive(this.buckets, consumer);
+    } else {
+      HashSupport.forEach(this.buckets, consumer);
+    }
     if (this.parent != null) {
       this.forEachParent(consumer, null, (c, unused, entry) -> c.accept(entry));
     }
@@ -315,7 +319,11 @@ final class HashIdStore extends IdStore {
 
   @Override
   <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
-    HashSupport.forEach(this.buckets, thisObj, consumer);
+    if (this.hasTombstones) {
+      HashSupport.forEachLive(this.buckets, thisObj, consumer);
+    } else {
+      HashSupport.forEach(this.buckets, thisObj, consumer);
+    }
     if (this.parent != null) {
       this.forEachParent(thisObj, consumer, (t, c, entry) -> c.accept(t, entry));
     }
@@ -323,7 +331,11 @@ final class HashIdStore extends IdStore {
 
   @Override
   <T, U> void forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
-    HashSupport.forEach(this.buckets, thisObj, otherObj, consumer);
+    if (this.hasTombstones) {
+      HashSupport.forEachLive(this.buckets, thisObj, otherObj, consumer);
+    } else {
+      HashSupport.forEach(this.buckets, thisObj, otherObj, consumer);
+    }
     if (this.parent != null) {
       this.forEachParent(thisObj, otherObj, consumer);
     }
@@ -376,7 +388,7 @@ final class HashIdStore extends IdStore {
     }
     if (this.hasTombstones) {
       // A bucket merge would count a replaced tombstone as a replacement, so put one at a time.
-      HashSupport.forEach(that.buckets, this, (self, entryReader) -> self.put(entryReader));
+      HashSupport.forEachLive(that.buckets, this, (self, entryReader) -> self.put(entryReader));
       return;
     }
     if (this.count == 0) {

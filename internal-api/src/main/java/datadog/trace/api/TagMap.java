@@ -2792,6 +2792,46 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
           this.hash3, this.entry3);
     }
 
+    void forEachInChain(Consumer<? super EntryReader> consumer) {
+      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
+        curGroup._forEach(consumer);
+      }
+    }
+
+    void _forEach(Consumer<? super EntryReader> consumer) {
+      if (this.entry0 != null) consumer.accept(this.entry0);
+      if (this.entry1 != null) consumer.accept(this.entry1);
+      if (this.entry2 != null) consumer.accept(this.entry2);
+      if (this.entry3 != null) consumer.accept(this.entry3);
+    }
+
+    <T> void forEachInChain(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
+        curGroup._forEach(thisObj, consumer);
+      }
+    }
+
+    <T> void _forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+      if (this.entry0 != null) consumer.accept(thisObj, this.entry0);
+      if (this.entry1 != null) consumer.accept(thisObj, this.entry1);
+      if (this.entry2 != null) consumer.accept(thisObj, this.entry2);
+      if (this.entry3 != null) consumer.accept(thisObj, this.entry3);
+    }
+
+    <T, U> void forEachInChain(
+        T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
+        curGroup._forEach(thisObj, otherObj, consumer);
+      }
+    }
+
+    <T, U> void _forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+      if (this.entry0 != null) consumer.accept(thisObj, otherObj, this.entry0);
+      if (this.entry1 != null) consumer.accept(thisObj, otherObj, this.entry1);
+      if (this.entry2 != null) consumer.accept(thisObj, otherObj, this.entry2);
+      if (this.entry3 != null) consumer.accept(thisObj, otherObj, this.entry3);
+    }
+
     @Override
     public String toString() {
       StringBuilder builder = new StringBuilder(32);
