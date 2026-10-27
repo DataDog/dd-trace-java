@@ -64,6 +64,22 @@ class InlineOfDutyPluginTest {
   }
 
   @Test
+  void unsampledTestUsesNormalJvmAndCanReuseItsResults() throws Exception {
+    singleProject();
+    Files.writeString(
+        directory.resolve("build.gradle"),
+        "\ntasks.named('test') { systemProperty 'fixture.expectJit', false }\n",
+        java.nio.file.StandardOpenOption.APPEND);
+    BuildResult first = runner("test", "-PinlineOfDuty", "-PinlineOfDutySamplePercent=0").build();
+    assertEquals(TaskOutcome.SUCCESS, first.task(":test").getOutcome());
+    assertEquals(TaskOutcome.SUCCESS, first.task(":inlineOfDutyReport").getOutcome());
+    assertFalse(Files.readString(testXml("")).contains("-XX:+LogCompilation"));
+    assertTrue(captures().isEmpty());
+    BuildResult second = runner("test", "-PinlineOfDuty", "-PinlineOfDutySamplePercent=0").build();
+    assertEquals(TaskOutcome.UP_TO_DATE, second.task(":test").getOutcome());
+  }
+
+  @Test
   void failingTestRetainsJUnitXmlAndFinalizedReport() throws Exception {
     singleProject();
     BuildResult result = runner("test", "-PinlineOfDuty=true", "-PfixtureFail").buildAndFail();
@@ -284,6 +300,9 @@ class InlineOfDutyPluginTest {
     assertEquals(1, first.size());
     assertTrue(first.get(0).startsWith(captureRoot.resolve(pipeline).resolve(firstJob)));
     assertCurrentReport(first);
+    Files.createDirectories(directory.resolve("staging/facts"));
+    Files.copy(
+        reportRoot().resolve("aggregation.json"), directory.resolve("staging/facts/first.json"));
 
     BuildResult failedProducer =
         runner(
@@ -301,6 +320,8 @@ class InlineOfDutyPluginTest {
     assertTrue(second.get(0).startsWith(captureRoot.resolve(pipeline).resolve(secondJob)));
     assertCurrentReport(second);
     assertFalse(report().contains(first.get(0).getFileName().toString()));
+    Files.copy(
+        reportRoot().resolve("aggregation.json"), directory.resolve("staging/facts/second.json"));
 
     Path staging = directory.resolve("staging/captures");
     for (String job : List.of(firstJob, secondJob)) {
@@ -358,6 +379,30 @@ class InlineOfDutyPluginTest {
           outputs.noneMatch(path -> path.getFileName().toString().endsWith(".log")),
           "Pipeline reports must link producer artifacts without copying raw worker logs");
     }
+
+    String rawSummary = Files.readString(reportRoot().resolve("summary.md"));
+    reportDirectory = "pipeline-facts-report";
+    BuildResult compact =
+        runner(
+                Map.of(
+                    "CI_PIPELINE_ID",
+                    pipeline,
+                    "CI_JOB_ID",
+                    "999",
+                    "CI_PROJECT_URL",
+                    "https://gitlab.example/team/repo"),
+                "inlineOfDutyReport",
+                "-PinlineOfDutyInput=staging/facts",
+                "-PinlineOfDutyOutput=" + reportDirectory,
+                "-PinlineOfDutyPipelineReport",
+                "-PinlineOfDutyAggregateFacts")
+            .build();
+    assertEquals(TaskOutcome.SUCCESS, compact.task(":inlineOfDutyReport").getOutcome());
+    assertEquals(rawSummary, Files.readString(reportRoot().resolve("summary.md")));
+    assertTrue(
+        Files.readString(reportRoot().resolve("details.html")).contains("/-/jobs/" + firstJob));
+    assertTrue(
+        Files.readString(reportRoot().resolve("details.html")).contains("/-/jobs/" + secondJob));
   }
 
   @Test

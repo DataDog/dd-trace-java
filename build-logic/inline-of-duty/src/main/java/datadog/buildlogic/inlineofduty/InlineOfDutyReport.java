@@ -45,6 +45,12 @@ public abstract class InlineOfDutyReport extends DefaultTask {
   public abstract Property<Integer> getMinCompilations();
 
   @Input
+  public abstract Property<Integer> getSamplePercent();
+
+  @Input
+  public abstract Property<String> getCaptureScope();
+
+  @Input
   public abstract Property<Integer> getTop();
 
   @Input
@@ -60,6 +66,12 @@ public abstract class InlineOfDutyReport extends DefaultTask {
   public abstract Property<Boolean> getPipelineReport();
 
   @Input
+  public abstract Property<Boolean> getAggregateFacts();
+
+  @Input
+  public abstract Property<String> getSourceJobId();
+
+  @Input
   public abstract Property<String> getSourcePipelineId();
 
   @Input
@@ -70,6 +82,9 @@ public abstract class InlineOfDutyReport extends DefaultTask {
     if (getMinCompilations().get() < 2) {
       throw new GradleException("inlineOfDutyMinCompilations must be at least 2");
     }
+    if (getSamplePercent().get() < 0 || getSamplePercent().get() > 100) {
+      throw new GradleException("inlineOfDutySamplePercent must be between 0 and 100");
+    }
     if (getTop().get() < 1) {
       throw new GradleException("inlineOfDutyTop must be at least 1");
     }
@@ -79,6 +94,7 @@ public abstract class InlineOfDutyReport extends DefaultTask {
     }
     Files.createDirectories(input);
     Set<File> inputs = getCaptureFiles().getFiles();
+    boolean aggregateFacts = getAggregateFacts().get();
     Set<Path> workerDirectories =
         inputs.stream()
             .filter(file -> file.getName().startsWith("hotspot") && file.getName().endsWith(".log"))
@@ -94,11 +110,19 @@ public abstract class InlineOfDutyReport extends DefaultTask {
                     "Missing worker logs for captured test task: " + input.relativize(directory))
             .sorted()
             .toList();
-    boolean hasLogs = !workerDirectories.isEmpty();
     Map<String, Object> report =
-        hasLogs
-            ? LogAnalyzer.analyze(input, getMinCompilations().get(), getIncludeTestCode().get())
-            : LogAnalyzer.emptyReport(getMinCompilations().get(), getIncludeTestCode().get());
+        aggregateFacts
+            ? CompactAggregate.merge(input, getMinCompilations().get(), getIncludeTestCode().get())
+            : !workerDirectories.isEmpty()
+                ? LogAnalyzer.analyze(input, getMinCompilations().get(), getIncludeTestCode().get())
+                : LogAnalyzer.emptyReport(getMinCompilations().get(), getIncludeTestCode().get());
+    if (!aggregateFacts) {
+      Map<String, Object> policy = (Map<String, Object>) report.get("policy");
+      policy.put("sample_percent", getSamplePercent().get());
+      if (!getSourceJobId().get().isBlank() && !getCaptureScope().get().isBlank()) {
+        policy.put("capture_scope", getCaptureScope().get());
+      }
+    }
     if (getPipelineReport().get()) {
       String pipeline = getSourcePipelineId().get();
       String projectUrl = getSourceProjectUrl().get();
@@ -115,21 +139,28 @@ public abstract class InlineOfDutyReport extends DefaultTask {
               "source_capture_prefix",
               "workspace/build/inline-of-duty/captures/" + pipeline));
     }
-    report.put("capture_errors", captureErrors);
+    if (!aggregateFacts) report.put("capture_errors", captureErrors);
     report.put("capture_directory", input.toAbsolutePath().toString());
     Path output = getReportDirectory().get().getAsFile().toPath();
     LogAnalyzer.writeReports(report, input, output, getTop().get(), getFullEvidence().get());
+    if (!aggregateFacts && !getSourceJobId().get().isBlank()) {
+      CompactAggregate.writeFacts(
+          report,
+          output.resolve("aggregation.json"),
+          getSourceJobId().get(),
+          input.getFileName().toString());
+    }
     getLogger().lifecycle("JIT Inlining Report: {}", output.resolve("index.html"));
     List<?> captures = (List<?>) report.get("captures");
     long incompleteCount =
         captures.stream()
             .filter(capture -> !Boolean.TRUE.equals(((Map<?, ?>) capture).get("complete")))
             .count();
-    if (!captureErrors.isEmpty() || incompleteCount > 0) {
+    if (!((List<?>) report.get("capture_errors")).isEmpty() || incompleteCount > 0) {
       getLogger()
           .warn(
               "JIT Inlining Report is partial: {} task(s) without worker logs, {} incomplete worker log(s); see {}",
-              captureErrors.size(),
+              ((List<?>) report.get("capture_errors")).size(),
               incompleteCount,
               output.resolve("index.html"));
     }

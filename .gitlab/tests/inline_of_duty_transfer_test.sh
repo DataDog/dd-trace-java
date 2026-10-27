@@ -40,32 +40,32 @@ export TEST_S3_ROOT="$test_root/s3"
 export CI_PIPELINE_ID=123 CI_JOB_ID=456 CI_JOB_NAME='test_inst: [21, 1/8]'
 export TEST_COUNTS_S3_BUCKET=test-bucket
 cd "$test_root/project"
-capture_root=workspace/build/inline-of-duty/captures
-mkdir -p "$capture_root/123/456/run/test"
-printf 'worker one\n' > "$capture_root/123/456/run/test/hotspot_pid1.log"
+facts=workspace/build/reports/inline-of-duty/aggregation.json
+mkdir -p "$(dirname "$facts")"
+printf '{"source_prefix":"456/run"}\n' > "$facts"
 bash "$script_directory/inline_of_duty_transfer.sh" upload
-archives=("$TEST_S3_ROOT"/test-bucket/jit-inline-captures/123/*.tar.gz)
-[[ ${#archives[@]} -eq 1 && -f "${archives[0]}" ]]
-rm -rf "$capture_root"
+uploaded=("$TEST_S3_ROOT"/test-bucket/jit-inline-facts/123/*.json)
+[[ ${#uploaded[@]} -eq 1 && -f "${uploaded[0]}" ]]
 bash "$script_directory/inline_of_duty_transfer.sh" download
-[[ $(cat "$capture_root/123/456/run/test/hotspot_pid1.log") == 'worker one' ]]
+downloaded=workspace/build/inline-of-duty/facts/123
+[[ $(cat "$downloaded"/*.json) == '{"source_prefix":"456/run"}' ]]
 
 # A retried logical shard replaces its earlier job's archive.
 export CI_JOB_ID=789
-mkdir -p "$capture_root/123/789/run/test"
-printf 'worker two\n' > "$capture_root/123/789/run/test/hotspot_pid2.log"
+printf '{"source_prefix":"789/run"}\n' > "$facts"
 bash "$script_directory/inline_of_duty_transfer.sh" upload
-[[ $(find "$TEST_S3_ROOT" -name '*.tar.gz' | wc -l) -eq 1 ]]
-tar -tzf "${archives[0]}" | grep -q '123/789/run/test/hotspot_pid2.log'
-if tar -tzf "${archives[0]}" | grep -q '123/456/'; then
+[[ $(find "$TEST_S3_ROOT" -name '*.json' | wc -l) -eq 1 ]]
+if grep -q '456/run' "${uploaded[0]}"; then
   echo 'Retry retained the earlier job capture' >&2
   exit 1
 fi
-rm -rf "$capture_root/123/789"
+grep -q '789/run' "${uploaded[0]}"
+rm -f "$facts"
 bash "$script_directory/inline_of_duty_transfer.sh" upload
-[[ $(find "$TEST_S3_ROOT" -name '*.tar.gz' | wc -l) -eq 1 ]]
-if tar -tzf "${archives[0]}" | grep -q 'hotspot'; then
+[[ $(find "$TEST_S3_ROOT" -name '*.json' | wc -l) -eq 1 ]]
+if grep -q '789/run' "${uploaded[0]}"; then
   echo 'Empty retry retained the earlier job capture' >&2
   exit 1
 fi
-echo 'JIT capture transfer test passed'
+grep -q '"missing":true' "${uploaded[0]}"
+echo 'JIT aggregation fact transfer test passed'

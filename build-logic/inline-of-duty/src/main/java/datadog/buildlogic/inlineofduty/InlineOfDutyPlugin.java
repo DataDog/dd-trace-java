@@ -31,6 +31,12 @@ public final class InlineOfDutyPlugin implements Plugin<Project> {
             .gradleProperty("inlineOfDuty")
             .map(value -> !"false".equalsIgnoreCase(value))
             .orElse(false);
+    Provider<Integer> samplePercent =
+        project
+            .getProviders()
+            .gradleProperty("inlineOfDutySamplePercent")
+            .map(Integer::parseInt)
+            .orElse(100);
     Provider<String> externalInput = project.getProviders().gradleProperty("inlineOfDutyInput");
     Provider<Boolean> reportEnabled =
         enabled
@@ -108,7 +114,15 @@ public final class InlineOfDutyPlugin implements Plugin<Project> {
                               .gradleProperty("inlineOfDutyPipelineReport")
                               .map(value -> !"false".equalsIgnoreCase(value))
                               .orElse(false));
+                  task.getAggregateFacts()
+                      .convention(
+                          project
+                              .getProviders()
+                              .gradleProperty("inlineOfDutyAggregateFacts")
+                              .map(value -> !"false".equalsIgnoreCase(value))
+                              .orElse(false));
                   task.getSourcePipelineId().convention(pipelineId.orElse(""));
+                  task.getSourceJobId().convention(jobId.orElse(""));
                   task.getSourceProjectUrl()
                       .convention(
                           project.getProviders().environmentVariable("CI_PROJECT_URL").orElse(""));
@@ -119,6 +133,13 @@ public final class InlineOfDutyPlugin implements Plugin<Project> {
                               .gradleProperty("inlineOfDutyMinCompilations")
                               .map(Integer::parseInt)
                               .orElse(2));
+                  task.getSamplePercent().convention(samplePercent);
+                  task.getCaptureScope()
+                      .convention(
+                          project
+                              .getProviders()
+                              .environmentVariable("INLINE_OF_DUTY_SCOPE")
+                              .orElse(""));
                   task.getTop()
                       .convention(
                           project
@@ -149,14 +170,22 @@ public final class InlineOfDutyPlugin implements Plugin<Project> {
           report.configure(task -> task.mustRunAfter(tests));
           tests.configureEach(
               test -> {
+                String taskPath = test.getPath();
+                Provider<Boolean> selected =
+                    samplePercent
+                        .zip(
+                            pipelineId.orElse(""),
+                            (percent, seed) ->
+                                InlineOfDutySample.selected(true, percent, taskPath, seed))
+                        .zip(enabled, (sampled, capture) -> sampled && capture);
                 test.getJvmArgumentProviders()
-                    .add(new InlineOfDutyArguments(enabled, run, test.getPath()));
-                test.getOutputs().upToDateWhen(new Disabled(enabled));
+                    .add(new InlineOfDutyArguments(selected, run, taskPath));
+                test.getOutputs().upToDateWhen(new Disabled(selected));
                 test.getOutputs()
                     .doNotCacheIf(
                         "JIT Inlining Report requires live worker observations",
-                        new Enabled(enabled));
-                test.doFirst(new Capture(enabled, run, test.getPath()));
+                        new Enabled(selected));
+                test.doFirst(new Capture(selected, run, taskPath));
                 test.usesService(run);
                 test.finalizedBy(report);
               });

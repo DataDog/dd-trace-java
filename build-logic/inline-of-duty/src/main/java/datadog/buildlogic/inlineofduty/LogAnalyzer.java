@@ -329,7 +329,7 @@ public final class LogAnalyzer {
   /**
    * Veto matching positive sites across workers/tiers without merging their compilation histories.
    */
-  private static String recordedCallSite(Map<String, Object> finding) {
+  static String recordedCallSite(Map<String, Object> finding) {
     return json(
         map(
             "root",
@@ -836,6 +836,15 @@ public final class LogAnalyzer {
         .append(" call contexts persistently refused in this workload.\n\n")
         .append(
             "Available captures only. Percentages describe observed method signatures, not coverage or performance; refused-only does not mean never inline.\n");
+    Object samplePercent = object(report.get("policy")).get("sample_percent");
+    if ("representative".equals(object(report.get("policy")).get("capture_scope"))) {
+      text.append("Scope: JDK 25 base and instrumentation tests.\n");
+    }
+    if (samplePercent instanceof Number rate && rate.intValue() < 100) {
+      text.append("Captured ")
+          .append(rate)
+          .append("% of selected Gradle Test tasks; the sample rotates by pipeline.\n");
+    }
     if (!strings(report.getOrDefault("capture_errors", List.of())).isEmpty()
         || maps(report.get("captures")).stream().anyMatch(c -> !yes(c, "complete"))) {
       text.append("\n⚠️ Capture errors: results are partial; see the aggregate report.\n");
@@ -859,7 +868,7 @@ public final class LogAnalyzer {
             "actionable_contexts_total",
             candidates.size(),
             "contexts_total",
-            list(source.get("findings")).size(),
+            source.getOrDefault("context_count", list(source.get("findings")).size()),
             "refused_methods_total",
             maps(summary.get("other_refusals")).size()));
     if (!fullEvidence) {
@@ -867,7 +876,7 @@ public final class LogAnalyzer {
       for (Map<String, Object> finding : selected) {
         Map<String, Object> copy = new TreeMap<>(finding);
         List<Map<String, Object>> decisions = maps(finding.get("decisions"));
-        copy.put("decisions_total", decisions.size());
+        copy.put("decisions_total", finding.getOrDefault("decisions_total", decisions.size()));
         copy.put("decisions", decisions.stream().limit(top).toList());
         limited.add(copy);
       }
@@ -991,6 +1000,15 @@ public final class LogAnalyzer {
           .append(jobs.size())
           .append(
               " captured test jobs. Includes available captures; jobs without artifacts are not represented.</p>");
+    }
+    Object samplePercent = object(report.get("policy")).get("sample_percent");
+    if ("representative".equals(object(report.get("policy")).get("capture_scope"))) {
+      body.append("<p class=\"muted\">Scope: JDK 25 base and instrumentation tests.</p>");
+    }
+    if (samplePercent instanceof Number rate && rate.intValue() < 100) {
+      body.append("<p class=\"muted\">Captured ")
+          .append(rate)
+          .append("% of selected Gradle Test tasks; the sample rotates by pipeline.</p>");
     }
     long incomplete =
         maps(report.get("captures")).stream().filter(c -> !yes(c, "complete")).count();
@@ -1225,8 +1243,15 @@ public final class LogAnalyzer {
           .append("\">")
           .append(escape(finding.get("log")))
           .append("</a><details><summary>")
-          .append(list(finding.get("decisions")).size())
-          .append(" observed decision(s)</summary><ul>");
+          .append(list(finding.get("decisions")).size());
+      int totalDecisions =
+          ((Number) finding.getOrDefault("decisions_total", list(finding.get("decisions")).size()))
+              .intValue();
+      if (totalDecisions > list(finding.get("decisions")).size()) {
+        body.append(" of ").append(totalDecisions).append(" sampled decision(s)</summary><ul>");
+      } else {
+        body.append(" observed decision(s)</summary><ul>");
+      }
       for (Map<String, Object> d : maps(finding.get("decisions")))
         body.append("<li>Compilation ")
             .append(escape(d.get("compile_id")))

@@ -68,6 +68,12 @@ variables:
   INLINE_OF_DUTY:
     description: "Capture and report JIT decisions during HotSpot test jobs"
     value: "true"
+  INLINE_OF_DUTY_SCOPE:
+    description: "representative captures JDK 25 base and instrumentation tests; full captures all HotSpot test shards"
+    value: "representative"
+  INLINE_OF_DUTY_SAMPLE_PERCENT:
+    description: "Percentage of Test tasks captured within representative shards"
+    value: "10"
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -797,12 +803,14 @@ muzzle-dep-report:
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='$TEST_JVM_ARGS -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - ./gradlew --version
-    - >
-      if [ "$INLINE_OF_DUTY" = "true" ]; then
-      case "$testJvm" in
-      ibm*|semeru*) echo "JIT Inlining Report skipped for non-HotSpot test JVM $testJvm" ;;
-      *) export ORG_GRADLE_PROJECT_inlineOfDuty=true ;;
-      esac;
+    - |
+      if bash .gitlab/inline_of_duty_selected.sh; then
+        export ORG_GRADLE_PROJECT_inlineOfDuty=true
+        if [ "$INLINE_OF_DUTY_SCOPE" = "full" ]; then
+          export ORG_GRADLE_PROJECT_inlineOfDutySamplePercent=100
+        else
+          export ORG_GRADLE_PROJECT_inlineOfDutySamplePercent="$INLINE_OF_DUTY_SAMPLE_PERCENT"
+        fi
       fi
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
@@ -825,7 +833,7 @@ muzzle-dep-report:
     - export TEST_COUNTS_S3_URI="s3://${TEST_COUNTS_S3_BUCKET}/${TEST_COUNTS_S3_PREFIX}/${TEST_COUNTS_S3_FILE}"
     - echo "Uploading ${TEST_COUNTS_FILE} to ${TEST_COUNTS_S3_URI}"
     - aws s3 cp "$TEST_COUNTS_FILE" "$TEST_COUNTS_S3_URI" --only-show-errors
-    - if [ "$INLINE_OF_DUTY" = "true" ]; then bash .gitlab/inline_of_duty_transfer.sh upload; fi
+    - if bash .gitlab/inline_of_duty_selected.sh; then bash .gitlab/inline_of_duty_transfer.sh upload; fi
     - URL_ENCODED_JOB_NAME=$(jq -rn --arg x "$CI_JOB_NAME" '$x|@uri')
     - echo -e "${TEXT_BOLD}${TEXT_YELLOW}See test results in Datadog:${TEXT_CLEAR} https://app.datadoghq.com/ci/test/runs?query=test_level%3Atest%20%40test.service%3Add-trace-java%20%40ci.pipeline.id%3A${CI_PIPELINE_ID}%20%40ci.job.name%3A%22${URL_ENCODED_JOB_NAME}%22"
   artifacts:
@@ -1251,8 +1259,8 @@ aggregate_inline_of_duty:
   variables:
     <<: *tier_l_variables
     CACHE_TYPE: "base"
-  # Keep the stage barrier, but download only capture archives from S3. Fetching
-  # every test job's full GitLab artifact is far too large for an aggregate job.
+  # Keep the stage barrier, but download only per-job aggregation facts from S3.
+  # Raw worker logs remain in their producing jobs for drill-down.
   dependencies: []
   cache:
     - *dependency_cache
@@ -1263,12 +1271,12 @@ aggregate_inline_of_duty:
       when: always
     - when: never
   script:
-    - export INLINE_OF_DUTY_INPUT="$CI_PROJECT_DIR/workspace/build/inline-of-duty/captures/$CI_PIPELINE_ID"
+    - export INLINE_OF_DUTY_INPUT="$CI_PROJECT_DIR/workspace/build/inline-of-duty/facts/$CI_PIPELINE_ID"
     - mkdir -p "$INLINE_OF_DUTY_INPUT"
     - bash .gitlab/inline_of_duty_transfer.sh download
-    - ./gradlew inlineOfDutyReport -PinlineOfDutyInput="$INLINE_OF_DUTY_INPUT" -PinlineOfDutyOutput="$CI_PROJECT_DIR/inline-of-duty-pipeline" -PinlineOfDutyPipelineReport $GRADLE_ARGS
+    - ./gradlew inlineOfDutyReport -PinlineOfDutyInput="$INLINE_OF_DUTY_INPUT" -PinlineOfDutyOutput="$CI_PROJECT_DIR/inline-of-duty-pipeline" -PinlineOfDutyPipelineReport -PinlineOfDutyAggregateFacts $GRADLE_ARGS
     - |
-      if [ -z "$(find "$INLINE_OF_DUTY_INPUT" -type f -name 'hotspot*.log' -print -quit)" ]; then
+      if ! jq -e '.summary.worker_count > 0' inline-of-duty-pipeline/findings.json >/dev/null; then
         echo "No JIT Inlining Report worker captures were available for pipeline $CI_PIPELINE_ID" >&2
         exit 1
       fi

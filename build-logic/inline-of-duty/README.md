@@ -17,6 +17,10 @@ not schedule additional test tasks. Capture forces selected tests to execute
 instead of reusing test-result caches; compilation tasks keep their normal cache
 behavior. Without `-PinlineOfDuty`, no capture flags are added or worker logs created.
 `-PinlineOfDuty=false` also disables capture.
+`-PinlineOfDutySamplePercent=10` selects approximately 10% of `Test` tasks using
+a stable hash of the task path and pipeline ID (default 100%). This limits both
+JVM logging and report parsing to selected tasks; it does not sample individual
+worker JVMs within a selected task. A new pipeline rotates the selected tasks.
 
 Outputs use Gradle's build-directory convention, including the CI `workspace`
 layout:
@@ -30,6 +34,7 @@ build/reports/inline-of-duty/
   details.html     Bounded evidence for the selected contexts
   findings.json    Compact machine-readable export with exact totals
   summary.md       PR-comment-ready counts and percentages
+  aggregation.json Compact per-job facts used by CI, when CI_JOB_ID is set
 ```
 
 Each build execution has a fresh capture identity, including configuration-cache
@@ -112,23 +117,29 @@ this PoC. Byte Buddy advice copying is distinct from JIT inlining.
 
 ## CI
 
-Set the pipeline variable `INLINE_OF_DUTY=true` to enable capture in normal HotSpot
-test jobs. The common test template skips OpenJ9 variants. Reports and raw captures
-are published with `when: always`, alongside existing JUnit results and reports.
+Set the pipeline variable `INLINE_OF_DUTY=true` to enable capture. By default, PRs
+capture JDK 25 `baseTest` and `instrumentationTest` shards. Set
+`INLINE_OF_DUTY_SCOPE=full` for all HotSpot test shards. OpenJ9 is skipped in both
+modes. Representative shards capture 10% of `Test` tasks by default, configurable
+with `INLINE_OF_DUTY_SAMPLE_PERCENT`; full mode captures every task. Reports and
+raw captures are published with `when: always`, alongside
+existing JUnit results and reports.
 
 ### Pipeline report
 
 The `aggregate_inline_of_duty` job runs in `test-summary`, after regular amd64 and
 arm64 test stages. Its `when: always` rule includes pipelines with failed test
-shards. Test jobs upload compressed JIT captures to the same S3 bucket used for
-test counts. The aggregate downloads only those captures, preserving the stage
-barrier without fetching every test job's full artifact archive. Retries replace
-the previous capture for the same logical test shard.
+shards. Selected test jobs analyze their own worker logs, then upload compact method
+states and call-site facts to the same S3 bucket used for test counts. The aggregate
+downloads only those facts, preserving the stage barrier without fetching test job
+artifacts or raw JIT logs. Retries replace the previous facts for the same logical
+test shard. Raw logs remain in each producing job's GitLab artifacts.
 
-The job selects only the current pipeline's namespaced captures and runs the
-existing JVM-native `inlineOfDutyReport` task. It recomputes the dataset union by
+The job selects only the current pipeline's facts and runs the existing JVM-native
+`inlineOfDutyReport` task. It recomputes the dataset union by
 method signature; it does not add per-job percentages. A success in one job and a
-refusal in another is mixed. Copied logs remain deduplicated.
+refusal in another is mixed. Each selected test job deduplicates identical logs
+before exporting facts.
 
 Open **JIT Inlining Report pipeline** in the job/MR artifacts. The consolidated
 files live in `inline-of-duty-pipeline/` (`index.html`, `details.html`, and
@@ -153,7 +164,7 @@ The report includes **available captures**, not an assertion that every schedule
 job produced evidence. Infrastructure failures before capture and untriggered
 manual jobs may provide none. If no worker logs are available, the job retains a
 zero-worker report and fails with a clear message. Malformed logs and missing logs
-for recorded tasks also fail reporting after writing diagnostics. Other test
+for recorded tasks mark the report partial without failing the test job. Other test
 failures keep their normal CI status. Retry the aggregate job after running or
 retrying test shards later in the pipeline.
 
