@@ -89,12 +89,16 @@ abstract class AbstractJBossLogsIntakeForkedTest extends AbstractInstrumentation
     parent.clearHandlers();
   }
 
+  static boolean traceEnabled() {
+    return InstrumenterConfig.get().isTraceEnabled();
+  }
+
   static boolean agentless() {
-    return InstrumenterConfig.get().isAgentlessLogSubmissionEnabled();
+    return traceEnabled() && InstrumenterConfig.get().isAgentlessLogSubmissionEnabled();
   }
 
   static boolean injection() {
-    return Config.get().isLogsInjectionEnabled();
+    return traceEnabled() && Config.get().isLogsInjectionEnabled();
   }
 
   static Map<String, String> serviceTags() {
@@ -299,8 +303,4 @@ class JBossNoSubmissionForkedTest extends AbstractJBossLogsIntakeForkedTest {}
 class JBossNoInjectionForkedTest extends AbstractJBossLogsIntakeForkedTest {}
 
 @WithConfig(key = TRACE_ENABLED, value = "false")
-class JBossCiAgentlessForkedTest extends AbstractJBossLogsIntakeForkedTest {}
-
-@WithConfig(key = AGENTLESS_LOG_SUBMISSION_ENABLED, value = "false")
-@WithConfig(key = TRACE_ENABLED, value = "false")
-class JBossCiCorrelationForkedTest extends AbstractJBossLogsIntakeForkedTest {}
+class JBossTraceDisabledForkedTest extends AbstractJBossLogsIntakeForkedTest {}
