@@ -12,8 +12,8 @@ import javax.annotation.Nullable;
  * loaded; with one {@code IdStore} subclass loaded, class hierarchy analysis devirtualizes every
  * call on an {@code IdStore} without a guard. A store builds its own copies.
  *
- * <p>No static state here, and no {@link TagMap}: {@link TagMap#EMPTY} is built with {@link
- * #createEmpty}, so class initialization works whichever of the two starts first.
+ * <p>No static state here, and no {@link TagMap}, so {@link TagMap#EMPTY} can be built with {@link
+ * #createEmpty} whichever of the two classes initializes first.
  */
 abstract class IdStoreFactory {
   /** The JVM's store, chosen once by the dense-store flag. */

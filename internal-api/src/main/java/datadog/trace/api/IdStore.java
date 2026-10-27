@@ -13,8 +13,8 @@ import javax.annotation.Nullable;
  * EntryReader} for a known tag -- never a name, so nothing here can be handed a name that a caller
  * has not yet resolved.
  *
- * <p>A span in the tracer core owns its id store directly ({@link #create}); a {@link TagMap} owns
- * one too.
+ * <p>A span in the tracer core owns its id store directly ({@link IdStoreFactory#create}); a {@link
+ * TagMap} owns one too.
  *
  * <p>Values move by {@code load} and {@code store}, as through {@link TagStore}; entries by {@code
  * getEntry}, {@code put} and {@code remove}.
