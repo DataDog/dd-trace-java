@@ -16,6 +16,32 @@ import org.junit.jupiter.api.Test;
 
 class DiagnosticEventBufferTest {
   @Test
+  void reservationAfterEmptyCheckPreventsClosingAdmission() {
+    DiagnosticEventBuffer buffer = new DiagnosticEventBuffer();
+    assertFalse(buffer.hasPending());
+    // A callback enters after the consumer observed quiescence, before it closes admission.
+    DiagnosticEventBuffer.Event open = buffer.reserve();
+    assertFalse(buffer.closeIfEmpty());
+    AtomicInteger consumed = new AtomicInteger();
+    open.publish(consumed::incrementAndGet);
+    buffer.drain(false, 0, false);
+    DiagnosticEventBuffer.Event close = buffer.reserve();
+    close.publish(consumed::incrementAndGet);
+    buffer.drain(false, 0, false);
+    assertEquals(2, consumed.get());
+    assertTrue(buffer.closeIfEmpty());
+    assertNull(buffer.reserve());
+  }
+
+  @Test
+  void closingEmptyBufferRefusesNewLifecycles() {
+    DiagnosticEventBuffer buffer = new DiagnosticEventBuffer();
+    assertTrue(buffer.closeIfEmpty());
+    assertNull(buffer.reserve());
+    assertFalse(buffer.hasPending());
+  }
+
+  @Test
   void stackCaptureCompletionCannotReorderReservations() {
     DiagnosticEventBuffer buffer = new DiagnosticEventBuffer();
     List<String> consumed = new ArrayList<>();

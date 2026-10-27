@@ -105,6 +105,67 @@ class ScopeDiagnosticsAdmissionTest {
   }
 
   @Test
+  void quiescentStopWaitsForAdmittedScopeCleanup() throws Exception {
+    ScopeDiagnostics.startRecording();
+    Object window = ScopeDiagnostics.recordingWindow();
+    Object scope = new Object();
+    ScopeDiagnostics.recordScopeOpen(window, scope, DDTraceId.from(1), 2, "op", (byte) 0, null);
+    FutureTask<Void> stopping =
+        new FutureTask<>(
+            () -> {
+              ScopeDiagnostics.stopAfterQuiescence(30_000);
+              return null;
+            });
+    Thread stopper = new Thread(stopping, "diagnostic-quiescent-stop");
+    stopper.setDaemon(true);
+    stopper.start();
+    try {
+      new PollingConditions(5)
+          .eventually(
+              () -> assertEquals(ScopeDiagnostics.INSTANCE, LockSupport.getBlocker(stopper)));
+      assertFalse(stopping.isDone());
+      ScopeDiagnostics.recordScopeClose(window, scope);
+      stopping.get(5, SECONDS);
+      assertNull(ScopeDiagnostics.recordingWindow());
+      ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+      assertEquals(1, report.scopeRecords().size());
+      assertTrue(report.scopeRecords().get(0).closed());
+      assertFalse(report.hasViolations());
+    } finally {
+      stopper.interrupt();
+      stopper.join(5000);
+    }
+  }
+
+  @Test
+  void quiescentStopRejectsLaterScopes() {
+    ScopeDiagnostics.startRecording();
+    Object window = ScopeDiagnostics.recordingWindow();
+    ScopeDiagnostics.stopAfterQuiescence(30_000);
+    assertNull(ScopeDiagnostics.recordingWindow());
+    ScopeDiagnostics.recordScopeOpen(
+        window, new Object(), DDTraceId.from(1), 2, "late", (byte) 0, null);
+    assertTrue(ScopeDiagnostics.report().scopeRecords().isEmpty());
+  }
+
+  @Test
+  void quiescentStopStillReportsUnclosedScopesAtDeadline() {
+    ScopeDiagnostics.startRecording();
+    ScopeDiagnostics.recordScopeOpen(
+        ScopeDiagnostics.recordingWindow(),
+        new Object(),
+        DDTraceId.from(1),
+        2,
+        "unclosed",
+        (byte) 0,
+        null);
+    ScopeDiagnostics.stopAfterQuiescence(0);
+    assertNull(ScopeDiagnostics.recordingWindow());
+    assertEquals(1, ScopeDiagnostics.report().neverClosedScopeCount());
+    assertTrue(ScopeDiagnostics.report().hasViolations());
+  }
+
+  @Test
   void resetDiscardsQueuedEvents() {
     ScopeDiagnostics.startRecording();
     ScopeDiagnostics.recordCapture(
