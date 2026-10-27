@@ -43,7 +43,10 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       // block further writes while the blocking response close is still asynchronous
       log.debug("Write suppressed; dropped outbound message");
       ReferenceCountUtil.release(msg);
-      prm.tryFailure(new ClosedChannelException());
+      // Void promise failures can trigger another error response and recurse here.
+      if (!prm.isVoid()) {
+        prm.tryFailure(new ClosedChannelException());
+      }
       return;
     }
 
@@ -121,7 +124,8 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
     requestContext.getTraceSegment().effectivelyBlocked();
     log.debug("About to write and flush blocking response {}", response);
-    ctx.writeAndFlush(response, prm)
+    ChannelPromise writePromise = prm.isVoid() ? ctx.newPromise() : prm;
+    ctx.writeAndFlush(response, writePromise)
         .addListener(
             fut -> {
               if (!fut.isSuccess()) {
