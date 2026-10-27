@@ -1,10 +1,13 @@
 package com.datadog.featureflag;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,12 +18,20 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
+import datadog.remoteconfig.ReportableException;
+import datadog.remoteconfig.state.ParsedConfigKey;
+import datadog.remoteconfig.state.ProductState;
+import datadog.remoteconfig.state.SimpleProductListener;
+import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState;
+import datadog.remoteconfig.tuf.RemoteConfigResponse;
+import datadog.remoteconfig.tuf.RemoteConfigResponse.Targets.ConfigTarget;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -31,6 +42,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.tabletest.junit.TableTest;
 
 class RemoteConfigServiceImplTest {
   private static final byte[] DOCUMENT = "{\"flags\":{}}".getBytes(UTF_8);
@@ -98,10 +110,60 @@ class RemoteConfigServiceImplTest {
     assertArrayEquals(DOCUMENT, received.get(0));
   }
 
+  @TableTest({
+    "Scenario  | Rejection | Apply state",
+    "valid     |           | 2          ",
+    "malformed | malformed | 3          "
+  })
+  void defersAcknowledgementUntilASubscriberValidatesTheDocument(
+      final String rejection, final int applyState) throws Exception {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    final ProductState state = new ProductState(Product.FFE_FLAGS);
+    state.addProductListener(new SimpleProductListener(service::accept));
+    final ParsedConfigKey key = ParsedConfigKey.parse("org/FFE_FLAGS/config1/foo");
+    final ConfigTarget target = new ConfigTarget();
+    target.hashes = singletonMap("sha256", "hash1");
+    target.length = DOCUMENT.length;
+    target.custom = new ConfigTarget.ConfigTargetCustom();
+    target.custom.version = 1;
+    final RemoteConfigResponse response = mock(RemoteConfigResponse.class);
+    when(response.getTarget(key.toString())).thenReturn(target);
+    when(response.getFileContents(key.toString())).thenReturn(DOCUMENT);
+
+    state.apply(response, singletonList(key), null);
+
+    assertTrue(state.hasError());
+    assertTrue(state.getConfigStates().isEmpty());
+    assertTrue(state.getCachedTargetFiles().isEmpty());
+
+    final List<byte[]> received = new ArrayList<>();
+    service.subscribe(
+        content -> {
+          received.add(content);
+          if (rejection != null) {
+            throw new IllegalArgumentException(rejection);
+          }
+        });
+    assertTrue(received.isEmpty());
+    state.apply(response, singletonList(key), null);
+
+    assertEquals(1, received.size());
+    assertArrayEquals(DOCUMENT, received.get(0));
+    assertFalse(state.hasError());
+    assertEquals(1, state.getConfigStates().size());
+    final ConfigState configState = state.getConfigStates().iterator().next();
+    assertEquals(applyState, configState.applyState);
+    assertEquals(rejection, configState.applyError);
+    assertEquals(1, state.getCachedTargetFiles().size());
+    verify(response, times(2)).getFileContents(key.toString());
+  }
+
   @Test
   void lateSubscribersRejectingTheCurrentDocumentStaySubscribed() throws Exception {
     final RemoteConfigServiceImpl service =
         new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    service.subscribe(content -> {});
     service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
     final List<byte[]> received = new ArrayList<>();
 
@@ -138,6 +200,7 @@ class RemoteConfigServiceImplTest {
   void concurrentRemovalIsDeliveredAfterTheInitialReplay() throws Exception {
     final RemoteConfigServiceImpl service =
         new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    service.subscribe(content -> {});
     service.accept("key", DOCUMENT, null);
     final List<byte[]> received = new CopyOnWriteArrayList<>();
     final CountDownLatch replayStarted = new CountDownLatch(1);
@@ -206,7 +269,9 @@ class RemoteConfigServiceImplTest {
     final AutoCloseable subscription = service.subscribe(received::add);
 
     subscription.close();
-    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+    assertThrows(
+        ReportableException.class,
+        () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
 
     assertEquals(0, received.size());
     verify(poller, never()).removeListeners(any());
@@ -221,7 +286,9 @@ class RemoteConfigServiceImplTest {
 
     service.close();
     service.close();
-    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+    assertThrows(
+        ReportableException.class,
+        () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
 
     verify(poller, times(1))
         .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);

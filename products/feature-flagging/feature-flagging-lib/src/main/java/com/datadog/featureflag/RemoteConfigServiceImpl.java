@@ -6,6 +6,7 @@ import static datadog.remoteconfig.Product.FFE_FLAGS;
 import datadog.remoteconfig.ConfigurationChangesTypedListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
+import datadog.remoteconfig.ReportableException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -61,7 +62,7 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
         try {
           subscriber.accept(document);
         } catch (final RuntimeException e) {
-          // Already reported to Remote Configuration when the document was received.
+          // The poller reports rejections during document delivery.
           LOGGER.debug("Feature Flags configuration subscriber rejected the current document", e);
         }
       }
@@ -91,6 +92,7 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
    * @param configKey the Remote Configuration key.
    * @param content the raw document, or {@code null} when the configuration is removed.
    * @param pollingRateHinter the polling rate hinter.
+   * @throws ReportableException if no SDK subscriber is available to validate the document.
    * @throws RuntimeException the first subscriber failure, once every subscriber is notified, so
    *     the poller reports the document as not applied.
    */
@@ -101,6 +103,9 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       final PollingRateHinter pollingRateHinter) {
     final Iterator<Consumer<byte[]>> snapshot;
     synchronized (this.subscribers) {
+      if (content != null && this.subscribers.isEmpty()) {
+        throw new ReportableException("Feature Flags configuration is awaiting an SDK subscriber");
+      }
       this.current = content;
       snapshot = this.subscribers.iterator();
     }
