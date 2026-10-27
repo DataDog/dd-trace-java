@@ -875,12 +875,12 @@ muzzle-dep-report:
     # Java 8 JVMs are very slow on AARCH64.
     - if: '$testJvm =~ /^(8|oracle8|zulu8|semeru8|ibm8)$/'
       when: never
-    # Java 11 HotSpot has very slow class retransformation on arm64. Keep OpenJ9
-    # (semeru11) eligible, and allow an explicit [ci: JAVA11] opt-in for HotSpot.
-    - if: '$testJvm =~ /^(11|zulu11)$/ && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
+    # Java 11 is opt-in on arm64; HotSpot has very slow class retransformation.
+    # Vendor JVMs still follow the non-default JVM selection rules below.
+    - if: '$testJvm == "11" && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
       when: on_success
       allow_failure: true
-    - if: '$testJvm =~ /^(11|zulu11)$/'
+    - if: '$testJvm =~ /11$/ && $CI_COMMIT_MESSAGE !~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
       when: never
     # arm64 tests are newly introduced to the merge queue and master. Keep them
     # non-blocking (allow_failure) for now so we can collect stability stats and
