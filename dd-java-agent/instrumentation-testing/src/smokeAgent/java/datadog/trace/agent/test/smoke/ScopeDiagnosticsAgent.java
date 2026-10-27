@@ -19,6 +19,7 @@ import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -26,6 +27,12 @@ import java.util.jar.JarFile;
 /** File-controlled companion agent used only by smoke-test child processes. */
 public final class ScopeDiagnosticsAgent {
   private static final AtomicLong REPORT_IDS = new AtomicLong();
+  private static final long COMMAND_READ_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5);
+
+  @FunctionalInterface
+  interface CommandReader {
+    Properties read() throws IOException;
+  }
 
   private ScopeDiagnosticsAgent() {}
 
@@ -104,11 +111,16 @@ public final class ScopeDiagnosticsAgent {
     while (!Thread.currentThread().isInterrupted()) {
       try {
         if (commandFile.exists()) {
-          Properties command = read(commandFile);
+          Properties command = readCommand(commandFile);
           long seq = Long.parseLong(command.getProperty("seq"));
           if (seq != previous) {
             previous = seq;
             try {
+              // The client waits for this response before publishing another command.
+              // Consume the file now so idle polls cannot reread a completed command.
+              if (!commandFile.delete()) {
+                throw new IOException("Cannot consume scope diagnostic command: " + commandFile);
+              }
               Properties result;
               String action = command.getProperty("action");
               if ("start".equals(action)) {
@@ -176,12 +188,31 @@ public final class ScopeDiagnosticsAgent {
     return classes;
   }
 
-  private static Properties read(File file) throws Exception {
+  private static Properties read(File file) throws IOException {
     Properties properties = new Properties();
     try (InputStream input = new FileInputStream(file)) {
       properties.load(input);
     }
     return properties;
+  }
+
+  private static Properties readCommand(File file) throws IOException, InterruptedException {
+    return readCommand(() -> read(file), COMMAND_READ_TIMEOUT_NANOS);
+  }
+
+  static Properties readCommand(CommandReader reader, long timeoutNanos)
+      throws IOException, InterruptedException {
+    long deadline = System.nanoTime() + timeoutNanos;
+    for (; ; ) {
+      try {
+        return reader.read();
+      } catch (IOException failure) {
+        if (System.nanoTime() >= deadline) {
+          throw failure;
+        }
+        Thread.sleep(20);
+      }
+    }
   }
 
   private static Properties response(long seq, Properties data) {
