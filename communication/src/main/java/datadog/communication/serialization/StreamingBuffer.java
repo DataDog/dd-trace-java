@@ -8,7 +8,14 @@ public interface StreamingBuffer {
 
   boolean isDirty();
 
-  void mark();
+  /**
+   * Completes the message written since the last mark.
+   *
+   * @return {@code false} if the message didn't fit and was rewound. Buffers that signal running
+   *     out of room by throwing {@link java.nio.BufferOverflowException} always return {@code
+   *     true}.
+   */
+  boolean mark();
 
   boolean flush();
 

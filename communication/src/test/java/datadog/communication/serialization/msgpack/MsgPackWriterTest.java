@@ -1087,7 +1087,7 @@ public class MsgPackWriterTest {
         new StackTraceEvent(Arrays.asList(frame1, frame2), DEFAULT_LANGUAGE, "id2", "event2"));
   }
 
-  private StreamingBuffer newBuffer(int capacity, ByteBufferConsumer consumer) {
+  StreamingBuffer newBuffer(int capacity, ByteBufferConsumer consumer) {
     return new FlushingBuffer(capacity, consumer);
   }
 }

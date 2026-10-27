@@ -152,7 +152,9 @@ public class TraceMapperBenchmark {
     }
 
     @Override
-    public void mark() {}
+    public boolean mark() {
+      return true;
+    }
 
     @Override
     public boolean flush() {

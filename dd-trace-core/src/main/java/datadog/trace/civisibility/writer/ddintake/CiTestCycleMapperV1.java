@@ -402,7 +402,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       if (traceCount() == 0) {
         return msgpackMapHeaderSize(0);
       }
-      int size = body.remaining();
+      int size = bodySize();
       if (header != null) {
         size += header.remaining();
       }
@@ -423,9 +423,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
             channel.write(header);
           }
         }
-        while (body.hasRemaining()) {
-          channel.write(body);
-        }
+        writeBody(channel);
       }
     }
 
@@ -435,10 +433,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       List<ByteBuffer> buffers;
       if (traceCount() == 0) {
         buffers = Collections.singletonList(msgpackMapHeader(0));
-      } else if (header != null) {
-        buffers = Arrays.asList(header, body);
       } else {
-        buffers = Collections.singletonList(body);
+        buffers = bodyAfter(header);
       }
       return compressionEnabled
           ? gzippedMsgpackRequestBodyOf(buffers)

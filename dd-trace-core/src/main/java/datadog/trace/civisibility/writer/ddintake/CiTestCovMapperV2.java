@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
@@ -213,7 +212,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       if (traceCount() == 0) {
         return msgpackMapHeaderSize(0);
       }
-      int size = body.remaining();
+      int size = bodySize();
       if (header != null) {
         size += header.remaining();
       }
@@ -234,9 +233,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
             channel.write(header);
           }
         }
-        while (body.hasRemaining()) {
-          channel.write(body);
-        }
+        writeBody(channel);
       }
     }
 
@@ -246,10 +243,8 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       if (traceCount() == 0) {
         // If traceCount is 0, we write a map with 0 elements in MsgPack format.
         buffers = Collections.singletonList(msgpackMapHeader(0));
-      } else if (header != null) {
-        buffers = Arrays.asList(header, body);
       } else {
-        buffers = Collections.singletonList(body);
+        buffers = bodyAfter(header);
       }
       RequestBody coverageBody = msgpackRequestBodyOf(buffers);
 

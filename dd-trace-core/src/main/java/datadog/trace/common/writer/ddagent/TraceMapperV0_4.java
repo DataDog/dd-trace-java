@@ -22,7 +22,6 @@ import datadog.trace.core.PendingTrace;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
@@ -401,7 +400,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     public int sizeInBytes() {
-      return msgpackArrayHeaderSize(traceCount()) + body.remaining();
+      return msgpackArrayHeaderSize(traceCount()) + bodySize();
     }
 
     @Override
@@ -410,14 +409,12 @@ public final class TraceMapperV0_4 implements TraceMapper {
       while (header.hasRemaining()) {
         channel.write(header);
       }
-      while (body.hasRemaining()) {
-        channel.write(body);
-      }
+      writeBody(channel);
     }
 
     @Override
     public RequestBody toRequest() {
-      return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
+      return msgpackRequestBodyOf(bodyAfter(msgpackArrayHeader(traceCount())));
     }
   }
 }

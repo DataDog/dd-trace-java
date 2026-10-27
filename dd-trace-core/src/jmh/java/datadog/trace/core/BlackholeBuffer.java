@@ -23,7 +23,9 @@ public class BlackholeBuffer implements StreamingBuffer {
   }
 
   @Override
-  public void mark() {}
+  public boolean mark() {
+    return true;
+  }
 
   @Override
   public boolean flush() {

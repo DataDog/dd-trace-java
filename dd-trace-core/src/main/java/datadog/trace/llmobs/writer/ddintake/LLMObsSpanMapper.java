@@ -801,7 +801,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       if (traceCount() == 0) {
         return msgpackMapHeaderSize(0);
       }
-      return header.remaining() + msgpackArrayHeaderSize(spansWritten) + body.remaining();
+      return header.remaining() + msgpackArrayHeaderSize(spansWritten) + bodySize();
     }
 
     @Override
@@ -813,11 +813,15 @@ public class LLMObsSpanMapper implements RemoteMapper {
           channel.write(emptyDict);
         }
       } else {
-        while (body.hasRemaining()) {
-          channel.write(header.slice());
-          channel.write(msgpackArrayHeader(spansWritten));
-          channel.write(body);
+        ByteBuffer headers = header.slice();
+        while (headers.hasRemaining()) {
+          channel.write(headers);
         }
+        ByteBuffer spanCount = msgpackArrayHeader(spansWritten);
+        while (spanCount.hasRemaining()) {
+          channel.write(spanCount);
+        }
+        writeBody(channel);
       }
     }
 
@@ -828,11 +832,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
         buffers = Collections.singletonList(msgpackMapHeader(0));
       } else {
         buffers =
-            Arrays.asList(
+            bodyAfter(
                 header.slice(),
                 // Third Value: is an array of spans serialized into the body
-                msgpackArrayHeader(spansWritten),
-                body);
+                msgpackArrayHeader(spansWritten));
       }
       return gzippedMsgpackRequestBodyOf(buffers);
     }

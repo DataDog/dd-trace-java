@@ -24,9 +24,78 @@ class ChunkedBufferTest {
   }
 
   @Test
-  void capacityIsWholeChunks() {
-    assertEquals(20 * CHUNK_SIZE, new ChunkedBuffer(5 << 20).capacity());
-    assertEquals(CHUNK_SIZE, new ChunkedBuffer(1024).capacity());
+  void capacityIsExact() {
+    assertEquals(5 << 20, new ChunkedBuffer(5 << 20).capacity());
+    assertEquals(1024, new ChunkedBuffer(1024).capacity());
+    assertEquals(0, new ChunkedBuffer(0).capacity());
+  }
+
+  @Test
+  void lastChunkIsShortenedToFitCapacity() {
+    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE + 10);
+    buffer.put(new byte[CHUNK_SIZE + 2]);
+    buffer.putLong(5L);
+    assertTrue(buffer.mark());
+    assertEquals(CHUNK_SIZE + 10, buffer.completedBytes());
+
+    // a short last chunk can still be too small for the next primitive
+    buffer.putShort((short) 1);
+    assertFalse(buffer.mark());
+  }
+
+  @Test
+  void unusedChunkTailsDoNotReduceCapacity() {
+    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS);
+    buffer.put(new byte[CHUNK_SIZE - 3]);
+    // leaves 3 unused bytes at the end of the first chunk
+    buffer.putLong(1L);
+    buffer.put(new byte[TWO_CHUNKS - (CHUNK_SIZE - 3) - 8]);
+    assertTrue(buffer.mark());
+    assertEquals(TWO_CHUNKS, buffer.completedBytes());
+    assertEquals(TWO_CHUNKS, concat(buffer.completedChunks()).length);
+
+    buffer.put((byte) 1);
+    assertFalse(buffer.mark());
+  }
+
+  @Test
+  void keptShortChunkIsReplacedWhenAPayloadNeedsMoreOfIt() {
+    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE + 10);
+    // no unused tail, so the second chunk only needs to be 10 bytes long
+    buffer.put(new byte[CHUNK_SIZE + 10]);
+    assertTrue(buffer.mark());
+    buffer.reset();
+    assertEquals(2, buffer.allocatedChunks());
+
+    // a 4 byte tail in the first chunk means this payload needs 14 bytes of the second
+    buffer.put(new byte[CHUNK_SIZE - 4]);
+    buffer.putLong(1L);
+    buffer.put(new byte[6]);
+    assertTrue(buffer.mark());
+    assertEquals(CHUNK_SIZE + 10, buffer.completedBytes());
+  }
+
+  @Test
+  void smallBufferIsOneSmallChunk() {
+    ChunkedBuffer buffer = new ChunkedBuffer(16);
+    buffer.putLong(1L);
+    buffer.putLong(2L);
+    assertTrue(buffer.mark());
+    assertEquals(16, buffer.completedChunks().get(0).array().length);
+
+    buffer.put((byte) 3);
+    assertFalse(buffer.mark());
+    assertEquals(16, buffer.completedBytes());
+  }
+
+  @Test
+  void zeroCapacityRejectsEveryMessage() {
+    ChunkedBuffer buffer = new ChunkedBuffer(0);
+    buffer.putInt(1);
+    buffer.put(new byte[10]);
+    assertFalse(buffer.mark());
+    assertFalse(buffer.isDirty());
+    assertEquals(0, buffer.allocatedChunks());
   }
 
   @Test

@@ -34,13 +34,14 @@ public final class FlushingBuffer implements StreamingBuffer {
   }
 
   @Override
-  public void mark() {
+  public boolean mark() {
     int current = buffer.position();
     if (current != mark) {
       // count only non-empty messages
       ++messageCount;
       mark = current;
     }
+    return true;
   }
 
   @Override

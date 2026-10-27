@@ -60,9 +60,10 @@ public final class GrowableBuffer implements StreamingBuffer {
   }
 
   @Override
-  public void mark() {
+  public boolean mark() {
     ++messageCount;
     mark = buffer.position();
+    return true;
   }
 
   @Override
