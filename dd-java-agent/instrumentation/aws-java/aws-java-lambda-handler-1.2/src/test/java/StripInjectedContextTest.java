@@ -15,12 +15,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /** Unit tests for {@link StripInjectedContext}. */
 class StripInjectedContextTest extends DDJavaSpecification {
@@ -109,6 +111,25 @@ class StripInjectedContextTest extends DDJavaSpecification {
     byte[] result = StripInjectedContext.stripInternal(input);
 
     assertArrayEquals(input, result);
+  }
+
+  @Test
+  void returnsOriginalWhenCarrierIsUnclosedAfterAValidCarrier() {
+    byte[] input = bytes("{\"_datadog\":{\"a\":1},\"x\":{\"_datadog\":{\"b\":2");
+
+    assertArrayEquals(input, StripInjectedContext.stripInternal(input));
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "{\"_datadog\":{},\"x\":\"_datadog",
+        "{\"_datadog\":{\"a\":1},\"x\":\"abc _datadog"
+      })
+  void returnsOriginalWhenStringIsUnterminatedAfterACarrier(String json) {
+    byte[] input = bytes(json);
+
+    assertArrayEquals(input, StripInjectedContext.stripInternal(input));
   }
 
   @Test
@@ -450,6 +471,53 @@ class StripInjectedContextTest extends DDJavaSpecification {
     byte[] input = bytes("{\"note\":\"{ pasted \\\"_datadog\\\":{x} here\"}");
 
     assertArrayEquals(input, StripInjectedContext.stripInternal(input));
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "{\"note\":\"{\\\"_datadog\\\":{}} is an example {}\"}",
+        "{\"note\":\"{see \\\"_datadog\\\":{\\\"x\\\":1} for details}\"}",
+        "{\"note\":\"{\\\"_datadog\\\":{\\\"a\\\":1} \\\"b\\\"}\"}"
+      })
+  void doesNotRewriteBraceDelimitedTextThatIsNotAJsonObject(String json) {
+    byte[] input = bytes(json);
+
+    assertArrayEquals(input, StripInjectedContext.stripInternal(input));
+  }
+
+  @Test
+  void keepsDeeplyNestedEncodedJsonUntouchedWithoutStackOverflow() {
+    int depth = 100_000;
+    byte[] input =
+        bytes(
+            "{\"body\":\"{\\\"_datadog\\\":{},\\\"a\\\":"
+                + repeat('[', depth)
+                + repeat(']', depth)
+                + "}\"}");
+
+    assertArrayEquals(input, StripInjectedContext.stripInternal(input));
+  }
+
+  @Test
+  void stillStripsEncodedJsonNestedUpToTheLimit() {
+    int depth = StripInjectedContext.MAX_NESTING - 1;
+    byte[] input =
+        bytes(
+            "{\"body\":\"{\\\"_datadog\\\":{},\\\"a\\\":"
+                + repeat('[', depth)
+                + repeat(']', depth)
+                + "}\"}");
+
+    String result = new String(StripInjectedContext.stripInternal(input), StandardCharsets.UTF_8);
+
+    assertTrue(!result.contains("_datadog"));
+  }
+
+  private static String repeat(char c, int count) {
+    char[] chars = new char[count];
+    Arrays.fill(chars, c);
+    return new String(chars);
   }
 
   @Test
