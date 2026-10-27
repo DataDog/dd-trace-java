@@ -16,6 +16,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
@@ -133,6 +134,20 @@ class FeatureFlagsBackendTest {
     final FeatureFlagsBackend created = new FeatureFlagsBackend(this.sco, this.config, null);
 
     assertEquals(apiKey, created.setting("api-key"));
+  }
+
+  @Test
+  void keepsTheEventProxyAvailableWithABlankApiKey() {
+    when(this.config.getFeatureFlaggingConfigurationSource())
+        .thenReturn(FeatureFlaggingSource.AGENTLESS);
+    when(this.config.getApiKey()).thenReturn(" \t ");
+    when(this.sco.featuresDiscovery(this.config)).thenReturn(mock(DDAgentFeaturesDiscovery.class));
+
+    final FeatureFlagsBackend created = new FeatureFlagsBackend(this.sco, this.config, null);
+
+    assertTrue(
+        created.isEventProxyAvailable(),
+        "the proxy stays available for recovery when direct intake has no usable API key");
   }
 
   @Test
