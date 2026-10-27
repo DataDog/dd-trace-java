@@ -18,8 +18,31 @@ RUN curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/sdkman-inst
     rm /tmp/sdkman-install.sh
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
     sdk env install && \
-    sdk install java 17.0.10-tem && \
+    sdk install java 11.0.32.1+1-tem && \
+    sdk install java 17.0.21.0+9-tem && \
     sdk flush"
+
+ENV JAVA_11_HOME=/root/.sdkman/candidates/java/11.0.32.1+1-tem
+# Keep OkHttp's Java 11 test launcher on the scrubbed image JDK, not a runtime download.
+RUN mkdir -p "$HOME/.gradle" && \
+    printf '%s\n' \
+      "org.gradle.java.installations.paths=$JAVA_11_HOME,$HOME/.sdkman/candidates/java/8.0.372-tem,$HOME/.sdkman/candidates/java/17.0.21.0+9-tem" \
+      'org.gradle.java.installations.auto-download=false' > "$HOME/.gradle/gradle.properties"
+
+# Distrust the affected roots before Maven or Gradle downloads any build inputs.
+RUN set -eu; \
+    keytool="$HOME/.sdkman/candidates/java/17.0.21.0+9-tem/bin/keytool"; \
+    find "$HOME/.sdkman/candidates/java" -type f -path '*/lib/security/cacerts' | \
+    while IFS= read -r store; do \
+      listing=$("$keytool" -list -v -keystore "$store" -storepass changeit); \
+      aliases=$(printf '%s\n' "$listing" | \
+        awk '/^Alias name: / { alias = substr($0, 13) } /^Owner: .*([eE]mSign (ECC )?Root CA - G[123]|AAA Certificate Services)/ { print alias }'); \
+      if [ -n "$aliases" ]; then \
+        printf '%s\n' "$aliases" | while IFS= read -r alias; do \
+          "$keytool" -delete -keystore "$store" -storepass changeit -alias "$alias"; \
+        done; \
+      fi; \
+    done
 
 RUN mkdir exploration-tests
 WORKDIR /exploration-tests
@@ -55,19 +78,30 @@ RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-databind && m
 RUN git clone -b okhttp_5.3.x https://github.com/square/okhttp.git
 COPY okhttp_exploration-tests.patch .
 RUN cd okhttp && git apply /exploration-tests/okhttp_exploration-tests.patch
-RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk use java 17.0.10-tem && cd okhttp && ./gradlew dependencies"
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk use java 17.0.21.0+9-tem && cd okhttp && ./gradlew dependencies"
 
-# Remove compromised CA entries from every SDKMAN and Gradle-provisioned JDK.
+# Older google-api-client artifacts embed independent Google truststores.
 RUN set -eu; \
-    mkdir -p "$HOME/.gradle/jdks"; \
-    keytool="$HOME/.sdkman/candidates/java/17.0.10-tem/bin/keytool"; \
-    find "$HOME/.sdkman/candidates/java" "$HOME/.gradle/jdks" -type f -path '*/lib/security/cacerts' | \
-    while IFS= read -r store; do \
-      "$keytool" -list -v -keystore "$store" -storepass changeit | \
-        awk '/^Alias name: / { alias = substr($0, 13) } /^Owner: .*([eE]mSign ECC Root CA - G3|AAA Certificate Services)/ { print alias }' | \
-        while IFS= read -r alias; do \
-          "$keytool" -delete -keystore "$store" -storepass changeit -alias "$alias"; \
-        done; \
+    keytool="$HOME/.sdkman/candidates/java/17.0.21.0+9-tem/bin/keytool"; \
+    find "$HOME/.gradle" -type f -name 'google-api-client-*.jar' | \
+    while IFS= read -r archive; do \
+      for entry in com/google/api/client/googleapis/google.p12 com/google/api/client/googleapis/google.jks; do \
+        if unzip -Z1 "$archive" | grep -Fxq "$entry"; then \
+          scratch="$(mktemp -d)"; \
+          mkdir -p "$scratch/com/google/api/client/googleapis"; \
+          unzip -p "$archive" "$entry" > "$scratch/$entry"; \
+          listing=$("$keytool" -list -v -keystore "$scratch/$entry" -storepass notasecret); \
+          aliases=$(printf '%s\n' "$listing" | \
+            awk '/^Alias name: / { alias = substr($0, 13) } /^Owner: .*([eE]mSign (ECC )?Root CA - G[123]|AAA Certificate Services)/ { print alias }'); \
+          if [ -n "$aliases" ]; then \
+            printf '%s\n' "$aliases" | while IFS= read -r alias; do \
+              "$keytool" -delete -keystore "$scratch/$entry" -storepass notasecret -alias "$alias"; \
+            done; \
+            (cd "$scratch" && zip -q "$archive" "$entry"); \
+          fi; \
+          rm -rf "$scratch"; \
+        fi; \
+      done; \
     done
 
 # Do not publish Gradle's generated API jar with its old embedded CA snapshot.
