@@ -51,6 +51,8 @@ public class AdviceUtils {
     State state = contextStore.get(task);
     if (null != state) {
       state.closeContinuation();
+      // Canceled task may never start, stoping the queue timer.
+      state.stopTiming();
     }
   }
 

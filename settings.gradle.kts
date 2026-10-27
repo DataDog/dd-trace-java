@@ -628,6 +628,7 @@ include(
   ":dd-java-agent:instrumentation:tinylog-2.0",
   ":dd-java-agent:instrumentation:tomcat:tomcat-5.5",
   ":dd-java-agent:instrumentation:tomcat:tomcat-9.0",
+  ":dd-java-agent:instrumentation:tomcat:tomcat-9.0.52",
   ":dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-5.5",
   ":dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0",
   ":dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-7.0",

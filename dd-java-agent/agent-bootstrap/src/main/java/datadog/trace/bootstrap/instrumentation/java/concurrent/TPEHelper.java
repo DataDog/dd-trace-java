@@ -9,14 +9,15 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.ContextStore;
 import java.util.Set;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Executor;
 
 /**
- * This class is a helper for the ThreadPoolExecutorInstrumentation. The instrumentation has two
- * modes, where the legacy mode uses wrapping of the Runnable and the new mode uses the State
- * context store field in the actual Runnable. The ThreadLocal below is needed to transport the
- * ContextScope between two methods when using the context store approach. More details can be found
- * in the ThreadPoolExecutorInstrumentation.
+ * This class is a helper for the {@code ThreadPoolExecutorInstrumentation}, and tomcat pool
+ * executor. The instrumentation has two modes, where the legacy mode uses wrapping of the {@code
+ * Runnable} and the new mode uses the {@code State} context store field in the actual {@code
+ * Runnable}. The {@code ThreadLocal} below is needed to transport the {@code ContextScope} between
+ * two methods when using the context store approach (between {@code beforeExecute} and {@code
+ * afterExecute}). More details can be found in the {@code ThreadPoolExecutorInstrumentation}.
  */
 public final class TPEHelper {
   // If legacy is enabled, we will try to propagate via wrapping, if not we will try to propagate
@@ -55,7 +56,7 @@ public final class TPEHelper {
   private static final ClassValue<Boolean> PROPAGATE =
       GenericClassValue.of(input -> !excludedClasses.contains(input.getName()));
 
-  public static boolean shouldPropagate(ThreadPoolExecutor executor) {
+  public static boolean shouldPropagate(Executor executor) {
     // avoid tracking threads when building native images as it confuses the scanner
     // (we still want instrumentation applied, so tracking works in the built image)
     return !Platform.isNativeImageBuilder()
@@ -106,7 +107,7 @@ public final class TPEHelper {
     AdviceUtils.endTaskScope(scope);
   }
 
-  public static void cancelTask(ContextStore<Runnable, State> contextStore, Runnable task) {
+  public static <T extends Runnable> void cancelTask(ContextStore<T, State> contextStore, T task) {
     if (task == null || exclude(RUNNABLE, task)) {
       return;
     }

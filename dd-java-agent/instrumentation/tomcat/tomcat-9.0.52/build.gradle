@@ -1,0 +1,29 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = 'org.apache.tomcat.embed'
+    module = 'tomcat-embed-core'
+    versions = '[9.0.52,)'
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+dependencies {
+  compileOnly 'org.apache.tomcat.embed:tomcat-embed-core:9.0.52'
+  testImplementation 'org.apache.tomcat.embed:tomcat-embed-core:9.0.52'
+  latestDepTestImplementation 'org.apache.tomcat.embed:tomcat-embed-core:11.+'
+}
+
+// Tomcat 11 needs Java 17; keep the Tomcat 9 suites available on Java 8.
+['latestDepTest', 'latestDepForkedTest'].each { testTask ->
+  tasks.named(testTask, Test) {
+    testJvmConstraints {
+      minJavaVersion = JavaVersion.VERSION_17
+    }
+  }
+}
