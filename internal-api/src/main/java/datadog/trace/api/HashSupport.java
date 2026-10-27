@@ -481,7 +481,7 @@ final class HashSupport {
   }
 
   /** Walks a bucket array's raw entries, tombstones included, for an iterator. */
-  static final class BucketWalker {
+  static class BucketWalker {
     private Object[] buckets;
     private int bucketIndex;
     private BucketGroup group;
@@ -496,7 +496,7 @@ final class HashSupport {
     }
 
     /** The next raw entry, or null when the array is done. */
-    Entry next() {
+    final Entry nextEntry() {
       while (this.bucketIndex < this.buckets.length) {
         if (this.group != null) {
           for (++this.groupIndex; this.groupIndex < BucketGroup.LEN; ++this.groupIndex) {

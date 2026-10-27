@@ -24,22 +24,22 @@ final class HashIdStore extends IdStore {
   }
 
   /** Walks the leaf's buckets, then each ancestor's, skipping tombstones and shadowed entries. */
-  private static final class HashCursor implements Cursor {
+  /** Walks the store's levels; it is its own bucket walker, so a cursor is one allocation. */
+  private static final class HashCursor extends HashSupport.BucketWalker implements Cursor {
     private final HashIdStore leaf;
     private HashIdStore level;
-    private final HashSupport.BucketWalker walker = new HashSupport.BucketWalker();
 
     HashCursor(HashIdStore leaf) {
       this.leaf = leaf;
       this.level = leaf;
-      this.walker.reset(leaf.buckets);
+      this.reset(leaf.buckets);
     }
 
     @Override
-    public EntryReader next() {
+    public Entry next() {
       HashIdStore level = this.level;
       while (level != null) {
-        Entry entry = this.walker.next();
+        Entry entry = this.nextEntry();
         if (entry != null) {
           if (!entry.tombstone
               && (level == this.leaf || this.leaf.parentEntryVisible(entry, level))) {
@@ -50,7 +50,7 @@ final class HashIdStore extends IdStore {
         level = level.parent;
         this.level = level;
         if (level != null) {
-          this.walker.reset(level.buckets);
+          this.reset(level.buckets);
         }
       }
       return null;
