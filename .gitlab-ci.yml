@@ -534,7 +534,7 @@ check-instrumentation-naming:
   needs: [ ]
   script:
     - ./gradlew --version
-    - ./gradlew checkInstrumentationNaming
+    - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
 config-inversion-linter:
   extends: .gradle_build
@@ -542,7 +542,7 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew checkConfigurations
+    - ./gradlew checkConfigurations $GRADLE_ARGS
 
 test_published_artifacts:
   extends: .gradle_build
