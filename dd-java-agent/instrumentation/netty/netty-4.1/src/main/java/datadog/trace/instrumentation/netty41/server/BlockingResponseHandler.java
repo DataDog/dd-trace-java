@@ -18,6 +18,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.ReferenceCountUtil;
+import java.nio.channels.ClosedChannelException;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -246,6 +247,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
         throws Exception {
       log.info("Ignored write of object {}", msg);
       ReferenceCountUtil.release(msg);
+      // Releasing the message does not complete the write; notify listeners that it failed.
+      promise.tryFailure(new ClosedChannelException());
     }
   }
 }

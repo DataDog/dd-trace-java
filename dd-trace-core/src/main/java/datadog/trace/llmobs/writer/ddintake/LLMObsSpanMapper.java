@@ -16,6 +16,7 @@ import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.llmobs.LLMObsSpanData;
 import datadog.trace.api.llmobs.LLMObsSpanProcessor;
 import datadog.trace.api.llmobs.LLMObsTags;
+import datadog.trace.api.llmobs.LLMObsTraceId;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -218,18 +219,15 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // The LLMObs trace id, which is not the APM trace id: a span that inherited its LLMObs
       // context from another service reports the caller's id so the LLMObs trace stays whole
       // across a boundary that starts a fresh APM trace. DDLLMObsSpan stamps it on every span it
-      // creates, seeded from the APM trace id at the root, so the two agree for a trace that
-      // never leaves this process. The fallback covers a span that reached the mapper without the
-      // tag, and renders the APM trace id the way LLMObsTraceId.format does — hex above 2^64,
-      // unsigned decimal below it, matching dd-trace-py and dd-trace-js. Inlined rather than
-      // shared because that class lives in agent-llmobs, which dd-trace-core does not depend on.
+      // creates, seeded from the APM trace id at the root. Auto-instrumented spans such as
+      // openai.request only stamp it when they inherit one, so at the root of an LLMObs trace the
+      // id is seeded here instead, with the same LLMObsTraceId.format DDLLMObsSpan uses: hex above
+      // 2^64, unsigned decimal below it, matching dd-trace-py and dd-trace-js.
       Object rawLLMObsTraceId = span.getTag(TRACE_ID_TAG_INTERNAL_FULL);
       String llmObsTraceId =
           rawLLMObsTraceId instanceof String && !((String) rawLLMObsTraceId).isEmpty()
               ? (String) rawLLMObsTraceId
-              : span.getTraceId().toHighOrderLong() != 0
-                  ? span.getTraceId().toHexString()
-                  : span.getTraceId().toString();
+              : LLMObsTraceId.format(span.getTraceId());
 
       writable.startMap(hasSessionId ? 12 : 11);
       // 1
