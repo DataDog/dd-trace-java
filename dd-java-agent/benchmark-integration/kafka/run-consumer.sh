@@ -19,6 +19,7 @@ echo "heap,rep,variant,fetch_msgs_per_sec,msgs,young_gcs,full_gcs" > "$csv"
 
 variants=("$@")
 n=${#variants[@]}
+messages="${MESSAGES:-10000000}"
 pass=0
 for heap in ${HEAPS:-256m 128m 64m}; do
   for rep in $(seq 1 "${REPS:-5}"); do
@@ -28,20 +29,24 @@ for heap in ${HEAPS:-256m 128m 64m}; do
       parse_variant "$v"
       tag="$heap-r$rep-$VARIANT_LABEL"
       gc_log="$results/gclogs/$tag.log"
+      status=0
       KAFKA_HEAP_OPTS="-Xms$heap -Xmx$heap" \
         KAFKA_OPTS="-Xlog:gc:file=$gc_log $(variant_opts "$VARIANT_JAR")" \
         "$KAFKA_HOME/bin/kafka-consumer-perf-test.sh" --bootstrap-server "$BOOTSTRAP" \
-        --topic "$CONSUME_TOPIC" --messages "${MESSAGES:-10000000}" --group "bench-$tag-$RANDOM" \
-        --timeout 180000 > "$results/runs/$tag.out" 2>&1 || true
+        --topic "$CONSUME_TOPIC" --messages "$messages" --group "bench-$tag-$RANDOM" \
+        --timeout 180000 > "$results/runs/$tag.out" 2>&1 || status=$?
       # Last stats line: start, end, MB, MB/s, nMsg, nMsg/s, rebalance ms, fetch ms, fetch MB/s, fetch nMsg/s
       line="$(grep -E '^[0-9]{4}-' "$results/runs/$tag.out" | tail -1 || true)"
-      if [ -z "$line" ]; then
-        log "FAIL $tag (see $results/runs/$tag.out)"
+      rate="$(echo "$line" | awk -F', ' '{print $10}')"
+      msgs="$(echo "$line" | awk -F', ' '{print $5}')"
+      # A short read (topic smaller than MESSAGES) still prints stats after the timeout, but it's a
+      # different workload, so it's rejected rather than measured. The tool stops at the end of a
+      # poll batch, so a complete run reads slightly more than MESSAGES.
+      if [ "$status" -ne 0 ] || [ -z "$line" ] || [ "${msgs:-0}" -lt "$messages" ]; then
+        log "FAIL $tag: exit $status, read ${msgs:-0} of $messages (see $results/runs/$tag.out)"
         echo "$heap,$rep,$VARIANT_LABEL,,,," >> "$csv"
         continue
       fi
-      rate="$(echo "$line" | awk -F', ' '{print $10}')"
-      msgs="$(echo "$line" | awk -F', ' '{print $5}')"
       young="$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)"
       full="$(grep -c 'Pause Full' "$gc_log" 2>/dev/null || true)"
       echo "$heap,$rep,$VARIANT_LABEL,$rate,$msgs,${young:-0},${full:-0}" >> "$csv"
@@ -50,4 +55,4 @@ for heap in ${HEAPS:-256m 128m 64m}; do
   done
 done
 log "results: $csv"
-python3 -I "$script_dir/analyze.py" "$csv"
+java "$script_dir/Analyze.java" "$csv"

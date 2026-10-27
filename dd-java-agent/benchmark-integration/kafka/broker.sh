@@ -39,17 +39,25 @@ start() {
 }
 
 stop() {
-  "$KAFKA_HOME/bin/kafka-server-stop.sh" >/dev/null 2>&1 || true
-  if [ -f "$pid_file" ]; then
-    local pid
-    pid="$(cat "$pid_file")"
-    for _ in $(seq 1 30); do
-      kill -0 "$pid" 2>/dev/null || break
-      sleep 1
-    done
-    rm -f "$pid_file"
+  # Signal only the broker this script started; kafka-server-stop.sh would stop every Kafka broker on
+  # the host.
+  if [ ! -f "$pid_file" ]; then
+    log "no broker pid file; nothing to stop"
+    return
   fi
-  log "broker stopped"
+  local pid
+  pid="$(cat "$pid_file")"
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 30); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$pid_file"
+      log "broker stopped"
+      return
+    fi
+    sleep 1
+  done
+  log "ERROR: broker (pid $pid) did not stop within 30s"
+  exit 1
 }
 
 case "${1:-}" in
