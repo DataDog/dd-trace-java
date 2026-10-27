@@ -125,4 +125,4 @@ org.spockframework:spock-core:2.4-groovy-3.0=compileClasspath,testCompileClasspa
 org.tabletest:tabletest-junit:1.2.2=testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-parser:1.2.1=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
-empty=annotationProcessor,spotbugsPlugins
+empty=annotationProcessor,smokeAgentAnnotationProcessor,smokeAgentCompileClasspath,smokeAgentRuntimeClasspath,spotbugsPlugins
