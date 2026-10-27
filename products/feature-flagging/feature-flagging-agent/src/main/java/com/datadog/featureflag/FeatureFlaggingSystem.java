@@ -37,12 +37,11 @@ public class FeatureFlaggingSystem {
       LOGGER.debug("Feature Flagging system disabled");
       return;
     }
-    // Tracing owns the shutdown path running before the JVM shutdown hooks. Without it, stop from a
-    // shutdown hook once the SDK subscribes to the shutdown, so it still flushes its pending
-    // events.
+    // The tracing shutdown path stops the system before the JVM shutdown hooks, but it is missing
+    // when tracing or its shutdown instrumentation is disabled. Stop from a shutdown hook as well
+    // once the SDK subscribes to the shutdown, so it always flushes its pending events.
     final FeatureFlagsBackend backend =
-        new FeatureFlagsBackend(
-            sco, config, config.isTraceEnabled() ? null : FeatureFlaggingSystem::addShutdownHook);
+        new FeatureFlagsBackend(sco, config, FeatureFlaggingSystem::addShutdownHook);
     try {
       backend.start();
     } catch (final RuntimeException | Error e) {
