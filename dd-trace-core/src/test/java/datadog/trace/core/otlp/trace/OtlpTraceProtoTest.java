@@ -901,6 +901,30 @@ class OtlpTraceProtoTest {
     assertEquals(asList("baggage.value"), stringAttributeValues(attributes, "server.address"));
   }
 
+  @ParameterizedTest(name = "otel semantics {0}, baggage {1}")
+  @CsvSource({
+    "false, http.request.method, span.value, baggage.value",
+    "true, http.request.method, '', span.value",
+    "true, http.method, baggage.value, span.value"
+  })
+  void baggageIsSkippedOnlyWhenATagIsExportedUnderTheSameKey(
+      boolean otelSemantics, String baggageKey, String httpMethod, String httpRequestMethod)
+      throws IOException {
+    // http.method and http.request.method are aliases of one tag: lookups by either name find it,
+    // but only one of them is exported, so baggage under the other name must be kept
+    List<String[]> attributes =
+        exportWithDirectionalBaggage(otelSemantics, "server", "http.method", baggageKey);
+
+    assertEquals(expectedValues(httpMethod), stringAttributeValues(attributes, "http.method"));
+    assertEquals(
+        expectedValues(httpRequestMethod),
+        stringAttributeValues(attributes, "http.request.method"));
+  }
+
+  private static List<String> expectedValues(String value) {
+    return value == null || value.isEmpty() ? new ArrayList<>() : asList(value);
+  }
+
   private static List<String[]> exportWithDirectionalBaggage(
       boolean otelSemanticsEnabled, String kind, String tag, String baggageKey) throws IOException {
     Config realConfig = Config.get();

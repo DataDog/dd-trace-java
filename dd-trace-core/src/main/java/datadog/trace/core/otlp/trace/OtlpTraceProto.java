@@ -38,6 +38,7 @@ import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.RESOURCE_NAME;
 import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.SERVICE_NAME_KEY;
 import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.SKIPPED_BAGGAGE_KEYS;
 import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.SPAN_TYPE;
+import static datadog.trace.core.otlp.trace.OtlpTraceAttributes.isExportedTagKey;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -325,15 +326,11 @@ public final class OtlpTraceProto {
 
       // Baggage carries the propagation tags (e.g. the _dd.p.dm sampling decision maker) and any
       // baggage items injected as tags, as in the Datadog mappers. Span tags and the attributes
-      // written directly above win on a key clash, which keeps OTLP attribute keys unique. Under
-      // OTel semantics some tags are exported under a direction-dependent name (peer.port is
-      // server.port on a client span), so the baggage key is also resolved for this direction.
+      // written directly above win when they are exported under the same key, which keeps OTLP
+      // attribute keys unique without dropping baggage whose exported key differs.
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        long directionalTagId =
-            otelSemantics ? KnownTagCodec.directionalKeyOf(entry.getKey(), direction) : 0;
         if (SKIPPED_BAGGAGE_KEYS.contains(entry.getKey())
-            || tags.containsKey(entry.getKey())
-            || (directionalTagId != 0 && tags.getEntry(directionalTagId) != null)) {
+            || isExportedTagKey(tags, entry.getKey(), direction, otelSemantics)) {
           continue;
         }
         writeTag(buf, 9, LEN_WIRE_TYPE);

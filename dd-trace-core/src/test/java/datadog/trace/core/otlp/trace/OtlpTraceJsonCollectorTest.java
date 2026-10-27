@@ -562,6 +562,32 @@ class OtlpTraceJsonCollectorTest {
     assertEquals(asList("baggage.value"), attributeValues(parsed, "server.address"));
   }
 
+  @TableTest({
+    "scenario                  | otelSemantics | baggageKey          | httpMethod    |"
+        + " httpRequestMethod",
+    "otel off, otel-name key   | false         | http.request.method | span.value    |"
+        + " baggage.value    ",
+    "otel on, otel-name key    | true          | http.request.method |               | span.value  "
+        + "     ",
+    "otel on, datadog-name key | true          | http.method         | baggage.value | span.value  "
+        + "     "
+  })
+  void baggageIsSkippedOnlyWhenATagIsExportedUnderTheSameKey(
+      boolean otelSemantics, String baggageKey, String httpMethod, String httpRequestMethod)
+      throws IOException {
+    // http.method and http.request.method are aliases of one tag: lookups by either name find it,
+    // but only one of them is exported, so baggage under the other name must be kept
+    Map<String, Object> parsed =
+        exportWithDirectionalBaggage(otelSemantics, "server", "http.method", baggageKey);
+
+    assertEquals(expectedValues(httpMethod), attributeValues(parsed, "http.method"));
+    assertEquals(expectedValues(httpRequestMethod), attributeValues(parsed, "http.request.method"));
+  }
+
+  private static List<Object> expectedValues(String value) {
+    return value == null || value.isEmpty() ? new ArrayList<>() : asList((Object) value);
+  }
+
   private static Map<String, Object> exportWithDirectionalBaggage(
       boolean otelSemanticsEnabled, String kind, String tag, String baggageKey) throws IOException {
     Config realConfig = Config.get();

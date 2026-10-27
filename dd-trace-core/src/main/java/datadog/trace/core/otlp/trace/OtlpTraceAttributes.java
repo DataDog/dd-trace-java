@@ -12,6 +12,7 @@ import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
 
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -59,6 +60,30 @@ final class OtlpTraceAttributes {
               HTTP_STATUS_CODE_KEY_DD.toString(),
               ORIGIN_KEY.toString(),
               PROCESS_TAGS_KEY.toString()));
+
+  /**
+   * True if a span tag is exported under exactly {@code key}, so baggage under that key would
+   * duplicate it. TagMap lookups resolve aliases (http.request.method finds http.method), so the
+   * matching entry's exported name is compared with the key: it depends on OTel semantics and, for
+   * direction-scoped tags, on the span's direction (peer.port is server.port on a client).
+   */
+  static boolean isExportedTagKey(TagMap tags, String key, int direction, boolean otelSemantics) {
+    if (exportsAs(tags.getEntry(key), key, direction, otelSemantics)) {
+      return true;
+    }
+    if (otelSemantics) {
+      long directionalTagId = KnownTagCodec.directionalKeyOf(key, direction);
+      return directionalTagId != 0
+          && exportsAs(tags.getEntry(directionalTagId), key, direction, true);
+    }
+    return false;
+  }
+
+  private static boolean exportsAs(
+      TagMap.Entry entry, String key, int direction, boolean otelSemantics) {
+    return entry != null
+        && key.equals(otelSemantics ? entry.openTelemetryTag(direction) : entry.tag());
+  }
 
   /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
   private static UTF8BytesString otelKey(long tagId) {
