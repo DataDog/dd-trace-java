@@ -478,6 +478,7 @@ publish-artifacts-to-s3:
   script:
     - source upstream.env
     - export VERSION="${UPSTREAM_TRACER_VERSION%~*}" # remove ~githash from the end of version
+    - echo "dd-java-agent.version=${UPSTREAM_TRACER_VERSION}" # used to identify manually deployed candidates
     - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-agent.jar
     - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-api.jar
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-ot.jar
