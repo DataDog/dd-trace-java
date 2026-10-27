@@ -2,6 +2,8 @@ package opentelemetry147.metrics;
 
 import static datadog.metrics.impl.statsd.DDAgentStatsDClientManager.statsDClientManager;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.PROCESS_TAGS;
+import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.expectedProcessTags;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -43,22 +45,18 @@ import org.junit.jupiter.api.Test;
 // process-wide state. This test compares the serialized DogStatsD and OTLP payloads.
 class JvmRuntimeMetricsPayloadParityForkedTest {
 
-  private static final Set<String> COMMON_TAGS =
-      new HashSet<>(
-          Arrays.asList(
-              "instance",
-              "dd.internal.jmx_check_name",
-              "runtime-id",
-              "entrypoint.basedir",
-              "entrypoint.name",
-              "entrypoint.type",
-              "entrypoint.workdir",
-              "svc.auto",
-              "svc.user",
-              "_dd.injection.mode",
-              "jmx_domain",
-              "type",
-              "name"));
+  private static final List<String> IDENTITY_TAG_KEYS =
+      Arrays.asList(
+          "instance",
+          "dd.internal.jmx_check_name",
+          "runtime-id",
+          "_dd.injection.mode",
+          "jmx_domain",
+          "type");
+
+  // Both include every process tag, so they are computed once the test has added its own tags.
+  private static Set<String> requiredTagKeys;
+  private static Set<String> commonTagKeys;
 
   private static List<MetricPoint> jmxFetchPoints;
   private static List<MetricPoint> otlpPoints;
@@ -69,6 +67,13 @@ class JvmRuntimeMetricsPayloadParityForkedTest {
     System.setProperty("dd.tags", "_dd.injection.mode:test-injection");
     System.setProperty("dd.metrics.otel.enabled", "true");
     ProcessTags.addTag("entrypoint.basedir", "test-basedir");
+    ProcessTags.addTag("custom.process.tag", "test-custom");
+    requiredTagKeys = new HashSet<>(IDENTITY_TAG_KEYS);
+    requiredTagKeys.addAll(expectedProcessTags().keySet());
+    // Also compare tags that only some beans carry, or that this process does not have
+    commonTagKeys = new HashSet<>(requiredTagKeys);
+    commonTagKeys.add("name");
+    commonTagKeys.addAll(PROCESS_TAGS);
 
     JvmOtlpRuntimeMetrics.start(true);
     jmxFetchPoints = parseDogStatsdPayload(collectJmxFetchPayload());
@@ -256,7 +261,7 @@ class JvmRuntimeMetricsPayloadParityForkedTest {
 
   private static Map<String, String> commonTags(Map<String, String> tags) {
     Map<String, String> common = new LinkedHashMap<>();
-    for (String key : COMMON_TAGS) {
+    for (String key : commonTagKeys) {
       if (tags.containsKey(key)) {
         common.put(key, tags.get(key));
       }
@@ -266,18 +271,7 @@ class JvmRuntimeMetricsPayloadParityForkedTest {
 
   private static void assertRequiredTags(
       Map<String, String> tags, String payloadName, BeanId bean) {
-    for (String key :
-        Arrays.asList(
-            "instance",
-            "dd.internal.jmx_check_name",
-            "runtime-id",
-            "entrypoint.basedir",
-            "entrypoint.name",
-            "entrypoint.type",
-            "entrypoint.workdir",
-            "_dd.injection.mode",
-            "jmx_domain",
-            "type")) {
+    for (String key : requiredTagKeys) {
       assertTrue(tags.containsKey(key), payloadName + " is missing tag " + key + " for " + bean);
     }
     assertTrue(

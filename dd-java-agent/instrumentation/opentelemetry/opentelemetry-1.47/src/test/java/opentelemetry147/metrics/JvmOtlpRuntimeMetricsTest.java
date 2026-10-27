@@ -3,6 +3,7 @@ package opentelemetry147.metrics;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -372,9 +373,8 @@ public class JvmOtlpRuntimeMetricsTest {
     if (processTags != null) {
       for (String tag : processTags) {
         int separator = tag.indexOf(':');
-        String key = tag.substring(0, separator);
-        if (PROCESS_TAGS.contains(key)) {
-          result.put(key, tag.substring(separator + 1));
+        if (separator > 0) {
+          result.put(tag.substring(0, separator), tag.substring(separator + 1));
         }
       }
     }
@@ -401,8 +401,14 @@ public class JvmOtlpRuntimeMetricsTest {
     String context = metric + " " + point.attrs;
     assertEquals("dd-java-agent default", point.attrs.get("instance"), context);
     assertEquals("jmxfetch-config", point.attrs.get("dd.internal.jmx_check_name"), context);
+    for (Map.Entry<String, String> processTag : processTags.entrySet()) {
+      assertEquals(processTag.getValue(), point.attrs.get(processTag.getKey()), context);
+    }
+    // Known process tag keys must not appear when the process does not have them.
     for (String key : PROCESS_TAGS) {
-      assertEquals(processTags.get(key), point.attrs.get(key), context);
+      if (!processTags.containsKey(key)) {
+        assertNull(point.attrs.get(key), context);
+      }
     }
   }
 
