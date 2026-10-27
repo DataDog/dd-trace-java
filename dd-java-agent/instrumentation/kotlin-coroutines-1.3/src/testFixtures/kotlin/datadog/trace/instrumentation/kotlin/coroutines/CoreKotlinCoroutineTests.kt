@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kotlin.coroutines
 
+import datadog.context.Context
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -620,11 +621,13 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
 
   protected suspend fun AgentSpan.activateAndUse(block: suspend () -> Unit) {
     try {
-      val scope = get().activateManualSpan(this)
+      // Coroutine instrumentation swaps this context out on suspension and back in on
+      // resumption. Unlike a manual scope, the saved context can be restored on any thread.
+      val previous = storeInto(Context.current()).swap()
       try {
         block()
       } finally {
-        scope.close()
+        previous.swap()
       }
     } finally {
       finish()
