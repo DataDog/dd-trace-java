@@ -61,9 +61,7 @@ class LambdaScaSmokeTest {
     assertEquals("datadog.smoketest.lambda.LambdaScaHandler", caller.get("path"));
     assertEquals("warmInvocation", caller.get("symbol"));
     assertTrue(caller.get("line") instanceof Number, "caller line must be numeric");
-    assertTrue(
-        ((Number) caller.get("line")).intValue() > 0,
-        "caller line must identify a source location");
+    assertEquals(37, ((Number) caller.get("line")).intValue());
   }
 
   @SuppressWarnings("unchecked")
