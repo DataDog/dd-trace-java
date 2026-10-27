@@ -29,7 +29,7 @@ class CiBuilderInputsPluginTest {
       """.trimIndent(),
     )
 
-    val local = environment(image = "not-an-immutable-image") - "GITLAB_CI"
+    val local = environment(image = "") - "GITLAB_CI"
     assertEquals(
       SUCCESS,
       runner("inspectInputs", configurationCache = false)
@@ -48,7 +48,7 @@ class CiBuilderInputsPluginTest {
   }
 
   @Test
-  fun `test cache follows the image digest without invalidating compilation`() {
+  fun `test cache follows tag identities without invalidating compilation`() {
     fixture()
 
     val first = runner("test").build()
@@ -60,15 +60,23 @@ class CiBuilderInputsPluginTest {
     assertTrue(unchanged.output.contains("Reusing configuration cache"), unchanged.output)
     assertEquals(FROM_CACHE, runner("clean", "test").build().task(":test")?.outcome)
 
-    val changed = runner("clean", "test").withEnvironment(environment(image('b'))).build()
+    val changed = runner("clean", "test").withEnvironment(environment("registry.example/builder:next-")).build()
     assertEquals(FROM_CACHE, changed.task(":compileTestJava")?.outcome)
     assertEquals(SUCCESS, changed.task(":test")?.outcome)
 
-    val sameContents =
-      runner("clean", "test")
-        .withEnvironment(environment("other.example/builder@sha256:${"b".repeat(64)}"))
+    val hashProperty = "-PciBuilderImage=sha256:${"b".repeat(64)}"
+    val futureHash =
+      runner("clean", "test", hashProperty)
+        .withEnvironment(environment(""))
         .build()
-    assertEquals(FROM_CACHE, sameContents.task(":test")?.outcome)
+    assertEquals(FROM_CACHE, futureHash.task(":compileTestJava")?.outcome)
+    assertEquals(SUCCESS, futureHash.task(":test")?.outcome)
+
+    val overriddenEnvironment =
+      runner("clean", "test", hashProperty)
+        .withEnvironment(environment("registry.example/builder:another-tag"))
+        .build()
+    assertEquals(FROM_CACHE, overriddenEnvironment.task(":test")?.outcome)
   }
 
   @Test
@@ -77,7 +85,7 @@ class CiBuilderInputsPluginTest {
 
     assertEquals(SUCCESS, runner("producer").build().task(":producer")?.outcome)
     assertEquals(FROM_CACHE, runner("clean", "producer").build().task(":producer")?.outcome)
-    val changed = runner("producer").withEnvironment(environment(image('b'))).build()
+    val changed = runner("producer").withEnvironment(environment("registry.example/builder:next-")).build()
     assertEquals(SUCCESS, changed.task(":producer")?.outcome)
   }
 
@@ -106,7 +114,7 @@ class CiBuilderInputsPluginTest {
   @Test
   fun `invalid identity fails only when tracked task inputs are queried`() {
     fixture()
-    val missing = environment() - "CI_BUILDER_IMAGE"
+    val missing = environment() - "ORG_GRADLE_PROJECT_ciBuilderImage"
     assertEquals(
       SUCCESS,
       runner("help")
@@ -120,14 +128,11 @@ class CiBuilderInputsPluginTest {
       listOf(
         missing,
         environment(""),
-        environment("registry.example/builder:ci-base"),
-        environment("registry.example/builder@sha256:1234"),
-        environment("registry.example/builder@sha256:${"z".repeat(64)}"),
-        environment("registry.example/builder @sha256:${"a".repeat(64)}"),
+        environment(" \t "),
       )
     for (values in invalid) {
       val failed = runner("producer").withEnvironment(values).buildAndFail()
-      assertTrue(failed.output.contains("CI_BUILDER_IMAGE must be an immutable image reference"), failed.output)
+      assertTrue(failed.output.contains("ciBuilderImage must be a nonblank CI builder identity"), failed.output)
     }
   }
 
@@ -194,10 +199,9 @@ class CiBuilderInputsPluginTest {
       )}\""
     }
 
-  private fun image(character: Char = 'a') = "registry.example/builder@sha256:${character.toString().repeat(64)}"
-
-  private fun environment(image: String = image()) =
-    (System.getenv() - "GITLAB_CI" - "CI_BUILDER_IMAGE") + mapOf("GITLAB_CI" to "true", "CI_BUILDER_IMAGE" to image)
+  private fun environment(image: String = "registry.example/builder:ci-") =
+    (System.getenv() - "GITLAB_CI" - "ORG_GRADLE_PROJECT_ciBuilderImage") +
+      mapOf("GITLAB_CI" to "true", "ORG_GRADLE_PROJECT_ciBuilderImage" to image)
 
   private fun runner(
     vararg arguments: String,
