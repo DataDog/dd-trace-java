@@ -193,6 +193,56 @@ class NullAwayConventionsPluginTest : GradleFixture() {
     assertThat(result.task(":compileMain_java17Java")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
   }
 
+  @Test
+  fun `JSpecify reaches consumers for compilation and Java 8 reflection`() {
+    useJSpecify()
+    writeGradleProperties("org.gradle.java.installations.fromEnv=JAVA_8_HOME")
+    writeJavaSource(
+      "datadog.example.Producer",
+      """
+      package datadog.example;
+      import org.jspecify.annotations.Nullable;
+      public class Producer {
+        public @Nullable String value() { return null; }
+      }
+      """
+    )
+    addSubproject(
+      "consumer",
+      """
+      plugins { application }
+      repositories { mavenCentral() }
+      dependencies { implementation(project(":")) }
+      application { mainClass.set("datadog.example.Consumer") }
+      tasks.withType<JavaCompile>().configureEach { options.release = 8 }
+      tasks.named<JavaExec>("run") {
+        javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(8) })
+      }
+      """
+    )
+    writeJavaSource(
+      "datadog.example.Consumer",
+      """
+      package datadog.example;
+      import org.jspecify.annotations.Nullable;
+      public class Consumer {
+        public static void main(String[] args) throws ReflectiveOperationException {
+          if (Producer.class.getMethod("value").getAnnotatedReturnType()
+              .getAnnotation(Nullable.class) == null) {
+            throw new AssertionError("Missing nullable return annotation");
+          }
+        }
+      }
+      """,
+      projectPath = "consumer"
+    )
+
+    val result = run(":consumer:run")
+
+    assertThat(result.task(":consumer:compileJava")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+    assertThat(result.task(":consumer:run")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
+  }
+
   private fun useJSpecify() {
     writeRootProject(
       """

@@ -18,6 +18,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -406,7 +407,7 @@ public interface AgentSpan
   }
 
   @Override
-  default <T> Context with(@Nonnull ContextKey<T> key, @Nullable T value) {
+  default <T> Context with(@Nonnull ContextKey<T> key, @CheckForNull T value) {
     return SPAN_KEY == key ? (Context) value : Context.root().with(SPAN_KEY, this, key, value);
   }
 

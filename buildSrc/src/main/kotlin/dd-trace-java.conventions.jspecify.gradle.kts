@@ -1,16 +1,16 @@
 import net.ltgt.gradle.errorprone.errorprone
 
 plugins {
+  `java-library`
   id("dd-trace-java.conventions.nullaway")
 }
 
 val jspecify = versionCatalogs.named("libs").findLibrary("jspecify").get()
-sourceSets.configureEach {
+sourceSets.matching { name != SourceSet.MAIN_SOURCE_SET_NAME && name != SourceSet.TEST_SOURCE_SET_NAME }.configureEach {
   dependencies.add(compileOnlyConfigurationName, jspecify)
 }
 dependencies {
-  // Java 8 reflection needs the type annotation classes on the test runtime classpath.
-  testRuntimeOnly(jspecify)
+  api(jspecify)
 }
 
 tasks.withType<JavaCompile>().configureEach {

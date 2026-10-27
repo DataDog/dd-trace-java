@@ -42,6 +42,7 @@ final class CachedData {
         filter.exclude(filter.project(':dd-java-agent:agent-crashtracking'))
         filter.exclude(filter.project(':dd-java-agent:ddprof-lib'))
         filter.exclude(filter.dependency('org.slf4j:.*:.*'))
+        filter.exclude(filter.dependency('org.jspecify:jspecify'))
         filter.exclude(filter.dependency('.*:dd-instrument-java:.*'))
 
         // okhttp and its transitives (both fork and non-fork)

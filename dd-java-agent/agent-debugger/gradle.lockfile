@@ -114,6 +114,7 @@ org.jetbrains.kotlinx:kotlinx-coroutines-core:1.0.0=testCompileClasspath,testRun
 org.jetbrains:annotations:13.0=testCompileClasspath,testRuntimeClasspath
 org.jline:jline:3.22.0=testRuntimeClasspath
 org.jooq:joor-java-8:0.9.13=testCompileClasspath,testRuntimeClasspath
+org.jspecify:jspecify:1.0.1=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-api:5.14.1=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-engine:5.14.1=testFixturesRuntimeClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-params:5.14.1=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
