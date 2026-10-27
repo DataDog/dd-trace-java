@@ -10,13 +10,29 @@ muzzle {
   }
 }
 
+// Cover the first forked 10.x executor as well as the latest 10.x release.
+addTestSuiteForDir('tomcat10Test', 'test')
+addTestSuiteExtendingForDir('tomcat10ForkedTest', 'tomcat10Test', 'test')
+addTestSuiteForDir('latest10Test', 'test')
+addTestSuiteExtendingForDir('latest10ForkedTest', 'latest10Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly 'org.apache.tomcat.embed:tomcat-embed-core:9.0.52'
   testImplementation 'org.apache.tomcat.embed:tomcat-embed-core:9.0.52'
+  tomcat10TestImplementation 'org.apache.tomcat.embed:tomcat-embed-core:10.0.10'
+  latest10TestImplementation 'org.apache.tomcat.embed:tomcat-embed-core:10.+'
   latestDepTestImplementation 'org.apache.tomcat.embed:tomcat-embed-core:11.+'
+}
+
+// The latest 10.x releases are on the Java 11 baseline of Tomcat 10.1.
+['latest10Test', 'latest10ForkedTest'].each { testTask ->
+  tasks.named(testTask, Test) {
+    testJvmConstraints {
+      minJavaVersion = JavaVersion.VERSION_11
+    }
+  }
 }
 
 // Tomcat 11 needs Java 17; keep the Tomcat 9 suites available on Java 8.
