@@ -178,7 +178,7 @@ class StripInjectedContextTest extends DDJavaSpecification {
   }
 
   @Test
-  @WithConfig(key = GeneralConfig.LAMBDA_STRIP_INJECTED_CONTEXT, value = "true")
+  @WithConfig(key = GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, value = "true")
   void stripRemovesDatadogKeyWhenConfigIsEnabled() {
     byte[] input = bytes("{\"detail\":{\"orderId\":1,\"_datadog\":{\"trace\":\"1\"}}}");
 
@@ -361,7 +361,7 @@ class StripInjectedContextTest extends DDJavaSpecification {
   }
 
   @Test
-  @WithConfig(key = GeneralConfig.LAMBDA_STRIP_INJECTED_CONTEXT, value = "true")
+  @WithConfig(key = GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, value = "true")
   void replaceInputStreamStripsAndDoesNotConsumeTheOriginalStream() {
     String eventJson = "{\"detail\":{\"orderId\":1,\"_datadog\":{\"trace\":\"1\"}}}";
     ByteArrayInputStream original =
@@ -379,7 +379,7 @@ class StripInjectedContextTest extends DDJavaSpecification {
   }
 
   @Test
-  @WithConfig(key = GeneralConfig.LAMBDA_STRIP_INJECTED_CONTEXT, value = "true")
+  @WithConfig(key = GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, value = "true")
   void replaceInputStreamDoesNotReadUnsupportedStreams() {
     byte[] payload = bytes("{\"a\":1,\"_datadog\":{\"t\":\"1\"}}");
     AtomicInteger reads = new AtomicInteger();
