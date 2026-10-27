@@ -100,6 +100,7 @@ public final class FeatureFlagsRuntime {
       throw new IllegalStateException("Feature Flags is disabled");
     }
     final boolean remoteConfig = CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(sourceName);
+    LOGGER.debug("Feature Flags runtime starting: configurationSource={}", sourceName);
     final RuntimeServices services = new RuntimeServices(bridge.healthMetrics());
     final ConfigurationService source;
     final EventTransport transport;
@@ -150,6 +151,11 @@ public final class FeatureFlagsRuntime {
                 context,
                 services)
             : null;
+    LOGGER.debug(
+        "Feature Flags event delivery: transport={}, exposures={}, evaluationCounts={}",
+        transport.getClass().getSimpleName(),
+        exposures != null ? "enabled" : "disabled",
+        evaluations != null ? "enabled" : "disabled");
     return new FeatureFlagsRuntime(source, exposures, evaluations);
   }
 
@@ -256,9 +262,21 @@ public final class FeatureFlagsRuntime {
     if (this.exposures != null) {
       this.exposures.awaitTermination(deadline);
     }
+    // Logged last: a diagnostic must not get in the way of the cleanup.
+    LOGGER.debug("Feature Flags runtime stopped");
   }
 
   private void onConfiguration(@Nullable final ServerConfiguration configuration) {
+    if (configuration == null) {
+      LOGGER.debug("Feature Flags configuration removed");
+    } else if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(
+          "Feature Flags configuration applied: flags={}, invalidFlags={}, configurationEnv={}, createdAt={}",
+          configuration.flags == null ? "missing" : configuration.flags.size(),
+          configuration.invalidFlags == null ? 0 : configuration.invalidFlags.size(),
+          configuration.environment == null ? null : configuration.environment.name,
+          configuration.createdAt);
+    }
     final Iterator<Consumer<ServerConfiguration>> snapshot;
     synchronized (this.listeners) {
       this.configuration = configuration;

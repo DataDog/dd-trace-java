@@ -128,6 +128,7 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
   public void requestShutdown() {
     synchronized (lifecycleLock) {
       if (closed.compareAndSet(false, true)) {
+        LOGGER.debug("Feature Flags flag evaluation shutdown requested");
         // The worker polls every 100 ms: do not interrupt a current or final HTTP request.
         serializer.requestShutdown();
       }
@@ -406,6 +407,10 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         }
         for (final byte[] payload : payloads.bodies) {
           transport.post(FLAG_EVALUATION_ROUTE, payload);
+        }
+        if (!payloads.bodies.isEmpty()) {
+          LOGGER.debug(
+              "Feature Flags flag evaluation flush delivered: payloads={}", payloads.bodies.size());
         }
       } catch (Exception e) {
         LOGGER.error("Could not submit flag evaluations", e);

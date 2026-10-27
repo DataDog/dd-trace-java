@@ -23,6 +23,7 @@ import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
+import com.datadog.openfeature.testlog.CapturingServiceProvider;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +34,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 class FeatureFlagsRuntimeTest {
   private static final byte[] EMPTY_UFC =
@@ -141,6 +145,53 @@ class FeatureFlagsRuntimeTest {
       runtime.stop();
     }
     assertTrue(source.closed);
+  }
+
+  @AfterEach
+  void resetCapturedLogs() {
+    CapturingServiceProvider.reset();
+  }
+
+  @Test
+  void stoppingDoesNotDependOnTheLoggingBackend() {
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
+    CapturingServiceProvider.failOn("Feature Flags runtime stopped");
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(source, null),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    runtime.start();
+
+    assertThrows(IllegalStateException.class, runtime::stop);
+
+    assertTrue(source.closed);
+  }
+
+  @Test
+  void reportsAppliedAndRemovedConfigurations() {
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(source, null),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    runtime.start();
+    try {
+      source.listener.accept(EMPTY_UFC);
+      source.listener.accept(null);
+    } finally {
+      runtime.stop();
+    }
+
+    final List<String> messages =
+        CapturingServiceProvider.events().stream().map(e -> e.message).collect(Collectors.toList());
+    assertTrue(
+        messages.contains(
+            "Feature Flags configuration applied: flags=0, invalidFlags=0, configurationEnv=Test, createdAt=null"),
+        messages.toString());
+    assertTrue(messages.contains("Feature Flags configuration removed"), messages.toString());
+    assertTrue(messages.contains("Feature Flags runtime stopped"), messages.toString());
   }
 
   @Test

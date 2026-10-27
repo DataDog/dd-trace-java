@@ -109,6 +109,14 @@ public final class CdnConfigurationSource implements ConfigurationService {
       this.started = true;
       this.listener = listener;
     }
+    LOGGER.debug(
+        "Feature Flags starting agentless configuration source: endpoint={}://{}{}{}, pollIntervalMillis={}, requestTimeout={}",
+        this.endpoint.getScheme(),
+        this.endpoint.getHost(),
+        this.endpoint.getPort() < 0 ? "" : ":" + this.endpoint.getPort(),
+        this.endpoint.getRawPath(),
+        this.pollIntervalMillis,
+        this.requestTimeout);
     // Complete the first poll cycle on the calling thread so provider initialization observes a
     // successful retry before it checks whether configuration is ready.
     pollOnceSafely();
@@ -138,6 +146,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
       call = this.activeCall;
       this.activeCall = null;
     }
+    LOGGER.debug("Feature Flags agentless configuration source stopping");
     this.closedSignal.countDown();
     if (call != null) {
       call.cancel();
@@ -212,6 +221,7 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private boolean apply(final HttpResponse<byte[]> response) {
     final int status = response.statusCode();
     if (status == HttpURLConnection.HTTP_NOT_MODIFIED) {
+      LOGGER.debug("Feature Flags agentless configuration unchanged (HTTP 304)");
       return true;
     }
     if (status == HttpURLConnection.HTTP_UNAUTHORIZED
@@ -229,15 +239,21 @@ public final class CdnConfigurationSource implements ConfigurationService {
     try {
       configuration = UniversalFlagConfigParser.parseJsonApi(Gzip.decode(response));
     } catch (final IOException | RuntimeException e) {
-      LOGGER.debug("Feature Flags configuration endpoint returned a malformed payload", e);
+      LOGGER.debug(
+          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the current configuration",
+          e.getClass().getSimpleName(),
+          e);
       return false;
     }
     if (configuration == null) {
+      LOGGER.debug(
+          "Feature Flags configuration endpoint returned no flag data; retaining the current configuration");
       return false;
     }
     this.listener.accept(configuration);
     final String nextEtag = response.headers().firstValue("ETag").orElse(null);
     this.etag = nextEtag == null || nextEtag.trim().isEmpty() ? null : nextEtag;
+    LOGGER.debug("Feature Flags agentless configuration applied: etag={}", this.etag);
     return true;
   }
 
@@ -254,10 +270,20 @@ public final class CdnConfigurationSource implements ConfigurationService {
             return this.activeCall;
           }
         },
-        (response, attempt) ->
-            response == null || isRetryableStatus(response.statusCode())
-                ? retryDelayMillis(this.pollIntervalMillis, attempt, this.jitter.getAsDouble())
-                : -1,
+        (response, attempt) -> {
+          if (response != null && !isRetryableStatus(response.statusCode())) {
+            return -1;
+          }
+          final long delayMillis =
+              retryDelayMillis(this.pollIntervalMillis, attempt, this.jitter.getAsDouble());
+          LOGGER.debug(
+              "Feature Flags agentless configuration poll attempt {}/{} {}; retrying in {} ms",
+              attempt,
+              MAX_ATTEMPTS,
+              response == null ? "failed" : "returned HTTP " + response.statusCode(),
+              delayMillis);
+          return delayMillis;
+        },
         MAX_ATTEMPTS,
         this.retrySleeper,
         () -> this.closed);
