@@ -58,7 +58,7 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
             config.getFeatureFlaggingConfigurationSource() == AGENTLESS,
             config.getFeatureFlaggingConfigurationSource() == AGENTLESS
                 && config.getApiKey() != null
-                && !config.getApiKey().isEmpty()),
+                && !config.getApiKey().trim().isEmpty()),
         SpanEnrichmentWriter.getInstance(),
         CoreMetricCollector.getInstance(),
         onFirstShutdownSubscription);
