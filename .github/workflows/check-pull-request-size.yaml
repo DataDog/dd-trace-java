@@ -25,13 +25,33 @@ jobs:
         with:
           fetch-depth: 2 # Fetch the pull request merge commit and its parents
           filter: blob:none
-          sparse-checkout: .github/scripts
+          sparse-checkout: .github # Only the git history is needed, keep the working tree small
           persist-credentials: false
       - name: Count added lines
         id: count-added-lines
         run: |
-          # The first parent of the pull request merge commit is the base branch
-          ADDED_LINES=$(.github/scripts/count-added-lines.sh HEAD^1 HEAD)
+          set -euo pipefail
+          # Count the added lines, excluding moved lines, test code and resources, and lock files.
+          # Moved lines (blocks of at least 20 alphanumeric characters deleted and added elsewhere, even
+          # re-indented or in another file) are told apart from added lines using diff colors:
+          # added lines are painted green and moved lines blue, then only the green lines are counted.
+          # The first parent of the pull request merge commit is the base branch.
+          ADDED_LINES=$(git \
+            -c color.diff.meta=bold \
+            -c color.diff.new=green \
+            -c color.diff.newMoved=blue \
+            diff \
+            --color=always \
+            --color-moved=blocks \
+            --color-moved-ws=allow-indentation-change \
+            --ws-error-highlight=none \
+            --find-renames \
+            --no-ext-diff \
+            HEAD^1 HEAD \
+            -- . \
+            ':(exclude,glob)**/src/test/**' \
+            ':(exclude,glob)**/gradle.lockfile' |
+            awk '/^\033\[32m\+/ { count++ } END { print count + 0 }')
           echo "Added lines: $ADDED_LINES"
           echo "added_lines=$ADDED_LINES" >> "$GITHUB_OUTPUT"
       - name: Get GitHub Token via dd-octo-sts

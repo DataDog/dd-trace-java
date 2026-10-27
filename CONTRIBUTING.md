@@ -108,7 +108,6 @@ Follow the [lockfile update workflow](docs/how_to_work_with_gradle.md#updating-l
 
 Pull requests should add less than 1000 lines to remain reviewable.
 Deleted lines, moved code, test code and resources (`src/test`), and `gradle.lockfile` files are not counted.
-Run `.github/scripts/count-added-lines.sh origin/master HEAD` to check the added line count of your branch.
 
 Split larger changes into stacked pull requests: each pull request targets the branch of the previous one, and they are reviewed and merged in order.
 
