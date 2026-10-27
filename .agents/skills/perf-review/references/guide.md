@@ -273,16 +273,9 @@ CPU/alloc severity collapses. But the risk *inverts*: payload memory (large prom
 accumulated output) becomes SEV-1. A CPU-weighted reviewer flags the wrong things and misses the
 real one.
 
-**DSM is the opposite: per-message.** Data Streams Monitoring rides on messaging paths (Kafka,
-SQS, RabbitMQ, …), where the application's own work per message can be under a microsecond: a
-Kafka consumer spends about 0.7 µs per record. Per-message DSM cost is a large share of the
-total, so give it no domain relief.
-
-**No relief for a product that's off.** The large-denominator relief applies to work a product
-does while it's *on*. Work done for an optional product while it's off (DSM, DBM, DJM, …) is paid
-by every customer who doesn't use it, on whatever path it sits — see `checks.md` J14. *Example:* the
-Kafka consumer built DSM tags and context for every record with DSM off; guarding it saved 548 B
-per record (−13.7% allocation) and gained 6.6% throughput.
+**Not DSM, and not a product that's off.** DSM runs on per-message paths, where a Kafka consumer
+does about 0.7 µs of its own work per record, so it gets no relief. Neither does work done for any
+product while it's off: every customer who doesn't use it pays (`checks.md` J14).
 
 **Streaming handlers — large-denominator rule suspends at the chunk level.** The per-call
 denominator applies to costs that fire once per call. Costs inside a streaming handler fire
