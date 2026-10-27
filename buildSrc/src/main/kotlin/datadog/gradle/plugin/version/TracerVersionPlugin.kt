@@ -50,7 +50,6 @@ class TracerVersionPlugin @Inject constructor(
       extension.defaultVersion.get()
     } else {
       val currentBranchProvider = currentBranchProvider(repoWorkingDirectory)
-      val isReleaseTag = releaseTagFilter()
       providerFactory.zip(
         currentBranchProvider.flatMap { currentBranch ->
           // Use --first-parent only on release branches so they stay anchored to their own
@@ -63,7 +62,7 @@ class TracerVersionPlugin @Inject constructor(
         },
         currentBranchProvider
       ) { describeString, currentBranch ->
-        toTracerVersion(describeString, extension, isReleaseTag) {
+        toTracerVersion(describeString, extension) {
           when {
             currentBranch.startsWith("release/v") -> {
               logger.info("Incrementing patch because release branch : $currentBranch")
@@ -95,19 +94,18 @@ class TracerVersionPlugin @Inject constructor(
     }
 
   /**
-   * Creates the filter for the tags a build checked out on that exact tag may release.
+   * Checks whether a build checked out on that exact tag may use it as the release version.
    *
    * In GitLab, only the pipeline of the tag itself builds a release version. Other pipelines on
    * the tagged commit, like the master one, build the next snapshot version, so they never publish
    * the release a second time.
    *
-   * @return whether a tag, with its prefix, can be used as the release version
+   * @param tag the tag, with its prefix
+   * @return whether the tag can be used as the release version
    */
-  private fun releaseTagFilter(): (String) -> Boolean {
-    val inGitLab = providerFactory.environmentVariable("GITLAB_CI").isPresent
-    val ciCommitTag = providerFactory.environmentVariable("CI_COMMIT_TAG").orNull
-    return { tag -> !inGitLab || tag == ciCommitTag }
-  }
+  private fun isReleaseTag(tag: String): Boolean =
+    !providerFactory.environmentVariable("GITLAB_CI").isPresent ||
+      tag == providerFactory.environmentVariable("CI_COMMIT_TAG").orNull
 
   private fun gitCurrentBranchProvider(
     repoWorkingDirectory: File
@@ -150,12 +148,7 @@ class TracerVersionPlugin @Inject constructor(
     }
   }
 
-  private fun toTracerVersion(
-    describeString: String,
-    extension: TracerVersionExtension,
-    isReleaseTag: (String) -> Boolean,
-    nextVersion: Version.() -> Version
-  ): String {
+  private fun toTracerVersion(describeString: String, extension: TracerVersionExtension, nextVersion: Version.() -> Version): String {
     logger.info("Git describe output: {}", describeString)
 
     val tagPrefix = extension.tagVersionPrefix.get()
