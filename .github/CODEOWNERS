@@ -111,7 +111,6 @@
 
 # @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/                      @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/testng/               @DataDog/apm-idm-java
 /dd-java-agent/instrumentation-testing/              @DataDog/apm-idm-java
 /dd-java-agent/testing/                              @DataDog/apm-idm-java
 /dd-smoke-tests/armeria-grpc/                        @DataDog/apm-idm-java
