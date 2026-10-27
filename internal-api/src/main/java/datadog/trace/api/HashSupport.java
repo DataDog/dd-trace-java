@@ -438,6 +438,7 @@ final class HashSupport {
     }
   }
 
+  /** The buckets' internal structure, for deep debugging. */
   static String toInternalString(Object[] buckets) {
     Object[] thisBuckets = buckets;
 
