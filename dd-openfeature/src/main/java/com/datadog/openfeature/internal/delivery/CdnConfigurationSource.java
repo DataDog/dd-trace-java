@@ -109,15 +109,6 @@ public final class CdnConfigurationSource implements ConfigurationService {
       this.started = true;
       this.listener = listener;
     }
-    LOGGER.debug(
-        "Feature Flags starting agentless configuration source: endpoint={}://{}{}, pollIntervalMillis={}, requestTimeout={}",
-        // The origin only: the userinfo, the path and the query of a custom endpoint can carry a
-        // credential.
-        this.endpoint.getScheme(),
-        this.endpoint.getHost(),
-        this.endpoint.getPort() < 0 ? "" : ":" + this.endpoint.getPort(),
-        this.pollIntervalMillis,
-        this.requestTimeout);
     // Complete the first poll cycle on the calling thread so provider initialization observes a
     // successful retry before it checks whether configuration is ready.
     pollOnceSafely();
@@ -131,6 +122,16 @@ public final class CdnConfigurationSource implements ConfigurationService {
                 TimeUnit.MILLISECONDS);
       }
     }
+    // Logged last: a diagnostic must not keep the polling from starting.
+    LOGGER.debug(
+        "Feature Flags agentless configuration source started: endpoint={}://{}{}, pollIntervalMillis={}, requestTimeout={}",
+        // The origin only: the userinfo, the path and the query of a custom endpoint can carry a
+        // credential.
+        this.endpoint.getScheme(),
+        this.endpoint.getHost(),
+        this.endpoint.getPort() < 0 ? "" : ":" + this.endpoint.getPort(),
+        this.pollIntervalMillis,
+        this.requestTimeout);
   }
 
   @Override
@@ -147,7 +148,6 @@ public final class CdnConfigurationSource implements ConfigurationService {
       call = this.activeCall;
       this.activeCall = null;
     }
-    LOGGER.debug("Feature Flags agentless configuration source stopping");
     this.closedSignal.countDown();
     if (call != null) {
       call.cancel();
@@ -156,6 +156,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
       poll.cancel(true);
     }
     this.executor.shutdownNow();
+    // Logged last: a diagnostic must not keep the source from being closed.
+    LOGGER.debug("Feature Flags agentless configuration source stopped");
   }
 
   /** Test seam: sets the configuration listener without starting the polling. */

@@ -150,7 +150,7 @@ public class Provider extends EventProvider implements Metadata {
   @Override
   public void initialize(final EvaluationContext context) throws Exception {
     initializationState.set(InitializationState.INITIALIZING);
-    log.debug(
+    debug(
         "Feature Flagging provider initializing: timeout={} {}",
         options.getTimeout(),
         options.getUnit());
@@ -158,22 +158,21 @@ public class Provider extends EventProvider implements Metadata {
       evaluator = buildEvaluator();
       if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
         if (markInitialConfigReceivedReady()) {
-          log.debug(
-              "Feature Flagging provider ready: configuration received during initialization");
+          debug("Feature Flagging provider ready: configuration received during initialization");
           return;
         }
         markInitializationError();
-        log.debug("Feature Flagging provider initialization timed out waiting for configuration");
+        debug("Feature Flagging provider initialization timed out waiting for configuration");
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
       if (!evaluator.hasConfiguration() || !markSuccessfulInitializationReady()) {
         markInitializationError();
-        log.debug("Feature Flagging provider initialization timed out waiting for configuration");
+        debug("Feature Flagging provider initialization timed out waiting for configuration");
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
-      log.debug("Feature Flagging provider ready");
+      debug("Feature Flagging provider ready");
     } catch (final RemoteConfigurationUnavailableException e) {
       // No RC connector means no configuration can arrive in this JVM. Complete registration
       // without waiting or switching sources. The evaluator has no runtime/configuration and
@@ -188,9 +187,21 @@ public class Provider extends EventProvider implements Metadata {
     } catch (final Throwable e) {
       markInitializationError();
       // Only the type: the message of a configuration error can echo a URL with credentials.
-      log.debug("Feature Flagging provider initialization failed: {}", e.getClass().getName());
+      debug("Feature Flagging provider initialization failed: {}", e.getClass().getName());
       throw new FatalError(
           "Failed to initialize Datadog Feature Flags provider: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Logs a lifecycle diagnostic. A failing logging backend must not turn a state change into a
+   * failure, such as a successful initialization into an error.
+   */
+  private static void debug(final String message, final Object... arguments) {
+    try {
+      log.debug(message, arguments);
+    } catch (final RuntimeException | LinkageError ignored) {
+      // Nothing more can be done.
     }
   }
 
@@ -212,7 +223,7 @@ public class Provider extends EventProvider implements Metadata {
     if (state == InitializationState.ERROR
         && initializationState.compareAndSet(
             InitializationState.ERROR, InitializationState.READY)) {
-      log.debug("Feature Flagging provider recovered: configuration received after an error");
+      debug("Feature Flagging provider recovered: configuration received after an error");
       emit(
           ProviderEvent.PROVIDER_READY,
           ProviderEventDetails.builder().message("Provider ready").build());
@@ -221,7 +232,7 @@ public class Provider extends EventProvider implements Metadata {
     if (initializationState.get() != InitializationState.READY) {
       return;
     }
-    log.debug("Feature Flagging provider configuration changed");
+    debug("Feature Flagging provider configuration changed");
     emit(
         ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
         ProviderEventDetails.builder().message("New configuration received").build());
@@ -235,7 +246,7 @@ public class Provider extends EventProvider implements Metadata {
     if (!initializationState.compareAndSet(InitializationState.READY, InitializationState.ERROR)) {
       return;
     }
-    log.debug("Feature Flagging provider configuration unavailable; evaluations return defaults");
+    debug("Feature Flagging provider configuration unavailable; evaluations return defaults");
     emit(
         ProviderEvent.PROVIDER_ERROR,
         ProviderEventDetails.builder()

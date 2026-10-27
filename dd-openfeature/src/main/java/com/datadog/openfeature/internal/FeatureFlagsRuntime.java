@@ -267,16 +267,6 @@ public final class FeatureFlagsRuntime {
   }
 
   private void onConfiguration(@Nullable final ServerConfiguration configuration) {
-    if (configuration == null) {
-      LOGGER.debug("Feature Flags configuration removed");
-    } else if (LOGGER.isDebugEnabled()) {
-      LOGGER.debug(
-          "Feature Flags configuration applied: flags={}, invalidFlags={}, configurationEnv={}, createdAt={}",
-          configuration.flags == null ? "missing" : configuration.flags.size(),
-          configuration.invalidFlags == null ? 0 : configuration.invalidFlags.size(),
-          configuration.environment == null ? null : configuration.environment.name,
-          configuration.createdAt);
-    }
     final Iterator<Consumer<ServerConfiguration>> snapshot;
     synchronized (this.listeners) {
       this.configuration = configuration;
@@ -289,6 +279,17 @@ public final class FeatureFlagsRuntime {
       } catch (final RuntimeException e) {
         LOGGER.warn("Feature Flags configuration listener failed", e);
       }
+    }
+    // Logged last: a diagnostic must not keep the configuration from being applied.
+    if (configuration == null) {
+      LOGGER.debug("Feature Flags configuration removed");
+    } else if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(
+          "Feature Flags configuration applied: flags={}, invalidFlags={}, configurationEnv={}, createdAt={}",
+          configuration.flags == null ? "missing" : configuration.flags.size(),
+          configuration.invalidFlags == null ? 0 : configuration.invalidFlags.size(),
+          configuration.environment == null ? null : configuration.environment.name,
+          configuration.createdAt);
     }
   }
 

@@ -59,10 +59,12 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
   public void requestShutdown() {
     synchronized (this.lifecycleLock) {
       if (this.closed.compareAndSet(false, true)) {
+        final int queued = this.queue.size();
+        this.serializer.requestShutdown();
+        // Logged last: a diagnostic must not keep the worker from being signaled.
         LOGGER.debug(
             "Feature Flags exposure shutdown requested: queued={}; pending exposures get a final best-effort flush",
-            this.queue.size());
-        this.serializer.requestShutdown();
+            queued);
       }
     }
   }

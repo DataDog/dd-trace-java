@@ -169,6 +169,34 @@ class FeatureFlagsRuntimeTest {
   }
 
   @Test
+  void appliesConfigurationsWhenTheirLogFails() {
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
+    CapturingServiceProvider.failOn("Feature Flags configuration");
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(source, null),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final List<ServerConfiguration> received = new CopyOnWriteArrayList<>();
+    runtime.addConfigurationListener(received::add);
+    runtime.start();
+    try {
+      assertThrows(IllegalStateException.class, () -> source.listener.accept(EMPTY_UFC));
+      assertEquals(1, received.size(), "The listener must not wait for the log");
+      assertThrows(IllegalStateException.class, () -> source.listener.accept(null));
+      assertEquals(2, received.size(), "The removal must not wait for the log");
+      assertNull(received.get(1));
+
+      final List<ServerConfiguration> late = new CopyOnWriteArrayList<>();
+      runtime.addConfigurationListener(late::add);
+      assertTrue(late.isEmpty(), "The removed configuration is still the current one");
+    } finally {
+      CapturingServiceProvider.reset();
+      runtime.stop();
+    }
+  }
+
+  @Test
   void reportsAppliedAndRemovedConfigurations() {
     CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
     final TestConfigurationSource source = new TestConfigurationSource();

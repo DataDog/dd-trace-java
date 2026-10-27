@@ -1,11 +1,16 @@
 package com.datadog.openfeature.internal.delivery;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
@@ -103,13 +108,38 @@ class DeliveryDiagnosticsTest {
     source.start(configuration -> {});
     source.close();
 
-    final String starting = logged("starting agentless configuration source");
+    final String starting = logged("agentless configuration source started");
     assertTrue(starting.contains("pollIntervalMillis=30000"), starting);
     assertFalse(starting.contains("/ufc"), starting);
     assertFalse(starting.contains("secret"), starting);
     assertFalse(starting.contains("token"), starting);
     assertFalse(starting.contains("hidden"), starting);
-    assertLogged("agentless configuration source stopping");
+    assertLogged("agentless configuration source stopped");
+  }
+
+  @Test
+  void agentlessStartsPollingWhenItsLogFails() {
+    final ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    final CdnConfigurationSource source = source(this.server.uri("/ufc"), null, executor);
+    this.server.enqueue(200, CONFIG);
+    CapturingServiceProvider.failOn("agentless configuration source started");
+
+    assertThrows(IllegalStateException.class, () -> source.start(configuration -> {}));
+
+    assertEquals(1, this.server.requests().size(), "The first poll must not wait for the log");
+    verify(executor)
+        .scheduleWithFixedDelay(any(Runnable.class), eq(30_000L), eq(30_000L), eq(MILLISECONDS));
+  }
+
+  @Test
+  void agentlessClosesWhenItsLogFails() {
+    final ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    final CdnConfigurationSource source = source(this.server.uri("/ufc"), null, executor);
+    CapturingServiceProvider.failOn("agentless configuration source stopped");
+
+    assertThrows(IllegalStateException.class, source::close);
+
+    verify(executor).shutdownNow();
   }
 
   @Test
@@ -128,7 +158,7 @@ class DeliveryDiagnosticsTest {
     source.start(configuration -> {});
     source.close();
 
-    final String starting = logged("starting agentless configuration source");
+    final String starting = logged("agentless configuration source started");
     assertTrue(starting.contains("http://" + server.getHost() + ":" + server.getPort()), starting);
     assertFalse(starting.contains("user"), starting);
     assertFalse(starting.contains("s3cret"), starting);
@@ -159,6 +189,11 @@ class DeliveryDiagnosticsTest {
   }
 
   private CdnConfigurationSource source(final URI endpoint, final String apiKey) {
+    return source(endpoint, apiKey, mock(ScheduledExecutorService.class));
+  }
+
+  private CdnConfigurationSource source(
+      final URI endpoint, final String apiKey, final ScheduledExecutorService executor) {
     final CdnConfigurationSource source =
         new CdnConfigurationSource(
             endpoint,
@@ -166,7 +201,7 @@ class DeliveryDiagnosticsTest {
             30_000,
             Duration.ofSeconds(5),
             HttpClient.newHttpClient(),
-            mock(ScheduledExecutorService.class),
+            executor,
             delay -> {},
             () -> 1.0);
     source.setListenerForTest(new CopyOnWriteArrayList<ServerConfiguration>()::add);

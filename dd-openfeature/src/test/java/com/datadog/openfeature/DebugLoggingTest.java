@@ -494,6 +494,16 @@ class DebugLoggingTest {
   }
 
   @Test
+  void initializesWhenTheReadyLogFails() throws Exception {
+    CapturingServiceProvider.failOn("Feature Flagging provider ready");
+
+    final Client client = register();
+
+    // The registration did not fail, and the provider evaluates.
+    assertEquals(1, client.getIntegerValue("flag", 5, new MutableContext("user-1")));
+  }
+
+  @Test
   void shuttingDownDoesNotDependOnTheLoggingBackend() {
     final boolean[] evaluatorShutDown = {false};
     final ExposureTestEvaluator evaluator =

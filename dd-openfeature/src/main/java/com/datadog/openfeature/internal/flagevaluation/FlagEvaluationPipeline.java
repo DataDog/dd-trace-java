@@ -128,9 +128,10 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
   public void requestShutdown() {
     synchronized (lifecycleLock) {
       if (closed.compareAndSet(false, true)) {
-        LOGGER.debug("Feature Flags flag evaluation shutdown requested");
         // The worker polls every 100 ms: do not interrupt a current or final HTTP request.
         serializer.requestShutdown();
+        // Logged last: a diagnostic must not keep the worker from being signaled.
+        LOGGER.debug("Feature Flags flag evaluation shutdown requested");
       }
     }
   }
@@ -219,6 +220,10 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
   /** Test seam: returns one queued event without starting the worker. */
   FlagEvalEvent pollQueuedEventForTest() {
     return queue.poll();
+  }
+
+  boolean isSerializerThreadAlive() {
+    return serializerThread.isAlive();
   }
 
   /** Test seam: flushes serializer state without starting the worker. */

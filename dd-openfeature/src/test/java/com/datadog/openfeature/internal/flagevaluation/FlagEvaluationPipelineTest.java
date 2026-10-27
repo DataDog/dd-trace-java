@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.internal.EventQueue;
@@ -82,6 +83,23 @@ class FlagEvaluationPipelineTest {
       assertTrue(
           messages.contains("Feature Flags flag evaluation shutdown requested"),
           messages.toString());
+    } finally {
+      CapturingServiceProvider.reset();
+    }
+  }
+
+  @Test
+  void signalsTheWorkerWhenTheShutdownLogFails() {
+    CapturingServiceProvider.reset();
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
+    CapturingServiceProvider.failOn("flag evaluation shutdown requested");
+    final FlagEvaluationPipeline writer = writer(16, 10L, TimeUnit.SECONDS);
+    writer.start();
+    try {
+      assertThrows(IllegalStateException.class, writer::requestShutdown);
+
+      writer.awaitTermination(System.nanoTime() + TimeUnit.SECONDS.toNanos(5));
+      assertFalse(writer.isSerializerThreadAlive(), "The worker was not signaled");
     } finally {
       CapturingServiceProvider.reset();
     }

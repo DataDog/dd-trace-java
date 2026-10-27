@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
@@ -63,6 +64,18 @@ class ExposurePipelineDiagnosticsTest {
 
     assertEquals(logged + 1, pipelineEvents().size(), messages("").toString());
     assertEquals(1, messages("exposure shutdown requested: queued=1").size());
+  }
+
+  @Test
+  void signalsTheWorkerWhenTheShutdownLogFails() {
+    final ExposurePipeline pipeline = pipeline(16, (route, json) -> {});
+    pipeline.start();
+    CapturingServiceProvider.failOn("exposure shutdown requested");
+
+    assertThrows(IllegalStateException.class, pipeline::requestShutdown);
+
+    pipeline.awaitTermination(System.nanoTime() + SECONDS.toNanos(5));
+    assertFalse(pipeline.isSerializerThreadAlive(), "The worker was not signaled");
   }
 
   @Test
