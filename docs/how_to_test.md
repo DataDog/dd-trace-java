@@ -224,7 +224,15 @@ On pull requests, arm64 tests are manual jobs. To run them on CI, include one of
 texts in the commit message:
 
 * `[ci: ARM64]` to run them on the default arm64 JVMs.
-* `[ci: ARM64, NON_DEFAULT_JVMS]` to run them on all JVMs.
+* `[ci: ARM64, NON_DEFAULT_JVMS]` to run them on all eligible JVMs.
+* `[ci: JAVA11]` to run Java 11 HotSpot tests on arm64. This can be combined with the other options,
+  for example `[ci: ARM64, NON_DEFAULT_JVMS, JAVA11]`.
+
+Special handling on arm64:
+
+* Java 8: unstable and buggy.
+* Java 11 HotSpot: slow retransformation (JDK-8139551); enable with `[ci: JAVA11]`.
+* IBM Semeru/OpenJ9 is unaffected.
 
 ### Running System Tests
 
