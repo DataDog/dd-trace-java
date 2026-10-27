@@ -2,6 +2,8 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.WebsocketServer
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.undertow.ForwardingServlet
+import datadog.trace.instrumentation.undertow.IncludingServlet
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions

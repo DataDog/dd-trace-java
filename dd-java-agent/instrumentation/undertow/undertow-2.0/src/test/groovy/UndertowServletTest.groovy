@@ -5,6 +5,8 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.undertow.ForwardingServlet
+import datadog.trace.instrumentation.undertow.IncludingServlet
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
