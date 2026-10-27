@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -231,6 +233,21 @@ class RemoteConfigServiceImplTest {
       service.accept("config", null, mock(PollingRateHinter.class));
 
       assertLogged("configuration removed: key=config");
+    }
+
+    @Test
+    void reportsTheDocumentOnlyOnceItIsDelivered() {
+      final AtomicBoolean loggedBeforeDelivery = new AtomicBoolean(true);
+      service.subscribe(
+          content ->
+              loggedBeforeDelivery.set(
+                  appender.list.stream()
+                      .anyMatch(e -> e.getFormattedMessage().contains("configuration received"))));
+
+      service.accept("config", DOCUMENT, mock(PollingRateHinter.class));
+
+      assertFalse(loggedBeforeDelivery.get(), "The log must not delay the delivery");
+      assertLogged("configuration received: key=config, bytes=" + DOCUMENT.length);
     }
 
     private void assertLogged(final String text) {
