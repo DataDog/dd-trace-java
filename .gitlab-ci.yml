@@ -1280,7 +1280,7 @@ aggregate_inline_of_duty:
   artifacts:
     when: always
     name: "inline-of-duty-${CI_PIPELINE_ID}"
-    expose_as: "JIT Inlining Report (pipeline)"
+    expose_as: "JIT Inlining Report pipeline"
     paths:
       - inline-of-duty-pipeline/
 

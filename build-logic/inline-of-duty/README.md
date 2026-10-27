@@ -127,7 +127,7 @@ existing JVM-native `inlineOfDutyReport` task. It recomputes the dataset union b
 method signature; it does not add per-job percentages. A success in one job and a
 refusal in another is mixed. Copied logs remain deduplicated.
 
-Open **JIT Inlining Report (pipeline)** in the job/MR artifacts. The consolidated
+Open **JIT Inlining Report pipeline** in the job/MR artifacts. The consolidated
 files live in `inline-of-duty-pipeline/` (`index.html`, `details.html`, and
 `findings.json`). Raw-log links point to the original producing job artifacts, so
 the aggregate job does not publish another copy of all worker logs. The report
