@@ -15,6 +15,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -28,8 +32,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
 
 class RemoteConfigServiceImplTest {
   private static final byte[] DOCUMENT = "{\"flags\":{}}".getBytes(UTF_8);
@@ -177,5 +185,58 @@ class RemoteConfigServiceImplTest {
     verify(poller, times(1)).removeListeners(Product.FFE_FLAGS);
     verify(poller, never()).stop();
     assertEquals(0, received.size());
+  }
+
+  @Nested
+  class Diagnostics {
+    private final Logger logger = (Logger) LoggerFactory.getLogger(RemoteConfigServiceImpl.class);
+    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private Level previousLevel;
+    private RemoteConfigServiceImpl service;
+
+    @BeforeEach
+    void captureLogs() {
+      previousLevel = logger.getLevel();
+      logger.setLevel(Level.DEBUG);
+      appender.start();
+      logger.addAppender(appender);
+      service = new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    }
+
+    @AfterEach
+    void restoreLogging() {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
+    }
+
+    @Test
+    void reportsLifecycle() {
+      service.start();
+      service.close();
+
+      assertLogged("starting remote_config configuration source");
+      assertLogged("remote_config configuration source stopped");
+    }
+
+    @Test
+    void reportsReceivedConfiguration() {
+      service.accept("config", DOCUMENT, mock(PollingRateHinter.class));
+
+      assertLogged("configuration received: key=config, bytes=" + DOCUMENT.length);
+    }
+
+    @Test
+    void reportsRemovedConfiguration() {
+      service.accept("config", null, mock(PollingRateHinter.class));
+
+      assertLogged("configuration removed: key=config");
+    }
+
+    private void assertLogged(final String text) {
+      assertTrue(
+          appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(text)),
+          "Missing log: " + text);
+    }
   }
 }
