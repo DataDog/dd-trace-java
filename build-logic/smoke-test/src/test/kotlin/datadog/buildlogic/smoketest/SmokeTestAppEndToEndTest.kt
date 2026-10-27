@@ -10,6 +10,7 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.params.provider.ValueSource
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -120,6 +121,118 @@ class SmokeTestAppEndToEndTest {
     val second = runner("packageApp", "--build-cache").build()
     assertThat(second.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.FROM_CACHE)
     assertThat(applicationOutput("target/sample.jar")).exists()
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = ["Gradle artifact", "Maven artifact", "extra file", "extra directory"])
+  fun `tests track nested application contents`(scenario: String) {
+    val maven = scenario == "Maven artifact"
+    val extra = scenario.startsWith("extra")
+    val directory = scenario == "extra directory"
+    val artifactPath = if (maven) "target/sample.jar" else "sample.jar"
+    val extraPath = if (directory) "extra" else "extra.txt"
+    val payloadPath =
+      if (extra) {
+        if (directory) "$extraPath/value.txt" else extraPath
+      } else {
+        "sample.jar"
+      }
+
+    writeOuterSettings(withLocalBuildCache = true)
+    val application =
+      if (maven) {
+        writeFakeMavenWrapper()
+        File(applicationDir, "pom.xml").writeText("<project />")
+        smokeTestMavenApplication(
+          taskName = "packageApp",
+          artifactPath = artifactPath,
+          sysProperty = "sample.path",
+          additionalConfig = "mavenExecutable.set(layout.projectDirectory.file(\"${fakeMavenWrapperName()}\"))",
+        )
+      } else {
+        writeInnerSettings()
+        writeInnerBuild(
+          """
+          tasks.register<Copy>("packageApp") {
+            from(layout.projectDirectory.dir("payload"))
+            into(layout.buildDirectory)
+          }
+          """.trimIndent(),
+        )
+        File(applicationDir, "payload").mkdirs()
+        File(applicationDir, "payload/sample.jar").writeText("jar")
+        File(applicationDir, "payload/$payloadPath").apply {
+          parentFile.mkdirs()
+          writeText("jar")
+        }
+        smokeTestGradleApplication(
+          taskName = "packageApp",
+          artifactPath = artifactPath,
+          sysProperty = "sample.path",
+          additionalConfig = if (extra) "additionalSystemProperties.put(\"sample.extra\", \"$extraPath\")" else "",
+        )
+      }
+    writeSmokeTestAppBuild(
+      application,
+      extraPreamble = """
+      dependencies { testImplementation(files(${junitClasspath()})) }
+      tasks.test { useJUnitPlatform() }
+      """,
+    )
+    val property = if (extra) "sample.extra" else "sample.path"
+    val relativeFile = if (directory) ", \"value.txt\"" else ""
+    File(projectDir.toFile(), "src/test/java/SmokeArtifactTest.java").apply {
+      parentFile.mkdirs()
+      writeText(
+        """
+        import java.nio.file.Files;
+        import java.nio.file.Path;
+        import org.junit.jupiter.api.Test;
+        import static org.junit.jupiter.api.Assertions.assertEquals;
+
+        public class SmokeArtifactTest {
+          @Test void applicationWorks() throws Exception {
+            Path artifact = Path.of(System.getProperty("$property")$relativeFile);
+            assertEquals("jar", Files.readString(artifact).trim(), "smoke artifact");
+          }
+        }
+        """.trimIndent(),
+      )
+    }
+
+    val first = runner("test", "--build-cache").build()
+    assertThat(first.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(first.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(runner("test", "--build-cache").build().task(":test")?.outcome)
+      .isEqualTo(TaskOutcome.UP_TO_DATE)
+
+    File(projectDir.toFile(), "build/test-results").deleteRecursively()
+    File(projectDir.toFile(), "build/reports/tests").deleteRecursively()
+    assertThat(runner("test", "--build-cache").build().task(":test")?.outcome)
+      .isEqualTo(TaskOutcome.FROM_CACHE)
+
+    if (maven) {
+      File(applicationDir, "pom.xml").appendText("\n")
+    } else {
+      File(applicationDir, "payload/unrelated.txt").writeText("unrelated")
+    }
+    val unchangedArtifact = runner("test", "--build-cache").build()
+    assertThat(unchangedArtifact.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(unchangedArtifact.task(":test")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
+
+    if (maven) {
+      val original = if (isWindows()) "echo jar>" else "printf \"jar\""
+      val wrapper = File(projectDir.toFile(), fakeMavenWrapperName())
+      wrapper.writeText(wrapper.readText().replace(original, original.replace("jar", "broken")))
+    } else {
+      File(applicationDir, "payload/$payloadPath").writeText("broken")
+    }
+    val changedArtifact = runner("test", "--build-cache").buildAndFail()
+    assertThat(changedArtifact.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(changedArtifact.task(":test")?.outcome).isEqualTo(TaskOutcome.FAILED)
+    assertThat(File(projectDir.toFile(), "build/test-results/test/TEST-SmokeArtifactTest.xml"))
+      .content()
+      .contains("smoke artifact", "broken")
   }
 
   @Test
@@ -716,6 +829,23 @@ class SmokeTestAppEndToEndTest {
       "fake-mvnw.cmd"
     } else {
       "fake-mvnw"
+    }
+
+  private fun junitClasspath() =
+    listOf(
+      "org.junit.jupiter.api.Test",
+      "org.junit.jupiter.engine.JupiterTestEngine",
+      "org.junit.platform.engine.TestEngine",
+      "org.junit.platform.launcher.Launcher",
+      "org.junit.platform.commons.JUnitException",
+      "org.opentest4j.AssertionFailedError",
+    ).joinToString(", ") {
+      "\"${Path.of(
+        Class
+          .forName(it)
+          .protectionDomain.codeSource.location
+          .toURI(),
+      ).toFile().invariantSeparatorsPath}\""
     }
 
   private fun writeInnerSettings(additionalContent: String = "") {
