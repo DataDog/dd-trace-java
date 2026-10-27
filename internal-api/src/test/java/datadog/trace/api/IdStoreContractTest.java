@@ -538,4 +538,33 @@ class IdStoreContractTest {
       return null;
     }
   }
+
+  /**
+   * The cursor walks single-entry buckets, bucket groups and chains of groups, reads through to the
+   * parent, and skips inherited tags removed or shadowed locally: it sees what forEach sees.
+   */
+  @ParameterizedTest
+  @MethodSource("stores")
+  void cursorSeesWhatForEachSees(Function<IdStore, IdStore> newStore)
+      throws IllegalAccessException {
+    List<Long> ids = knownIds();
+    IdStore parent = newStore.apply(null);
+    for (int i = 0; i < ids.size(); i += 3) {
+      parent.store(ids.get(i), "parent-" + i);
+    }
+    IdStore store = newStore.apply(parent);
+    for (int i = 0; i < ids.size(); i += 2) {
+      store.store(ids.get(i), "local-" + i);
+    }
+    store.remove(ids.get(3)); // inherited, not shadowed: removal hides it
+
+    Map<String, Object> viaCursor = new HashMap<>();
+    IdStore.Cursor cursor = store.cursor();
+    for (EntryReader entry = cursor.next(); entry != null; entry = cursor.next()) {
+      assertNull(viaCursor.put(entry.tag(), entry.objectValue()), entry.tag());
+    }
+
+    assertEquals(visible(store), viaCursor);
+    assertNull(viaCursor.get(KnownTagCodec.nameOf(ids.get(3))));
+  }
 }
