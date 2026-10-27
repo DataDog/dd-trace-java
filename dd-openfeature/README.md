@@ -9,7 +9,7 @@ The SDK works on its own. When the Datadog Java agent (`dd-java-agent`) is attac
 
 * Java 11 or later
 * A Datadog [API key](https://docs.datadoghq.com/account_management/api-app-keys/#api-keys) and [site](https://docs.datadoghq.com/getting_started/site/), unless events go through a Datadog Agent
-* Optionally, `dd-java-agent` 1.67.0 or later
+* Optionally, `dd-java-agent` 1.69.0 or later
 
 ## Setup
 
@@ -186,7 +186,7 @@ tracing remain active. Previously recorded or queued data is not removed.
 
 * The provider moved to `com.datadog.openfeature.Provider`, and the exposure hook to `com.datadog.openfeature.ExposureHook`. `datadog.trace.api.openfeature.Provider` and `datadog.trace.api.openfeature.ExposureHook` are kept as deprecated aliases.
 * The SDK no longer requires `dd-java-agent` and no longer links against agent classes.
-* `dd-openfeature` 1.66.0 and earlier require the agent classes this release removes. Upgrade `dd-openfeature` together with `dd-java-agent` 1.67.0 or later.
+* `dd-openfeature` releases before 1.69.0 link to agent classes that `dd-java-agent` 1.69.0 removes: with `dd-java-agent` 1.69.0 or later, they return the caller default values. Upgrade `dd-openfeature` to 1.69.0 or later together with `dd-java-agent`.
 
 ## Design notes for contributors
 
