@@ -118,10 +118,11 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
-  void leavesTheShutdownToTracingWhenEnabled() {
+  void keepsAShutdownHookWhenTracingIsEnabled() {
+    // The tracing shutdown instrumentation can be disabled on its own.
     FeatureFlaggingSystem.start(mock(SharedCommunicationObjects.class));
     FeatureFlaggingGateway.backend().subscribeShutdown(() -> {});
-    assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered());
+    assertTrue(FeatureFlaggingSystem.isShutdownHookRegistered());
   }
 
   @Test
