@@ -83,14 +83,6 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       final String configKey,
       @Nullable final byte[] content,
       final PollingRateHinter pollingRateHinter) {
-    if (content == null) {
-      LOGGER.debug("Feature Flagging remote_config configuration removed: key={}", configKey);
-    } else {
-      LOGGER.debug(
-          "Feature Flagging remote_config configuration received: key={}, bytes={}",
-          configKey,
-          content.length);
-    }
     final Iterator<Consumer<byte[]>> snapshot;
     synchronized (this.subscribers) {
       this.current = content;
@@ -103,6 +95,15 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       } catch (final RuntimeException e) {
         LOGGER.debug("Feature Flags configuration subscriber failed", e);
       }
+    }
+    // Logged last: a diagnostic must not get in the way of the delivery.
+    if (content == null) {
+      LOGGER.debug("Feature Flagging remote_config configuration removed: key={}", configKey);
+    } else {
+      LOGGER.debug(
+          "Feature Flagging remote_config configuration received: key={}, bytes={}",
+          configKey,
+          content.length);
     }
   }
 }
