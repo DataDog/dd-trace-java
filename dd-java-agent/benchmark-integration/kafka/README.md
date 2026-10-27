@@ -20,13 +20,13 @@ real client paths; no application code is needed.
 
 ## Usage
 
-Requires JDK 17+ (`BENCH_JAVA_HOME`, `JAVA_17_HOME` or `JAVA_HOME`), `curl`, `shasum` and `python3`.
+Requires JDK 17+ (`BENCH_JAVA_HOME`, `JAVA_17_HOME` or `JAVA_HOME`), `curl` and `shasum`.
 Set `TRACE_AGENT_PORT` if your local Datadog Agent isn't on 8126.
 
 ```shell
 ./fetch-kafka.sh                      # Apache Kafka 3.9.1, SHA-512 verified, unpacked under build/
 ./broker.sh start                     # single-node KRaft broker, no agent
-./prefill.sh path/to/dd-java-agent.jar        # 10M records with trace headers
+./prefill.sh path/to/dd-java-agent.jar        # 10M records with trace headers (once per broker)
 ./preflight.sh path/to/dd-java-agent.jar      # headers injected? consumer continues the trace?
 
 ./run-consumer.sh NoAgent master=path/to/master.jar candidate=path/to/candidate.jar
@@ -37,6 +37,15 @@ Set `TRACE_AGENT_PORT` if your local Datadog Agent isn't on 8126.
 
 Variants are `NoAgent` or `label=path/to/agent.jar`. Each run is a fresh JVM, and the variant order
 rotates every rep.
+
+Consumer runs always read the first `MESSAGES` records of the topic, so rerunning `prefill.sh` only
+appends records that are never read; the headers consumers see come from the agent used for the
+first prefill. To change them (e.g. to compare propagation styles), stop the broker, delete
+`build/kafka-data/`, and start and prefill again.
+
+A run is rejected, and recorded as an empty CSV row, if the perf tool exits nonzero, if a consumer
+reads fewer than `MESSAGES` records (e.g. the topic is too small), or if the producer doesn't print
+its final summary.
 
 **Environment knobs:**
 
@@ -51,13 +60,17 @@ rotates every rep.
 | `PREFILL_RECORDS` / `RECORD_SIZE` | `10000000` / `100` | topic size and record size |
 
 Results go to `build/results/<consumer|producer>-<timestamp>/`: a `results.csv`, per-run output, and
-GC logs.
+GC logs. Each runner ends by printing a summary; `java Analyze.java results.csv [baseline]` reprints
+it. Rejected runs are counted per variant and left out of the medians.
 
-`analyze.py results.csv [baseline]` prints, per heap and variant:
+For consumer results, per heap and variant:
 - median throughput, with every run shown so bimodality is visible;
 - tracer µs per record vs NoAgent;
 - change vs a baseline variant;
 - young GCs per million records.
+
+For producer results, per variant: median achieved rate, average latency and p50/p95/p99/p99.9, with
+every run's p99 shown.
 
 ## Example results (2026-10-25, one laptop, JDK 17, 10M records, 5 reps)
 
