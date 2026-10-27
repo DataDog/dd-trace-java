@@ -678,6 +678,18 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTrue(handler.capturedBody.contains("\"orderId\":42"));
   }
 
+  @Test
+  void nullInputDoesNotLeaveCallDepthSetForLaterInvocations() throws IOException {
+    new HandlerStreaming().handleRequest(null, new ByteArrayOutputStream(), newContext());
+
+    ByteArrayInputStream input = new ByteArrayInputStream("Hello".getBytes(StandardCharsets.UTF_8));
+    new HandlerStreaming().handleRequest(input, new ByteArrayOutputStream(), newContext());
+
+    assertTraces(
+        trace(span().type(DDSpanTypes.SERVERLESS).error(false)),
+        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+  }
+
   private static final class TestContext implements Context {
     private final String requestId;
 
