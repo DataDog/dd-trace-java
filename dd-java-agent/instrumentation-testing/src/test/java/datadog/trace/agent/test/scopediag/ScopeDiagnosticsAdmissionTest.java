@@ -1,13 +1,18 @@
 package datadog.trace.agent.test.scopediag;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.NoopScope;
+import datadog.trace.test.util.PollingConditions;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -16,6 +21,160 @@ class ScopeDiagnosticsAdmissionTest {
   @AfterEach
   void reset() {
     ScopeDiagnostics.reset();
+  }
+
+  @Test
+  void callbacksDoNotWaitForTheReportLock() throws Exception {
+    ScopeDiagnostics.startRecording();
+    Object window = ScopeDiagnostics.recordingWindow();
+    ContextContinuation continuation = Context.root().capture();
+    Object scope = new Object();
+    DDTraceId trace = DDTraceId.from(1);
+    FutureTask<Void> callbacks =
+        new FutureTask<>(
+            () -> {
+              ScopeDiagnostics.recordCapture(window, continuation, trace, 2, "op", (byte) 0);
+              ScopeDiagnostics.recordActivate(
+                  window, continuation, trace, 2, "op", (byte) 0, System.nanoTime());
+              ScopeDiagnostics.recordScopeOpen(
+                  window, scope, trace, 2, "op", (byte) 0, continuation);
+              ScopeDiagnostics.recordDeferredScopeCleanup(window, scope);
+              ScopeDiagnostics.recordScopeCloseWrongThread(window, scope);
+              ScopeDiagnostics.recordScopeClose(window, scope);
+              ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
+              ScopeDiagnostics.recordRootWritten(window, trace);
+              ScopeDiagnostics.recordActivateFailed(window, continuation);
+              return null;
+            });
+    Thread carrier = new Thread(callbacks, "diagnostic-carrier");
+    carrier.setDaemon(true);
+    ScopeDiagnostics.INSTANCE.lifecycleLock.lock();
+    try {
+      carrier.start();
+      // A carrier must return even when the diagnostic monitor's owner cannot run yet.
+      callbacks.get(5, SECONDS);
+    } finally {
+      ScopeDiagnostics.INSTANCE.lifecycleLock.unlock();
+    }
+    ScopeDiagnostics.stop();
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(1, report.records().size());
+    ContinuationRecord record = report.records().get(0);
+    assertEquals("diagnostic-carrier", record.capture().threadName);
+    assertEquals(1, record.resumes().size());
+    assertEquals("diagnostic-carrier", record.resumes().get(0).threadName);
+    assertEquals(ContinuationStatus.RELEASED, record.status());
+    assertEquals(1, record.failedActivations().size());
+    assertEquals(1, report.scopeRecords().size());
+    ScopeRecord scopeRecord = report.scopeRecords().get(0);
+    assertTrue(scopeRecord.closed());
+    assertEquals("diagnostic-carrier", scopeRecord.open().threadName);
+    assertEquals("diagnostic-carrier", scopeRecord.close().threadName);
+    assertEquals(1, scopeRecord.wrongThreadCloses().size());
+    assertEquals(0, report.lateCount());
+    assertEquals(0, report.leakCount());
+  }
+
+  @Test
+  void queuedResolutionWakesQuiescenceWaiter() throws Exception {
+    ScopeDiagnostics.startRecording();
+    Object window = ScopeDiagnostics.recordingWindow();
+    ContextContinuation continuation = Context.root().capture();
+    ScopeDiagnostics.recordCapture(window, continuation, DDTraceId.from(1), 2, "op", (byte) 0);
+    FutureTask<Void> waiting =
+        new FutureTask<>(
+            () -> {
+              ScopeDiagnostics.awaitQuiescence(30_000);
+              return null;
+            });
+    Thread waiter = new Thread(waiting, "diagnostic-quiescence");
+    waiter.setDaemon(true);
+    waiter.start();
+    try {
+      Object diagnostics = ScopeDiagnostics.INSTANCE;
+      new PollingConditions(5)
+          .eventually(() -> assertEquals(diagnostics, LockSupport.getBlocker(waiter)));
+      ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
+      waiting.get(5, SECONDS);
+      assertFalse(ScopeDiagnostics.report().hasIncompleteLifecycles());
+    } finally {
+      waiter.interrupt();
+      waiter.join(5000);
+    }
+  }
+
+  @Test
+  void resetDiscardsQueuedEvents() {
+    ScopeDiagnostics.startRecording();
+    ScopeDiagnostics.recordCapture(
+        ScopeDiagnostics.recordingWindow(),
+        Context.root().capture(),
+        DDTraceId.from(1),
+        2,
+        "old",
+        (byte) 0);
+    ScopeDiagnostics.reset();
+    ScopeDiagnostics.startRecording();
+    assertTrue(ScopeDiagnostics.report().records().isEmpty());
+  }
+
+  @Test
+  void stopRetainsReservationsWhoseStackCaptureIsStillInFlight() throws Exception {
+    ScopeDiagnostics.startRecording();
+    Object window = ScopeDiagnostics.recordingWindow();
+    ContextContinuation continuation = Context.root().capture();
+    ScopeDiagnostics.recordCapture(window, continuation, DDTraceId.from(1), 2, "op", (byte) 0);
+    DiagnosticEventBuffer.Event reservation = ((DiagnosticEventBuffer) window).reserve();
+    ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
+    FutureTask<Void> stopping =
+        new FutureTask<>(
+            () -> {
+              ScopeDiagnostics.stop();
+              return null;
+            });
+    Thread stopper = new Thread(stopping, "diagnostic-stop");
+    stopper.setDaemon(true);
+    stopper.start();
+    try {
+      new PollingConditions(5).eventually(() -> assertNull(ScopeDiagnostics.recordingWindow()));
+      // Publish after stop closes admission; the reservation still belongs to this recording.
+      reservation.publish(() -> {});
+      stopping.get(5, SECONDS);
+      assertEquals(0, ScopeDiagnostics.report().leakCount());
+    } finally {
+      reservation.publishIfAbsent();
+      stopper.join(5000);
+    }
+  }
+
+  @Test
+  void callbacksConsumeEventsWithoutWaitingForAReport() {
+    ScopeDiagnostics.startRecording();
+    DiagnosticEventBuffer window = (DiagnosticEventBuffer) ScopeDiagnostics.recordingWindow();
+    ScopeDiagnostics.recordCapture(
+        window, Context.root().capture(), DDTraceId.from(1), 2, "op", (byte) 0);
+    assertFalse(window.hasPending());
+  }
+
+  @Test
+  void firstResolutionAndDuplicateReleaseArePreservedBehindDelayedAdmission() {
+    ScopeDiagnostics.startRecording();
+    DiagnosticEventBuffer window = (DiagnosticEventBuffer) ScopeDiagnostics.recordingWindow();
+    ContextContinuation continuation = Context.root().capture();
+    ScopeDiagnostics.recordCapture(window, continuation, DDTraceId.from(1), 2, "op", (byte) 0);
+    DiagnosticEventBuffer.Event delayed = window.reserve();
+    ScopeDiagnostics.recordResolve(window, continuation, false, 1, false);
+    ScopeDiagnostics.recordResolve(window, continuation, true, 2, false);
+    ScopeDiagnostics.recordResolve(window, continuation, true, 3, true);
+    delayed.publish(() -> {});
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    ContinuationRecord record = report.records().get(0);
+    assertEquals(ContinuationStatus.FINISHED, record.status());
+    assertEquals(1, record.terminal().nanos);
+    assertEquals(1, record.extraTerminals().size());
+    assertEquals(3, record.extraTerminals().get(0).nanos);
+    assertEquals(1, report.doubleCount());
   }
 
   @Test
