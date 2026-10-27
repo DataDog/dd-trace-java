@@ -78,12 +78,16 @@ abstract class AbstractTinylogLogsIntakeForkedTest extends AbstractInstrumentati
     ThreadContext.clear();
   }
 
+  static boolean traceEnabled() {
+    return InstrumenterConfig.get().isTraceEnabled();
+  }
+
   static boolean agentless() {
-    return InstrumenterConfig.get().isAgentlessLogSubmissionEnabled();
+    return traceEnabled() && InstrumenterConfig.get().isAgentlessLogSubmissionEnabled();
   }
 
   static boolean injection() {
-    return Config.get().isLogsInjectionEnabled();
+    return traceEnabled() && Config.get().isLogsInjectionEnabled();
   }
 
   static Map<String, String> serviceTags() {
@@ -227,8 +231,4 @@ class TinylogNoSubmissionForkedTest extends AbstractTinylogLogsIntakeForkedTest 
 class TinylogNoInjectionForkedTest extends AbstractTinylogLogsIntakeForkedTest {}
 
 @WithConfig(key = TRACE_ENABLED, value = "false")
-class TinylogCiAgentlessForkedTest extends AbstractTinylogLogsIntakeForkedTest {}
-
-@WithConfig(key = AGENTLESS_LOG_SUBMISSION_ENABLED, value = "false")
-@WithConfig(key = TRACE_ENABLED, value = "false")
-class TinylogCiCorrelationForkedTest extends AbstractTinylogLogsIntakeForkedTest {}
+class TinylogTraceDisabledForkedTest extends AbstractTinylogLogsIntakeForkedTest {}

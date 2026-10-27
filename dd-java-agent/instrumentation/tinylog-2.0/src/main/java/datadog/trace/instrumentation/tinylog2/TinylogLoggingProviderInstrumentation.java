@@ -23,7 +23,7 @@ import org.tinylog.core.LogEntry;
 import org.tinylog.core.TinylogLoggingProvider;
 
 @AutoService(InstrumenterModule.class)
-public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.ContextTracking
+public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public TinylogLoggingProviderInstrumentation() {
     super("tinylog");
