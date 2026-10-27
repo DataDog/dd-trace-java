@@ -490,7 +490,26 @@ class DebugLoggingTest {
 
     assertEquals(1, messages("Feature Flagging provider initializing").size());
     assertFalse(messages("Feature Flagging provider ready").isEmpty());
-    assertFalse(messages("Feature Flagging provider shutting down").isEmpty());
+    assertFalse(messages("Feature Flagging provider shut down").isEmpty());
+  }
+
+  @Test
+  void shuttingDownDoesNotDependOnTheLoggingBackend() {
+    final boolean[] evaluatorShutDown = {false};
+    final ExposureTestEvaluator evaluator =
+        new ExposureTestEvaluator(configuration(), true) {
+          @Override
+          public synchronized void shutdown() {
+            super.shutdown();
+            evaluatorShutDown[0] = true;
+          }
+        };
+    final Provider provider = new Provider(new Options(), evaluator);
+    CapturingServiceProvider.failOn("provider shut down");
+
+    assertThrows(IllegalStateException.class, provider::shutdown);
+
+    assertTrue(evaluatorShutDown[0], "The cleanup must not wait for the log");
   }
 
   @Test

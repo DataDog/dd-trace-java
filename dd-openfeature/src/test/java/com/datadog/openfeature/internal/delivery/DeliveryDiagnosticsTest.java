@@ -105,7 +105,7 @@ class DeliveryDiagnosticsTest {
 
     final String starting = logged("starting agentless configuration source");
     assertTrue(starting.contains("pollIntervalMillis=30000"), starting);
-    assertTrue(starting.contains("/ufc,"), starting);
+    assertFalse(starting.contains("/ufc"), starting);
     assertFalse(starting.contains("secret"), starting);
     assertFalse(starting.contains("token"), starting);
     assertFalse(starting.contains("hidden"), starting);
@@ -113,7 +113,7 @@ class DeliveryDiagnosticsTest {
   }
 
   @Test
-  void agentlessDoesNotReportTheUserInfoOfTheEndpoint() {
+  void agentlessReportsTheOriginOfTheEndpointOnly() {
     final URI server = this.server.uri("/ufc?token=hidden");
     final URI endpoint =
         URI.create(
@@ -121,7 +121,7 @@ class DeliveryDiagnosticsTest {
                 + server.getHost()
                 + ":"
                 + server.getPort()
-                + "/ufc?token=hidden");
+                + "/path-secret/ufc?token=hidden");
     this.server.enqueue(200, CONFIG);
     final CdnConfigurationSource source = source(endpoint, null);
 
@@ -132,6 +132,7 @@ class DeliveryDiagnosticsTest {
     assertTrue(starting.contains("http://" + server.getHost() + ":" + server.getPort()), starting);
     assertFalse(starting.contains("user"), starting);
     assertFalse(starting.contains("s3cret"), starting);
+    assertFalse(starting.contains("path-secret"), starting);
     assertFalse(starting.contains("hidden"), starting);
   }
 

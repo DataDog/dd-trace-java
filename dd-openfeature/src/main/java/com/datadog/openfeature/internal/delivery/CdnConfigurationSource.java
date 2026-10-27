@@ -110,11 +110,12 @@ public final class CdnConfigurationSource implements ConfigurationService {
       this.listener = listener;
     }
     LOGGER.debug(
-        "Feature Flags starting agentless configuration source: endpoint={}://{}{}{}, pollIntervalMillis={}, requestTimeout={}",
+        "Feature Flags starting agentless configuration source: endpoint={}://{}{}, pollIntervalMillis={}, requestTimeout={}",
+        // The origin only: the userinfo, the path and the query of a custom endpoint can carry a
+        // credential.
         this.endpoint.getScheme(),
         this.endpoint.getHost(),
         this.endpoint.getPort() < 0 ? "" : ":" + this.endpoint.getPort(),
-        this.endpoint.getRawPath(),
         this.pollIntervalMillis,
         this.requestTimeout);
     // Complete the first poll cycle on the calling thread so provider initialization observes a

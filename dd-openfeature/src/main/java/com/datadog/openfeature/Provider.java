@@ -294,7 +294,6 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public void shutdown() {
-    log.debug("Feature Flagging provider shutting down");
     if (flagEvalMetrics != null) {
       flagEvalMetrics.shutdown();
     }
@@ -302,6 +301,8 @@ public class Provider extends EventProvider implements Metadata {
     if (evaluator != null) {
       evaluator.shutdown();
     }
+    // Logged last: a diagnostic must not get in the way of the cleanup.
+    log.debug("Feature Flagging provider shut down");
   }
 
   // Visible for tests: expose whether span enrichment is wired (gate-on) without leaking the impl.
