@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.time.Duration;
-import java.util.*;
+import java.util.Map;
 
 public class EvalContextHelper {
 

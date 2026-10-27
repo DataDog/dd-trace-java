@@ -6,21 +6,26 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.api.llmobs.LLMObsParent;
+import datadog.trace.api.llmobs.LLMObsSampler;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
+import datadog.trace.api.llmobs.LLMObsTraceId;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,10 +41,25 @@ public class DDLLMObsSpan implements LLMObsSpan {
   // internal tags to be prefixed
   private static final String INPUT = LLMOBS_TAG_PREFIX + "input";
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output";
+  private static final String INPUT_PROMPT = LLMOBS_TAG_PREFIX + "input_prompt";
   private static final String SPAN_KIND = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS;
+  private static final String METADATA_DD = "_dd";
+  private static final String MANUAL_FRAMEWORK = "manual";
+  private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
+      LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method";
+  private static final String INSTRUMENTATION_METHOD_ANNOTATED = "annotated";
+  private static final String DEFAULT_PROMPT_NAME = "unnamed-prompt";
+  private static final String CONTEXT_VARIABLE_KEYS = "_dd_context_variable_keys";
+  private static final String QUERY_VARIABLE_KEYS = "_dd_query_variable_keys";
+  private static final String TRACE_ID_TAG_INTERNAL = "trace_id";
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
+  private static final String SAMPLE_RATE_TAG_INTERNAL = "sample_rate";
+  private static final String SAMPLING_DECISION_TAG_INTERNAL = "sampling_decision";
+  private static final String PAGENT_SPAN_ID_TAG_INTERNAL =
+      LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_SPAN_ID;
+  private static final String PAGENT_NAME_TAG_INTERNAL = LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_NAME;
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
   private static final String VERSION = LLMOBS_TAG_PREFIX + "version";
@@ -50,20 +70,62 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DDLLMObsSpan.class);
 
+  private static final LLMObsSampler CONFIGURED_SAMPLER = LLMObsSampler.fromConfig();
+
   private final AgentSpan span;
   private final String spanKind;
-  private final ContextScope scope;
+  private final String mlApp;
+
+  /** The LLMObs trace id, as 32 lowercase hex characters. Distinct from the APM trace id. */
+  private final String llmObsTraceId;
+
   private final boolean hasSessionId;
+  private final ContextScope scope;
+  // Non-null only for agent-kind spans started without an ambient APM root. Activating the
+  // agent's APM span keeps children in the same APM trace so the trace-ID gate passes and
+  // they inherit agent attribution correctly.
+  private final ContextScope standaloneApmScope;
 
   private boolean finished = false;
 
   public DDLLMObsSpan(
       @Nonnull String kind,
       String spanName,
-      @Nonnull String mlApp,
+      @Nullable String mlApp,
       String sessionId,
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags) {
+    this(kind, spanName, mlApp, sessionId, serviceName, wellKnownTags, null);
+  }
+
+  public DDLLMObsSpan(
+      @Nonnull String kind,
+      String spanName,
+      @Nullable String mlApp,
+      String sessionId,
+      @Nonnull String serviceName,
+      WellKnownTags wellKnownTags,
+      String agentVersion) {
+    this(
+        kind,
+        spanName,
+        mlApp,
+        sessionId,
+        serviceName,
+        wellKnownTags,
+        agentVersion,
+        CONFIGURED_SAMPLER);
+  }
+
+  DDLLMObsSpan(
+      @Nonnull String kind,
+      String spanName,
+      @Nullable String mlApp,
+      String sessionId,
+      @Nonnull String serviceName,
+      WellKnownTags wellKnownTags,
+      String agentVersion,
+      @Nonnull LLMObsSampler sampler) {
 
     if (null == spanName || spanName.isEmpty()) {
       spanName = kind;
@@ -90,41 +152,128 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;
-    span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
-    // Resolve effective parent_id and session_id from the LLMObs context, both gated on
-    // trace-id consistency. A stale context from a different trace (e.g. async boundary
-    // leakage) must not contribute either tag.
-    AgentSpanContext parent = LLMObsContext.current();
-    String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
-    if (null != parent) {
-      if (parent.getTraceId() != span.getTraceId()) {
-        LOGGER.error(
-            "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}",
-            parent.getTraceId(),
-            parent.getSpanId(),
-            span.getTraceId(),
-            span.getSpanId());
-      } else {
-        parentSpanID = String.valueOf(parent.getSpanId());
-        // Inherit session_id from parent context only when it belongs to the same trace.
-        // Matches dd-trace-py and dd-trace-js: session_id need only be set on the root
-        // span; descendants inherit transitively via context propagation.
-        if (sessionId == null || sessionId.isEmpty()) {
-          String inherited = LLMObsContext.currentSessionId();
-          if (inherited != null && !inherited.isEmpty()) {
-            sessionId = inherited;
-          }
-        }
-      }
+    // Resolve the LLMObs parent: the in-process context when it is on this trace, else what arrived
+    // from another service, else none. A context from another trace is already discarded there and
+    // only reported back as ignoredContext, so the values below never come from it. What follows
+    // layers this span's own explicit values on top.
+    LLMObsParent parent = LLMObsParent.resolve(span);
+    if (parent.ignoredContext != null) {
+      LOGGER.error(
+          "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}",
+          parent.ignoredContext.getTraceId(),
+          parent.ignoredContext.getSpanId(),
+          span.getTraceId(),
+          span.getSpanId());
+    }
+    String parentSpanID = parent.parentId;
+    // Stay on the parent's LLMObs trace. Never re-seeded from the APM trace id when there is one:
+    // the parent may itself have adopted a trace id from another service, and every span below it
+    // has to keep reporting that one.
+    String resolvedTraceId = parent.traceId;
+    // An explicit value wins; an empty one counts as unset. Inheriting ml_app keeps a whole agent
+    // subtree in one application rather than each nested span falling back to the service
+    // default. session_id need only be set on the root span, matching dd-trace-py and dd-trace-js.
+    // A nested agent's own agent_version overrides an ancestor's for its own subtree.
+    String resolvedMlApp = mlApp;
+    if ((resolvedMlApp == null || resolvedMlApp.isEmpty()) && parent.mlApp != null) {
+      resolvedMlApp = parent.mlApp;
+    }
+    if ((sessionId == null || sessionId.isEmpty()) && parent.sessionId != null) {
+      sessionId = parent.sessionId;
+    }
+    String resolvedAgentVersion = agentVersion;
+    if ((agentVersion == null || agentVersion.isEmpty()) && parent.agentVersion != null) {
+      resolvedAgentVersion = parent.agentVersion;
+    }
+    // Honouring an inherited verdict keeps a distributed LLMObs trace retained or dropped as a
+    // whole, rather than agreeing with the caller only when both are configured at the same rate.
+    String sampleRate = parent.sampleRate;
+    String samplingDecision = parent.samplingDecision;
+    // The nearest agent-kind ancestor. Overridden just below when this span is itself an agent.
+    String resolvedParentAgentSpanId = parent.parentAgentSpanId;
+    String resolvedParentAgentName = parent.parentAgentName;
+
+    // Root of an LLMObs trace: seed the LLMObs trace id from the APM one, in the shape the other
+    // tracers store it in — hex above 2^64, decimal below. The shape has to match what fromWire
+    // resolves the same id to, or a Java root and its own downstream Java continuation would
+    // report different trace_ids for one trace.
+    if (resolvedTraceId == null || resolvedTraceId.isEmpty()) {
+      resolvedTraceId = LLMObsTraceId.format(span.getTraceId());
+    }
+    this.llmObsTraceId = resolvedTraceId;
+    span.setTag(LLMOBS_TAG_PREFIX + TRACE_ID_TAG_INTERNAL, resolvedTraceId);
+
+    // The service default goes last, once the explicit, in-process and propagated values have all
+    // had their chance — applying it any earlier is indistinguishable from the caller naming the
+    // service explicitly, which is what would silently discard an upstream ml_app. Config already
+    // resolves this to DD_LLMOBS_ML_APP or DD_SERVICE, so the full order is
+    // explicit > in-process parent > propagated > DD_LLMOBS_ML_APP > DD_SERVICE, matching
+    // dd-trace-py's documented precedence.
+    if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
+      resolvedMlApp = Config.get().getLlmObsMlApp();
+    }
+    this.mlApp = resolvedMlApp;
+    span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, resolvedMlApp);
+
+    // An agent span is its own descendants' nearest agent ancestor, replacing anything inherited.
+    // Use the span name as the initial pagent name; annotateAgentManifest() will update it to the
+    // manifest name if one is provided later.
+    if (Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind)) {
+      resolvedParentAgentSpanId = String.valueOf(span.getSpanId());
+      resolvedParentAgentName = spanName;
+    }
+
+    // Roll a decision only at the true root of an LLMObs trace
+    if (parent.isRoot()) {
+      sampleRate = sampler.formattedRate();
+      samplingDecision = sampler.decide(span.getTraceId());
+    }
+    // Both tags move together for the same reason LLMObsParent adopts them together: a rate without
+    // the decision it produced says nothing, and a decision on its own would be read against a
+    // rate that did not produce it.
+    if (sampleRate != null && samplingDecision != null) {
+      span.setTag(LLMOBS_TAG_PREFIX + SAMPLE_RATE_TAG_INTERNAL, sampleRate);
+      span.setTag(LLMOBS_TAG_PREFIX + SAMPLING_DECISION_TAG_INTERNAL, samplingDecision);
     }
 
     this.hasSessionId = sessionId != null && !sessionId.isEmpty();
     if (this.hasSessionId) {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
+    if (resolvedAgentVersion != null && !resolvedAgentVersion.isEmpty()) {
+      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_VERSION, resolvedAgentVersion);
+    }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    // Propagate the effective sessionId to descendant LLMObs spans via the context.
-    scope = LLMObsContext.attach(span.spanContext(), sessionId);
+    // Store pagent values as internal tags so the serializer can emit agent_attribution.
+    if (resolvedParentAgentSpanId != null) {
+      span.setTag(PAGENT_SPAN_ID_TAG_INTERNAL, resolvedParentAgentSpanId);
+      if (resolvedParentAgentName != null) {
+        span.setTag(PAGENT_NAME_TAG_INTERNAL, resolvedParentAgentName);
+      }
+    }
+
+    // Propagate the effective LLMObs trace id, mlApp, sessionId, agent_version, sampling decision
+    // and agent attribution to descendant LLMObs spans via the context.
+    scope =
+        LLMObsContext.attach(
+            span.spanContext(),
+            resolvedTraceId,
+            resolvedMlApp,
+            sessionId,
+            resolvedAgentVersion,
+            sampleRate,
+            samplingDecision,
+            resolvedParentAgentSpanId,
+            resolvedParentAgentName);
+
+    // For standalone agent spans (no ambient APM root), activate the underlying APM span so
+    // that child LLMObs spans share the same trace ID and pass the trace-ID gate. Without
+    // this, children start a fresh APM trace, the gate rejects the agent context, and
+    // agent attribution is silently dropped.
+    standaloneApmScope =
+        Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind) && span.getLocalRootSpan() == span
+            ? AgentTracer.activateSpan(span)
+            : null;
   }
 
   @Override
@@ -235,6 +384,178 @@ public class DDLLMObsSpan implements LLMObsSpan {
   }
 
   @Override
+  public void annotatePrompt(LLMObs.Prompt prompt) {
+    if (finished || prompt == null) {
+      return;
+    }
+    if (!Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
+      LOGGER.warn(
+          "dropping prompt on non-LLM span kind, annotating prompts is only supported for LLM span kinds");
+      return;
+    }
+
+    Map<String, Object> annotatedPrompt = new LinkedHashMap<>();
+    Object currentPrompt = span.getTag(INPUT_PROMPT);
+    if (currentPrompt instanceof Map) {
+      annotatedPrompt.putAll(copyStringKeyedMap((Map<?, ?>) currentPrompt));
+    }
+    if (prompt.getId() != null && !prompt.getId().isEmpty()) {
+      annotatedPrompt.put("id", prompt.getId());
+    }
+    if (!annotatedPrompt.containsKey("id")) {
+      annotatedPrompt.put("id", mlApp + "_" + DEFAULT_PROMPT_NAME);
+    }
+    putIfPresent(annotatedPrompt, "version", prompt.getVersion());
+    putIfPresent(annotatedPrompt, "variables", prompt.getVariables());
+    if (prompt.getTemplate() != null) {
+      annotatedPrompt.remove("chat_template");
+      annotatedPrompt.put("template", prompt.getTemplate());
+    } else if (prompt.getChatTemplate() != null && !prompt.getChatTemplate().isEmpty()) {
+      annotatedPrompt.remove("template");
+      annotatedPrompt.put("chat_template", toChatTemplate(prompt.getChatTemplate()));
+    }
+    putIfPresent(annotatedPrompt, "tags", prompt.getTags());
+    annotatedPrompt.put(
+        CONTEXT_VARIABLE_KEYS,
+        prompt.getContextVariables() == null
+            ? Collections.singletonList("context")
+            : prompt.getContextVariables());
+    annotatedPrompt.put(
+        QUERY_VARIABLE_KEYS,
+        prompt.getQueryVariables() == null
+            ? Collections.singletonList("question")
+            : prompt.getQueryVariables());
+
+    span.setTag(INPUT_PROMPT, annotatedPrompt);
+    span.setTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD, INSTRUMENTATION_METHOD_ANNOTATED);
+  }
+
+  @Override
+  public void annotateAgentManifest(LLMObs.AgentManifest manifest) {
+    if (finished || manifest == null) {
+      return;
+    }
+    if (!Tags.LLMOBS_AGENT_SPAN_KIND.equals(spanKind)) {
+      LOGGER.warn(
+          "dropping agent manifest on non-agent span kind; annotateAgentManifest is only supported for agent spans");
+      return;
+    }
+    // The manifest rides inside metadata under the reserved _dd namespace, serializing to
+    // meta.metadata._dd.agent_manifest
+    Map<String, Object> metadata = copyStringKeyedMap(span.getTag(METADATA));
+    Map<String, Object> dd = copyStringKeyedMap(metadata.get(METADATA_DD));
+    // Empty on the first call; merges with itself on subsequent ones.
+    Map<String, Object> base = copyStringKeyedMap(dd.get(LLMObsTags.AGENT_MANIFEST));
+
+    mergeManifest(base, manifest);
+    base.put("framework", MANUAL_FRAMEWORK);
+
+    dd.put(LLMObsTags.AGENT_MANIFEST, base);
+    metadata.put(METADATA_DD, dd);
+    span.setTag(METADATA, metadata);
+
+    // Sync pagent name to the manifest name so the serializer emits the manifest name in
+    // agent_attribution. The manifest name takes priority over the span name set at construction.
+    span.setTag(PAGENT_NAME_TAG_INTERNAL, (String) base.get("name"));
+  }
+
+  private void mergeManifest(Map<String, Object> base, LLMObs.AgentManifest manifest) {
+    // name: new non-empty wins, else keep existing, else span name
+    String manifestName = manifest.getName();
+    if (manifestName != null && !manifestName.isEmpty()) {
+      base.put("name", manifestName);
+    } else if (!base.containsKey("name")) {
+      CharSequence spanName = span.getSpanName();
+      if (spanName != null && spanName.length() > 0) {
+        base.put("name", spanName.toString());
+      }
+    }
+    // instructions
+    String instructions = manifest.getInstructions();
+    if (instructions != null && !instructions.isEmpty()) {
+      base.put("instructions", instructions);
+    }
+    // model
+    String model = manifest.getModel();
+    if (model != null && !model.isEmpty()) {
+      base.put("model", model);
+    }
+    // model_settings: shallow merge
+    Map<String, Object> modelSettings = manifest.getModelSettings();
+    if (modelSettings != null && !modelSettings.isEmpty()) {
+      @SuppressWarnings("unchecked")
+      Map<String, Object> existingSettings =
+          (base.get("model_settings") instanceof Map)
+              ? new LinkedHashMap<>((Map<String, Object>) base.get("model_settings"))
+              : new LinkedHashMap<>();
+      existingSettings.putAll(modelSettings);
+      base.put("model_settings", existingSettings);
+    }
+    // tools: replace if non-null non-empty
+    List<LLMObs.AgentTool> tools = manifest.getTools();
+    if (tools != null && !tools.isEmpty()) {
+      List<Map<String, Object>> toolList = new ArrayList<>();
+      for (LLMObs.AgentTool tool : tools) {
+        String toolName = tool == null ? null : tool.getName();
+        if (toolName == null || toolName.isEmpty()) {
+          LOGGER.warn("agent manifest tool missing required name; skipping");
+          continue;
+        }
+        Map<String, Object> toolMap = new LinkedHashMap<>();
+        toolMap.put("name", toolName);
+        if (tool.getDescription() != null) {
+          toolMap.put("description", tool.getDescription());
+        }
+        if (tool.getParameters() != null && !tool.getParameters().isEmpty()) {
+          toolMap.put("parameters", new LinkedHashMap<>(tool.getParameters()));
+        }
+        toolList.add(toolMap);
+      }
+      if (!toolList.isEmpty()) {
+        base.put("tools", toolList);
+      }
+    }
+  }
+
+  /** Copies {@code source} if it is a map, else returns an empty mutable map. */
+  private static Map<String, Object> copyStringKeyedMap(Object source) {
+    return source instanceof Map
+        ? copyStringKeyedMap((Map<?, ?>) source)
+        : new LinkedHashMap<String, Object>();
+  }
+
+  private static Map<String, Object> copyStringKeyedMap(Map<?, ?> source) {
+    Map<String, Object> copy = new LinkedHashMap<>();
+    for (Map.Entry<?, ?> entry : source.entrySet()) {
+      if (entry.getKey() instanceof String) {
+        copy.put((String) entry.getKey(), entry.getValue());
+      }
+    }
+    return copy;
+  }
+
+  private static void putIfPresent(Map<String, Object> prompt, String key, Object value) {
+    if (value != null) {
+      prompt.put(key, value);
+    }
+  }
+
+  private static List<Map<String, String>> toChatTemplate(List<LLMObs.LLMMessage> messages) {
+    List<Map<String, String>> chatTemplate = new ArrayList<>(messages.size());
+    for (LLMObs.LLMMessage message : messages) {
+      if (message == null || message.getRole() == null || message.getContent() == null) {
+        LOGGER.warn("prompt chat template messages must define both role and content; skipping");
+        continue;
+      }
+      Map<String, String> templateMessage = new LinkedHashMap<>();
+      templateMessage.put("role", message.getRole());
+      templateMessage.put("content", message.getContent());
+      chatTemplate.add(templateMessage);
+    }
+    return chatTemplate;
+  }
+
+  @Override
   public void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {
     if (finished || toolDefinitions == null || toolDefinitions.isEmpty()) {
       return;
@@ -269,7 +590,17 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
 
     if (value instanceof Map) {
-      ((Map) value).putAll(metadata);
+      Map<String, Object> mergedMetadata = copyStringKeyedMap((Map<?, ?>) value);
+      // Reserved entries already under _dd, such as the agent manifest, must survive a later
+      // annotation: putAll would replace the whole _dd map if the caller supplies one, so merge
+      // that namespace key by key instead, letting the caller win per key.
+      Map<String, Object> reservedDd = copyStringKeyedMap(mergedMetadata.get(METADATA_DD));
+      mergedMetadata.putAll(metadata);
+      if (!reservedDd.isEmpty()) {
+        reservedDd.putAll(copyStringKeyedMap(mergedMetadata.get(METADATA_DD)));
+        mergedMetadata.put(METADATA_DD, reservedDd);
+      }
+      span.setTag(METADATA, mergedMetadata);
     } else {
       LOGGER.debug(
           "unexpected instance type for metadata {}, overwriting for now",
@@ -401,7 +732,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
+    try {
+      GenAiApmTags.apply(span);
+    } catch (Throwable t) {
+      LOGGER.debug("failed to set gen_ai APM tags", t);
+    }
     span.finish();
+    if (standaloneApmScope != null) {
+      standaloneApmScope.close();
+    }
     scope.close();
     finished = true;
     boolean isRootSpan = span.getLocalRootSpan() == span;
@@ -418,6 +757,16 @@ public class DDLLMObsSpan implements LLMObsSpan {
   @Override
   public DDTraceId getTraceId() {
     return span.getTraceId();
+  }
+
+  /**
+   * The LLM Observability trace id this span reports, as 32 lowercase hex characters. Equal to the
+   * APM trace id for a trace that starts here, and the caller's id for one that arrived from
+   * another service. Evaluations have to join on this rather than on {@link #getTraceId()}, which
+   * is the APM trace id the two stop agreeing on at the first process boundary.
+   */
+  public String getLLMObsTraceId() {
+    return llmObsTraceId;
   }
 
   @Override

@@ -191,4 +191,66 @@ class ScaReachabilityRetransformTest {
         t.pendingRetransform.isEmpty(),
         "non-modifiable class must not be re-queued in pendingRetransform");
   }
+
+  @Test
+  void performPendingRetransforms_countsOneUnresolvedAttemptPerHeartbeatAcrossClassloaders()
+      throws Exception {
+    // APPSEC-69734: a Spring Boot fat JAR loads the same vulnerable class once per
+    // LaunchedURLClassLoader, so a single heartbeat retransforms N copies of the same class name
+    // and processClass() runs N times. The MAX_UNRESOLVED_RETRIES budget is per class name per
+    // heartbeat, not per loaded copy: otherwise N classloaders would drain the whole budget N
+    // times faster than real heartbeats and the class would be given up on almost immediately.
+    String internalName = Target.class.getName().replace('.', '/');
+    // com.example:lib never resolves as a dependency in the test classpath, so processClass()
+    // always takes the hasUnresolvedMethodLevelSymbols branch where the cap logic lives.
+    String json =
+        "{\"version\":1,\"entries\":[{"
+            + "\"vuln_id\":\"GHSA-dedup\",\"artifact\":\"com.example:lib\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\""
+            + internalName
+            + "\",\"method\":\"method\"}]"
+            + "}]}";
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(json));
+
+    Instrumentation instr = mock(Instrumentation.class);
+    // Same Class<?> twice: two classloader instances holding the same vulnerable class name.
+    when(instr.getAllLoadedClasses()).thenReturn(new Class<?>[] {Target.class, Target.class});
+    when(instr.isModifiableClass(Target.class)).thenReturn(true);
+
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
+
+    // The mocked Instrumentation does not run the JVM retransform machinery, so it never calls
+    // back into transform(). Do it by hand, once per retransformed Class<?>, exactly as the real
+    // JVM would within a single retransformClasses() call.
+    doAnswer(
+            invocation -> {
+              for (Object arg : invocation.getArguments()) {
+                Class<?> c = (Class<?>) arg;
+                t.transform(
+                    null,
+                    c.getName().replace('.', '/'),
+                    c, // classBeingRedefined != null → retransform path → processClass()
+                    c.getProtectionDomain(),
+                    ScaBytecodeTestUtils.bytecodeOf(c));
+              }
+              return null;
+            })
+        .when(instr)
+        .retransformClasses(any());
+
+    t.pendingRetransformNames.add(internalName);
+
+    t.performPendingRetransforms();
+
+    verify(instr).retransformClasses(Target.class, Target.class);
+    assertEquals(
+        Integer.valueOf(1),
+        t.unresolvedAttemptCounts.get(internalName),
+        "two loaded copies of the same class name retransformed in one heartbeat must consume a"
+            + " single unresolved-retry attempt, not one each");
+    assertTrue(
+        t.pendingRetransformNames.contains(internalName),
+        "the class is still well within the cap, so it must be re-queued for the next heartbeat");
+  }
 }

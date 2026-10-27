@@ -16,6 +16,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.DDSpanEvent;
 import datadog.trace.test.junit.utils.assertions.Any;
 import datadog.trace.test.junit.utils.assertions.IsNull;
 import datadog.trace.test.junit.utils.assertions.Matcher;
@@ -53,6 +54,7 @@ import org.opentest4j.AssertionFailedError;
  *   <li>span top-level status with {@link #topLevel()} and {@link #topLevel(boolean)}
  *   <li>span tags with {@link #tags(TagsMatcher...)}
  *   <li>span links with {@link #links(SpanLinkMatcher...)}
+ *   <li>span events with {@link #events(SpanEventMatcher...)}
  * </ul>
  */
 public final class SpanMatcher {
@@ -70,6 +72,7 @@ public final class SpanMatcher {
   private Matcher<Boolean> topLevelMatcher;
   private TagsMatcher[] tagMatchers;
   private SpanLinkMatcher[] linkMatchers;
+  private SpanEventMatcher[] eventMatchers;
 
   private static final Matcher<Long> CHILD_OF_PREVIOUS_MATCHER = is(0L);
 
@@ -152,6 +155,9 @@ public final class SpanMatcher {
    * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
    */
   public SpanMatcher childOfIndex(int parentSpanIndex) {
+    if (parentSpanIndex < 0) {
+      throw new AssertionFailedError("index  must be >= 0");
+    }
     this.parentIdMatcher = null;
     this.parentSpanIndex = parentSpanIndex;
     return this;
@@ -369,6 +375,19 @@ public final class SpanMatcher {
     return this;
   }
 
+  /**
+   * Checks the span events structure.
+   *
+   * @param matchers The {@link SpanEventMatcher} to verify the span events structure, one per
+   *     event.
+   * @return The current {@link SpanMatcher} instance updated with the specified span event
+   *     constraints.
+   */
+  public SpanMatcher events(SpanEventMatcher... matchers) {
+    this.eventMatchers = matchers;
+    return this;
+  }
+
   void assertSpan(List<DDSpan> trace, int spanIndex) {
     DDSpan span = trace.get(spanIndex);
     // Apply parent span index
@@ -397,6 +416,7 @@ public final class SpanMatcher {
     assertValue(this.topLevelMatcher, span.isTopLevel(), "Unexpected top-level status");
     assertSpanTags(span.getTags());
     assertSpanLinks(spanLinks(span));
+    assertSpanEvents(span);
   }
 
   private void assertSpanTags(TagMap tags) {
@@ -446,16 +466,39 @@ public final class SpanMatcher {
     int linkCount = links == null ? 0 : links.size();
     int expectedLinkCount = this.linkMatchers.length;
     if (linkCount != expectedLinkCount) {
-      assertionFailure()
+      throw assertionFailure()
           .message("Unexpected span link count")
           .expected(expectedLinkCount)
           .actual(linkCount)
-          .buildAndThrow();
+          .build();
     }
     for (int i = 0; i < expectedLinkCount; i++) {
       SpanLinkMatcher linkMatcher = this.linkMatchers[i];
       AgentSpanLink link = links.get(i);
       linkMatcher.assertLink(link);
+    }
+  }
+
+  /*
+   * Right now, it's expecting to have as many matchers as events, and in the same order.
+   */
+  private void assertSpanEvents(DDSpan span) {
+    // Check if events should be asserted at all
+    if (this.eventMatchers == null) {
+      return;
+    }
+    List<DDSpanEvent> events = span.getEvents();
+    int eventCount = events.size();
+    int expectedEventCount = this.eventMatchers.length;
+    if (eventCount != expectedEventCount) {
+      throw assertionFailure()
+          .message("Unexpected span event count")
+          .expected(expectedEventCount)
+          .actual(eventCount)
+          .build();
+    }
+    for (int i = 0; i < expectedEventCount; i++) {
+      this.eventMatchers[i].assertEvent(span, events.get(i));
     }
   }
 }

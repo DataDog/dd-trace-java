@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
@@ -9,11 +11,11 @@ addTestSuiteForDir('latestDepTest', 'test')
 final springBootVersion = '3.0.0'
 
 tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 17)
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 tasks.withType(GroovyCompile).configureEach {
-  configureCompiler(it, 17)
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 dependencies {

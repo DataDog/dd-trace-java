@@ -48,4 +48,14 @@ public class SamplingMechanismConverter extends AbstractClassConstantConvertor<B
   protected Map<String, Byte> mapping() {
     return MAPPING;
   }
+
+  @Override
+  protected boolean throwsOnUnsupportedValue() {
+    return false;
+  }
+
+  @Override
+  protected Byte convertWhenNoMapping(Object source) {
+    return Byte.parseByte((String) source);
+  }
 }

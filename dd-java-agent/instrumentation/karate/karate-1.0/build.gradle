@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.instrumentation.testing-framework-tests'
+  id 'dd-trace-java.module.instrumentation'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
@@ -114,15 +113,8 @@ sourceSets {
 }
 
 // karate 1.4.0+ requires Java 11: https://github.com/karatelabs/karate/releases/tag/v1.4.0
-tasks.named("compileKarate141TestJava", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
-}
 tasks.named("karate141Test", Test) {
   onlyIf { javaVersion.isJava11Compatible() }
-}
-
-tasks.named("compileLatestDepTestJava", JavaCompile) {
-  configureCompiler(it, 17, JavaVersion.VERSION_1_8)
 }
 
 tasks.named("latestDepTest", Test) {

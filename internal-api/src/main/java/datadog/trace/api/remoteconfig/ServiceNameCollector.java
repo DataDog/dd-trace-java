@@ -35,6 +35,11 @@ public class ServiceNameCollector {
     // singleton
   }
 
+  @VisibleForTesting
+  static ServiceNameCollector newServiceNameCollector() {
+    return new ServiceNameCollector();
+  }
+
   public void addService(final String serviceName) {
     if (serviceName == null || serviceName.isEmpty()) {
       return;

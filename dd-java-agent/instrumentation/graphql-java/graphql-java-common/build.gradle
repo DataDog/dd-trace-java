@@ -1,3 +1,6 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 muzzle {
   pass {
@@ -7,8 +10,6 @@ muzzle {
     versions = '[14.0,)'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'com.graphql-java', name: 'graphql-java', version: '14.0'

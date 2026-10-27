@@ -3,17 +3,21 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SPAN_KEY;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.function.StrategyConsumer;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -42,6 +46,16 @@ public interface AgentSpan
    */
   static AgentSpan fromContext(Context context) {
     return context == null ? null : context.get(SPAN_KEY);
+  }
+
+  /**
+   * Extracts the span from the given {@link ContextScope}.
+   *
+   * @param scope the context scope to extract the span from.
+   * @return the span if existing, {@code null} otherwise.
+   */
+  static AgentSpan fromScope(ContextScope scope) {
+    return scope == null ? null : scope.context().get(SPAN_KEY);
   }
 
   /**
@@ -92,10 +106,76 @@ public interface AgentSpan
 
   AgentSpan setTag(String key, Object value);
 
+  /*
+   * Id-keyed setTag family: the caller passes a KnownTags.*_ID instead of a name. The default
+   * resolves the id to its name and delegates to the String setter, which is correct for every
+   * implementation; the core span overrides these to skip the name lookup when storing the tag.
+   */
+  default AgentSpan setTag(long tagId, boolean value) {
+    return setTag(KnownTagCodec.nameOf(tagId), value);
+  }
+
+  default AgentSpan setTag(long tagId, int value) {
+    return setTag(KnownTagCodec.nameOf(tagId), value);
+  }
+
+  default AgentSpan setTag(long tagId, long value) {
+    return setTag(KnownTagCodec.nameOf(tagId), value);
+  }
+
+  default AgentSpan setTag(long tagId, float value) {
+    return setTag(KnownTagCodec.nameOf(tagId), value);
+  }
+
+  default AgentSpan setTag(long tagId, double value) {
+    return setTag(KnownTagCodec.nameOf(tagId), value);
+  }
+
+  default AgentSpan setTag(long tagId, String value) {
+    return setTag(KnownTagCodec.nameOf(tagId), value);
+  }
+
+  default AgentSpan setTag(long tagId, CharSequence value) {
+    return setTag(KnownTagCodec.nameOf(tagId), value);
+  }
+
+  default AgentSpan setTag(long tagId, Object value) {
+    return setTag(KnownTagCodec.nameOf(tagId), value);
+  }
+
   /** entry may be null - in which case the tags remained unchanged */
   AgentSpan setTag(TagMap.EntryReader entry);
 
   AgentSpan setAllTags(Map<String, ?> map);
+
+  /**
+   * Sets tags on this span by applying a {@link TagExtractor} to a foreign source — the span-first,
+   * product-dev-facing form of {@code extractor.extract(source, this)}. Named {@code setTagsFrom},
+   * not {@code setTags}, because {@code source} is not itself a tag value: {@code setTag(name,
+   * value)} stores one value, while this derives any number of tags from {@code source}. Kept small
+   * so it inlines: each call site then sees the exact extractor type (see {@link
+   * datadog.trace.api.function.Strategy}). This is also the seam where the whole extraction can be
+   * coarse-locked (one critical section) — an implementer may override to do so.
+   */
+  @StrategyConsumer
+  default <T> AgentSpan setTagsFrom(final T source, final TagExtractor<T> extractor) {
+    if (source != null) {
+      extractor.extract(source, this);
+    }
+    return this;
+  }
+
+  /**
+   * Sets the tags a {@link TagContributor} projects from its own state — the span-first form of
+   * {@code contributor.addTo(this)}. Call it with the contributor's concrete type so {@code addTo}
+   * devirtualizes and inlines.
+   */
+  default AgentSpan setTagsFrom(final TagContributor contributor) {
+    if (contributor != null) {
+      contributor.addTo(this);
+    }
+    return this;
+  }
 
   @Override
   AgentSpan setTag(String key, Number value);
@@ -210,13 +290,100 @@ public interface AgentSpan
 
   AgentSpan setSamplingPriority(final int newPriority, int samplingMechanism);
 
+  @Nonnull
   TraceConfig traceConfig();
 
   void addLink(AgentSpanLink link);
 
+  /**
+   * Adds an event to the span.
+   *
+   * @param name The event name.
+   * @param attributes The event attributes, with values being {@link String}, {@link Boolean},
+   *     {@link Long}, {@link Double}, or a {@link java.util.List} of them.
+   */
+  void addEvent(String name, Map<String, ?> attributes);
+
+  /**
+   * Adds an event to the span.
+   *
+   * @param name The event name.
+   * @param attributes The event attributes, with values being {@link String}, {@link Boolean},
+   *     {@link Long}, {@link Double}, or a {@link java.util.List} of them.
+   * @param timestamp The event time since the Unix epoch.
+   * @param unit The event time unit.
+   */
+  void addEvent(String name, Map<String, ?> attributes, long timestamp, TimeUnit unit);
+
   AgentSpan setMetaStruct(final String field, final Object value);
 
   boolean isOutbound();
+
+  /**
+   * Applies a {@link SpanPrototype} as fallback defaults: stamps its span type, constant tags, and
+   * integration name only where this span has not already set them. Prototype values are the lowest
+   * precedence -- anything explicitly set wins -- so {@code apply} never clobbers, is
+   * order-independent, and self-neutralizes once construction has already seeded the same
+   * prototype.
+   *
+   * <p>This is the fill-absent seam through which a prototype's constant initial state is applied
+   * at construction (buildSpan/startSpan) -- see {@link #applyOverwriting} for the decorator {@code
+   * afterStart} seam, which needs different precedence. Core spans override to route straight to
+   * the context, which owns the tag map and will host the eventual fast path (bulk share / identity
+   * short-circuit); this default is the best-effort fallback for other span implementations.
+   */
+  default void apply(@Nonnull final SpanPrototype prototype) {
+    if (getSpanType() == null) {
+      final CharSequence spanType = prototype.spanType();
+      if (spanType != null) {
+        setSpanType(spanType);
+      }
+    }
+
+    // Prototype tags are fallback defaults: only fill keys this span has not already set.
+    prototype
+        .tags()
+        .forEach(
+            (tag, value) -> {
+              if (getTag(tag) == null) {
+                setTag(tag, value);
+              }
+            });
+
+    // Never-clobber: only stamp the integration name when the context reports none.
+    if (spanContext().getIntegrationName() == null) {
+      final CharSequence integrationName = prototype.integrationName();
+      if (integrationName != null) {
+        spanContext().setIntegrationName(integrationName);
+      }
+    }
+  }
+
+  /**
+   * Applies a {@link SpanPrototype} unconditionally: stamps its span type, constant tags, and
+   * integration name over whatever is already present. This is the decorator {@code afterStart}
+   * seam -- a decorator's identity (its component, span kind, span type, integration name) is
+   * authoritative and must win over anything set earlier, such as a global tag from {@code DD_TAGS}
+   * / {@code DD_TRACE_SPAN_TAGS} seeded onto the span at construction, matching the unconditional
+   * {@code setTag}/{@code setSpanType} calls this replaced.
+   *
+   * <p>Kept separate from {@link #apply}, which is the fill-absent seam for construction-time
+   * seeding: the two callers have genuinely different precedence needs, and collapsing them
+   * previously let a global tag silently suppress a decorator's own value.
+   */
+  default void applyOverwriting(@Nonnull final SpanPrototype prototype) {
+    final CharSequence spanType = prototype.spanType();
+    if (spanType != null) {
+      setSpanType(spanType);
+    }
+
+    prototype.tags().forEach((tag, value) -> setTag(tag, value));
+
+    final CharSequence integrationName = prototype.integrationName();
+    if (integrationName != null) {
+      spanContext().setIntegrationName(integrationName);
+    }
+  }
 
   default AgentSpan asAgentSpan() {
     return this;
@@ -262,6 +429,35 @@ public interface AgentSpan
    */
   default ContextScope attachWithContext() {
     return storeInto(Context.current()).attach();
+  }
+
+  /**
+   * Captures a continuation of just the span so it can be resumed in another execution unit. Use
+   * this when you want to temporarily suppress any surrounding custom context during the span's
+   * continuation.
+   *
+   * <p>If async propagation is disabled nothing is captured and a no-op continuation is returned.
+   *
+   * @return a continuation capturing only this span; no-op continuation if async propagation
+   *     disabled
+   */
+  @Override
+  default ContextContinuation capture() {
+    return Context.super.capture();
+  }
+
+  /**
+   * Captures a continuation combining the span with the current context so it can be resumed in
+   * another execution unit. Use this when you want to maintain any surrounding custom context
+   * during the span's continuation
+   *
+   * <p>If async propagation is disabled nothing is captured and a no-op continuation is returned.
+   *
+   * @return a continuation capturing this span and any custom context; no-op continuation if async
+   *     propagation disabled
+   */
+  default ContextContinuation captureWithContext() {
+    return storeInto(Context.current()).capture();
   }
 
   /**

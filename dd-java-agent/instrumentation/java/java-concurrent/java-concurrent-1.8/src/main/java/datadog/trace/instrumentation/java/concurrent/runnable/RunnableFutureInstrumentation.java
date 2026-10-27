@@ -16,6 +16,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -32,6 +33,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -69,6 +71,13 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    ElementMatcher.Junction<TypeDescription> promiseTask =
+        nameEndsWith(".netty.util.concurrent.PromiseTask");
+    ElementMatcher.Junction<TypeDescription> nettyTask =
+        promiseTask.or(nameEndsWith(".netty.util.concurrent.ScheduledFutureTask"));
+    ElementMatcher.Junction<MethodDescription> nettyCancellation =
+        named("cancel").and(isDeclaredBy(extendsClass(promiseTask)));
+
     // instrument any FutureTask or TrustedListenableFutureTask constructor,
     // but only instrument the PromiseTask constructor with a Callable argument
     transformer.applyAdvice(
@@ -80,13 +89,16 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
                                 nameEndsWith(
                                     "com.google.common.util.concurrent.TrustedListenableFutureTask")))
                     .or(
-                        isDeclaredBy(nameEndsWith(".netty.util.concurrent.PromiseTask"))
+                        isDeclaredBy(promiseTask)
                             .and(takesArgument(1, named(Callable.class.getName()))))),
         getClass().getName() + "$Construct");
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    // Netty owns activation and cleanup, using its execution decision for one-shot tasks.
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("cancel", "set", "setException")),
+        isMethod().and(named("run")).and(not(isDeclaredBy(nettyTask))),
+        getClass().getName() + "$Run");
+    transformer.applyAdvice(
+        isMethod().and(namedOneOf("set", "setException", "cancel")).and(not(nettyCancellation)),
         getClass().getName() + "$Cancel");
   }
 

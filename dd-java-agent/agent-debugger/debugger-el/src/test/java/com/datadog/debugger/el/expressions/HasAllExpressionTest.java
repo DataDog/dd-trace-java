@@ -1,6 +1,15 @@
 package com.datadog.debugger.el.expressions;
 
-import static com.datadog.debugger.el.DSL.*;
+import static com.datadog.debugger.el.DSL.FALSE;
+import static com.datadog.debugger.el.DSL.TRUE;
+import static com.datadog.debugger.el.DSL.all;
+import static com.datadog.debugger.el.DSL.eq;
+import static com.datadog.debugger.el.DSL.getMember;
+import static com.datadog.debugger.el.DSL.isEmpty;
+import static com.datadog.debugger.el.DSL.not;
+import static com.datadog.debugger.el.DSL.or;
+import static com.datadog.debugger.el.DSL.ref;
+import static com.datadog.debugger.el.DSL.value;
 import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;

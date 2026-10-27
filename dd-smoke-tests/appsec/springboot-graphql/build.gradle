@@ -3,9 +3,9 @@ import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTra
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot GraphQL Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
@@ -35,11 +35,6 @@ shadowJar {
   ]) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
   }
-}
-
-// Use Java 11 to build application
-tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
 dependencies {

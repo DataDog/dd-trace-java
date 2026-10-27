@@ -36,12 +36,6 @@ class OpensearchTransportClientTest extends InstrumentationSpecification {
   TransportClient client
 
   @Override
-  boolean useStrictTraceWrites() {
-    //FIXME IDM
-    false
-  }
-
-  @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     // Opt out of strict config validation because this test loads a BreakTrace test instrumentation with fake name "test"

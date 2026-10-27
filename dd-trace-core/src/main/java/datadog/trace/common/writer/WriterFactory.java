@@ -18,6 +18,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -134,6 +135,13 @@ public class WriterFactory {
       }
     }
 
+    // In Lambda the execution environment can freeze as soon as the handler returns, before a
+    // writer's periodic flush timer next fires -- flush synchronously so buffered events (e.g.
+    // LLM Observability spans) aren't lost when that happens.
+    boolean isServerlessDefault =
+        config.isAgentConfiguredUsingDefault()
+            && ServerlessInfo.get().isRunningInServerlessEnvironment();
+
     RemoteWriter remoteWriter;
     if (DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       final TrackType trackType = DDIntakeTrackTypeResolver.resolve(config);
@@ -147,6 +155,7 @@ public class WriterFactory {
               .healthMetrics(healthMetrics)
               .monitoring(commObjects.monitoring)
               .singleSpanSampler(singleSpanSampler)
+              .alwaysFlush(isServerlessDefault)
               .flushIntervalMilliseconds(flushIntervalMilliseconds);
 
       if (config.isCiVisibilityEnabled()) {
@@ -167,8 +176,7 @@ public class WriterFactory {
 
     } else { // configuredType == DDAgentWriter
       boolean alwaysFlush = false;
-      if (config.isAgentConfiguredUsingDefault()
-          && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
+      if (isServerlessDefault) {
         if (!ServerlessInfo.get().hasExtension()) {
           log.info(
               "Detected serverless environment. Serverless extension has not been detected, using PrintingWriter");
@@ -188,7 +196,11 @@ public class WriterFactory {
               commObjects.monitoring,
               config.isTracerMetricsEnabled());
 
-      if (sampler instanceof RemoteResponseListener) {
+      // Register whichever sampler applies agent published rates, regardless of what wraps it.
+      final RateByServiceTraceSampler agentRateSampler = sampler.agentSampler();
+      if (agentRateSampler != null) {
+        ddAgentApi.addResponseListener(agentRateSampler);
+      } else if (sampler instanceof RemoteResponseListener) {
         ddAgentApi.addResponseListener((RemoteResponseListener) sampler);
       }
 

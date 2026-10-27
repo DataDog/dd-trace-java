@@ -34,6 +34,9 @@ public final class SpringMessageExtractAdapter
 
   @Override
   public void forEachKey(Message<?> carrier, AgentPropagation.KeyClassifier classifier) {
+    if (carrier == null) {
+      return;
+    }
     final MessageHeaders messageHeaders = carrier.getHeaders();
     if (messageHeaders == null || messageHeaders.isEmpty()) {
       return;

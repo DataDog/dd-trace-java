@@ -1,5 +1,5 @@
 plugins {
-  id("com.diffplug.spotless") version "8.4.0"
+  alias(libs.plugins.spotless)
 }
 
 val sharedConfigDirectory = "$rootDir/../gradle"
@@ -29,9 +29,16 @@ allprojects {
         ),
       )
     }
-    java {
-      target("src/**/*.java")
-      googleJavaFormat(libs.versions.google.java.format.get())
+  }
+
+  pluginManager.withPlugin("java") {
+    spotless {
+      java {
+        target("src/**/*.java")
+        removeUnusedImports()
+        forbidWildcardImports()
+        googleJavaFormat(libs.versions.google.java.format.get())
+      }
     }
   }
 }

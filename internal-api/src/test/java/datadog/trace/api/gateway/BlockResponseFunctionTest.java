@@ -1,0 +1,336 @@
+package datadog.trace.api.gateway;
+
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.appsec.AppSecContext;
+import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Covers the {@link BlockResponseFunction} default methods: {@code
+ * tryCommitBlockingResponse(TraceSegment, RequestBlockingAction)}, which forwards every field of
+ * the action to the abstract parameter-based method, and {@code
+ * tryCommitBlockingResponse(RequestContext, RequestBlockingAction)}, which reports a block failure
+ * to {@link AppSecContext#reportBlockFailure()} when the blocking response cannot be committed and
+ * leaves {@link TraceSegment#effectivelyBlocked()} to the implementation.
+ */
+class BlockResponseFunctionTest {
+
+  private static final Flow.Action.RequestBlockingAction RBA =
+      new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
+
+  @Test
+  void segmentOverloadForwardsAllActionFieldsToParameterBasedMethod() {
+    Map<String, String> extraHeaders = new HashMap<>();
+    extraHeaders.put("X-Custom", "custom-value");
+    extraHeaders.put("Location", "https://example.com/blocked");
+    Flow.Action.RequestBlockingAction rba =
+        new Flow.Action.RequestBlockingAction(
+            418, BlockingContentType.HTML, extraHeaders, "security-response-id");
+    TraceSegment segment = TraceSegment.NoOp.INSTANCE;
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
+
+    assertTrue(brf.tryCommitBlockingResponse(segment, rba));
+
+    assertEquals(1, brf.invocations);
+    assertSame(segment, brf.lastSegment);
+    assertEquals(418, brf.lastStatusCode);
+    assertEquals(BlockingContentType.HTML, brf.lastTemplateType);
+    assertSame(extraHeaders, brf.lastExtraHeaders);
+    assertEquals("security-response-id", brf.lastSecurityResponseId);
+  }
+
+  @Test
+  void segmentOverloadForwardsRedirectActionFields() {
+    Flow.Action.RequestBlockingAction rba =
+        Flow.Action.RequestBlockingAction.forRedirect(
+            302, "https://example.com/redirect", "redirect-response-id");
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
+
+    assertTrue(brf.tryCommitBlockingResponse(TraceSegment.NoOp.INSTANCE, rba));
+
+    assertEquals(302, brf.lastStatusCode);
+    assertEquals(BlockingContentType.NONE, brf.lastTemplateType);
+    assertEquals(singletonMap("Location", "https://example.com/redirect"), brf.lastExtraHeaders);
+    assertEquals("redirect-response-id", brf.lastSecurityResponseId);
+  }
+
+  @Test
+  void segmentOverloadForwardsDefaultsAndPropagatesFailedCommit() {
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(false);
+
+    assertFalse(brf.tryCommitBlockingResponse(TraceSegment.NoOp.INSTANCE, RBA));
+
+    assertEquals(1, brf.invocations);
+    assertEquals(403, brf.lastStatusCode);
+    assertEquals(BlockingContentType.AUTO, brf.lastTemplateType);
+    assertEquals(emptyMap(), brf.lastExtraHeaders);
+    assertNull(brf.lastSecurityResponseId);
+  }
+
+  @Test
+  void doesNotReportBlockFailureWhenCommitSucceeds() {
+    CountingAppSecContext appSecCtx = new CountingAppSecContext();
+    TestRequestContext ctx = new TestRequestContext(appSecCtx);
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
+
+    assertTrue(brf.tryCommitBlockingResponse(ctx, RBA));
+
+    assertSame(ctx.traceSegment, brf.lastSegment);
+    assertEquals(403, brf.lastStatusCode);
+    assertEquals(BlockingContentType.AUTO, brf.lastTemplateType);
+    assertEquals(0, appSecCtx.blockFailures);
+  }
+
+  @Test
+  void reportsBlockFailureWhenCommitFails() {
+    CountingAppSecContext appSecCtx = new CountingAppSecContext();
+    TestRequestContext ctx = new TestRequestContext(appSecCtx);
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(false);
+
+    assertFalse(brf.tryCommitBlockingResponse(ctx, RBA));
+
+    assertSame(ctx.traceSegment, brf.lastSegment);
+    assertEquals(1, appSecCtx.blockFailures);
+  }
+
+  @Test
+  void doesNotThrowWhenAppSecSlotDoesNotHoldAnAppSecContext() {
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(false);
+
+    assertFalse(brf.tryCommitBlockingResponse(new TestRequestContext(null), RBA));
+    assertFalse(brf.tryCommitBlockingResponse(new TestRequestContext("not an AppSecContext"), RBA));
+  }
+
+  @Test
+  void leavesEffectivelyBlockedToTheImplementationOnSuccess() {
+    CountingTraceSegment traceSegment = new CountingTraceSegment();
+    TestRequestContext ctx = new TestRequestContext(new CountingAppSecContext(), traceSegment);
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
+
+    assertTrue(brf.tryCommitBlockingResponse(ctx, RBA));
+
+    // the implementation, not the default method, owns effectivelyBlocked()
+    assertEquals(0, traceSegment.effectivelyBlockedCalls);
+  }
+
+  @Test
+  void doesNotMarkTraceSegmentBlockedWhenCommitFails() {
+    CountingTraceSegment traceSegment = new CountingTraceSegment();
+    TestRequestContext ctx = new TestRequestContext(new CountingAppSecContext(), traceSegment);
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(false);
+
+    assertFalse(brf.tryCommitBlockingResponse(ctx, RBA));
+
+    assertEquals(0, traceSegment.effectivelyBlockedCalls);
+  }
+
+  /**
+   * Mimics Netty off the event loop or Undertow dispatching to an IO thread: the commit is only
+   * scheduled, so {@code true} must not be read as "the response was committed". The trace segment
+   * stays unmarked until the scheduled work runs, and a scheduled commit that later fails still
+   * gets to report the block failure.
+   */
+  @Test
+  void asynchronousImplementationOwnsMarkingAndFailureReporting() {
+    CountingTraceSegment traceSegment = new CountingTraceSegment();
+    CountingAppSecContext appSecCtx = new CountingAppSecContext();
+    TestRequestContext ctx = new TestRequestContext(appSecCtx, traceSegment);
+    DeferredBlockResponseFunction brf = new DeferredBlockResponseFunction();
+
+    assertTrue(brf.tryCommitBlockingResponse(ctx, RBA));
+    assertEquals(0, traceSegment.effectivelyBlockedCalls);
+    assertEquals(0, appSecCtx.blockFailures);
+
+    brf.runScheduled(true);
+    assertEquals(1, traceSegment.effectivelyBlockedCalls);
+
+    brf.runScheduled(false);
+    assertEquals(1, traceSegment.effectivelyBlockedCalls);
+    assertEquals(1, appSecCtx.blockFailures);
+  }
+
+  private static final class CountingTraceSegment implements TraceSegment {
+    private int effectivelyBlockedCalls;
+
+    @Override
+    public void setTagTop(String key, Object value, boolean sanitize) {}
+
+    @Override
+    public Object getTagTop(String key, boolean sanitize) {
+      return null;
+    }
+
+    @Override
+    public void setTagCurrent(String key, Object value, boolean sanitize) {}
+
+    @Override
+    public Object getTagCurrent(String key, boolean sanitize) {
+      return null;
+    }
+
+    @Override
+    public void setDataTop(String key, Object value) {}
+
+    @Override
+    public Object getDataTop(String key) {
+      return null;
+    }
+
+    @Override
+    public void effectivelyBlocked() {
+      effectivelyBlockedCalls++;
+    }
+
+    @Override
+    public void setDataCurrent(String key, Object value) {}
+
+    @Override
+    public Object getDataCurrent(String key) {
+      return null;
+    }
+
+    @Override
+    public void setMetaStructTop(String field, Object value) {}
+
+    @Override
+    public void setMetaStructCurrent(String field, Object value) {}
+  }
+
+  private static final class CountingAppSecContext implements AppSecContext {
+    private int blockFailures;
+
+    @Override
+    public boolean isManuallyKept() {
+      return false;
+    }
+
+    @Override
+    public void reportBlockFailure() {
+      blockFailures++;
+    }
+  }
+
+  private static final class TestBlockResponseFunction implements BlockResponseFunction {
+    private final boolean committed;
+    private TraceSegment lastSegment;
+    private int lastStatusCode;
+    private BlockingContentType lastTemplateType;
+    private Map<String, String> lastExtraHeaders;
+    private String lastSecurityResponseId;
+    private int invocations;
+
+    private TestBlockResponseFunction(boolean committed) {
+      this.committed = committed;
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType templateType,
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
+      this.lastSegment = segment;
+      this.lastStatusCode = statusCode;
+      this.lastTemplateType = templateType;
+      this.lastExtraHeaders = extraHeaders;
+      this.lastSecurityResponseId = securityResponseId;
+      this.invocations++;
+      return committed;
+    }
+  }
+
+  /**
+   * A {@link BlockResponseFunction} that only schedules the blocking response, the way Netty does
+   * when called off the event loop. {@link #runScheduled(boolean)} plays the scheduled work back.
+   */
+  private static final class DeferredBlockResponseFunction implements BlockResponseFunction {
+    private RequestContext scheduledCtx;
+
+    @Override
+    public boolean tryCommitBlockingResponse(
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType templateType,
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
+      throw new UnsupportedOperationException("the RequestContext overload is scheduled instead");
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(
+        RequestContext ctx, Flow.Action.RequestBlockingAction action) {
+      this.scheduledCtx = ctx;
+      return true;
+    }
+
+    private void runScheduled(boolean committed) {
+      if (committed) {
+        scheduledCtx.getTraceSegment().effectivelyBlocked();
+      } else {
+        ((AppSecContext) scheduledCtx.getData(RequestContextSlot.APPSEC)).reportBlockFailure();
+      }
+    }
+  }
+
+  private static final class TestRequestContext implements RequestContext {
+    private final Object appSecData;
+    private final TraceSegment traceSegment;
+
+    private TestRequestContext(Object appSecData) {
+      this(appSecData, TraceSegment.NoOp.INSTANCE);
+    }
+
+    private TestRequestContext(Object appSecData, TraceSegment traceSegment) {
+      this.appSecData = appSecData;
+      this.traceSegment = traceSegment;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> T getData(RequestContextSlot slot) {
+      return slot == RequestContextSlot.APPSEC ? (T) appSecData : null;
+    }
+
+    @Override
+    public TraceSegment getTraceSegment() {
+      return traceSegment;
+    }
+
+    @Override
+    public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {}
+
+    @Override
+    public BlockResponseFunction getBlockResponseFunction() {
+      return null;
+    }
+
+    @Override
+    public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+      return null;
+    }
+
+    @Override
+    public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+    @Override
+    public ClientIpAddressData getClientIpAddressData() {
+      return null;
+    }
+
+    @Override
+    public void close() {}
+  }
+}

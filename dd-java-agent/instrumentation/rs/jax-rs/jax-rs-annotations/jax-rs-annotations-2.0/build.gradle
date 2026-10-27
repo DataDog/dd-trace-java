@@ -1,3 +1,6 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 muzzle {
   fail {
@@ -18,14 +21,14 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('resteasy31Test', 'test')
 addTestSuite('nestedTest')
 
 dependencies {
   compileOnly group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.0'
+
+  testImplementation libs.bundles.mockito
 
   testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
   testImplementation project(':dd-java-agent:instrumentation:jersey:jersey-filter-2.0')

@@ -2,10 +2,10 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
 
 description = 'Check fields get injected where expected'
-apply from: "$rootDir/gradle/java.gradle"
 
 tasks.named("jar", Jar) {
   manifest {

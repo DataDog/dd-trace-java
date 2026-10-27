@@ -2,9 +2,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   implementation project(':dd-trace-api')
@@ -12,7 +11,9 @@ dependencies {
   implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
   implementation libs.slf4j
 
+  testImplementation project(':components:environment')
   testImplementation project(':dd-smoke-tests')
+  testImplementation project(':remote-config:remote-config-api')
   testImplementation project(':utils:test-utils')
 }
 

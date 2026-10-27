@@ -1,4 +1,49 @@
-apply from: "$rootDir/gradle/java.gradle"
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id 'dd-trace-java.module.testing-support'
+}
+
+sourceSets {
+  smokeAgent {
+    compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+  }
+}
+
+// Reuse the production agent's logging API from the tracer's isolated loader.
+def scopeDiagnosticsPayloadJar = tasks.register('scopeDiagnosticsPayloadJar', ShadowJar) {
+  archiveClassifier = 'scope-diagnostics-payload'
+  configurations = []
+  from(sourceSets.main.output) {
+    include 'datadog/trace/agent/test/scopediag/**'
+    exclude '**/ScopeDiagnosticsExtension*', '**/ScopeDiagnosticsSpock*'
+  }
+  from(sourceSets.smokeAgent.output) {
+    include 'datadog/trace/agent/test/scopediag/**'
+  }
+  from(project(':dd-java-agent:testing').sourceSets.main.output) {
+    include 'datadog/trace/agent/test/scopediag/ScopeDiagnosticsCheck.class'
+  }
+  relocate 'org.slf4j', 'datadog.slf4j'
+}
+
+tasks.register('scopeDiagnosticsAgentJar', Jar) {
+  archiveClassifier = 'scope-diagnostics-agent'
+  manifest {
+    attributes 'Premain-Class': 'datadog.trace.agent.test.smoke.ScopeDiagnosticsAgent',
+    'Can-Retransform-Classes': 'true', 'Can-Redefine-Classes': 'true'
+  }
+  from(sourceSets.smokeAgent.output) {
+    include 'datadog/trace/agent/test/smoke/**'
+  }
+  into('payload') {
+    from(zipTree(scopeDiagnosticsPayloadJar.flatMap { it.archiveFile })) {
+      include '**/*.class'
+    }
+    rename '(.*)\\.class', '$1.classdata'
+  }
+  dependsOn scopeDiagnosticsPayloadJar
+}
 
 dependencies {
   api libs.bytebuddy
@@ -17,10 +62,12 @@ dependencies {
   implementation "org.junit.platform:junit-platform-runner:${libs.versions.junit.platform.get()}"
 
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+  testImplementation sourceSets.smokeAgent.output
 
   testImplementation group: 'cglib', name: 'cglib', version: '3.2.5'
   // test instrumenting java 1.1 bytecode
   testImplementation group: 'net.sf.jt400', name: 'jt400', version: '6.1'
+  testImplementation libs.bundles.mockito
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor libs.autoservice.processor

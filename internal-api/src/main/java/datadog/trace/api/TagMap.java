@@ -1,11 +1,15 @@
 package datadog.trace.api;
 
+import datadog.apicontract.Restricted;
+import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -48,9 +52,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
   // Frozen view over a length-1 array: bucket masking needs a power-of-two array length (size 0
   // would fail with ArrayIndexOutOfBoundsException, size 1 works), and the private constructor
-  // reads
-  // no statics, so this is safe to build directly during TagMap's <clinit>.
+  // reads no statics, so this is safe to build directly during TagMap's <clinit>.
   public static final TagMap EMPTY = new TagMap(new Object[1], 0);
+
+  // Sentinel for an ID not yet resolved by the reused EntryReadingHelper. Zero denotes an unknown
+  // tag, so it cannot represent "not computed".
+  static final long TAG_ID_NOT_COMPUTED = Long.MIN_VALUE;
 
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
   public static final TagMap fromMap(@Nonnull Map<String, ?> map) {
@@ -74,6 +81,36 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public static final TagMap create(int size) {
     return new TagMap();
+  }
+
+  /**
+   * Creates a fresh, mutable TagMap that reads through to {@code parent} on local misses. The
+   * parent must be frozen and is fixed for the life of the returned map (no re-parenting), so
+   * read-through relies on a stable parent rather than an unenforced convention. Level-split phase
+   * 1.
+   *
+   * <p>Parents may themselves have parents: reads and the bulk/union views both walk the full
+   * ancestor chain, nearest-level-wins, so a multi-level chain (e.g. baggage over trace tags) is a
+   * supported layering, not just a single frozen parent.
+   *
+   * <p>An empty parent is dropped (treated as no parent): it contributes nothing to read through,
+   * and — being frozen — never will, so attaching it would only add read-through cost to every
+   * local miss/removal for no benefit.
+   */
+  public static final TagMap createFromParent(TagMap parent) {
+    if (parent != null) {
+      if (!parent.frozen) {
+        throw new IllegalStateException("read-through parent must be frozen");
+      }
+      // Exact, not isDefinitelyEmpty(): a multi-level parent can be observationally empty while a
+      // local level still holds entries (all of them tombstoned by a nearer level). Dropping such a
+      // parent keeps isEmpty()'s no-tombstone fast path valid -- an attached parent always
+      // contributes at least one visible entry.
+      if (parent.isEmpty()) {
+        parent = null;
+      }
+    }
+    return new TagMap(parent);
   }
 
   /** Creates a new TagMap.Ledger */
@@ -110,7 +147,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public static final class EntryRemoval extends EntryChange {
     EntryRemoval(String tag) {
-      super(tag);
+      // Canonicalize so a removal recorded under an OpenTelemetry rename matches an Entry recorded
+      // (via Entry's own constructor) under its Datadog name -- see Ledger#contains/#matches.
+      super(KnownTagCodec.canonicalTagName(tag));
     }
 
     @Override
@@ -139,6 +178,34 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     public static final byte DOUBLE = 9;
 
     String tag();
+
+    /** Returns the known ID for {@link #tag()}, or {@code 0L} for an unknown tag. */
+    long tagId();
+
+    /**
+     * This entry's tag name in the OpenTelemetry namespace: the rename the registry declares for
+     * it, else its Datadog name (pass-through, the default), else — for a custom tag, which the
+     * registry does not name at all — {@link #tag()} itself.
+     *
+     * <p>Never null, which is the point of asking the reader rather than the codec. {@link
+     * KnownTagCodec#openTelemetryTagOf} owns the naming policy but returns null for an unknown id,
+     * because only the holder of the entry knows the key to fall back to. This completes that one
+     * step and nothing more, so the policy still lives in exactly one place.
+     */
+    default String openTelemetryTag() {
+      String otelTag = KnownTagCodec.openTelemetryTagOf(tagId());
+      return otelTag != null ? otelTag : tag();
+    }
+
+    /**
+     * {@link #openTelemetryTag()} on a span of {@code direction} (a {@code
+     * KnownTagCodec.DIRECTION_*} constant), which also applies a rename that holds only in that
+     * direction: {@code peer.port} is {@code server.port} on a client span.
+     */
+    default String openTelemetryTag(int direction) {
+      long tagId = tagId();
+      return tagId == 0 ? tag() : KnownTagCodec.openTelemetryTagOf(tagId, direction);
+    }
 
     byte type();
 
@@ -178,53 +245,93 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     static final byte ANY = 0;
 
     /**
+     * Whether {@code value} is treated as "no tag" — a null, or an empty {@link CharSequence}. Set
+     * paths that honor the tag-filtering contract (e.g. {@code AgentSpan.setTag}, {@link
+     * SpanPrototype}) can gate on this without constructing an Entry — which matters once a dense
+     * store makes per-tag Entry allocation the wrong path.
+     */
+    public static boolean isEmptyValue(Object value) {
+      return value == null
+          || (value instanceof CharSequence && ((CharSequence) value).length() == 0);
+    }
+
+    /**
      * Entry for {@code (tag, value)}, or null when {@code value} is null or an empty {@code
      * CharSequence} -- checked by runtime type, so an empty String passed as {@code Object} skips
      * the same as via the {@link #create(String, CharSequence)} overload.
      */
     @Nullable
     public static final Entry create(@Nonnull String tag, Object value) {
-      if (value == null) {
-        return null;
-      }
-      if (value instanceof CharSequence && ((CharSequence) value).length() == 0) {
-        return null;
-      }
-      return TagMap.Entry.newAnyEntry(tag, value);
+      return isEmptyValue(value) ? null : TagMap.anyEntryFor(tag, value);
     }
 
     /** If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null */
     @Nullable
     public static final Entry create(@Nonnull String tag, CharSequence value) {
       // NOTE: From the static typing, we know that value is not a primitive box
-
-      return (value == null || value.length() == 0)
-          ? null
-          : TagMap.Entry.newObjectEntry(tag, value);
+      return isEmptyValue(value) ? null : TagMap.objectEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, boolean value) {
-      return TagMap.Entry.newBooleanEntry(tag, value);
+      return TagMap.booleanEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, int value) {
-      return TagMap.Entry.newIntEntry(tag, value);
+      return TagMap.intEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, long value) {
-      return TagMap.Entry.newLongEntry(tag, value);
+      return TagMap.longEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, float value) {
-      return TagMap.Entry.newFloatEntry(tag, value);
+      return TagMap.floatEntryFor(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, double value) {
-      return TagMap.Entry.newDoubleEntry(tag, value);
+      return TagMap.doubleEntryFor(tag, value);
+    }
+
+    /*
+     * Id-keyed counterparts of the create overloads above, for a KnownTags.*_ID: same contract (a
+     * null or empty value yields no entry), without the name lookup. An id that names no known tag
+     * is rejected.
+     */
+
+    /** Entry for a known tag id, or null when {@code value} is null or an empty CharSequence. */
+    @Nullable
+    public static final Entry create(long tagId, Object value) {
+      return isEmptyValue(value) ? null : TagMap.Entry.newAnyEntry(tagId, value);
+    }
+
+    /** Entry for a known tag id, or null when {@code value} is null or empty. */
+    @Nullable
+    public static final Entry create(long tagId, CharSequence value) {
+      return isEmptyValue(value) ? null : TagMap.Entry.newObjectEntry(tagId, value);
+    }
+
+    public static final Entry create(long tagId, boolean value) {
+      return TagMap.Entry.newBooleanEntry(tagId, value);
+    }
+
+    public static final Entry create(long tagId, int value) {
+      return TagMap.Entry.newIntEntry(tagId, value);
+    }
+
+    public static final Entry create(long tagId, long value) {
+      return TagMap.Entry.newLongEntry(tagId, value);
+    }
+
+    public static final Entry create(long tagId, float value) {
+      return TagMap.Entry.newFloatEntry(tagId, value);
+    }
+
+    public static final Entry create(long tagId, double value) {
+      return TagMap.Entry.newDoubleEntry(tagId, value);
     }
 
     static Entry newAnyEntry(Map.Entry<? extends String, ? extends Object> entry) {
-      return newAnyEntry(entry.getKey(), entry.getValue());
+      return anyEntryFor(entry.getKey(), entry.getValue());
     }
 
     static Entry newAnyEntry(String tag, Object value) {
@@ -240,6 +347,36 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     static Entry newObjectEntry(String tag, Object value) {
       return new Entry(tag, OBJECT, 0, value);
+    }
+
+    // Id-keyed factories: the tag id already names a canonical tag, so these skip the
+    // canonicalizing name lookup the String factories pay.
+    static Entry newAnyEntry(long tagId, Object value) {
+      return new Entry(tagId, ANY, 0L, value);
+    }
+
+    static Entry newObjectEntry(long tagId, Object value) {
+      return new Entry(tagId, OBJECT, 0, value);
+    }
+
+    static Entry newBooleanEntry(long tagId, boolean value) {
+      return new Entry(tagId, BOOLEAN, boolean2Prim(value), Boolean.valueOf(value));
+    }
+
+    static Entry newIntEntry(long tagId, int value) {
+      return new Entry(tagId, INT, int2Prim(value), null);
+    }
+
+    static Entry newLongEntry(long tagId, long value) {
+      return new Entry(tagId, LONG, long2Prim(value), null);
+    }
+
+    static Entry newFloatEntry(long tagId, float value) {
+      return new Entry(tagId, FLOAT, float2Prim(value), null);
+    }
+
+    static Entry newDoubleEntry(long tagId, double value) {
+      return new Entry(tagId, DOUBLE, double2Prim(value), null);
     }
 
     static Entry newBooleanEntry(String tag, boolean value) {
@@ -283,10 +420,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     /*
-     * hash is stored in line for fast handling of Entry-s coming from another TagMap
-     * However, hash is lazily computed using the same trick as {@link java.lang.String}.
+     * The tag's 64-bit hash, computed once at construction. For a known tag it is the tag id, whose
+     * serial sits in the high bits, so the upper 32 bits are never zero; for a custom tag it is the
+     * name's hash in the low 32 bits, with the upper 32 bits zero. The two can never collide, and
+     * tagId() is a field read. See tagHashOf.
      */
-    int lazyTagHash;
+    final long tagHash;
 
     // To optimize construction of Entry around boxed primitives and Object entries,
     // no type checks are done during construction.
@@ -308,24 +447,89 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     volatile String strCache = null;
 
+    /**
+     * A custom tag's entry: no registry lookup. A known tag is built from its id instead -- callers
+     * that start from a name resolve it once and pick the id or name factory (see {@code
+     * TagMap.anyEntryFor}).
+     */
     private Entry(String tag, byte type, long prim, Object obj) {
-      super(tag);
-      this.lazyTagHash = 0; // lazily computed
+      this(0L, tag, type, prim, obj);
+      assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; build it from its id";
+    }
+
+    Entry(long tagId, byte type, long prim, Object obj) {
+      // Resolve the name once: it both validates the id and names the entry.
+      super(requireKnownName(tagId));
+      this.tagHash = tagId;
 
       this.rawType = type;
       this.rawPrim = prim;
       this.rawObj = obj;
     }
 
-    int hash() {
-      // If value of hash read in this thread is zero, then hash is computed.
-      // hash is not held as a volatile, since this computation can safely be repeated as any time
-      int hash = this.lazyTagHash;
-      if (hash != 0) return hash;
+    /** {@code tagId} is a known id, or 0 for the custom tag {@code customTag}. */
+    Entry(long tagId, String customTag, byte type, long prim, Object obj) {
+      super(tagId != 0 ? KnownTagCodec.nameOf(tagId) : customTag);
+      this.tagHash = tagId != 0 ? tagId : customHash(customTag);
 
-      hash = _hash(this.tag);
-      this.lazyTagHash = hash;
-      return hash;
+      this.rawType = type;
+      this.rawPrim = prim;
+      this.rawObj = obj;
+    }
+
+    static String requireKnownName(long tagId) {
+      String name = tagId == 0 ? null : KnownTagCodec.nameOf(tagId);
+      if (name == null) {
+        throw new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
+      }
+      return name;
+    }
+
+    /** The tag hash a name maps to: its id when known, else its {@link #customHash}. */
+    static long tagHashOf(String tag) {
+      long tagId = KnownTagCodec.keyOf(tag);
+      return tagId != 0 ? tagId : customHash(tag);
+    }
+
+    /** A custom tag's hash: the name hash in the low 32 bits, never colliding with a tag id. */
+    static long customHash(String tag) {
+      return _hash(tag) & 0xFFFFFFFFL;
+    }
+
+    /**
+     * Folds a tag hash to the 32-bit bucket hash, whose low bits pick the bucket.
+     *
+     * <p>A known tag with a slot is bucketed by its slot: slot coloring gives tags that appear
+     * together on a span type distinct slots, so they mostly land in distinct buckets and need no
+     * BucketGroup. Trace-level tags reuse the span-level slot numbers, so their level bit moves
+     * them to the other half of the buckets. The serial sits above the slot, so two known tags
+     * never share a bucket hash.
+     *
+     * <p>A known tag without a slot folds its serial (bits 63-48) down instead, and a custom tag
+     * uses its name hash.
+     *
+     * <p>Never zero: BucketGroup treats a zero hash as a vacant slot. A slotted known tag's hash
+     * carries its nonzero serial; the other folds map zero to the same nonzero sentinel {@link
+     * #_hash} uses.
+     */
+    static int bucketHash(long tagHash) {
+      int slot = (int) (tagHash >>> 32) & 0xFFFF;
+      if ((tagHash >>> 32) != 0 && slot != KnownTagCodec.NO_SLOT) {
+        int level = (int) (tagHash & KnownTagCodec.LEVEL_TRACE) << 1; // trace-level: flip bit 3
+        return ((int) (tagHash >>> 48) << 16) | (slot ^ level);
+      }
+      int hash = (int) (tagHash >>> 48) ^ (int) tagHash;
+      return hash == 0 ? 0xDD06 : hash;
+    }
+
+    int hash() {
+      return bucketHash(this.tagHash);
+    }
+
+    @Override
+    public long tagId() {
+      // A known tag's hash is its id, whose upper 32 bits are never zero; a custom tag's are.
+      return (this.tagHash >>> 32) != 0 ? this.tagHash : 0L;
     }
 
     @Override
@@ -736,7 +940,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return this.tag.equals(that.tag) && this.objectValue().equals(that.objectValue());
     }
 
-    private static long boolean2Prim(boolean value) {
+    static long boolean2Prim(boolean value) {
       return value ? 1L : 0L;
     }
 
@@ -744,7 +948,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return (prim != 0L);
     }
 
-    private static long int2Prim(int value) {
+    static long int2Prim(int value) {
       return value;
     }
 
@@ -752,7 +956,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return (int) prim;
     }
 
-    private static long long2Prim(long value) {
+    static long long2Prim(long value) {
       return value;
     }
 
@@ -760,7 +964,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return prim;
     }
 
-    private static long float2Prim(float value) {
+    static long float2Prim(float value) {
       return Float.floatToIntBits(value);
     }
 
@@ -768,7 +972,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return Float.intBitsToFloat((int) prim);
     }
 
-    private static long double2Prim(double value) {
+    static long double2Prim(double value) {
       return Double.doubleToRawLongBits(value);
     }
 
@@ -791,11 +995,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     int nextPos = 0;
     boolean containsRemovals = false;
 
-    private Ledger() {
+    Ledger() {
       this(8);
     }
 
-    private Ledger(int size) {
+    Ledger(int size) {
       this.entryChanges = new EntryChange[size];
     }
 
@@ -818,31 +1022,31 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     public Ledger set(String tag, Object value) {
-      return this.recordEntry(Entry.newAnyEntry(tag, value));
+      return this.recordEntry(anyEntryFor(tag, value));
     }
 
     public Ledger set(String tag, CharSequence value) {
-      return this.recordEntry(Entry.newObjectEntry(tag, value));
+      return this.recordEntry(objectEntryFor(tag, value));
     }
 
     public Ledger set(String tag, boolean value) {
-      return this.recordEntry(Entry.newBooleanEntry(tag, value));
+      return this.recordEntry(booleanEntryFor(tag, value));
     }
 
     public Ledger set(String tag, int value) {
-      return this.recordEntry(Entry.newIntEntry(tag, value));
+      return this.recordEntry(intEntryFor(tag, value));
     }
 
     public Ledger set(String tag, long value) {
-      return this.recordEntry(Entry.newLongEntry(tag, value));
+      return this.recordEntry(longEntryFor(tag, value));
     }
 
     public Ledger set(String tag, float value) {
-      return this.recordEntry(Entry.newFloatEntry(tag, value));
+      return this.recordEntry(floatEntryFor(tag, value));
     }
 
     public Ledger set(String tag, double value) {
-      return this.recordEntry(Entry.newDoubleEntry(tag, value));
+      return this.recordEntry(doubleEntryFor(tag, value));
     }
 
     public Ledger set(Entry entry) {
@@ -881,12 +1085,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     private boolean contains(String tag) {
+      // Entries and removals are both recorded under their canonical Datadog name (see newAnyEntry
+      // et al. and EntryRemoval's own constructor); canonicalize the query the same way or it
+      // would miss.
+      String canonicalTag = KnownTagCodec.canonicalTagName(tag);
+
       EntryChange[] thisChanges = this.entryChanges;
 
       // min is to clamp, so bounds check elimination optimization works
       int lenClamp = Math.min(this.nextPos, thisChanges.length);
       for (int i = 0; i < lenClamp; ++i) {
-        if (thisChanges[i].matches(tag)) return true;
+        if (thisChanges[i].matches(canonicalTag)) return true;
       }
       return false;
     }
@@ -895,13 +1104,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      * Just for testing
      */
     Entry findLastEntry(String tag) {
+      String canonicalTag = KnownTagCodec.canonicalTagName(tag);
       EntryChange[] thisChanges = this.entryChanges;
 
       // min is to clamp, so ArrayBoundsCheckElimination optimization works
       int clampLen = Math.min(this.nextPos, thisChanges.length) - 1;
       for (int i = clampLen; i >= 0; --i) {
         EntryChange thisChange = thisChanges[i];
-        if (!thisChange.isRemoval() && thisChange.matches(tag)) return (Entry) thisChange;
+        if (!thisChange.isRemoval() && thisChange.matches(canonicalTag)) return (Entry) thisChange;
       }
       return null;
     }
@@ -991,15 +1201,47 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be
    * removed from the collision chain.
    */
-  private final Object[] buckets;
+
+  final Object[] buckets;
   private int size;
   private boolean frozen;
 
+  /**
+   * Optional frozen parent for read-through. When non-null, reads that miss the local buckets fall
+   * through to the parent chain, nearest-level-wins (a local entry shadows the parent's, a nearer
+   * ancestor shadows a farther one). Parents may themselves have parents, so this is a chain (e.g.
+   * baggage layered over trace tags). Must be frozen when attached, so it is safely shareable. Not
+   * final only so {@link #clear()} can detach it (to null); it is otherwise fixed at construction
+   * and never re-pointed. Package-visible so same-package tests can assert attach/detach directly.
+   */
+  @VisibleForTesting TagMap parent;
+
+  /**
+   * Parent keys removed locally (read-through tombstones). Lazily allocated on the first such
+   * removal; {@code null} both means "no tombstones" and serves as the gate that keeps the hot
+   * paths untouched. Only meaningful when {@link #parent} != null. A tombstone stops read-through
+   * fall-through for its key, so a key removed from a child no longer reads through to the parent.
+   * Kept off the bucket structure deliberately — it is shape-agnostic (bare-Entry vs BucketGroup)
+   * and rare, so it costs a lazy allocation on removal rather than complicating the hot bucket
+   * code.
+   */
+  private Set<String> removedFromParent;
+
   public TagMap() {
+    this((TagMap) null);
+  }
+
+  /**
+   * Fresh mutable map that reads through to {@code parent} (may be null). The parent is set here at
+   * construction and never re-pointed (only detached to null by {@link #clear()}), so read-through
+   * optimizations can treat it as fixed.
+   */
+  private TagMap(TagMap parent) {
     // needs to be a power of 2 for bucket masking calculation to work as intended
     this.buckets = new Object[1 << 4];
     this.size = 0;
     this.frozen = false;
+    this.parent = parent;
   }
 
   /** Used for inexpensive immutable */
@@ -1007,16 +1249,81 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.buckets = buckets;
     this.size = size;
     this.frozen = true;
+    this.parent = null;
   }
 
   @Override
   public int size() {
-    return this.size;
+    // Exact (Map contract). Under read-through resolves the union; prefer estimateSize() for hints.
+    TagMap parent = this.parent;
+    return parent == null ? this.size : this.size + this.visibleParentCount();
+  }
+
+  /**
+   * Exact count of ancestor entries not shadowed by a nearer level or tombstoned (the read-through
+   * addition). Walks the ancestor chain iteratively, nearest-level-wins.
+   */
+  private int visibleParentCount() {
+    int count = 0;
+    for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
+      Object[] parentBuckets = ancestor.buckets;
+      for (int i = 0; i < parentBuckets.length; ++i) {
+        Object parentBucket = parentBuckets[i];
+        if (parentBucket instanceof Entry) {
+          if (parentEntryVisible((Entry) parentBucket, ancestor)) count++;
+        } else if (parentBucket instanceof BucketGroup) {
+          for (BucketGroup curGroup = (BucketGroup) parentBucket;
+              curGroup != null;
+              curGroup = curGroup.prev) {
+            for (int j = 0; j < BucketGroup.LEN; ++j) {
+              Entry parentEntry = curGroup._entryAt(j);
+              if (parentEntry != null && parentEntryVisible(parentEntry, ancestor)) count++;
+            }
+          }
+        }
+      }
+    }
+    return count;
   }
 
   @Override
   public boolean isEmpty() {
-    return (this.size == 0);
+    // Exact (Map contract). Under read-through resolves the parent; prefer isDefinitelyEmpty().
+    if (this.size != 0) {
+      return false;
+    }
+    TagMap parent = this.parent;
+    if (parent == null) {
+      return true;
+    }
+    if (this.removedFromParent == null) {
+      // A live parent is never definitely-empty: createFromParent drops an empty parent (and copy()
+      // only forwards an already-vetted parent), and the parent is frozen so it can't become empty.
+      // So with no local entries and no tombstones, the parent contributes at least one visible
+      // entry -> this map is non-empty.
+      return false;
+    }
+    // size == 0 with tombstones (rare): empty iff every visible ancestor entry is tombstoned
+    return this.visibleParentCount() == 0;
+  }
+
+  public boolean isDefinitelyEmpty() {
+    // Cheap: empty iff no level in the chain holds a local entry (ignores shadowing/tombstones).
+    for (TagMap level = this; level != null; level = level.parent) {
+      if (level.size != 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public int estimateSize() {
+    // Upper bound: sum of every level's local size, ignoring read-through shadowing/removals.
+    int total = 0;
+    for (TagMap level = this; level != null; level = level.parent) {
+      total += level.size;
+    }
+    return total;
   }
 
   @Deprecated
@@ -1124,67 +1431,316 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public Entry getEntry(String tag) {
-    Object[] thisBuckets = this.buckets;
+    // Entries are stored under their canonical Datadog name (see Entry's constructor); a lookup by
+    // an OpenTelemetry rename must canonicalize the same way, or it would hash to the wrong bucket
+    // and silently miss the entry stored under the Datadog name.
+    long tagHash = Entry.tagHashOf(tag);
+    String canonicalTag = (tagHash >>> 32) != 0 ? KnownTagCodec.nameOf(tagHash) : tag;
+    return this.getEntry(canonicalTag, tagHash);
+  }
 
-    int hash = TagMap.Entry._hash(tag);
-    int bucketIndex = hash & (thisBuckets.length - 1);
+  /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
+  public Entry getEntry(long tagId) {
+    return this.getEntry(Entry.requireKnownName(tagId), tagId);
+  }
 
-    Object bucket = thisBuckets[bucketIndex];
-    if (bucket == null) {
+  private Entry getEntry(String canonicalTag, long tagHash) {
+    Entry local = this.getLocalEntry(canonicalTag, tagHash);
+    if (local != null) {
+      // Local entry shadows the parent (local-wins) — unchanged hot path.
+      return local;
+    }
+    // Read-through: miss locally, defer to the frozen parent. Single-parent in phase 1.
+    // The tombstone check lives only here, on the cold miss+parent path — the hot local hit above
+    // never touches it.
+    TagMap parent = this.parent;
+    if (parent == null) {
       return null;
-    } else if (bucket instanceof Entry) {
-      Entry tagEntry = (Entry) bucket;
-      if (tagEntry.matches(tag)) return tagEntry;
-    } else if (bucket instanceof BucketGroup) {
-      BucketGroup lastGroup = (BucketGroup) bucket;
+    }
+    if (this.removedFromParent != null && this.removedFromParent.contains(canonicalTag)) {
+      return null; // tombstoned: removed locally, do not read through
+    }
+    return parent.getEntry(canonicalTag, tagHash);
+  }
 
-      Entry tagEntry = lastGroup.findInChain(hash, tag);
-      return tagEntry;
+  /** Looks up an entry in this map's own buckets only — no read-through to the parent. */
+  private Entry getLocalEntry(String tag, long tagHash) {
+    Object[] thisBuckets = this.buckets;
+    int hash = Entry.bucketHash(tagHash);
+    return findInBucket(thisBuckets[hash & (thisBuckets.length - 1)], hash, tag);
+  }
+
+  /**
+   * Finds an entry by hash/tag within a single bucket object (Entry | BucketGroup chain | null).
+   */
+  private static Entry findInBucket(Object bucket, int hash, String tag) {
+    if (bucket instanceof Entry) {
+      Entry tagEntry = (Entry) bucket;
+      return tagEntry.matches(tag) ? tagEntry : null;
+    } else if (bucket instanceof BucketGroup) {
+      return ((BucketGroup) bucket).findInChain(hash, tag);
     }
     return null;
+  }
+
+  /**
+   * Whether an entry that lives at ancestor level {@code fromAncestor} is visible through this
+   * leaf: not shadowed and not tombstoned by any nearer level (the leaf, or a closer ancestor).
+   * Nearest-level-wins. This mirrors what {@link #getEntry(String)}'s recursion applies as it
+   * descends -- each nearer level contributes both its own local entries (shadowing) and its own
+   * read-through removals (tombstones). A non-leaf level can carry tombstones too: a map may remove
+   * an inherited key and then itself be frozen and reused as a parent. Exploits universal hashing —
+   * by {@code _hash} the only local entry that could shadow {@code parentEntry} at a level is in
+   * that level's same-index bucket, so each nearer level is probed at one bucket using {@code
+   * parentEntry}'s cached hash (no re-hash, no full-map probe).
+   */
+  boolean parentEntryVisible(Entry parentEntry, TagMap fromAncestor) {
+    int hash = parentEntry.hash();
+    String tag = parentEntry.tag;
+    for (TagMap nearer = this; nearer != fromAncestor; nearer = nearer.parent) {
+      // tombstoned by a nearer level (its own read-through removal hides the deeper entry)
+      if (nearer.removedFromParent != null && nearer.removedFromParent.contains(tag)) {
+        return false;
+      }
+      // shadowed by a nearer level's local entry
+      Object[] nearerBuckets = nearer.buckets;
+      Object nearerBucket = nearerBuckets[hash & (nearerBuckets.length - 1)];
+      if (findInBucket(nearerBucket, hash, tag) != null) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Deprecated
   @Override
   public Object put(@Nonnull String tag, Object value) {
-    TagMap.Entry entry = this.getAndSet(Entry.newAnyEntry(tag, value));
+    // a null value removes the tag, rather than mapping it to null as HashMap would
+    TagMap.Entry entry =
+        value == null ? this.getAndRemove(tag) : this.getAndSet(anyEntryFor(tag, value));
     return entry == null ? null : entry.objectValue();
   }
 
-  /** A null reader is a no-op (see the null-tolerance contract on {@link #getAndSet(Entry)}). */
+  /** A null reader (or a reader with no entry) is a no-op. */
   public void set(@Nullable TagMap.EntryReader newEntryReader) {
     if (newEntryReader == null) {
       return;
     }
-    this.getAndSet(newEntryReader.entry());
+    Entry entry = newEntryReader.entry();
+    if (entry != null) {
+      this.putEntry(entry);
+    }
   }
 
-  public void set(@Nonnull String tag, @Nonnull Object value) {
-    this.getAndSet(Entry.newAnyEntry(tag, value));
+  /*
+   * Entry factories for callers that start from a name: resolve it once, then build a known tag
+   * from its id or a custom tag from its name. (Entry's own name factories are custom-only.)
+   */
+  static Entry anyEntryFor(String tag, Object value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newAnyEntry(tagId, value) : Entry.newAnyEntry(tag, value);
   }
 
-  public void set(@Nonnull String tag, @Nonnull CharSequence value) {
-    this.getAndSet(Entry.newObjectEntry(tag, value));
+  static Entry objectEntryFor(String tag, CharSequence value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newObjectEntry(tagId, value) : Entry.newObjectEntry(tag, value);
+  }
+
+  static Entry booleanEntryFor(String tag, boolean value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newBooleanEntry(tagId, value) : Entry.newBooleanEntry(tag, value);
+  }
+
+  static Entry intEntryFor(String tag, int value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newIntEntry(tagId, value) : Entry.newIntEntry(tag, value);
+  }
+
+  static Entry longEntryFor(String tag, long value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newLongEntry(tagId, value) : Entry.newLongEntry(tag, value);
+  }
+
+  static Entry floatEntryFor(String tag, float value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newFloatEntry(tagId, value) : Entry.newFloatEntry(tag, value);
+  }
+
+  static Entry doubleEntryFor(String tag, double value) {
+    long tagId = KnownTagCodec.keyOf(tag);
+    return tagId != 0 ? Entry.newDoubleEntry(tagId, value) : Entry.newDoubleEntry(tag, value);
+  }
+
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(@Nonnull String tag, @Nullable Object value) {
+    if (value == null) {
+      this.getAndRemove(tag);
+      return;
+    }
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newAnyEntry(tag, value));
+    }
+  }
+
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(@Nonnull String tag, @Nullable CharSequence value) {
+    if (value == null) {
+      this.getAndRemove(tag);
+      return;
+    }
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newObjectEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, boolean value) {
-    this.getAndSet(Entry.newBooleanEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newBooleanEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, int value) {
-    this.getAndSet(Entry.newIntEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newIntEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, long value) {
-    this.getAndSet(Entry.newLongEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newLongEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, float value) {
-    this.getAndSet(Entry.newFloatEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newFloatEntry(tag, value));
+    }
   }
 
   public void set(@Nonnull String tag, double value) {
-    this.getAndSet(Entry.newDoubleEntry(tag, value));
+    long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      this.set(tagId, value);
+    } else {
+      this.putEntry(Entry.newDoubleEntry(tag, value));
+    }
+  }
+
+  /*
+   * Id-keyed setters: the caller passes a KnownTags.*_ID, so the entry is built under the tag's
+   * canonical name without the name lookup the String setters pay. The id must name a known tag;
+   * custom tags have no id and use the String setters.
+   */
+  /**
+   * The tracer core's trusted operations on this map, which skip checks the core has already made.
+   * Restricted to the core; instrumentation uses the checked methods.
+   */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public Internals internals() {
+    return new Internals(this);
+  }
+
+  /**
+   * See {@link TagMap#internals()}. Created per call so escape analysis removes it: use it within
+   * the expression ({@code map.internals().setKnown(...)}) rather than storing it.
+   */
+  @NoEscape
+  public static final class Internals {
+    private final TagMap map;
+
+    Internals(TagMap map) {
+      this.map = map;
+    }
+
+    /*
+     * Sets a known tag by id without validating it, unlike TagMap.set(long, ...): the caller has
+     * already checked KnownTagCodec.isKnown(tagId).
+     */
+    public void setKnown(long tagId, @Nonnull Object value) {
+      this.map.putEntry(new Entry(tagId, null, Entry.ANY, 0L, value));
+    }
+
+    public void setKnown(long tagId, @Nonnull CharSequence value) {
+      this.map.putEntry(new Entry(tagId, null, EntryReader.OBJECT, 0L, value));
+    }
+
+    public void setKnown(long tagId, boolean value) {
+      this.map.putEntry(
+          new Entry(
+              tagId, null, EntryReader.BOOLEAN, Entry.boolean2Prim(value), Boolean.valueOf(value)));
+    }
+
+    public void setKnown(long tagId, int value) {
+      this.map.putEntry(new Entry(tagId, null, EntryReader.INT, Entry.int2Prim(value), null));
+    }
+
+    public void setKnown(long tagId, long value) {
+      this.map.putEntry(new Entry(tagId, null, EntryReader.LONG, Entry.long2Prim(value), null));
+    }
+
+    public void setKnown(long tagId, float value) {
+      this.map.putEntry(new Entry(tagId, null, EntryReader.FLOAT, Entry.float2Prim(value), null));
+    }
+
+    public void setKnown(long tagId, double value) {
+      this.map.putEntry(new Entry(tagId, null, EntryReader.DOUBLE, Entry.double2Prim(value), null));
+    }
+  }
+
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(long tagId, @Nullable Object value) {
+    if (value == null) {
+      this.getAndRemove(tagId);
+      return;
+    }
+    this.putEntry(Entry.newAnyEntry(tagId, value));
+  }
+
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(long tagId, @Nullable CharSequence value) {
+    if (value == null) {
+      this.getAndRemove(tagId);
+      return;
+    }
+    this.putEntry(Entry.newObjectEntry(tagId, value));
+  }
+
+  public void set(long tagId, boolean value) {
+    this.putEntry(Entry.newBooleanEntry(tagId, value));
+  }
+
+  public void set(long tagId, int value) {
+    this.putEntry(Entry.newIntEntry(tagId, value));
+  }
+
+  public void set(long tagId, long value) {
+    this.putEntry(Entry.newLongEntry(tagId, value));
+  }
+
+  public void set(long tagId, float value) {
+    this.putEntry(Entry.newFloatEntry(tagId, value));
+  }
+
+  public void set(long tagId, double value) {
+    this.putEntry(Entry.newDoubleEntry(tagId, value));
   }
 
   /**
@@ -1197,8 +1753,38 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     if (newEntry == null) {
       return null;
     }
+    // Capture whether the key was tombstoned BEFORE putEntry clears it: a tombstoned key had no
+    // visible prior value (it was removed), so getAndSet must report null rather than the parent's.
+    boolean wasTombstoned =
+        this.removedFromParent != null && this.removedFromParent.contains(newEntry.tag);
 
+    Entry priorLocal = this.putEntry(newEntry);
+    if (priorLocal != null) {
+      return priorLocal; // replaced a local entry -> that is the prior value
+    }
+    // No local entry was replaced. The prior visible value, if any, was the parent's -- unless the
+    // key was tombstoned (then it was not visible). set(...) skips this via putEntry (no prior).
+    if (wasTombstoned || this.parent == null) {
+      return null;
+    }
+    // By the entry's own identity, not its name: the name would only resolve back to the same hash.
+    return this.parent.getEntry(newEntry.tag, newEntry.tagHash);
+  }
+
+  /**
+   * Inserts or replaces a local entry, returning the replaced local Entry (or null if none). Does
+   * NOT consult the read-through parent -- the {@code set(...)} methods use this so they never pay
+   * for a prior-value lookup they discard; {@link #getAndSet(Entry)} layers the parent fallback on
+   * top.
+   */
+  Entry putEntry(@Nonnull Entry newEntry) {
     this.checkWriteAccess();
+
+    // Re-setting a key clears any read-through tombstone for it (the new value overrides the
+    // removal). Gated on the lazy field, so this is a no-op for the common no-tombstone case.
+    if (this.removedFromParent != null) {
+      this.removedFromParent.remove(newEntry.tag);
+    }
 
     Object[] thisBuckets = this.buckets;
 
@@ -1246,31 +1832,31 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public Entry getAndSet(@Nonnull String tag, Object value) {
-    return this.getAndSet(Entry.newAnyEntry(tag, value));
+    return value == null ? this.getAndRemove(tag) : this.getAndSet(anyEntryFor(tag, value));
   }
 
   public Entry getAndSet(@Nonnull String tag, CharSequence value) {
-    return this.getAndSet(Entry.newObjectEntry(tag, value));
+    return value == null ? this.getAndRemove(tag) : this.getAndSet(objectEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, boolean value) {
-    return this.getAndSet(Entry.newBooleanEntry(tag, value));
+    return this.getAndSet(booleanEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, int value) {
-    return this.getAndSet(Entry.newIntEntry(tag, value));
+    return this.getAndSet(intEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, long value) {
-    return this.getAndSet(Entry.newLongEntry(tag, value));
+    return this.getAndSet(longEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, float value) {
-    return this.getAndSet(Entry.newFloatEntry(tag, value));
+    return this.getAndSet(floatEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, double value) {
-    return this.getAndSet(Entry.newDoubleEntry(tag, value));
+    return this.getAndSet(doubleEntryFor(tag, value));
   }
 
   public void putAll(Map<? extends String, ? extends Object> map) {
@@ -1291,10 +1877,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
-   * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from one TagMap to another.
+   * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from one TagMap to another
    *
-   * <p>Takes advantage of the consistent TagMap layout to quickly handle each bucket. And similar
-   * to {@link TagMap#getAndSet(Entry)} this method shares Entry objects from the source TagMap.
+   * <p>For optimized TagMaps, this method takes advantage of the consistent TagMap layout to
+   * quickly handle each bucket. And similar to {@link TagMap#getAndSet(Entry)} this method shares
+   * Entry objects from the source TagMap
    */
   public void putAll(TagMap that) {
     this.checkWriteAccess();
@@ -1303,6 +1890,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   private void putAllOptimizedMap(TagMap that) {
+    if (that.parent != null) {
+      // read-through source: the bucket-copy paths below only see that's local entries, so they
+      // would drop entries visible only through that's ancestor chain (and ignore its tombstones).
+      // Union-copy the full visible set instead -- still shares the source Entry objects.
+      that.forEach(this, (self, entry) -> self.set(entry));
+      return;
+    }
     if (this.size == 0) {
       this.putAllIntoEmptyMap(that);
     } else {
@@ -1452,6 +2046,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void fillMap(Map<? super String, Object> map) {
+    if (this.parent != null) {
+      // read-through source: the bucket-only loop below sees just local entries, so it would drop
+      // tags visible only through the parent chain (and ignore shadowing/tombstones). Walk the full
+      // visible union instead -- mirrors putAllOptimizedMap.
+      this.forEach(map, (m, entry) -> m.put(entry.tag(), entry.objectValue()));
+      return;
+    }
+
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1470,6 +2072,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void fillStringMap(Map<? super String, ? super String> stringMap) {
+    if (this.parent != null) {
+      // read-through source: walk the visible union so parent-only tags aren't dropped -- see
+      // fillMap.
+      this.forEach(stringMap, (m, entry) -> m.put(entry.tag(), entry.stringValue()));
+      return;
+    }
+
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1502,9 +2111,52 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public Entry getAndRemove(String tag) {
     this.checkWriteAccess();
 
+    // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
+    // OpenTelemetry rename must canonicalize first to find (and tombstone) the right entry.
+    long tagHash = Entry.tagHashOf(tag);
+    String canonicalTag = (tagHash >>> 32) != 0 ? KnownTagCodec.nameOf(tagHash) : tag;
+    return this.getAndRemove(canonicalTag, tagHash);
+  }
+
+  /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
+  public Entry getAndRemove(long tagId) {
+    this.checkWriteAccess();
+
+    return this.getAndRemove(Entry.requireKnownName(tagId), tagId);
+  }
+
+  private Entry getAndRemove(String canonicalTag, long tagHash) {
+    Entry localRemoved = this.removeLocal(canonicalTag, tagHash);
+
+    TagMap parent = this.parent;
+    if (parent != null) {
+      // Read-through: if the parent still exposes this key, removing it must also hide it from
+      // fall-through — install a tombstone. The prior *visible* value (Map.remove contract) is the
+      // local entry if there was one, otherwise the parent's (which we now hide). Single-parent in
+      // phase 1; rare path (only when removing a parent-exposed key).
+      boolean alreadyTombstoned =
+          this.removedFromParent != null && this.removedFromParent.contains(canonicalTag);
+      if (!alreadyTombstoned) {
+        Entry parentEntry = parent.getEntry(canonicalTag, tagHash);
+        if (parentEntry != null) {
+          if (this.removedFromParent == null) {
+            // Small initial capacity: this set is rare and almost always holds only a handful of
+            // tombstoned keys, so the default 16-bucket HashSet table would be wasteful.
+            this.removedFromParent = new HashSet<>(4);
+          }
+          this.removedFromParent.add(canonicalTag);
+          return localRemoved != null ? localRemoved : parentEntry;
+        }
+      }
+    }
+    return localRemoved;
+  }
+
+  /** Removes an entry from this map's own buckets only — no parent/tombstone handling. */
+  private Entry removeLocal(String tag, long tagHash) {
     Object[] thisBuckets = this.buckets;
 
-    int hash = TagMap.Entry._hash(tag);
+    int hash = Entry.bucketHash(tagHash);
     int bucketIndex = hash & (thisBuckets.length - 1);
 
     Object bucket = thisBuckets[bucketIndex];
@@ -1539,8 +2191,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public TagMap copy() {
-    TagMap copy = new TagMap();
+    // Construct with the same (frozen, shared) parent up front — the parent is fixed at
+    // construction. putAll then clones this map's own (local) buckets + size. The copy stays
+    // independently mutable (writes land on its local buckets, never the shared parent).
+    TagMap copy = new TagMap(this.parent);
     copy.putAllIntoEmptyMap(this);
+    if (this.removedFromParent != null) {
+      copy.removedFromParent = new HashSet<>(this.removedFromParent);
+    }
     return copy;
   }
 
@@ -1578,6 +2236,37 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         thisGroup.forEachInChain(consumer);
       }
     }
+
+    // read-through: parent entries not shadowed locally or tombstoned. Kept out of line so the
+    // common parent == null path stays byte-identical to before (small / inlinable).
+    if (this.parent != null) {
+      this.forEachParent(consumer);
+    }
+  }
+
+  private void forEachParent(Consumer<? super TagMap.EntryReader> consumer) {
+    // Walk the ancestor chain, nearest first. Each entry is emitted once, by the nearest level that
+    // defines its key, when not shadowed by a nearer level and not tombstoned.
+    for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
+      Object[] parentBuckets = ancestor.buckets;
+      for (int i = 0; i < parentBuckets.length; ++i) {
+        Object parentBucket = parentBuckets[i];
+        if (parentBucket instanceof Entry) {
+          Entry parentEntry = (Entry) parentBucket;
+          if (parentEntryVisible(parentEntry, ancestor)) consumer.accept(parentEntry);
+        } else if (parentBucket instanceof BucketGroup) {
+          for (BucketGroup curGroup = (BucketGroup) parentBucket;
+              curGroup != null;
+              curGroup = curGroup.prev) {
+            for (int j = 0; j < BucketGroup.LEN; ++j) {
+              Entry parentEntry = curGroup._entryAt(j);
+              if (parentEntry != null && parentEntryVisible(parentEntry, ancestor))
+                consumer.accept(parentEntry);
+            }
+          }
+        }
+      }
+    }
   }
 
   public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
@@ -1594,6 +2283,35 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         BucketGroup thisGroup = (BucketGroup) thisBucket;
 
         thisGroup.forEachInChain(thisObj, consumer);
+      }
+    }
+
+    // read-through: parent entries not shadowed locally or tombstoned (kept out of line).
+    if (this.parent != null) {
+      this.forEachParent(thisObj, consumer);
+    }
+  }
+
+  private <T> void forEachParent(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
+    for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
+      Object[] parentBuckets = ancestor.buckets;
+      for (int i = 0; i < parentBuckets.length; ++i) {
+        Object parentBucket = parentBuckets[i];
+        if (parentBucket instanceof Entry) {
+          Entry parentEntry = (Entry) parentBucket;
+          if (parentEntryVisible(parentEntry, ancestor)) consumer.accept(thisObj, parentEntry);
+        } else if (parentBucket instanceof BucketGroup) {
+          for (BucketGroup curGroup = (BucketGroup) parentBucket;
+              curGroup != null;
+              curGroup = curGroup.prev) {
+            for (int j = 0; j < BucketGroup.LEN; ++j) {
+              Entry parentEntry = curGroup._entryAt(j);
+              if (parentEntry != null && parentEntryVisible(parentEntry, ancestor)) {
+                consumer.accept(thisObj, parentEntry);
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -1615,6 +2333,37 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         thisGroup.forEachInChain(thisObj, otherObj, consumer);
       }
     }
+
+    // read-through: parent entries not shadowed locally or tombstoned (kept out of line).
+    if (this.parent != null) {
+      this.forEachParent(thisObj, otherObj, consumer);
+    }
+  }
+
+  private <T, U> void forEachParent(
+      T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
+    for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
+      Object[] parentBuckets = ancestor.buckets;
+      for (int i = 0; i < parentBuckets.length; ++i) {
+        Object parentBucket = parentBuckets[i];
+        if (parentBucket instanceof Entry) {
+          Entry parentEntry = (Entry) parentBucket;
+          if (parentEntryVisible(parentEntry, ancestor))
+            consumer.accept(thisObj, otherObj, parentEntry);
+        } else if (parentBucket instanceof BucketGroup) {
+          for (BucketGroup curGroup = (BucketGroup) parentBucket;
+              curGroup != null;
+              curGroup = curGroup.prev) {
+            for (int j = 0; j < BucketGroup.LEN; ++j) {
+              Entry parentEntry = curGroup._entryAt(j);
+              if (parentEntry != null && parentEntryVisible(parentEntry, ancestor)) {
+                consumer.accept(thisObj, otherObj, parentEntry);
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   public void clear() {
@@ -1622,6 +2371,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     Arrays.fill(this.buckets, null);
     this.size = 0;
+    // clear() removes ALL mappings, including any inherited through read-through. Detaching the
+    // parent (rather than tombstoning every inherited key) is simpler and cheaper, and leaves an
+    // empty, parent-less map. Detach is one-way -- the parent is never re-pointed.
+    this.parent = null;
+    this.removedFromParent = null;
   }
 
   public TagMap freeze() {
@@ -1679,7 +2433,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     if (this.size != this.computeSize()) {
       throw new IllegalStateException("incorrect size");
     }
-    if (this.isEmpty() != this.checkIfEmpty()) {
+    // Local-structure invariant: the size counter's emptiness must match the local buckets. Uses
+    // the local (this.size == 0), NOT isEmpty(), which under read-through resolves the parent too.
+    if ((this.size == 0) != this.checkIfEmpty()) {
       throw new IllegalStateException("incorrect empty status");
     }
   }
@@ -1797,7 +2553,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   abstract static class IteratorBase {
-    private final Object[] buckets;
+    private final TagMap map;
+
+    // the level whose buckets are currently being walked: the leaf (map) first, then each ancestor
+    // in turn (read-through union). map == level means we're on the leaf's own entries.
+    private TagMap level;
+    private Object[] buckets;
 
     private Entry nextEntry;
 
@@ -1807,18 +2568,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     private int groupIndex = 0;
 
     IteratorBase(TagMap map) {
+      this.map = map;
+      this.level = map;
       this.buckets = map.buckets;
     }
 
     public final boolean hasNext() {
       if (this.nextEntry != null) return true;
 
-      while (this.bucketIndex < this.buckets.length) {
-        this.nextEntry = this.advance();
-        if (this.nextEntry != null) return true;
-      }
-
-      return false;
+      this.nextEntry = this.advance();
+      return this.nextEntry != null;
     }
 
     final Entry nextEntryOrThrowNoSuchElement() {
@@ -1846,6 +2605,32 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     private final Entry advance() {
+      while (true) {
+        Entry tagEntry = this.rawAdvance();
+        if (tagEntry != null) {
+          // leaf entries emit as-is; ancestor entries only if visible from the leaf -- not shadowed
+          // by a nearer level and not tombstoned. (parentEntryVisible walks the nearer levels.)
+          if (this.level == this.map || this.map.parentEntryVisible(tagEntry, this.level)) {
+            return tagEntry;
+          }
+          continue; // ancestor entry shadowed/tombstoned -> skip
+        }
+
+        // current level exhausted; advance to the next ancestor's buckets (read-through union)
+        if (this.level.parent != null) {
+          this.level = this.level.parent;
+          this.buckets = this.level.buckets;
+          this.bucketIndex = -1;
+          this.group = null;
+          this.groupIndex = 0;
+          continue;
+        }
+        return null;
+      }
+    }
+
+    /** Next raw entry in the current bucket array, ignoring shadowing/tombstones. */
+    private final Entry rawAdvance() {
       while (this.bucketIndex < this.buckets.length) {
         if (this.group != null) {
           for (++this.groupIndex; this.groupIndex < BucketGroup.LEN; ++this.groupIndex) {
@@ -2363,12 +3148,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     @Override
     public int size() {
-      return this.map.computeSize();
+      return this.map.size();
     }
 
     @Override
     public boolean isEmpty() {
-      return this.map.checkIfEmpty();
+      return this.map.isEmpty();
     }
 
     @Override
@@ -2388,12 +3173,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     @Override
     public int size() {
-      return this.map.computeSize();
+      return this.map.size();
     }
 
     @Override
     public boolean isEmpty() {
-      return this.map.checkIfEmpty();
+      return this.map.isEmpty();
     }
 
     @Override
@@ -2427,12 +3212,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     @Override
     public int size() {
-      return this.map.computeSize();
+      return this.map.size();
     }
 
     @Override
     public boolean isEmpty() {
-      return this.map.checkIfEmpty();
+      return this.map.isEmpty();
     }
 
     @Override
@@ -2462,22 +3247,35 @@ final class EntryReadingHelper implements TagMap.EntryReader {
   private Map.Entry<String, Object> mapEntry;
   private String tag;
   private Object value;
+  private long tagId;
 
   void set(String tag, Object value) {
     this.mapEntry = null;
     this.tag = tag;
     this.value = value;
+    this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
   }
 
   void set(Map.Entry<String, Object> mapEntry) {
     this.mapEntry = mapEntry;
     this.tag = mapEntry.getKey();
     this.value = mapEntry.getValue();
+    this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
   }
 
   @Override
   public String tag() {
     return this.tag;
+  }
+
+  @Override
+  public long tagId() {
+    long id = this.tagId;
+    if (id != TagMap.TAG_ID_NOT_COMPUTED) return id;
+
+    id = KnownTagCodec.keyOf(this.tag);
+    this.tagId = id;
+    return id;
   }
 
   @Override
@@ -2542,7 +3340,7 @@ final class EntryReadingHelper implements TagMap.EntryReader {
 
   @Override
   public TagMap.Entry entry() {
-    return TagMap.Entry.newAnyEntry(this.tag, this.value);
+    return TagMap.anyEntryFor(this.tag, this.value);
   }
 
   @Override

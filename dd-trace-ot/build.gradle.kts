@@ -1,15 +1,14 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.lang.Closure
+import org.gradle.api.plugins.jvm.JvmTestSuite
 
 plugins {
-  `java-library`
   id("com.gradleup.shadow")
+  id("dd-trace-java.module.distributable.api")
   id("dd-trace-java.jmh-conventions")
 }
 
 description = "dd-trace-ot"
-
-apply(from = rootDir.resolve("gradle/java.gradle"))
-apply(from = rootDir.resolve("gradle/publish.gradle"))
 
 // TODO raise these when equals() and hashCode() are excluded
 extra["minimumBranchCoverage"] = 0.5
@@ -33,6 +32,17 @@ fun addTestSuite(name: String) {
 
 addTestSuite("ot31CompatibilityTest")
 addTestSuite("ot33CompatibilityTest")
+
+// Exercise the shipped jar without unshaded tracer classes masking relocation errors.
+testing.suites.register<JvmTestSuite>("shadowJarSmokeTest") {
+  useJUnitJupiter(libs.versions.junit5.get())
+  dependencies {
+    implementation(files(tasks.named<ShadowJar>("shadowJar").flatMap { it.archiveFile }))
+  }
+}
+configurations.named("shadowJarSmokeTestImplementation") {
+  extendsFrom(configurations.api.get())
+}
 
 dependencies {
   annotationProcessor(libs.autoservice.processor)
@@ -116,7 +126,7 @@ tasks.jar {
 
 // The shadowJar block configures the shadow JAR packaging
 // and dependency relocation/exclusion rules.
-tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+tasks.named<ShadowJar>("shadowJar") {
   archiveClassifier = ""
 
   dependencies {
@@ -150,6 +160,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     exclude("datadog.trace.api.interceptor.*")
     exclude("datadog.trace.api.internal.*")
     exclude("datadog.trace.api.internal.util.*")
+    exclude("datadog.trace.api.llmobs.*")
     exclude("datadog.trace.api.profiling.*")
     exclude("datadog.trace.api.sampling.*")
     exclude("datadog.trace.context.*")

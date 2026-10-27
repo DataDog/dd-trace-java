@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 muzzle {
   pass {
@@ -10,6 +12,13 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
+
+def mavenRepositoryProxy = providers.gradleProperty('mavenRepositoryProxy')
+tasks.withType(Test).configureEach {
+  if (mavenRepositoryProxy.isPresent()) {
+    environment 'MAVEN_REPOSITORY_PROXY', mavenRepositoryProxy.get()
+  }
+}
 
 dependencies {
   compileOnly 'org.apache.maven:maven-embedder:3.2.1'

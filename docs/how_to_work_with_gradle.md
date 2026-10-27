@@ -1,10 +1,17 @@
 # How to Work with Gradle
 
-This guide covers the fundamentals of working with Gradle in this project. Understanding these concepts will help you navigate the build system and contribute effectively.
+This guide covers Gradle best practices, how we apply them in this repository, and the
+constraints that currently require exceptions. Understanding these concepts will help
+you navigate the build system and contribute effectively.
+
+The guide describes shared practices and repository constraints. Details specific to one
+plugin or task belong beside its source or in local documentation.
 
 ## Quick Reference
 
 **Core Concepts:**
+
+- [Gradle skills](#gradle-skills) - Installing and using the required skill for agent-assisted changes
 - [Gradle Files](#what-are-gradle-files) — Groovy vs Kotlin DSL
 - [Build Lifecycle](#gradle-build-lifecycle) — Initialization → Configuration → Execution phases
 - [Tasks](#gradle-tasks) — Lifecycle tasks, inputs/outputs, lazy configuration
@@ -25,16 +32,30 @@ This guide covers the fundamentals of working with Gradle in this project. Under
 > [!TIP]
 > First time with Gradle? Start with [Gradle Files](#what-are-gradle-files), [Build Lifecycle](#gradle-build-lifecycle), and [Tasks](#gradle-tasks).
 
+## Gradle skills
+
+Gradle publishes a [best-practices skill](https://github.com/gradle/gradle-skills) for reviewing
+build scripts and plugin code. In this repository, agent-assisted Gradle code changes require
+an audit of the affected code and its consuming modules with this skill. The requested task
+defines the scope of fixes; unrelated findings are reported separately.
+
+The [upstream installation instructions](https://github.com/gradle/gradle-skills#installation)
+cover supported agents. A complete installation includes the skill's reference files.
+Without them, only read-only investigation is available until installation is complete.
+
+The skill's catalog may describe newer or nightly APIs. Its recommendations need to match
+our Gradle wrapper version and the JVMs that run the affected code.
+
 ## What are Gradle Files?
 
-Gradle builds are defined through a set of build scripts. These scripts can be written in two Domain Specific Languages (DSLs): **Groovy DSL** and **Kotlin DSL**.
+Gradle builds are defined through a set of build scripts. These scripts can be written in two Domain Specific Languages (DSLs): **Groovy DSL** (`*.gradle`) and **Kotlin DSL** (`*.gradle.kts`) .
 
 ### Groovy DSL
 
 The original Gradle DSL uses Groovy syntax. Files use the `.gradle` extension.
 
 Avoid Groovy DSL if you can, small project, however since the project still rely 
-heaviliy on _script plugins_ written in Groovy, this is not always straighforward to use Kotlin DSL.
+heavily on _script plugins_ written in Groovy, this is not always straightforward to use Kotlin DSL.
 
 ```Gradle
 plugins {
@@ -93,19 +114,39 @@ Gradle executes builds in distinct phases. Understanding this lifecycle is essen
 
 ### 1. Initialization Phase
 
-Gradle determines which projects are part of the build. It executes:
+Gradle runs init scripts, then evaluates the settings script to determine which projects belong
+to the build.
 
-- **`init.gradle`** (or scripts in `~/.gradle/init.d/`): Global initialization scripts that run before any project is evaluated
-- **`settings.gradle.kts`**: Defines the main repository project structure and discovers subprojects
+- **[Init scripts](https://docs.gradle.org/current/userguide/init_scripts.html)** can configure
+  a build without changing its build scripts. They can be passed with `--init-script` or loaded
+  from the Gradle user home's `init.d/` directory (`~/.gradle/init.d/` by default).
 
-```Gradle Kotlin DSL
-// settings.gradle.kts
-rootProject.name = "my-project"
+  For example, an init script can enable offline dependency resolution:
+  
+  ```Gradle Kotlin DSL
+  // offline.init.gradle.kts
+  gradle.startParameter.isOffline = true
+  ```
+  
+  ```bash
+  ./gradlew --init-script offline.init.gradle.kts build
+  ```  
 
-include("module-a")
-include("module-b")
-include("module-c:submodule")
-```
+  This invocation uses cached dependencies and fails if a required dependency is missing.
+
+
+- **`settings.gradle.kts`** defines the root project and includes subprojects.
+
+  The settings script defines the project structure:
+  
+  ```Gradle Kotlin DSL
+  // settings.gradle.kts
+  rootProject.name = "my-project"
+  
+  include(":module-a")
+  include(":module-b")
+  include(":module-c:submodule")
+  ```
 
 ### 2. Configuration Phase
 
@@ -161,16 +202,73 @@ Only tasks required to complete the requested goal are executed.
 
 In a well-organized Gradle project, build logic lives in specific places:
 
-| Location              | Purpose                                                                                                                                       |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| `settings.gradle.kts` | Project structure, repository settings, plugin management                                                                                     |
-| `build.gradle.kts`    | Project-specific build configuration                                                                                                          |
-| `buildSrc/`           | Build logic automatically included by Gradle; contains convention plugins and shared configuration. It's possible to use different location(s) but it requires explicit declaration(s). |
-| `gradle/`             | Version catalogs and wrapper files and script plugins                                                                                         |
+| Location              | Purpose                                                        |
+|-----------------------|----------------------------------------------------------------|
+| `settings.gradle.kts` | Project structure, repositories and plugin management          |
+| `build.gradle.kts`    | Configuration for one project                                  |
+| `buildSrc/`           | Legacy build logic, automatically available to the main build  |
+| `build-logic/`        | Build logic included explicitly through plugin management      |
+| `gradle/`             | Version catalogs, wrapper files and remaining *script plugins* |
+
+`buildSrc` and included builds have their own settings and dependencies. Repositories and
+version catalogs from the main build are not inherited, so each build has its own declarations
+or explicit imports.
+
+Gradle [recommends an included `build-logic` build](https://docs.gradle.org/current/userguide/best_practices_structuring_builds.html#favor_composite_builds)
+for shared conventions. Its plugins have explicit dependencies and are added only to the
+projects that use them.
+This limits classpath coupling and can reduce build script recompilation when build logic
+changes. Plugins can also be built and tested independently.
+
+`buildSrc` is the legacy location for our build logic and remains supported by Gradle.
+
+Project build scripts and applied *script plugins* load `buildSrc` classes through a common
+parent classloader. We are replacing script plugins with convention plugins, using `buildSrc`
+as an intermediate step for conventions applied across all modules through existing scripts.
+Those scripts still need access to shared classes through that classloader, which currently
+prevents those classes from moving into `build-logic`. Independent conventions applied on
+demand can go directly into `build-logic`: explicit plugin requests provide their classpath
+to the consuming projects.
 
 > [!CAUTION]
-> Script plugins are not recommended. The best practice for developing our build logic in plugins is 
-> to create _convention plugins_ or _binary plugins_.
+> *Script plugins* are not recommended. Shared build logic belongs in _convention plugins_
+> or _binary plugins_.
+
+### Running Build Logic Tests
+
+Unit tests cover helpers, while Gradle's TestKit covers behaviour that depends on Gradle.
+Simple declarative conventions may not need dedicated tests. Larger plugins with conditional
+behaviour benefit from functional tests covering:
+
+- Plugin application, including different application orders for interacting plugins
+- Configuration roles and dependency resolution
+- Task wiring, outcomes and generated files
+- Behaviour in a consuming module
+
+Existing fixtures provide the setup for these tests. Isolated Projects support is not currently
+required, but avoiding cross-project state reduces future migration work.
+See Gradle's [plugin testing guide](https://docs.gradle.org/current/userguide/testing_gradle_plugins.html).
+
+Repeated runs exercise different behaviour:
+
+- `--rerun` on a task, or `--rerun-tasks` for all selected tasks, forces execution again.
+- Two identical runs with `--configuration-cache` show whether the second reuses the entry.
+- Unchanged inputs leave an incremental task `UP-TO-DATE`; changed inputs update its output.
+- Restoring outputs from a populated build cache into a clean fixture produces `FROM-CACHE`.
+
+Running `buildSrc/` tests within IntelliJ IDEA works without special treatment because the build
+detects the injected `idea.active` system property.
+
+However, via the command line, `buildSrc/` tests are disabled unless opted in with
+`-PrunBuildSrcTests`:
+
+```shell
+./gradlew -p buildSrc :test -PrunBuildSrcTests            # whole suite
+./gradlew -p buildSrc :test -PrunBuildSrcTests --tests '*MuzzlePluginFunctionalTest'
+```
+
+Repository proxies configured through `MAVEN_REPOSITORY_PROXY` or `GRADLE_PLUGIN_PROXY` are
+propagated to TestKit builds through `repository-proxy.init.gradle.kts`.
 
 ### How Gradle Compiles Build Scripts
 
@@ -218,6 +316,12 @@ Gradle tasks declare **inputs** (what they read) and **outputs** (what they prod
 - **Incremental builds**: If inputs haven't changed, the task is `UP-TO-DATE` and skipped
 - **Build caching**: Outputs can be stored and retrieved (`FROM-CACHE`) across builds
 
+> [!WARNING]
+> Task fingerprinting must include every condition that can affect a cacheable task's outputs.
+> If an untracked condition changes, the cache key stays the same and Gradle may reuse outputs
+> produced under different conditions. A task with untracked output dependencies must not use
+> the build cache.
+
 #### Declaring Inputs and Outputs
 
 ##### In custom task class
@@ -236,6 +340,11 @@ In custom tasks, use annotations to declare inputs and outputs:
 | `@Nested`          | A nested object with its own input/output annotations |
 
 More annotations are documented [here](https://docs.gradle.org/current/userguide/implementing_custom_tasks.html#annotating_inputs_and_outputs).
+
+Each task owns its outputs, and path sensitivity reflects which parts of an input path affect
+the result. A custom task class can opt into build caching with `@CacheableTask` when its
+outputs are reproducible from its declared inputs. `@DisableCachingByDefault` records why
+caching is unsuitable otherwise.
 
 ##### In custom tasks declared with DSL
 
@@ -316,6 +425,21 @@ When running Gradle tasks, you'll see status labels indicating what happened dur
 | `SKIPPED`    | The task was excluded (e.g., via `-x` or `onlyIf` condition) |
 | `NO-SOURCE`  | The task had no input files to process                       |
 
+
+### Task Dependencies
+
+Gradle infers a task dependency when a producing task's output provider is connected to a
+consuming task's input. The declared inputs and outputs also support up-to-date checks;
+see [Using Providers](#using-providers).
+
+An explicit `dependsOn` schedules a prerequisite even when no artifact flows between tasks.
+Lifecycle tasks such as `check` and `build` use it to collect other tasks.
+
+`mustRunAfter` and `shouldRunAfter` only order tasks already selected to run. They do not
+schedule a prerequisite. `finalizedBy` schedules follow-up work such as cleanup,
+including when that task fails. See [Controlling Task Execution](https://docs.gradle.org/current/userguide/controlling_task_execution.html).
+
+Avoid usage of `TaskDependency` interface.
 
 ### Tasks tips
 
@@ -469,15 +593,15 @@ graph LR
 | 🔵 Blue     | Declarable | Where you add dependencies (`api`, `implementation`, `compileOnly`, `runtimeOnly`) |
 | 🟢 Green    | Resolvable | Used by tasks to get files (`compileClasspath`, `runtimeClasspath`)                |
 | 🟡 Yellow   | Consumable | Exposed to consumer projects (`apiElements`, `runtimeElements`)                    |
-| ⬜ Gray      | Tasks      | Gradle tasks that use the configurations                                           |
+| ⬜ Gray     | Tasks      | Gradle tasks that use the configurations                                           |
 
 | Configuration    | Compile Classpath | Runtime Classpath | Exposed to Consumers | Use Case                                                      |
 |------------------|:-----------------:|:-----------------:|:--------------------:|---------------------------------------------------------------|
-| `api`            |         ✅         |         ✅         |          ✅           | Types in your public API (method signatures, return types)    |
-| `implementation` |         ✅         |         ✅         |          ❌           | Internal dependencies not exposed to consumers                |
-| `compileOnly`    |         ✅         |         ❌         |          ❌           | Provided at runtime by the environment (e.g., `servlet-api`)  |
-| `compileOnlyApi` |         ✅         |         ❌         |          ✅           | Compile-only dependency that's part of the public API         |
-| `runtimeOnly`    |         ❌         |         ✅         |          ❌           | Needed only at runtime (e.g., JDBC drivers, logging backends) |
+| `api`            |        ✅         |        ✅         |          ✅          | Types in your public API (method signatures, return types)    |
+| `implementation` |        ✅         |        ✅         |          ❌          | Internal dependencies not exposed to consumers                |
+| `compileOnly`    |        ✅         |        ❌         |          ❌          | Provided at runtime by the environment (e.g., `servlet-api`)  |
+| `compileOnlyApi` |        ✅         |        ❌         |          ✅          | Compile-only dependency that's part of the public API         |
+| `runtimeOnly`    |        ❌         |        ✅         |          ❌          | Needed only at runtime (e.g., JDBC drivers, logging backends) |
 
 > [!NOTE]
 > `compileOnlyApi` flows to `apiElements` (so consumers see it at compile time), i.e. the existing `apiElements` 
@@ -597,11 +721,12 @@ Each test suite (like `test`, `integrationTest`) gets its own set of configurati
 
 In this project, the `gradle/test-suites.gradle` script provides helpers to create test suites with proper configuration inheritance:
 
-| Helper                                                 | Description                                                                    |
-|--------------------------------------------------------|--------------------------------------------------------------------------------|
-| `addTestSuite('name')`                                 | Creates `name` test suite extending `test`, sources in `src/name/`             |
-| `addTestSuiteForDir('name', 'dir')`                    | Creates `name` test suite extending `test`, sources in `src/dir/`              |
-| `addTestSuiteExtendingForDir('name', 'parent', 'dir')` | Creates `name` test suite extending `parent` test suite, sources in `src/dir/` |
+| Helper                                                 | Description                                                                           |
+|--------------------------------------------------------|---------------------------------------------------------------------------------------|
+| `addTestSuite('name')`                                 | Creates `name` test suite extending `test`, sources in `src/name/`                    |
+| `addTestSuiteForDir('name', 'dir')`                    | Creates `name` test suite extending `test`, sources in `src/dir/`                    |
+| `addTestSuiteExtendingForDir('name', 'parent', 'dir')` | Creates `name` test suite extending `parent` test suite, sources in `src/dir/`        |
+| `addForkedTestTask('name')`                            | Creates `nameForkedTest`, reusing the `name` source set output and runtime classpath |
 
 For example:
 
@@ -609,8 +734,8 @@ For example:
 // Creates 'latestDepTest' suite extending 'test', sources in src/latestDepTest/
 addTestSuite('latestDepTest')
 
-// Creates 'latestDepForkedTest' suite extending 'latestDepTest', sources in src/latestDepTest/
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
+// Creates 'latestDepTestForkedTest' using the compiled latestDepTest classes and dependencies
+addForkedTestTask('latestDepTest')
 ```
 
 ```mermaid
@@ -627,14 +752,13 @@ graph LR
         latestDepTestImplementation
     end
 
-    subgraph latestDepForkedTest
-        latestDepForkedTestImplementation
-    end
-
-    implementation --> testImplementation --> latestDepTestImplementation --> latestDepForkedTestImplementation
+    implementation --> testImplementation --> latestDepTestImplementation
 ```
 
 *Similar inheritance applies to `compileOnly`, `runtimeOnly`, and `annotationProcessor` configurations.*
+
+Use a separate suite only when forked tests need different sources or dependencies. When they run
+the same source set and classpath, prefer `addForkedTestTask` to avoid compiling those sources twice.
 
 ### Creating Custom Configurations
 
@@ -879,20 +1003,25 @@ All projects have dependency locking enabled via the `dd-trace-java.dependency-l
 
 #### Updating Lock Files
 
-Lock files are automatically updated weekly by CI. To update them manually:
+When adding, updating, or removing a dependency in a build script or `gradle/libs.versions.toml`,
+regenerate the lockfiles for all affected modules and include them in the same PR.
+Shared dependencies can affect multiple modules.
 
 ```bash
-# Update all lock files in the repository
+# Regenerate lockfiles for all projects
 ./gradlew resolveAndLockAll --write-locks
 
-# Update lock files for a specific project
-./gradlew :dd-trace-api:dependencies --write-locks
+# Regenerate lockfiles for a specific project, e.g. dd-trace-api
+./gradlew :dd-trace-api:resolveAndLockAll --write-locks
 ```
 
+> [!NOTE]
+> Lock files are also automatically updated weekly by CI.
+
 > [!IMPORTANT]
-> This project uses **lenient lock mode** (`LockMode.LENIENT`), which allows the build to succeed 
-> even if locked dependencies can't be resolved. This prevents build failures when dependencies 
-> are temporarily unavailable or when resolution conflicts occur.
+> This project uses **lenient lock mode** (`LockMode.LENIENT`), which permits dependency changes without failing
+> lock validation.
+> This prevents build failures when dependencies are temporarily unavailable or when resolution conflicts occur.
 
 #### When Lock Files Are Used
 
@@ -917,14 +1046,15 @@ cat dd-trace-api/gradle.lockfile
 
 #### Lock File Workflow
 
-1. **Developer adds a dependency**: The dependency is resolved using the current version rules
-2. **Run with `--write-locks`**: Gradle resolves all configurations and writes exact versions to lock files
-3. **Commit lock files**: Include `gradle.lockfile` changes in your commit
-4. **CI validates**: Builds use locked versions for reproducibility
-5. **Weekly CI job**: Automatically updates all lock files to pick up new versions
+1. **Change dependencies**: Add, update, or remove dependencies in build scripts or the version catalog
+2. **Regenerate lockfiles**: Run `resolveAndLockAll --write-locks` for all affected projects
+3. **Include lockfiles**: Review the generated changes and include affected `gradle.lockfile` files in the same PR
+4. **CI builds**: Builds read the updated lockfiles; lenient mode does not enforce lockfile consistency
+5. **Weekly CI job**: Refreshes floating versions independently of dependency PRs
 
-> [!NOTE]> **Instrumentation modules often use version ranges** (e.g., `[3.0,3.12.12]`) to test 
-> against multiple library versions. Dependency locking pins these ranges to specific versions in 
+> [!NOTE]
+> **Instrumentation modules often use version ranges** (e.g., `[3.0,3.12.12]`) to test
+> against multiple library versions. Dependency locking pins these ranges to specific versions in
 > lock files, ensuring consistent test behavior.
 
 ## Useful dd-trace-java Extensions
@@ -934,6 +1064,9 @@ This project provides several custom Gradle extensions to manage multi-JVM testi
 ### `testJvmConstraints` Extension
 
 Controls which JVM versions are allowed to run tests. Applied via the `dd-trace-java.test-jvm-constraints` plugin.
+
+Each `Test` task also tracks its selected JVM's vendor, full runtime version, VM version, operating system, and architecture as inputs.
+Changing these values invalidates up-to-date checks and build-cache entries, even when the Java major version stays the same.
 
 ```Gradle Kotlin DSL
 plugins {
@@ -1020,7 +1153,9 @@ Manages multi-version Java source sets, allowing a single project to compile cod
 
 ```Gradle Kotlin DSL
 // In build.gradle.kts
-apply(from = "$rootDir/gradle/java.gradle")
+plugins {
+    id("dd-trace-java.module.internal-library")
+}
 
 tracerJava {
     addSourceSetFor(JavaVersion.VERSION_11) {
@@ -1104,9 +1239,39 @@ common configuration patterns and can be applied like any other plugin.
 > Convention plugins promote consistency across modules. Instead of copy-pasting configuration,
 > define it once and apply it everywhere.
 
+### Plugin Boundaries
+
+Plugins retain separate responsibilities even within `buildSrc`. Plugin IDs, documented
+extensions, properties, task paths and public Gradle APIs let them interact without depending
+on each other's implementation details. Shared code is useful when it represents knowledge
+that must change together across plugins.
+
+See Gradle's [plugin development guide](https://docs.gradle.org/current/userguide/implementing_gradle_plugins_binary.html).
+
+### Dependencies on Main Projects
+
+Build tooling remains independent of production code. The tasks it registers can consume
+production artifacts through declared inputs. Convention plugins can also declare
+[project dependencies](https://docs.gradle.org/current/userguide/multi_project_builds.html)
+for the projects they configure.
+
+Concrete project paths usually belong in the consuming build, keeping reusable plugins
+independent of the repository layout. Exceptions have a documented reason.
+
+[`buildSrc` is compiled before the main build scripts are evaluated](https://docs.gradle.org/current/userguide/sharing_build_logic_between_subprojects.html).
+Gradle schedules tasks for project dependencies as part of the main build.
+
 ### Project Convention Plugins
 
 Files ending in `.gradle.kts` placed in `buildSrc/src/main/kotlin/` target `Project` and can configure tasks, dependencies, and extensions. The `buildSrc/` directory is automatically included by Gradle before the main build.
+
+New convention plugins belong in `build-logic`. During the script-plugin migration, conventions
+that need shared `buildSrc` classes still need to land in `buildSrc`; see [Build Logic Location](#build-logic-location).
+
+> [!IMPORTANT]
+> Hard-coded project paths such as `:dd-trace-api` tie a plugin to the repository layout, in other words it creates coupling.
+> They belong in the consuming build script unless the dependency is part of the convention;
+> see [Dependencies on Main Projects](#dependencies-on-main-projects).
 
 In this project, convention plugins use the `dd-trace-java.` prefix. For example, `dd-trace-java.configure-tests.gradle.kts` configures test tasks across all subprojects:
 
@@ -1132,11 +1297,57 @@ tasks.withType<Test>().configureEach {
 Apply it in any subproject:
 
 ```Gradle Kotlin DSL
-// dd-java-agent/instrumentation/some-integration/build.gradle.kts
+// some/build.gradle.kts
 plugins {
     id("dd-trace-java.configure-tests")
 }
 ```
+
+### Module Convention Plugins
+
+Module convention plugins are the preferred entry points for module build files. They are a stable facade over shared
+project setup: consumers use a plugin ID, while the implementation can keep delegating to existing script plugins until
+that build logic is migrated.
+
+Use the most specific module plugin instead of applying `gradle/java.gradle` directly:
+
+| Module kind                       | Plugin ID                                   |
+|-----------------------------------|---------------------------------------------|
+| Product subsystem modules         | `dd-trace-java.module.product-subsystem`    |
+| Annotation processors             | `dd-trace-java.module.annotation-processor` |
+| Bootstrap components              | `dd-trace-java.module.bootstrap-component`  |
+| Published APIs                    | `dd-trace-java.module.distributable.api`    |
+| Instrumentation modules           | `dd-trace-java.module.instrumentation`      |
+| Internal API modules              | `dd-trace-java.module.internal-api`         |
+| Product libraries                 | `dd-trace-java.module.product-library`      |
+| Internal implementation libraries | `dd-trace-java.module.internal-library`     |
+| Platform components               | `dd-trace-java.module.platform-component`   |
+| Smoke-test modules                | `dd-trace-java.module.smoke-test`           |
+| Testing support modules           | `dd-trace-java.module.testing-support`      |
+
+> [!TIP]
+> * Use `internal-api` for internal API surfaces such as product `*-api` modules or `remote-config-api`. 
+> * Use `internal-library` for internal implementation modules such as product `*-lib` modules, `:communication`, 
+>   `:telemetry`, `:utils:*`, and similar shared libraries. 
+> * Use `platform-component` only for platform modules under `:components`; those modules are kept separate 
+>   because they can grow stricter dependency and testing constraints than general internal libraries.
+
+For example:
+
+```Gradle
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+```
+
+Avoid adding new direct uses of:
+
+```Gradle
+apply from: "$rootDir/gradle/java.gradle"
+```
+
+`spotlessCheck` enforces this for Gradle build scripts, with temporary exceptions only for modules that still need to be
+migrated separately.
 
 Other convention plugins in this project include:
 - `dd-trace-java.gradle-debug` - Debugging utilities for build diagnostics
@@ -1168,7 +1379,7 @@ Script plugins are standalone `.gradle` or `.gradle.kts` files that can be appli
 apply(from = "$rootDir/gradle/some-script.gradle")
 ```
 
-As warned, don't wrtite new ones, use convention plugins instead !
+As warned, don't write new ones, use convention plugins instead !
 
 - **No type safety**: When written in Groovy DSL, you lose IDE support and compile-time checking
 - **Mixed DSL confusion**: Projects often end up with a mix of Groovy and Kotlin scripts
@@ -1176,47 +1387,59 @@ As warned, don't wrtite new ones, use convention plugins instead !
 - **No caching**: Script plugins are re-evaluated on every build
 
 There's an ongoing effort to **migrate all of them to convention plugins** for better 
-maintainability and performance.
+maintainability and performance. For module build files, use a `dd-trace-java.module.*` plugin instead of applying
+`gradle/java.gradle` directly.
 
 ## Gradle Lazy API
 
-Each time Gradle is invoked it project **must** go through the Gradle **Configuration phase**, in which it 
-evaluates all build scripts of the participating projects. Any expensive actions in this phase will be run
-_every single time_.
+Gradle configures participating projects before executing tasks, unless it can reuse the
+*configuration cache*. Configuration work affects even short commands such as `help`.
+With roughly 630 projects and 33,000 tasks in dd-trace-java, unnecessary task creation and
+configuration can add substantial overhead.
 
-This means inefficient configuration directly impacts developer experience by slowing down all builds
-— regardless of which tasks actually execute. While time savings per individual task may seem modest,
-they compound quickly: **dd-trace-java has ~630 projects and ~33,000 tasks**. At that scale, even small
-inefficiencies add up significantly.
-
-The solution is Gradle's **lazy API**: make task creation and configuration as lazy as possible, so Gradle only realizes and configures objects it actually needs to execute.
+Gradle's lazy APIs defer task creation, task configuration and value calculation until needed.
 
 ### Why Lazy Configuration Matters
 
-When you use eager APIs, values are computed immediately during configuration—even if the task never runs. Lazy APIs defer this work to execution time, and Gradle can automatically track dependencies between producers and consumers.
+The following methods `register`, `named` and `configureEach` avoid creating and 
+configuring unused tasks. Task configuration still belongs to the configuration phase. 
+The providers defer value calculation until they are queried, which can happen during 
+configuration or execution. Providers backed by task outputs also carry producer 
+dependencies.
 
 ### Eager vs Lazy API Comparison
 
-| Eager (Don't ❌)                 | Lazy (Prefer ✅)                        | Notes                                                                  |
-|---------------------------------|----------------------------------------|------------------------------------------------------------------------|
-| `configurations.getByName("x")` | `configurations.named("x")`            | Returns a `NamedDomainObjectProvider` instead of resolving immediately |
-| `tasks.getByName("x")`          | `tasks.named("x")`                     | Avoids triggering task creation/configuration                          |
-| `tasks.findByName("x")`         | `tasks.named("x")`                     | Returns `null` if not found, but still realizes the task               |
-| `tasks.findByPath(":x")`        | `tasks.named("x")` on target project   | Realizes task eagerly; use project reference with `named()` instead    |
-| `tasks.create("x")`             | `tasks.register("x")`                  | Task is only created when needed                                       |
-| `property.set(someValue)`       | `property.set(provider { someValue })` | Defers computation of the value                                        |
-| `collection.all { }`            | `collection.configureEach { }`         | Configures lazily as elements are realized                             |
-| `collection.forEach { }`        | `collection.configureEach { }`         | Avoids forcing realization of all elements                             |
-| `file(path).exists()`           | Use task inputs/outputs                | Let Gradle track file dependencies                                     |
-| `exec { }.exitValue`            | See Exec pattern below                 | Avoid running processes at configuration time                          |
+| Eager (Don't ❌)                 | Lazy (Prefer ✅)                             | Notes                                                                                  |
+| ------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `configurations.getByName("x")` | `configurations.named("x")`                 | Defers realization of the configuration object, not dependency resolution              |
+| `tasks.getByName("x")`          | `tasks.named("x")`                          | Avoids creating and configuring the task during lookup                                 |
+| `tasks.findByName("x")`         | `tasks.named("x")`                          | `findByName` returns `null` if absent; `named` throws instead                          |
+| `tasks.findByPath(":x")`        | `tasks.named("x")` in the owning project    | `findByPath` returns `null` if absent; `named` takes a local name and throws if absent |
+| `tasks.create("x")`             | `tasks.register("x")`                       | Registers the task without creating or configuring it                                  |
+| `property.set(computeValue())`  | `property.set(provider { computeValue() })` | Defers the computation; wrapping an already computed value adds no laziness            |
+| `collection.all { }`            | `collection.configureEach { }`              | Runs configuration actions only for realized domain objects                            |
+| `collection.forEach { }`        | `collection.configureEach { }`              | Applies to configuration actions, rather than collection transformations               |
+| `file(path).exists()`           | Declared task inputs/outputs                | Tracks file dependencies; configuration-time existence checks may still be necessary   |
+| `configuration.files`           | `inputs.files(configuration)`               | Passes the file collection through and preserves producer dependencies                 |
+| `exec { }.exitValue`            | `providers.exec { ... }`                    | `exec` runs immediately; `providers.exec` defers execution until its output is queried |
+| `ProcessBuilder(...).start()`   | `providers.exec { ... }`                    | Exposes process output lazily; see the example under Using Providers                   |
 
 > [!IMPORTANT]
-> Any function that iterates over a Gradle collection (`forEach`, `map`, `filter`, `all`, `any`, 
-> `find`, `first`, etc.) will **eagerly realize all elements**. This defeats lazy configuration. 
-> Always use `configureEach`, or use `named`/`withType` to get lazy providers.
+> Iterating a task or configuration container can realize its elements. 
+> **Any function that iterates over a Gradle collection** (`forEach`, `map`, `filter`, `all`, `any`, `find`, `first`, etc.) will **eagerly realize all elements**, 
+> defeating any other lazy API usage.
+>
+> Instead prefer, 
+> * `configureEach` registers actions for realized elements; 
+> * `withType` creates a filtered live collection.
+> * Provider transformations such as `map` and `flatMap` remain lazy until queried.
 
 > [!WARNING]
-> **Groovy DSL pitfall**: The shorthand syntax `name { }` is **eager** for both tasks and configurations. It calls `getByName()` under the hood, which realizes the element and its dependencies immediately.
+> **Groovy DSL pitfall**: Dynamic task and configuration blocks (shorthand syntax 
+> `theTaskName { }`, or `theConfigurationName { }`) look up their target immediately 
+> (calling under the hood `getByName("theTaskName")`, or `getByName("theConfigurationName")`), realizing the object. 
+> 
+> Note that just looking up a configuration by name does not resolve its dependencies.
 >
 > ```Gradle
 > // ❌ Eager - realizes the task immediately
@@ -1231,9 +1454,11 @@ When you use eager APIs, values are computed immediately during configuration—
 > ```
 >
 > ```Gradle
-> // ❌ Eager - resolves the configuration immediately
-> runtimeClasspath {
->     exclude group: 'org.slf4j'
+> // ❌ Eager - realizes the configuration object
+> configurations {
+>     runtimeClasspath {
+>         exclude group: 'org.slf4j'
+>     }
 > }
 >
 > // ✅ Lazy - configures only when needed
@@ -1252,19 +1477,29 @@ tasks.create("processData") {
 
 // ✅ Lazy - task is created only when needed
 tasks.register("processData") {
-    // configuration runs only when this task is in the execution graph
+    // Task configuration normally runs when this task is needed for the execution graph or eager lookup.
 }
 ```
 
+Configuration actions may run immediately, later or never. Mutating another task from one
+of these actions makes the result depend on realization order. Dependencies therefore belong
+in the consuming task's own configuration action.
+
 ### Configuration Access
 
+`getByName` realizes the configuration object. Its dependencies remain unresolved until Gradle
+needs their files.
+
 ```Gradle Kotlin DSL
-// ❌ Eager - resolves configuration immediately
+// ❌ Eager - realizes the configuration object
 val runtimeClasspath = configurations.getByName("runtimeClasspath")
 
 // ✅ Lazy - returns a provider
 val runtimeClasspath = configurations.named("runtimeClasspath")
 ```
+
+Queries such as `.files`, `.singleFile` or `.resolve()` trigger dependency resolution.
+Task inputs can accept a configuration as a file collection without resolving it in build logic.
 
 ### Walking Collections
 
@@ -1276,8 +1511,8 @@ tasks.all {
     }
 }
 
-// ❌ Eager - forces all tasks to be created
-tasks.withType<JavaCompile>() {
+// ❌ Eager - realizes all JavaCompile tasks
+tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
 }
 
@@ -1289,74 +1524,232 @@ tasks.withType<JavaCompile>().configureEach {
 
 ### Using Providers
 
+A provider represents a value that Gradle can query when needed. Properties and file
+collections that accept providers retain this connection without reading the value immediately.
+`map` transforms a value; `flatMap` connects to another provider, such as a task's output property.
+
+With the Java plugin applied, these examples show eager and lazy access to its JAR:
+
 ```Gradle Kotlin DSL
-// ❌ Eager - version is read immediately
-tasks.register<Jar>("myJar") {
-    archiveVersion.set(project.version.toString())
+// ❌ Eager - reads the archive path while configuring this task
+tasks.register<Copy>("stageJarEager") {
+    from(tasks.named<Jar>("jar").get().archiveFile.get())
+    into(layout.buildDirectory.dir("staged-eager"))
 }
 
-// ✅ Lazy - version is read when the jar task runs
-tasks.register<Jar>("myJar") {
-    archiveVersion.set(project.provider { project.version.toString() })
+// ✅ Lazy - preserves the output provider and its dependency on the jar task
+tasks.register<Copy>("stageJar") {
+    from(tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    into(layout.buildDirectory.dir("staged"))
 }
 ```
 
+The lazy version also carries the producer dependency, so Gradle runs `jar` before `stageJar`.
+The eager version passes only a file path and loses that dependency information.
+
 > [!TIP]
-> In Gradle Kotlin DSL (and Groovy DSL) you can use `=` instead of `set(...)`, e.g.
-> `archiveVersion = project.version.toString()`
+> Kotlin DSL supports `=` for Gradle lazy properties, for example `archiveFileName = "app.jar"`.
+> This has the same effect as `archiveFileName.set("app.jar")`; both forms also accept providers.
+
+Provider support depends on the receiving API. Some APIs with `Any` or `Object` parameters
+convert a provider to a string instead of reading its value. JVM arguments are one example;
+see [Lazy JVM Arguments and System Properties](#lazy-jvm-arguments-and-system-properties).
+
+Command output can also be exposed as a provider:
+
+```Gradle Kotlin DSL
+val gitVersion = providers.exec {
+    commandLine("git", "--version")
+}.standardOutput.asText.map { it.trim() }
+```
+
+The command runs when its output is queried. A configuration-time query makes that output
+a configuration-cache input.
+
+> [!TIP]
+> Existing `afterEvaluate` blocks can often be refactored away using providers,
+> lazy task configuration and plugin callbacks.
+
+#### Custom Value Sources
+
+When a provider is queried during configuration, Gradle tracks the external data it reads
+to decide whether the configuration cache can be reused. A custom
+[`ValueSource`](https://docs.gradle.org/current/javadoc/org/gradle/api/provider/ValueSource.html)
+lets Gradle track the computed result instead. This is useful when only part of the data
+affects configuration.
+
+For example, reading the `version` entry from a `release.properties` file that also contains
+other release metadata:
+
+```Gradle Kotlin DSL
+import java.util.Properties
+
+val releaseFile = layout.projectDirectory.file("release.properties")
+
+// ❌ Any file content change invalidates the configuration cache
+val releaseVersionProvider = providers.fileContents(releaseFile).asText.map {
+    Properties().apply { load(it.reader()) }.getProperty("version")
+}
+
+// ✅ Only a change to the returned version invalidates the configuration cache
+abstract class ReleaseVersionValueSource :
+    ValueSource<String, ReleaseVersionValueSource.Parameters> {
+    interface Parameters : ValueSourceParameters {
+        val releaseFile: RegularFileProperty
+    }
+
+    override fun obtain(): String =
+        parameters.releaseFile.get().asFile.reader().use {
+            Properties().apply { load(it) }.getProperty("version")
+        }
+}
+
+val releaseVersion = providers.of(ReleaseVersionValueSource::class) {
+    parameters.releaseFile.set(releaseFile)
+}
+```
+
+When queried during configuration, `obtain()` is rerun on subsequent builds to check its
+result. Changes to other entries leave the returned version unchanged and allow cache reuse.
+Built-in providers remain sufficient for simple environment, file and command reads.
+
+A value source is also a good fit to run a CLI through `ExecOperations`:
+
+```Gradle Kotlin DSL
+import java.io.ByteArrayOutputStream
+
+abstract class GitVersionValueSource @Inject constructor(
+    private val execOperations: ExecOperations
+) : ValueSource<String, ValueSourceParameters.None> {
+    override fun obtain(): String {
+        val output = ByteArrayOutputStream()
+        execOperations.exec {
+            commandLine("git", "--version")
+            standardOutput = output
+        }
+        return output.toString().trim()
+    }
+}
+
+val gitVersion = providers.of(GitVersionValueSource::class) {}
+```
+
+For a simple command, `providers.exec` is shorter. A custom source is useful when combining
+command output with other external data. The command runs again when Gradle checks cache
+reuse, so slow commands add overhead even when the cached configuration is reused.
 
 ### Lazy JVM Arguments and System Properties
 
-A common pitfall is reading task outputs or other values during configuration. Here's how to pass values lazily to `Test` or `JavaExec` tasks using `CommandLineArgumentProvider`:
+A common issue is passing arguments immediately by reading task outputs of other tasks or computing values during configuration.
 
-```Gradle
-// ❌ Eager - task output is resolved at configuration time
-tasks.withType(Test).configureEach {
-    def fooShadowJarTask = tasks.named('fooShadowJar', ShadowJar)
-    def barShadowJarTask = tasks.named('barShadowJarTask', ShadowJar)
-    dependsOn fooShadowJarTask, barShadowJarTask
-    
-    // This resolves the archive path immediately during configuration!
-    systemProperty "smoketest.foo.path", fooShadowJarTask.get().archiveFile.get()
-    environment "BAR_PATH", barShadowJarTask.get().archiveFile.get()
+Instead, a `CommandLineArgumentProvider` supplies JVM arguments from tracked task inputs.
+It is applicable to `Test`, `JavaExec`, `Exec`, and any others.
+For example, this can be used to provide the output of `Jar` tasks (in the below example
+`fooJar` and `barJar`) are needed to pass a system property and an environment var.
+
+```Gradle Kotlin DSL
+// ❌ Eager - reads producer task properties while configuring Test
+tasks.withType<Test>().configureEach {
+    val fooJarTask = tasks.named<Jar>("fooJar")
+    val barJarTask = tasks.named<Jar>("barJar")
+    dependsOn(fooJarTask, barJarTask)
+
+    systemProperty("smoketest.foo.path", fooJarTask.get().archiveFile.get().asFile.absolutePath)
+    environment("BAR_PATH", barJarTask.get().archiveFile.get().asFile.absolutePath)
 }
 
-// ✅ Lazy - use CommandLineArgumentProvider to defer resolution
-tasks.withType(Test).configureEach {
-    def fooShadowJarTask = tasks.named('fooShadowJar', ShadowJar)
-    def barShadowJarTask = tasks.named('barShadowJarTask', ShadowJar)
-    dependsOn fooShadowJarTask, barShadowJarTask
+abstract class SmokeTestJvmArguments : CommandLineArgumentProvider {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val fooJar: RegularFileProperty
 
-    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-        @Override
-        Iterable<String> asArguments() {
-            // This is only called at execution time
-            return fooShadowJarTask.map { ["-Dsmoketest.foo.path=${it.archiveFile.get()}"] }.get()
-        }
-    })
+    override fun asArguments(): Iterable<String> =
+        listOf("-Dsmoketest.foo.path=${fooJar.get().asFile.absolutePath}")
+}
+
+// ✅ Lazy - tracks the artifacts and reads their paths when needed
+tasks.withType<Test>().configureEach {
+    val fooJar = tasks.named<Jar>("fooJar").flatMap { it.archiveFile }
+    val barJar = tasks.named<Jar>("barJar").flatMap { it.archiveFile }
+    val arguments = objects.newInstance<SmokeTestJvmArguments>()
+    arguments.fooJar = fooJar
+    jvmArgumentProviders.add(arguments)
     
-    // Workaround: environment() calls toString() at execution time
-    environment("BAR_PATH", new Object() {
-        @Override
-        String toString() {
-            return barShadowJarTask.get().archiveFile.get().asFile.absolutePath
-        }
-    })
+    // Workaround: environment() currently do not accept providers
+    inputs.file(barJar).withPropertyName("barJar").withPathSensitivity(PathSensitivity.NONE)
+    doFirst {
+        environment("BAR_PATH", barJar.get().asFile.absolutePath)
+    }
 }
 ```
 
-> [!TIP]
-> `CommandLineArgumentProvider` is the recommended way to pass lazily-computed JVM arguments. 
-> It's configuration-cache compatible and properly tracks inputs for up-to-date checks. However, 
-> for older APIs like `environment()` that don't accept providers, use the `toString()` wrapper 
-> trick: pass an anonymous object whose `toString()` method computes the value—it will only be 
-> called at execution time.
+`@InputFile` on `SmokeTestJvmArguments.fooJar` makes the JAR's fingerprint of the
+test task's up-to-date checks. Setting that property from the `fooJar` task's output also
+schedules `fooJar` before the tests. `inputs.file(barJar)` provides the same tracking and
+dependency for `barJar`; `doFirst` sets `BAR_PATH` before the test process starts.
+
+> [!CAUTION]
+> Deferred evaluation alone does not guarantee input tracking or configuration-cache compatibility.
+> Argument providers and task actions follow the same
+> [configuration-cache requirements](https://docs.gradle.org/current/userguide/configuration_cache_requirements.html).
+>
+> * An incorrect input on an argument provider coud track path **string** without tracking the file's contents:
+>
+>   ```Gradle Kotlin DSL
+>   // ❌ Tracks the path string, so changes to the JAR at that path are missed
+>   abstract class PathOnlyJvmArguments : CommandLineArgumentProvider {
+>       @get:Input
+>       abstract val fooJarPath: Property<String>
+>   
+>       override fun asArguments(): Iterable<String> =
+>           listOf("-Dsmoketest.foo.path=${fooJarPath.get()}")
+>   }
+>   ```
+>
+>   The earlier `SmokeTestJvmArguments` properly uses `@InputFile` on a `RegularFileProperty` to track the JAR's contents.
+>
+> * This assignment is deferred, but does not track the JAR's contents or schedule its producer:
+>
+>   ```Gradle Kotlin DSL
+>   // ❌ Deferred assignment without a declared file input
+>   tasks.withType<Test>().configureEach {
+>       val barJar = tasks.named<Jar>("barJar").flatMap { it.archiveFile }
+>       doFirst {
+>           environment("BAR_PATH", barJar.get().asFile.absolutePath)
+>       }
+>   }
+>   ```
+>   
+>   The `inputs.file(barJar)` declaration in the lazy example above provides both.
+>
+> * Capturing another task in an action also prevents configuration-cache storage:
+>
+>   ```Gradle Kotlin DSL
+>   // ❌ Deferred lookup that retains the producing task
+>   tasks.withType<Test>().configureEach {
+>       val fooJarTask = tasks.named<Jar>("fooJar").get()
+>       dependsOn(fooJarTask)
+>       doFirst {
+>           systemProperty("smoketest.foo.path", fooJarTask.archiveFile.get().asFile.absolutePath)
+>       }
+>   }
+>   ```
+>   
+>   `dependsOn` orders the tasks, but the captured `Jar` task cannot be stored in the
+>   configuration cache. The lazy example reads the declared `fooJar` file property instead.
+
+### Replacing `afterEvaluate`
+
+`afterEvaluate` runs after a project's build script, during configuration. Its callbacks
+run in registration order, which makes interactions between plugins fragile. Existing
+blocks can often be eliminated with provider wiring, lazy task configuration or
+`pluginManager.withPlugin`, depending on what they are waiting for.
 
 ### Benefits of Lazy Configuration
 
 1. **Faster configuration**: Only necessary work is performed
 2. **Automatic dependency tracking**: Gradle knows which tasks produce values that others consume
-3. **Configuration cache compatibility**: Lazy providers are serializable and can be cached
+3. **Configuration cache compatibility**: Explicit inputs and compatible provider implementations support configuration cache reuse
 4. **Correct ordering**: Task dependencies are inferred from provider relationships
 
 ## Gradle Daemon JVM

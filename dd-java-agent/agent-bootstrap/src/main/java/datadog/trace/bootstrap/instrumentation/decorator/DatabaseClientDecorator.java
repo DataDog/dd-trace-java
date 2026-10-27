@@ -96,8 +96,10 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
       return dbClientService(instanceName);
     }
-    final NamingEntry entry = CACHE.computeIfAbsent(dbType, NamingEntry::new);
-    return entry.getService();
+    if (dbType == null) {
+      return null;
+    }
+    return CACHE.computeIfAbsent(dbType, NamingEntry::new).getService();
   }
 
   public String dbClientService(final String instanceName) {
@@ -134,8 +136,10 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
             BlockResponseFunction brf = ctx.getBlockResponseFunction();
             if (brf != null) {
               Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-              brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+              brf.tryCommitBlockingResponse(ctx, rba);
             }
+            // Thrown even without a BlockResponseFunction: RASP must abort the SQLi attempt even
+            // when no blocking response can be committed.
             throw new BlockingException("Blocked request (for SQL query)");
           }
         }
@@ -144,11 +148,15 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   }
 
   protected void processDatabaseType(AgentSpan span, String dbType) {
+    if (dbType == null) {
+      return;
+    }
+
     final NamingEntry namingEntry = CACHE.computeIfAbsent(dbType, NamingEntry::new);
     span.setTag(DB_TYPE, namingEntry.dbType);
     postProcessServiceAndOperationName(span, namingEntry);
 
-    if (Config.get().isAppSecRaspEnabled() && dbType != null) {
+    if (Config.get().isAppSecRaspEnabled()) {
       BiConsumer<RequestContext, String> connectDbCallback =
           AgentTracer.get()
               .getCallbackProvider(RequestContextSlot.APPSEC)

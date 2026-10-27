@@ -5,6 +5,7 @@ import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
+import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
@@ -147,7 +148,9 @@ class OtlpResourceProtoTest {
                     + "SERVICE.VERSION:ignored-version,"
                     + "telemetry.sdk.name:ignored-sdk,"
                     + "telemetry.sdk.version:ignored-version,"
-                    + "telemetry.sdk.language:ignored-language"),
+                    + "telemetry.sdk.language:ignored-language,"
+                    + "datadog.sdk.semantics:ignored-semantics,"
+                    + "_dd.sdk.otlp_export:ignored-export"),
             attrs(
                 "service.name", "my-service",
                 "deployment.environment.name", "staging",
@@ -167,6 +170,32 @@ class OtlpResourceProtoTest {
 
     Map<String, Object> actualAttributes = parseResourceAttributes(bytes);
     assertEquals(expectedAttributes, actualAttributes, "For case: " + caseName);
+  }
+
+  /**
+   * On the OTLP path the export-mode marker is a resource attribute and is always {@code "true"} --
+   * reaching this encoder means the payload is leaving over OTLP.
+   */
+  @Test
+  void traceResourceAttributesCarryOtlpExportMarker() throws IOException {
+    Config config = Config.get(props(SERVICE_NAME, "my-service"));
+
+    Map<String, Object> attributes =
+        parseResourceAttributes(
+            OtlpResourceProto.buildResourceMessage(config, traceResourceAttributes(config)));
+
+    assertEquals("true", attributes.get("_dd.sdk.otlp_export"));
+  }
+
+  @Test
+  void usesOtelSdkSemanticsWhenEnabled() throws IOException {
+    Config config = Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "true"));
+
+    Map<String, Object> attributes =
+        parseResourceAttributes(
+            OtlpResourceProto.buildResourceMessage(config, traceResourceAttributes(config)));
+
+    assertEquals("otel", attributes.get("datadog.sdk.semantics"));
   }
 
   /**
@@ -236,6 +265,8 @@ class OtlpResourceProtoTest {
     assertEquals(
         "true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
     assertFalse(without.containsKey("_dd.stats_computed"), "marker absent when stats not computed");
+    assertEquals("datadog", without.get("datadog.sdk.semantics"));
+    assertEquals("true", without.get("_dd.sdk.otlp_export"));
   }
 
   // ── parsing helpers ───────────────────────────────────────────────────────

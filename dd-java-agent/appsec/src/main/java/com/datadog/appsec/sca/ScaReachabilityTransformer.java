@@ -55,6 +55,14 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(ScaReachabilityTransformer.class);
   private static final Pattern PATH_SEPARATOR = Pattern.compile(Pattern.quote(File.pathSeparator));
 
+  /**
+   * Maximum number of retransform attempts for a class whose watched artifact never resolves as a
+   * dependency. Beyond this cap the class is given up on, so that a permanently unresolvable
+   * artifact (e.g. embedded Tomcat) cannot re-queue itself forever and cause unbounded {@link
+   * Instrumentation#retransformClasses} calls. See APPSEC-69734.
+   */
+  @VisibleForTesting static final int MAX_UNRESOLVED_RETRIES = 5;
+
   private final ScaCveDatabase database;
   private final Instrumentation instrumentation;
 
@@ -95,6 +103,35 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
   /** Class names (internal format) queued for deferred retransformation by name lookup. */
   @VisibleForTesting final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
+
+  /**
+   * Class name (internal format) → number of retransform attempts already spent on a class whose
+   * watched artifact could not be resolved. Capped by {@link #MAX_UNRESOLVED_RETRIES}.
+   *
+   * <p>Known limitation: keyed only by class name, never reset. If a class name exhausts the cap
+   * during one class-load lifecycle (e.g. a classloader that is later discarded) and the same name
+   * is loaded again later (redeploy, new classloader instance) with a classpath that would now
+   * resolve the artifact, the new load inherits the exhausted count and gives up immediately
+   * instead of getting its own {@value #MAX_UNRESOLVED_RETRIES} attempts. Accepted: this requires
+   * the same class name to be reloaded within the same JVM process after already exhausting the
+   * cap, which is rare, and the map's unbounded lifetime is otherwise fine (bounded by the number
+   * of distinct watched classes).
+   */
+  @VisibleForTesting
+  final ConcurrentHashMap<String, Integer> unresolvedAttemptCounts = new ConcurrentHashMap<>();
+
+  /**
+   * Class names (internal format) whose unresolved-retry attempt has already been counted during
+   * the current heartbeat. A single {@link #performPendingRetransforms()} call retransforms every
+   * loaded {@code Class<?>} sharing the same name (e.g. one copy per Spring Boot {@code
+   * LaunchedURLClassLoader}), each triggering its own {@code processClass()} invocation; this set
+   * makes them count as one attempt instead of N. Cleared at the start of every heartbeat.
+   *
+   * <p>Plain {@link HashSet}: {@link #performPendingRetransforms()} runs single-threaded and never
+   * concurrently with itself, and {@code processClass()} is invoked synchronously from within its
+   * {@code retransformClasses()} calls.
+   */
+  @VisibleForTesting final Set<String> countedThisHeartbeat = new HashSet<>();
 
   public ScaReachabilityTransformer(ScaCveDatabase database, Instrumentation instrumentation) {
     this.database = database;
@@ -225,7 +262,32 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       // pendingRetransform. Instead we queue the internal class name; performPendingRetransforms()
       // will resolve it back to a Class<?> via instrumentation.getAllLoadedClasses() and
       // retransform.
-      pendingRetransformNames.add(className);
+      //
+      // The retry is capped (APPSEC-69734): some watched artifacts can never resolve (e.g. an
+      // embedded-Tomcat app that only ships tomcat-embed-core will never resolve tomcat or
+      // tomcat-coyote), and an uncapped re-queue means one retransformClasses() call per heartbeat
+      // forever, with a permanent stop-the-world / metaspace cost even though the bytecode never
+      // changes. The cap is uniform: it does not matter which resolution path failed.
+      boolean firstThisHeartbeat = countedThisHeartbeat.add(className);
+      int attempts;
+      if (firstThisHeartbeat) {
+        attempts = unresolvedAttemptCounts.merge(className, 1, Integer::sum);
+      } else {
+        // Another classloader's copy of the same class already counted this heartbeat: reuse the
+        // current count instead of counting the same heartbeat twice.
+        attempts = unresolvedAttemptCounts.getOrDefault(className, 0);
+      }
+      if (attempts < MAX_UNRESOLVED_RETRIES) {
+        pendingRetransformNames.add(className);
+      } else if (firstThisHeartbeat) {
+        // Reached only on the transition from "allowed" to "capped": once given up, the class is
+        // never re-queued, so this logs at most once per class.
+        log.debug(
+            "SCA Reachability: giving up resolving unresolved artifact(s) for class {} after {}"
+                + " heartbeats",
+            className,
+            attempts);
+      }
     }
 
     if (methodCallbacks.isEmpty()) {
@@ -296,6 +358,10 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * periodicWorkCallback} registered in {@link ScaReachabilityDependencyRegistry}.
    */
   public void performPendingRetransforms() {
+    // Start a fresh heartbeat: unresolved-retry attempts are counted at most once per class name
+    // per heartbeat, no matter how many classloaders loaded that same class.
+    countedThisHeartbeat.clear();
+
     if (instrumentation == null) {
       return; // no-op when instrumentation is unavailable (e.g. in unit tests)
     }

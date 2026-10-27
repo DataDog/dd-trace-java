@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'scala'
+}
+
 muzzle {
   extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
 
@@ -9,9 +14,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
 
 testJvmConstraints {
   // Play doesn't work with Java 9+ until 2.6.12
@@ -30,6 +32,8 @@ dependencies {
   compileOnly group: 'com.typesafe.play', name: "play-java_2.11", version: '2.6.0'
   compileOnly project(':dd-java-agent:instrumentation:play:play-2.6')
   implementation(project(':dd-java-agent:instrumentation:play:play-appsec-common'))
+
+  testImplementation libs.bundles.mockito
 
   testImplementation project(':dd-java-agent:instrumentation:play:play-2.6')
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:play:play-2.6'))

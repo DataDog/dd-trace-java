@@ -234,25 +234,19 @@ class B3HttpCodec {
             } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
               samplingPriority = convertSamplingPriority(firstHeaderValue(value));
               return true;
-            } else if (handledXForwarding(key, value)) {
-              return true;
+            } else {
+              handledXForwarding(key, value);
             }
             break;
           case 'f':
-            if (handledForwarding(key, value)) {
-              return true;
-            }
+            handledForwarding(key, value);
             break;
           case 'u':
-            if (handledUserAgent(key, value)) {
-              return true;
-            }
+            handledUserAgent(key, value);
             break;
           default:
         }
-        if (handledIpHeaders(key, value)) {
-          return true;
-        }
+        handledIpHeaders(key, value);
         handleTags(key, value);
       } catch (RuntimeException e) {
         invalidateContext();
@@ -288,25 +282,18 @@ class B3HttpCodec {
           char first = Character.toLowerCase(key.charAt(0));
           switch (first) {
             case 'x':
-              if (handledXForwarding(key, value)) {
-                return true;
-              }
+              handledXForwarding(key, value);
               break;
             case 'f':
-              if (handledForwarding(key, value)) {
-                return true;
-              }
+              handledForwarding(key, value);
               break;
             case 'u':
-              if (handledUserAgent(key, value)) {
-                return true;
-              }
+              handledUserAgent(key, value);
               break;
+            default:
           }
         }
-        if (handledIpHeaders(key, value)) {
-          return true;
-        }
+        handledIpHeaders(key, value);
         handleTags(key, value);
       } catch (RuntimeException e) {
         invalidateContext();

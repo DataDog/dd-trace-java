@@ -1,7 +1,9 @@
 package datadog.trace.common.writer;
 
 import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH;
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.util.Strings.truncate;
 
 import datadog.json.JsonWriter;
@@ -269,7 +271,7 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     w.name("duration").value(span.getDurationNano());
     w.name("error").value(span.getError());
 
-    span.processTagsAndBaggage(new JsonMetaWriter(w));
+    span.processTagsAndBaggage(new JsonMetaWriter(w), OWN_PROPAGATION_TAGS);
 
     w.endObject(); // content
     w.endObject(); // event
@@ -388,9 +390,11 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
           w.name(entry.getKey()).value(truncate(entry.getValue(), MAX_META_STRING_VALUE_LENGTH));
         }
       }
-      if (metadata.getHttpStatusCode() != null) {
+      if (metadata.getHttpStatusCode() != UNSET_STATUS) {
         w.name(Tags.HTTP_STATUS)
-            .value(truncate(metadata.getHttpStatusCode().toString(), MAX_META_STRING_VALUE_LENGTH));
+            .value(
+                truncate(
+                    metadata.getHttpStatusCodeString().toString(), MAX_META_STRING_VALUE_LENGTH));
       }
       for (Map.Entry<String, Object> entry : tags.entrySet()) {
         Object value = entry.getValue();

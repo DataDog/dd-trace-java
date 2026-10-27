@@ -73,6 +73,8 @@ public final class MessageJson implements DecodedMessage {
                     + "(name, trace_id, span_id, start, duration): "
                     + span);
           }
+          span.resolveLinks();
+          span.resolveEvents();
           decodedSpans.add(span);
         }
         traces.add(new TraceJson(decodedSpans));

@@ -308,7 +308,7 @@ Call it from a static initializer (runs before `@BeforeAll`):
 ```java
 class MyTest extends AbstractInstrumentationTest {
     static {
-        testConfig.idGenerationStrategy("RANDOM").strictTraceWrites(false);
+        testConfig.idGenerationStrategy("RANDOM");
     }
 }
 ```
@@ -318,7 +318,6 @@ Available settings:
 | Method                         | Default        | Description                          |
 |--------------------------------|----------------|--------------------------------------|
 | `idGenerationStrategy(String)` | `"SEQUENTIAL"` | Span ID generation strategy          |
-| `strictTraceWrites(boolean)`   | `true`         | Enable strict trace write validation |
 
 ### Basic test
 
@@ -348,6 +347,10 @@ import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.*;
 import static datadog.trace.agent.test.assertions.Matchers.*;
 ```
+
+> [!NOTE]
+> Smoke tests use a separate API with the same class names, `datadog.smoketest.trace.*`, which matches decoded wire payloads instead of in-process spans.
+> See [How to Write a Smoke Test](./how_to_smoke_test.md#asserting-traces).
 
 ### Asserting traces
 

@@ -2,9 +2,10 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
+  id 'dd-trace-java.testcontainers'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot RabbitMQ Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
@@ -20,12 +21,15 @@ tasks.named("shadowJar", ShadowJar) {
 }
 
 dependencies {
+  testContainerImage(image('rabbitmq:3.9.20-alpine', 'test.rabbitmq.image'))
+
   implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.5.4'
 
   testImplementation project(':dd-smoke-tests')
   testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: libs.versions.testcontainers.get()
+  testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: libs.versions.testcontainers.get()
 }
 
 tasks.withType(Test).configureEach {

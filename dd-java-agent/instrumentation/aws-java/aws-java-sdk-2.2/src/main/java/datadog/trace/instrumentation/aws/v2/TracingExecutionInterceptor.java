@@ -39,7 +39,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
-          .putIfAbsent("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   private static final Logger log = LoggerFactory.getLogger(TracingExecutionInterceptor.class);
 
@@ -160,6 +160,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
           DECORATE.onError(span, context.exception());
         }
       } else {
+        // service errors (non-2xx) have no SdkResponse, the status code is on the exception
+        DECORATE.onServiceError(span, context.exception());
         DECORATE.onError(span, context.exception());
       }
       DECORATE.beforeFinish(span);

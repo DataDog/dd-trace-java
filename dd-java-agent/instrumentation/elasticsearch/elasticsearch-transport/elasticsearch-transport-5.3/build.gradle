@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
+}
 
 muzzle {
   pass {
@@ -15,8 +19,6 @@ muzzle {
     skipVersions = ["7.11.0", "7.17.8", "8.8.0", "9.3.0"]
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

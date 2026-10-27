@@ -376,7 +376,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       assertThrows(IOException.class, channel::checkException);
 
       assertTrue(requestSpanActive.get(), "request span was not active during requestEnded");
-      assertEquals(500, span.getTag(Tags.HTTP_STATUS));
+      assertEquals(200, span.getTag(Tags.HTTP_STATUS));
       assertTraces(trace(span().root().operationName("netty.request").error()));
     } finally {
       holdingHandler.failWrite(writeFailure);

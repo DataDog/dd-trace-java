@@ -1,29 +1,17 @@
 plugins {
   `java-library`
   id("dd-trace-java.version-file")
+  id("dd-trace-java.module.product-library")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-
-description = "Feature flagging remote config and exposure handling"
-
-extra["excludedClassesCoverage"] = listOf(
-  // POJOs
-  "com.datadog.featureflag.ExposureCache.Key",
-  "com.datadog.featureflag.ExposureCache.Value"
-)
+description = "Feature flagging agent backend: remote config, event proxy and span enrichment"
 
 dependencies {
   api(libs.slf4j)
-  api(libs.moshi)
-  api(libs.jctools)
   api(project(":communication"))
   implementation(project(":internal-api"))
   api(project(":products:feature-flagging:feature-flagging-bootstrap"))
-  implementation(project(":utils:logging-utils"))
-  api(project(":utils:queue-utils"))
 
-  compileOnly(project(":dd-trace-core")) // shading does not work with this one
   // Platform JSON writer for the ffe_* tag values.
   compileOnly(project(":components:json"))
 

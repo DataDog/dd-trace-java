@@ -10,7 +10,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Phaser;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 class ContextManagerTest extends ContextTestBase {
   @Test
@@ -133,6 +135,53 @@ class ContextManagerTest extends ContextTestBase {
         scope.close();
         assertEquals(context1, current());
       }
+    }
+  }
+
+  @TableTest({
+    "Scenario       | Resumed",
+    "attached scope | false  ",
+    "resumed scope  | true   "
+  })
+  void testClosingScopeOnDifferentThread(boolean resumed) throws Exception {
+    Context previous = root().with(STRING_KEY, "previous");
+    Context context = root().with(STRING_KEY, "migrated");
+    Context unrelated = root().with(STRING_KEY, "unrelated");
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try (ContextScope ignored = previous.attach()) {
+      try (ContextScope scope = resumed ? context.capture().resume() : context.attach()) {
+        executor
+            .submit(
+                () -> {
+                  try {
+                    try (ContextScope workerScope = unrelated.attach()) {
+                      // A foreign close must leave both threads' contexts intact.
+                      scope.close();
+                      assertEquals(unrelated, current());
+                    }
+                    assertEquals(root(), current());
+
+                    // Simulate restoring a coroutine's context on its new thread.
+                    context.swap();
+                    scope.close();
+                    assertEquals(previous, current());
+
+                    // Migrated scope stays closed, even if its context is restored again.
+                    context.swap();
+                    scope.close();
+                    assertEquals(context, current());
+                  } finally {
+                    root().swap();
+                  }
+                })
+            .get(10, TimeUnit.SECONDS);
+        assertEquals(context, current());
+      } finally {
+        // Restore previous context here; the original scope was closed on the worker thread
+        previous.swap();
+      }
+    } finally {
+      executor.shutdownNow();
     }
   }
 

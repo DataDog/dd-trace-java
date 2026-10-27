@@ -35,6 +35,7 @@ import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.CrashTrackingConfig;
 import datadog.trace.api.config.CwsConfig;
 import datadog.trace.api.config.DebuggerConfig;
+import datadog.trace.api.config.FeatureFlaggingConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.config.JmxFetchConfig;
@@ -44,7 +45,6 @@ import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
-import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.git.EmbeddedGitInfoBuilder;
@@ -53,6 +53,7 @@ import datadog.trace.api.intake.Intake;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -61,7 +62,6 @@ import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
-import datadog.trace.util.JDK9ModuleAccess;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.instrument.Instrumentation;
@@ -135,7 +135,8 @@ public class Agent {
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
     APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
-    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false);
+    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
+    FEATURE_FLAGS(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED, true);
 
     private final String configKey;
     private final String systemProp;
@@ -284,7 +285,7 @@ public class Agent {
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
     appLogsCollectionEnabled = isFeatureEnabled(AgentFeature.APP_LOGS_COLLECTION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
-    featureFlaggingEnabled = isFeatureFlaggingEnabled();
+    featureFlaggingEnabled = isFeatureEnabled(AgentFeature.FEATURE_FLAGS);
 
     // setup writers when llmobs is enabled to accomodate apm and llmobs
     if (llmObsEnabled) {
@@ -431,6 +432,8 @@ public class Agent {
             CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
             TimeUnit.SECONDS);
 
+    ObjectStoreCleaner.schedule();
+
     StaticEventLogger.end("Agent.start");
   }
 
@@ -524,14 +527,16 @@ public class Agent {
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
     }
+    // Before telemetry: the feature flagging writers queue drop/degradation metrics during their
+    // final flush, and only a still-running telemetry worker can drain and transmit them.
+    if (featureFlaggingEnabled) {
+      shutdownFeatureFlagging(AGENT_CLASSLOADER);
+    }
     if (telemetryEnabled) {
       stopTelemetry();
     }
     if (flareEnabled) {
       stopFlarePoller();
-    }
-    if (featureFlaggingEnabled) {
-      shutdownFeatureFlagging(AGENT_CLASSLOADER);
     }
 
     if (agentlessLogSubmissionEnabled) {
@@ -668,8 +673,6 @@ public class Agent {
       }
 
       installDatadogMeter(initTelemetry);
-      // Must run before installDatadogTracer, which triggers the ddprof profiler load.
-      prepareDatadogProfilerContextStorage(instrumentation);
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeInstallLogsIntake(scoClass, sco);
       maybeStartIast(instrumentation);
@@ -1487,63 +1490,99 @@ public class Agent {
   }
 
   /**
-   * Exports {@code jdk.internal.misc} to the classloader that loads {@code
-   * com.datadoghq.profiler.*} before the Datadog profiler is loaded.
-   *
-   * <p>On JDK 21+, the profiler scopes its context {@code ThreadContext} storage to the carrier
-   * thread using {@code jdk.internal.misc.CarrierThreadLocal}, so a mounted virtual thread resolves
-   * to its current carrier's record — fixing a virtual-thread context use-after-free. That type
-   * lives in a non-exported package, hence the export. Must run before {@code
-   * installDatadogTracer}, which loads the profiler via {@link
-   * #createProfilingContextIntegration()}.
+   * {@see com.datadog.profiling.ddprof.DatadogProfilingIntegration} must not be modified to depend
+   * on JFR.
    */
-  private static void prepareDatadogProfilerContextStorage(Instrumentation inst) {
-    try {
-      if (inst == null
-          || !Config.get().isProfilingEnabled()
-          || !Config.get().isDatadogProfilerEnabled()
-          || OperatingSystem.isWindows()
-          || !isJavaVersionAtLeast(21)) {
-        return;
+  static ProfilingContextIntegration createProfilingContextIntegration() {
+    Config config = Config.get();
+    // Windows is already excluded by Config (isDatadogProfilerSafeAndConfigured), so only AWS
+    // Lambda needs to be excluded here: it has no ddprof native library support, same as
+    // startProfilingAgent().
+    if (!isAwsLambdaRuntime()) {
+      if (config.isDatadogProfilerEnabled()) {
+        // The profiler itself is running: load ddprof now, and let ProfilingAgent.run() register
+        // the process context as it always has.
+        ProfilingContextIntegration integration = loadDdprofContextIntegration(AGENT_CLASSLOADER);
+        if (integration != null) {
+          return integration;
+        }
+      } else if (!config.isProfilingEnabled() && config.isOtelThreadContextEnabled()) {
+        // No profiler, we only want the context exposed: loading ddprof pulls in the native
+        // library and touches java.nio.file, which must not happen on the primordial premain
+        // thread, so it is deferred.
+        // The explicit !isProfilingEnabled() guard (redundant with isOtelThreadContextEnabled()'s
+        // own isDatadogProfilerSafeAndConfigured() factor) keeps this branch provably unreachable
+        // whenever profiling is enabled, so the JFR-events fallback below is never skipped.
+        return deferDdprofContextIntegration(AGENT_CLASSLOADER);
       }
-      JDK9ModuleAccess.exportModuleToUnnamedModule(
-          inst, "java.base", new String[] {"jdk.internal.misc"}, AGENT_CLASSLOADER);
+    }
+    if (config.isProfilingEnabled() && config.isProfilingTimelineEventsEnabled()) {
+      // important: note that this will not initialise JFR until onStart is called
+      try {
+        return (ProfilingContextIntegration)
+            AGENT_CLASSLOADER
+                .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
+                .getDeclaredConstructor()
+                .newInstance();
+      } catch (Throwable t) {
+        log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
+      }
+    }
+    return ProfilingContextIntegration.NoOp.INSTANCE;
+  }
+
+  /**
+   * Loads the ddprof-based profiling context integration on the calling thread, for when the
+   * Datadog profiler is running. Returns {@code null} when it isn't available, so the caller can
+   * fall back to another integration.
+   */
+  static ProfilingContextIntegration loadDdprofContextIntegration(final ClassLoader classLoader) {
+    try {
+      return newDdprofContextIntegration(classLoader);
     } catch (Throwable t) {
-      log.debug("Unable to export jdk.internal.misc for the Datadog profiler", t);
+      log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
+      return null;
     }
   }
 
   /**
-   * {@see com.datadog.profiling.ddprof.DatadogProfilingIntegration} must not be modified to depend
-   * on JFR.
+   * Returns a placeholder integration that loads the ddprof-based one off the calling thread and
+   * registers the OTel process context alongside it. Only used when the profiler isn't running:
+   * otherwise {@code ProfilingAgent.run()} registers the process context itself.
    */
-  private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled()) {
-      if (Config.get().isDatadogProfilerEnabled() && !OperatingSystem.isWindows()) {
-        try {
-          return (ProfilingContextIntegration)
-              AGENT_CLASSLOADER
-                  .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
-        } catch (Throwable t) {
-          log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
-        }
-      }
-      if (Config.get().isProfilingTimelineEventsEnabled()) {
-        // important: note that this will not initialise JFR until onStart is called
-        try {
-          return (ProfilingContextIntegration)
-              AGENT_CLASSLOADER
-                  .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
-        } catch (Throwable t) {
-          log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
-        }
-      }
+  static ProfilingContextIntegration deferDdprofContextIntegration(final ClassLoader classLoader) {
+    DeferredProfilingContextIntegration deferred =
+        new DeferredProfilingContextIntegration(
+            "ddprof",
+            () -> {
+              // Process context registration must not depend on the trace-context integration
+              // below: it already catches its own failures, and must still run (for CWS/eBPF)
+              // even when constructing DatadogProfilingIntegration throws.
+              registerProcessContext(classLoader);
+              return newDdprofContextIntegration(classLoader);
+            });
+    deferred.scheduleInitialization();
+    return deferred;
+  }
+
+  private static ProfilingContextIntegration newDdprofContextIntegration(
+      final ClassLoader classLoader) throws ReflectiveOperationException {
+    return (ProfilingContextIntegration)
+        classLoader
+            .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
+            .getDeclaredConstructor()
+            .newInstance();
+  }
+
+  private static void registerProcessContext(final ClassLoader classLoader) {
+    try {
+      classLoader
+          .loadClass("com.datadog.profiling.agent.ProcessContext")
+          .getMethod("register", ConfigProvider.class)
+          .invoke(null, ConfigProvider.getInstance());
+    } catch (Throwable t) {
+      log.debug("Process context registration not available. {}", t.getMessage());
     }
-    return ProfilingContextIntegration.NoOp.INSTANCE;
   }
 
   private static boolean startProfilingAgent(
@@ -1756,45 +1795,6 @@ public class Agent {
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
-  }
-
-  private static boolean isFeatureFlaggingEnabled() {
-    final Boolean providerEnabled =
-        featureFlaggingBooleanSetting(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED);
-    final String configurationSource =
-        featureFlaggingSetting(FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE);
-    final Boolean legacyProviderEnabled =
-        featureFlaggingBooleanSetting(FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
-
-    return FeatureFlaggingConfig.resolveConfiguration(
-            providerEnabled, configurationSource, legacyProviderEnabled)
-        .isEnabled();
-  }
-
-  @SuppressFBWarnings(
-      value = "NP_BOOLEAN_RETURN_NULL",
-      justification = "A null value preserves the distinction between absent and explicitly false")
-  private static Boolean featureFlaggingBooleanSetting(final String configKey) {
-    final String value = featureFlaggingSetting(configKey);
-    if (value == null) {
-      return null;
-    }
-    return Boolean.parseBoolean(value) || "1".equals(value);
-  }
-
-  private static String featureFlaggingSetting(final String configKey) {
-    final String systemProperty = propertyNameToSystemPropertyName(configKey);
-    String value = SystemProperties.get(systemProperty);
-    if (value == null) {
-      value = getStableConfig(FLEET, configKey);
-    }
-    if (value == null) {
-      value = ddGetEnv(systemProperty);
-    }
-    if (value == null) {
-      value = getStableConfig(LOCAL, configKey);
-    }
-    return value;
   }
 
   /**

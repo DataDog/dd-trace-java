@@ -1,21 +1,17 @@
 package com.datadog.featureflag;
 
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.api.featureflag.FeatureFlaggingGateway;
-import datadog.trace.api.featureflag.SpanEnrichmentEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Agent-side owner of APM feature-flag span enrichment. This is the WRITE tier of the
- * capture-vs-write split: it listens on {@link FeatureFlaggingGateway} for {@link
- * SpanEnrichmentEvent}s dispatched by the published {@code dd-openfeature} provider during flag
- * evaluation, resolves the active local-root span, and accumulates per-trace state that a {@link
- * SpanEnrichmentInterceptor} later flushes onto the root when the trace completes.
+ * capture-vs-write split: it receives the evaluations captured by the {@code dd-openfeature} SDK
+ * through its instrumentation, resolves the active local-root span, and accumulates per-trace state
+ * that a {@link SpanEnrichmentInterceptor} later flushes onto the root when the trace completes.
  *
  * <p><b>Process-wide singleton (restart-safe).</b> Use {@link #getInstance()} for the agent wiring.
  * The tracer keeps trace interceptors for the life of the JVM and offers no removal API, so the
@@ -23,34 +19,22 @@ import org.slf4j.LoggerFactory;
  * feature-flagging subsystem. A fresh writer per {@code start()} would build a second interceptor
  * at the same priority; the tracer would reject it and its state would never be read, silently
  * disabling enrichment after a restart. Reusing one instance avoids that: the single interceptor is
- * registered exactly once and simply resumes when {@link #init()} re-subscribes the listener.
+ * registered exactly once and simply resumes on the next recorded evaluation.
  *
  * <p><b>Zero idle overhead when off.</b> When the span-enrichment gate is off the provider adds no
- * capture hook, so no seam events are dispatched, this listener never runs, and the interceptor is
- * never registered — the tracer's write path is untouched. The interceptor is registered lazily on
- * the first enrichment event that has an active span, so a service that enables the feature but
- * never evaluates a flag on a traced request still pays nothing.
+ * capture hook, so no evaluation is recorded, this writer never runs, and the interceptor is never
+ * registered — the tracer's write path is untouched. The interceptor is registered lazily on the
+ * first enrichment event that has an active span, so a service that enables the feature but never
+ * evaluates a flag on a traced request still pays nothing.
  *
  * <p>All work is wrapped in try/catch — enrichment must NEVER break flag evaluation.
  */
-@SuppressFBWarnings(
-    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-    justification =
-        "The production path constructs the sole instance through the private no-arg constructor "
-            + "behind INSTANCE/getInstance(); the package-private constructors are deliberate "
-            + "test-only seams for injecting the root-span resolver and interceptor registrar. The "
-            + "singleton itself is required (PR #11658 review) so the single, unremovable trace "
-            + "interceptor is registered exactly once and survives subsystem start/stop.")
-public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEnrichmentListener {
+public final class SpanEnrichmentWriter implements AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentWriter.class);
 
-  // The one instance used by the agent. Persisting it across FeatureFlaggingSystem start/stop keeps
-  // the single registered interceptor (and its state) alive, so a restart never re-registers.
-  private static final SpanEnrichmentWriter INSTANCE = new SpanEnrichmentWriter();
-
   public static SpanEnrichmentWriter getInstance() {
-    return INSTANCE;
+    return SingletonHolder.INSTANCE;
   }
 
   /**
@@ -84,6 +68,12 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
   private static final InterceptorRegistrar DEFAULT_REGISTRAR =
       interceptor -> GlobalTracer.get().addTraceInterceptor(interceptor);
 
+  private static final class SingletonHolder {
+    // Persisting this instance across FeatureFlaggingSystem start/stop keeps the single registered
+    // interceptor (and its state) alive, so a restart never re-registers.
+    private static final SpanEnrichmentWriter INSTANCE = new SpanEnrichmentWriter();
+  }
+
   private final RootSpanResolver rootSpanResolver;
   private final InterceptorRegistrar registrar;
   private final SpanEnrichmentStates states;
@@ -112,50 +102,70 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
     this.interceptor = new SpanEnrichmentInterceptor(states);
   }
 
-  /** Starts listening for enrichment events. Safe to call again after {@link #close()}. */
-  public void init() {
-    FeatureFlaggingGateway.addSpanEnrichmentListener(this);
-  }
-
   /**
-   * Stops listening and drops any residual state. The interceptor stays registered with the tracer
-   * (it cannot be removed) but goes inert while the state is empty; a later {@link #init()} resumes
-   * enrichment on the same interceptor.
+   * Drops any residual state. The interceptor stays registered with the tracer (it cannot be
+   * removed) but goes inert while the state is empty; later evaluations resume enrichment on the
+   * same interceptor.
    */
+  @Override
   public void close() {
-    FeatureFlaggingGateway.removeSpanEnrichmentListener(this);
     states.clear();
   }
 
-  @Override
-  public void accept(final SpanEnrichmentEvent event) {
-    if (event == null) {
-      return;
-    }
+  /**
+   * Records an evaluation that resolved to a split with a serial id.
+   *
+   * @param serialId the split serial id.
+   * @param doLog whether the allocation logs exposures, to also record the subject.
+   * @param targetingKey the optional targeting key of the subject.
+   */
+  public void serialId(final int serialId, final boolean doLog, final String targetingKey) {
     try {
-      final AgentSpan root = rootSpanResolver.activeLocalRoot();
-      if (root == null) {
-        return; // no active span → nothing to enrich (and nothing to register the interceptor for)
-      }
-      if (!ensureInterceptorRegistered()) {
-        // The interceptor isn't registered (e.g. tracer absent), so nothing would ever flush this
-        // state — skip accumulating. A later event retries registration.
-        return;
-      }
-      final SpanEnrichmentAccumulator state = states.getOrCreate(root);
-      if (event.hasSerialId()) {
-        final int serialId = event.serialId();
+      final SpanEnrichmentAccumulator state = activeRootState();
+      if (state != null) {
         state.addSerialId(serialId);
-        if (event.doLog() && event.targetingKey() != null) {
-          state.addSubject(event.targetingKey(), serialId);
+        if (doLog && targetingKey != null) {
+          state.addSubject(targetingKey, serialId);
         }
-      } else if (event.flagKey() != null) {
-        state.addDefault(event.flagKey(), event.defaultValue());
       }
     } catch (final Throwable t) {
       // Never let span enrichment break flag evaluation; a debug line aids diagnosis if it does.
       log.debug("Span-enrichment accumulation failed", t);
     }
+  }
+
+  /**
+   * Records an evaluation that resolved to its runtime default value.
+   *
+   * @param flagKey the flag key.
+   * @param defaultValue the native default value.
+   */
+  public void runtimeDefault(final String flagKey, final Object defaultValue) {
+    if (flagKey == null) {
+      return;
+    }
+    try {
+      final SpanEnrichmentAccumulator state = activeRootState();
+      if (state != null) {
+        state.addDefault(flagKey, defaultValue);
+      }
+    } catch (final Throwable t) {
+      log.debug("Span-enrichment accumulation failed", t);
+    }
+  }
+
+  private SpanEnrichmentAccumulator activeRootState() {
+    final AgentSpan root = rootSpanResolver.activeLocalRoot();
+    if (root == null) {
+      return null; // no active span → nothing to enrich (and nothing to register the interceptor
+      // for)
+    }
+    if (!ensureInterceptorRegistered()) {
+      // The interceptor isn't registered (e.g. tracer absent), so nothing would ever flush this
+      // state — skip accumulating. A later evaluation retries registration.
+      return null;
+    }
+    return states.getOrCreate(root);
   }
 
   /**
@@ -191,5 +201,13 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
 
   SpanEnrichmentInterceptor interceptor() {
     return interceptor;
+  }
+
+  RootSpanResolver rootSpanResolver() {
+    return rootSpanResolver;
+  }
+
+  InterceptorRegistrar registrar() {
+    return registrar;
   }
 }

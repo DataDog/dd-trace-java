@@ -1,7 +1,7 @@
 package com.datadog.debugger;
 
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -14,7 +14,7 @@ public class CodeOrigin02 {
 
   public static int main(String arg) throws ReflectiveOperationException {
     AgentSpan span = newSpan("main");
-    AgentScope scope = tracerAPI.activateManualSpan(span);
+    ContextScope scope = tracerAPI.activateManualSpan(span);
     if (arg.equals("debug_1")) {
       ((DDSpan) span.getLocalRootSpan()).setTag("_dd.p.debug", "1");
     } else if (arg.equals("debug_0")) {
@@ -31,7 +31,7 @@ public class CodeOrigin02 {
 
   private static void fullTrace() throws NoSuchMethodException {
     AgentSpan span = newSpan("entry");
-    AgentScope scope = tracerAPI.activateManualSpan(span);
+    ContextScope scope = tracerAPI.activateManualSpan(span);
     entry();
     span.finish();
     scope.close();

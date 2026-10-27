@@ -20,6 +20,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper;
 import java.util.Hashtable;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
@@ -36,6 +37,14 @@ public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
     return new String[] {
       "com.ibm.ws.webcontainer.srt.SRTServletRequest",
       "com.ibm.ws.webcontainer31.srt.SRTServletRequest31",
+    };
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper",
+      "datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper$WsByteBufferImpl",
     };
   }
 
@@ -74,9 +83,12 @@ public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          t = new BlockingException("Blocked request (for SRTServletRequest/parsePostData)");
-          reqCtx.getTraceSegment().effectivelyBlocked();
+          boolean success =
+              LibertyBlockingHelper.tryCommitBlockingResponse(blockResponseFunction, reqCtx, rba);
+          if (success) {
+            t = new BlockingException("Blocked request (for SRTServletRequest/parsePostData)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+          }
         }
       }
     }

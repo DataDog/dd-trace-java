@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.kafka_connect;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -22,13 +23,6 @@ public final class ConnectWorkerInstrumentation extends InstrumenterModule.Traci
 
   public ConnectWorkerInstrumentation() {
     super("kafka", "kafka-connect");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TaskListener",
-    };
   }
 
   @Override

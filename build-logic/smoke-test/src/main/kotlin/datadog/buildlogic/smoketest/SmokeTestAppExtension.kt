@@ -67,10 +67,6 @@ abstract class SmokeTestAppExtension @Inject constructor(
 
   internal abstract val projectJars: ListProperty<NestedBuildProjectJar>
 
-  internal abstract val initScripts: ListProperty<String>
-
-  internal abstract val gradleProperties: MapProperty<String, String>
-
   init {
     applicationDir.convention(project.layout.projectDirectory.dir("application"))
     applicationBuildDir.convention(project.layout.buildDirectory.dir("application"))
@@ -84,27 +80,6 @@ abstract class SmokeTestAppExtension @Inject constructor(
       },
     )
 
-    val isCi = project.providers.environmentVariable("CI")
-      .map { it.equals("true", ignoreCase = true) }
-      .orElse(false)
-    initScripts.convention(
-      isCi.map {
-        if (it) {
-          listOf(PROXY_REPOSITORIES_INIT_SCRIPT)
-        } else {
-          emptyList()
-        }
-      },
-    )
-    gradleProperties.convention(
-      isCi.map {
-        if (it) {
-          proxyGradleProperties()
-        } else {
-          emptyMap()
-        }
-      },
-    )
   }
 
   /**
@@ -268,20 +243,6 @@ abstract class SmokeTestAppExtension @Inject constructor(
     )
   }
 
-  private fun proxyGradleProperties(): Map<String, String> {
-    val properties = mutableMapOf<String, String>()
-    addGradleProperty(properties, "gradlePluginProxy")
-    addGradleProperty(properties, "mavenRepositoryProxy")
-    return properties
-  }
-
-  private fun addGradleProperty(properties: MutableMap<String, String>, name: String) {
-    val value = project.providers.gradleProperty(name).orNull
-    if (!value.isNullOrBlank()) {
-      properties[name] = value
-    }
-  }
-
   private fun rootMavenExecutable(): Provider<RegularFile> =
     project.providers.provider {
       project.rootProject.layout.projectDirectory.file(NestedMavenBuild.mavenWrapperName())
@@ -351,7 +312,7 @@ abstract class GradleAppSpec @Inject constructor() : ApplicationSpec() {
    */
   abstract val buildCacheEnabled: Property<Boolean>
 
-  /** Timeout, in seconds, for stopping the nested Gradle daemon after the build. */
+  /** Timeout, in seconds, for each shutdown wait. See [NestedGradleBuild.stopTimeoutSeconds]. */
   abstract val stopTimeoutSeconds: Property<Long>
 }
 
@@ -398,7 +359,7 @@ abstract class MavenAppSpec @Inject constructor() : ApplicationSpec() {
  * because the Spring Boot Gradle plugin pre-3.5.0 calls `Configuration.getUploadTaskName()`,
  * removed in Gradle 9.
  */
-const val DEFAULT_NESTED_GRADLE_VERSION = "8.14.5"
+const val DEFAULT_NESTED_GRADLE_VERSION = "8.14.6"
 
 /**
  * Default JDK language version for the nested build. JDK 21 is the version the root build

@@ -1,6 +1,7 @@
 package controllers;
 
-import actions.*;
+import actions.Action1;
+import actions.Action2;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
@@ -9,8 +10,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import javax.inject.Inject;
 import play.Configuration;
-import play.libs.ws.*;
-import play.mvc.*;
+import play.libs.ws.WSClient;
+import play.mvc.Controller;
+import play.mvc.Result;
+import play.mvc.With;
 
 public class JController extends Controller {
 

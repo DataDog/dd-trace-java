@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.core.monitor.HealthMetrics;
 
 /**
@@ -92,7 +93,9 @@ final class CoreHandlers {
     for (PropertyCardinalityHandler h : handlers) {
       long numBlocked = h.reset();
       if (numBlocked > 0) {
-        healthMetrics.onTagCardinalityBlocked(h.statsDTag(), numBlocked);
+        String[] statsDTag = h.statsDTag();
+        healthMetrics.onTagCardinalityBlocked(statsDTag, numBlocked);
+        StatsMetrics.getInstance().onCollapsedSpans(statsDTag[0], numBlocked);
         reporter.record(h.name, numBlocked);
       }
     }

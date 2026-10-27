@@ -38,6 +38,8 @@ abstract class PekkoHttpClientInstrumentationTest extends HttpClientTest {
         }
         .toCompletableFuture()
         .get()
+      // Even an empty HEAD entity can carry a stream termination callback.
+      response.discardEntityBytes(system).completionStage().toCompletableFuture().get()
     } finally {
       // Since the spans are completed in an async callback, we need to wait here
       blockUntilChildSpansFinished(1)
@@ -73,14 +75,14 @@ abstract class PekkoHttpClientInstrumentationTest extends HttpClientTest {
         span {
           parent()
           operationName operation()
-          resourceName "pekko-http.client.request"
+          resourceName operation() // resource name is not set so defaults to operationName
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
           tags {
             "$Tags.COMPONENT" "pekko-http-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             errorTags(exception)
-            defaultTags()
+            defaultTags(false, false)
           }
         }
       }

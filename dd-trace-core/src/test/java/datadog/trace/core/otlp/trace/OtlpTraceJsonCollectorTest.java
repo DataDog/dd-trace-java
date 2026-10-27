@@ -13,10 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import datadog.json.JsonMapper;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -37,7 +40,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
+import org.mockito.AdditionalAnswers;
+import org.mockito.MockedStatic;
+import org.tabletest.junit.TableTest;
 
 /**
  * Tests for {@link OtlpTraceJsonCollector}, parsing the produced JSON back with {@link JsonMapper}
@@ -75,6 +82,209 @@ class OtlpTraceJsonCollectorTest {
     Set<String> attrKeys = attributeKeys(parsedSpan);
     assertTrue(attrKeys.contains("resource.name"));
     assertTrue(attrKeys.contains("operation.name"));
+  }
+
+  @Test
+  void tagsAreEmittedUnderTheirOpenTelemetryNameWhenOtelSemanticsEnabled() throws IOException {
+    // The JSON encoder is a second exporter of the same spans, so it must apply the registry's
+    // OpenTelemetry naming exactly as the protobuf one does: which transport protocol is configured
+    // must not change the attribute names a backend receives.
+    Set<String> attrKeys = collectTagsAttributeKeys(true);
+
+    assertTrue(
+        attrKeys.contains("http.request.method"),
+        "renamed tag must use its OpenTelemetry name; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("http.method"),
+        "renamed tag must not also appear under its Datadog name; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("url.query"),
+        "renamed tag must use its OpenTelemetry name; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("http.query.string"),
+        "renamed tag must not also appear under its Datadog name; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("network.peer.address"),
+        "renamed tag must use its OpenTelemetry name; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("network.client.ip"),
+        "renamed tag must not also appear under its Datadog name; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.address"),
+        "canonical OpenTelemetry tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.port"),
+        "canonical OpenTelemetry tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("custom.unregistered"),
+        "a tag the registry does not name passes through unchanged; got " + attrKeys);
+  }
+
+  @Test
+  void tagsAreEmittedUnderTheirDatadogNameWhenOtelSemanticsDisabled() throws IOException {
+    // The OpenTelemetry rename is opt-in: with the flag off, existing consumers must keep seeing
+    // Datadog names, not the OpenTelemetry ones.
+    Set<String> attrKeys = collectTagsAttributeKeys(false);
+
+    assertTrue(
+        attrKeys.contains("http.method"),
+        "tag must use its Datadog name when OTel semantics are disabled; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("http.request.method"),
+        "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
+            + attrKeys);
+    assertTrue(
+        attrKeys.contains("http.query.string"),
+        "tag must use its Datadog name when OTel semantics are disabled; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("url.query"),
+        "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
+            + attrKeys);
+    assertTrue(
+        attrKeys.contains("network.client.ip"),
+        "tag must use its Datadog name when OTel semantics are disabled; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("network.peer.address"),
+        "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
+            + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.address"),
+        "canonical tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("server.port"),
+        "canonical tag must pass through unchanged; got " + attrKeys);
+    assertTrue(
+        attrKeys.contains("custom.unregistered"),
+        "a tag the registry does not name passes through unchanged; got " + attrKeys);
+  }
+
+  @TableTest({
+    "scenario         | kind   | tag               | otelName            ",
+    "client hostname  | client | peer.hostname     | server.address      ",
+    "server hostname  | server | http.hostname     | server.address      ",
+    "server client ip | server | network.client.ip | network.peer.address",
+    "client peer port | client | peer.port         | server.port         ",
+    "server peer port | server | peer.port         | client.port         "
+  })
+  void aDirectionScopedTagIsEmittedUnderTheNameForTheSpansKind(
+      String kind, String tag, String otelName) throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
+      configMock.when(Config::get).thenReturn(config);
+
+      AgentSpan agentSpan = TRACER.startSpan("test", "op.directional");
+      agentSpan.setTag(SPAN_KIND, kind);
+      agentSpan.setTag(tag, "value");
+      agentSpan.finish();
+
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList((CoreSpan<?>) agentSpan));
+      Set<String> attrKeys = attributeKeys(onlySpan(collector.collectTraces()));
+
+      assertTrue(attrKeys.contains(otelName), "expected " + otelName + "; got " + attrKeys);
+      assertFalse(attrKeys.contains(tag), "expected no " + tag + "; got " + attrKeys);
+    }
+  }
+
+  @TableTest({
+    "scenario   | kind     | tag         | expectedPort",
+    "server tag | server   | server.port | 8080        ",
+    "client tag | client   | peer.port   | 8080        ",
+    "internal   | internal | server.port | 8080        "
+  })
+  void serverPortIsEmittedOnceInEveryDirection(String kind, String tag, long expectedPort)
+      throws IOException {
+    List<Object> ports = exportedServerPorts(kind, span -> span.setTag(tag, 8080));
+
+    assertEquals(1, ports.size(), "server.port must be emitted once; got " + ports);
+    assertEquals(String.valueOf(expectedPort), String.valueOf(ports.get(0)));
+  }
+
+  /**
+   * Ids are trusted: the server's own port written by id on a client span, beside peer.port (which
+   * is server.port there too), is exported twice rather than reconciled.
+   */
+  @Test
+  void aTagWrittenByIdOnTheWrongSideIsExportedAsWritten() throws IOException {
+    List<Object> ports =
+        exportedServerPorts(
+            "client",
+            span -> {
+              span.setTag(KnownTags.SERVER_PORT_ID, 8080);
+              span.setTag(KnownTags.PEER_PORT_ID, 443);
+            });
+
+    assertEquals(2, ports.size(), "got " + ports);
+  }
+
+  private static List<Object> exportedServerPorts(String kind, Consumer<AgentSpan> tagger)
+      throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
+      configMock.when(Config::get).thenReturn(config);
+
+      AgentSpan agentSpan = TRACER.startSpan("test", "op.serverPort");
+      agentSpan.setTag(SPAN_KIND, kind);
+      tagger.accept(agentSpan);
+      agentSpan.finish();
+
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList((CoreSpan<?>) agentSpan));
+      return attributeValues(onlySpan(collector.collectTraces()), "server.port");
+    }
+  }
+
+  @TableTest({
+    "Scenario | Kind    ",
+    "client   | client  ",
+    "producer | producer"
+  })
+  void outboundNetworkPeerAddressDoesNotSetClientIp(String kind) throws IOException {
+    AgentSpan agentSpan = TRACER.startSpan("test", "op.peer-address");
+    agentSpan.setTag(SPAN_KIND, kind);
+    agentSpan.setTag("network.peer.address", "192.0.2.10");
+    agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
+    agentSpan.finish();
+
+    assertEquals("192.0.2.10", agentSpan.getTag("network.peer.address"));
+    assertNull(agentSpan.getTag("network.client.ip"));
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) agentSpan));
+    Set<String> attrKeys = attributeKeys(onlySpan(collector.collectTraces()));
+
+    assertTrue(attrKeys.contains("network.peer.address"));
+    assertFalse(attrKeys.contains("network.client.ip"));
+  }
+
+  private static Set<String> collectTagsAttributeKeys(boolean otelSemanticsEnabled)
+      throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(otelSemanticsEnabled);
+      configMock.when(Config::get).thenReturn(config);
+
+      AgentSpan agentSpan = TRACER.startSpan("test", "op.tagged");
+      agentSpan.setTag(SPAN_KIND, SPAN_KIND_SERVER);
+      agentSpan.setResourceName("GET /api");
+      agentSpan.setTag("http.method", "GET");
+      agentSpan.setTag(otelSemanticsEnabled ? "url.query" : "http.query.string", "view=full");
+      agentSpan.setTag("network.client.ip", "192.0.2.10");
+      agentSpan.setTag("server.address", "example.com");
+      agentSpan.setTag("server.port", 443);
+      agentSpan.setTag("custom.unregistered", "value");
+      agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
+      agentSpan.finish();
+
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList((CoreSpan<?>) agentSpan));
+      return attributeKeys(onlySpan(collector.collectTraces()));
+    }
   }
 
   @Test
@@ -118,15 +328,16 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @Test
-  void spanTraceStateOmittedWhenNotPropagated() throws IOException {
+  void spanTraceStateIncludesDefaultProbabilityDecision() throws IOException {
     DDSpan span = startAndFinish("op.notracestate", "GET /no-tracestate", null);
 
     OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
     collector.addTrace(asList((CoreSpan<?>) span));
     Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
 
-    assertFalse(
-        parsedSpan.containsKey("traceState"), "no W3C tracestate propagated should be omitted");
+    assertTrue(
+        parsedSpan.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:0"),
+        parsedSpan.get("traceState").toString());
   }
 
   @Test
@@ -150,7 +361,9 @@ class OtlpTraceJsonCollectorTest {
     collector.addTrace(asList((CoreSpan<?>) agentSpan));
     Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
 
-    assertEquals("vendor=state", parsedSpan.get("traceState"));
+    assertTrue(
+        parsedSpan.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:0,vendor=state"),
+        parsedSpan.get("traceState").toString());
   }
 
   @Test
@@ -179,6 +392,46 @@ class OtlpTraceJsonCollectorTest {
     Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
 
     assertEquals(SAMPLED_TRACE_FLAG, ((Number) parsedSpan.get("flags")).intValue());
+  }
+
+  @Test
+  void traceStateAndFlagsStayPairedAcrossSamplingDecisions() throws IOException {
+    Map<String, Object> localFallback = exportSamplingSpan(localProbabilitySpan(1.0, true));
+    assertTrue(localFallback.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:0"));
+    assertEquals(SAMPLED_TRACE_FLAG, ((Number) localFallback.get("flags")).intValue());
+
+    Map<String, Object> inherited = exportSamplingSpan(inheritedSamplingSpan());
+    assertEquals("dd=s:1,ot=rv:ef284ace7a91e1;th:8,vendor=state", inherited.get("traceState"));
+    assertEquals(SAMPLED_TRACE_FLAG, ((Number) inherited.get("flags")).intValue());
+
+    Map<String, Object> probabilityDrop = exportSamplingSpan(localProbabilitySpan(0.0, false));
+    assertTrue(
+        probabilityDrop
+            .get("traceState")
+            .toString()
+            .matches("ot=rv:[0-9a-f]{14};th:ffffffffffffff"));
+    assertFalse(probabilityDrop.containsKey("flags"));
+
+    DDSpan limiterDrop = localSamplingSpan();
+    limiterDrop
+        .spanContext()
+        .getPropagationTags()
+        .tryUpdateProbabilitySamplingDecision(
+            PrioritySampling.SAMPLER_DROP,
+            SamplingMechanism.AGENT_RATE,
+            1.0,
+            true,
+            limiterDrop.getTraceId().toLong(),
+            true);
+    Map<String, Object> limiter = exportSamplingSpan(limiterDrop);
+    assertNull(limiter.get("traceState"));
+    assertFalse(limiter.containsKey("flags"));
+
+    DDSpan nonProbabilityKeep = localProbabilitySpan(0.0, false);
+    nonProbabilityKeep.spanContext().getPropagationTags().forceKeep(SamplingMechanism.MANUAL);
+    Map<String, Object> nonProbability = exportSamplingSpan(nonProbabilityKeep);
+    assertNull(nonProbability.get("traceState"));
+    assertEquals(SAMPLED_TRACE_FLAG, ((Number) nonProbability.get("flags")).intValue());
   }
 
   @Test
@@ -283,6 +536,54 @@ class OtlpTraceJsonCollectorTest {
     return (DDSpan) agentSpan;
   }
 
+  private static DDSpan localSamplingSpan() {
+    AgentSpan span = TRACER.startSpan("test", "op.sampling");
+    span.setResourceName("op.sampling");
+    return (DDSpan) span;
+  }
+
+  private static DDSpan localProbabilitySpan(double rate, boolean sampled) {
+    DDSpan span = localSamplingSpan();
+    span.spanContext()
+        .getPropagationTags()
+        .tryUpdateProbabilitySamplingDecision(
+            sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP,
+            SamplingMechanism.AGENT_RATE,
+            rate,
+            false,
+            span.getTraceId().toLong(),
+            true);
+    return span;
+  }
+
+  private static DDSpan inheritedSamplingSpan() {
+    PropagationTags propagationTags =
+        PropagationTags.factory()
+            .fromHeaderValue(
+                PropagationTags.HeaderType.W3C, "dd=s:1,vendor=state,ot=rv:ef284ace7a91e1;th:8");
+    ExtractedContext parent =
+        new ExtractedContext(
+            DDTraceId.ONE,
+            0L,
+            PrioritySampling.SAMPLER_KEEP,
+            null,
+            propagationTags,
+            TracePropagationStyle.TRACECONTEXT);
+    AgentSpan span = TRACER.startSpan("test", "op.inherited", parent);
+    span.setResourceName("op.inherited");
+    return (DDSpan) span;
+  }
+
+  private static Map<String, Object> exportSamplingSpan(DDSpan span) throws IOException {
+    if (span.getSamplingPriority() <= 0) {
+      span.setTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
+    }
+    span.finish();
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) span));
+    return onlySpan(collector.collectTraces());
+  }
+
   @SuppressWarnings("unchecked")
   private static Map<String, Object> onlySpan(OtlpPayload payload) throws IOException {
     List<Map<String, Object>> spans = allSpans(payload);
@@ -315,6 +616,18 @@ class OtlpTraceJsonCollectorTest {
     List<Object> links = (List<Object>) span.get("links");
     assertEquals(1, links.size());
     return (Map<String, Object>) links.get(0);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Object> attributeValues(Map<String, Object> span, String key) {
+    List<Object> values = new ArrayList<>();
+    for (Object attribute : (List<Object>) span.get("attributes")) {
+      Map<String, Object> entry = (Map<String, Object>) attribute;
+      if (key.equals(entry.get("key"))) {
+        values.add(((Map<String, Object>) entry.get("value")).values().iterator().next());
+      }
+    }
+    return values;
   }
 
   @SuppressWarnings("unchecked")

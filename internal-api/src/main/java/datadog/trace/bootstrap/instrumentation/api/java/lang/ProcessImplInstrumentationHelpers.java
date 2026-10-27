@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api.java.lang;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingException;
@@ -172,7 +171,7 @@ public class ProcessImplInstrumentationHelpers {
         }
       }
 
-      final ContextContinuation continuation = captureActiveSpan();
+      final ContextContinuation continuation = Context.current().capture();
       future.whenComplete(
           (process, thr) -> {
             if (thr != null) {
@@ -183,7 +182,7 @@ public class ProcessImplInstrumentationHelpers {
             finishSpan(continuation, span);
           });
     } else if (EXECUTOR != null) {
-      final ContextContinuation continuation = captureActiveSpan();
+      final ContextContinuation continuation = Context.current().capture();
       EXECUTOR.execute(
           () -> {
             try {
@@ -241,11 +240,9 @@ public class ProcessImplInstrumentationHelpers {
       Flow<Void> flow = execCmdCallback.apply(ctx, cmdArray);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
-        BlockResponseFunction brf = ctx.getBlockResponseFunction();
-        if (brf != null) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
-        }
+        commitBlockingResponse(ctx, (Flow.Action.RequestBlockingAction) action);
+        // Thrown even without a BlockResponseFunction: RASP must abort the exec attempt even when
+        // no blocking response can be committed.
         throw new BlockingException("Blocked request (for CMDI attempt)");
       }
     } catch (final BlockingException e) {
@@ -254,6 +251,14 @@ public class ProcessImplInstrumentationHelpers {
     } catch (final Throwable e) {
       // suppress anything else
       LOGGER.debug("Exception during CMDI rasp callback", e);
+    }
+  }
+
+  private static void commitBlockingResponse(
+      RequestContext ctx, Flow.Action.RequestBlockingAction rba) {
+    BlockResponseFunction brf = ctx.getBlockResponseFunction();
+    if (brf != null) {
+      brf.tryCommitBlockingResponse(ctx, rba);
     }
   }
 
@@ -292,11 +297,9 @@ public class ProcessImplInstrumentationHelpers {
       Flow<Void> flow = shellCmdCallback.apply(ctx, cmd);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
-        BlockResponseFunction brf = ctx.getBlockResponseFunction();
-        if (brf != null) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
-        }
+        commitBlockingResponse(ctx, (Flow.Action.RequestBlockingAction) action);
+        // Thrown even without a BlockResponseFunction: RASP must abort the shell command attempt
+        // even when no blocking response can be committed.
         throw new BlockingException("Blocked request (for SHI attempt)");
       }
     } catch (final BlockingException e) {

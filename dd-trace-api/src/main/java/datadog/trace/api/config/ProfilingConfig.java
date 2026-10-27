@@ -131,6 +131,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL =
       "profiling.experimental.ddprof.scheduling.event.interval";
 
+  public static final String PROFILING_DATADOG_PROFILER_OPTIONS =
+      "profiling.experimental.ddprof.options";
+
   public static final String PROFILING_PROCESS_CONTEXT_ENABLED =
       "profiling.experimental.process_context.enabled";
   public static final boolean PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT = true;
@@ -186,6 +189,12 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL =
       "profiling.experimental.ddprof.nativemem.interval";
   public static final int PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL_DEFAULT = 512 * 1024;
+
+  public static final String PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED =
+      "profiling.experimental.ddprof.nativesocket.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_NATIVESOCKET_INTERVAL =
+      "profiling.experimental.ddprof.nativesocket.interval";
 
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";

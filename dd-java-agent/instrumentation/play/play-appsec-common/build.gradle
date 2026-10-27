@@ -1,3 +1,7 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
-
+dependencies {
+  testImplementation libs.bundles.mockito
+}

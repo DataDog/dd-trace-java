@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.PortUtils
 import org.testcontainers.containers.RabbitMQContainer
+import org.testcontainers.utility.DockerImageName
 import rabbit.MessagingRabbitMQApplication
 import rabbit.Receiver
 import rabbit.Sender
@@ -17,7 +18,9 @@ class SpringAmqpTest extends InstrumentationSpecification {
 
   @Override
   def setupSpec() {
-    rabbit = new RabbitMQContainer("rabbitmq:3.9.20-alpine")
+    rabbit = new RabbitMQContainer(
+      DockerImageName.parse(System.getProperty("test.rabbitmq.image"))
+      .asCompatibleSubstituteFor("rabbitmq"))
     rabbit.start()
     def hostName = rabbit.getHost()
     def port = rabbit.getMappedPort(MessagingRabbitMQApplication.port)

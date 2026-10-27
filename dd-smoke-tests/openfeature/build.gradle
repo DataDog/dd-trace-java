@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Open Feature provider Smoke Tests.'
 
@@ -16,12 +15,11 @@ smokeTestApp {
     artifactPath = 'libs/openfeature-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
   }
-  projectJar('featureFlaggingApiJar', project(':products:feature-flagging:feature-flagging-api'))
+  projectJar('featureFlaggingApiJar', project(':dd-openfeature'))
 }
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
-  testImplementation project(':products:feature-flagging:feature-flagging-lib')
 }
 
 spotless {

@@ -6,8 +6,11 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.isFalse;
 import static datadog.trace.test.junit.utils.assertions.Matchers.isTrue;
 import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
 import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
+import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.agent.decoder.DecodedSpanEvent;
+import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.junit.utils.assertions.Matcher;
 import java.util.HashMap;
 import java.util.List;
@@ -18,7 +21,7 @@ import java.util.regex.Pattern;
 
 /**
  * The class is a helper class to verify span attributes on the {@link DecodedSpan} model produced
- * by both smoke backends (the in-process mock agent and the dd-apm-test-agent).
+ * by smoke backends.
  *
  * <p>To get a {@code SpanMatcher}, use the static factory method {@link #span()} and use it as a
  * fluent builder to define the span matching constraints.
@@ -37,6 +40,8 @@ import java.util.regex.Pattern;
  *   <li>span meta (string) tags with {@link #tag(String, Matcher)} and {@link #tag(String, String)}
  *   <li>span metrics (numeric) tags with {@link #metric(String, Matcher)}
  *   <li>span meta_struct (nested structured data) with {@link #metaStruct(String, Matcher)}
+ *   <li>span links with {@link #links(SpanLinkMatcher...)}
+ *   <li>span events with {@link #events(SpanEventMatcher...)}
  * </ul>
  */
 public final class SpanMatcher {
@@ -47,6 +52,8 @@ public final class SpanMatcher {
   private Matcher<Boolean> errorMatcher;
   private Matcher<Long> parentIdMatcher;
   private int parentSpanIndex;
+  private SpanLinkMatcher[] linkMatchers;
+  private SpanEventMatcher[] eventMatchers;
   private final Map<String, Matcher<String>> metaMatchers;
   private final Map<String, Matcher<Number>> metricMatchers;
   private final Map<String, Matcher<?>> metaStructMatchers;
@@ -217,6 +224,34 @@ public final class SpanMatcher {
   }
 
   /**
+   * Checks the span links, one {@link SpanLinkMatcher} per expected link, matched positionally and
+   * count-exact. Call it with no argument to assert the span carries no link at all; not calling it
+   * asserts nothing about links.
+   *
+   * @param matchers The matchers to verify the span links, one per expected link.
+   * @return The current {@link SpanMatcher} instance updated with the specified span link
+   *     constraints.
+   */
+  public SpanMatcher links(SpanLinkMatcher... matchers) {
+    this.linkMatchers = matchers;
+    return this;
+  }
+
+  /**
+   * Checks the span events, one {@link SpanEventMatcher} per expected event, matched positionally
+   * and count-exact. Call it with no argument to assert the span carries no event at all; not
+   * calling it asserts nothing about events.
+   *
+   * @param matchers The matchers to verify the span events, one per expected event.
+   * @return The current {@link SpanMatcher} instance updated with the specified span event
+   *     constraints.
+   */
+  public SpanMatcher events(SpanEventMatcher... matchers) {
+    this.eventMatchers = matchers;
+    return this;
+  }
+
+  /**
    * Checks the span meta (string) tag matches the given matcher.
    *
    * @param name The name of the meta tag to match against.
@@ -279,6 +314,8 @@ public final class SpanMatcher {
     assertSpanTags(span.getMeta());
     assertSpanMetrics(span.getMetrics());
     assertSpanMetaStruct(span.getMetaStruct());
+    assertSpanLinks(trace, span);
+    assertSpanEvents(span);
   }
 
   private Matcher<Long> parentIdMatcher(List<DecodedSpan> trace, int spanIndex) {
@@ -291,6 +328,40 @@ public final class SpanMatcher {
       return is(trace.get(spanIndex - 1).getSpanId());
     } else {
       return this.parentIdMatcher;
+    }
+  }
+
+  private void assertSpanLinks(List<DecodedSpan> trace, DecodedSpan span) {
+    if (this.linkMatchers == null) {
+      return;
+    }
+    List<DecodedSpanLink> links = span.getLinks();
+    if (links.size() != this.linkMatchers.length) {
+      assertionFailure()
+          .message("Unexpected span link count")
+          .expected(this.linkMatchers.length)
+          .actual(links.size())
+          .buildAndThrow();
+    }
+    for (int i = 0; i < this.linkMatchers.length; i++) {
+      this.linkMatchers[i].assertLink(trace, links.get(i), i);
+    }
+  }
+
+  private void assertSpanEvents(DecodedSpan span) {
+    if (this.eventMatchers == null) {
+      return;
+    }
+    List<DecodedSpanEvent> events = span.getEvents();
+    if (events.size() != this.eventMatchers.length) {
+      assertionFailure()
+          .message("Unexpected span event count")
+          .expected(this.eventMatchers.length)
+          .actual(events.size())
+          .buildAndThrow();
+    }
+    for (int i = 0; i < this.eventMatchers.length; i++) {
+      this.eventMatchers[i].assertEvent(span, events.get(i), i);
     }
   }
 

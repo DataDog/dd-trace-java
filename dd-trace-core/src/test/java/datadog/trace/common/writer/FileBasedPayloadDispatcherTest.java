@@ -1,9 +1,11 @@
 package datadog.trace.common.writer;
 
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -52,7 +54,7 @@ class FileBasedPayloadDispatcherTest {
     FileBasedPayloadDispatcher dispatcher =
         new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
 
-    dispatcher.addTrace(Collections.emptyList());
+    dispatcher.addTrace(emptyList());
     dispatcher.flush();
 
     assertTrue(listFiles(outputDir).isEmpty());
@@ -305,15 +307,19 @@ class FileBasedPayloadDispatcherTest {
             Thread.currentThread().getId(),
             null,
             TagMap.fromMap(tags),
+            TagMap.EMPTY,
+            TagMap.EMPTY,
             Collections.<String, String>emptyMap(),
             0,
             false,
             false,
-            null,
+            0,
             null,
             0,
             null,
-            null);
+            null,
+            emptyList(),
+            emptyList());
     doAnswer(
             inv -> {
               MetadataConsumer consumer = inv.getArgument(0);
@@ -321,7 +327,7 @@ class FileBasedPayloadDispatcherTest {
               return null;
             })
         .when(span)
-        .processTagsAndBaggage(any(MetadataConsumer.class));
+        .processTagsAndBaggage(any(MetadataConsumer.class), anyInt());
 
     return span;
   }

@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -16,23 +17,33 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class OutputThreads implements Closeable {
   private static final long THREAD_JOIN_TIMEOUT_MILLIS = 10 * 1000;
-  public static final int MAX_LINE_SIZE = 1024 * 1024;
+  private static final int MAX_LINE_SIZE = 1024 * 1024;
+  private static final int DEFAULT_TIMEOUT_MILLIS = 10_000;
 
-  final ThreadGroup tg = new ThreadGroup("smoke-output");
+  final ThreadGroup tg;
   final List<String> testLogMessages = new ArrayList<>();
+
+  public OutputThreads() {
+    this(new ThreadGroup("smoke-output"));
+  }
+
+  @VisibleForTesting
+  OutputThreads(ThreadGroup tg) {
+    this.tg = tg;
+  }
 
   public void close() {
     tg.interrupt();
     Thread[] threads = new Thread[tg.activeCount()];
-    tg.enumerate(threads);
+    int threadCount = tg.enumerate(threads);
 
-    for (Thread thread : threads) {
+    for (int i = 0; i < threadCount; i++) {
       try {
-        thread.join(THREAD_JOIN_TIMEOUT_MILLIS);
+        threads[i].join(THREAD_JOIN_TIMEOUT_MILLIS);
       } catch (InterruptedException e) {
         // ignore
       }
@@ -127,11 +138,24 @@ public class OutputThreads implements Closeable {
 
   /**
    * Tries to find a log line that matches the given predicate. After reading all the log lines
-   * already collected, it will wait up to 5 seconds for a new line matching the predicate.
+   * already collected, it will wait up to 10 seconds for a new line matching the predicate.
    *
-   * @param checker should return true if a match is found
+   * @param predicate should return {@code true} if a match is found, {@code false} otherwise.
    */
-  public boolean processTestLogLines(Function<String, Boolean> checker) throws TimeoutException {
+  public boolean processTestLogLines(Predicate<String> predicate) throws TimeoutException {
+    return processTestLogLines(predicate, DEFAULT_TIMEOUT_MILLIS);
+  }
+
+  /**
+   * Tries to find a log line that matches the given predicate. After reading all the log lines
+   * already collected, it will wait up to #timeoutMillis milliseconds for a new line matching the
+   * predicate.
+   *
+   * @param predicate should return {@code true} if a match is found, {@code false} otherwise.
+   * @param timeoutMillis The timeout to wait for the log line, in milliseconds.
+   */
+  public boolean processTestLogLines(Predicate<String> predicate, long timeoutMillis)
+      throws TimeoutException {
     int l = 0;
     long waitStart = 0;
 
@@ -141,13 +165,16 @@ public class OutputThreads implements Closeable {
         if (l >= testLogMessages.size()) {
           long waitTime;
           if (waitStart != 0) {
-            waitTime = 10000 - (System.currentTimeMillis() - waitStart);
-            if (waitTime < 0) {
+            waitTime = timeoutMillis - (System.currentTimeMillis() - waitStart);
+            if (waitTime <= 0) {
               throw new TimeoutException();
             }
           } else {
             waitStart = System.currentTimeMillis();
-            waitTime = 10000;
+            if (timeoutMillis <= 0) {
+              throw new TimeoutException();
+            }
+            waitTime = timeoutMillis;
           }
           try {
             testLogMessages.wait(waitTime);
@@ -162,7 +189,7 @@ public class OutputThreads implements Closeable {
         msg = testLogMessages.get(l++);
       }
 
-      if (checker.apply(msg)) {
+      if (predicate.test(msg)) {
         return true;
       }
     }

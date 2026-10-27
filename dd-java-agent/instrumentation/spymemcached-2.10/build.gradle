@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
+}
+
 muzzle {
   pass {
     group = "net.spy"
@@ -6,8 +11,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
@@ -18,6 +21,7 @@ tasks.named("latestDepTest", Test) {
 
 dependencies {
   compileOnly group: 'net.spy', name: 'spymemcached', version: '2.10.4'
+  testContainerImage(image('library/memcached:1.6.14-alpine', 'test.memcached.image'))
 
   testImplementation group: 'net.spy', name: 'spymemcached', version: '2.10.4'
   testImplementation libs.testcontainers

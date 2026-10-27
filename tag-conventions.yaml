@@ -1,0 +1,517 @@
+# Tag conventions — LANGUAGE-AGNOSTIC domain spec (structure + semantics only)
+# ---------------------------------------------------------------------------
+# The code generator consumes THIS file to emit each language's tag-id constants and its
+# id<->name resolver. A tag id is IDENTITY (a globally unique serial + the trace-level bit);
+# storage layout (the dense store's slot assignment) and set-path routing (which keys the tracer
+# intercepts into span fields or sampling directives) are per-language concerns that arrive with
+# the code that consumes them, via a per-language overlay alongside this file.
+#
+# TRACE-LEVEL is its own thing (its own TagMap "type" on the TraceSegment) — the process/trace
+# constants + product flags that are set once per trace, NOT per span. Declared explicitly in the
+# `trace_level` section below (a distinct tier), never inferred from `source`.
+#
+# SPAN TYPES compose three ways:
+#   extends  — structural is-a inheritance (http.server is-a http is-a base). `base` is implicitly
+#              in every span; abstract layers exist only to be extended.
+#   include  — a span type PULLS in a mixin it intrinsically has (has-a; core-owned).
+#   applies  — a mixin PUSHES itself onto span types, gated by `enabled_by`.
+#   resolved_tags(type) = own + extends-chain (incl base) + included mixins + applied mixins (de-duped).
+# A span type may declare `span-kind` (server|client|producer|consumer|internal), inherited through
+# `extends`. It sets the type's DIRECTION: server/consumer spans are inbound, client/producer spans are
+# outbound, internal spans have none. A mixin may declare one too: a directional mixin may only reach
+# span types of its direction.
+#
+# tag fields (DOMAIN only): dd-name | type (string|int|long|boolean|double)
+#   | required (required|conditional|recommended|optional|opt_in) | otel-name.
+# dd-name is the canonical Datadog-namespace name AND the tag's identity. otel-name is OPTIONAL and
+# tri-state:
+#   - absent          => the OpenTelemetry name is IMPLICITLY the dd-name (the tag passes through under
+#                        its Datadog name; this is the RFC "retain" default for tags with no rename).
+#   - a name          => rename: the tag is emitted under that OpenTelemetry-namespace name instead.
+#   - the literal none => Datadog-only: the tag has NO OpenTelemetry name (suppressed from OTel). This
+#                        value is reserved — no tag uses it today (the RFC renames or retains, never
+#                        suppresses), and real suppression is a follow-on; it currently behaves as
+#                        pass-through.
+# A tag is one identity across span types/mixins, so it is DECLARED exactly once — a second declaration
+# fails the build. Put a tag shared by several span types on their common parent or a mixin; any other
+# span type that carries it uses `{ ref: <dd-name>, required: <level> }`, which may override only
+# `required` (type and otel-name come from the one declaration).
+# OpenTelemetry names can depend on direction: `server.address` is the local host on an inbound span
+# but the remote one on an outbound span. So an OpenTelemetry name is unique PER DIRECTION, not
+# globally, and where a rename is declared scopes it: in a scope without a span-kind (trace_level, an
+# abstract type, a plain mixin) it applies in every direction; in a directional scope, only in that
+# direction.
+# A tag whose MEANING flips with direction, like peer.port (the server's port on an outbound span, the
+# client's on an inbound one), is declared once per direction, each in a directional mixin. The
+# declarations merge into ONE tag with one id; only its OpenTelemetry name depends on the span's
+# direction. Any other repeated declaration is still an error.
+# A directional rename may also be another tag's Datadog name: server.port is peer.port on outbound
+# spans, and its own tag (the server's port) in every other direction.
+# The tracer core resolves names without a direction, so only renames that apply in every direction
+# resolve a name to a tag there. A directional rename, including one under `span-kind: internal`, is
+# applied when a span's tags are emitted under OpenTelemetry names, and by the OpenTelemetry API,
+# which knows its span's kind. Instrumentation that knows its direction writes by id, through
+# KnownTags.Inbound / Outbound / Internal.
+# `span-kind-neutral: true` widens a directional rename to every direction -- the author's assertion
+# that OTel only uses that name for this tag (db.system, say, only ever names a database). It is
+# interim, and goes away once resolution is direction-aware. A rename on a concrete type with no
+# span-kind still requires it.
+# The id coordinate (group-decl / field-decl) is NOT authored here — the generator assigns it: each
+# declaration source (the trace-level tier, each span type, each mixin) is a group, and within a
+# group `field-decl` numbers the dense (required/conditional/recommended) tags; the rest are
+# bucketed. See the design doc.
+# ---------------------------------------------------------------------------
+
+# Trace-level tier: its own TagMap on the TraceSegment. Two kinds of tag, neither per span: facts that
+# are static for the process (language, runtime-id, the product .enabled flags), and values common to
+# every span of a trace (the local root span's tags, e.g. the attribute schema version).
+# (Their OTel mapping is a resource-attribute follow-on; they pass through under dd-name for now.)
+trace_level:
+  tags:
+    - { dd-name: _dd.base_service,       type: string,  required: required }
+    - { dd-name: version,                type: string,  required: recommended }
+    - { dd-name: env,                    type: string,  required: recommended }
+    - { dd-name: language,               type: string,  required: required }
+    - { dd-name: runtime-id,             type: string,  required: required }
+    - { dd-name: _dd.tracer_host,        type: string,  required: recommended }
+    - { dd-name: _dd.git.commit.sha,     type: string,  required: recommended }
+    - { dd-name: _dd.git.repository_url, type: string,  required: recommended }
+    # product .enabled flags — process-constant; present on the trace segment regardless of whether
+    # the product is enabled (the flag carries the state), so always-present => recommended.
+    - { dd-name: _dd.profiling.enabled,  type: boolean, required: recommended }
+    - { dd-name: _dd.dsm.enabled,        type: boolean, required: recommended }
+    - { dd-name: _dd.appsec.enabled,     type: boolean, required: recommended }
+    - { dd-name: _dd.djm.enabled,        type: boolean, required: recommended }
+    - { dd-name: _dd.civisibility.enabled, type: boolean, required: recommended }
+    - { dd-name: _dd.apm.enabled,        type: int,     required: optional }     # 0 on every span, only when APM tracing is disabled
+    # local root span tags
+    - { dd-name: _dd.trace_span_attribute_schema, type: int, required: required }
+    - { dd-name: _dd.profiling.ctx,      type: string,  required: optional }     # once the profiling context integration is available
+    - { dd-name: process_id,             type: long,    required: required }
+    - { dd-name: ai_guard.event,         type: boolean, required: optional }     # when the trace holds an AI Guard evaluation span
+
+span_types:
+  # root: per-span tags every span has (incl. the per-span core tags parent_id / integration / svc_src
+  # — core-set but per-span, so NOT trace-level).
+  base:
+    abstract: true
+    tags:
+      - { dd-name: _dd.parent_id,   type: string, required: required }
+      - { dd-name: service,         type: string, required: required,    otel-name: service.name }
+      - { dd-name: component,       type: string, required: required }
+      - { dd-name: span.kind,       type: string, required: required }     # OTel span kind is a first-class field, not an attribute
+      - { dd-name: _dd.integration, type: string, required: recommended }
+      - { dd-name: _dd.svc_src,     type: string, required: optional }
+      - { dd-name: error.type,      type: string, required: recommended }  # TODO(otel): map error.* to exception.* semconv
+      - { dd-name: error.message,   type: string, required: recommended }
+      - { dd-name: error.stack,     type: string, required: recommended }
+      - { dd-name: _dd.span_links,  type: string, required: optional }  # JSON; only for a span with links, when links are injected as tags
+      - { dd-name: events,          type: string, required: optional }  # span events as JSON, when the writer can't encode them natively
+
+  http:
+    abstract: true
+    extends: base
+    tags:
+      - { dd-name: http.method,                  type: string, required: required,    otel-name: http.request.method }
+      - { dd-name: http.request.method_original, type: string, required: conditional }  # OTel-only; set only while OTel semantics are enabled
+      - { dd-name: http.status_code,             type: int,    required: conditional, otel-name: http.response.status_code }
+      - { dd-name: network.protocol.version,     type: string, required: recommended }  # passes through: dd-name already is the OTel name
+      - { dd-name: http.url,                     type: string, required: required,    otel-name: url.full }
+      - { dd-name: http.fragment.string,         type: string, required: optional }  # only when query strings are tagged
+      - { dd-name: http.endpoint,                type: string, required: optional }  # simplified endpoint, when resource renaming is on  # shared by http.server and http.client => one otel-name. url.full is the client-correct rename; server's spec mapping (url.path + url.scheme + url.query) is a one-to-many split reserved for the derivation layer (needs span.kind). TODO(otel): server split.
+
+  http.server:
+    extends: http
+    span-kind: server
+    include: [ peer_address, inbound_peer ]
+    tags:
+      - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
+      - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }  # inbound only; on outbound spans server.address is peer.hostname
+      - { dd-name: server.port,       type: int,    required: conditional }  # the server's own port; on outbound spans server.port is peer.port
+      - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original, span-kind-neutral: true }
+      - { dd-name: url.path,          type: string, required: conditional }  # OTel-only; server replacement for http.url
+      - { dd-name: url.scheme,        type: string, required: conditional }  # OTel-only; server replacement for http.url
+      - { dd-name: http.query.string, type: string, required: recommended }
+      - { dd-name: url.query,         type: string, required: conditional }  # OTel-only; kept separate from http.query.string
+      - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address, span-kind-neutral: true }
+      # Inbound only: the client's socket address. Server spans also carry that address in peer.ipv4 /
+      # peer.ipv6, so do not map those inbound too, or the attribute is exported twice.
+      - { dd-name: network.client.ip, type: string, required: recommended, otel-name: network.peer.address }
+      # Forwarding headers, when client IPs are tagged and the header is present.
+      - { dd-name: http.forwarded,       type: string, required: optional }
+      - { dd-name: http.forwarded.proto, type: string, required: optional }
+      - { dd-name: http.forwarded.host,  type: string, required: optional }
+      - { dd-name: http.forwarded.ip,    type: string, required: optional }
+      - { dd-name: http.forwarded.port,  type: string, required: optional }
+      # Security-testing request headers, when present. Fixed members of the http.request.headers.<header>
+      # family, which the security-testing code always checks for.
+      - { dd-name: http.request.headers.x-datadog-endpoint-scan, type: string, required: optional }
+      - { dd-name: http.request.headers.x-datadog-security-test, type: string, required: optional }
+
+  http.client:
+    extends: http
+    span-kind: client
+    include: [ peer, peer_address, outbound_peer ]
+    tags:
+      - { dd-name: http.resend_count, type: int,    required: recommended }
+
+  # AWS SDK calls: HTTP client spans, one type per AWS service (a span never carries two services'
+  # tags). aws.client itself covers the services not modeled below. The request tags shared with SQS
+  # consumer spans are the aws_request mixin.
+  aws.client:
+    extends: http.client
+
+  aws.s3:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.bucket.name,   type: string, required: optional }
+      - { dd-name: bucketname,        type: string, required: optional }
+      - { dd-name: aws.object.key,    type: string, required: optional }
+      - { dd-name: aws.storage.class, type: string, required: optional }
+      # Data Streams payload sizes, when Data Streams is enabled.
+      - { dd-name: http.request_content_length,  type: long, required: optional }
+      - { dd-name: http.response_content_length, type: long, required: optional }
+      # Span pointer input, removed before serialization (SpanPointersProcessor).
+      - { dd-name: s3.eTag,           type: string, required: optional }
+
+  aws.sqs:
+    extends: aws.client
+
+  aws.sns:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.topic.arn,  type: string, required: optional }
+      - { dd-name: aws.topic.name, type: string, required: optional }
+      - { dd-name: topicname,      type: string, required: optional }
+
+  aws.kinesis:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.stream.name, type: string, required: optional }
+      - { dd-name: streamname,      type: string, required: optional }
+      - { dd-name: aws.stream.arn,  type: string, required: optional }
+
+  aws.dynamodb:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.table.name, type: string, required: optional }
+      - { dd-name: tablename,      type: string, required: optional }
+      # Span pointer input, removed before serialization (SpanPointersProcessor).
+      - { dd-name: dynamodb.primary_key_1,       type: string, required: optional }
+      - { dd-name: dynamodb.primary_key_1_value, type: string, required: optional }
+      - { dd-name: dynamodb.primary_key_2,       type: string, required: optional }
+      - { dd-name: dynamodb.primary_key_2_value, type: string, required: optional }
+
+  aws.sfn:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.state_machine.arn, type: string, required: optional }
+      - { dd-name: aws.execution.arn,     type: string, required: optional }
+
+  aws.lambda:
+    extends: aws.client
+    tags:
+      - { dd-name: aws.function.name, type: string, required: optional }
+      - { dd-name: aws.function.arn,  type: string, required: optional }  # when the function is named by ARN
+
+  db.client:
+    extends: base
+    span-kind: client
+    include: [ peer, peer_address, outbound_peer ]
+    tags:
+      - { dd-name: db.type,      type: string, required: required,    otel-name: db.system, span-kind-neutral: true }
+      - { dd-name: db.instance,  type: string, required: recommended }  # TODO(otel): db.namespace
+      - { dd-name: db.operation, type: string, required: recommended, otel-name: db.operation.name, span-kind-neutral: true }
+      - { dd-name: db.user,      type: string, required: recommended }
+      - { dd-name: db.statement, type: string, required: recommended, otel-name: db.query.text, span-kind-neutral: true }
+      # A command's outcome (Redis, Memcached).
+      - { dd-name: db.command.cancelled,     type: boolean, required: optional }
+      - { dd-name: db.command.results.count, type: int,     required: optional }
+
+  # Relational databases (JDBC, R2DBC).
+  db.sql:
+    extends: db.client
+    tags:
+      - { dd-name: db.pool.name, type: string, required: optional }
+      - { dd-name: db.schema,    type: string, required: optional }
+      - { dd-name: db.warehouse, type: string, required: optional }
+
+  db.cassandra:
+    extends: db.client
+    tags:
+      - { dd-name: db.cassandra.contact.points, type: string, required: optional }
+
+  db.couchbase:
+    extends: db.client
+    tags:
+      - { dd-name: db.couchbase.seed.nodes, type: string, required: optional }
+      - { dd-name: bucket,                  type: string, required: optional }
+      - { dd-name: couchbase.operation_id,  type: string, required: optional }
+
+  db.redis:
+    extends: db.client
+    tags:
+      - { dd-name: db.redis.dbIndex, type: int, required: optional }
+
+  # MongoDB: no tags of its own, but Database Monitoring applies to it.
+  db.mongo:
+    extends: db.client
+
+  view.render:
+    extends: base
+    span-kind: internal
+    tags:
+      - { dd-name: view.name, type: string, required: recommended }
+
+  # Messaging: one type per span kind; each messaging system adds its tags with a mixin.
+  messaging:
+    abstract: true
+    extends: base
+
+  messaging.producer:
+    extends: messaging
+    span-kind: producer
+    include: [ peer, peer_address, outbound_peer ]
+
+  # TODO: RabbitMQ consumers also set peer.hostname, which outbound_peer declares for client spans only
+  # (as on websocket spans).
+  messaging.consumer:
+    extends: messaging
+    span-kind: consumer
+    include: [ peer_address, inbound_peer ]
+    tags:
+      - { dd-name: record.queue_time_ms,   type: long, required: optional }  # from the message's timestamp, when it has one
+      - { dd-name: record.e2e_duration_ms, type: long, required: optional }  # only when end-to-end durations are enabled
+
+  # Time a message spent in the broker (span.kind broker). The registry gives broker no direction,
+  # and none of these tags depends on one.
+  messaging.broker:
+    extends: messaging
+
+  # A client command that neither publishes nor consumes (e.g. an AMQP queue declare).
+  messaging.client:
+    extends: messaging
+    span-kind: client
+    include: [ peer, peer_address, outbound_peer ]
+
+  # A consumer's poll for a batch (span.kind unset).
+  messaging.poll:
+    extends: messaging
+    tags:
+      - { dd-name: kafka.records_count, type: int, required: optional }  # created only when Data Streams is enabled
+
+  # RPC: client and server calls, and their per-message child spans.
+  rpc:
+    abstract: true
+    extends: base
+    tags:
+      - { dd-name: rpc.service,          type: string, required: recommended }  # set on client spans (and SofaRPC servers)
+      - { dd-name: rpc.grpc.status_code, type: int,    required: conditional }
+      - { dd-name: message.type,         type: string, required: optional }     # on gRPC message child spans
+      - { dd-name: status.code,          type: string, required: conditional }  # gRPC status code name, on close
+      - { dd-name: status.description,   type: string, required: optional }
+
+  rpc.client:
+    extends: rpc
+    span-kind: client
+    include: [ peer, peer_address, outbound_peer ]
+
+  rpc.server:
+    extends: rpc
+    span-kind: server
+    include: [ peer_address, inbound_peer ]
+
+  # An internal span no other type models, e.g. an integration platform's process or action step.
+  internal:
+    extends: base
+    span-kind: internal
+
+  # A web framework's controller or handler span, inside the server span.
+  web.handler:
+    extends: base
+    span-kind: internal
+
+  # Websocket spans: one per message received or sent, and one per close. Receive spans and inbound
+  # close spans start their own trace, linked to the handshake. TODO: they also copy peer.hostname
+  # from the handshake, which outbound_peer declares for client spans only.
+  websocket:
+    abstract: true
+    extends: base
+    tags:
+      - { dd-name: websocket.session.id,           type: string, required: optional }  # off by default
+      - { dd-name: websocket.message.type,         type: string, required: conditional }
+      - { dd-name: websocket.message.length,       type: long,   required: conditional }
+      - { dd-name: websocket.message.frames,       type: long,   required: conditional }
+      - { dd-name: websocket.message.receive_time, type: long,   required: conditional }
+
+  websocket.receive:
+    extends: websocket
+    span-kind: consumer
+
+  websocket.send:
+    extends: websocket
+    span-kind: producer
+
+  # Both directions: a close received (consumer) or sent (producer).
+  websocket.close:
+    extends: websocket
+    tags:
+      - { dd-name: websocket.close.code,   type: int,    required: required }
+      - { dd-name: websocket.close.reason, type: string, required: recommended }
+
+mixins:
+  # peer — the downstream service a client span calls, PULLED via `include` by client span types.
+  peer:
+    tags:
+      - { dd-name: peer.service,                   type: string, required: recommended }
+      - { dd-name: _dd.peer.service.source,        type: string, required: recommended }
+      - { dd-name: _dd.peer.service.remapped_from, type: string, required: recommended }
+
+  # peer_address — the other end's IP address, on both client and server spans.
+  peer_address:
+    tags:
+      # TODO(otel): both are network.peer.address, split by address family -- input needs the value to
+      # pick one, which the registry cannot model. Planned: a `resolved-by: <layer>` marker that names
+      # the layer responsible (e.g. otel-api) and allows the mutually exclusive shared output name.
+      - { dd-name: peer.ipv4, type: string }
+      - { dd-name: peer.ipv6, type: string }
+
+  # outbound_peer / inbound_peer declare peer.port once per direction. It is still one tag
+  # (PEER_PORT_ID); only its OpenTelemetry name depends on the span's direction: client.port on
+  # inbound spans, server.port on outbound ones.
+
+  # outbound_peer — the other end of an outbound connection: the server.
+  outbound_peer:
+    span-kind: client
+    tags:
+      - { dd-name: peer.hostname, type: string, required: recommended, otel-name: server.address }
+      - { dd-name: peer.port,     type: int,    otel-name: server.port }
+
+  # inbound_peer — the other end of an inbound connection: the client.
+  inbound_peer:
+    span-kind: server
+    tags:
+      - { dd-name: peer.port,            type: int, otel-name: client.port }
+
+  # code_origin — the debugger's code origin, on entry spans (and their local root), annotated
+  # controller methods' handler spans, and @Trace spans.
+  # Only the origin's type is registered: its frames are _dd.code_origin.frames.<N>.<field>, a name
+  # pattern, which the registry doesn't model yet. (Only frame 0 is produced today.)
+  code_origin:
+    applies: [ http.server, rpc.server, messaging.consumer, internal, web.handler ]
+    tags:
+      - { dd-name: _dd.code_origin.type, type: string, required: optional }
+
+  # dbm — Database Monitoring propagation into queries, when enabled.
+  dbm:
+    applies: [ db.sql, db.mongo ]
+    tags:
+      - { dd-name: _dd.dbm_trace_injected,      type: boolean, required: optional }
+      - { dd-name: _dd.propagated_hash,         type: string,  required: optional }
+      - { dd-name: _dd.instrumentation.time_ms, type: long,    required: optional }
+
+  # exception_replay — Exception Replay, on any span carrying an exception it captured.
+  exception_replay:
+    applies: all
+    tags:
+      - { dd-name: error.debug_info_captured, type: boolean, required: optional }
+
+  # data_streams — Data Streams Monitoring checkpoints, on the spans that carry or receive a pathway.
+  data_streams:
+    applies: [ http, messaging, rpc ]
+    tags:
+      - { dd-name: pathway.hash, type: string, required: optional }
+
+  # dsm_transactions — Data Streams transaction tracking, when an extractor matches.
+  dsm_transactions:
+    applies: [ http, messaging.producer, messaging.consumer ]
+    tags:
+      - { dd-name: dsm.transaction.id,         type: string, required: optional }
+      - { dd-name: dsm.transaction.checkpoint, type: string, required: optional }
+
+  # aws_request — an AWS SDK request: on AWS client spans, and on the SQS consumer and broker spans that
+  # receive its messages.
+  aws_request:
+    applies: [ aws.client, messaging.consumer, messaging.broker ]
+    tags:
+      - { dd-name: aws.agent,     type: string, required: recommended }
+      - { dd-name: aws.service,   type: string, required: recommended }
+      - { dd-name: aws_service,   type: string, required: recommended }
+      - { dd-name: aws.operation, type: string, required: recommended }
+      - { dd-name: aws.endpoint,  type: string, required: optional }     # SDK v1 only
+      - { dd-name: aws.requestId, type: string, required: optional }
+
+  # aws_sqs_queue — the SQS queue, on SQS client spans and on SQS consumer and broker spans.
+  aws_sqs_queue:
+    applies: [ aws.sqs, messaging.consumer, messaging.broker ]
+    tags:
+      - { dd-name: aws.queue.url,  type: string, required: optional }
+      - { dd-name: aws.queue.name, type: string, required: optional }
+      - { dd-name: queuename,      type: string, required: optional }
+
+  # kafka — Kafka producer and consumer spans (and Kafka Streams consumers).
+  kafka:
+    applies: [ messaging.producer, messaging.consumer ]
+    tags:
+      - { dd-name: messaging.destination.name,        type: string,  required: recommended }  # the topic
+      - { dd-name: messaging.kafka.bootstrap.servers, type: string,  required: optional }
+      - { dd-name: messaging.kafka.cluster.id,        type: string,  required: optional }
+      - { dd-name: kafka.group,                       type: string,  required: optional }     # consumers
+      - { dd-name: partition,                         type: int,     required: optional }
+      - { dd-name: offset,                            type: long,    required: optional }
+      - { dd-name: tombstone,                         type: boolean, required: optional }     # a null record value
+      - { dd-name: processor.name,                    type: string,  required: optional }     # Kafka Streams
+
+  # amqp — RabbitMQ (AMQP) spans: publish, consume, other commands, and time in queue.
+  amqp:
+    applies: [ messaging.producer, messaging.consumer, messaging.broker, messaging.client ]
+    tags:
+      - { dd-name: amqp.command,       type: string, required: recommended }
+      - { dd-name: amqp.exchange,      type: string, required: optional }
+      - { dd-name: amqp.routing_key,   type: string, required: optional }
+      - { dd-name: amqp.queue,         type: string, required: optional }
+      - { dd-name: amqp.delivery_mode, type: int,    required: optional }
+      - { dd-name: message.size,       type: int,    required: optional }
+
+  # inherited_sampling — a span that starts its own trace but inherits the sampling decision of the
+  # span it came from (a websocket message, from its handshake).
+  inherited_sampling:
+    applies: [ websocket.receive, websocket.close ]
+    tags:
+      - { dd-name: _dd.dm.inherited, type: int,    required: optional }
+      - { dd-name: _dd.dm.service,   type: string, required: optional }
+      - { dd-name: _dd.dm.resource,  type: string, required: optional }
+
+  # ci_visibility — per-span test tags. Its capability flag (_dd.civisibility.enabled) lives in
+  # trace_level, outside this mixin (general rule: capability flags are trace-level, mixins hold the
+  # per-span tags). Applies to the `test` span type, which is not modeled here yet — so these tags
+  # get ids (identity does not depend on layout) but contribute to no type's resolved set until it
+  # is. The generator reports that gap in resolved-tags.txt.
+  ci_visibility:
+    enabled_by: dd.civisibility.enabled
+    applies: [ test ]
+    tags:
+      - { dd-name: test.name,      type: string, required: recommended }
+      - { dd-name: test.suite,     type: string, required: recommended }
+      - { dd-name: test.status,    type: string, required: recommended }
+      - { dd-name: test.framework, type: string, required: recommended }
+
+# ---------------------------------------------------------------------------
+# Notes
+# - Product .enabled flags moved to `trace_level` (process-constant) — the old product mixins held
+#   only those flags, so they dissolved. `enabled_by`/attachment gating is a runtime concern.
+# - span.kind enumerates: server | client | producer | consumer | internal | broker.
+# - Some keys (resource.name, error, sampling.priority, ...) are accepted by setTag but routed to a
+#   span field or a trace directive instead of tag storage. That routing is a per-language tracer
+#   concern, so it is NOT modelled here: dd-trace-java declares those keys, and marks every tag it
+#   intercepts, in its own overlay (tag-conventions-java.yaml). Such a key appears above only when it
+#   also needs an id and a name across tracers (service does, for OpenTelemetry's service.name).
+# - Tags with no otel-name pass through under their Datadog name (RFC "retain"). A `# TODO(otel)` note
+#   marks a pending OpenTelemetry-team review of a mapping that is not yet a settled rename.
+# - db.statement/db.query.text is deliberately never re-exposed as a stored tag once consumed into
+#   resource.name, regardless of which alias set it -- the two names are equivalent for identity/id
+#   purposes, but the raw value (often unobfuscated SQL) is intentionally not retained. This is an
+#   open question (not yet resolved one way or the other): revisit only as a language-agnostic policy
+#   change (i.e. decide to start storing/exporting it in every tracer), not as a per-language or
+#   per-spelling special case.
+# ---------------------------------------------------------------------------

@@ -15,7 +15,13 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
-import static com.datadog.profiling.controller.ProfilingSupport.*;
+import static com.datadog.profiling.controller.ProfilingSupport.isFileWriteDurationCorrect;
+import static com.datadog.profiling.controller.ProfilingSupport.isJmethodIDSafe;
+import static com.datadog.profiling.controller.ProfilingSupport.isLiveHeapProfilingSafe;
+import static com.datadog.profiling.controller.ProfilingSupport.isNativeMethodSampleAvailable;
+import static com.datadog.profiling.controller.ProfilingSupport.isObjectAllocationSampleAvailable;
+import static com.datadog.profiling.controller.ProfilingSupport.isObjectCountParallelized;
+import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampleAvailable;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;

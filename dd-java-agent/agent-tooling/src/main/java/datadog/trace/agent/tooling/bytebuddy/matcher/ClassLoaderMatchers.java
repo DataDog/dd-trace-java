@@ -54,10 +54,13 @@ public final class ClassLoaderMatchers {
       case "com.alibaba.fastjson.util.ASMClassLoader":
       case "datadog.trace.bootstrap.DatadogClassLoader":
       case "datadog.trace.bootstrap.InstrumentationClassLoader":
+      // gosu (Guidewire) single-serving loader, one per evaluated program
+      case "gw.internal.gosu.compiler.SingleServingGosuClassLoader":
       // drools
       case "org.drools.core.rule.PackageClassLoader":
       case "org.drools.wiring.dynamic.PackageClassLoader":
       case "org.drools.core.rule.JavaDialectRuntimeData$PackageClassLoader":
+      case "org.drools.wiring.dynamic.DynamicProjectClassLoader$DefaultInternalTypesClassLoader":
         return true;
     }
     if (CHECK_EXCLUDES) {

@@ -3,7 +3,9 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.core.propagation.ptags.PTagsFactory.PROPAGATION_ERROR_TAG_KEY;
 
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import java.util.Iterator;
@@ -23,23 +25,52 @@ abstract class PTagsCodec {
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
+  protected static final TagKey LLMOBS_TRACE_ID_TAG = TagKey.from("llmobs_trace_id");
+  protected static final TagKey LLMOBS_ML_APP_TAG = TagKey.from("llmobs_ml_app");
+  protected static final TagKey LLMOBS_SESSION_ID_TAG = TagKey.from("llmobs_sid");
+  protected static final TagKey LLMOBS_PAGENT_SPAN_ID_TAG = TagKey.from("llmobs_pagent_span_id");
+  protected static final TagKey LLMOBS_PAGENT_NAME_TAG = TagKey.from("llmobs_pagent_name");
+  protected static final TagKey LLMOBS_PARENT_ID_TAG = TagKey.from("llmobs_parent_id");
+  protected static final TagKey LLMOBS_SAMPLE_RATE_TAG = TagKey.from("llmobs_sr");
+  protected static final TagKey LLMOBS_SAMPLING_DECISION_TAG = TagKey.from("llmobs_sd");
 
-  static String headerValue(PTagsCodec codec, PTags ptags) {
-    return headerValue(codec, ptags, null);
-  }
+  /**
+   * Encodes the header. {@code llmObsValues} are the LLM Observability values of the span being
+   * injected; {@code null} writes the ones that arrived on the inbound headers instead, which is
+   * what a service forwarding a request without an LLMObs span of its own should propagate.
+   */
+  static String headerValue(
+      PTagsCodec codec,
+      PTags ptags,
+      CharSequence lastParentIdOverride,
+      LLMObsPropagationValues llmObsValues,
+      SamplingState samplingState) {
+    // Neither branch extracts anything: extraction already happened in fromHeaderValue. This picks
+    // which already-resolved set to write. Null means the injecting span has no LLMObs context of
+    // its own — either LLM Observability is off, or no LLMObs span is active on this trace — so
+    // the inbound values are forwarded untouched. Non-null replaces them with the injecting span's
+    // own, which need a fit check because they have never been through a size limit.
+    LLMObsTagValues llmObsTags =
+        llmObsValues == null
+            ? ptags.getExtractedLLMObsTagValues()
+            : codec.degradeLLMObsToFit(ptags, LLMObsTagValues.from(llmObsValues), samplingState);
 
-  static String headerValue(PTagsCodec codec, PTags ptags, CharSequence lastParentIdOverride) {
-    int estimate = codec.estimateHeaderSize(ptags);
+    int estimate =
+        codec.addLLMObsSize(
+            codec.estimateHeaderSize(ptags, lastParentIdOverride, samplingState), llmObsTags);
     if (estimate == 0) {
       return "";
     }
 
     // No encoding validation here because we don't allow arbitrary tag change
     StringBuilder sb = new StringBuilder(estimate);
-    int size = codec.appendPrefix(sb, ptags, lastParentIdOverride);
+    int size =
+        codec.addLLMObsSize(
+            codec.appendPrefix(sb, ptags, lastParentIdOverride, samplingState), llmObsTags);
     if (!ptags.isPropagationTagsDisabled()) {
-      if (ptags.getDecisionMakerTagValue() != null) {
-        size = codec.appendTag(sb, DECISION_MAKER_TAG, ptags.getDecisionMakerTagValue(), size);
+      TagValue decisionMakerTagValue = ptags.getDecisionMakerTagValue(samplingState);
+      if (decisionMakerTagValue != null) {
+        size = codec.appendTag(sb, DECISION_MAKER_TAG, decisionMakerTagValue, size);
       }
       if (ptags.getTraceIdHighOrderBitsHexTagValue() != null) {
         size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
@@ -55,15 +86,44 @@ abstract class PTagsCodec {
       if (ptags.getDebugPropagation() != null) {
         size = codec.appendTag(sb, DEBUG_TAG, TagValue.from(ptags.getDebugPropagation()), size);
       }
-      if (ptags.getKnuthSamplingRateTagValue() != null) {
-        size =
-            codec.appendTag(
-                sb, KNUTH_SAMPLING_RATE_TAG, ptags.getKnuthSamplingRateTagValue(), size);
+      TagValue knuthSamplingRateTagValue = ptags.getKnuthSamplingRateTagValue(samplingState);
+      if (knuthSamplingRateTagValue != null) {
+        size = codec.appendTag(sb, KNUTH_SAMPLING_RATE_TAG, knuthSamplingRateTagValue, size);
       }
       if (ptags.getOrgPropagationMarkerTagValue() != null) {
         size =
             codec.appendTag(
                 sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
+      }
+      // Ordered by how much the receiver loses without each one, because W3CPTagsCodec drops any
+      // single tag that would overflow the tracestate and carries on with the next: what is
+      // appended last is what goes first under pressure. The two join keys lead, then the
+      // attributes that identify the trace, then the sampling verdict the receiver can recompute,
+      // then agent attribution — which is pure enrichment, and is likewise what
+      // DatadogPTagsCodec#degradeLLMObsToFit sacrifices first.
+      if (llmObsTags.traceId != null) {
+        size = codec.appendTag(sb, LLMOBS_TRACE_ID_TAG, llmObsTags.traceId, size);
+      }
+      if (llmObsTags.parentId != null) {
+        size = codec.appendTag(sb, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId, size);
+      }
+      if (llmObsTags.mlApp != null) {
+        size = codec.appendTag(sb, LLMOBS_ML_APP_TAG, llmObsTags.mlApp, size);
+      }
+      if (llmObsTags.sessionId != null) {
+        size = codec.appendTag(sb, LLMOBS_SESSION_ID_TAG, llmObsTags.sessionId, size);
+      }
+      if (llmObsTags.sampleRate != null) {
+        size = codec.appendTag(sb, LLMOBS_SAMPLE_RATE_TAG, llmObsTags.sampleRate, size);
+      }
+      if (llmObsTags.samplingDecision != null) {
+        size = codec.appendTag(sb, LLMOBS_SAMPLING_DECISION_TAG, llmObsTags.samplingDecision, size);
+      }
+      if (llmObsTags.parentAgentSpanId != null) {
+        size = codec.appendTag(sb, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId, size);
+      }
+      if (llmObsTags.parentAgentName != null) {
+        size = codec.appendTag(sb, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName, size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -72,16 +132,28 @@ abstract class PTagsCodec {
         size = codec.appendTag(sb, tagKey, tagValue, size);
       }
     }
-    size = codec.appendSuffix(sb, ptags, size);
+    size = codec.appendSuffix(sb, ptags, size, samplingState);
     if (codec.isTooLarge(sb, size)) {
+      codec.logHeaderDropped(size);
       return null;
     } else {
       return codec.isEmpty(sb, size) ? null : sb.toString();
     }
   }
 
+  /**
+   * Called when the assembled header overflows the limit and is dropped in full, taking every
+   * {@code _dd.p.*} tag with it. Silent by default; a codec that can name its limit overrides this
+   * to say so, because the only other trace of the drop is a {@code _dd.propagation_error} tag on a
+   * span the operator has to already be looking at.
+   */
+  protected void logHeaderDropped(int size) {}
+
   static void fillTagMap(PTags propagationTags, Map<String, String> tagMap) {
-    int newSize = propagationTags.getXDatadogTagsSize();
+    SamplingState samplingState = propagationTags.samplingState();
+    LLMObsTagValues llmObsTags = propagationTags.getExtractedLLMObsTagValues();
+    // Count the LLMObs tags this fills in below, which getXDatadogTagsSize() no longer holds.
+    int newSize = calcLLMObsSize(propagationTags.getXDatadogTagsSize(samplingState), llmObsTags);
 
     if (newSize > propagationTags.getxDatadogTagsLimit()) {
       // Outgoing x-datadog-tags value length exceeds the configured limit
@@ -103,10 +175,11 @@ abstract class PTagsCodec {
           tagKey.forType(Encoding.DATADOG).toString(),
           tagValue.forType(Encoding.DATADOG).toString());
     }
-    if (propagationTags.getDecisionMakerTagValue() != null) {
+    TagValue decisionMakerTagValue = propagationTags.getDecisionMakerTagValue(samplingState);
+    if (decisionMakerTagValue != null) {
       tagMap.put(
           DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getDecisionMakerTagValue().forType(Encoding.DATADOG).toString());
+          decisionMakerTagValue.forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getTraceSource() != ProductTraceSource.UNSET) {
       tagMap.put(
@@ -119,10 +192,12 @@ abstract class PTagsCodec {
       tagMap.put(
           DEBUG_TAG.forType(Encoding.DATADOG).toString(), propagationTags.getDebugPropagation());
     }
-    if (propagationTags.getKnuthSamplingRateTagValue() != null) {
+    TagValue knuthSamplingRateTagValue =
+        propagationTags.getKnuthSamplingRateTagValue(samplingState);
+    if (knuthSamplingRateTagValue != null) {
       tagMap.put(
           KNUTH_SAMPLING_RATE_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getKnuthSamplingRateTagValue().forType(Encoding.DATADOG).toString());
+          knuthSamplingRateTagValue.forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getOrgPropagationMarkerTagValue() != null) {
       tagMap.put(
@@ -136,6 +211,46 @@ abstract class PTagsCodec {
               .getTraceIdHighOrderBitsHexTagValue()
               .forType(Encoding.DATADOG)
               .toString());
+    }
+    if (llmObsTags.traceId != null) {
+      tagMap.put(
+          LLMOBS_TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.traceId.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.mlApp != null) {
+      tagMap.put(
+          LLMOBS_ML_APP_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.mlApp.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.sessionId != null) {
+      tagMap.put(
+          LLMOBS_SESSION_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.sessionId.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.parentAgentSpanId != null) {
+      tagMap.put(
+          LLMOBS_PAGENT_SPAN_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.parentAgentSpanId.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.parentAgentName != null) {
+      tagMap.put(
+          LLMOBS_PAGENT_NAME_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.parentAgentName.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.parentId != null) {
+      tagMap.put(
+          LLMOBS_PARENT_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.parentId.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.sampleRate != null) {
+      tagMap.put(
+          LLMOBS_SAMPLE_RATE_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.sampleRate.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.samplingDecision != null) {
+      tagMap.put(
+          LLMOBS_SAMPLING_DECISION_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.samplingDecision.forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());
@@ -157,6 +272,20 @@ abstract class PTagsCodec {
     return size == 0 ? 0 : size - 1; // exclude last separator
   }
 
+  /** Adds what the eight LLM Observability tags cost in {@code x-datadog-tags} to {@code size}. */
+  static int calcLLMObsSize(int size, LLMObsTagValues llmObsTags) {
+    // Same order as headerValue appends them; the total is the same either way.
+    size = calcXDatadogTagsSize(size, LLMOBS_TRACE_ID_TAG, llmObsTags.traceId);
+    size = calcXDatadogTagsSize(size, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId);
+    size = calcXDatadogTagsSize(size, LLMOBS_ML_APP_TAG, llmObsTags.mlApp);
+    size = calcXDatadogTagsSize(size, LLMOBS_SESSION_ID_TAG, llmObsTags.sessionId);
+    size = calcXDatadogTagsSize(size, LLMOBS_SAMPLE_RATE_TAG, llmObsTags.sampleRate);
+    size = calcXDatadogTagsSize(size, LLMOBS_SAMPLING_DECISION_TAG, llmObsTags.samplingDecision);
+    size = calcXDatadogTagsSize(size, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId);
+    size = calcXDatadogTagsSize(size, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName);
+    return size;
+  }
+
   static int calcXDatadogTagsSize(int size, TagKey tagKey, TagValue tagValue) {
     if (tagValue != null) {
       if (size > 0) {
@@ -172,23 +301,44 @@ abstract class PTagsCodec {
     return size;
   }
 
-  abstract PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value);
-
-  protected abstract int estimateHeaderSize(PTags pTags);
-
-  protected abstract int appendPrefix(StringBuilder sb, PTags ptags);
+  /**
+   * Adds the LLM Observability tags to a running {@code x-datadog-tags} size. Only {@link
+   * DatadogPTagsCodec} needs this: its {@code size} is a total computed up front, while {@link
+   * W3CPTagsCodec} accumulates as it appends.
+   */
+  protected int addLLMObsSize(int size, LLMObsTagValues llmObsTags) {
+    return size;
+  }
 
   /**
-   * Encode the prefix, using {@code lastParentIdOverride} for the W3C {@code p:} when non-null
-   * (inject-time). Codecs without a last-parent-id (e.g. Datadog) ignore the override.
+   * Trims the LLM Observability values until they fit the carrier, or returns them unchanged when
+   * the carrier degrades on its own. See {@link DatadogPTagsCodec#degradeLLMObsToFit}.
    */
-  protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
-    return appendPrefix(sb, ptags);
+  protected LLMObsTagValues degradeLLMObsToFit(
+      PTags ptags, LLMObsTagValues llmObsTags, SamplingState samplingState) {
+    return llmObsTags;
+  }
+
+  abstract PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value);
+
+  protected int estimateHeaderSize(
+      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
+    return pTags.getXDatadogTagsSize(samplingState);
+  }
+
+  protected int appendPrefix(
+      StringBuilder sb,
+      PTags ptags,
+      CharSequence lastParentIdOverride,
+      SamplingState samplingState) {
+    return ptags.getXDatadogTagsSize(samplingState);
   }
 
   protected abstract int appendTag(StringBuilder sb, TagElement key, TagElement value, int size);
 
-  protected abstract int appendSuffix(StringBuilder sb, PTags ptags, int size);
+  protected int appendSuffix(StringBuilder sb, PTags ptags, int size, SamplingState samplingState) {
+    return size;
+  }
 
   protected abstract boolean isTooLarge(StringBuilder sb, int size);
 

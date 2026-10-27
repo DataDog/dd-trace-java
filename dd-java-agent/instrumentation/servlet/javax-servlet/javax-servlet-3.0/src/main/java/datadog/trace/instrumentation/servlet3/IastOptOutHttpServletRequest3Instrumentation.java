@@ -5,7 +5,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -90,6 +92,11 @@ public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterMo
         return;
       }
       final ServletContext context = request.getServletContext();
+      if (context == null) {
+        // some request copies (e.g. Wicket or Atmosphere websocket requests) have no servlet
+        // context
+        return;
+      }
       if (InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class).get(context)
           != null) {
         return;

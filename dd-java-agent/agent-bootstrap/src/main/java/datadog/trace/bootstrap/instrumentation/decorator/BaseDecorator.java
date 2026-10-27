@@ -8,12 +8,12 @@ import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.QualifiedClassNameCache;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -53,8 +53,9 @@ public abstract class BaseDecorator {
 
   private final TagMap.Entry traceAnalyticsEntry;
 
-  // Deliberately not volatile, reading null and repeating the calculation is safe
-  private TagMap.Entry cachedComponentEntry = null;
+  // Deliberately not volatile: reading a stale null and rebuilding is safe. SpanPrototype is
+  // frozen, so a benign race produces two equivalent prototypes and either is fine.
+  private SpanPrototype cachedSpanPrototype = null;
 
   protected BaseDecorator() {
     final Config config = Config.get();
@@ -80,18 +81,38 @@ public abstract class BaseDecorator {
 
   protected abstract CharSequence component();
 
-  /** Caches the component TagMap.Entry, so it isn't recreated for every trace */
-  protected final TagMap.Entry componentEntry() {
-    // DQH = Tried calling component() in the constructor, but that had issues with static
-    // field ordering.  That was caught be an integration test, but I didn't want to risk
-    // breaking other integrations where the test is not as thorough.
-
-    // This approach while more complicated doesn't have any field initialization ordering issues.
-    TagMap.Entry componentEntry = cachedComponentEntry;
-    if (componentEntry == null) {
-      cachedComponentEntry = componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
+  /**
+   * The baked-once {@link SpanPrototype} carrying this decorator's constant identity and tags: span
+   * type, component, integration name, and — via the {@link ServerDecorator} / {@link
+   * ClientDecorator} extensions — span kind and language.
+   *
+   * <p>Built lazily on first access, not in the constructor: {@link #component()}, {@link
+   * #spanType()}, and (in {@link ClientDecorator}) {@code spanKind()} are overridable and may
+   * reference statics that are not yet initialized while the decorator singleton is under
+   * construction. Deferring the build sidesteps that field-initialization-ordering hazard (the same
+   * one the old per-{@link TagMap.Entry} caches guarded against) while collapsing those several
+   * caches into a single object. Not volatile: {@link SpanPrototype} is frozen, so a benign race
+   * rebuilds an equivalent prototype.
+   */
+  protected final SpanPrototype spanPrototype() {
+    SpanPrototype prototype = cachedSpanPrototype;
+    if (prototype == null) {
+      cachedSpanPrototype = prototype = buildSpanPrototype();
     }
-    return componentEntry;
+    return prototype;
+  }
+
+  /**
+   * Builds this decorator's {@link SpanPrototype}. Subclasses extend the chain with {@link
+   * SpanPrototype.Builder#extends_} to add their level's constants (see {@link ServerDecorator} /
+   * {@link ClientDecorator}), mirroring the decorator class hierarchy. Called once per decorator,
+   * lazily — see {@link #spanPrototype()}.
+   */
+  protected SpanPrototype buildSpanPrototype() {
+    return SpanPrototype.builder()
+        .initSpanType(spanType())
+        .initComponentAndIntegration(component())
+        .build();
   }
 
   protected boolean traceAnalyticsDefault() {
@@ -109,16 +130,12 @@ public abstract class BaseDecorator {
   }
 
   protected void doAfterStart(final AgentSpan span) {
-    if (spanType() != null) {
-      span.setSpanType(spanType());
-    }
-
-    span.setTag(componentEntry());
-
-    // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
-    // unclear which option is better here
-    final CharSequence component = component();
-    span.spanContext().setIntegrationName(component);
+    // Stamps the prototype's constant span type, tags, and integration name, overwriting whatever
+    // is already present: this decorator's identity is authoritative and must win over anything
+    // seeded earlier, e.g. a global tag from DD_TAGS / DD_TRACE_SPAN_TAGS applied at construction
+    // --
+    // matching the unconditional setTag/setSpanType calls this replaced.
+    span.applyOverwriting(spanPrototype());
 
     // null handled by setMetric
     span.setMetric(traceAnalyticsEntry);
@@ -147,12 +164,6 @@ public abstract class BaseDecorator {
   }
 
   protected void doBeforeFinish(final Context context) {}
-
-  public final void onError(@Nullable final AgentScope scope, @Nullable final Throwable throwable) {
-    if (scope != null) {
-      onError(scope.span(), throwable);
-    }
-  }
 
   public final void onError(@Nullable final AgentSpan span, @Nullable final Throwable throwable) {
     onError(span, throwable, ErrorPriorities.DEFAULT);
@@ -201,23 +212,23 @@ public abstract class BaseDecorator {
     if (remoteAddress != null) {
       String ip = remoteAddress.getHostAddress();
       if (resolved && Config.get().isPeerHostNameEnabled()) {
-        span.setTag(Tags.PEER_HOSTNAME, hostName(remoteAddress, ip));
+        span.setTag(KnownTags.PEER_HOSTNAME_ID, hostName(remoteAddress, ip));
       }
       if (remoteAddress instanceof Inet4Address) {
-        span.setTag(Tags.PEER_HOST_IPV4, ip);
+        span.setTag(KnownTags.PEER_IPV4_ID, ip);
       } else if (remoteAddress instanceof Inet6Address) {
-        span.setTag(Tags.PEER_HOST_IPV6, ip);
+        span.setTag(KnownTags.PEER_IPV6_ID, ip);
       }
     }
   }
 
   public void setPeerPort(AgentSpan span, String port) {
-    span.setTag(Tags.PEER_PORT, port);
+    span.setTag(KnownTags.PEER_PORT_ID, port);
   }
 
   public void setPeerPort(AgentSpan span, int port) {
     if (port > UNSET_PORT) {
-      span.setTag(Tags.PEER_PORT, port);
+      span.setTag(KnownTags.PEER_PORT_ID, port);
     }
   }
 

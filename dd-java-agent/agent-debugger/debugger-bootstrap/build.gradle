@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.module.bootstrap-component'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 // Most of the classes are just object model
 // Those which needs test coverage, test classes are in agent-debugger project

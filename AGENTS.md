@@ -36,6 +36,8 @@ docs/                     Developer documentation (see below)
 | Adding a new instrumentation | [docs/add_new_instrumentation.md](docs/add_new_instrumentation.md) |
 | Adding a new configuration | [docs/add_new_configurations.md](docs/add_new_configurations.md) |
 | Testing guide (6 test types) | [docs/how_to_test.md](docs/how_to_test.md) |
+| Writing JUnit tests | [docs/how_to_test_with_junit.md](docs/how_to_test_with_junit.md) |
+| Writing a smoke test | [docs/how_to_smoke_test.md](docs/how_to_smoke_test.md) |
 | Working with Gradle | [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) |
 | Bootstrap/premain constraints | [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) |
 | Instrumentation/advice constraints | [docs/instrumentation_design_guidelines.md](docs/instrumentation_design_guidelines.md) |
@@ -58,9 +60,11 @@ docs/                     Developer documentation (see below)
 
 - **Formatting**: google-java-format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
 - **Static imports**: Prefer static imports over class-qualified calls for call-style helpers, in both test (Assertions.assertEquals, Mockito.mock) and production code (Collections.emptyList). Wildcard imports disallowed — see CONTRIBUTING.md.
+- **Documentation**: Use concise Javadoc comments (`/** ... */`) for class, method, and field documentation.
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
 - **Test frameworks**: Always use JUnit 5 for unit tests. Only use Groovy / Spock tests for instrumentation and smoke tests.
+- **Parameterized tests**: Prefer `@TableTest` for multi-column literal data, with named scenarios and aligned columns. Prefer a simple `@TypeConverter` over switching to `@MethodSource` when it can turn table values into the required arguments. Use `@MethodSource` for cases requiring complex object construction, builders, or mocks. See [the JUnit testing guide](docs/how_to_test_with_junit.md#parameterized-tests).
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
 
@@ -70,11 +74,25 @@ docs/                     Developer documentation (see below)
 - Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
 - Use `tag: no release notes` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable
+- Dependency changes: when adding, updating, or removing dependencies, regenerate all affected `gradle.lockfile` files
+  and include them in the same PR. See [lockfile updates](docs/how_to_work_with_gradle.md#updating-lock-files).
 
 ## Review Guidelines
 
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
+
+## CI scripts
+
+Every `curl` that runs in CI (`.gitlab-ci.yml`, `.gitlab/`, GitHub Actions, the scripts they call, and the Dockerfiles they build) should:
+
+- **Fail on HTTP errors**: pass `-f`/`--fail`. Without it, a 4xx/5xx exits 0 and the error page is used as if it were the real response (e.g. piped into `bash` or `jq`).
+- **Retry transient errors**: pass `--retry 5 --retry-delay 2` (add `--retry-connrefused` for remote endpoints).
+- **Propagate the failure**: the job must stop when curl fails. Never pipe `curl` straight into `bash`/`sh`: download to a file with `-f`, then run it.
+
+Example: `curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o out.tar.gz "$url"`
+
+Exception: a script that checks the HTTP status itself (`-w "%{http_code}"`, e.g. `.gitlab/check_test_agent_results.sh`) may skip `--fail`, but still needs `--retry`.
 
 ## Critical constraints
 

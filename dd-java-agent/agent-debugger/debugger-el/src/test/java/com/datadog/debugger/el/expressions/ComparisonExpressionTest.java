@@ -13,7 +13,10 @@ import static com.datadog.debugger.el.expressions.ComparisonOperator.GT;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.INSTANCEOF;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.LE;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.LT;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
