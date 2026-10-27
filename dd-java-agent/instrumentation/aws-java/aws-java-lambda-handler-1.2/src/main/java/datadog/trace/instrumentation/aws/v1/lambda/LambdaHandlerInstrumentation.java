@@ -94,22 +94,15 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
       if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
         return null;
       }
-      if (!(in instanceof InputStream)) {
-        // Defensive guard: should never happen given the matcher's arg0 constraint.
-        return null;
-      }
-      InputStream inputStream = (InputStream) in;
       String lambdaRequestId = awsContext.getAwsRequestId();
-      AgentSpanContext lambdaContext =
-          AgentTracer.get().notifyLambdaStart(inputStream, lambdaRequestId);
+      AgentSpanContext lambdaContext = AgentTracer.get().notifyLambdaStart(in, lambdaRequestId);
       // Skip the strip pass entirely (extra read/parse/re-serialize) unless explicitly enabled.
-      if (Config.get().isLambdaStripInjectedContextEnabled()) {
-        InputStream stripped = StripInjectedContext.replaceInputStream(inputStream);
+      if (in instanceof InputStream && Config.get().isLambdaStripInjectedContextEnabled()) {
+        InputStream stripped = StripInjectedContext.replaceInputStream((InputStream) in);
         if (stripped != null) {
-          inputStream = stripped;
+          in = stripped;
         }
       }
-      in = inputStream;
 
       final AgentSpan span;
       if (null == lambdaContext) {
