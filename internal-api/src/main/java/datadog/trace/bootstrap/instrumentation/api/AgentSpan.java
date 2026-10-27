@@ -18,10 +18,10 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
+// SpotBugs 4.10.4 requires declaration annotations to check non-null parameter overrides.
 public interface AgentSpan
     extends MutableSpan,
         AppendableSpanLinks,
@@ -399,15 +399,14 @@ public interface AgentSpan
     return context == Context.root() ? this : context.with(SPAN_KEY, this);
   }
 
-  @Nullable
   @Override
-  default <T> T get(@Nonnull ContextKey<T> key) {
+  default <T> @Nullable T get(@Nonnull ContextKey<T> key) {
     // noinspection unchecked
     return SPAN_KEY == key ? (T) this : Context.root().get(key);
   }
 
   @Override
-  default <T> Context with(@Nonnull ContextKey<T> key, @CheckForNull T value) {
+  default <T> Context with(@Nonnull ContextKey<T> key, @Nullable T value) {
     return SPAN_KEY == key ? (Context) value : Context.root().with(SPAN_KEY, this, key, value);
   }
 
