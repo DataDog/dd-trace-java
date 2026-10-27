@@ -118,6 +118,153 @@ class HashStoreTest {
     target.checkIntegrity();
   }
 
+  @Test
+  void typedStoresRoundTrip() {
+    HashStore store = HashStore.create(null);
+
+    store.store(A, true);
+    store.store(B, 7L);
+    store.store(C, 1.5f);
+    store.store("custom.d", 2.5d);
+    store.store("custom.e", (CharSequence) "chars");
+
+    assertEquals(true, store.getEntry(A).objectValue());
+    assertEquals(7L, store.getEntry(B).objectValue());
+    assertEquals(1.5f, store.getEntry(C).objectValue());
+    assertEquals(2.5d, store.getEntry("custom.d").objectValue());
+    assertEquals("chars", store.getEntry("custom.e").objectValue().toString());
+    store.checkIntegrity();
+  }
+
+  @Test
+  void storingNullRemoves() {
+    HashStore store = HashStore.create(null);
+    store.store(A, "1");
+    store.store(B, (CharSequence) "2");
+
+    store.store(A, (Object) null);
+    store.store(B, (CharSequence) null);
+
+    assertNull(store.getEntry(A));
+    assertNull(store.getEntry(B));
+    assertTrue(store.isEmpty());
+  }
+
+  @Test
+  void removingALocalTagWithNoParent() {
+    HashStore store = HashStore.create(null);
+    store.store(A, "1");
+
+    assertEquals("1", store.remove(A).objectValue());
+    assertNull(store.remove(A));
+    assertEquals(0, store.size());
+  }
+
+  @Test
+  void removingAnInheritedTagTwiceReportsItOnce() {
+    HashStore child = HashStore.create(parentWith(A, "parent"));
+
+    assertEquals("parent", child.remove(A).objectValue());
+    assertNull(child.remove(A));
+  }
+
+  @Test
+  void getAndPutReportsTheLocalPriorValue() {
+    HashStore store = HashStore.create(null);
+    store.store(A, "old");
+
+    assertEquals("old", store.getAndPut(Entry.create(A, "new")).objectValue());
+    assertNull(store.getAndPut(Entry.create(B, "b")));
+  }
+
+  @Test
+  void sizesAcrossLevels() {
+    HashStore parent = parentWith(A, "parent");
+    HashStore child = HashStore.create(parent);
+    assertFalse(child.isDefinitelyEmpty());
+    assertEquals(1, child.estimateSize());
+
+    HashStore empty = HashStore.create(HashStore.create(null));
+    assertTrue(empty.isDefinitelyEmpty());
+    assertTrue(empty.isEmpty());
+    assertEquals(0, empty.estimateSize());
+  }
+
+  /** Enough parent tags to form bucket groups, so read-through walks group chains too. */
+  @Test
+  void readThroughWalksBucketGroups() {
+    HashStore parent = HashStore.create(null);
+    Map<String, Object> expected = new HashMap<>();
+    for (int i = 0; i < 64; i++) {
+      parent.store("custom.tag" + i, i);
+      expected.put("custom.tag" + i, i);
+    }
+    HashStore child = HashStore.create(parent);
+    child.remove("custom.tag0");
+    expected.remove("custom.tag0");
+    child.store("custom.tag1", "local");
+    expected.put("custom.tag1", "local");
+
+    assertEquals(expected.size(), child.size());
+    assertEquals(expected, visible(child));
+
+    Map<String, Object> viaConsumer = new HashMap<>();
+    child.forEach(entry -> viaConsumer.put(entry.tag(), entry.objectValue()));
+    assertEquals(expected, viaConsumer);
+
+    Map<String, Object> viaTwoContexts = new HashMap<>();
+    child.forEach(
+        viaTwoContexts, "-", (map, unused, entry) -> map.put(entry.tag(), entry.objectValue()));
+    assertEquals(expected, viaTwoContexts);
+
+    for (int i = 1; i < 64; i++) {
+      child.remove("custom.tag" + i);
+    }
+    assertTrue(child.isEmpty());
+  }
+
+  @Test
+  void aCopyIsIndependent() {
+    HashStore child = HashStore.create(parentWith(A, "parent"));
+    child.store(B, "b");
+    child.remove(A);
+
+    HashStore copy = child.copy();
+    copy.store(A, "copy");
+    copy.store(B, "copy-b");
+
+    assertEquals(tags(B, "b"), visible(child));
+    assertEquals(tags(A, "copy", B, "copy-b"), visible(copy));
+  }
+
+  @Test
+  void putAllLocalHandlesEmptyStores() {
+    HashStore target = HashStore.create(null);
+    target.putAllLocal(HashStore.create(null));
+    assertEquals(0, target.size());
+
+    HashStore source = HashStore.create(null);
+    source.store(A, "a");
+    target.putAllLocal(source);
+    assertEquals(tags(A, "a"), visible(target));
+    target.checkIntegrity();
+  }
+
+  @Test
+  void fillsMapsWithLocalTags() {
+    HashStore store = HashStore.create(null);
+    store.store(A, 1);
+
+    Map<String, Object> objects = new HashMap<>();
+    store.fillMapLocal(objects);
+    Map<String, String> strings = new HashMap<>();
+    store.fillStringMapLocal(strings);
+
+    assertEquals(tags(A, 1), objects);
+    assertEquals("1", strings.get(A));
+    assertTrue(store.toInternalString().contains(A));
+  }
+
   private static Map<String, Object> tags(Object... tagsAndValues) {
     Map<String, Object> tags = new HashMap<>();
     for (int i = 0; i < tagsAndValues.length; i += 2) {
