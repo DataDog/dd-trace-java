@@ -29,6 +29,9 @@ public final class StripInjectedContext {
   /** SNS-to-SQS fan-out needs 2 levels of string-encoded JSON; one more is a safety margin. */
   static final int MAX_DEPTH = 3;
 
+  /** Deeper encoded JSON is kept as is, because {@link JsonReader} recurses once per level. */
+  static final int MAX_NESTING = 1000;
+
   private static final String CARRIER_KEY = "_datadog";
   private static final String QUOTED_CARRIER_KEY = "\"" + CARRIER_KEY + "\"";
   private static final byte[] CARRIER_KEY_BYTES = CARRIER_KEY.getBytes(StandardCharsets.UTF_8);
@@ -85,7 +88,8 @@ public final class StripInjectedContext {
   /**
    * Walks the string tokens of {@code json} once. A {@code "_datadog"} key with an object value is
    * cut out; any other string value containing {@code _datadog} is treated as encoded JSON and
-   * stripped recursively. Returns {@code json} itself when nothing changed.
+   * stripped recursively. Returns {@code json} itself when nothing changed or the JSON is
+   * malformed.
    */
   private static String stripJson(String json, int depth) {
     StringBuilder out = null;
@@ -101,11 +105,11 @@ public final class StripInjectedContext {
       }
       int end = stringEnd(json, start);
       if (end < 0) {
-        break;
+        return json;
       }
       int[] carrier = carrierRange(json, start, end, copyFrom);
       if (carrier == UNCLOSED) {
-        break;
+        return json;
       }
       if (carrier != null) {
         if (out == null) {
@@ -167,9 +171,8 @@ public final class StripInjectedContext {
   }
 
   /**
-   * Decodes the JSON string literal {@code literal}, strips it if it looks like a JSON object
-   * (starts with '{' and ends with '}'), and returns the re-encoded literal, or {@code null} if
-   * nothing changed.
+   * Decodes the JSON string literal {@code literal}, strips it if it holds exactly one JSON object,
+   * and returns the re-encoded literal, or {@code null} if nothing changed.
    */
   private static String stripEncodedJson(String literal, int depth) {
     String decoded;
@@ -178,16 +181,51 @@ public final class StripInjectedContext {
     } catch (IOException e) {
       return null;
     }
-    int first = skipWhitespace(decoded, 0);
-    if (first >= decoded.length() || decoded.charAt(first) != '{') {
-      return null;
-    }
-    int last = skipWhitespaceBackward(decoded, decoded.length() - 1);
-    if (decoded.charAt(last) != '}') {
+    if (!isJsonObject(decoded)) {
       return null;
     }
     String stripped = stripJson(decoded, depth + 1);
     return stripped.equals(decoded) ? null : JsonMapper.toJson(stripped);
+  }
+
+  /** Brace-delimited customer text such as {@code "{...} is an example {}"} is not encoded JSON. */
+  private static boolean isJsonObject(String text) {
+    int first = skipWhitespace(text, 0);
+    if (first >= text.length() || text.charAt(first) != '{') {
+      return false;
+    }
+    int end = objectEnd(text, first);
+    if (end < 0 || skipWhitespace(text, end) != text.length()) {
+      return false;
+    }
+    if (exceedsNesting(text, first, end)) {
+      log.debug("Skipping _datadog strip: encoded JSON nesting exceeds {}", MAX_NESTING);
+      return false;
+    }
+    try {
+      new JsonReader(text.substring(first, end)).nextValue();
+      return true;
+    } catch (IOException | RuntimeException e) {
+      return false;
+    }
+  }
+
+  /** {@code [start, end)} is a closed object, so every string inside it is terminated. */
+  private static boolean exceedsNesting(String text, int start, int end) {
+    int depth = 0;
+    for (int i = start; i < end; i++) {
+      char c = text.charAt(i);
+      if (c == '"') {
+        i = stringEnd(text, i) - 1;
+      } else if (c == '{' || c == '[') {
+        if (++depth > MAX_NESTING) {
+          return true;
+        }
+      } else if (c == '}' || c == ']') {
+        depth--;
+      }
+    }
+    return false;
   }
 
   /** Returns the index just past the closing quote of the string opening at {@code start}. */
