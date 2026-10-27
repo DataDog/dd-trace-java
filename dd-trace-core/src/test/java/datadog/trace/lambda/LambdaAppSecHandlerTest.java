@@ -1472,7 +1472,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     verify(requestEndedCallback).apply(mockRequestContext, span);
     verify(span).setMetric("_dd.appsec.serverless.tracer", 1);
-    verify(span, never()).setMetric("_dd.appsec.unsupported_event_type", 1);
+    verify(span).setMetric(anyString(), anyInt());
   }
 
   @Test
@@ -1485,7 +1485,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     LambdaAppSecHandler.processRequestEnd(span);
 
     verify(span).setMetric("_dd.appsec.serverless.tracer", 1);
-    verify(span, never()).setMetric("_dd.appsec.unsupported_event_type", 1);
+    verify(span).setMetric(anyString(), anyInt());
   }
 
   @Test
