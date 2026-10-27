@@ -8,7 +8,8 @@ The SDK works on its own. When the Datadog Java agent (`dd-java-agent`) is attac
 ## Requirements
 
 * Java 11 or later
-* A Datadog [API key](https://docs.datadoghq.com/account_management/api-app-keys/#api-keys) and [site](https://docs.datadoghq.com/getting_started/site/), unless events go through a Datadog Agent
+* A Datadog [API key](https://docs.datadoghq.com/account_management/api-app-keys/#api-keys) and [site](https://docs.datadoghq.com/getting_started/site/) configured in the application for Datadog-managed CDN configuration or direct event intake.
+  With `remote_config` and event delivery through a Datadog Agent, configure them on the Agent instead.
 * Optionally, `dd-java-agent` 1.69.0 or later
 
 ## Setup
@@ -27,6 +28,7 @@ Register the provider:
 
 ```java
 import com.datadog.openfeature.Provider;
+import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.OpenFeatureAPI;
 
 OpenFeatureAPI.getInstance().setProviderAndWait(new Provider());
