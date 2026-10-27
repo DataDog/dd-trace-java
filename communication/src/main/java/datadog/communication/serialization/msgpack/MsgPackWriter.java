@@ -101,12 +101,32 @@ public class MsgPackWriter implements WritableFormatter {
           return true;
         } catch (BufferOverflowException fatal) {
           log.debug("dropping message because it exceeds a serialization buffer's capacity");
+        } catch (Throwable failure) {
+          discardFailedMessage(mapper);
+          throw failure;
         }
       }
       buffer.reset();
       // the buffer is now empty, so drop any mapper state from the rejected message
       mapper.reset();
       return false;
+    } catch (Throwable failure) {
+      discardFailedMessage(mapper);
+      throw failure;
+    }
+  }
+
+  /**
+   * Drops a message that failed part-way without corrupting the payload. Its bytes are rewound, but
+   * mapper state (string tables, counts) may still refer to them, so the completed messages are
+   * sent as their own payload and the mapper starts a new one.
+   */
+  private void discardFailedMessage(Mapper<?> mapper) {
+    buffer.rewind();
+    try {
+      buffer.flush();
+    } finally {
+      mapper.reset();
     }
   }
 

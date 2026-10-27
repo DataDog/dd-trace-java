@@ -107,6 +107,11 @@ public final class FlushingBuffer implements StreamingBuffer {
   }
 
   @Override
+  public void rewind() {
+    buffer.position(mark);
+  }
+
+  @Override
   public void reset() {
     messageCount = 0;
     buffer.position(0);

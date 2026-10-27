@@ -210,6 +210,9 @@ public class TraceMapperBenchmark {
     }
 
     @Override
+    public void rewind() {}
+
+    @Override
     public void reset() {}
   }
 }

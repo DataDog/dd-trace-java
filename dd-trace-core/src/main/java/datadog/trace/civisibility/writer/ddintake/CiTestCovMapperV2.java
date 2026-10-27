@@ -67,6 +67,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     long serializationStartTimestamp = System.currentTimeMillis();
+    int written = 0;
 
     for (CoreSpan<?> span : trace) {
       if (!isTestSpan(span)) {
@@ -118,8 +119,11 @@ public class CiTestCovMapperV2 implements RemoteMapper {
         }
       }
 
-      eventCount++;
+      written++;
     }
+    // Count only once the whole trace is written, so a trace that fails part-way and is rewound
+    // doesn't leave the payload's event count too high.
+    eventCount += written;
     serializationTimeMillis += (int) (System.currentTimeMillis() - serializationStartTimestamp);
   }
 

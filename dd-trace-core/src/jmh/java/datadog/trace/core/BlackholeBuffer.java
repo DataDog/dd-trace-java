@@ -81,5 +81,8 @@ public class BlackholeBuffer implements StreamingBuffer {
   }
 
   @Override
+  public void rewind() {}
+
+  @Override
   public void reset() {}
 }

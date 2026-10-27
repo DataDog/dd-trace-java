@@ -2,9 +2,11 @@ package datadog.communication.serialization.msgpack;
 
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -96,6 +98,105 @@ public class MsgPackWriterTest {
     public void reset() {
       resets++;
     }
+  }
+
+  @Test
+  public void testFailedMessageIsRewoundAndCompletedMessagesSentSeparately() {
+    List<List<String>> payloads = new ArrayList<>();
+    FailingMapper mapper = new FailingMapper();
+    MessageFormatter packer = new MsgPackWriter(newBuffer(100, collectStrings(payloads)));
+
+    assertTrue(packer.format("abc", mapper));
+    assertThrows(IllegalStateException.class, () -> packer.format("fail", mapper));
+
+    // the completed message goes out alone, before mapper state is dropped
+    assertEquals(singletonList(singletonList("abc")), payloads);
+    assertEquals(1, mapper.resets);
+
+    assertTrue(packer.format("def", mapper));
+    packer.flush();
+    assertEquals(Arrays.asList(singletonList("abc"), singletonList("def")), payloads);
+  }
+
+  @Test
+  public void testFailedFirstMessageLeavesBufferEmpty() {
+    List<List<String>> payloads = new ArrayList<>();
+    FailingMapper mapper = new FailingMapper();
+    MessageFormatter packer = new MsgPackWriter(newBuffer(100, collectStrings(payloads)));
+
+    assertThrows(IllegalStateException.class, () -> packer.format("fail", mapper));
+
+    assertTrue(payloads.isEmpty());
+    assertEquals(1, mapper.resets);
+
+    assertTrue(packer.format("def", mapper));
+    packer.flush();
+    assertEquals(singletonList(singletonList("def")), payloads);
+  }
+
+  @Test
+  public void testFailureDuringOverflowRetryIsRewound() {
+    List<List<String>> payloads = new ArrayList<>();
+    FailingMapper mapper = new FailingMapper();
+    MessageFormatter packer =
+        new MsgPackWriter(
+            newBuffer(
+                2 + 25, // enough space for a 25 element string and its 2 byte header
+                collectStrings(payloads)));
+
+    assertTrue(packer.format("abcdefghijklm", mapper));
+    // overflows, flushes the first message, then fails while retrying in the empty buffer
+    assertThrows(IllegalStateException.class, () -> packer.format("fail-on-retry-1234", mapper));
+
+    assertEquals(singletonList(singletonList("abcdefghijklm")), payloads);
+    // once before the retry, once when the failed retry is discarded
+    assertEquals(2, mapper.resets);
+
+    assertTrue(packer.format("xyz", mapper));
+    packer.flush();
+    assertEquals(Arrays.asList(singletonList("abcdefghijklm"), singletonList("xyz")), payloads);
+  }
+
+  /**
+   * Writes the message, then throws for messages starting with "fail", so the buffer holds a
+   * partial message. "fail-on-retry" messages only throw on the overflow retry.
+   */
+  private static final class FailingMapper implements Mapper<String> {
+    int resets;
+
+    @Override
+    public void map(String data, Writable writable) {
+      map(data, writable, false);
+    }
+
+    @Override
+    public void map(String data, Writable writable, boolean retry) {
+      writable.writeString(data, null);
+      if (data.startsWith("fail") && (retry || !data.startsWith("fail-on-retry"))) {
+        throw new IllegalStateException(data);
+      }
+    }
+
+    @Override
+    public void reset() {
+      resets++;
+    }
+  }
+
+  /** Decodes each flushed payload as strings, failing if it holds a partial message. */
+  private static ByteBufferConsumer collectStrings(List<List<String>> payloads) {
+    return (messageCount, buffer) -> {
+      List<String> payload = new ArrayList<>();
+      try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+        for (int i = 0; i < messageCount; ++i) {
+          payload.add(unpacker.unpackString());
+        }
+        assertFalse(unpacker.hasNext(), "payload holds only complete messages");
+      } catch (IOException error) {
+        fail(error.getMessage());
+      }
+      payloads.add(payload);
+    };
   }
 
   @Test

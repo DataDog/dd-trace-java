@@ -32,5 +32,8 @@ public interface StreamingBuffer {
 
   void put(ByteBuffer buffer);
 
+  /** Discards everything written since the last {@link #mark()}, keeping completed messages. */
+  void rewind();
+
   void reset();
 }
