@@ -10,6 +10,7 @@ dependencies {
   api(libs.slf4j)
   api(project(":communication"))
   implementation(project(":internal-api"))
+  implementation(project(":remote-config:remote-config-core"))
   api(project(":products:feature-flagging:feature-flagging-bootstrap"))
 
   // Platform JSON writer for the ffe_* tag values.
