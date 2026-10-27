@@ -7,6 +7,11 @@ package datadog.smoketest.springboot
 class OpenFeatureStandaloneSmokeTest extends AbstractOpenFeatureSmokeTest {
 
   @Override
+  protected String skipScopeContinuationCheckReason() {
+    'Exercises the standalone OpenFeature SDK without the agent required by the diagnostic companion'
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     final springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
     final command = [javaPath()]
