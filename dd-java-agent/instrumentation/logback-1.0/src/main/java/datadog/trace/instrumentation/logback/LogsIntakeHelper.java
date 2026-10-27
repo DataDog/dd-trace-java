@@ -1,14 +1,11 @@
 package datadog.trace.instrumentation.logback;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.logging.intake.LogsIntake;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,22 +15,23 @@ public class LogsIntakeHelper {
 
   private static final boolean APP_LOGS_COLLECTION = Config.get().isAppLogsCollectionEnabled();
   private static final boolean ENABLED =
-      APP_LOGS_COLLECTION || Config.get().isAgentlessLogSubmissionEnabled();
+      APP_LOGS_COLLECTION
+          || (Config.get().isTraceEnabled() && Config.get().isAgentlessLogSubmissionEnabled());
   private static final Level SUBMISSION_LEVEL =
       submissionLevel(Config.get().getAgentlessLogSubmissionLevel());
 
-  public static void log(ILoggingEvent event, AgentSpan span) {
+  public static void log(ILoggingEvent event) {
     if (!ENABLED) {
       return;
     }
     // App-log collection keeps its existing payload and framework-level filtering, even when
     // both collection flags are enabled.
     if (APP_LOGS_COLLECTION || event.getLevel().isGreaterOrEqual(SUBMISSION_LEVEL)) {
-      LogsIntake.log(map(event, span));
+      LogsIntake.log(map(event));
     }
   }
 
-  private static Map<String, Object> map(ILoggingEvent event, AgentSpan span) {
+  private static Map<String, Object> map(ILoggingEvent event) {
     Map<String, Object> log = new HashMap<>();
     log.put("thread", event.getThreadName());
     log.put("level", event.getLevel().levelStr);
@@ -51,15 +49,8 @@ public class LogsIntakeHelper {
       log.put("thrown", thrownLog);
     }
     if (!APP_LOGS_COLLECTION) {
-      Map<String, Object> context = new HashMap<>();
-      if (traceConfig(span).isLogsInjectionEnabled()) {
-        addCorrelationIds(context);
-      }
       Map<String, String> mdc = event.getMDCPropertyMap();
-      if (mdc != null) {
-        context.putAll(mdc);
-      }
-      log.put("contextMap", context);
+      log.put("contextMap", mdc != null ? new HashMap<>(mdc) : new HashMap<>());
       log.put("timestamp", event.getTimeStamp());
     } else {
       addCorrelationIds(log);
