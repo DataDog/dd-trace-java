@@ -77,7 +77,8 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
         undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
         // Forward, include, error and async dispatches happen inside the original request, so they
         // must not rename it: the root span keeps describing what the client asked for.
-        if (dispatcherType == DispatcherType.REQUEST) {
+        if (dispatcherType == DispatcherType.REQUEST
+            || UndertowDecorator.UNDERTOW_DISPATCH_RENAME_RESOURCE) {
           String relativePath = exchange.getRelativePath();
 
           ServletPathMatch servletPathMatch = servletRequestContext.getServletPathMatch();

@@ -253,6 +253,10 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
     }
   }
 
+  def dispatchRenamesResource() {
+    false
+  }
+
   def "internal #dispatch keeps the original request's resource and servlet path"() {
     setup:
     def request = new Request.Builder().url(address.resolve(path.substring(1)).toURL()).get().build()
@@ -271,8 +275,9 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
     }
 
     then:
+    // with the opt-out, a forward overwrites servlet.path with its target; an include leaves it alone
     serverSpan.resourceName.toString() == "GET /$CONTEXT$path"
-    serverSpan.tags["servlet.path"] == path
+    serverSpan.tags["servlet.path"] == (dispatchRenamesResource() && dispatch == "forward" ? SUCCESS.path : path)
 
     where:
     dispatch  | path
@@ -281,3 +286,15 @@ class UndertowServletTest extends HttpServerTest<Undertow> {
   }
 }
 
+class UndertowServletDispatchRenameForkedTest extends UndertowServletTest {
+  @Override
+  def dispatchRenamesResource() {
+    true
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.undertow.dispatch.rename-resource", "true")
+  }
+}

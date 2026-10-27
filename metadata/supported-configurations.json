@@ -11452,6 +11452,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_UNDERTOW_2_2_ENABLED", "DD_INTEGRATION_UNDERTOW_2_2_ENABLED"]
       }
     ],
+    "DD_TRACE_UNDERTOW_DISPATCH_RENAME_RESOURCE": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_UNDERTOW_ENABLED": [
       {
         "version": "A",

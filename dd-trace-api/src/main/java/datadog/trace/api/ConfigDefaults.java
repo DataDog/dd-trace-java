@@ -99,6 +99,8 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
+  static final boolean DEFAULT_UNDERTOW_DISPATCH_RENAME_RESOURCE = false;
+
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 
   static final boolean DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED = false;
