@@ -70,6 +70,10 @@ abstract class AbstractLogbackLogsIntakeForkedTest extends AbstractInstrumentati
     app.clear();
   }
 
+  static boolean traceEnabled() {
+    return InstrumenterConfig.get().isTraceEnabled();
+  }
+
   static boolean agentless() {
     return InstrumenterConfig.get().isAgentlessLogSubmissionEnabled();
   }
@@ -91,7 +95,7 @@ abstract class AbstractLogbackLogsIntakeForkedTest extends AbstractInstrumentati
   }
 
   static boolean collected() {
-    return integration() && (appLogs() || (agentless() && !fatalLevel()));
+    return integration() && (appLogs() || (traceEnabled() && agentless() && !fatalLevel()));
   }
 
   @Test
@@ -142,7 +146,7 @@ abstract class AbstractLogbackLogsIntakeForkedTest extends AbstractInstrumentati
 
     List<Map<String, String>> contexts = app.getContexts();
     assertEquals(3, contexts.size());
-    boolean injected = integration() && injection();
+    boolean injected = integration() && traceEnabled() && injection();
     assertEquals(injected ? traceId : null, contexts.get(0).get("dd.trace_id"));
     assertEquals(injected ? spanId : null, contexts.get(0).get("dd.span_id"));
     assertEquals("user-trace", contexts.get(1).get("dd.trace_id"));
@@ -241,8 +245,4 @@ class LogbackNoInjectionForkedTest extends AbstractLogbackLogsIntakeForkedTest {
 class LogbackDisabledForkedTest extends AbstractLogbackLogsIntakeForkedTest {}
 
 @WithConfig(key = TRACE_ENABLED, value = "false")
-class LogbackCiAgentlessForkedTest extends AbstractLogbackLogsIntakeForkedTest {}
-
-@WithConfig(key = AGENTLESS_LOG_SUBMISSION_ENABLED, value = "false")
-@WithConfig(key = TRACE_ENABLED, value = "false")
-class LogbackCiCorrelationForkedTest extends AbstractLogbackLogsIntakeForkedTest {}
+class LogbackTraceDisabledForkedTest extends AbstractLogbackLogsIntakeForkedTest {}

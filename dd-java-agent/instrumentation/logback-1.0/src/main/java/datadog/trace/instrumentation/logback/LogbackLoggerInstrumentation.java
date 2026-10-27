@@ -82,7 +82,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
             .put(event, span.spanContext());
       }
 
-      LogsIntakeHelper.log(event, span);
+      LogsIntakeHelper.log(event);
     }
   }
 }

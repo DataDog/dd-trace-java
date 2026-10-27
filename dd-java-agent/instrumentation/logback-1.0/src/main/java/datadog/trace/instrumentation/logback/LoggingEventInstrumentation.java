@@ -27,7 +27,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class LoggingEventInstrumentation extends InstrumenterModule.ContextTracking
+public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public LoggingEventInstrumentation() {
     super("logback");
