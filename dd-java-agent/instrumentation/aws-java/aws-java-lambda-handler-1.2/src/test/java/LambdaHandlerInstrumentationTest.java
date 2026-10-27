@@ -638,7 +638,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                     error(Error.class, "Some error"))));
   }
 
-  @WithConfig(key = GeneralConfig.LAMBDA_STRIP_INJECTED_CONTEXT, value = "true")
+  @WithConfig(key = GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, value = "true")
   @Test
   void stripsInjectedDatadogContextFromEventBridgeDetail() throws IOException {
     String eventJson =

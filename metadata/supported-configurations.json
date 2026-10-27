@@ -2364,14 +2364,6 @@
         "aliases": []
       }
     ],
-    "DD_LAMBDA_STRIP_INJECTED_CONTEXT": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": ["DD_TRACE_LAMBDA_STRIP_INJECTED_CONTEXT"]
-      }
-    ],
     "DD_LLMOBS_AGENTLESS_ENABLED": [
       {
         "version": "B",
@@ -4986,6 +4978,14 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_AWS_LAMBDA_ENABLED", "DD_INTEGRATION_AWS_LAMBDA_ENABLED"]
+      }
+    ],
+    "DD_TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
       }
     ],
     "DD_TRACE_AWS_PROPAGATION_ENABLED": [

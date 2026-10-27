@@ -116,7 +116,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_LAMBDA_STRIP_INJECTED_CONTEXT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
@@ -177,6 +176,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOG
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_TAG_KEYS;
@@ -407,7 +407,6 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE;
 import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED;
-import static datadog.trace.api.config.GeneralConfig.LAMBDA_STRIP_INJECTED_CONTEXT;
 import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
@@ -439,8 +438,8 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
+import static datadog.trace.api.config.GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
-import static datadog.trace.api.config.GeneralConfig.TRACE_LAMBDA_STRIP_INJECTED_CONTEXT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_ADDITIONAL_TAGS;
@@ -1809,9 +1808,7 @@ public class Config {
 
     lambdaStripInjectedContextEnabled =
         configProvider.getBoolean(
-            LAMBDA_STRIP_INJECTED_CONTEXT,
-            DEFAULT_LAMBDA_STRIP_INJECTED_CONTEXT,
-            TRACE_LAMBDA_STRIP_INJECTED_CONTEXT);
+            TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, DEFAULT_TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED);
 
     peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
 
