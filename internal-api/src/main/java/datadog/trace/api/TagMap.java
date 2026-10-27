@@ -2242,7 +2242,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
       HashStore level = this.nameLevel;
       while (level != null) {
-        Entry entry = this.walker.next();
+        Entry entry = this.walker.nextEntry();
         if (entry != null) {
           // leaf entries emit as-is; ancestor entries only if not shadowed by a nearer level
           if (level == this.nameLeaf || this.nameLeaf.parentEntryVisible(entry, level)) {
@@ -2664,6 +2664,46 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
           this.hash1, this.entry1,
           this.hash2, this.entry2,
           this.hash3, this.entry3);
+    }
+
+    void forEachInChain(Consumer<? super EntryReader> consumer) {
+      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
+        curGroup._forEach(consumer);
+      }
+    }
+
+    void _forEach(Consumer<? super EntryReader> consumer) {
+      if (this.entry0 != null) consumer.accept(this.entry0);
+      if (this.entry1 != null) consumer.accept(this.entry1);
+      if (this.entry2 != null) consumer.accept(this.entry2);
+      if (this.entry3 != null) consumer.accept(this.entry3);
+    }
+
+    <T> void forEachInChain(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
+        curGroup._forEach(thisObj, consumer);
+      }
+    }
+
+    <T> void _forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+      if (this.entry0 != null) consumer.accept(thisObj, this.entry0);
+      if (this.entry1 != null) consumer.accept(thisObj, this.entry1);
+      if (this.entry2 != null) consumer.accept(thisObj, this.entry2);
+      if (this.entry3 != null) consumer.accept(thisObj, this.entry3);
+    }
+
+    <T, U> void forEachInChain(
+        T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+      for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
+        curGroup._forEach(thisObj, otherObj, consumer);
+      }
+    }
+
+    <T, U> void _forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+      if (this.entry0 != null) consumer.accept(thisObj, otherObj, this.entry0);
+      if (this.entry1 != null) consumer.accept(thisObj, otherObj, this.entry1);
+      if (this.entry2 != null) consumer.accept(thisObj, otherObj, this.entry2);
+      if (this.entry3 != null) consumer.accept(thisObj, otherObj, this.entry3);
     }
 
     @Override

@@ -281,8 +281,52 @@ final class HashSupport {
     return added;
   }
 
-  /** Visits every entry, skipping tombstones. */
+  /**
+   * Visits every entry in {@code buckets}, which must hold no tombstones, as a {@link TagMap}'s and
+   * a {@link HashStore}'s never do. {@link #forEachLive} skips them. This walk runs for every span
+   * the serializer writes, so it stays the unrolled shape with no tombstone check.
+   */
   static void forEach(Object[] buckets, Consumer<? super EntryReader> consumer) {
+    for (int i = 0; i < buckets.length; ++i) {
+      Object bucket = buckets[i];
+      if (bucket instanceof Entry) {
+        consumer.accept((Entry) bucket);
+      } else if (bucket instanceof BucketGroup) {
+        ((BucketGroup) bucket).forEachInChain(consumer);
+      }
+    }
+  }
+
+  /** {@link #forEach(Object[], Consumer)} with a context object for a non-capturing consumer. */
+  static <T> void forEach(
+      Object[] buckets, T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+    for (int i = 0; i < buckets.length; ++i) {
+      Object bucket = buckets[i];
+      if (bucket instanceof Entry) {
+        consumer.accept(thisObj, (Entry) bucket);
+      } else if (bucket instanceof BucketGroup) {
+        ((BucketGroup) bucket).forEachInChain(thisObj, consumer);
+      }
+    }
+  }
+
+  /** {@link #forEach(Object[], Consumer)} with two context objects. */
+  static <T, U> void forEach(
+      Object[] buckets, T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+    for (int i = 0; i < buckets.length; ++i) {
+      Object bucket = buckets[i];
+      if (bucket instanceof Entry) {
+        consumer.accept(thisObj, otherObj, (Entry) bucket);
+      } else if (bucket instanceof BucketGroup) {
+        ((BucketGroup) bucket).forEachInChain(thisObj, otherObj, consumer);
+      }
+    }
+  }
+
+  /**
+   * Visits every live entry in {@code buckets}, skipping tombstones, which only an id store holds.
+   */
+  static void forEachLive(Object[] buckets, Consumer<? super EntryReader> consumer) {
     for (int i = 0; i < buckets.length; ++i) {
       Object bucket = buckets[i];
       if (bucket instanceof Entry) {
@@ -299,7 +343,8 @@ final class HashSupport {
     }
   }
 
-  static <T> void forEach(
+  /** {@link #forEachLive(Object[], Consumer)} with a context object. */
+  static <T> void forEachLive(
       Object[] buckets, T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
     for (int i = 0; i < buckets.length; ++i) {
       Object bucket = buckets[i];
@@ -317,7 +362,8 @@ final class HashSupport {
     }
   }
 
-  static <T, U> void forEach(
+  /** {@link #forEachLive(Object[], Consumer)} with two context objects. */
+  static <T, U> void forEachLive(
       Object[] buckets, T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
     for (int i = 0; i < buckets.length; ++i) {
       Object bucket = buckets[i];
@@ -335,18 +381,20 @@ final class HashSupport {
     }
   }
 
+  /** Puts every live entry in {@code buckets} into {@code map}, by tag, as its object value. */
   static void fillMap(Object[] buckets, Map<? super String, Object> map) {
-    forEach(buckets, map, (m, entry) -> m.put(entry.tag(), entry.objectValue()));
+    forEachLive(buckets, map, (m, entry) -> m.put(entry.tag(), entry.objectValue()));
   }
 
+  /** Puts every live entry in {@code buckets} into {@code map}, by tag, as its string value. */
   static void fillStringMap(Object[] buckets, Map<? super String, ? super String> map) {
-    forEach(buckets, map, (m, entry) -> m.put(entry.tag(), entry.stringValue()));
+    forEachLive(buckets, map, (m, entry) -> m.put(entry.tag(), entry.stringValue()));
   }
 
   /** The number of live entries, not counting tombstones. Tests only. */
   static int count(Object[] buckets) {
     int[] count = new int[1];
-    forEach(buckets, count, (c, entry) -> c[0]++);
+    forEachLive(buckets, count, (c, entry) -> c[0]++);
     return count[0];
   }
 
@@ -415,7 +463,7 @@ final class HashSupport {
   }
 
   /** Walks a bucket array's raw entries, tombstones included, for an iterator. */
-  static final class BucketWalker {
+  static class BucketWalker {
     private Object[] buckets;
     private int bucketIndex;
     private BucketGroup group;
@@ -430,7 +478,7 @@ final class HashSupport {
     }
 
     /** The next raw entry, or null when the array is done. */
-    Entry next() {
+    final Entry nextEntry() {
       while (this.bucketIndex < this.buckets.length) {
         if (this.group != null) {
           for (++this.groupIndex; this.groupIndex < BucketGroup.LEN; ++this.groupIndex) {
