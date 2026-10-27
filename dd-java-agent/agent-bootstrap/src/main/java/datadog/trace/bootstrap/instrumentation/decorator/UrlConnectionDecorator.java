@@ -7,6 +7,7 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.SpanData;
 import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.api.http.OtelClientUrl;
@@ -73,7 +74,7 @@ public class UrlConnectionDecorator extends UriBasedClientDecorator {
 
   private static final class FullUrl implements TagExtractor<URI> {
     @Override
-    public void extract(URI uri, AgentSpan span) {
+    public void extract(URI uri, SpanData span) {
       // URLConnection historically records the original URL, including its query and fragment.
       span.setTag(KnownTags.HTTP_URL_ID, uri.toString());
     }

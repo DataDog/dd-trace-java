@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
@@ -24,7 +24,8 @@ class UrlConnectionDecoratorUrlTest {
 
     UrlConnectionDecorator.DECORATE.onURI(span, URI.create(url));
 
-    verify(span).setTag(KnownTags.HTTP_URL_ID, url);
-    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
+    // the URL extractors set tags through SpanData, whose id setters take a CharSequence
+    verify(span).setTag(KnownTags.HTTP_URL_ID, (CharSequence) url);
+    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), any(CharSequence.class));
   }
 }
