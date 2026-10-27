@@ -23,7 +23,6 @@ dependencies {
 
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng:testng-common'))
   testImplementation group: 'org.testng', name: 'testng', version: '6.4'
-  testImplementation libs.mokito.core
   testng6910TestImplementation group: 'org.testng', name: 'testng', version: '6.9.10'
 }
 
