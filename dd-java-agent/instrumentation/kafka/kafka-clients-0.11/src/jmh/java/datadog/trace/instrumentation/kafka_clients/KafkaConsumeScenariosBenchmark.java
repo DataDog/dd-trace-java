@@ -46,6 +46,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * through extraction, a consume span and the Data Streams (DSM) checkpoint path. Records cycle over
  * a few topics so per-topic work isn't a single cached value.
  *
+ * <p>Use it to check changes to the consumer's per-record path. It resolves per-record differences
+ * (tens of ns, hundreds of bytes) that the CI Kafka macro benchmarks report as no change.
+ *
  * <p>{@code dataStreams} sets {@code dd.data.streams.enabled}. {@code false} is the default most
  * services run. {@code true} checks that DSM users don't pay for changes made for the disabled
  * case; with no local Datadog Agent, DSM still builds tags, contexts and checkpoints, but drops the
@@ -57,8 +60,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * aren't measured. Quote absolute ns and bytes per record. For end-to-end throughput, use the Kafka
  * macro benchmark ({@code kafka-consumer-perf-test} under the agent).
  *
- * <p>To compare builds, run it on both: cherry-pick the commit that adds this benchmark onto the
- * baseline.
+ * <p>To compare builds, run it on both. For a baseline that predates this benchmark, cherry-pick
+ * the commit that adds it.
  *
  * <pre>
  *   ./gradlew :dd-java-agent:instrumentation:kafka:kafka-clients-0.11:jmh \
