@@ -111,6 +111,10 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       logSamplingDecision("preSampleRequest", hash);
       return true;
     }
+    log.debug(
+        "API security sampling skipped, no post-processing permit available (max={}): hash={}",
+        MAX_POST_PROCESSING_TASKS,
+        hash);
     return false;
   }
 

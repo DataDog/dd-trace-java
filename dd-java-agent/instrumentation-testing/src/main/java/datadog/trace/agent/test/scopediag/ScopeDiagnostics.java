@@ -2,6 +2,7 @@ package datadog.trace.agent.test.scopediag;
 
 import datadog.context.ContextContinuation;
 import datadog.trace.api.DDTraceId;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -9,6 +10,11 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,10 +25,14 @@ public final class ScopeDiagnostics {
   private static final int DEFAULT_MAX_FRAMES = 6;
   private static final long DEFAULT_QUIESCENCE_TIMEOUT_MILLIS = 250;
 
-  private static final ScopeDiagnostics INSTANCE = new ScopeDiagnostics();
+  static final ScopeDiagnostics INSTANCE = new ScopeDiagnostics();
 
-  /** Linearizes event admission, stop/reset, and report snapshots. */
-  private final Object lifecycleLock = new Object();
+  /** Serializes event consumption, stop/reset, and report snapshots. */
+  final ReentrantLock lifecycleLock = new ReentrantLock();
+
+  // Callbacks also run on virtual-thread carriers. They must never wait for a lock whose owner
+  // may be an unmounted virtual thread waiting for one of those same carriers.
+  private final ConcurrentLinkedQueue<Thread> quiescenceWaiters = new ConcurrentLinkedQueue<>();
 
   private final Map<ContextContinuation, ContinuationRecord> records = new IdentityHashMap<>();
   private final Map<Object, ScopeRecord> scopeRecords = new IdentityHashMap<>();
@@ -35,8 +45,19 @@ public final class ScopeDiagnostics {
       Collections.newSetFromMap(new IdentityHashMap<ContextContinuation, Boolean>());
   private long seq;
   private long scopeSeq;
-  private volatile Object recordingWindow;
-  private StackFilter stackFilter = new StackFilter(DEFAULT_MAX_FRAMES);
+
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_64BIT_PRIMITIVE",
+      justification = "All reads and writes, including Listener callbacks, hold lifecycleLock")
+  private long incompleteContinuations;
+
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_64BIT_PRIMITIVE",
+      justification = "All reads and writes, including Listener callbacks, hold lifecycleLock")
+  private long incompleteScopes;
+
+  private volatile DiagnosticEventBuffer recordingWindow;
+  private volatile StackFilter stackFilter = new StackFilter(DEFAULT_MAX_FRAMES);
 
   private final Listener listener = new Listener();
 
@@ -65,37 +86,57 @@ public final class ScopeDiagnostics {
   /** Clears any prior data and starts recording, keeping up to {@code maxFrames} per stack. */
   public static void startRecording(int maxFrames) {
     ScopeContinuationTransformer.install();
-    synchronized (INSTANCE.lifecycleLock) {
+    INSTANCE.lifecycleLock.lock();
+    try {
       INSTANCE.clear();
       INSTANCE.stackFilter = new StackFilter(maxFrames);
-      INSTANCE.recordingWindow = new Object();
+      INSTANCE.recordingWindow = new DiagnosticEventBuffer();
+    } finally {
+      INSTANCE.lifecycleLock.unlock();
     }
+    INSTANCE.wakeQuiescenceWaiters();
   }
 
   /** Stops recording. Recorded data remains queryable until reset. */
   public static void stop() {
-    synchronized (INSTANCE.lifecycleLock) {
+    INSTANCE.lifecycleLock.lock();
+    try {
+      DiagnosticEventBuffer window = INSTANCE.recordingWindow;
       INSTANCE.recordingWindow = null;
+      if (window != null) {
+        window.close();
+        window.drain(false, 0, true);
+      }
+    } finally {
+      INSTANCE.lifecycleLock.unlock();
     }
+    INSTANCE.wakeQuiescenceWaiters();
   }
 
   /** Discards all recorded data. */
   public static void reset() {
-    synchronized (INSTANCE.lifecycleLock) {
-      INSTANCE.recordingWindow = null;
+    INSTANCE.lifecycleLock.lock();
+    try {
       INSTANCE.clear();
+    } finally {
+      INSTANCE.lifecycleLock.unlock();
     }
+    INSTANCE.wakeQuiescenceWaiters();
   }
 
-  /** Each probe keeps this identity until admission under the lifecycle lock. */
+  /** Each probe keeps this identity so delayed callbacks cannot enter a later recording. */
   static Object recordingWindow() {
     return INSTANCE.recordingWindow;
   }
 
   /** Returns an immutable snapshot of the events recorded so far. */
   public static ScopeDiagnosticsReport report() {
-    synchronized (INSTANCE.lifecycleLock) {
+    INSTANCE.lifecycleLock.lock();
+    try {
+      INSTANCE.drainEvents();
       return INSTANCE.snapshot();
+    } finally {
+      INSTANCE.lifecycleLock.unlock();
     }
   }
 
@@ -106,26 +147,64 @@ public final class ScopeDiagnostics {
 
   /** Waits up to the supplied budget for recorded lifecycles to complete. */
   public static void awaitQuiescence(long timeoutMillis) {
+    awaitQuiescence(timeoutMillis, false);
+  }
+
+  /** Waits for cleanup and closes admission without a gap for a new lifecycle to enter. */
+  public static void stopAfterQuiescence() {
+    stopAfterQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MILLIS);
+  }
+
+  /** Stops at quiescence, or retains incomplete lifecycles when the budget expires. */
+  public static void stopAfterQuiescence(long timeoutMillis) {
+    awaitQuiescence(timeoutMillis, true);
+  }
+
+  private static void awaitQuiescence(long timeoutMillis, boolean stop) {
     if (timeoutMillis < 0 || timeoutMillis > Long.MAX_VALUE / 1_000_000L) {
       throw new IllegalArgumentException(
           "Invalid scope diagnostics quiescence budget: " + timeoutMillis);
     }
     long deadline = System.nanoTime() + timeoutMillis * 1_000_000L;
-    synchronized (INSTANCE.lifecycleLock) {
-      while (INSTANCE.recordingWindow != null && INSTANCE.snapshot().hasIncompleteLifecycles()) {
+    Thread waiter = Thread.currentThread();
+    INSTANCE.quiescenceWaiters.add(waiter);
+    try {
+      while (!waiter.isInterrupted()) {
+        INSTANCE.lifecycleLock.lock();
+        try {
+          INSTANCE.drainEvents(true, deadline, false);
+          DiagnosticEventBuffer window = INSTANCE.recordingWindow;
+          if (window == null) {
+            return;
+          }
+          if (!INSTANCE.hasIncompleteLifecycles()) {
+            if (!stop) {
+              return;
+            }
+            // Producers reserve outside lifecycleLock. The CAS must also see an empty buffer;
+            // otherwise an admitted scope could be opened here and lose its subsequent close.
+            if (window.closeIfEmpty()) {
+              INSTANCE.recordingWindow = null;
+              INSTANCE.wakeQuiescenceWaiters();
+              return;
+            }
+          }
+        } finally {
+          INSTANCE.lifecycleLock.unlock();
+        }
         long remaining = deadline - System.nanoTime();
         if (remaining <= 0) {
-          return;
+          break;
         }
-        try {
-          long millis = remaining / 1_000_000L;
-          int nanos = (int) (remaining % 1_000_000L);
-          INSTANCE.lifecycleLock.wait(millis, nanos);
-        } catch (InterruptedException interrupted) {
-          Thread.currentThread().interrupt();
-          return;
-        }
+        // Registration precedes the predicate check; an enqueue racing with park retains its
+        // permit.
+        LockSupport.parkNanos(INSTANCE, remaining);
       }
+    } finally {
+      INSTANCE.quiescenceWaiters.remove(waiter);
+    }
+    if (stop) {
+      stop();
     }
   }
 
@@ -187,6 +266,11 @@ public final class ScopeDiagnostics {
   }
 
   private void clear() {
+    DiagnosticEventBuffer window = recordingWindow;
+    recordingWindow = null;
+    if (window != null) {
+      window.close();
+    }
     records.clear();
     scopeRecords.clear();
     deferredCleanupScopes.clear();
@@ -195,6 +279,8 @@ public final class ScopeDiagnostics {
     released.clear();
     seq = 0;
     scopeSeq = 0;
+    incompleteContinuations = 0;
+    incompleteScopes = 0;
   }
 
   private ScopeDiagnosticsReport snapshot() {
@@ -206,19 +292,95 @@ public final class ScopeDiagnostics {
 
   private static final StackTraceElement[] NO_STACK = new StackTraceElement[0];
 
-  private ScopeEvent event(ScopeEvent.Type type) {
-    return event(type, System.nanoTime());
+  private ScopeEvent event(
+      ScopeEvent.Type type, long nanos, String threadName, StackFilter filter, Throwable callSite) {
+    StackTraceElement[] stack =
+        callSite == null ? NO_STACK : filter.filter(callSite.getStackTrace());
+    return new ScopeEvent(type, threadName, nanos, stack);
   }
 
-  /** Uses the supplied event time while capturing the thread and stack at the call site. */
-  private ScopeEvent event(ScopeEvent.Type type, long nanos) {
-    // Avoid stack walking when call sites are disabled because it perturbs recorded timings.
-    StackFilter filter = stackFilter;
-    StackTraceElement[] stack =
-        filter.maxFrames() <= 0 ? NO_STACK : filter.filter(new Throwable().getStackTrace());
-    ScopeEvent event = new ScopeEvent(type, Thread.currentThread().getName(), nanos, stack);
-    lifecycleLock.notifyAll();
-    return event;
+  private static void record(
+      Object identity, ScopeEvent.Type type, long nanos, Consumer<Supplier<ScopeEvent>> handler) {
+    DiagnosticEventBuffer window = INSTANCE.recordingWindow;
+    if (window == null || window != identity) {
+      return;
+    }
+    // Reservation is admission: closing the buffer atomically refuses all later callbacks.
+    // Reserve before collecting a stack so slow stack walks cannot reorder lifecycle events.
+    DiagnosticEventBuffer.Event pending = window.reserve();
+    if (pending == null) {
+      return;
+    }
+    StackFilter filter = INSTANCE.stackFilter;
+    String threadName = Thread.currentThread().getName();
+    try {
+      if (INSTANCE.lifecycleLock.tryLock()) {
+        try {
+          if (window == INSTANCE.recordingWindow) {
+            window.drain(false, 0, false);
+            if (window.isNext(pending)) {
+              // The common path filters ignored callbacks before even constructing a Throwable.
+              pending.publish(
+                  () ->
+                      handler.accept(
+                          () ->
+                              INSTANCE.event(
+                                  type,
+                                  nanos,
+                                  threadName,
+                                  filter,
+                                  filter.maxFrames() <= 0 ? null : new Throwable())));
+              window.drain(false, 0, false);
+              return;
+            }
+          }
+        } finally {
+          INSTANCE.lifecycleLock.unlock();
+        }
+      }
+      // A contended callback must preserve its originating stack, but materialization and filtering
+      // can wait until the consumer knows this event will actually be retained.
+      Throwable callSite = type == null || filter.maxFrames() <= 0 ? null : new Throwable();
+      pending.publish(
+          () -> handler.accept(() -> INSTANCE.event(type, nanos, threadName, filter, callSite)));
+      if (INSTANCE.lifecycleLock.tryLock()) {
+        try {
+          if (window == INSTANCE.recordingWindow) {
+            window.drain(false, 0, false);
+          }
+        } finally {
+          INSTANCE.lifecycleLock.unlock();
+        }
+      }
+    } finally {
+      // Even a failed stack capture must release the reservation to a stopping/reporting reader.
+      pending.publishIfAbsent();
+      INSTANCE.wakeQuiescenceWaiters();
+    }
+  }
+
+  private void wakeQuiescenceWaiters() {
+    for (Thread waiter : quiescenceWaiters) {
+      LockSupport.unpark(waiter);
+    }
+  }
+
+  private void drainEvents() {
+    drainEvents(false, 0, true);
+  }
+
+  private void drainEvents(boolean timed, long deadline, boolean waitForPublication) {
+    DiagnosticEventBuffer window = recordingWindow;
+    if (window != null) {
+      window.drain(timed, deadline, waitForPublication);
+    }
+  }
+
+  /** Inspects live state without copying every record and call stack on every wakeup. */
+  private boolean hasIncompleteLifecycles() {
+    return incompleteContinuations != 0
+        || incompleteScopes != 0
+        || (recordingWindow != null && recordingWindow.hasPending());
   }
 
   static void recordCapture(
@@ -228,11 +390,11 @@ public final class ScopeDiagnostics {
       long spanId,
       String spanName,
       byte source) {
-    synchronized (INSTANCE.lifecycleLock) {
-      if (window != null && window == INSTANCE.recordingWindow) {
-        INSTANCE.listener.onCapture(id, traceId, spanId, spanName, source);
-      }
-    }
+    record(
+        window,
+        ScopeEvent.Type.CAPTURE,
+        System.nanoTime(),
+        event -> INSTANCE.listener.onCapture(id, traceId, spanId, spanName, source, event));
   }
 
   static void recordActivate(
@@ -243,19 +405,19 @@ public final class ScopeDiagnostics {
       String spanName,
       byte source,
       long nanos) {
-    synchronized (INSTANCE.lifecycleLock) {
-      if (window != null && window == INSTANCE.recordingWindow) {
-        INSTANCE.listener.onActivate(id, traceId, spanId, spanName, source, nanos);
-      }
-    }
+    record(
+        window,
+        ScopeEvent.Type.ACTIVATE,
+        nanos,
+        event -> INSTANCE.listener.onActivate(id, traceId, spanId, spanName, source, event));
   }
 
   static void recordActivateFailed(Object window, ContextContinuation id) {
-    synchronized (INSTANCE.lifecycleLock) {
-      if (window != null && window == INSTANCE.recordingWindow) {
-        INSTANCE.listener.onActivateFailed(id);
-      }
-    }
+    record(
+        window,
+        ScopeEvent.Type.ACTIVATE_FAILED,
+        System.nanoTime(),
+        event -> INSTANCE.listener.onActivateFailed(id, event));
   }
 
   static void recordResolve(
@@ -264,24 +426,22 @@ public final class ScopeDiagnostics {
       boolean release,
       long resolveNanos,
       boolean duplicateAttempt) {
-    synchronized (INSTANCE.lifecycleLock) {
-      if (window != null && window == INSTANCE.recordingWindow) {
-        boolean firstResolution = INSTANCE.resolved.add(id);
-        boolean repeatedRelease = release && !INSTANCE.released.add(id);
-        if (duplicateAttempt || firstResolution || repeatedRelease) {
-          INSTANCE.listener.onResolve(
-              id, release, resolveNanos, duplicateAttempt || repeatedRelease);
-        }
-      }
-    }
+    record(
+        window,
+        release ? ScopeEvent.Type.RESOLVE_RELEASE : ScopeEvent.Type.RESOLVE_FINISH,
+        resolveNanos,
+        event -> {
+          boolean firstResolution = INSTANCE.resolved.add(id);
+          boolean repeatedRelease = release && !INSTANCE.released.add(id);
+          if (duplicateAttempt || firstResolution || repeatedRelease) {
+            INSTANCE.listener.onResolve(id, duplicateAttempt || repeatedRelease, event);
+          }
+        });
   }
 
   static void recordRootWritten(Object window, DDTraceId traceId) {
-    synchronized (INSTANCE.lifecycleLock) {
-      if (window != null && window == INSTANCE.recordingWindow) {
-        INSTANCE.listener.onRootWritten(traceId);
-      }
-    }
+    long nanos = System.nanoTime();
+    record(window, null, nanos, ignored -> INSTANCE.listener.onRootWritten(traceId, nanos));
   }
 
   static void recordScopeOpen(
@@ -292,45 +452,50 @@ public final class ScopeDiagnostics {
       String spanName,
       byte source,
       ContextContinuation continuation) {
-    synchronized (INSTANCE.lifecycleLock) {
-      if (window != null && window == INSTANCE.recordingWindow) {
-        INSTANCE.listener.onScopeOpen(scope, traceId, spanId, spanName, source, continuation);
-      }
-    }
+    record(
+        window,
+        ScopeEvent.Type.SCOPE_OPEN,
+        System.nanoTime(),
+        event ->
+            INSTANCE.listener.onScopeOpen(
+                scope, traceId, spanId, spanName, source, continuation, event));
   }
 
   static void recordScopeClose(Object window, Object scope) {
-    synchronized (INSTANCE.lifecycleLock) {
-      if (window != null && window == INSTANCE.recordingWindow) {
-        INSTANCE.listener.onScopeClose(scope);
-      }
-    }
+    record(
+        window,
+        ScopeEvent.Type.SCOPE_CLOSE,
+        System.nanoTime(),
+        event -> INSTANCE.listener.onScopeClose(scope, event));
   }
 
   static void recordScopeCloseWrongThread(Object window, Object scope) {
-    synchronized (INSTANCE.lifecycleLock) {
-      if (window != null && window == INSTANCE.recordingWindow) {
-        INSTANCE.listener.onScopeCloseWrongThread(scope);
-      }
-    }
+    record(
+        window,
+        ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD,
+        System.nanoTime(),
+        event -> INSTANCE.listener.onScopeCloseWrongThread(scope, event));
   }
 
   static void recordDeferredScopeCleanup(Object window, Object scope) {
-    synchronized (INSTANCE.lifecycleLock) {
-      if (window != null && window == INSTANCE.recordingWindow) {
-        INSTANCE.listener.onDeferredScopeCleanup(scope);
-      }
-    }
+    record(window, null, 0, ignored -> INSTANCE.listener.onDeferredScopeCleanup(scope));
   }
 
   private final class Listener {
     void onCapture(
-        ContextContinuation id, DDTraceId traceId, long spanId, String spanName, byte source) {
+        ContextContinuation id,
+        DDTraceId traceId,
+        long spanId,
+        String spanName,
+        byte source,
+        Supplier<ScopeEvent> event) {
       try {
         ContinuationRecord record =
-            new ContinuationRecord(
-                seq++, traceId, spanId, spanName, source, false, event(ScopeEvent.Type.CAPTURE));
-        records.put(id, record);
+            new ContinuationRecord(seq++, traceId, spanId, spanName, source, false, event.get());
+        ContinuationRecord previous = records.put(id, record);
+        if (previous == null || previous.orphan || previous.isResolved()) {
+          incompleteContinuations++;
+        }
       } catch (Throwable ignored) {
         // diagnostics must never disturb the tracer
       }
@@ -342,37 +507,41 @@ public final class ScopeDiagnostics {
         long spanId,
         String spanName,
         byte source,
-        long nanos) {
+        Supplier<ScopeEvent> event) {
       try {
-        recordFor(id, traceId, spanId, spanName, source)
-            .addResume(event(ScopeEvent.Type.ACTIVATE, nanos));
+        recordFor(id, traceId, spanId, spanName, source).addResume(event.get());
       } catch (Throwable ignored) {
       }
     }
 
-    void onActivateFailed(ContextContinuation id) {
+    void onActivateFailed(ContextContinuation id, Supplier<ScopeEvent> event) {
       try {
         // The probe observed cancellation; capture and resolution need not be in this window.
-        recordFor(id, DDTraceId.ZERO, 0, null, (byte) -1)
-            .addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED));
+        ContinuationRecord record = recordFor(id, DDTraceId.ZERO, 0, null, (byte) -1);
+        ScopeEvent retained = event.get();
+        if (!record.orphan && !record.isResolved()) {
+          incompleteContinuations--;
+        }
+        record.addFailedActivation(retained);
       } catch (Throwable ignored) {
       }
     }
 
-    void onResolve(
-        ContextContinuation id, boolean release, long resolveNanos, boolean duplicateAttempt) {
+    void onResolve(ContextContinuation id, boolean duplicateAttempt, Supplier<ScopeEvent> event) {
       try {
-        ScopeEvent.Type type =
-            release ? ScopeEvent.Type.RESOLVE_RELEASE : ScopeEvent.Type.RESOLVE_FINISH;
-        recordFor(id, DDTraceId.ZERO, 0, null, (byte) -1)
-            .setTerminalOrExtra(event(type, resolveNanos), duplicateAttempt);
+        ContinuationRecord record = recordFor(id, DDTraceId.ZERO, 0, null, (byte) -1);
+        ScopeEvent retained = event.get();
+        if (!record.orphan && !record.isResolved()) {
+          incompleteContinuations--;
+        }
+        record.setTerminalOrExtra(retained, duplicateAttempt);
       } catch (Throwable ignored) {
       }
     }
 
-    void onRootWritten(DDTraceId traceId) {
+    void onRootWritten(DDTraceId traceId, long nanos) {
       try {
-        rootWrittenNanos.putIfAbsent(traceId, System.nanoTime());
+        rootWrittenNanos.putIfAbsent(traceId, nanos);
       } catch (Throwable ignored) {
       }
     }
@@ -383,7 +552,8 @@ public final class ScopeDiagnostics {
         long spanId,
         String spanName,
         byte source,
-        ContextContinuation continuation) {
+        ContextContinuation continuation,
+        Supplier<ScopeEvent> event) {
       try {
         if (scopeRecords.containsKey(scope)) {
           return; // re-activation of an already-open scope, not a new open
@@ -401,7 +571,10 @@ public final class ScopeDiagnostics {
                 source,
                 continuationSeq,
                 deferredCleanupScopes.remove(scope),
-                event(ScopeEvent.Type.SCOPE_OPEN)));
+                event.get()));
+        if (!scopeRecords.get(scope).deferredCleanup()) {
+          incompleteScopes++;
+        }
         if (owner != null) {
           owner.linkScope(s);
         }
@@ -409,21 +582,24 @@ public final class ScopeDiagnostics {
       }
     }
 
-    void onScopeClose(Object scope) {
+    void onScopeClose(Object scope, Supplier<ScopeEvent> event) {
       try {
         ScopeRecord record = scopeRecords.get(scope);
-        if (record != null) {
-          record.setClose(event(ScopeEvent.Type.SCOPE_CLOSE));
+        if (record != null && !record.closed()) {
+          record.setClose(event.get());
+          if (!record.deferredCleanup()) {
+            incompleteScopes--;
+          }
         }
       } catch (Throwable ignored) {
       }
     }
 
-    void onScopeCloseWrongThread(Object scope) {
+    void onScopeCloseWrongThread(Object scope, Supplier<ScopeEvent> event) {
       try {
         ScopeRecord record = scopeRecords.get(scope);
         if (record != null) {
-          record.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD));
+          record.addWrongThreadClose(event.get());
         }
       } catch (Throwable ignored) {
       }
@@ -433,6 +609,9 @@ public final class ScopeDiagnostics {
       try {
         ScopeRecord record = scopeRecords.get(scope);
         if (record != null) {
+          if (!record.closed() && !record.deferredCleanup()) {
+            incompleteScopes--;
+          }
           record.markDeferredCleanup();
         } else {
           deferredCleanupScopes.add(scope);
