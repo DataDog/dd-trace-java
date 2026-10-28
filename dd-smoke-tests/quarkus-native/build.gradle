@@ -2,6 +2,7 @@ import java.util.concurrent.Callable
 import java.util.regex.Pattern
 
 plugins {
+  id 'dd-trace-java.ci-builder-inputs'
   id 'dd-trace-java.smoke-test-app'
   id 'dd-trace-java.module.smoke-test'
 }
@@ -46,6 +47,7 @@ smokeTestApp {
     environment.put('GRAALVM_HOME', graalvmHome)
     inputs {
       property('graalvmRelease', fileContent(graalvmHome, 'release'))
+      property('ciBuilderIdentity', ciBuilderInputs.identity)
     }
   }
   projectJar('apiJar', project(':dd-trace-api'))
