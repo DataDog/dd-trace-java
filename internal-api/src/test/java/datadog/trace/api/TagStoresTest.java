@@ -92,7 +92,11 @@ class TagStoresTest {
     }
     IdStore ids = child.knownStore;
     assertEquals(0, ids.computeSize());
-    assertTrue(((HashIdStore) ids).hasTombstones);
+    // whichever store this JVM uses records that it holds a tombstone
+    assertTrue(
+        ids instanceof DenseIdStore
+            ? ((DenseIdStore) ids).tombstoneMask != 0L
+            : ((HashIdStore) ids).hasTombstones);
     child.checkIntegrity();
 
     // a re-set undoes the removal: no prior visible value
@@ -140,6 +144,70 @@ class TagStoresTest {
 
     assertNull(span.getEntryReader(spanLevelId));
     assertEquals("abc", span.load(KnownTags.RUNTIME_ID));
+  }
+
+  @Test
+  void aDenseSpanLevelReadSkipsAParentHoldingOnlyTraceLevelTagsInItsSlot() throws Exception {
+    long spanLevelId = spanLevelTagInSlotOf(KnownTags.RUNTIME_ID);
+    assumeTrue(spanLevelId != 0L, "no span-level tag shares runtime-id's slot");
+    assertEquals(DenseIdStore.TRACE_LEVEL, DenseIdStore.levelOf(KnownTags.RUNTIME_ID));
+
+    DenseIdStore traceLevel = new DenseIdStore(null);
+    traceLevel.store(KnownTags.RUNTIME_ID, "abc");
+    DenseIdStore span = new DenseIdStore(traceLevel);
+    long other =
+        spanLevelId == KnownTags.HTTP_ROUTE_ID ? KnownTags.COMPONENT_ID : KnownTags.HTTP_ROUTE_ID;
+    span.store(other, "/a");
+
+    long bit = DenseIdStore.slotBit(spanLevelId);
+    assertFalse(span.mayInherit(bit, DenseIdStore.SPAN_LEVEL));
+    assertTrue(span.mayInherit(bit, DenseIdStore.TRACE_LEVEL));
+    assertFalse(traceLevel.mayHaveLocal(bit, DenseIdStore.SPAN_LEVEL));
+    assertNull(span.getEntryReader(spanLevelId));
+    assertEquals("abc", span.load(KnownTags.RUNTIME_ID));
+  }
+
+  @Test
+  void aClearDenseSlotBitIsADefiniteMiss() {
+    DenseIdStore ids = new DenseIdStore(null);
+    assertEquals(0L, ids.spanOccupancy);
+    assertNull(ids.getEntryReader(KnownTags.HTTP_ROUTE_ID));
+
+    ids.store(KnownTags.HTTP_ROUTE_ID, "/a");
+    assertNotEquals(0L, ids.spanOccupancy & DenseIdStore.slotBit(KnownTags.HTTP_ROUTE_ID));
+    assertEquals("/a", ids.load(KnownTags.HTTP_ROUTE_ID));
+
+    // a child inherits its parent's slots, so a read-through miss can stop early
+    DenseIdStore child = new DenseIdStore(ids);
+    assertEquals(ids.spanOccupancy, child.inheritedMask);
+    assertEquals("/a", child.load(KnownTags.HTTP_ROUTE_ID));
+  }
+
+  @Test
+  void aTraceLevelTagDoesNotDefeatADenseSpanLevelMissInTheSameSlot() {
+    // A local root span holds trace-level and span-level tags in one store, and the two levels are
+    // colored independently, so their slot numbers overlap.
+    DenseIdStore ids = new DenseIdStore(null);
+    ids.store(KnownTags.RUNTIME_ID, "abc");
+    ids.store(KnownTags.HTTP_ROUTE_ID, "/a");
+    long runtimeIdBit = DenseIdStore.slotBit(KnownTags.RUNTIME_ID);
+    assertNotEquals(runtimeIdBit, DenseIdStore.slotBit(KnownTags.HTTP_ROUTE_ID), "precondition");
+
+    assertTrue(ids.mayHaveLocal(runtimeIdBit, DenseIdStore.TRACE_LEVEL));
+    assertFalse(ids.mayHaveLocal(runtimeIdBit, DenseIdStore.SPAN_LEVEL));
+  }
+
+  @Test
+  void aDenseRemovalOfAnInheritedTagMarksATombstone() {
+    DenseIdStore parent = new DenseIdStore(null);
+    parent.store(KnownTags.HTTP_ROUTE_ID, "/a");
+    DenseIdStore child = new DenseIdStore(parent);
+    assertEquals(0L, child.tombstoneMask);
+
+    child.remove(KnownTags.HTTP_ROUTE_ID);
+    assertNotEquals(0L, child.tombstoneMask);
+    assertNull(child.load(KnownTags.HTTP_ROUTE_ID));
+    assertEquals(0, child.computeSize());
   }
 
   @Test

@@ -18,9 +18,10 @@ import java.util.function.Consumer;
  * <p>Values move by {@code load} and {@code store}, as through {@link TagStore}; entries by {@code
  * getEntry}, {@code put} and {@code remove}.
  *
- * <p>{@link IdStoreFactory} builds every store, so the JVM loads one implementation and class
- * hierarchy analysis devirtualizes every call on an {@code IdStore} without a type guard; nothing
- * that is always loaded may extend this class. No locking: guarded by the owner's lock.
+ * <p>{@link IdStoreFactory} builds every store, so the JVM loads one implementation, {@link
+ * HashIdStore} or {@link DenseIdStore}, and class hierarchy analysis devirtualizes every call on an
+ * {@code IdStore} without a type guard; nothing that is always loaded may extend this class. No
+ * locking: guarded by the owner's lock.
  */
 @Restricted(allowedIn = {"datadog.trace.core"})
 public abstract class IdStore {
