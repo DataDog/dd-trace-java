@@ -7,10 +7,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
@@ -23,6 +22,8 @@ import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
@@ -113,17 +114,22 @@ class HttpServerResponseEndHandlerInstrumentationTest extends AbstractInstrument
                 .setProtocolVersion(HttpVersion.HTTP_2)
                 .setHttp2ClearTextUpgrade(false));
     try {
-      HttpClientResponse response =
+      Map.Entry<Integer, String> response =
           client
               .request(HttpMethod.GET, port, "localhost", "/end-handler-wrapper")
-              .compose(request -> request.send())
+              .compose(HttpClientRequest::send)
+              // Subscribe on the event loop before response data can be discarded.
+              .compose(
+                  resp ->
+                      resp.body()
+                          .map(
+                              body ->
+                                  new SimpleEntry<>(
+                                      resp.statusCode(), body.toString(StandardCharsets.UTF_8))))
               .toCompletionStage()
               .toCompletableFuture()
               .get(10, TimeUnit.SECONDS);
-      Buffer body =
-          response.body().toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
-
-      assertWrapped(response.statusCode(), body.toString(StandardCharsets.UTF_8), HTTP2_RESPONSE);
+      assertWrapped(response.getKey(), response.getValue(), HTTP2_RESPONSE);
     } finally {
       client.close().toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
     }
