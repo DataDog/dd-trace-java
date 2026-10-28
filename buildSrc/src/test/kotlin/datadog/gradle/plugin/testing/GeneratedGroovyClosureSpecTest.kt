@@ -51,11 +51,13 @@ class GeneratedGroovyClosureSpecTest {
     }
     val invalidMagic = writeClass("InvalidMagic", closure, marker).apply {
       val bytes = readBytes()
+      // Corrupt the first byte of the class-file magic number (0xCAFEBABE).
       bytes[0] = 0
       writeBytes(bytes)
     }
     val unsupported = writeClass("Unsupported", closure, marker).apply {
       val bytes = readBytes()
+      // Bytes 6–7 hold the major version; 0x7F7F is unsupported by ASM.
       bytes[6] = 0x7f
       bytes[7] = 0x7f
       writeBytes(bytes)
