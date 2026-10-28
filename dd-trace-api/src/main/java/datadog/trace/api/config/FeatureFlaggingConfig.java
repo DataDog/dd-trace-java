@@ -13,5 +13,11 @@ public final class FeatureFlaggingConfig {
   public static final String FEATURE_FLAGS_CONFIGURATION_SOURCE =
       "feature.flags.configuration.source";
 
+  public static final String FEATURE_FLAGS_EVALUATION_COUNTS_ENABLED =
+      "feature.flags.evaluation.counts.enabled";
+
+  public static final String FLAGGING_EVALUATION_COUNTS_ENABLED =
+      "flagging.evaluation.counts.enabled";
+
   private FeatureFlaggingConfig() {}
 }

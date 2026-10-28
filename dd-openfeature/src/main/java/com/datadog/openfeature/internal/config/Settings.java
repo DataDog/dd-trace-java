@@ -33,7 +33,8 @@ public final class Settings {
       "feature.flags.configuration.source.agentless.request.timeout.seconds";
   static final String SPAN_ENRICHMENT_ENABLED =
       "experimental.flagging.provider.span.enrichment.enabled";
-  static final String EVALUATION_COUNTS_ENABLED = "flagging.evaluation.counts.enabled";
+  static final String EVALUATION_COUNTS_ENABLED = "feature.flags.evaluation.counts.enabled";
+  static final String LEGACY_EVALUATION_COUNTS_ENABLED = "flagging.evaluation.counts.enabled";
   static final String EXPOSURES_DATADOG_LOGGING_ENABLED =
       "feature.flags.exposures.datadog.logging.enabled";
   static final String EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED =
@@ -148,10 +149,16 @@ public final class Settings {
   }
 
   /**
+   * Controlled by {@code DD_FEATURE_FLAGS_EVALUATION_COUNTS_ENABLED}, with {@code
+   * DD_FLAGGING_EVALUATION_COUNTS_ENABLED} retained as a compatibility alias. Within each
+   * configuration source the canonical name takes precedence. Flag evaluation, configuration
+   * fetching and exposure delivery are unchanged.
+   *
    * @return whether flag evaluation counts are sent to the event platform (on by default).
    */
   public boolean isEvaluationCountsEnabled() {
-    return !Boolean.FALSE.equals(getBoolean(EVALUATION_COUNTS_ENABLED));
+    return !Boolean.FALSE.equals(
+        getBoolean(EVALUATION_COUNTS_ENABLED, LEGACY_EVALUATION_COUNTS_ENABLED));
   }
 
   /**
@@ -216,9 +223,19 @@ public final class Settings {
 
   /** Reads the first non-blank value, in source priority order, like the agent. */
   @Nullable
-  String get(final String key) {
+  String get(final String key, final String... aliases) {
     for (int source = 0; source < SOURCE_COUNT; source++) {
-      final String value = value(key, source);
+      String value = value(key, source);
+      // Resolve the name within each source before interpreting its value. A present canonical
+      // value masks aliases, including when blank; source priority remains unchanged.
+      if (value == null) {
+        for (final String alias : aliases) {
+          value = value(alias, source);
+          if (value != null) {
+            break;
+          }
+        }
+      }
       if (nonBlank(value) != null) {
         return value;
       }
@@ -246,8 +263,8 @@ public final class Settings {
   }
 
   @Nullable
-  private Boolean getBoolean(final String key) {
-    final String value = get(key);
+  private Boolean getBoolean(final String key, final String... aliases) {
+    final String value = get(key, aliases);
     if (value == null) {
       return null;
     }

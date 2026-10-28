@@ -92,6 +92,71 @@ class SettingsTest {
   }
 
   @TableTest({
+    "scenario             | canonical | legacy  | enabled",
+    "default              |           |         | true   ",
+    "canonical true       | 'true'    |         | true   ",
+    "canonical false      | 'false'   |         | false  ",
+    "legacy true          |           | 'true'  | true   ",
+    "legacy false         |           | 'false' | false  ",
+    "canonical enables    | 'true'    | 'false' | true   ",
+    "canonical disables   | 'false'   | 'true'  | false  ",
+    "invalid masks legacy | 'invalid' | 'true'  | false  ",
+    "empty masks legacy   | ''        | 'false' | true   ",
+    "blank masks legacy   | ' '       | 'false' | true   "
+  })
+  void resolvesEvaluationCountAliasesWithinEachSource(
+      final String canonical, final String legacy, final boolean enabled) {
+    for (int source = 0; source < 3; source++) {
+      final Map<String, String> values = new HashMap<>();
+      final String canonicalKey = "feature.flags.evaluation.counts.enabled";
+      final String legacyKey = "flagging.evaluation.counts.enabled";
+      putIfNotNull(
+          values,
+          source == 0
+              ? canonicalKey
+              : source == 1 ? "dd." + canonicalKey : Settings.environmentVariableName(canonicalKey),
+          canonical);
+      putIfNotNull(
+          values,
+          source == 0
+              ? legacyKey
+              : source == 1 ? "dd." + legacyKey : Settings.environmentVariableName(legacyKey),
+          legacy);
+      final Settings settings =
+          new Settings(
+              source == 0 ? new SettingAgentBridge(values) : AgentBridge.NONE,
+              source == 1 ? values::get : name -> null,
+              source == 2 ? values::get : name -> null);
+
+      assertEquals(enabled, settings.isEvaluationCountsEnabled());
+      assertTrue(settings.isEnabled());
+      assertTrue(settings.isExposuresDatadogLoggingEnabled());
+    }
+  }
+
+  @TableTest({
+    "scenario                     | agent   | property | environment | enabled",
+    "legacy agent disables        | 'false' | 'true'   | 'true'      | false  ",
+    "legacy agent enables         | 'true'  | 'false'  | 'false'     | true   ",
+    "legacy property disables     |         | 'false'  | 'true'      | false  ",
+    "legacy property enables      |         | 'true'   | 'false'     | true   ",
+    "blank property falls through |         | ' '      | 'false'     | false  "
+  })
+  void preservesSourcePriorityForEvaluationCountAliases(
+      final String agent, final String property, final String environment, final boolean enabled) {
+    final Map<String, String> bridge = new HashMap<>();
+    putIfNotNull(bridge, "flagging.evaluation.counts.enabled", agent);
+    final Map<String, String> properties = new HashMap<>();
+    putIfNotNull(properties, "dd.flagging.evaluation.counts.enabled", property);
+    final Map<String, String> variables = new HashMap<>();
+    putIfNotNull(variables, "DD_FEATURE_FLAGS_EVALUATION_COUNTS_ENABLED", environment);
+    final Settings settings =
+        new Settings(new SettingAgentBridge(bridge), properties::get, variables::get);
+
+    assertEquals(enabled, settings.isEvaluationCountsEnabled());
+  }
+
+  @TableTest({
     "scenario | value   | enabled",
     "true     | 'true'  | true   ",
     "one      | '1'     | true   ",
