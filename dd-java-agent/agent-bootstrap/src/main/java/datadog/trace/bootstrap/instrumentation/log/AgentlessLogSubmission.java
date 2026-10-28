@@ -8,7 +8,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.logging.intake.LogsIntake;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.Writer;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -94,14 +94,47 @@ public final class AgentlessLogSubmission {
   private static Map<String, Object> thrown(Throwable thrown) {
     Map<String, Object> thrownLog = new HashMap<>();
     thrownLog.put("message", thrown.getMessage());
-    thrownLog.put("name", thrown.getClass().getCanonicalName());
-    StringWriter stringWriter = new StringWriter();
-    thrown.printStackTrace(new PrintWriter(stringWriter));
-    StringBuffer stackTrace = stringWriter.getBuffer();
-    thrownLog.put(
-        "extendedStackTrace",
-        stackTrace.substring(0, Math.min(stackTrace.length(), MAX_STACKTRACE_STRING_LENGTH)));
+    thrownLog.put("name", thrown.getClass().getName());
+    BoundedWriter stackTrace = new BoundedWriter();
+    try {
+      thrown.printStackTrace(new PrintWriter(stackTrace));
+    } catch (StackTraceLimitReached ignored) {
+    }
+    thrownLog.put("extendedStackTrace", stackTrace.toString());
     return thrownLog;
+  }
+
+  /** Stops the stack trace rendering once it reaches the maximum length. */
+  private static final class BoundedWriter extends Writer {
+    private final StringBuilder buffer = new StringBuilder();
+
+    @Override
+    public void write(char[] chars, int offset, int length) {
+      int remaining = MAX_STACKTRACE_STRING_LENGTH - buffer.length();
+      buffer.append(chars, offset, Math.min(length, remaining));
+      if (length >= remaining) {
+        throw StackTraceLimitReached.INSTANCE;
+      }
+    }
+
+    @Override
+    public void flush() {}
+
+    @Override
+    public void close() {}
+
+    @Override
+    public String toString() {
+      return buffer.toString();
+    }
+  }
+
+  private static final class StackTraceLimitReached extends RuntimeException {
+    static final StackTraceLimitReached INSTANCE = new StackTraceLimitReached();
+
+    private StackTraceLimitReached() {
+      super(null, null, false, false);
+    }
   }
 
   private static void addCorrelationValues(Map<String, String> context) {
