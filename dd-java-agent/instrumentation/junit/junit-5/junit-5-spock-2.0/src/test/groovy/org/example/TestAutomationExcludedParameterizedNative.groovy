@@ -7,13 +7,13 @@ import java.util.concurrent.atomic.AtomicIntegerArray
 import spock.lang.Specification
 
 class TestAutomationExcludedParameterizedNative extends Specification {
-  static final AtomicIntegerArray executions = new AtomicIntegerArray(2)
+  static final AtomicIntegerArray EXECUTIONS = new AtomicIntegerArray(2)
 
   @Tag(NoAutoRetry.TAG)
   @Tag(PreventFailureSuppression.TAG)
   def "protected_failure #row"() {
     expect:
-    executions.incrementAndGet(row) < 0
+    EXECUTIONS.incrementAndGet(row) < 0
 
     where:
     row << [0, 1]
