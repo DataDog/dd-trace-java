@@ -264,12 +264,14 @@ public final class OtlpTraceProto {
 
   public static class MetaWriter implements MetadataConsumer {
     private final StreamingBuffer buf;
+    private final OtlpSpanTags<StreamingBuffer> spanTags;
 
     private boolean includeProcessTags;
     private boolean includeSamplingTags;
 
     public MetaWriter(StreamingBuffer buf) {
       this.buf = buf;
+      this.spanTags = new OtlpSpanTags<>(buf, OtlpTraceProto::writeSpanTag);
     }
 
     /** Call this to ensure process tags are written out for the next span. */
@@ -337,7 +339,8 @@ public final class OtlpTraceProto {
         writeAttribute(buf, STRING_ATTRIBUTE, entry.getKey(), entry.getValue());
       }
 
-      tags.forEach(buf, direction, OtlpTraceProto::writeSpanTag);
+      // global tags are left to the resource
+      spanTags.write(metadata, direction);
 
       // reset for next span
       includeProcessTags = false;

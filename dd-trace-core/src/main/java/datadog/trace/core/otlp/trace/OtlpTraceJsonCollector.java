@@ -3,10 +3,11 @@ package datadog.trace.core.otlp.trace;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeScopeAndSchema;
 import static datadog.trace.core.otlp.common.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.core.otlp.common.OtlpProtoBuffer.MAX_CAPACITY_BYTES;
-import static datadog.trace.core.otlp.common.OtlpResourceJson.TRACE_RESOURCE_FRAGMENT;
+import static datadog.trace.core.otlp.common.OtlpResourceJson.buildTraceResourceFragment;
 import static datadog.trace.core.otlp.trace.OtlpTraceJson.writeSpan;
 
 import datadog.json.JsonWriter;
+import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.core.CoreSpan;
@@ -47,10 +48,15 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
   private DDSpan currentSpan;
   private List<? extends AgentSpanLink> currentSpanLinks = Collections.emptyList();
 
+  // resource for the last global tags seen; they rarely change, so it's rarely rebuilt
+  private TagMap resourceGlobalTags;
+  private String resourceFragment;
+
   /** Adds the given trace spans to the collector. */
   @Override
   public void addTrace(List<? extends CoreSpan<?>> spans) {
     if (!payloadStarted) {
+      payloadGlobalTags = globalTagsOf(spans);
       start();
       payloadStarted = true;
     }
@@ -96,7 +102,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     writer.beginObject();
     writer.name("resourceSpans").beginArray();
     writer.beginObject();
-    writer.name("resource").jsonValue(TRACE_RESOURCE_FRAGMENT);
+    writer.name("resource").jsonValue(resourceFragment());
     writer.name("scopeSpans").beginArray();
 
     // for now put all spans under the default scope
@@ -106,6 +112,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
   /** Cleanup elements used to collect trace data. */
   private void stop() {
     payloadStarted = false;
+    payloadGlobalTags = null;
     anySpanWritten = false;
 
     writer = null;
@@ -114,6 +121,15 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     currentScope = null;
     currentSpan = null;
     currentSpanLinks = Collections.emptyList();
+  }
+
+  private String resourceFragment() {
+    // Update resourceGlobalTags when RC updates the DD_TAGS value (reflected by payloadGlobalTags)
+    if (resourceFragment == null || resourceGlobalTags != payloadGlobalTags) {
+      resourceFragment = buildTraceResourceFragment(payloadGlobalTags);
+      resourceGlobalTags = payloadGlobalTags;
+    }
+    return resourceFragment;
   }
 
   private void visitScopedSpans(OtelInstrumentationScope scope) {

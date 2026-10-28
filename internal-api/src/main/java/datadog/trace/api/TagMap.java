@@ -2292,6 +2292,28 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
+  /**
+   * Visits only this map's direct entries, skipping everything read through from a parent. For a
+   * serializer that sources the shared tags from elsewhere, such as an OTLP resource.
+   */
+  public <T> void forEachLocal(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
+    Object[] thisBuckets = this.buckets;
+
+    for (int i = 0; i < thisBuckets.length; ++i) {
+      Object thisBucket = thisBuckets[i];
+
+      if (thisBucket instanceof Entry) {
+        Entry thisEntry = (Entry) thisBucket;
+
+        consumer.accept(thisObj, thisEntry);
+      } else if (thisBucket instanceof BucketGroup) {
+        BucketGroup thisGroup = (BucketGroup) thisBucket;
+
+        thisGroup.forEachInChain(thisObj, consumer);
+      }
+    }
+  }
+
   private <T> void forEachParent(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
     for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
       Object[] parentBuckets = ancestor.buckets;
