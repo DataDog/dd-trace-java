@@ -1,9 +1,9 @@
 package org.example;
 
-import datadog.trace.api.civisibility.TestAutomationExclusions;
+import datadog.trace.api.civisibility.PreventFailureSuppression;
 import org.testng.annotations.Test;
 
-@Test(groups = TestAutomationExclusions.PREVENT_FAILURE_SUPPRESSION)
+@Test(groups = PreventFailureSuppression.TAG)
 public class TestInheritedGroupsExcluded extends InheritedGroupsBase {
   public static int executions;
 }
