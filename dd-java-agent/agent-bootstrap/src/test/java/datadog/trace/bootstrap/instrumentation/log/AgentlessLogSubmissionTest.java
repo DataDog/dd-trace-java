@@ -12,8 +12,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.api.logging.intake.LogsIntake;
 import datadog.trace.api.logging.intake.LogsWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -109,6 +111,41 @@ class AgentlessLogSubmissionTest {
             .get("extendedStackTrace")
             .toString()
             .startsWith("java.lang.IllegalStateException: failure"));
+  }
+
+  @Test
+  void usesTheBinaryNameOfTheThrowableClass() {
+    Throwable anonymous = new IllegalStateException("failure") {};
+
+    submit("main", "ERROR", "logger", "message", anonymous, 42L, null);
+
+    Map<?, ?> thrown = (Map<?, ?>) messages.get(0).get("thrown");
+    assertEquals(anonymous.getClass().getName(), thrown.get("name"));
+  }
+
+  @Test
+  void stopsRenderingTheStackTraceAtTheMaximumLength() {
+    AtomicBoolean causeRendered = new AtomicBoolean();
+    Throwable cause =
+        new IllegalArgumentException("cause") {
+          @Override
+          public String toString() {
+            causeRendered.set(true);
+            return super.toString();
+          }
+        };
+    Throwable thrown = new IllegalStateException("failure", cause);
+    StackTraceElement[] frames = new StackTraceElement[1_000];
+    Arrays.fill(frames, new StackTraceElement("Class", "method", "Class.java", 1));
+    thrown.setStackTrace(frames);
+
+    submit("main", "ERROR", "logger", "message", thrown, 42L, null);
+
+    String stackTrace =
+        ((Map<?, ?>) messages.get(0).get("thrown")).get("extendedStackTrace").toString();
+    assertEquals(16 * 1_024, stackTrace.length());
+    assertTrue(stackTrace.startsWith("java.lang.IllegalStateException: failure"));
+    assertFalse(causeRendered.get());
   }
 
   @Test
