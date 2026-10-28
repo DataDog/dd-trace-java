@@ -63,6 +63,9 @@ public class SpockUtils {
    * and we support Spock 2.0
    */
   public static Collection<TestTag> getTags(SpockNode<?> spockNode) {
+    if (GET_TEST_TAGS == null || GET_TEST_TAG_VALUE == null) {
+      return spockNode.getTags();
+    }
     try {
       Collection<TestTag> junitPlatformTestTags = new ArrayList<>();
       SpecElementInfo<?, ?> nodeInfo = spockNode.getNodeInfo();
