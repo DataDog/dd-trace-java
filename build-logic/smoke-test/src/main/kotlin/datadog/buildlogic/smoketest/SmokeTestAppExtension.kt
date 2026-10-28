@@ -85,6 +85,18 @@ abstract class SmokeTestAppExtension @Inject constructor(
 
   }
 
+  /** Provides lazy text contents relative to a directory provider. */
+  fun fileContent(
+    directory: Provider<String>,
+    relativePath: String,
+  ): Provider<String> =
+    project.providers
+      .fileContents(
+        project.layout.projectDirectory
+          .dir(directory)
+          .map { it.file(relativePath) },
+      ).asText
+
   /**
    * Register the nested-build task and wire the produced artifact into every `Test` task as
    * an input and a system property. Calling this triggers task registration; consumers that prefer to

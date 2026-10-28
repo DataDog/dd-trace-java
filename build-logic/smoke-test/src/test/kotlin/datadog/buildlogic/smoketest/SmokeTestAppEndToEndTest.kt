@@ -424,7 +424,7 @@ class SmokeTestAppEndToEndTest {
         sysProperty = "native.path",
         additionalConfig = """
         inputs {
-          property("externalTool", providers.provider<String> { error("Tool metadata queried") })
+          property("externalTool", fileContent(providers.provider<String> { error("Tool metadata queried") }, "release"))
         }
         """,
       ),
@@ -476,6 +476,7 @@ class SmokeTestAppEndToEndTest {
         }
 
         def metadata = providers.fileContents(layout.projectDirectory.file('toolchain/release')).asText
+        def home = providers.provider { 'toolchain' }
         smokeTestApp {
           $application {
             taskName = 'packageApp'
@@ -483,8 +484,9 @@ class SmokeTestAppEndToEndTest {
             sysProperty = 'toolchain.path'
             ${if (maven) "mavenExecutable.set(layout.projectDirectory.file('${fakeMavenWrapperName()}'))" else ""}
             inputs {
-              property('toolchainRelease', metadata)
+              property('toolchainRelease', fileContent(home, 'release'))
               property('optionalIdentity', providers.gradleProperty('optionalIdentity')).optional(true)
+              property('optionalFileContent', fileContent(providers.gradleProperty('missingHome'), 'release')).optional(true)
             }
             inputs { property('anotherInput', 'fixed') }
           }
@@ -506,8 +508,9 @@ class SmokeTestAppEndToEndTest {
         """
         ${if (maven) "mavenExecutable.set(layout.projectDirectory.file(\"${fakeMavenWrapperName()}\"))" else ""}
         inputs {
-          property("toolchainRelease", metadata)
+          property("toolchainRelease", fileContent(home, "release"))
           property("optionalIdentity", providers.gradleProperty("optionalIdentity")).optional(true)
+          property("optionalFileContent", fileContent(providers.gradleProperty("missingHome"), "release")).optional(true)
         }
         inputs { property("anotherInput", "fixed") }
         """.trimIndent()
@@ -520,6 +523,7 @@ class SmokeTestAppEndToEndTest {
         extraImports = "import datadog.buildlogic.smoketest.$taskType",
         extraPreamble = """
         val metadata = providers.fileContents(layout.projectDirectory.file("toolchain/release")).asText
+        val home = providers.provider { "${release.parentFile.invariantSeparatorsPath}" }
         tasks.withType<$taskType>().configureEach {
           actions.clear()
           val metadataInput = metadata
