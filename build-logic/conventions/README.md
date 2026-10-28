@@ -9,8 +9,11 @@ plugins {
 }
 ```
 
-The plugin adds `ciBuilderIdentity` to every `Test` task in that project when
-`GITLAB_CI=true`. The input contains the `ciBuilderImage` Gradle property,
+The plugin adds `ciBuilderIdentity` to every `Test`, `NestedGradleBuild` and
+`NestedMavenBuild` task in that project when `GITLAB_CI=true`. This includes
+nested build tasks created by `dd-trace-java.smoke-test-app`, in either plugin
+application order.
+The input contains the `ciBuilderImage` Gradle property,
 operating system and architecture. CI can supply the property through
 `ORG_GRADLE_PROJECT_ciBuilderImage`; `-PciBuilderImage=...` overrides that value.
 
@@ -22,7 +25,7 @@ invalidate cached results. Supply a content hash to detect those changes.
 Register other tasks explicitly when they consume the builder environment:
 
 ```groovy
-ciBuilderInputs.track(tasks.named('quarkusNativeBuild'))
+ciBuilderInputs.track(tasks.named('generateNativeLibrary'))
 ```
 
 A missing or blank identity fails when a selected task's inputs are queried.

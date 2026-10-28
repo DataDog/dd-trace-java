@@ -16,7 +16,7 @@ class CiBuilderInputsPluginTest {
 
   @Test
   fun `local builds add no builder inputs even when an image is supplied`() {
-    fixture()
+    smokeFixture(smokePluginFirst = true)
     directory.resolve("build.gradle").toFile().appendText(
       """
 
@@ -24,6 +24,8 @@ class CiBuilderInputsPluginTest {
         doLast {
           assert !tasks.test.inputs.properties.containsKey('ciBuilderIdentity')
           assert !tasks.producer.inputs.properties.containsKey('ciBuilderIdentity')
+          assert !tasks.gradleProducer.inputs.properties.containsKey('ciBuilderIdentity')
+          assert !tasks.mavenProducer.inputs.properties.containsKey('ciBuilderIdentity')
         }
       }
       """.trimIndent(),
@@ -90,6 +92,16 @@ class CiBuilderInputsPluginTest {
   }
 
   @Test
+  fun `smoke producers track builder identity when the smoke plugin is applied first`() {
+    smokeProducerCache(smokePluginFirst = true)
+  }
+
+  @Test
+  fun `smoke producers track builder identity when the convention plugin is applied first`() {
+    smokeProducerCache(smokePluginFirst = false)
+  }
+
+  @Test
   fun `operating system and architecture separate multi-platform image results`() {
     fixture()
     directory.resolve("build.gradle").toFile().appendText(
@@ -136,7 +148,79 @@ class CiBuilderInputsPluginTest {
     }
   }
 
-  private fun fixture() {
+  private fun smokeProducerCache(smokePluginFirst: Boolean) {
+    smokeFixture(smokePluginFirst)
+    val taskNames = arrayOf("gradleProducer", "mavenProducer", "compileTestJava")
+
+    val first = runner(*taskNames).build()
+    for (taskName in taskNames) {
+      assertEquals(SUCCESS, first.task(":$taskName")?.outcome, first.output)
+    }
+
+    val unchanged = runner(*taskNames).build()
+    assertTrue(unchanged.output.contains("Reusing configuration cache"), unchanged.output)
+    for (taskName in taskNames) {
+      assertEquals(UP_TO_DATE, unchanged.task(":$taskName")?.outcome, unchanged.output)
+    }
+
+    val restored = runner("clean", *taskNames).build()
+    for (taskName in taskNames) {
+      assertEquals(FROM_CACHE, restored.task(":$taskName")?.outcome, restored.output)
+    }
+
+    val changed = runner("clean", *taskNames).withEnvironment(environment("registry.example/builder:next-")).build()
+    assertEquals(FROM_CACHE, changed.task(":compileTestJava")?.outcome, changed.output)
+    for (taskName in listOf("gradleProducer", "mavenProducer")) {
+      assertEquals(SUCCESS, changed.task(":$taskName")?.outcome, changed.output)
+      assertEquals("built", directory.resolve("build/$taskName/artifact.txt").toFile().readText())
+    }
+  }
+
+  private fun smokeFixture(smokePluginFirst: Boolean) {
+    val smokePlugin = "dd-trace-java.smoke-test-app"
+    val conventionPlugin = "dd-trace-java.ci-builder-inputs"
+    val pluginOrder =
+      if (smokePluginFirst) listOf(smokePlugin, conventionPlugin) else listOf(conventionPlugin, smokePlugin)
+    fixture(listOf("java") + pluginOrder)
+    directory.resolve("application").toFile().mkdirs()
+    directory.resolve("application/source.txt").toFile().writeText("source")
+    directory.resolve("mvnw").toFile().writeText("fixture Maven wrapper")
+    directory.resolve("build.gradle").toFile().appendText(
+      """
+
+      smokeTestApp {
+        javaLauncher = javaToolchains.launcherFor {
+          languageVersion = JavaLanguageVersion.of(JavaVersion.current().majorVersion)
+        }
+        gradleApp {
+          taskName = 'gradleProducer'
+          artifactPath = 'artifact.txt'
+          sysProperty = 'gradle.artifact'
+        }
+        mavenApp {
+          taskName = 'mavenProducer'
+          artifactPath = 'artifact.txt'
+          sysProperty = 'maven.artifact'
+        }
+      }
+
+      // Exercise the real producer types and their inputs without starting nested tools.
+      ['gradleProducer', 'mavenProducer'].each { producerName ->
+        tasks.named(producerName) {
+          applicationBuildDir = layout.buildDirectory.dir(producerName)
+          actions.clear()
+          doLast { task ->
+            def artifact = task.applicationBuildDir.file('artifact.txt').get().asFile
+            artifact.parentFile.mkdirs()
+            artifact.text = 'built'
+          }
+        }
+      }
+      """.trimIndent(),
+    )
+  }
+
+  private fun fixture(plugins: List<String> = listOf("dd-trace-java.ci-builder-inputs", "java")) {
     directory.resolve("settings.gradle").toFile().writeText(
       """
       rootProject.name = 'ci-builder-inputs-fixture'
@@ -146,8 +230,7 @@ class CiBuilderInputsPluginTest {
     directory.resolve("build.gradle").toFile().writeText(
       """
       plugins {
-        id 'dd-trace-java.ci-builder-inputs'
-        id 'java'
+        ${plugins.joinToString("\n") { "id '$it'" }}
       }
 
       dependencies { testImplementation files(${junitClasspath()}) }
