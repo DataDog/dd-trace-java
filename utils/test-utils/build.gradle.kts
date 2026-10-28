@@ -1,4 +1,5 @@
 plugins {
+  // PortableCommandTest invokes the image's echo, cat, sleep and tail commands.
   id("dd-trace-java.ci-builder-inputs")
   `java-library`
   id("dd-trace-java.module.internal-library")
