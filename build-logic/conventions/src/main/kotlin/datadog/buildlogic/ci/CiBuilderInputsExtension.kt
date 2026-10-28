@@ -15,7 +15,7 @@ open class CiBuilderInputsExtension
     // CI selection changes task configuration, so it is a configuration-cache input.
     private val enabled = providers.environmentVariable("GITLAB_CI").orNull == "true"
 
-    /** Builder identity and platform in GitLab CI; absent in local builds. */
+    /** Builder identity and platform in GitLab CI; an empty map in local builds. */
     val identity: Provider<Map<String, String>> =
       if (enabled) {
         providers.gradleProperty("ciBuilderImage").orElse("").map { image ->
@@ -29,7 +29,7 @@ open class CiBuilderInputsExtension
           )
         }
       } else {
-        providers.provider { null }
+        providers.provider { emptyMap() }
       }
 
     internal fun addTo(task: Task) {
