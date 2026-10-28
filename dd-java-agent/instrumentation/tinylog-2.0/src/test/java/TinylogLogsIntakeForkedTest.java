@@ -232,3 +232,40 @@ class TinylogNoInjectionForkedTest extends AbstractTinylogLogsIntakeForkedTest {
 
 @WithConfig(key = TRACE_ENABLED, value = "false")
 class TinylogTraceDisabledForkedTest extends AbstractTinylogLogsIntakeForkedTest {}
+
+@WithConfig(key = AGENTLESS_LOG_SUBMISSION_ENABLED, value = "true")
+@WithConfig(key = "tinylog.writingthread", value = "false", addPrefix = false)
+@WithConfig(
+    key = "tinylog.writer",
+    value = "datadog.trace.instrumentation.tinylog2.ContextWriter",
+    addPrefix = false)
+class TinylogNestedLoggingForkedTest extends AbstractInstrumentationTest {
+  static final List<Map<String, Object>> MESSAGES = AbstractTinylogLogsIntakeForkedTest.MESSAGES;
+
+  @BeforeAll
+  static void registerWriter() {
+    LogsIntake.registerWriter(new AbstractTinylogLogsIntakeForkedTest.CapturingLogsWriter());
+  }
+
+  @AfterAll
+  static void unregisterWriter() {
+    LogsIntake.registerWriter(null);
+  }
+
+  @Test
+  void doesNotSubmitEntriesLoggedDuringSubmission() {
+    Logger.error(
+        new IllegalStateException() {
+          @Override
+          public String getMessage() {
+            Logger.error("nested");
+            return "failure";
+          }
+        },
+        "outer");
+
+    assertEquals(
+        asList("outer"),
+        MESSAGES.stream().map(message -> message.get("message")).collect(Collectors.toList()));
+  }
+}

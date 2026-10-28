@@ -13,6 +13,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -76,19 +77,24 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
     public static void onEnter(
         @Advice.This TinylogLoggingProvider provider, @Advice.Argument(0) LogEntry event) {
       String level = event.getLevel().name();
-      if (!AgentlessLogSubmission.isLevelEnabled(level)) {
+      if (!AgentlessLogSubmission.isLevelEnabled(level)
+          || CallDepthThreadLocalMap.incrementCallDepth(AgentlessLogSubmission.class) > 0) {
         return;
       }
-      // Entries only hold the values that writers require, so read the thread and context here
-      String loggerName = event.getClassName() != null ? event.getClassName() : event.getTag();
-      AgentlessLogSubmission.submit(
-          Thread.currentThread().getName(),
-          level,
-          loggerName,
-          event.getMessage(),
-          event.getException(),
-          event.getTimestamp().toDate().getTime(),
-          provider.getContextProvider().getMapping());
+      try {
+        // Entries only hold the values that writers require, so read the thread and context here
+        String loggerName = event.getClassName() != null ? event.getClassName() : event.getTag();
+        AgentlessLogSubmission.submit(
+            Thread.currentThread().getName(),
+            level,
+            loggerName,
+            event.getMessage(),
+            event.getException(),
+            event.getTimestamp().toDate().getTime(),
+            provider.getContextProvider().getMapping());
+      } finally {
+        CallDepthThreadLocalMap.reset(AgentlessLogSubmission.class);
+      }
     }
   }
 }
