@@ -375,7 +375,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     DDAgentFeaturesDiscovery features = new MockFeaturesDiscovery(true)
 
     Sink sink = new Sink() {
-      void accept(int messageCount, ByteBuffer buffer) {}
+      void accept(int messageCount, List<ByteBuffer> chunks) {}
 
       void register(EventListener listener) {}
     }

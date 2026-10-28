@@ -620,6 +620,57 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     assertTrue(sink.validatedInput());
   }
 
+  @Test
+  void payloadOverTheCapIsDroppedAndTheNextOneIsSent() {
+    long startTime = MILLISECONDS.toNanos(System.currentTimeMillis());
+    long duration = SECONDS.toNanos(10);
+    WellKnownTags wellKnownTags =
+        new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
+    AggregateEntry entry =
+        entry(
+            "resource",
+            "service",
+            "operation",
+            null,
+            "type",
+            200,
+            false,
+            false,
+            "server",
+            Collections.<UTF8BytesString>emptyList(),
+            "GET",
+            "/api/users",
+            null,
+            1);
+    List<Integer> sent = new ArrayList<>();
+    Sink sink =
+        new Sink() {
+          @Override
+          public void accept(int messageCount, List<ByteBuffer> chunks) {
+            sent.add(messageCount);
+          }
+
+          @Override
+          public void register(EventListener listener) {}
+        };
+    SerializingMetricWriter writer =
+        new SerializingMetricWriter(
+            wellKnownTags, sink, 128, 4096, GitInfoProvider.INSTANCE, false);
+
+    // a bucket well past the 4 KiB cap is dropped, without throwing
+    writer.startBucket(2000, startTime, duration);
+    for (int i = 0; i < 2000; ++i) {
+      writer.add(entry);
+    }
+    writer.finishBucket();
+    assertTrue(sent.isEmpty());
+
+    writer.startBucket(1, startTime, duration);
+    writer.add(entry);
+    writer.finishBucket();
+    assertEquals(Collections.singletonList(1), sent);
+  }
+
   static final class ValidatingSink implements Sink {
 
     private final WellKnownTags wellKnownTags;
@@ -666,14 +717,27 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     public void register(EventListener listener) {}
 
     @Override
-    public void accept(int messageCount, ByteBuffer buffer) {
+    public void accept(int messageCount, List<ByteBuffer> chunks) {
       // Sink.accept can't declare checked exceptions; surface any msgpack decode failure as an
       // assertion error so the test reports it.
       try {
-        validate(buffer);
+        validate(join(chunks));
       } catch (IOException e) {
         throw new AssertionError("Failed to decode metric payload", e);
       }
+    }
+
+    private static ByteBuffer join(List<ByteBuffer> chunks) {
+      int size = 0;
+      for (ByteBuffer chunk : chunks) {
+        size += chunk.remaining();
+      }
+      ByteBuffer joined = ByteBuffer.allocate(size);
+      for (ByteBuffer chunk : chunks) {
+        joined.put(chunk.duplicate());
+      }
+      joined.flip();
+      return joined;
     }
 
     private void validate(ByteBuffer buffer) throws IOException {
