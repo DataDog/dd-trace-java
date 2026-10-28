@@ -13,7 +13,6 @@ nullaway = "0.14.2"
 shadow = "9.4.2"
 spotbugs-gradle-plugin = "6.5.11"
 spotbugs = "4.10.5"
-spotbugs-queue-utils = "4.10.4"
 
 # Source code formatters
 google-java-format = "1.36.1"
