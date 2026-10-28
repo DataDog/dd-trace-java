@@ -6,7 +6,6 @@ import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGUtils;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,10 +38,8 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     }
   }
 
-  @SuppressFBWarnings(
-      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification = "the field is confined to a single thread")
-  private boolean suppressFailures;
+  private static final String SUPPRESS_FAILURES_ATTRIBUTE =
+      RetryAnalyzer.class.getName() + ".suppressFailures";
 
   public void createExecutionPolicy(ITestResult result) {
     if (executionPolicy == null) {
@@ -70,17 +67,15 @@ public class RetryAnalyzer implements IRetryAnalyzer {
 
   public void setSuppressFailures(ITestResult result) {
     createExecutionPolicy(result);
-    suppressFailures = executionPolicy.suppressFailures();
+    result.setAttribute(SUPPRESS_FAILURES_ATTRIBUTE, executionPolicy.suppressFailures());
   }
 
   public boolean shouldPropagateFailure() {
     return executionPolicy != null && executionPolicy.propagateFailure();
   }
 
-  public boolean getAndResetSuppressFailures() {
-    boolean suppressFailures = this.suppressFailures;
-    this.suppressFailures = false;
-    return suppressFailures;
+  public boolean getAndResetSuppressFailures(ITestResult result) {
+    return Boolean.TRUE.equals(result.removeAttribute(SUPPRESS_FAILURES_ATTRIBUTE));
   }
 
   public TestExecutionTracker getExecutionTracker() {

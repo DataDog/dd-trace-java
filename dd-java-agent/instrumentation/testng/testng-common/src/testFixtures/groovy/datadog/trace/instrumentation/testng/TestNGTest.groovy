@@ -125,6 +125,29 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     spans.every { it.getTag("test.test_management.attempt_to_fix_passed") == null }
   }
 
+  def "test automation exclusions isolate parallel native quarantine suppression"() {
+    given:
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion),
+      "Requires failure suppression support")
+    TestParallelNativeQuarantinedExcluded.reset()
+    givenQuarantinedTests([new TestFQN(TestParallelNativeQuarantinedExcluded.name, "parallel_native_quarantined")])
+    givenFlakyRetryEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestParallelNativeQuarantinedExcluded], null, true,
+    { TestNG testNG -> testNG.addListener(new TestParallelNativeQuarantinedExcluded.Listener()) })
+
+    then:
+    TestParallelNativeQuarantinedExcluded.executions.get() == 2
+    TestParallelNativeQuarantinedExcluded.suppressed.get() == 2
+    TestParallelNativeQuarantinedExcluded.blocking.get() == 0
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "parallel_native_quarantined" }
+    spans.size() == 2
+    spans.every { it.getTag("test.test_management.no_auto_retry") == true }
+    spans.every { it.getTag("test.test_management.is_quarantined") == true }
+  }
+
   def "test automation exclusions preserve explicit disabled transformer overrides with #retryFeature"() {
     given:
     Assumptions.assumeTrue(TestNG.getResource("/org/testng/internal/annotations/DisabledRetryAnalyzer.class") != null,
