@@ -16,14 +16,16 @@ class CiBuilderInputsPluginTest {
 
   @Test
   fun `local builds add no builder inputs even when an image is supplied`() {
-    fixture()
+    processFixture()
     directory.resolve("build.gradle").toFile().appendText(
       """
 
       tasks.register('inspectInputs') {
         doLast {
           assert !tasks.test.inputs.properties.containsKey('ciBuilderIdentity')
-          assert !ciBuilderInputs.identity.present
+          assert !tasks.execProcess.inputs.properties.containsKey('ciBuilderIdentity')
+          assert !tasks.javaProcess.inputs.properties.containsKey('ciBuilderIdentity')
+          assert ciBuilderInputs.identity.get().isEmpty()
         }
       }
       """.trimIndent(),
@@ -111,6 +113,83 @@ class CiBuilderInputsPluginTest {
   }
 
   @Test
+  fun `process outputs follow CI identity and CI local transitions`() {
+    processFixture()
+    val tasks = arrayOf("execProcess", "javaProcess")
+
+    val first = runner(*tasks).build()
+    for (task in tasks) {
+      assertEquals(SUCCESS, first.task(":$task")?.outcome, first.output)
+      assertEquals("built", directory.resolve("build/$task.txt").toFile().readText())
+    }
+
+    val unchanged = runner(*tasks).build()
+    assertTrue(unchanged.output.contains("Reusing configuration cache"), unchanged.output)
+    for (task in tasks) {
+      assertEquals(UP_TO_DATE, unchanged.task(":$task")?.outcome, unchanged.output)
+    }
+
+    val changed = runner(*tasks).withEnvironment(environment("registry.example/builder:next-")).build()
+    for (task in tasks) {
+      assertEquals(SUCCESS, changed.task(":$task")?.outcome, changed.output)
+    }
+
+    val local = environment("") - "GITLAB_CI"
+    val localBuild = runner(*tasks).withEnvironment(local).build()
+    for (task in tasks) {
+      assertEquals(SUCCESS, localBuild.task(":$task")?.outcome, localBuild.output)
+    }
+
+    val unchangedLocal = runner(*tasks).withEnvironment(local).build()
+    assertTrue(unchangedLocal.output.contains("Reusing configuration cache"), unchangedLocal.output)
+    for (task in tasks) {
+      assertEquals(UP_TO_DATE, unchangedLocal.task(":$task")?.outcome, unchangedLocal.output)
+    }
+
+    val backInCi = runner(*tasks).build()
+    for (task in tasks) {
+      assertEquals(SUCCESS, backInCi.task(":$task")?.outcome, backInCi.output)
+    }
+  }
+
+  @Test
+  fun `Kotlin ad hoc inputs accept empty local identity and track CI identity`() {
+    fixture()
+    directory.resolve("build.gradle").toFile().delete()
+    directory.resolve("build.gradle.kts").toFile().writeText(
+      """
+      plugins {
+        id("dd-trace-java.ci-builder-inputs")
+      }
+
+      tasks.register("producer") {
+        inputs.property("ciBuilderIdentity", ciBuilderInputs.identity)
+        val artifact = layout.buildDirectory.file("producer.txt")
+        outputs.file(artifact)
+        doLast { artifact.get().asFile.writeText("built") }
+      }
+      """.trimIndent(),
+    )
+    val local = environment("") - "GITLAB_CI"
+
+    assertEquals(
+      SUCCESS,
+      runner("producer")
+        .withEnvironment(local)
+        .build()
+        .task(":producer")
+        ?.outcome,
+    )
+    val unchanged = runner("producer").withEnvironment(local).build()
+    assertEquals(UP_TO_DATE, unchanged.task(":producer")?.outcome, unchanged.output)
+    assertTrue(unchanged.output.contains("Reusing configuration cache"), unchanged.output)
+    assertEquals(SUCCESS, runner("producer").build().task(":producer")?.outcome)
+    val changed = runner("producer").withEnvironment(environment("registry.example/builder:next-")).build()
+    assertEquals(SUCCESS, changed.task(":producer")?.outcome, changed.output)
+    assertEquals("built", directory.resolve("build/producer.txt").toFile().readText())
+  }
+
+  @Test
   fun `operating system and architecture separate multi-platform image results`() {
     fixture()
     directory.resolve("build.gradle").toFile().appendText(
@@ -134,7 +213,7 @@ class CiBuilderInputsPluginTest {
 
   @Test
   fun `invalid identity fails only when tracked task inputs are queried`() {
-    fixture()
+    processFixture()
     val missing = environment() - "ORG_GRADLE_PROJECT_ciBuilderImage"
     assertEquals(
       SUCCESS,
@@ -152,9 +231,52 @@ class CiBuilderInputsPluginTest {
         environment(" \t "),
       )
     for (values in invalid) {
-      val failed = runner("producer").withEnvironment(values).buildAndFail()
-      assertTrue(failed.output.contains("ciBuilderImage must be a nonblank CI builder identity"), failed.output)
+      for (task in listOf("producer", "execProcess", "javaProcess")) {
+        val failed = runner(task).withEnvironment(values).buildAndFail()
+        assertTrue(failed.output.contains("ciBuilderImage must be a nonblank CI builder identity"), failed.output)
+      }
     }
+  }
+
+  private fun processFixture() {
+    fixture()
+    directory.resolve("src/main/java").toFile().mkdirs()
+    directory.resolve("src/main/java/Writer.java").toFile().writeText(
+      """
+      import java.nio.charset.StandardCharsets;
+      import java.nio.file.Files;
+      import java.nio.file.Path;
+      import java.nio.file.Paths;
+
+      public class Writer {
+        public static void main(String[] args) throws Exception {
+          Path output = Paths.get(args[0]);
+          Files.createDirectories(output.getParent());
+          Files.write(output, "built".getBytes(StandardCharsets.UTF_8));
+        }
+      }
+      """.trimIndent(),
+    )
+    directory.resolve("build.gradle").toFile().appendText(
+      """
+
+      tasks.register('execProcess', Exec) {
+        inputs.files(sourceSets.main.output)
+        def artifact = layout.buildDirectory.file('execProcess.txt')
+        outputs.file(artifact)
+        commandLine new File(System.getProperty('java.home'), 'bin/java'),
+          '-cp', sourceSets.main.output.classesDirs.asPath, 'Writer', artifact.get().asFile.absolutePath
+      }
+
+      tasks.register('javaProcess', JavaExec) {
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = 'Writer'
+        def artifact = layout.buildDirectory.file('javaProcess.txt')
+        outputs.file(artifact)
+        args artifact.get().asFile.absolutePath
+      }
+      """.trimIndent(),
+    )
   }
 
   private fun fixture() {
@@ -191,7 +313,7 @@ class CiBuilderInputsPluginTest {
         outputFile = layout.buildDirectory.file('producer.txt')
       }
       producer.configure {
-        inputs.property('ciBuilderIdentity', ciBuilderInputs.identity).optional(true)
+        inputs.property('ciBuilderIdentity', ciBuilderInputs.identity)
       }
       """.trimIndent(),
     )
