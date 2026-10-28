@@ -2,9 +2,7 @@ package com.datadog.profiling.remoteconfig;
 
 import java.util.Map;
 
-/**
- * Receives the full set of active {@code APM_PROFILING} configs after each remote-config commit.
- */
+/** Receives the full set of active {@code DEBUG} configs after each remote-config commit. */
 @FunctionalInterface
 public interface ProfilingConfigHandler {
   ProfilingConfigHandler NOOP = configsById -> {};

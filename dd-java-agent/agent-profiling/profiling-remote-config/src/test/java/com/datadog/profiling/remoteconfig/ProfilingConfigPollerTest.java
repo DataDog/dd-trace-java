@@ -166,7 +166,7 @@ class ProfilingConfigPollerTest {
     profilingConfigPoller.stop();
     profilingConfigPoller.stop();
 
-    verify(poller).removeListeners(Product.APM_PROFILING);
+    verify(poller).removeListeners(Product.DEBUG);
     verify(poller, never()).stop();
   }
 
@@ -178,7 +178,7 @@ class ProfilingConfigPollerTest {
   private ProductListener startAndCaptureListener() {
     when(sco.configurationPoller(config)).thenReturn(poller);
     profilingConfigPoller.start(config, sco);
-    verify(poller).addListener(eq(Product.APM_PROFILING), listenerCaptor.capture());
+    verify(poller).addListener(eq(Product.DEBUG), listenerCaptor.capture());
     return listenerCaptor.getValue();
   }
 

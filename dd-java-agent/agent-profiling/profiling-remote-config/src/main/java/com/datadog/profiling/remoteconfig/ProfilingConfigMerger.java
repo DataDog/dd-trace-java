@@ -11,8 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Merges the raw {@code APM_PROFILING} payloads into one set of config values. Each payload is a
- * flat JSON object of config keys to values, e.g. {@code {"profiling.ddprof.cpu.enabled": false}}.
+ * Merges the raw {@code DEBUG} payloads into one set of config values. Each payload is a flat JSON
+ * object of config keys to values, e.g. {@code {"profiling.ddprof.cpu.enabled": false}}.
  */
 public final class ProfilingConfigMerger {
   private static final Logger log = LoggerFactory.getLogger(ProfilingConfigMerger.class);
@@ -30,7 +30,7 @@ public final class ProfilingConfigMerger {
       try {
         merged.putAll(parse(configsById.get(configId)));
       } catch (IOException | RuntimeException e) {
-        log.warn("Ignoring invalid APM_PROFILING config {}: {}", configId, e.toString());
+        log.warn("Ignoring invalid DEBUG config {}: {}", configId, e.toString());
       }
     }
     return merged;

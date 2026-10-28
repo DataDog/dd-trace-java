@@ -16,9 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Starts, restarts or stops the profiler according to the active {@code APM_PROFILING} configs.
- * Remote values take precedence over the local configuration; when no remote config is active the
- * local configuration applies again.
+ * Starts, restarts or stops the profiler according to the active {@code DEBUG} configs. Remote
+ * values take precedence over the local configuration; when no remote config is active the local
+ * configuration applies again.
  */
 final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   private static final Logger log = LoggerFactory.getLogger(ProfilingRemoteConfigHandler.class);
@@ -62,23 +62,23 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   @Override
   public synchronized void onConfigsChanged(Map<String, String> configsById) {
     if (closed) {
-      log.debug("Profiling is shut down, ignoring APM_PROFILING remote config");
+      log.debug("Profiling is shut down, ignoring DEBUG remote config");
       return;
     }
     final Map<String, String> values =
         configsById.isEmpty() ? null : ProfilingConfigMerger.merge(configsById);
     if (Objects.equals(values, appliedValues)) {
-      log.debug("APM_PROFILING remote config unchanged, nothing to do");
+      log.debug("DEBUG remote config unchanged, nothing to do");
       return;
     }
     final ConfigProvider config;
     final boolean enabled;
     if (values == null) {
-      log.debug("No APM_PROFILING remote config active, reverting to the local configuration");
+      log.debug("No DEBUG remote config active, reverting to the local configuration");
       config = localConfig;
       enabled = runWithLocalConfig;
     } else {
-      log.debug("Applying APM_PROFILING remote config: {}", values);
+      log.debug("Applying DEBUG remote config: {}", values);
       config = remoteConfigFactory.apply(values);
       enabled = anyProfilingEnabled.test(config);
     }
@@ -106,7 +106,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       }
       appliedValues = values;
     } catch (UnsupportedEnvironmentException | RuntimeException e) {
-      log.warn(SEND_TELEMETRY, "Failed to apply APM_PROFILING remote config", e);
+      log.warn(SEND_TELEMETRY, "Failed to apply DEBUG remote config", e);
     }
   }
 

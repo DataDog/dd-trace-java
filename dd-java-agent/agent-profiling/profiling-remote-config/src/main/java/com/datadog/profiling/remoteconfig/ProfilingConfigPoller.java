@@ -18,8 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Subscribes to the {@code APM_PROFILING} remote-config product and hands the active configs to a
- * {@link ProfilingConfigHandler} after each commit.
+ * Subscribes to the {@code DEBUG} remote-config product and hands the active configs to a {@link
+ * ProfilingConfigHandler} after each commit.
  */
 public final class ProfilingConfigPoller {
   private static final Logger log = LoggerFactory.getLogger(ProfilingConfigPoller.class);
@@ -40,19 +40,19 @@ public final class ProfilingConfigPoller {
   public void start(Config config, SharedCommunicationObjects sco) {
     ConfigurationPoller poller = sco.configurationPoller(config);
     if (poller == null) {
-      log.debug("Remote config is not enabled, not subscribing to APM_PROFILING");
+      log.debug("Remote config is not enabled, not subscribing to DEBUG");
       return;
     }
     // the poller itself is started by the agent once all products have been registered
-    poller.addListener(Product.APM_PROFILING, new Updater());
+    poller.addListener(Product.DEBUG, new Updater());
     configPoller = poller;
-    log.debug("Subscribed to APM_PROFILING remote config");
+    log.debug("Subscribed to DEBUG remote config");
   }
 
   public void stop() {
     if (null != configPoller) {
       // only unsubscribe; the poller is shared and its start/stop calls are reference-counted
-      configPoller.removeListeners(Product.APM_PROFILING);
+      configPoller.removeListeners(Product.DEBUG);
       configPoller = null;
     }
   }
@@ -65,13 +65,13 @@ public final class ProfilingConfigPoller {
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter) {
       String json = new String(content, UTF_8);
       configs.put(configKey.getConfigId(), json);
-      log.debug("Received APM_PROFILING config {}: {}", configKey.getConfigId(), json);
+      log.debug("Received DEBUG config {}: {}", configKey.getConfigId(), json);
     }
 
     @Override
     public void remove(ConfigKey configKey, PollingRateHinter hinter) {
       configs.remove(configKey.getConfigId());
-      log.debug("Removed APM_PROFILING config {}", configKey.getConfigId());
+      log.debug("Removed DEBUG config {}", configKey.getConfigId());
     }
 
     @Override
@@ -79,7 +79,7 @@ public final class ProfilingConfigPoller {
       try {
         handler.onConfigsChanged(unmodifiableMap(new HashMap<>(configs)));
       } catch (Throwable t) {
-        log.warn(SEND_TELEMETRY, "Failed to apply APM_PROFILING remote config", t);
+        log.warn(SEND_TELEMETRY, "Failed to apply DEBUG remote config", t);
       }
     }
   }
