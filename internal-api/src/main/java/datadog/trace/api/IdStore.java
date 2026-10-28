@@ -6,6 +6,7 @@ import datadog.trace.api.function.TriConsumer;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 
 /**
  * Known tags keyed by their {@link KnownTags} id. Every method takes an id, or an {@link
@@ -33,7 +34,40 @@ public abstract class IdStore {
 
   /** A fresh id store reading through to {@code parent}'s known tags (parent may be null). */
   public static IdStore create(TagMap parent) {
-    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore);
+    return create(parent, null);
+  }
+
+  /**
+   * Like {@link #create(TagMap)}, presized from {@code hint} (see {@link SizingHintTable}); a null
+   * hint, or a store that isn't sized per span, ignores it.
+   */
+  public static IdStore create(TagMap parent, @Nullable SizingHint hint) {
+    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore, hint);
+  }
+
+  /**
+   * Feeds this store's size back into the hint it was presized from -- a best-effort, racy max, so
+   * later stores of the same operation are presized to it. A store created without a hint, or with
+   * a capped one, or that isn't sized per span, does nothing.
+   */
+  public void recordSize() {}
+
+  /**
+   * Copies every tag of {@code source} in at once if none of them can already be present here --
+   * locally, as a tombstone, or inherited -- and returns true; otherwise copies nothing and returns
+   * false, and the caller seeds tag by tag. A store that can't prove absence in bulk always returns
+   * false. {@code source} must be frozen.
+   */
+  public boolean seedAbsent(IdStore source) {
+    return false;
+  }
+
+  /**
+   * Whether {@link #seedAbsent} can ever succeed for this kind of store, so a caller can skip it,
+   * and the lock it needs, when it can't.
+   */
+  public boolean supportsBulkSeed() {
+    return false;
   }
 
   /** Throws for an id that names no known tag. */
@@ -133,11 +167,11 @@ public abstract class IdStore {
   abstract boolean hasParent();
 
   /** Visits the local entries, then the visible inherited ones. */
-  abstract void forEach(Consumer<? super EntryReader> consumer);
+  public abstract void forEach(Consumer<? super EntryReader> consumer);
 
-  abstract <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer);
+  public abstract <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer);
 
-  abstract <T, U> void forEach(
+  public abstract <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer);
 
   /**

@@ -1324,6 +1324,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return reader == null ? null : reader.entry();
   }
 
+  /** This map's known-tag store. */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public IdStore knownStore() {
+    return this.knownStore;
+  }
+
   /** This map's custom store: null, borrowed ({@link #isCustomStoreBorrowed}), or its own. */
   @Restricted(allowedIn = {"datadog.trace.core"})
   public HashStore customStore() {
