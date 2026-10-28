@@ -14,19 +14,24 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationTestSupport.CapturingTransport;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationTestSupport.RecordingMetrics;
+import com.datadog.openfeature.testlog.CapturingServiceProvider;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 class FlagEvaluationPipelineTest {
 
@@ -56,6 +61,48 @@ class FlagEvaluationPipelineTest {
         setup.metrics.sum(
             FlagEvaluationPipeline.FLAG_EVALUATION_DROPPED_METRIC,
             "reason:" + FlagEvaluationPipeline.DROP_REASON_DEGRADED_CAP));
+  }
+
+  @Test
+  void reportsADeliveredFlushAndTheShutdownRequest() {
+    CapturingServiceProvider.reset();
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
+    try {
+      final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter();
+      setup.handler.add(simpleEvent("logged-flag", "on"));
+      flushAndCapture(setup);
+      writer(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS).requestShutdown();
+
+      final List<String> messages =
+          CapturingServiceProvider.events().stream()
+              .map(e -> e.message)
+              .collect(Collectors.toList());
+      assertTrue(
+          messages.contains("Feature Flags flag evaluation flush delivered: payloads=1"),
+          messages.toString());
+      assertTrue(
+          messages.contains("Feature Flags flag evaluation shutdown requested"),
+          messages.toString());
+    } finally {
+      CapturingServiceProvider.reset();
+    }
+  }
+
+  @Test
+  void signalsTheWorkerWhenTheShutdownLogFails() {
+    CapturingServiceProvider.reset();
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
+    CapturingServiceProvider.failOn("flag evaluation shutdown requested");
+    final FlagEvaluationPipeline writer = writer(16, 10L, TimeUnit.SECONDS);
+    writer.start();
+    try {
+      assertThrows(IllegalStateException.class, writer::requestShutdown);
+
+      writer.awaitTermination(System.nanoTime() + TimeUnit.SECONDS.toNanos(5));
+      assertFalse(writer.isSerializerThreadAlive(), "The worker was not signaled");
+    } finally {
+      CapturingServiceProvider.reset();
+    }
   }
 
   @Test
