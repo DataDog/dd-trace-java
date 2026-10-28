@@ -5,7 +5,10 @@ plugins {
   id("com.github.spotbugs")
 }
 
+val libs = versionCatalogs.named("libs")
+
 spotbugs {
+  toolVersion = libs.findVersion("spotbugs").get().requiredVersion
   ignoreFailures = false
   // Exclude known types and packages
   excludeFilter = rootDir.resolve("gradle/spotbugFilters/exclude.xml")
@@ -64,7 +67,6 @@ tasks.withType<SpotBugsTask>().configureEach {
   }
 }
 
-val libs = versionCatalogs.named("libs")
 dependencies {
   compileOnly(libs.findLibrary("spotbugs-annotations").get())
   testImplementation(libs.findLibrary("jsr305").get())

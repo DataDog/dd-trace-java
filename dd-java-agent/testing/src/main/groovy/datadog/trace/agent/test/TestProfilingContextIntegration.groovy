@@ -80,7 +80,7 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
     Class<?> task
     Class<?> scheduler
     Class<?> queue
-    int queueLength
+    volatile int queueLength
     final Thread origin
     final long start
 

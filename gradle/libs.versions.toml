@@ -12,7 +12,8 @@ jspecify = "1.0.1"
 nullaway = "0.14.2"
 shadow = "9.4.2"
 spotbugs-gradle-plugin = "6.5.11"
-spotbugs_annotations = "4.10.4"
+spotbugs = "4.10.5"
+spotbugs-queue-utils = "4.10.4"
 
 # Source code formatters
 google-java-format = "1.36.1"
@@ -102,7 +103,7 @@ gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
-spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
+spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs" }
 spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs-gradle-plugin" }
 
 # DataDog libs and forks

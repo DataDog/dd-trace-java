@@ -18,10 +18,9 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-// SpotBugs 4.10.4 requires declaration annotations to check non-null parameter overrides.
 public interface AgentSpan
     extends MutableSpan,
         AppendableSpanLinks,
@@ -291,8 +290,7 @@ public interface AgentSpan
 
   AgentSpan setSamplingPriority(final int newPriority, int samplingMechanism);
 
-  @Nonnull
-  TraceConfig traceConfig();
+  @NonNull TraceConfig traceConfig();
 
   void addLink(AgentSpanLink link);
 
@@ -333,7 +331,7 @@ public interface AgentSpan
    * the context, which owns the tag map and will host the eventual fast path (bulk share / identity
    * short-circuit); this default is the best-effort fallback for other span implementations.
    */
-  default void apply(@Nonnull final SpanPrototype prototype) {
+  default void apply(@NonNull final SpanPrototype prototype) {
     if (getSpanType() == null) {
       final CharSequence spanType = prototype.spanType();
       if (spanType != null) {
@@ -372,7 +370,7 @@ public interface AgentSpan
    * seeding: the two callers have genuinely different precedence needs, and collapsing them
    * previously let a global tag silently suppress a decorator's own value.
    */
-  default void applyOverwriting(@Nonnull final SpanPrototype prototype) {
+  default void applyOverwriting(@NonNull final SpanPrototype prototype) {
     final CharSequence spanType = prototype.spanType();
     if (spanType != null) {
       setSpanType(spanType);
@@ -395,18 +393,18 @@ public interface AgentSpan
   }
 
   @Override
-  default Context storeInto(@Nonnull Context context) {
+  default Context storeInto(@NonNull Context context) {
     return context == Context.root() ? this : context.with(SPAN_KEY, this);
   }
 
   @Override
-  default <T> @Nullable T get(@Nonnull ContextKey<T> key) {
+  default <T> @Nullable T get(@NonNull ContextKey<T> key) {
     // noinspection unchecked
     return SPAN_KEY == key ? (T) this : Context.root().get(key);
   }
 
   @Override
-  default <T> Context with(@Nonnull ContextKey<T> key, @Nullable T value) {
+  default <T> Context with(@NonNull ContextKey<T> key, @Nullable T value) {
     return SPAN_KEY == key ? (Context) value : Context.root().with(SPAN_KEY, this, key, value);
   }
 
@@ -479,7 +477,7 @@ public interface AgentSpan
    * @param source the source. Can be typically the name of the integration that overrides the
    *     default name.
    */
-  default void setServiceName(@Nonnull String serviceName, @Nonnull CharSequence source) {
+  default void setServiceName(@NonNull String serviceName, @NonNull CharSequence source) {
     setServiceName(serviceName);
   }
 }
