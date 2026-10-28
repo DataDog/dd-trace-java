@@ -74,6 +74,9 @@ variables:
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
+  SKIP_BUILD_CACHE:
+    description: "Run Gradle tasks without build-cache or up-to-date reuse"
+    value: "false"
 
   # One pipeline injection package size ratchet
   OCI_PACKAGE_MAX_SIZE_BYTES: 40_000_000
@@ -104,12 +107,12 @@ workflow:
       - "17"
       - "21"
       - "25"
-      - "semeru11"
       - "oracle8"
       - "zulu8"
       - "semeru8"
       - "ibm8"
       - "zulu11"
+      - "semeru11"
       - "semeru17"
       - "tip"
     CI_SPLIT: ["1/1"]
@@ -282,6 +285,7 @@ default:
       fi
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    - if [ "$SKIP_BUILD_CACHE" = "true" ]; then export GRADLE_ARGS="$GRADLE_ARGS --no-build-cache --rerun-tasks"; fi
     - *normalize_node_index
     # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
@@ -539,7 +543,7 @@ check-instrumentation-naming:
   needs: [ ]
   script:
     - ./gradlew --version
-    - ./gradlew checkInstrumentationNaming
+    - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
 config-inversion-linter:
   extends: .gradle_build
@@ -547,7 +551,7 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew checkConfigurations
+    - ./gradlew checkConfigurations $GRADLE_ARGS
 
 test_published_artifacts:
   extends: .gradle_build
@@ -886,6 +890,13 @@ muzzle-dep-report:
     # Java 8 JVMs are very slow on AARCH64.
     - if: '$testJvm =~ /^(8|oracle8|zulu8|semeru8|ibm8)$/'
       when: never
+    # Java 11 is opt-in on arm64; HotSpot has very slow class retransformation.
+    # Vendor JVMs still follow the non-default JVM selection rules below.
+    - if: '$testJvm == "11" && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
+      when: on_success
+      allow_failure: true
+    - if: '$testJvm =~ /11$/ && $CI_COMMIT_MESSAGE !~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
+      when: never
     # arm64 tests are newly introduced to the merge queue and master. Keep them
     # non-blocking (allow_failure) for now so we can collect stability stats and
     # fix flaky/failing jobs without blocking the whole team. Remove allow_failure
@@ -901,7 +912,7 @@ muzzle-dep-report:
       when: on_success
       allow_failure: true
     # On feature branches/PRs, [ci: ARM64] in the commit message runs the default JVM subset,
-    # and [ci: ARM64, NON_DEFAULT_JVMS] runs all JVMs. [ci: NON_DEFAULT_JVMS] alone only affects amd64.
+    # and [ci: ARM64, NON_DEFAULT_JVMS] runs all eligible JVMs. [ci: NON_DEFAULT_JVMS] alone only affects amd64.
     - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bARM64\b[^\]]*\]/ && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bNON_DEFAULT_JVMS\b[^\]]*\]/'
       when: on_success
       allow_failure: true

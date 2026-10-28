@@ -1799,6 +1799,22 @@ When Gradle builds fail or behave unexpectedly, several tools and techniques can
 > [!TIP]
 > In general following the [Gradle best practices](https://docs.gradle.org/current/userguide/best_practices.html) is safe bet to avoid isses.
 
+### Forcing Fresh CI Task Execution
+
+Set the GitLab CI variable `SKIP_BUILD_CACHE=true` when starting a pipeline.
+For a fresh rerun, start a new pipeline for the same ref with this variable.
+This appends `--no-build-cache --rerun-tasks` to the shared Gradle arguments,
+bypassing local and remote task-output caches (including S3 when configured)
+and forcing selected tasks to execute even when their outputs are up to date.
+Existing task filters and skip conditions still apply.
+
+The default is `false`. Dependency and plugin caches remain available.
+For the same behavior locally, pass the Gradle flags directly:
+
+```shell
+./gradlew :path:to:module:test --no-build-cache --rerun-tasks
+```
+
 ### Build Scans (Develocity)
 
 This project uses [Gradle Develocity](https://gradle.com/) for build scans. Build scans provide detailed insights into build performance, dependency resolution, and failures.

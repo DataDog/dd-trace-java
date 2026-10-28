@@ -1331,12 +1331,13 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void processRequestEndDoesNothingWhenSpanHasNoRequestContext() {
+  void processRequestEndSetsTracerMetricWhenSpanHasNoRequestContext() {
     LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     AgentSpan span = mock(AgentSpan.class);
     when(span.getRequestContext()).thenReturn(null);
     LambdaAppSecHandler.processRequestEnd(span);
-    // no exception expected
+
+    verify(span).setMetric("_dd.appsec.serverless.tracer", 1);
   }
 
   @Test
@@ -1367,6 +1368,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     LambdaAppSecHandler.processRequestEnd(span);
 
     verify(requestEndedCallback).apply(mockRequestContext, span);
+    verify(span).setMetric("_dd.appsec.serverless.tracer", 1);
     verify(mockTraceSegment, never()).setTagTop(any(), any());
   }
 
@@ -1430,6 +1432,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     LambdaAppSecHandler.processRequestEnd(span);
 
+    verify(span).setMetric("_dd.appsec.serverless.tracer", 1);
     verify(span).setMetric("_dd.appsec.unsupported_event_type", 1);
     verifyNoMoreInteractions(span);
   }
@@ -1441,7 +1444,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verifyNoInteractions(span);
+    verify(span).setMetric("_dd.appsec.serverless.tracer", 1);
+    verifyNoMoreInteractions(span);
   }
 
   @Test
@@ -1467,7 +1471,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     LambdaAppSecHandler.processRequestEnd(span);
 
     verify(requestEndedCallback).apply(mockRequestContext, span);
-    verify(span, never()).setMetric(anyString(), anyInt());
+    verify(span).setMetric("_dd.appsec.serverless.tracer", 1);
+    verify(span).setMetric(anyString(), anyInt());
   }
 
   @Test
@@ -1479,7 +1484,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verify(span, never()).setMetric(anyString(), anyInt());
+    verify(span).setMetric("_dd.appsec.serverless.tracer", 1);
+    verify(span).setMetric(anyString(), anyInt());
   }
 
   @Test
@@ -1505,7 +1511,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpan nextSpan = mock(AgentSpan.class);
     LambdaAppSecHandler.processRequestEnd(nextSpan);
     verify(requestEndedCallback).apply(requestContext, span);
-    verify(nextSpan, never()).setMetric(anyString(), anyInt());
+    verify(nextSpan).setMetric("_dd.appsec.serverless.tracer", 1);
+    verifyNoMoreInteractions(nextSpan);
   }
 
   @Test
@@ -1516,6 +1523,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpan span = mock(AgentSpan.class);
     LambdaAppSecHandler.processRequestEnd(span);
 
+    verify(span).setMetric("_dd.appsec.serverless.tracer", 1);
     verify(span).setMetric("_dd.appsec.unsupported_event_type", 1);
     verifyNoMoreInteractions(span);
   }

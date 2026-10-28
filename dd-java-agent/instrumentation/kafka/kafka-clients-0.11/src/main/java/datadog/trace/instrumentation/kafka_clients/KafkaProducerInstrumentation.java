@@ -12,6 +12,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
@@ -216,11 +217,16 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         setter = TextMapInjectAdapter.SETTER;
       }
-      DataStreamsTags tags = createWithClusterId("kafka", OUTBOUND, record.topic(), clusterId);
+      // With DSM off the DSM propagator injects nothing, so skip building its tags and context.
+      DataStreamsTags tags =
+          traceConfig().isDataStreamsEnabled()
+              ? createWithClusterId("kafka", OUTBOUND, record.topic(), clusterId)
+              : null;
       try {
         defaultPropagator().inject(span, record.headers(), setter);
-        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
-            || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+        if (tags != null
+            && (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
+                || STREAMING_CONTEXT.isSinkTopic(record.topic()))) {
           // inject the context in the headers, but delay sending the stats until we know the
           // message size.
           // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
@@ -240,8 +246,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
                 record.headers());
 
         defaultPropagator().inject(span, record.headers(), setter);
-        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
-            || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+        if (tags != null
+            && (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
+                || STREAMING_CONTEXT.isSinkTopic(record.topic()))) {
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
           dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
