@@ -110,6 +110,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     return executionStrategy.skipReason(test, source, tags);
   }
 
+  @Nullable
   @Override
   public SkipReason skipReason(TestIdentifier test) {
     return executionStrategy.skipReason(test);

@@ -94,8 +94,16 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
     // do nothing
   }
 
+  @Nullable
   @Override
   public SkipReason skipReason(TestIdentifier test) {
+    return null;
+  }
+
+  @Nullable
+  @Override
+  public SkipReason skipReason(
+      TestIdentifier test, TestSourceData source, Collection<String> tags) {
     return null;
   }
 

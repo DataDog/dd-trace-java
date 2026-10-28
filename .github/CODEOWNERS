@@ -450,5 +450,3 @@
 **/build.gradle.kts                                @DataDog/apm-lang-platform-java
 **/gradle.lockfile                                 @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation/**/gradle.lockfile  @DataDog/apm-idm-java
-
-/docs/test-automation-exclusions.md @DataDog/ci-app-libraries
