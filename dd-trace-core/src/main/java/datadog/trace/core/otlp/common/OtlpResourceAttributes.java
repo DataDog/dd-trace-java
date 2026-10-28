@@ -6,6 +6,7 @@ import static java.util.Arrays.asList;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.TagMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,7 +46,9 @@ final class OtlpResourceAttributes {
    * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
    *
    * <p>{@code globalTags} (none when null) are the trace's from its config snapshot, so the trace
-   * resource follows remote config tag changes, or {@code config.getGlobalTags()} for the others.
+   * resource follows remote config tag changes, or {@code config.getGlobalTags()} for the others. A
+   * {@link TagMap} holds known tags under their Datadog name, so its tags are named like span
+   * attributes: by their OpenTelemetry name under OTel semantics, else their Datadog name.
    */
   static void visitResourceAttributes(
       Config config,
@@ -73,18 +76,34 @@ final class OtlpResourceAttributes {
     visitor.accept("telemetry.sdk.version", TRACER_VERSION);
     visitor.accept("telemetry.sdk.language", "java");
 
-    if (globalTags != null) {
+    if (globalTags instanceof TagMap) {
+      boolean otelSemantics = config.isTraceOtelSemanticsEnabled();
+      ((TagMap) globalTags)
+          .forEach(
+              entry ->
+                  visitGlobalTag(
+                      otelSemantics ? entry.openTelemetryTag() : entry.tag(),
+                      entry.stringValue(),
+                      extraAttributes,
+                      visitor));
+    } else if (globalTags != null) {
       globalTags.forEach(
-          (key, value) -> {
-            // ignore global tags replaced by canonical or extra resource attributes
-            if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
-                && !extraAttributes.containsKey(key)) {
-              visitor.accept(key, String.valueOf(value));
-            }
-          });
+          (key, value) -> visitGlobalTag(key, String.valueOf(value), extraAttributes, visitor));
     }
 
     extraAttributes.forEach(visitor);
+  }
+
+  private static void visitGlobalTag(
+      String key,
+      String value,
+      Map<String, Object> extraAttributes,
+      BiConsumer<String, Object> visitor) {
+    // ignore global tags replaced by canonical or extra resource attributes
+    if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
+        && !extraAttributes.containsKey(key)) {
+      visitor.accept(key, value);
+    }
   }
 
   private static final String PROCESS_TAGS_KEY = DATADOG_PREFIX + "process_tags";
