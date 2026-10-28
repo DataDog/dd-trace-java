@@ -80,10 +80,15 @@ public abstract class Payload {
    */
   protected void writeBody(WritableByteChannel channel) throws IOException {
     for (ByteBuffer part : body) {
-      ByteBuffer view = part.duplicate();
-      while (view.hasRemaining()) {
-        channel.write(view);
-      }
+      writeFully(part.duplicate(), channel);
+    }
+  }
+
+  /** Writes all of the buffer's remaining bytes to the channel. */
+  protected static void writeFully(ByteBuffer buffer, WritableByteChannel channel)
+      throws IOException {
+    while (buffer.hasRemaining()) {
+      channel.write(buffer);
     }
   }
 

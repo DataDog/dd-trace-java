@@ -20,7 +20,6 @@ import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import java.util.Map;
@@ -405,10 +404,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
-      ByteBuffer header = msgpackArrayHeader(traceCount());
-      while (header.hasRemaining()) {
-        channel.write(header);
-      }
+      writeFully(msgpackArrayHeader(traceCount()), channel);
       writeBody(channel);
     }
 

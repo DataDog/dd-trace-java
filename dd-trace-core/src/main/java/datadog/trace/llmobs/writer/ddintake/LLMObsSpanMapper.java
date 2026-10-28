@@ -808,19 +808,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
     public void writeTo(WritableByteChannel channel) throws IOException {
       // If traceCount is 0, we write a map with 0 elements in MsgPack format.
       if (traceCount() == 0) {
-        ByteBuffer emptyDict = msgpackMapHeader(0);
-        while (emptyDict.hasRemaining()) {
-          channel.write(emptyDict);
-        }
+        writeFully(msgpackMapHeader(0), channel);
       } else {
-        ByteBuffer headers = header.slice();
-        while (headers.hasRemaining()) {
-          channel.write(headers);
-        }
-        ByteBuffer spanCount = msgpackArrayHeader(spansWritten);
-        while (spanCount.hasRemaining()) {
-          channel.write(spanCount);
-        }
+        writeFully(header.slice(), channel);
+        writeFully(msgpackArrayHeader(spansWritten), channel);
         writeBody(channel);
       }
     }

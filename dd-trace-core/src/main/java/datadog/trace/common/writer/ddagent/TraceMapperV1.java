@@ -706,16 +706,10 @@ public final class TraceMapperV1 implements TraceMapper {
       return header.remaining() + msgpackArrayHeaderSize(traceCount()) + bodySize();
     }
 
-    private void writeBuffer(ByteBuffer buffer, WritableByteChannel channel) throws IOException {
-      while (buffer.hasRemaining()) {
-        channel.write(buffer);
-      }
-    }
-
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
-      writeBuffer(header.slice(), channel);
-      writeBuffer(msgpackArrayHeader(traceCount()), channel);
+      writeFully(header.slice(), channel);
+      writeFully(msgpackArrayHeader(traceCount()), channel);
       writeBody(channel);
     }
 

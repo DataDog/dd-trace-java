@@ -36,9 +36,11 @@ import java.util.List;
  * so the buffer holds exactly as much as a single array of the same capacity would. The last chunk
  * is only as long as the remaining capacity, so a small buffer is a single small chunk.
  *
- * <p><b>Retention.</b> Chunks are allocated on first use, and {@link #reset()} keeps the chunks
- * that held completed data, dropping the rest. Steady traffic reuses the same chunks; after a burst
- * the extra chunks are released at the next reset. Nothing is allocated before the first write.
+ * <p><b>Retention.</b> Chunks are allocated on first use. {@link #reset()} keeps the chunks that
+ * held completed data plus half of any surplus kept from the previous reset, so after a burst the
+ * extra chunks drain over a few resets instead of all at once. Payloads that vary in size don't
+ * free and reallocate chunks on every cycle, and steady traffic reuses the same chunks. Nothing is
+ * allocated before the first write.
  *
  * <p>Not thread-safe: a buffer is written and read by one thread at a time.
  */
@@ -64,6 +66,8 @@ public class ChunkedBuffer {
   private final int[] starts;
   private final int[] limits;
   private int allocatedChunks;
+  // how many chunks the last reset kept, the baseline for halving a surplus
+  private int keptChunks;
 
   // the chunk being written: current is -1 and limit 0 until the first write
   private int current = -1;
@@ -137,16 +141,19 @@ public class ChunkedBuffer {
   }
 
   /**
-   * Discards all messages and releases the chunks the completed messages didn't need, keeping at
-   * least one once any has been allocated.
+   * Discards all messages and releases chunks: it keeps the chunks the completed messages used (at
+   * least one once any has been allocated) plus half of the surplus the previous reset kept. Chunks
+   * allocated only by an unfinished or failed message aren't counted.
    */
   public void reset() {
-    int keep = Math.max(1, markChunk + 1);
+    int used = Math.max(1, markChunk + 1);
+    int keep = keptChunks > used ? used + (keptChunks - used) / 2 : used;
     for (int i = keep; i < allocatedChunks; ++i) {
       chunks[i] = null;
       views[i] = null;
     }
     allocatedChunks = Math.min(allocatedChunks, keep);
+    keptChunks = allocatedChunks;
     failed = false;
     markChunk = -1;
     markPos = 0;

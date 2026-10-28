@@ -413,15 +413,10 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     public void writeTo(WritableByteChannel channel) throws IOException {
       // If traceCount is 0, we write a map with 0 elements in MsgPack format.
       if (traceCount() == 0) {
-        ByteBuffer emptyDict = msgpackMapHeader(0);
-        while (emptyDict.hasRemaining()) {
-          channel.write(emptyDict);
-        }
+        writeFully(msgpackMapHeader(0), channel);
       } else {
         if (header != null) {
-          while (header.hasRemaining()) {
-            channel.write(header);
-          }
+          writeFully(header.duplicate(), channel);
         }
         writeBody(channel);
       }
@@ -434,7 +429,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       if (traceCount() == 0) {
         buffers = Collections.singletonList(msgpackMapHeader(0));
       } else {
-        buffers = bodyAfter(header);
+        buffers = bodyAfter(header != null ? header.duplicate() : null);
       }
       return compressionEnabled
           ? gzippedMsgpackRequestBodyOf(buffers)

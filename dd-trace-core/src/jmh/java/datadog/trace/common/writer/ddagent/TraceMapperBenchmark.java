@@ -1,32 +1,16 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
-import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
-import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.google.common.collect.Lists;
-import datadog.communication.serialization.StreamingBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
-import datadog.trace.api.DDSpanId;
-import datadog.trace.api.DDTraceId;
-import datadog.trace.api.datastreams.NoopPathwayContext;
-import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.CoreTracer;
+import datadog.trace.core.BlackholeBuffer;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.DDSpanHelper;
-import datadog.trace.core.TraceCollector;
 import datadog.trace.core.propagation.PropagationTags;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.nio.ByteBuffer;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -55,7 +39,6 @@ public class TraceMapperBenchmark {
 
   private TraceMapper mapper;
   private Writable writable;
-  private CoreTracer tracer;
   private List<DDSpan> trace;
 
   @Setup(Level.Trial)
@@ -87,134 +70,12 @@ public class TraceMapperBenchmark {
       }
     }
 
-    Map<String, Object> tags = new HashMap<>();
-    tags.put(RUNTIME_ID_TAG, "fdd790b3-4aeb-4517-9b84-cafcc0129c48");
-    tags.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
-    tags.put("env", "prod");
-
     writable = new MsgPackWriter(new BlackholeBuffer(blackhole));
-
-    tracer =
-        CoreTracer.builder()
-            .strictTraceWrites(
-                true) // Avoid any extra bookkeeping for traces since we write directly
-            .build();
-
-    DDTraceId traceId = DDTraceId.ONE;
-    TraceCollector traceCollector = tracer.createTraceCollector(traceId);
-    DDSpanContext rootContext =
-        new DDSpanContext(
-            traceId,
-            2,
-            DDSpanId.ZERO,
-            null,
-            "service",
-            UTF8BytesString.create("operation"),
-            UTF8BytesString.create("resource"),
-            PrioritySampling.SAMPLER_KEEP,
-            null,
-            Collections.<String, String>emptyMap(),
-            false,
-            UTF8BytesString.create("type"),
-            0,
-            traceCollector,
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            propagationTags);
-    DDSpanHelper.setAllTags(rootContext, tags);
-    DDSpan root = DDSpanHelper.create("benchmark", System.currentTimeMillis() * 1000, rootContext);
-    root.setResourceName(UTF8BytesString.create("benchmark"));
-    trace = Lists.newArrayList(root);
+    trace = DDSpanHelper.singleRootTrace(propagationTags);
   }
 
   @Benchmark
   public void mapTrace() {
     mapper.map(trace, writable);
-  }
-
-  public static final class BlackholeBuffer implements StreamingBuffer {
-    private final Blackhole blackhole;
-
-    public BlackholeBuffer(Blackhole blackhole) {
-      this.blackhole = blackhole;
-    }
-
-    @Override
-    public int capacity() {
-      return 0;
-    }
-
-    @Override
-    public boolean isDirty() {
-      return false;
-    }
-
-    @Override
-    public boolean mark() {
-      return true;
-    }
-
-    @Override
-    public boolean flush() {
-      return true;
-    }
-
-    @Override
-    public void put(byte b) {
-      blackhole.consume(b);
-    }
-
-    @Override
-    public void putShort(short s) {
-      blackhole.consume(s);
-    }
-
-    @Override
-    public void putChar(char c) {
-      blackhole.consume(c);
-    }
-
-    @Override
-    public void putInt(int i) {
-      blackhole.consume(i);
-    }
-
-    @Override
-    public void putLong(long l) {
-      blackhole.consume(l);
-    }
-
-    @Override
-    public void putFloat(float f) {
-      blackhole.consume(f);
-    }
-
-    @Override
-    public void putDouble(double d) {
-      blackhole.consume(d);
-    }
-
-    @Override
-    public void put(byte[] bytes) {
-      blackhole.consume(bytes);
-    }
-
-    @Override
-    public void put(byte[] bytes, int offset, int length) {
-      blackhole.consume(bytes);
-    }
-
-    @Override
-    public void put(ByteBuffer buffer) {
-      blackhole.consume(buffer);
-    }
-
-    @Override
-    public void rewind() {}
-
-    @Override
-    public void reset() {}
   }
 }

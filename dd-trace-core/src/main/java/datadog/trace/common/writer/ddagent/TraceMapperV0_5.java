@@ -228,9 +228,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
       for (ByteBuffer buffer : toList()) {
-        while (buffer.hasRemaining()) {
-          channel.write(buffer);
-        }
+        writeFully(buffer, channel);
       }
     }
 

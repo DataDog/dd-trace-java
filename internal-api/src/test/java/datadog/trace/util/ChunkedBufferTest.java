@@ -307,12 +307,38 @@ class ChunkedBufferTest {
     assertFalse(buffer.isDirty());
     assertEquals(0, buffer.messageCount());
     assertTrue(buffer.completedChunks().isEmpty());
+  }
 
-    // a quieter cycle releases the extra chunks
+  @Test
+  void resetReleasesHalfTheSurplusEachTime() {
+    ChunkedBuffer buffer = new ChunkedBuffer(20 * CHUNK_SIZE);
+    buffer.put(new byte[18 * CHUNK_SIZE + 1]);
+    buffer.mark();
+    buffer.reset();
+    assertEquals(19, buffer.allocatedChunks());
+
+    // quiet cycles that each need one chunk: the surplus halves each time
+    int[] expected = {10, 5, 3, 2, 1, 1};
+    for (int kept : expected) {
+      buffer.putInt(1);
+      buffer.mark();
+      buffer.reset();
+      assertEquals(kept, buffer.allocatedChunks());
+    }
+  }
+
+  @Test
+  void growthIsNotHalved() {
+    ChunkedBuffer buffer = new ChunkedBuffer(5 * CHUNK_SIZE);
     buffer.putInt(1);
     buffer.mark();
     buffer.reset();
     assertEquals(1, buffer.allocatedChunks());
+
+    buffer.put(new byte[3 * CHUNK_SIZE + 1]);
+    buffer.mark();
+    buffer.reset();
+    assertEquals(4, buffer.allocatedChunks());
   }
 
   @Test
