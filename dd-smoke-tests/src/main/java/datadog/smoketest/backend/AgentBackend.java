@@ -148,7 +148,7 @@ public abstract class AgentBackend
    * @deprecated Prefer {@link #testAgent()}, which speaks the real agent protocol.
    */
   @Deprecated
-  public static AgentBackend mockAgent() {
+  public static MockAgentBackend mockAgent() {
     return new MockAgentBackend();
   }
 

@@ -1,11 +1,11 @@
 package datadog.smoketest.backend;
 
-import datadog.trace.test.util.PollingConditions;
+import static datadog.smoketest.backend.Polling.waitForFirst;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -69,19 +69,7 @@ public final class RemoteConfig {
    */
   public Map<String, Object> waitForRequest(
       Predicate<Map<String, Object>> predicate, double timeoutSeconds) {
-    AtomicReference<Map<String, Object>> match = new AtomicReference<>();
-    new PollingConditions(timeoutSeconds)
-        .eventually(
-            () -> {
-              for (Map<String, Object> request : requests()) {
-                if (predicate.test(request)) {
-                  match.set(request);
-                  return;
-                }
-              }
-              throw new AssertionError("No remote-config poll request matched yet");
-            });
-    return match.get();
+    return waitForFirst(this::requests, predicate, timeoutSeconds, "remote-config poll request");
   }
 
   /**

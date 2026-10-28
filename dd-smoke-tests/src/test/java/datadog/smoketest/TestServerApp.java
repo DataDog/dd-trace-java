@@ -45,6 +45,8 @@ public final class TestServerApp {
             os.write(body);
           }
         });
+    Runtime.getRuntime()
+        .addShutdownHook(new Thread(() -> System.out.println("TestServerApp shutting down")));
     server.start();
     System.out.println("TestServerApp listening on " + port);
 

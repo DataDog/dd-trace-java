@@ -215,6 +215,8 @@ For a long-running server:
   For other verbs, headers or bodies, point your own HTTP client at `app.url()`.
 - The owned backend and the captured logs are cleared before each test method, so a method sees only the traces and output its own requests produced.
 - The process is asserted alive before and after each method, so a crash fails the method that caused it instead of surfacing later as an unexplained timeout.
+- `terminate(timeout, unit)` stops the app with a termination signal, which runs its shutdown hooks, and waits for it to exit.
+  Use it to assert what the app flushes at exit; later test methods can no longer use the app.
 
 ```java
 @RegisterExtension
@@ -510,6 +512,18 @@ Turn it off with `skipTelemetryCheck()` on the app builder, for apps that run wi
 | `waitForRequest(predicate)` / `(predicate, timeoutSeconds)` | Block until a poll matches, and return it               |
 | `RemoteConfig.products(request)` (static)                   | Products a poll subscribes to                           |
 | `RemoteConfig.capabilities(request)` (static)               | Capability bitmask a poll advertises                    |
+
+## Asserting event platform proxy requests
+
+The in-process mock agent also captures what the tracer sends through the event platform proxy (`/evp_proxy/v2/`), which the test agent does not record for every intake.
+`AgentBackend.mockAgent().evpProxy()` returns the query facade:
+
+| Method                                                      | Purpose                                                                 |
+|-------------------------------------------------------------|-------------------------------------------------------------------------|
+| `requests()` / `requests(path)`                             | Captured requests, all or to an intake path such as `api/v2/exposures` |
+| `waitForRequest(predicate)` / `(predicate, timeoutSeconds)` | Block until a request matches, and return it                            |
+
+Each request exposes its intake `path()`, a `header(name)`, its `body()`, and the body decoded with `json()`.
 
 ## Asserting application logs
 

@@ -15,10 +15,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * In-process mock-agent {@link AgentBackend} wrapping the testing {@link JavaTestHttpServer}. It
  * answers the tracer's {@code /info} probe, decodes the trace payloads the tracer submits (v0.4 /
  * v0.5 / v1.0 msgpack) via the shared {@link Decoder}, serves Remote Configuration (see {@link
- * #remoteConfig()}), and 200s everything else so the app's other agent calls don't error out.
+ * #remoteConfig()}), captures the event platform proxy requests (see {@link #evpProxy()}), and 200s
+ * everything else so the app's other agent calls don't error out.
  *
- * <p>Remaining backend-specific capture surfaces (EVP-proxy / DSM) would hang off this concrete
- * type rather than the common {@link AgentBackend} facade.
+ * <p>Backend-specific capture surfaces (event platform proxy, DSM) hang off this concrete type
+ * rather than the common {@link AgentBackend} facade.
  */
 public final class MockAgentBackend extends AgentBackend {
   /**
@@ -27,10 +28,16 @@ public final class MockAgentBackend extends AgentBackend {
    */
   private static final String INFO_BODY =
       "{\"version\":\"7.77.0\","
-          + "\"endpoints\":[\"/v0.4/traces\",\"/v0.5/traces\",\"/v1.0/traces\",\"/telemetry/proxy/\"],"
+          + "\"endpoints\":[\"/v0.4/traces\",\"/v0.5/traces\",\"/v1.0/traces\",\"/telemetry/proxy/\","
+          + "\"/evp_proxy/v2/\"],"
           + "\"client_drop_p0s\":true,"
           + "\"span_meta_structs\":true,"
-          + "\"long_running_spans\":true}";
+          + "\"long_running_spans\":true,"
+          + "\"evp_proxy_allowed_headers\":[\"Content-Type\",\"Accept-Encoding\",\"Content-Encoding\","
+          + "\"User-Agent\",\"DD-CI-PROVIDER-NAME\",\"DD-EVP-ORIGIN\",\"DD-EVP-ORIGIN-VERSION\"]}";
+
+  /** The event platform proxy path prefix. */
+  private static final String EVP_PROXY_PREFIX = "/evp_proxy/v2/";
 
   /** JSON mime type. */
   private static final String JSON = "application/json";
@@ -41,6 +48,7 @@ public final class MockAgentBackend extends AgentBackend {
   private final List<DecodedTrace> traces = new CopyOnWriteArrayList<>();
   private final List<Map<String, Object>> telemetry = new CopyOnWriteArrayList<>();
   private final List<Map<String, Object>> remoteConfigPolls = new CopyOnWriteArrayList<>();
+  private final List<EvpProxy.Request> evpProxyRequests = new CopyOnWriteArrayList<>();
   private volatile String remoteConfigResponse = NO_REMOTE_CONFIG;
   private volatile JavaTestHttpServer server;
   // Decoding runs on the server thread, where JavaTestHttpServer swallows the failure into a 500.
@@ -69,6 +77,7 @@ public final class MockAgentBackend extends AgentBackend {
           h.prefix("/v0.4/traces", api -> collectTraces(api, TraceFormat.V04));
           h.prefix("/v0.7/config", this::serveRemoteConfig);
           h.prefix("/telemetry/proxy", this::collectTelemetry);
+          h.prefix(EVP_PROXY_PREFIX, this::collectEvpProxyRequest);
           // Everything else just succeeds.
           h.all(api -> api.getResponse().status(200).send());
         });
@@ -143,6 +152,16 @@ public final class MockAgentBackend extends AgentBackend {
     return new ArrayList<>(this.telemetry);
   }
 
+  private void collectEvpProxyRequest(HandlerApi api) {
+    HandlerApi.RequestApi request = api.getRequest();
+    this.evpProxyRequests.add(
+        new EvpProxy.Request(
+            request.getPath().substring(EVP_PROXY_PREFIX.length()),
+            request.getHeaders(),
+            request.getBody()));
+    api.getResponse().status(200).send();
+  }
+
   @Override
   public int port() {
     return url().getPort();
@@ -172,11 +191,21 @@ public final class MockAgentBackend extends AgentBackend {
     return new RemoteConfig(this::pushRemoteConfig, this::collectedRemoteConfigPolls);
   }
 
+  /**
+   * Returns the query facade over the requests the tracer sent through the event platform proxy.
+   *
+   * @return The {@link EvpProxy} facade for this backend.
+   */
+  public EvpProxy evpProxy() {
+    return new EvpProxy(() -> new ArrayList<>(this.evpProxyRequests));
+  }
+
   @Override
   public void clear() {
     this.traces.clear();
     this.telemetry.clear();
     this.remoteConfigPolls.clear();
+    this.evpProxyRequests.clear();
     this.remoteConfigResponse = NO_REMOTE_CONFIG;
     this.traceFailure = null;
     this.telemetryFailure = null;

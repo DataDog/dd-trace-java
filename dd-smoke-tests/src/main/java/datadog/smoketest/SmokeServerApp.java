@@ -8,6 +8,7 @@ import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -35,6 +36,7 @@ public final class SmokeServerApp extends AbstractSmokeApp {
 
   private final int httpPort;
   private final OkHttpClient httpClient = new OkHttpClient();
+  private boolean terminated;
 
   private SmokeServerApp(Builder builder) {
     super(builder);
@@ -89,6 +91,46 @@ public final class SmokeServerApp extends AbstractSmokeApp {
     }
   }
 
+  /**
+   * Terminates the app as a platform stops it, with a termination signal that runs its shutdown
+   * hooks, and waits for it to exit. Use it to assert what the app does at exit: later test methods
+   * can't use the app anymore. The logs the app writes while shutting down are only captured on
+   * Java 9 and later.
+   *
+   * @param timeout The maximum time to wait for the app to exit.
+   * @param unit The time unit of {@code timeout}.
+   * @throws AssertionError If the app does not exit within the timeout.
+   */
+  public void terminate(long timeout, TimeUnit unit) {
+    Process process = process();
+    // Complete the test scope diagnostics while the app can still report them.
+    verifyScopeDiagnostics();
+    this.terminated = true;
+    signalTermination(process);
+    boolean exited;
+    try {
+      exited = process.waitFor(timeout, unit);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new AssertionError("Interrupted while waiting for app '" + name() + "' to exit", e);
+    }
+    if (!exited) {
+      throw new AssertionError(
+          "App '" + name() + "' did not exit within " + timeout + " " + unit + " once terminated");
+    }
+  }
+
+  private static void signalTermination(Process process) {
+    // Process.destroy() also closes the app output streams, losing what it logs while shutting
+    // down, unlike ProcessHandle.destroy() (Java 9+).
+    try {
+      Object handle = Process.class.getMethod("toHandle").invoke(process);
+      Class.forName("java.lang.ProcessHandle").getMethod("destroy").invoke(handle);
+    } catch (ReflectiveOperationException e) {
+      process.destroy();
+    }
+  }
+
   @Override
   protected void onStarted() {
     waitForPortToOpen(this.httpPort, startupTimeoutSeconds(), SECONDS, process());
@@ -109,13 +151,18 @@ public final class SmokeServerApp extends AbstractSmokeApp {
 
   @Override
   protected void onAfterEach() {
-    assertAlive("at the end of a test");
+    if (!this.terminated) {
+      assertAlive("at the end of a test");
+    }
   }
 
   private void assertAlive(String when) {
     Process process = process();
     if (process == null) {
       throw new IllegalStateException("App '" + name() + "' was never launched");
+    }
+    if (this.terminated) {
+      throw new IllegalStateException("App '" + name() + "' was terminated by a previous test");
     }
     if (!process.isAlive()) {
       throw new IllegalStateException(

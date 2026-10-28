@@ -181,7 +181,33 @@ class MockAgentBackendTest {
       String body = response.body().string();
       assertTrue(body.contains("/v0.4/traces"), body);
       assertTrue(body.contains("\"client_drop_p0s\":true"), body);
+      assertTrue(body.contains("/evp_proxy/v2/"), body);
+      assertTrue(body.contains("\"DD-EVP-ORIGIN\""), body);
     }
+  }
+
+  @Test
+  void capturesEventPlatformProxyRequests() throws IOException {
+    Request request =
+        new Request.Builder()
+            .url(backend.url() + "/evp_proxy/v2/api/v2/exposures")
+            .header("DD-EVP-ORIGIN", "dd-trace-java")
+            .post(RequestBody.create(JSON, "{\"exposures\":[{\"flag\":{\"key\":\"a\"}}]}"))
+            .build();
+    try (Response response = CLIENT.newCall(request).execute()) {
+      assertEquals(200, response.code(), "mock agent should accept proxied events");
+    }
+
+    EvpProxy evpProxy = backend.evpProxy();
+    EvpProxy.Request captured = evpProxy.waitForRequest(r -> "api/v2/exposures".equals(r.path()));
+    assertEquals("dd-trace-java", captured.header("DD-EVP-ORIGIN"));
+    assertTrue(captured.body().contains("exposures"), captured.body());
+    assertTrue(captured.json().get("exposures") instanceof List, "body decoded as JSON");
+    assertEquals(1, evpProxy.requests("api/v2/exposures").size());
+    assertTrue(evpProxy.requests("api/v2/flagevaluation").isEmpty(), "filtered by path");
+
+    backend.clear();
+    assertTrue(backend.evpProxy().requests().isEmpty(), "clear() drops proxied events too");
   }
 
   @Test
