@@ -16,16 +16,14 @@ class CiBuilderInputsPluginTest {
 
   @Test
   fun `local builds add no builder inputs even when an image is supplied`() {
-    smokeFixture(smokePluginFirst = true)
+    fixture()
     directory.resolve("build.gradle").toFile().appendText(
       """
 
       tasks.register('inspectInputs') {
         doLast {
           assert !tasks.test.inputs.properties.containsKey('ciBuilderIdentity')
-          assert !tasks.producer.inputs.properties.containsKey('ciBuilderIdentity')
-          assert !tasks.gradleProducer.inputs.properties.containsKey('ciBuilderIdentity')
-          assert !tasks.mavenProducer.inputs.properties.containsKey('ciBuilderIdentity')
+          assert !ciBuilderInputs.identity.present
         }
       }
       """.trimIndent(),
@@ -46,6 +44,23 @@ class CiBuilderInputsPluginTest {
         "inspectInputs",
         configurationCache = false,
       ).withEnvironment(local + ("GITLAB_CI" to "false")).build().task(":inspectInputs")?.outcome,
+    )
+
+    assertEquals(
+      SUCCESS,
+      runner("producer")
+        .withEnvironment(local)
+        .build()
+        .task(":producer")
+        ?.outcome,
+    )
+    assertEquals(
+      FROM_CACHE,
+      runner("clean", "producer")
+        .withEnvironment(local + ("ORG_GRADLE_PROJECT_ciBuilderImage" to "registry.example/builder:next-"))
+        .build()
+        .task(":producer")
+        ?.outcome,
     )
   }
 
@@ -82,23 +97,17 @@ class CiBuilderInputsPluginTest {
   }
 
   @Test
-  fun `explicit producers follow the same builder identity`() {
+  fun `consumer providers follow the same builder identity`() {
     fixture()
 
     assertEquals(SUCCESS, runner("producer").build().task(":producer")?.outcome)
+    val unchanged = runner("producer").build()
+    assertEquals(UP_TO_DATE, unchanged.task(":producer")?.outcome)
+    assertTrue(unchanged.output.contains("Reusing configuration cache"), unchanged.output)
     assertEquals(FROM_CACHE, runner("clean", "producer").build().task(":producer")?.outcome)
     val changed = runner("producer").withEnvironment(environment("registry.example/builder:next-")).build()
     assertEquals(SUCCESS, changed.task(":producer")?.outcome)
-  }
-
-  @Test
-  fun `smoke producers track builder identity when the smoke plugin is applied first`() {
-    smokeProducerCache(smokePluginFirst = true)
-  }
-
-  @Test
-  fun `smoke producers track builder identity when the convention plugin is applied first`() {
-    smokeProducerCache(smokePluginFirst = false)
+    assertEquals("built", directory.resolve("build/producer.txt").toFile().readText())
   }
 
   @Test
@@ -148,79 +157,7 @@ class CiBuilderInputsPluginTest {
     }
   }
 
-  private fun smokeProducerCache(smokePluginFirst: Boolean) {
-    smokeFixture(smokePluginFirst)
-    val taskNames = arrayOf("gradleProducer", "mavenProducer", "compileTestJava")
-
-    val first = runner(*taskNames).build()
-    for (taskName in taskNames) {
-      assertEquals(SUCCESS, first.task(":$taskName")?.outcome, first.output)
-    }
-
-    val unchanged = runner(*taskNames).build()
-    assertTrue(unchanged.output.contains("Reusing configuration cache"), unchanged.output)
-    for (taskName in taskNames) {
-      assertEquals(UP_TO_DATE, unchanged.task(":$taskName")?.outcome, unchanged.output)
-    }
-
-    val restored = runner("clean", *taskNames).build()
-    for (taskName in taskNames) {
-      assertEquals(FROM_CACHE, restored.task(":$taskName")?.outcome, restored.output)
-    }
-
-    val changed = runner("clean", *taskNames).withEnvironment(environment("registry.example/builder:next-")).build()
-    assertEquals(FROM_CACHE, changed.task(":compileTestJava")?.outcome, changed.output)
-    for (taskName in listOf("gradleProducer", "mavenProducer")) {
-      assertEquals(SUCCESS, changed.task(":$taskName")?.outcome, changed.output)
-      assertEquals("built", directory.resolve("build/$taskName/artifact.txt").toFile().readText())
-    }
-  }
-
-  private fun smokeFixture(smokePluginFirst: Boolean) {
-    val smokePlugin = "dd-trace-java.smoke-test-app"
-    val conventionPlugin = "dd-trace-java.ci-builder-inputs"
-    val pluginOrder =
-      if (smokePluginFirst) listOf(smokePlugin, conventionPlugin) else listOf(conventionPlugin, smokePlugin)
-    fixture(listOf("java") + pluginOrder)
-    directory.resolve("application").toFile().mkdirs()
-    directory.resolve("application/source.txt").toFile().writeText("source")
-    directory.resolve("mvnw").toFile().writeText("fixture Maven wrapper")
-    directory.resolve("build.gradle").toFile().appendText(
-      """
-
-      smokeTestApp {
-        javaLauncher = javaToolchains.launcherFor {
-          languageVersion = JavaLanguageVersion.of(JavaVersion.current().majorVersion)
-        }
-        gradleApp {
-          taskName = 'gradleProducer'
-          artifactPath = 'artifact.txt'
-          sysProperty = 'gradle.artifact'
-        }
-        mavenApp {
-          taskName = 'mavenProducer'
-          artifactPath = 'artifact.txt'
-          sysProperty = 'maven.artifact'
-        }
-      }
-
-      // Exercise the real producer types and their inputs without starting nested tools.
-      ['gradleProducer', 'mavenProducer'].each { producerName ->
-        tasks.named(producerName) {
-          applicationBuildDir = layout.buildDirectory.dir(producerName)
-          actions.clear()
-          doLast { task ->
-            def artifact = task.applicationBuildDir.file('artifact.txt').get().asFile
-            artifact.parentFile.mkdirs()
-            artifact.text = 'built'
-          }
-        }
-      }
-      """.trimIndent(),
-    )
-  }
-
-  private fun fixture(plugins: List<String> = listOf("dd-trace-java.ci-builder-inputs", "java")) {
+  private fun fixture() {
     directory.resolve("settings.gradle").toFile().writeText(
       """
       rootProject.name = 'ci-builder-inputs-fixture'
@@ -230,7 +167,8 @@ class CiBuilderInputsPluginTest {
     directory.resolve("build.gradle").toFile().writeText(
       """
       plugins {
-        ${plugins.joinToString("\n") { "id '$it'" }}
+        id 'dd-trace-java.ci-builder-inputs'
+        id 'java'
       }
 
       dependencies { testImplementation files(${junitClasspath()}) }
@@ -252,7 +190,9 @@ class CiBuilderInputsPluginTest {
         description = 'Produces an artifact using the builder environment.'
         outputFile = layout.buildDirectory.file('producer.txt')
       }
-      ciBuilderInputs.track(producer)
+      producer.configure {
+        inputs.property('ciBuilderIdentity', ciBuilderInputs.identity).optional(true)
+      }
       """.trimIndent(),
     )
     directory.resolve("src/test/java").toFile().mkdirs()

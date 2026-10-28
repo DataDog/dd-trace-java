@@ -3,10 +3,6 @@ plugins {
   `jvm-test-suite`
 }
 
-dependencies {
-  implementation(project(":smoke-test"))
-}
-
 testing {
   suites {
     named<JvmTestSuite>("test") {
