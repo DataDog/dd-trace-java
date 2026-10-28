@@ -1,10 +1,14 @@
 package datadog.communication.serialization;
 
 import datadog.trace.util.ChunkedBuffer;
+import java.nio.BufferOverflowException;
 
 /**
- * A {@link StreamingBuffer} over a {@link ChunkedBuffer}: it never makes one large allocation, and
- * a message that doesn't fit makes {@link #mark()} return {@code false} instead of throwing.
+ * A {@link StreamingBuffer} over a {@link ChunkedBuffer}: it never makes one large allocation.
+ *
+ * <p>Like every {@code StreamingBuffer}, it throws {@link BufferOverflowException} as soon as a
+ * write doesn't fit, rather than discarding writes until the next mark. Mappers rely on that: an
+ * overflow has to stop {@code Mapper.map} before it updates per-payload state such as event counts.
  */
 public final class ChunkedStreamingBuffer extends ChunkedBuffer implements StreamingBuffer {
 
@@ -13,6 +17,11 @@ public final class ChunkedStreamingBuffer extends ChunkedBuffer implements Strea
   public ChunkedStreamingBuffer(int maxBytes, ChunkedBufferConsumer consumer) {
     super(maxBytes);
     this.consumer = consumer;
+  }
+
+  @Override
+  protected void onCapacityExceeded() {
+    throw new BufferOverflowException();
   }
 
   /**

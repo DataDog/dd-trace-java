@@ -4,6 +4,7 @@ import static datadog.trace.util.ChunkedBuffer.CHUNK_SIZE;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
@@ -380,6 +381,27 @@ class ChunkedBufferTest {
     ByteBuffer second = buffer.completedChunks().get(0);
     assertEquals(8, second.remaining());
     assertEquals(3L, second.getLong());
+  }
+
+  @Test
+  void subclassCanThrowWhenCapacityIsExceeded() {
+    ChunkedBuffer buffer =
+        new ChunkedBuffer(CHUNK_SIZE) {
+          @Override
+          protected void onCapacityExceeded() {
+            throw new IllegalStateException("full");
+          }
+        };
+    buffer.putInt(1);
+    assertTrue(buffer.mark());
+
+    assertThrows(IllegalStateException.class, () -> buffer.put(new byte[CHUNK_SIZE]));
+
+    // the writer stopped at the failure point; rewinding clears it
+    buffer.rewind();
+    buffer.putInt(2);
+    assertTrue(buffer.mark());
+    assertEquals(8, buffer.completedBytes());
   }
 
   private static byte[] sequence(int length) {

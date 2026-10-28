@@ -11,9 +11,12 @@ public interface StreamingBuffer {
   /**
    * Completes the message written since the last mark.
    *
-   * @return {@code false} if the message didn't fit and was rewound. Buffers that signal running
-   *     out of room by throwing {@link java.nio.BufferOverflowException} always return {@code
-   *     true}.
+   * <p>Buffers must signal running out of room by throwing {@link java.nio.BufferOverflowException}
+   * from the write that doesn't fit: {@code MsgPackWriter.format} relies on the exception to stop a
+   * mapper before it updates per-payload state.
+   *
+   * @return {@code false} if the message didn't fit and was rewound (only for a buffer that
+   *     discards writes instead of throwing)
    */
   boolean mark();
 

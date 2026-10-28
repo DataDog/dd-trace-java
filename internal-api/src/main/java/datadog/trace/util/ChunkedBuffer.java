@@ -335,7 +335,15 @@ public class ChunkedBuffer {
     bytes = scratchBytes;
     view = scratchView;
     limit = SCRATCH_SIZE;
+    onCapacityExceeded();
   }
+
+  /**
+   * Called once when a write first exceeds capacity, after the buffer has failed. By default the
+   * buffer keeps discarding writes until the next {@link #mark()} or {@link #rewind()}. A subclass
+   * can throw instead, to stop a writer that must not run past the failure point.
+   */
+  protected void onCapacityExceeded() {}
 
   /** Points writes at a chunk, or at nothing when {@code chunk} is -1. Doesn't change position. */
   private void moveTo(int chunk) {

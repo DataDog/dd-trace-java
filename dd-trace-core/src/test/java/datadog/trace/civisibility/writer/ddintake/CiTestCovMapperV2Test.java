@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import datadog.communication.serialization.ChunkedStreamingBuffer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -252,6 +253,39 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     List<Map<String, Object>> coverages = assertVersionAndGetCoverages(sent.get(0), 2);
     assertEquals(1, coverages.size());
     assertCoverage(coverages.get(0), 1, 2, 3);
+  }
+
+  @Test
+  void overflowingAChunkedBufferKeepsEventCountsValid() throws Exception {
+    List<DDSpan> small = givenTrace(report(3L, new TestReportFileEntry("sourceA", null)));
+    List<DDSpan> large =
+        givenTrace(
+            report(4L, new TestReportFileEntry("sourceB", null)),
+            report(5L, new TestReportFileEntry("sourceC", null)));
+    CiTestCovMapperV2 mapper = new CiTestCovMapperV2(false);
+    List<Map<String, Object>> sent = new ArrayList<>();
+    // room for the large trace alone, but not after the small one, so it overflows and retries
+    MsgPackWriter writer =
+        new MsgPackWriter(
+            new ChunkedStreamingBuffer(
+                serializedSize(large),
+                (messageCount, chunks) ->
+                    sent.add(decode(mapper.newPayload().withBody(messageCount, chunks)))));
+
+    assertTrue(writer.format(small, mapper));
+    assertTrue(writer.format(large, mapper));
+    writer.flush();
+
+    // each payload's event count matches the coverages it holds, so it decodes
+    assertEquals(2, sent.size());
+    assertEquals(1, assertVersionAndGetCoverages(sent.get(0), 2).size());
+    assertEquals(2, assertVersionAndGetCoverages(sent.get(1), 2).size());
+  }
+
+  private static int serializedSize(List<DDSpan> trace) {
+    GrowableBuffer buffer = new GrowableBuffer(1024);
+    new CiTestCovMapperV2(false).map(trace, new MsgPackWriter(buffer));
+    return buffer.slice().remaining();
   }
 
   private static TestReport report(long spanId, TestReportFileEntry entry) {
