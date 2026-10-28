@@ -192,4 +192,54 @@ class ProfilingRemoteConfigHandlerTest {
 
     assertFalse(profilingSystem.isRunning());
   }
+
+  @Test
+  void configsAreBufferedUntilProfilerIsSet() throws Exception {
+    ProfilingRemoteConfigHandler handler = handlerWithoutProfiler(false);
+
+    // Config arrives before profiler is available
+    handler.onConfigsChanged(ENABLED_CONFIG);
+
+    // Profiler not running yet because it wasn't set
+    assertFalse(profilingSystem.isRunning());
+    verify(controller, never()).createRecording(any(), any());
+
+    // Now set the profiler - buffered config should be applied
+    handler.setProfilingSystem(profilingSystem);
+
+    assertTrue(profilingSystem.isRunning());
+    assertTrue(profilingSystem.isStarted());
+    assertEquals(1, createdConfigs.size());
+    verify(controller).reconfigure(createdConfigs.get(0));
+    verify(controller).createRecording(any(), any());
+  }
+
+  @Test
+  void laterConfigReplacesBufferedConfig() throws Exception {
+    ProfilingRemoteConfigHandler handler = handlerWithoutProfiler(false);
+
+    // Multiple configs arrive before profiler is available
+    handler.onConfigsChanged(DISABLED_CONFIG);
+    handler.onConfigsChanged(ENABLED_CONFIG);
+
+    // Now set the profiler - only the latest config should be applied
+    handler.setProfilingSystem(profilingSystem);
+
+    assertTrue(profilingSystem.isRunning());
+    assertEquals(1, createdConfigs.size());
+  }
+
+  private ProfilingRemoteConfigHandler handlerWithoutProfiler(boolean runWithLocalConfig) {
+    return new ProfilingRemoteConfigHandler(
+        null, // no profiler initially
+        localConfig,
+        runWithLocalConfig,
+        values -> {
+          ConfigProvider config = ConfigProvider.withRemoteOverride(values);
+          remoteValues.put(config, values);
+          createdConfigs.add(config);
+          return config;
+        },
+        config -> "true".equals(remoteValues.getOrDefault(config, emptyMap()).get(ENABLED_KEY)));
+  }
 }

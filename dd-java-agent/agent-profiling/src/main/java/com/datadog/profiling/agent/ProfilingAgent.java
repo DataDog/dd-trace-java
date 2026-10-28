@@ -224,8 +224,9 @@ public class ProfilingAgent {
 
   /**
    * Subscribes to profiling remote config. Called reflectively by {@code
-   * datadog.trace.bootstrap.Agent} once the shared communication objects exist; the subscription
-   * happens as soon as the profiling system has been initialized too.
+   * datadog.trace.bootstrap.Agent} once the shared communication objects exist. This subscribes
+   * immediately so that DEBUG is included in the first remote config poll request; configs received
+   * before the profiler is initialized are buffered and applied later.
    */
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
@@ -237,23 +238,30 @@ public class ProfilingAgent {
       log.debug("Profiling remote config is only enabled with profiling enablement 'armed'");
       return;
     }
-    sharedCommunicationObjects = sco;
-    maybeSubscribeRemoteConfig(config);
-  }
-
-  // called with the class lock held, once the profiling system and/or the shared communication
-  // objects become available; subscribes when both are
-  private static void maybeSubscribeRemoteConfig(Config config) {
-    if (remoteConfig != null || profiler == null || sharedCommunicationObjects == null) {
-      return;
+    if (remoteConfig != null) {
+      return; // already subscribed
     }
-    // only 'armed' profiling is remotely configured, and it stays idle without remote config
+    // Subscribe immediately so DEBUG is included in the first poll request.
+    // The handler buffers configs until the profiler becomes available.
     ProfilingRemoteConfigHandler handler =
-        new ProfilingRemoteConfigHandler(profiler, ConfigProvider.getInstance(), false);
+        new ProfilingRemoteConfigHandler(ConfigProvider.getInstance(), false);
+    if (profiler != null) {
+      handler.setProfilingSystem(profiler);
+    }
     ProfilingConfigPoller poller = new ProfilingConfigPoller(handler);
-    poller.start(config, sharedCommunicationObjects);
+    poller.start(config, sco);
     remoteConfigHandler = handler;
     remoteConfig = poller;
+    sharedCommunicationObjects = sco;
+  }
+
+  // called with the class lock held once the profiling system is initialized; connects the
+  // profiler to the remote config handler so buffered configs can be applied
+  private static void maybeSubscribeRemoteConfig(Config config) {
+    if (profiler == null || remoteConfigHandler == null) {
+      return;
+    }
+    remoteConfigHandler.setProfilingSystem(profiler);
   }
 
   private static RecordingDataListener wrapWithScrubber(
