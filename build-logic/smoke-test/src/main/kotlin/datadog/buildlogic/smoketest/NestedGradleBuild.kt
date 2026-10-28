@@ -157,12 +157,6 @@ abstract class NestedGradleBuild @Inject constructor(
   @get:Input
   abstract val environment: MapProperty<String, String>
 
-  /** GraalVM release metadata belongs to the native compiler, independently of the daemon JDK. */
-  @get:Input
-  @get:Optional
-  val graalvmRelease: Provider<String>
-    get() = environment.getting("GRAALVM_HOME").map { File(it, "release").readText() }
-
   @get:Nested
   abstract val projectJars: ListProperty<NestedBuildProjectJar>
 

@@ -12,6 +12,7 @@ import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskInputs
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -116,6 +117,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
         buildCacheEnabled.set(spec.buildCacheEnabled)
         spec.stopTimeoutSeconds.orNull?.let(stopTimeoutSeconds::set)
         projectJars.set(this@SmokeTestAppExtension.projectJars)
+        spec.applyInputs(inputs)
       }
 
     wireTestTasks(
@@ -161,6 +163,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
         useMavenLocalRepository.set(spec.useMavenLocalRepository)
         mavenLocalRepository.set(spec.mavenLocalRepository)
         spec.buildTimeoutSeconds.orNull?.let(buildTimeoutSeconds::set)
+        spec.applyInputs(inputs)
       }
 
     wireTestTasks(
@@ -279,6 +282,8 @@ abstract class SmokeTestAppExtension @Inject constructor(
 /** Common DSL for a smoke-test application artifact. */
 abstract class ApplicationSpec @Inject constructor() {
 
+  private val inputActions = mutableListOf<Action<in TaskInputs>>()
+
   init {
     additionalSystemProperties.convention(emptyMap())
   }
@@ -298,6 +303,15 @@ abstract class ApplicationSpec @Inject constructor() {
    * than the single primary artifact path (e.g. a separately unpacked server install).
    */
   abstract val additionalSystemProperties: MapProperty<String, String>
+
+  /** Configures additional inputs of the application build task. */
+  fun inputs(action: Action<in TaskInputs>) {
+    inputActions.add(action)
+  }
+
+  internal fun applyInputs(inputs: TaskInputs) {
+    inputActions.forEach { it.execute(inputs) }
+  }
 }
 
 /** DSL describing a nested Gradle invocation for one smoke-test application. */

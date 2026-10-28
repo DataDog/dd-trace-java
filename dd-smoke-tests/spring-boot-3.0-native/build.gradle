@@ -31,6 +31,9 @@ Provider<String> graalvmHome = providers.provider({
   }
   getLazyJavaHomeFor(testGraalvmVersion, true).toString()
 } as Callable<String>)
+Provider<String> graalvmRelease = providers.fileContents(
+  layout.file(graalvmHome.map { home -> new File(home, 'release') })
+  ).asText
 
 smokeTestApp {
   gradleApp {
@@ -42,6 +45,9 @@ smokeTestApp {
     environment.put('GRAALVM_HOME', graalvmHome)
     environment.put('DD_TRACE_METHODS', 'datadog.smoketest.springboot.controller.WebController[sayHello]')
     environment.put('NATIVE_IMAGE_DEPRECATED_BUILDER_SANITATION', 'true')
+    inputs {
+      property('graalvmRelease', graalvmRelease)
+    }
   }
   projectJar('apiJar', project(':dd-trace-api'))
   projectJar('agentPath', project(':dd-java-agent'), 'shadow')

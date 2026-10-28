@@ -31,6 +31,9 @@ Provider<String> graalvmHome = providers.provider({
   }
   getLazyJavaHomeFor(testGraalvmVersion, true).toString()
 } as Callable<String>)
+Provider<String> graalvmRelease = providers.fileContents(
+  layout.file(graalvmHome.map { home -> new File(home, 'release') })
+  ).asText
 
 smokeTestApp {
   gradleApp {
@@ -44,6 +47,9 @@ smokeTestApp {
       '-Dquarkus.package.jar.enabled=false',
       )
     environment.put('GRAALVM_HOME', graalvmHome)
+    inputs {
+      property('graalvmRelease', graalvmRelease)
+    }
   }
   projectJar('apiJar', project(':dd-trace-api'))
   projectJar('agentJar', project(':dd-java-agent'), 'shadow')

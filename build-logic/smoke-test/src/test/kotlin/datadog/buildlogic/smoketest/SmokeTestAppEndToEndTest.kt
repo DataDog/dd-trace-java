@@ -124,8 +124,17 @@ class SmokeTestAppEndToEndTest {
   }
 
   @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = ["Gradle artifact", "Maven artifact", "extra file", "extra directory", "GraalVM release"])
+  @ValueSource(strings = ["Gradle artifact", "Maven artifact", "extra file", "extra directory"])
   fun `tests track nested application contents`(scenario: String) {
+    assertTestsTrackApplicationContents(scenario)
+  }
+
+  @Test
+  fun `tests track explicitly declared native toolchain inputs`() {
+    assertTestsTrackApplicationContents("GraalVM release")
+  }
+
+  private fun assertTestsTrackApplicationContents(scenario: String) {
     val maven = scenario == "Maven artifact"
     val graalvm = scenario == "GraalVM release"
     val extra = scenario.startsWith("extra")
@@ -188,9 +197,22 @@ class SmokeTestAppEndToEndTest {
           sysProperty = "sample.path",
           additionalConfig =
             when {
-              graalvm -> "environment.put(\"GRAALVM_HOME\", layout.projectDirectory.dir(\"graalvm\").asFile.absolutePath)"
-              extra -> "additionalSystemProperties.put(\"sample.extra\", \"$extraPath\")"
-              else -> ""
+              graalvm -> {
+                """
+                environment.put("GRAALVM_HOME", layout.projectDirectory.dir("graalvm").asFile.absolutePath)
+                inputs {
+                  property("graalvmRelease", providers.fileContents(layout.projectDirectory.file("graalvm/release")).asText)
+                }
+                """.trimIndent()
+              }
+
+              extra -> {
+                "additionalSystemProperties.put(\"sample.extra\", \"$extraPath\")"
+              }
+
+              else -> {
+                ""
+              }
             },
         )
       }
@@ -346,8 +368,6 @@ class SmokeTestAppEndToEndTest {
   fun `nested build receives native app environment and provider backed file inputs`() {
     writeOuterSettings()
     val graalvmHome = projectDir.resolve("test-graalvm").toFile()
-    graalvmHome.mkdirs()
-    File(graalvmHome, "release").writeText("GRAALVM_VERSION=25.0.1")
     File(projectDir.toFile(), "agent.jar").writeText("agent")
     writeSmokeTestAppBuild(
       """
@@ -395,7 +415,7 @@ class SmokeTestAppEndToEndTest {
   }
 
   @Test
-  fun `unselected and skipped native builds do not resolve GraalVM home`() {
+  fun `application inputs are only queried for selected builds that run`() {
     writeOuterSettings()
     writeSmokeTestAppBuild(
       smokeTestGradleApplication(
@@ -403,7 +423,9 @@ class SmokeTestAppEndToEndTest {
         artifactPath = "native-app",
         sysProperty = "native.path",
         additionalConfig = """
-        environment.put("GRAALVM_HOME", providers.provider<String> { error("GraalVM home queried") })
+        inputs {
+          property("externalTool", providers.provider<String> { error("Tool metadata queried") })
+        }
         """,
       ),
       extraImports = "import datadog.buildlogic.smoketest.NestedGradleBuild",
@@ -419,57 +441,121 @@ class SmokeTestAppEndToEndTest {
     outerBuild.writeText(
       outerBuild
         .readText()
-        .replace("error(\"GraalVM home queried\")", "layout.projectDirectory.dir(\"missing-graalvm\").asFile.absolutePath"),
+        .replace("providers.provider<String> { error(\"Tool metadata queried\") }", "providers.gradleProperty(\"missingRequired\")"),
     )
     val skipped = runner("nativeBuild", "--configuration-cache").build()
     assertThat(skipped.task(":nativeBuild")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
 
     outerBuild.writeText(outerBuild.readText().replace("onlyIf { false }", "onlyIf { true }"))
-    val missingRelease = runner("nativeBuild").buildAndFail()
-    assertThat(missingRelease.output).contains("missing-graalvm", "release")
+    val missingInput = runner("nativeBuild").buildAndFail()
+    assertThat(missingInput.output).contains("externalTool", "value")
   }
 
-  @Test
-  fun `GraalVM release changes remain visible with the configuration cache`() {
-    writeOuterSettings()
-    val release = projectDir.resolve("graalvm/release").toFile()
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = ["Gradle Kotlin", "Maven Kotlin", "Gradle Groovy", "Maven Groovy"])
+  fun `explicit application inputs participate in caching`(scenario: String) {
+    val maven = scenario.startsWith("Maven")
+    val groovy = scenario.endsWith("Groovy")
+    val application = if (maven) "mavenApp" else "gradleApp"
+    val taskType = if (maven) "NestedMavenBuild" else "NestedGradleBuild"
+    writeOuterSettings(withLocalBuildCache = true)
+    val release = projectDir.resolve("toolchain/release").toFile()
     release.parentFile.mkdirs()
     release.writeText("first")
-    writeSmokeTestAppBuild(
-      smokeTestGradleApplication(
-        taskName = "nativeBuild",
-        artifactPath = "native-app.txt",
-        sysProperty = "native.path",
-        additionalConfig = "environment.put(\"GRAALVM_HOME\", layout.projectDirectory.dir(\"graalvm\").asFile.absolutePath)",
-      ),
-      extraImports = "import datadog.buildlogic.smoketest.NestedGradleBuild",
-      extraPreamble = """
-      tasks.withType<NestedGradleBuild>().configureEach {
-        actions.clear()
-        val metadata = graalvmRelease
-        val target = applicationBuildDir.file("native-app.txt")
-        doLast {
-          target.get().asFile.apply {
-            parentFile.mkdirs()
-            writeText(metadata.get())
+    if (maven) {
+      writeFakeMavenWrapper()
+    }
+    if (groovy) {
+      File(projectDir.toFile(), "build.gradle").writeText(
+        """
+        import datadog.buildlogic.smoketest.$taskType
+
+        plugins {
+          id 'java'
+          id 'dd-trace-java.smoke-test-app'
+        }
+
+        def metadata = providers.fileContents(layout.projectDirectory.file('toolchain/release')).asText
+        smokeTestApp {
+          $application {
+            taskName = 'packageApp'
+            artifactPath = 'toolchain.txt'
+            sysProperty = 'toolchain.path'
+            ${if (maven) "mavenExecutable.set(layout.projectDirectory.file('${fakeMavenWrapperName()}'))" else ""}
+            inputs {
+              property('toolchainRelease', metadata)
+              property('optionalIdentity', providers.gradleProperty('optionalIdentity')).optional(true)
+            }
+            inputs { property('anotherInput', 'fixed') }
           }
         }
-      }
-      """,
-    )
 
-    val first = runner("nativeBuild", "--configuration-cache").build()
-    assertThat(first.task(":nativeBuild")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(applicationOutput("native-app.txt")).content().isEqualTo("first")
+        tasks.named('packageApp', $taskType) {
+          actions.clear()
+          def target = applicationBuildDir.file('toolchain.txt')
+          doLast {
+            def output = target.get().asFile
+            output.parentFile.mkdirs()
+            output.setText(metadata.get(), 'UTF-8')
+          }
+        }
+        """.trimIndent(),
+      )
+    } else {
+      val config =
+        """
+        ${if (maven) "mavenExecutable.set(layout.projectDirectory.file(\"${fakeMavenWrapperName()}\"))" else ""}
+        inputs {
+          property("toolchainRelease", metadata)
+          property("optionalIdentity", providers.gradleProperty("optionalIdentity")).optional(true)
+        }
+        inputs { property("anotherInput", "fixed") }
+        """.trimIndent()
+      writeSmokeTestAppBuild(
+        if (maven) {
+          smokeTestMavenApplication("packageApp", "toolchain.txt", "toolchain.path", config)
+        } else {
+          smokeTestGradleApplication("packageApp", "toolchain.txt", "toolchain.path", config)
+        },
+        extraImports = "import datadog.buildlogic.smoketest.$taskType",
+        extraPreamble = """
+        val metadata = providers.fileContents(layout.projectDirectory.file("toolchain/release")).asText
+        tasks.withType<$taskType>().configureEach {
+          actions.clear()
+          val metadataInput = metadata
+          val target = applicationBuildDir.file("toolchain.txt")
+          doLast {
+            target.get().asFile.apply {
+              parentFile.mkdirs()
+              writeText(metadataInput.get())
+            }
+          }
+        }
+        """,
+      )
+    }
 
-    val unchanged = runner("nativeBuild", "--configuration-cache").build()
+    val first = runner("packageApp", "--build-cache", "--configuration-cache").build()
+    assertThat(first.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(applicationOutput("toolchain.txt")).content().isEqualTo("first")
+
+    val unchanged = runner("packageApp", "--build-cache", "--configuration-cache").build()
     assertThat(unchanged.output).contains("Reusing configuration cache")
-    assertThat(unchanged.task(":nativeBuild")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
+    assertThat(unchanged.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
+
+    applicationBuildDir.deleteRecursively()
+    val restored = runner("packageApp", "--build-cache", "--configuration-cache").build()
+    assertThat(restored.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.FROM_CACHE)
+    assertThat(applicationOutput("toolchain.txt")).content().isEqualTo("first")
 
     release.writeText("second")
-    val changed = runner("nativeBuild", "--configuration-cache").build()
-    assertThat(changed.task(":nativeBuild")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(applicationOutput("native-app.txt")).content().isEqualTo("second")
+    val changed = runner("packageApp", "--build-cache", "--configuration-cache").build()
+    assertThat(changed.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(applicationOutput("toolchain.txt")).content().isEqualTo("second")
+
+    release.delete()
+    val missing = runner("packageApp", "--build-cache", "--configuration-cache").buildAndFail()
+    assertThat(missing.output).contains("toolchainRelease", "value")
   }
 
   @Test
