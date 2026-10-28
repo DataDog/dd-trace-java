@@ -404,6 +404,52 @@ class ChunkedBufferTest {
     assertEquals(8, buffer.completedBytes());
   }
 
+  @Test
+  void chunksStartSmallAndDoubleUpToChunkSize() {
+    ChunkedBuffer buffer = new ChunkedBuffer(4 * CHUNK_SIZE, 4096);
+    buffer.put(new byte[4096 + 8192 + 16384 + 32768 + 65536 + 131072 + CHUNK_SIZE + 1]);
+    assertTrue(buffer.mark());
+
+    List<ByteBuffer> chunks = buffer.completedChunks();
+    int[] expected = {4096, 8192, 16384, 32768, 65536, 131072, CHUNK_SIZE, 1};
+    assertEquals(expected.length, chunks.size());
+    for (int i = 0; i < expected.length; ++i) {
+      assertEquals(expected[i], chunks.get(i).remaining(), "chunk " + i);
+    }
+  }
+
+  @Test
+  void smallPayloadKeepsOnlyASmallChunk() {
+    ChunkedBuffer buffer = new ChunkedBuffer(32 << 20, 4096);
+    buffer.put(new byte[100]);
+    assertTrue(buffer.mark());
+    assertEquals(4096, buffer.completedChunks().get(0).array().length);
+    buffer.reset();
+    assertEquals(1, buffer.allocatedChunks());
+  }
+
+  @Test
+  void capacityIsExactWithSmallFirstChunks() {
+    ChunkedBuffer buffer = new ChunkedBuffer(300_000, 4096);
+    // primitives leave unused tails in the small chunks
+    for (int i = 0; i < 300_000 / 8; ++i) {
+      buffer.putLong(i);
+    }
+    assertTrue(buffer.mark());
+    assertEquals(300_000, buffer.completedBytes());
+
+    buffer.put((byte) 1);
+    assertFalse(buffer.mark());
+  }
+
+  @Test
+  void firstChunkSizeIsLargeEnoughForAnyPrimitive() {
+    ChunkedBuffer buffer = new ChunkedBuffer(1024, 1);
+    buffer.putLong(7L);
+    assertTrue(buffer.mark());
+    assertEquals(7L, buffer.completedChunks().get(0).getLong());
+  }
+
   private static byte[] sequence(int length) {
     byte[] data = new byte[length];
     for (int i = 0; i < length; ++i) {
