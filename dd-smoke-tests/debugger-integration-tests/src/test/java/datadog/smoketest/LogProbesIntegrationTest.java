@@ -53,7 +53,6 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     additionalJvmArgs.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=200");
   }
 
-
   @Test
   @DisplayName("testInaccessibleObject")
   void testInaccessibleObject() throws Exception {
