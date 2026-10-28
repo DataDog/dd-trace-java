@@ -86,8 +86,12 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
         return;
       }
       try {
-        // Entries only hold the values that writers require, so read the thread and context here
+        // Entries only hold the values that writers require, so fall back to the current thread
         String loggerName = event.getClassName() != null ? event.getClassName() : event.getTag();
+        Map<String, String> context = event.getContext();
+        if (context == null) {
+          context = provider.getContextProvider().getMapping();
+        }
         AgentlessLogSubmission.submit(
             Thread.currentThread().getName(),
             level,
@@ -95,7 +99,7 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
             event.getMessage(),
             event.getException(),
             event.getTimestamp().toDate().getTime(),
-            provider.getContextProvider().getMapping());
+            context);
       } finally {
         CallDepthThreadLocalMap.reset(AgentlessLogSubmission.class);
       }
