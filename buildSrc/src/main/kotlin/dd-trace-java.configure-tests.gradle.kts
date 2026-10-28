@@ -1,3 +1,4 @@
+import datadog.gradle.plugin.testing.GeneratedGroovyClosureSpec
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -55,6 +56,9 @@ tasks.withType<Test>().configureEach {
   // Split up tests that want to run forked in their own separate JVM for generated tasks
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
     setExcludes(emptyList())
+    if (project.path.startsWith(":dd-java-agent:instrumentation:")) {
+      exclude(GeneratedGroovyClosureSpec())
+    }
     setIncludes(listOf("**/*ForkedTest*"))
     forkEvery = 1
     // Limit the number of concurrent forked tests
