@@ -1,5 +1,7 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -17,13 +19,17 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
+import datadog.trace.api.FeatureFlaggingSource;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.tabletest.junit.TableTest;
 
+@ExtendWith(WithConfigExtension.class)
 class FeatureFlagsBackendTest {
   private final SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
   private final Config config = mock(Config.class);
@@ -50,8 +56,11 @@ class FeatureFlagsBackendTest {
     when(this.config.getEnv()).thenReturn("prod");
     when(this.config.getServiceName()).thenReturn("service");
     when(this.config.getVersion()).thenReturn("1.0");
+    when(this.config.isFeatureFlaggingProviderEnabled()).thenReturn(true);
+    when(this.config.getFeatureFlaggingConfigurationSource())
+        .thenReturn(FeatureFlaggingSource.AGENTLESS);
     final Properties properties = new Properties();
-    properties.setProperty("feature.flags.configuration.source", "agentless");
+    properties.setProperty("flagging.evaluation.counts.enabled", "false");
     when(this.config.configProvider())
         .thenReturn(ConfigProvider.withPropertiesOverride(properties));
 
@@ -60,17 +69,42 @@ class FeatureFlagsBackendTest {
     assertEquals("prod", this.backend.setting("env"));
     assertEquals("service", this.backend.setting("service"));
     assertEquals("1.0", this.backend.setting("version"));
-    assertEquals("agentless", this.backend.setting("feature.flags.configuration.source"));
+    assertEquals("true", this.backend.setting(FEATURE_FLAGS_ENABLED));
+    assertEquals("agentless", this.backend.setting(FEATURE_FLAGS_CONFIGURATION_SOURCE));
+    assertEquals("false", this.backend.setting("flagging.evaluation.counts.enabled"));
+  }
+
+  @TableTest({
+    "Scenario                       | Property  | Environment   | Expected     ",
+    "blank property masks env       | ' '       | remote_config | agentless    ",
+    "property overrides environment | agentless | remote_config | agentless    ",
+    "environment selects source     |           | remote_config | remote_config"
+  })
+  void exposesTheResolvedConfigurationSource(
+      final String property, final String environment, final String expected) {
+    if (property != null) {
+      WithConfigExtension.injectSysConfig(FEATURE_FLAGS_CONFIGURATION_SOURCE, property);
+    }
+    WithConfigExtension.injectEnvConfig("FEATURE_FLAGS_CONFIGURATION_SOURCE", environment);
+    final Config config = Config.get();
+    when(this.config.getFeatureFlaggingConfigurationSource())
+        .thenReturn(config.getFeatureFlaggingConfigurationSource());
+    when(this.config.isFeatureFlaggingProviderEnabled())
+        .thenReturn(config.isFeatureFlaggingProviderEnabled());
+    when(this.config.configProvider()).thenReturn(config.configProvider());
+
+    assertEquals(expected, this.backend.setting(FEATURE_FLAGS_CONFIGURATION_SOURCE));
+    assertEquals("true", this.backend.setting(FEATURE_FLAGS_ENABLED));
   }
 
   @TableTest({
     "Scenario               | Source        | RC enabled | Registers",
-    "remote config source   | remote_config | true       | true     ",
-    "remote config disabled | remote_config | false      | false    ",
-    "agentless source       | agentless     | true       | false    "
+    "remote config source   | REMOTE_CONFIG | true       | true     ",
+    "remote config disabled | REMOTE_CONFIG | false      | false    ",
+    "agentless source       | AGENTLESS     | true       | false    "
   })
   void startRegistersRemoteConfigOnlyWhenItIsTheSource(
-      final String source, final boolean rcEnabled, final boolean registers) {
+      final FeatureFlaggingSource source, final boolean rcEnabled, final boolean registers) {
     final ConfigurationPoller poller = mock(ConfigurationPoller.class);
     when(this.sco.configurationPoller(this.config)).thenReturn(poller);
     when(this.config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
@@ -83,11 +117,12 @@ class FeatureFlagsBackendTest {
 
   @TableTest({
     "Scenario                  | Source        | API key",
-    "agentless with API key    | agentless     | key    ",
-    "agentless without API key | agentless     |        ",
-    "remote config             | remote_config | key    "
+    "agentless with API key    | AGENTLESS     | key    ",
+    "agentless without API key | AGENTLESS     |        ",
+    "remote config             | REMOTE_CONFIG | key    "
   })
-  void createsTheBackendFromTheAgentConfiguration(final String source, final String apiKey) {
+  void createsTheBackendFromTheAgentConfiguration(
+      final FeatureFlaggingSource source, final String apiKey) {
     when(this.config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
     when(this.config.getApiKey()).thenReturn(apiKey);
 

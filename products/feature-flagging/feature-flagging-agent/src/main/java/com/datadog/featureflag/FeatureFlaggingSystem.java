@@ -33,10 +33,13 @@ public class FeatureFlaggingSystem {
       LOGGER.debug("Feature Flagging system disabled");
       return;
     }
+    LOGGER.debug("Feature Flagging enabled; env={}", config.getEnv());
     final FeatureFlagsBackend backend = new FeatureFlagsBackend(sco, config);
     try {
       backend.start();
     } catch (final RuntimeException | Error e) {
+      LOGGER.debug(
+          "Feature Flagging system initialization failed: {}", e.getClass().getSimpleName());
       backend.close();
       throw e;
     }

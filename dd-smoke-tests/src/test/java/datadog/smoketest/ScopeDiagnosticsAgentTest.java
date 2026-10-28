@@ -79,6 +79,7 @@ class ScopeDiagnosticsAgentTest {
       diagnostics.start(child);
       exercise(input, output, "resolved");
       diagnostics.finish(child);
+      assertFalse(Files.exists(diagnostics.directory().resolve("command")));
       Properties second = result(diagnostics.directory().resolve("response-4"));
       assertTrue(Integer.parseInt(second.getProperty("eventCount")) > 0);
       assertTrue(second.getProperty("timeline").contains("diagnostic-resolved"));
