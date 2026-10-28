@@ -27,8 +27,9 @@ import java.util.List;
  * we chunk all span-links for a given span. Once the span is complete we add the first part of the
  * span message and its chunked span-links to the scoped chunks. Once the scope is complete we add
  * the first part of the scoped spans message and all its chunks (span messages and any span-links)
- * to the payload. Once all the span data has been chunked we add the enclosing resource span
- * message, carrying the payload's global tags, to the start of the payload.
+ * to the resource chunks. Once the resource is complete we add the enclosing resource spans
+ * message, carrying the global tags of its traces, to the payload. A trace whose global tags differ
+ * (after a remote config tag change) completes the current resource and starts a new one.
  */
 public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
@@ -43,25 +44,29 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
   // total number of chunked bytes at different nesting levels
   private int payloadBytes;
+  private int resourceBytes;
   private int scopedBytes;
   private int spanBytes;
 
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
 
-  // resource for the last global tags seen; they rarely change, so it's rarely rebuilt
-  private TagMap resourceGlobalTags;
-  private byte[] resourceMessage;
+  // global tags of the trace being added
+  private TagMap traceGlobalTags;
+
+  // resources for the last two global tags seen, see CachedResource
+  private CachedResource currentResource;
+  private CachedResource previousResource;
 
   /** Adds the given trace spans to the collector. */
   @Override
   public void addTrace(List<? extends CoreSpan<?>> spans) {
     if (!payloadStarted) {
-      payloadGlobalTags = globalTagsOf(spans);
       start();
       payloadStarted = true;
     }
 
+    traceGlobalTags = globalTagsOf(spans);
     try {
       // OtlpProtoBuffer collects spans in reverse
       for (int i = spans.size() - 1; i >= 0; i--) {
@@ -97,25 +102,34 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   private void start() {
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
-
-    // for now put all spans under the default scope
-    visitScopedSpans(DEFAULT_TRACE_SCOPE);
   }
 
   /** Cleanup elements used to collect trace data. */
   private void stop() {
     payloadStarted = false;
     payloadGlobalTags = null;
+    traceGlobalTags = null;
 
     buf.reset();
     protobuf.reset();
 
     payloadBytes = 0;
+    resourceBytes = 0;
     scopedBytes = 0;
     spanBytes = 0;
 
     currentScope = null;
     currentSpan = null;
+  }
+
+  private void visitResource(TagMap globalTags) {
+    if (currentScope != null) {
+      completeResource();
+    }
+    payloadGlobalTags = globalTags;
+
+    // for now put all spans under the default scope
+    visitScopedSpans(DEFAULT_TRACE_SCOPE);
   }
 
   private void visitScopedSpans(OtelInstrumentationScope scope) {
@@ -128,6 +142,10 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   private void visitSpan(CoreSpan<?> span) {
     if (!shouldExport(span)) {
       return;
+    }
+    if (currentScope == null || traceGlobalTags != payloadGlobalTags) {
+      // spans with different global tags need a resource of their own
+      visitResource(traceGlobalTags);
     }
     if (currentSpan != null) {
       // ensure last span written at trace boundary includes sampling tags
@@ -145,30 +163,43 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     spanBytes += recordSpanLinkMessage(buf, spanLink, protobuf);
   }
 
-  // called once we've processed all scopes and span messages
+  // called once we've processed all resources and span messages
   private OtlpPayload completePayload() {
     if (currentScope != null) {
-      completeScope();
+      completeResource();
     }
 
     if (payloadBytes == 0) {
       return OtlpPayload.EMPTY;
     }
 
-    // prepend the resource chunk, which carries the payload's global tags
-    payloadBytes += protobuf.recordMessage(resourceMessage());
-
-    // finally prepend the total length of all collected chunks
-    protobuf.recordMessage(buf, 1, payloadBytes);
     return protobuf.toPayload();
   }
 
+  // called once we've processed all spans with the same global tags
+  private void completeResource() {
+    completeScope();
+
+    // prepend the resource chunk, which carries the global tags
+    resourceBytes += protobuf.recordMessage(resourceMessage());
+
+    // then prepend the total length of the resource's chunks
+    payloadBytes += protobuf.recordMessage(buf, 1, resourceBytes);
+
+    // reset temporary elements for next resource
+    resourceBytes = 0;
+  }
+
   private byte[] resourceMessage() {
-    if (resourceMessage == null || resourceGlobalTags != payloadGlobalTags) {
-      resourceMessage = buildTraceResourceMessage(payloadGlobalTags);
-      resourceGlobalTags = payloadGlobalTags;
+    if (currentResource == null || currentResource.globalTags != payloadGlobalTags) {
+      CachedResource replaced = currentResource;
+      currentResource =
+          previousResource != null && previousResource.globalTags == payloadGlobalTags
+              ? previousResource
+              : new CachedResource(payloadGlobalTags, buildTraceResourceMessage(payloadGlobalTags));
+      previousResource = replaced;
     }
-    return resourceMessage;
+    return currentResource.message;
   }
 
   // called once we've processed all spans in a specific scope
@@ -182,7 +213,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     }
 
     if (scopedBytes > 0) {
-      payloadBytes += recordScopedSpansMessage(buf, currentScope, scopedBytes, protobuf);
+      resourceBytes += recordScopedSpansMessage(buf, currentScope, scopedBytes, protobuf);
     }
 
     // reset temporary elements for next scope
@@ -198,5 +229,24 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     // reset temporary elements for next span
     currentSpan = null;
     spanBytes = 0;
+  }
+
+  /**
+   * A resource built for one global tags map, cached so it's only rebuilt when the tags change.
+   *
+   * <p>A trace takes its global tags from the config snapshot when it starts, so after a remote
+   * config tag change, traces started before the change (such as long-lived traces still sending
+   * partial flushes) keep arriving with the old tags, interleaved with new traces. The collector
+   * keeps the current and the previous resource, so switching back and forth between the two swaps
+   * them instead of rebuilding each time.
+   */
+  private static final class CachedResource {
+    final TagMap globalTags;
+    final byte[] message;
+
+    CachedResource(TagMap globalTags, byte[] message) {
+      this.globalTags = globalTags;
+      this.message = message;
+    }
   }
 }

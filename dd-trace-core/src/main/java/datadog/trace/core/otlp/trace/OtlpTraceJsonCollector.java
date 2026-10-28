@@ -31,6 +31,9 @@ import java.util.List;
  * one-span lookahead: that decision (and the corresponding {@code MetadataConsumer.accept} call)
  * can only be made once we see the next span (or reach a scope/payload boundary), since it depends
  * on whether the held-back span is the last one in its trace.
+ *
+ * <p>Each resource carries the global tags of its traces. A trace whose global tags differ (after a
+ * remote config tag change) completes the current resource and starts a new one.
  */
 public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
 
@@ -48,19 +51,22 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
   private DDSpan currentSpan;
   private List<? extends AgentSpanLink> currentSpanLinks = Collections.emptyList();
 
-  // resource for the last global tags seen; they rarely change, so it's rarely rebuilt
-  private TagMap resourceGlobalTags;
-  private String resourceFragment;
+  // global tags of the trace being added
+  private TagMap traceGlobalTags;
+
+  // resources for the last two global tags seen, see CachedResource
+  private CachedResource currentResource;
+  private CachedResource previousResource;
 
   /** Adds the given trace spans to the collector. */
   @Override
   public void addTrace(List<? extends CoreSpan<?>> spans) {
     if (!payloadStarted) {
-      payloadGlobalTags = globalTagsOf(spans);
       start();
       payloadStarted = true;
     }
 
+    traceGlobalTags = globalTagsOf(spans);
     try {
       for (CoreSpan<?> span : spans) {
         visitSpan(span);
@@ -94,25 +100,23 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     }
   }
 
-  /** Prepare temporary elements to collect trace data. */
+  /**
+   * Prepare temporary elements to collect trace data. Lazily allocate Resource when spans are
+   * added.
+   */
   private void start() {
     writer = new JsonWriter();
     metaWriter = new OtlpTraceJson.MetaWriter(writer);
 
     writer.beginObject();
     writer.name("resourceSpans").beginArray();
-    writer.beginObject();
-    writer.name("resource").jsonValue(resourceFragment());
-    writer.name("scopeSpans").beginArray();
-
-    // for now put all spans under the default scope
-    visitScopedSpans(DEFAULT_TRACE_SCOPE);
   }
 
   /** Cleanup elements used to collect trace data. */
   private void stop() {
     payloadStarted = false;
     payloadGlobalTags = null;
+    traceGlobalTags = null;
     anySpanWritten = false;
 
     writer = null;
@@ -124,12 +128,31 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
   }
 
   private String resourceFragment() {
-    // Update resourceGlobalTags when RC updates the DD_TAGS value (reflected by payloadGlobalTags)
-    if (resourceFragment == null || resourceGlobalTags != payloadGlobalTags) {
-      resourceFragment = buildTraceResourceFragment(payloadGlobalTags);
-      resourceGlobalTags = payloadGlobalTags;
+    // Rebuild when the open resource's tags (payloadGlobalTags) differ from the cached one
+    if (currentResource == null || currentResource.globalTags != payloadGlobalTags) {
+      CachedResource replaced = currentResource;
+      currentResource =
+          previousResource != null && previousResource.globalTags == payloadGlobalTags
+              ? previousResource
+              : new CachedResource(
+                  payloadGlobalTags, buildTraceResourceFragment(payloadGlobalTags));
+      previousResource = replaced;
     }
-    return resourceFragment;
+    return currentResource.fragment;
+  }
+
+  private void visitResource(TagMap globalTags) {
+    if (currentScope != null) {
+      completeResource();
+    }
+    payloadGlobalTags = globalTags;
+
+    writer.beginObject();
+    writer.name("resource").jsonValue(resourceFragment());
+    writer.name("scopeSpans").beginArray();
+
+    // for now put all spans under the default scope
+    visitScopedSpans(DEFAULT_TRACE_SCOPE);
   }
 
   private void visitScopedSpans(OtelInstrumentationScope scope) {
@@ -148,6 +171,11 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     if (!shouldExport(span)) {
       return;
     }
+    if (currentScope == null || traceGlobalTags != payloadGlobalTags) {
+      // if payload's first exported span, start new resource/scope. Otherwise (global tags
+      // changed), close old resource/scope and start new resource/scope
+      visitResource(traceGlobalTags);
+    }
     if (currentSpan != null) {
       // ensure last span written at trace boundary includes sampling tags
       if (!span.getTraceId().equals(currentSpan.getTraceId())) {
@@ -159,14 +187,12 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     currentSpanLinks = currentSpan.getLinks();
   }
 
-  // called once we've processed all scopes and span messages
+  // called once we've processed all resources and span messages
   private OtlpPayload completePayload() {
     if (currentScope != null) {
-      completeScope();
+      completeResource();
     }
 
-    writer.endArray(); // scopeSpans
-    writer.endObject(); // resourceSpans[0]
     writer.endArray(); // resourceSpans
     writer.endObject(); // root
 
@@ -176,6 +202,14 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
 
     byte[] bytes = writer.toByteArray();
     return new OtlpPayload(ByteBuffer.wrap(bytes), JSON_CONTENT_TYPE);
+  }
+
+  // called once we've processed all spans with the same global tags
+  private void completeResource() {
+    completeScope();
+
+    writer.endArray(); // scopeSpans
+    writer.endObject(); // resourceSpans[i]
   }
 
   // called once we've processed all spans in a specific scope
@@ -211,6 +245,25 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     if (writer.size() > MAX_CAPACITY_BYTES) {
       throw new IllegalStateException(
           "OTLP payload exceeds maximum buffer size of " + MAX_CAPACITY_BYTES + " bytes");
+    }
+  }
+
+  /**
+   * A resource built for one global tags map, cached so it's only rebuilt when the tags change.
+   *
+   * <p>A trace takes its global tags from the config snapshot when it starts, so after a remote
+   * config tag change, traces started before the change (such as long-lived traces still sending
+   * partial flushes) keep arriving with the old tags, interleaved with new traces. The collector
+   * keeps the current and the previous resource, so switching back and forth between the two swaps
+   * them instead of rebuilding each time.
+   */
+  private static final class CachedResource {
+    final TagMap globalTags;
+    final String fragment;
+
+    CachedResource(TagMap globalTags, String fragment) {
+      this.globalTags = globalTags;
+      this.fragment = fragment;
     }
   }
 }
