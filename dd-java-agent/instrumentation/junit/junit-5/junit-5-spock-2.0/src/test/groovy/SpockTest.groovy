@@ -11,6 +11,8 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import org.example.TestFailedParameterizedSpock
 import org.example.TestAutomationExcluded
+import org.example.TestAutomationExcludedParameterizedAnnotations
+import org.example.TestAutomationExcludedParameterizedNative
 import org.example.TestAutomationExcludedInherited
 import org.example.TestAutomationExcludedCollisionBase
 import org.example.TestAutomationExcludedCollisionMiddle
@@ -66,6 +68,47 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
   }
 
+
+  def "test automation exclusions preserve data-driven #declarations with attempt to fix #attemptToFix"() {
+    given:
+    fixture.executions.set(0, 0)
+    fixture.executions.set(1, 0)
+    def names = ["protected_failure #row", "protected_failure 0", "protected_failure 1"]
+    def ids = names.collect { new TestFQN(fixture.name, it) }
+    givenDisabledTests(ids)
+    givenQuarantinedTests(ids)
+    givenAttemptToFixTests(attemptToFix ? ids : [])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(ids)
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([fixture], false)
+
+    then:
+    fixture.executions.get(0) == 1
+    fixture.executions.get(1) == 1
+    def spans = TEST_WRITER.toList().flatten().findAll {
+      it.getTag("test.suite") == fixture.name && it.getTag("test.name") in names.tail()
+    }
+    spans.size() == 2
+    spans.every { it.getTag("test.status")?.toString() == "fail" }
+    spans.every { it.getTag("test.test_management.no_auto_retry") == true }
+    spans.every { it.getTag("test.test_management.prevent_failure_suppression") == true }
+    spans.every { it.getTag("test.test_management.is_test_disabled") == true }
+    spans.every { it.getTag("test.test_management.is_quarantined") == true }
+    spans.every { it.getTag("test.test_management.is_attempt_to_fix") == (attemptToFix ? true : null) }
+    spans.every { it.getTag("test.test_management.attempt_to_fix_passed") == null }
+    spans.every { it.getTag("test.is_retry") == null }
+
+    where:
+    declarations         | fixture                                            | attemptToFix
+    "native tags"        | TestAutomationExcludedParameterizedNative          | false
+    "native tags"        | TestAutomationExcludedParameterizedNative          | true
+    "method annotations" | TestAutomationExcludedParameterizedAnnotations     | false
+    "method annotations" | TestAutomationExcludedParameterizedAnnotations     | true
+  }
 
   def "test automation exclusions honor inherited feature declarations with attempt to fix #attemptToFix"() {
     given:
