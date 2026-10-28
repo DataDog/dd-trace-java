@@ -17,24 +17,30 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static datadog.trace.test.junit.utils.assertions.Matchers.isNull;
 import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
-import java.util.stream.Stream;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.tabletest.junit.TableTest;
+import org.tabletest.junit.TypeConverter;
 
-class JakartaRsRoutePropagationTest extends AbstractInstrumentationTest {
+public class JakartaRsRoutePropagationTest extends AbstractInstrumentationTest {
 
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("propagateRouteThroughServerHandlerArguments")
+  @TableTest({
+    "Scenario              | Route naming | Initial route | Initial resource   | Priority                         | Handler kind | Resource                 | Expected route | Expected resource ",
+    "catch-all route       | true         | /             | POST /             | HTTP_FRAMEWORK_ROUTE             | server       | WidgetResource           | /widget/{id}   | POST /widget/{id} ",
+    "path naming           | false        | /             | POST /widget/?     | HTTP_PATH_NORMALIZER             | server       | WidgetResource           | /widget/{id}   | POST /widget/?    ",
+    "configured resource   | true         | /             | configured         | HTTP_SERVER_CONFIG_PATTERN_MATCH | server       | WidgetResource           | /widget/{id}   | configured        ",
+    "manual resource       | true         | /             | manual             | MANUAL_INSTRUMENTATION           | server       | WidgetResource           | /widget/{id}   | manual            ",
+    "existing route        | true         | /mounted/{id} | POST /mounted/{id} | HTTP_FRAMEWORK_ROUTE             | server       | WidgetResource           | /mounted/{id}  | POST /mounted/{id}",
+    "internal intermediary | true         | /             | POST /             | HTTP_FRAMEWORK_ROUTE             |              | WidgetResource           | /              | POST /            ",
+    "nested call at root   | true         | /             | POST /             | HTTP_FRAMEWORK_ROUTE             | server       | RootResource             | /              | POST /            ",
+    "subresource locator   | true         | /             | POST /             | HTTP_FRAMEWORK_ROUTE             | server       | LocatorResource          | /              | POST /            ",
+    "returned subresource  | true         | /             | POST /             | HTTP_FRAMEWORK_ROUTE             | server       | ReturningLocatorResource | /              | POST /            "
+  })
   void propagateRouteThroughServerHandler(
-      String scenario,
       boolean routeNaming,
       String initialRoute,
       String initialResource,
@@ -109,98 +115,36 @@ class JakartaRsRoutePropagationTest extends AbstractInstrumentationTest {
                 .tags(defaultTags(), tag(Tags.COMPONENT, matches("jakarta-rs-controller")))));
   }
 
-  static Stream<Arguments> propagateRouteThroughServerHandlerArguments() {
-    return Stream.of(
-        arguments(
-            "catch-all route",
-            true,
-            "/",
-            "POST /",
-            HTTP_FRAMEWORK_ROUTE,
-            Tags.SPAN_KIND_SERVER,
-            new WidgetResource(),
-            "/widget/{id}",
-            "POST /widget/{id}"),
-        arguments(
-            "path naming",
-            false,
-            "/",
-            "POST /widget/?",
-            HTTP_PATH_NORMALIZER,
-            Tags.SPAN_KIND_SERVER,
-            new WidgetResource(),
-            "/widget/{id}",
-            "POST /widget/?"),
-        arguments(
-            "configured resource",
-            true,
-            "/",
-            "configured",
-            HTTP_SERVER_CONFIG_PATTERN_MATCH,
-            Tags.SPAN_KIND_SERVER,
-            new WidgetResource(),
-            "/widget/{id}",
-            "configured"),
-        arguments(
-            "manual resource",
-            true,
-            "/",
-            "manual",
-            MANUAL_INSTRUMENTATION,
-            Tags.SPAN_KIND_SERVER,
-            new WidgetResource(),
-            "/widget/{id}",
-            "manual"),
-        arguments(
-            "existing route",
-            true,
-            "/mounted/{id}",
-            "POST /mounted/{id}",
-            HTTP_FRAMEWORK_ROUTE,
-            Tags.SPAN_KIND_SERVER,
-            new WidgetResource(),
-            "/mounted/{id}",
-            "POST /mounted/{id}"),
-        arguments(
-            "internal intermediary",
-            true,
-            "/",
-            "POST /",
-            HTTP_FRAMEWORK_ROUTE,
-            null,
-            new WidgetResource(),
-            "/",
-            "POST /"),
-        arguments(
-            "nested call at root",
-            true,
-            "/",
-            "POST /",
-            HTTP_FRAMEWORK_ROUTE,
-            Tags.SPAN_KIND_SERVER,
-            new RootResource(),
-            "/",
-            "POST /"),
-        arguments(
-            "subresource locator",
-            true,
-            "/",
-            "POST /",
-            HTTP_FRAMEWORK_ROUTE,
-            Tags.SPAN_KIND_SERVER,
-            new LocatorResource(),
-            "/",
-            "POST /"),
-        arguments(
-            "returned subresource",
-            true,
-            "/",
-            "POST /",
-            HTTP_FRAMEWORK_ROUTE,
-            Tags.SPAN_KIND_SERVER,
-            new ReturningLocatorResource(),
-            "/",
-            "POST /"));
+  @TypeConverter
+  public static byte toPriority(String value) {
+    switch (value) {
+      case "HTTP_FRAMEWORK_ROUTE":
+        return HTTP_FRAMEWORK_ROUTE;
+      case "HTTP_PATH_NORMALIZER":
+        return HTTP_PATH_NORMALIZER;
+      case "HTTP_SERVER_CONFIG_PATTERN_MATCH":
+        return HTTP_SERVER_CONFIG_PATTERN_MATCH;
+      case "MANUAL_INSTRUMENTATION":
+        return MANUAL_INSTRUMENTATION;
+      default:
+        throw new IllegalArgumentException("Unknown priority: " + value);
+    }
+  }
+
+  @TypeConverter
+  public static Resource toResource(String value) {
+    switch (value) {
+      case "WidgetResource":
+        return new WidgetResource();
+      case "RootResource":
+        return new RootResource();
+      case "LocatorResource":
+        return new LocatorResource();
+      case "ReturningLocatorResource":
+        return new ReturningLocatorResource();
+      default:
+        throw new IllegalArgumentException("Unknown resource: " + value);
+    }
   }
 
   abstract static class Resource {
