@@ -2865,6 +2865,75 @@ class ConfigTest {
     assertEquals(expectedUnixDomainSocket, config.getAgentUnixDomainSocket());
   }
 
+  @TableTest({
+    "scenario          | configuredUrl                        | expectedAgentHttpUrl   ",
+    "'http url'        | 'http://dd-agent:8126'               | 'http://dd-agent:8126' ",
+    "'unix socket url' | 'unix:///var/run/datadog/apm.socket' | 'http://localhost:8126'"
+  })
+  void agentHttpUrlReplacesUnixDomainSocketWithPlaceholder(
+      String configuredUrl, String expectedAgentHttpUrl) throws Exception {
+    System.setProperty(PREFIX + TRACE_AGENT_URL, configuredUrl);
+
+    Config config = newConfig();
+
+    assertEquals(expectedAgentHttpUrl, config.getAgentHttpUrl());
+  }
+
+  @TableTest({
+    "scenario                  | configuredUrl                        | url                                       | expected",
+    "'same agent'              | 'http://dd-agent:8126'               | 'http://dd-agent:8126/v0.4/traces'        | true    ",
+    "'host case-insensitive'   | 'http://dd-agent:8126'               | 'http://DD-AGENT:8126/debugger/v1/input'  | true    ",
+    "'default port'            | 'http://dd-agent'                    | 'http://dd-agent:8126/v0.7/config'        | true    ",
+    "'implicit http port'      | 'http://dd-agent:80'                 | 'http://dd-agent/v0.7/config'             | true    ",
+    "'ipv6 host'               | 'http://[::1]:8126'                  | 'http://[::1]:8126/v0.4/traces'           | true    ",
+    "'ipv6 non-canonical host' | 'http://[0:0:0:0:0:0:0:1]:8126'      | 'http://[::1]:8126/v0.4/traces'           | true    ",
+    "'unix socket placeholder' | 'unix:///var/run/datadog/apm.socket' | 'http://localhost:8126/v0.4/traces'       | true    ",
+    "'other port'              | 'http://dd-agent:8126'               | 'http://dd-agent:8127/v0.4/traces'        | false   ",
+    "'other scheme'            | 'http://dd-agent:8126'               | 'https://dd-agent:8126/v0.4/traces'       | false   ",
+    "'other ipv6 host'         | 'http://[::1]:8126'                  | 'http://[::2]:8126/v0.4/traces'           | false   ",
+    "'other host'              | 'http://dd-agent:8126'               | 'https://http-intake.logs.datadoghq.com/' | false   ",
+    "'unix socket other host'  | 'unix:///var/run/datadog/apm.socket' | 'https://http-intake.logs.datadoghq.com/' | false   ",
+    "'malformed url'           | 'http://dd-agent:8126'               | 'not a url'                               | false   "
+  })
+  void isAgentUrlMatchesConfiguredAgent(String configuredUrl, String url, boolean expected)
+      throws Exception {
+    System.setProperty(PREFIX + TRACE_AGENT_URL, configuredUrl);
+
+    Config config = newConfig();
+
+    assertEquals(expected, config.isAgentUrl(url));
+  }
+
+  @TableTest({
+    "scenario          | configuredUrl                        | expectedTelemetryUrl                                        | expectedErrorTrackingUrl                                ",
+    "'http url'        | 'http://dd-agent:8126'               | 'http://dd-agent:8126/telemetry/proxy/api/v2/apmtelemetry'  | 'http://dd-agent:8126/evp_proxy/v4/api/v2/errorsintake' ",
+    "'https url'       | 'https://dd-agent:8126'              | 'https://dd-agent:8126/telemetry/proxy/api/v2/apmtelemetry' | 'https://dd-agent:8126/evp_proxy/v4/api/v2/errorsintake'",
+    "'unix socket url' | 'unix:///var/run/datadog/apm.socket' | 'http://localhost:8126/telemetry/proxy/api/v2/apmtelemetry' | 'http://localhost:8126/evp_proxy/v4/api/v2/errorsintake'"
+  })
+  void crashTrackingUrlsTargetAgentUrl(
+      String configuredUrl, String expectedTelemetryUrl, String expectedErrorTrackingUrl)
+      throws Exception {
+    System.setProperty(PREFIX + TRACE_AGENT_URL, configuredUrl);
+
+    Config config = newConfig();
+
+    assertEquals(expectedTelemetryUrl, config.getFinalCrashTrackingTelemetryUrl());
+    assertEquals(expectedErrorTrackingUrl, config.getFinalCrashTrackingErrorTrackingUrl());
+    // crash reports sent to the agent carry the origin detection headers
+    assertTrue(config.isAgentUrl(config.getFinalCrashTrackingTelemetryUrl()));
+    assertTrue(config.isAgentUrl(config.getFinalCrashTrackingErrorTrackingUrl()));
+  }
+
+  @Test
+  void isAgentUrlMatchesAgentHostWithUnderscore() throws Exception {
+    // e.g. a docker compose service name, which java.net.URI would not parse as a host
+    System.setProperty(PREFIX + AGENT_HOST, "dd_agent");
+
+    Config config = newConfig();
+
+    assertTrue(config.isAgentUrl("http://dd_agent:8126/v0.7/config"));
+  }
+
   @Test
   void testGetIgnoredResourceNames() throws Exception {
     System.setProperty(

@@ -1,6 +1,7 @@
 package datadog.communication.http;
 
 import static datadog.communication.http.SocketUtils.discoverApmSocket;
+import static datadog.trace.api.Config.toAgentHttpUrl;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -246,14 +247,25 @@ public final class OkHttpUtils {
 
   /**
    * Prepares a request to the local Datadog Agent, or directly to the Datadog intake when {@code
-   * agentless}.
+   * agentless}. Origin detection headers are only added when {@code url} targets the local Datadog
+   * Agent, so a user-configured endpoint never receives them.
    */
   public static Request.Builder prepareRequest(
       final HttpUrl url,
       final Map<String, String> headers,
       final Config config,
       final boolean agentless) {
-    Request.Builder builder = prepareRequest(url, headers, ContainerInfo.get(), !agentless);
+    return prepareRequest(url, headers, config, agentless, ContainerInfo.get());
+  }
+
+  static Request.Builder prepareRequest(
+      final HttpUrl url,
+      final Map<String, String> headers,
+      final Config config,
+      final boolean agentless,
+      final ContainerInfo containerInfo) {
+    final boolean toAgent = !agentless && config.isAgentUrl(url.toString());
+    Request.Builder builder = prepareRequest(url, headers, containerInfo, toAgent);
 
     final String apiKey = config.getApiKey();
     if (agentless && apiKey != null) {
@@ -308,7 +320,11 @@ public final class OkHttpUtils {
     return addOriginHeaders(builder, ContainerInfo.get());
   }
 
-  static Request.Builder addOriginHeaders(
+  /**
+   * Adds the origin detection headers using the values detected by {@code containerInfo}. See
+   * {@link #addOriginHeaders(Request.Builder)}.
+   */
+  public static Request.Builder addOriginHeaders(
       final Request.Builder builder, final ContainerInfo containerInfo) {
     final String containerId = containerInfo.getContainerId();
     if (containerId != null) {
@@ -327,24 +343,11 @@ public final class OkHttpUtils {
 
   /** Returns the HTTP URL of the local Datadog Agent, or {@code null} if it cannot be parsed. */
   public static @Nullable HttpUrl parseAgentUrl(final Config config) {
-    String agentUrl = config.getAgentUrl();
+    final String agentUrl = config.getAgentUrl();
     if (agentUrl == null) {
       return null;
     }
-    if (agentUrl.startsWith("unix:")) {
-      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
-      agentUrl = "http://" + config.getAgentHost() + ":" + config.getAgentPort();
-    }
-    return HttpUrl.parse(agentUrl);
-  }
-
-  /** Returns whether {@code url} targets the local Datadog Agent configured in {@code config}. */
-  public static boolean isAgentUrl(final HttpUrl url, final Config config) {
-    final HttpUrl agentUrl = parseAgentUrl(config);
-    return agentUrl != null
-        && url.scheme().equals(agentUrl.scheme())
-        && url.host().equalsIgnoreCase(agentUrl.host())
-        && url.port() == agentUrl.port();
+    return HttpUrl.parse(toAgentHttpUrl(agentUrl, config.getAgentHost(), config.getAgentPort()));
   }
 
   public static RequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {

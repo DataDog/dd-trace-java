@@ -62,8 +62,8 @@ public class PollerRequestFactory {
     this.url = parseUrl(url);
     this.moshi = moshi;
     this.containerInfo = containerInfo;
-    // without an explicit remote config URL, requests go to the local Datadog Agent
-    this.toAgent = config.getFinalRemoteConfigUrl() == null;
+    // an explicit remote config URL may still target the local Datadog Agent
+    this.toAgent = config.isAgentUrl(url);
   }
 
   private static String getRuntimeId(Config config) {

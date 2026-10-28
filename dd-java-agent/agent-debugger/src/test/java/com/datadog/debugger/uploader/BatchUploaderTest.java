@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,7 +37,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /** Unit tests for the snapshot uploader. */
@@ -265,8 +263,7 @@ public class BatchUploaderTest {
     // e.g. agentless CI Visibility or an explicit snapshot URL
     server.enqueue(RESPONSE_200);
 
-    RecordedRequest request =
-        uploadWithOrigin(uploader, "testContainerId", "testEntityId", EXTERNAL_ENV);
+    RecordedRequest request = uploadWithOrigin("testContainerId", "testEntityId", EXTERNAL_ENV);
 
     assertNull(request.getHeader("Datadog-Container-ID"));
     assertNull(request.getHeader("Datadog-Entity-ID"));
@@ -275,26 +272,23 @@ public class BatchUploaderTest {
 
   private RecordedRequest uploadToAgentWithOrigin(
       String containerId, String entityId, String externalEnv) throws InterruptedException {
-    when(config.getAgentUrl()).thenReturn("http://" + url.host() + ":" + url.port());
-    BatchUploader agentUploader =
-        new BatchUploader("test", config, url.toString(), ratelimitedLogger, retryPolicy);
-    try {
-      return uploadWithOrigin(agentUploader, containerId, entityId, externalEnv);
-    } finally {
-      agentUploader.shutdown();
-    }
+    when(config.isAgentUrl(url.toString())).thenReturn(true);
+    return uploadWithOrigin(containerId, entityId, externalEnv);
   }
 
-  private RecordedRequest uploadWithOrigin(
-      BatchUploader batchUploader, String containerId, String entityId, String externalEnv)
+  private RecordedRequest uploadWithOrigin(String containerId, String entityId, String externalEnv)
       throws InterruptedException {
     ContainerInfo containerInfo = mock(ContainerInfo.class);
     lenient().when(containerInfo.getContainerId()).thenReturn(containerId);
     lenient().when(containerInfo.getEntityId()).thenReturn(entityId);
     lenient().when(containerInfo.getExternalEnv()).thenReturn(externalEnv);
-    try (MockedStatic<ContainerInfo> mocked = mockStatic(ContainerInfo.class)) {
-      mocked.when(ContainerInfo::get).thenReturn(containerInfo);
-      batchUploader.upload(SNAPSHOT_BUFFER);
+    BatchUploader originUploader =
+        new BatchUploader(
+            "test", config, url.toString(), ratelimitedLogger, retryPolicy, containerInfo);
+    try {
+      originUploader.upload(SNAPSHOT_BUFFER);
+    } finally {
+      originUploader.shutdown();
     }
     return server.takeRequest(100, TimeUnit.MILLISECONDS);
   }

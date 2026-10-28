@@ -3,6 +3,7 @@ package com.datadog.debugger.uploader;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DISPATCHER;
 
 import com.datadog.debugger.util.DebuggerMetrics;
+import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
@@ -87,6 +88,7 @@ public class BatchUploader {
   private final OkHttpClient client;
   private final HttpUrl urlBase;
   private final boolean toAgent;
+  private final ContainerInfo containerInfo;
   private final Callback responseCallback;
   private final String apiKey;
   private final DebuggerMetrics debuggerMetrics;
@@ -112,13 +114,25 @@ public class BatchUploader {
       String endpoint,
       RatelimitedLogger ratelimitedLogger,
       RetryPolicy retryPolicy) {
+    this(name, config, endpoint, ratelimitedLogger, retryPolicy, ContainerInfo.get());
+  }
+
+  @VisibleForTesting
+  BatchUploader(
+      String name,
+      Config config,
+      String endpoint,
+      RatelimitedLogger ratelimitedLogger,
+      RetryPolicy retryPolicy,
+      ContainerInfo containerInfo) {
     this.name = name;
     instrumentTheWorld = config.getDynamicInstrumentationInstrumentTheWorld() != null;
     if (endpoint == null || endpoint.length() == 0) {
       throw new IllegalArgumentException("Endpoint url is empty");
     }
     urlBase = HttpUrl.get(endpoint);
-    toAgent = OkHttpUtils.isAgentUrl(urlBase, config);
+    toAgent = config.isAgentUrl(endpoint);
+    this.containerInfo = containerInfo;
     LOGGER.debug("Started BatchUploader[{}] with target url {}", name, urlBase);
     apiKey = config.getApiKey();
     this.ratelimitedLogger = ratelimitedLogger;
@@ -245,7 +259,7 @@ public class BatchUploader {
     }
     if (toAgent) {
       // only the local Datadog Agent uses the origin detection headers
-      OkHttpUtils.addOriginHeaders(requestBuilder);
+      OkHttpUtils.addOriginHeaders(requestBuilder, containerInfo);
     }
     Request request = requestBuilder.build();
     LOGGER.debug("[{}] Sending request: {} CT: {}", name, request, request.body().contentType());

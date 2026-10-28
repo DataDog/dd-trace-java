@@ -11,7 +11,8 @@ dependencies {
   api(project(":remote-config:remote-config-api"))
   implementation(project(":remote-config:remote-config-core"))
   implementation(project(":internal-api"))
-  implementation(project(":utils:container-utils"))
+  // ContainerInfo is part of the OkHttpUtils API
+  api(project(":utils:container-utils"))
   implementation(project(":utils:filesystem-utils"))
   implementation(project(":utils:socket-utils"))
   implementation(project(":utils:version-utils"))

@@ -4,13 +4,10 @@ import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID;
 import static datadog.communication.http.OkHttpUtils.DATADOG_ENTITY_ID;
 import static datadog.communication.http.OkHttpUtils.DATADOG_EXTERNAL_ENV;
 import static datadog.communication.http.OkHttpUtils.addOriginHeaders;
-import static datadog.communication.http.OkHttpUtils.isAgentUrl;
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
@@ -80,24 +77,63 @@ class OkHttpUtilsPrepareRequestTest extends DDJavaSpecification {
 
   @Test
   @WithConfig(key = "trace.agent.url", value = "http://dd-agent:8126")
-  void isAgentUrlMatchesConfiguredAgent() {
-    Config config = Config.get();
+  void addsOriginHeadersWhenNotAgentlessAndSentToAgent() {
+    ContainerInfo containerInfo = containerInfo("containerId", "entityId", EXTERNAL_ENV);
 
-    assertTrue(isAgentUrl(HttpUrl.get("http://dd-agent:8126/v0.4/traces"), config));
-    assertTrue(isAgentUrl(HttpUrl.get("http://DD-AGENT:8126/debugger/v1/input"), config));
-    assertFalse(isAgentUrl(HttpUrl.get("http://dd-agent:8127/v0.4/traces"), config));
-    assertFalse(isAgentUrl(HttpUrl.get("https://dd-agent:8126/v0.4/traces"), config));
-    assertFalse(isAgentUrl(HttpUrl.get("https://http-intake.logs.datadoghq.com/"), config));
+    Request request =
+        prepareRequest(
+                HttpUrl.get("http://dd-agent:8126/profiling/v1/input"),
+                emptyMap(),
+                Config.get(),
+                false,
+                containerInfo)
+            .get()
+            .build();
+
+    assertEquals("containerId", request.header(DATADOG_CONTAINER_ID));
+    assertEquals("entityId", request.header(DATADOG_ENTITY_ID));
+    assertEquals(EXTERNAL_ENV, request.header(DATADOG_EXTERNAL_ENV));
   }
 
   @Test
-  @WithConfig(key = "trace.agent.url", value = "unix:///var/run/datadog/apm.socket")
-  void isAgentUrlMatchesUnixDomainSocketPlaceholder() {
-    Config config = Config.get();
+  @WithConfig(key = "trace.agent.url", value = "http://dd-agent:8126")
+  void omitsOriginHeadersWhenNotAgentlessButNotSentToAgent() {
+    // e.g. DD_PROFILING_URL targeting an external endpoint without DD_PROFILING_AGENTLESS
+    ContainerInfo containerInfo = containerInfo("containerId", "entityId", EXTERNAL_ENV);
 
-    // requests tunnelled over the socket use the default agent host and port as a placeholder
-    assertTrue(isAgentUrl(HttpUrl.get("http://localhost:8126/v0.4/traces"), config));
-    assertFalse(isAgentUrl(HttpUrl.get("https://http-intake.logs.datadoghq.com/"), config));
+    Request request =
+        prepareRequest(
+                HttpUrl.get("https://profiles.example.com/api/v2/profile"),
+                emptyMap(),
+                Config.get(),
+                false,
+                containerInfo)
+            .get()
+            .build();
+
+    assertNull(request.header(DATADOG_CONTAINER_ID));
+    assertNull(request.header(DATADOG_ENTITY_ID));
+    assertNull(request.header(DATADOG_EXTERNAL_ENV));
+  }
+
+  @Test
+  @WithConfig(key = "trace.agent.url", value = "http://dd-agent:8126")
+  void omitsOriginHeadersWhenAgentless() {
+    ContainerInfo containerInfo = containerInfo("containerId", "entityId", EXTERNAL_ENV);
+
+    Request request =
+        prepareRequest(
+                HttpUrl.get("http://dd-agent:8126/profiling/v1/input"),
+                emptyMap(),
+                Config.get(),
+                true,
+                containerInfo)
+            .get()
+            .build();
+
+    assertNull(request.header(DATADOG_CONTAINER_ID));
+    assertNull(request.header(DATADOG_ENTITY_ID));
+    assertNull(request.header(DATADOG_EXTERNAL_ENV));
   }
 
   // inherited public ContainerInfo fields would shadow parameters with the same names
