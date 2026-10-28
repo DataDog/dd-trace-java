@@ -83,16 +83,16 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
         @Advice.Argument(0) RunNotifier notifier) {
 
       TestIdentifier test = CucumberUtils.toTestIdentifier(description);
+      List<String> tags = CucumberUtils.getCategories(pickle);
       SkipReason skipReason =
           TestEventsHandlerHolder.HANDLERS
               .get(TestFrameworkInstrumentation.CUCUMBER)
-              .skipReason(test, TestSourceData.UNKNOWN, CucumberUtils.getCategories(pickle));
+              .skipReason(test, TestSourceData.UNKNOWN, tags);
       if (skipReason == null) {
         return null;
       }
 
       if (skipReason == SkipReason.ITR) {
-        List<String> tags = pickle.getTags();
         for (String tag : tags) {
           if (tag.endsWith(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
             return null;
