@@ -338,6 +338,7 @@
 /dd-openfeature/                                     @DataDog/apm-java @DataDog/feature-flagging-and-experimentation-sdk
 /dd-smoke-tests/openfeature/                         @DataDog/apm-java @DataDog/feature-flagging-and-experimentation-sdk
 /dd-smoke-tests/openfeature-legacy/                  @DataDog/apm-java @DataDog/feature-flagging-and-experimentation-sdk
+/dd-trace-api/**/config/FeatureFlaggingConfig*       @DataDog/apm-java @DataDog/feature-flagging-and-experimentation-sdk
 /products/feature-flagging/                          @DataDog/apm-java @DataDog/feature-flagging-and-experimentation-sdk
 
 # @DataDog/profiling-java

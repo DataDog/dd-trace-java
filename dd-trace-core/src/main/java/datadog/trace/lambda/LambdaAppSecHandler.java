@@ -63,6 +63,13 @@ public class LambdaAppSecHandler {
    */
   private static final String UNSUPPORTED_EVENT_TYPE_METRIC = "_dd.appsec.unsupported_event_type";
 
+  /**
+   * Identifies tracer-based AppSec to the usage extractor as {@code client_tracer_based:true}. Set
+   * before trigger checks because it identifies the implementation, not whether the event was
+   * analysed, matching dd-trace-py's {@code on_span_start}.
+   */
+  private static final String SERVERLESS_TRACER_METRIC = "_dd.appsec.serverless.tracer";
+
   // Carries the detected trigger type from processRequestStart to processResponseData within the
   // same Lambda invocation. Cleared in processRequestEnd.
   private static final ThreadLocal<LambdaTriggerType> CURRENT_TRIGGER_TYPE = new ThreadLocal<>();
@@ -132,12 +139,18 @@ public class LambdaAppSecHandler {
     LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
     CURRENT_TRIGGER_TYPE.remove();
 
-    if (!ActiveSubsystems.APPSEC_ACTIVE || span == null || triggerType == null) {
+    if (!ActiveSubsystems.APPSEC_ACTIVE || span == null) {
       return;
     }
 
+    span.setMetric(SERVERLESS_TRACER_METRIC, 1);
+
     // A null trigger type means processRequestStart never ran, so the invocation was not analysed
     // at all, which is not the same as an unsupported trigger.
+    if (triggerType == null) {
+      return;
+    }
+
     if (!triggerType.isHttp()) {
       span.setMetric(UNSUPPORTED_EVENT_TYPE_METRIC, 1);
       return;

@@ -6,6 +6,7 @@ import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.bridge.v1.ShutdownSource;
 import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import javax.annotation.Nullable;
 
@@ -25,9 +26,13 @@ public final class JavaAgentBridge implements AgentBridge {
    * Connects the SDK to the agent backend.
    *
    * @param fallback the bridge to use if the agent backend is not started.
-   * @return the agent bridge, or the fallback one.
+   * @return the agent bridge, the disabled one if the agent configuration disables Feature Flags,
+   *     or the fallback one.
    */
   public static AgentBridge connect(final AgentBridge fallback) {
+    if (!InstrumenterConfig.get().isFeatureFlaggingEnabled()) {
+      return DisabledAgentBridge.INSTANCE;
+    }
     final FeatureFlaggingGateway.Backend backend = FeatureFlaggingGateway.backend();
     return backend == null ? fallback : new JavaAgentBridge(backend);
   }

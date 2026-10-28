@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -uo pipefail
-ITW_TYPE=${1:-"method"}
+ITW_TYPE=${1:-"log_method"}
 NAME=$2
 COMMAND=$3
 PROJECT_INCLUDE_FILE=${4:-}
