@@ -3345,6 +3345,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_OPTIONS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_DDPROF_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -8674,6 +8682,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_OPENAI_JAVA_ENABLED", "DD_INTEGRATION_OPENAI_JAVA_ENABLED"]
+      }
+    ],
+    "DD_TRACE_OPENFEATURE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_OPENFEATURE_ENABLED", "DD_INTEGRATION_OPENFEATURE_ENABLED"]
       }
     ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_ENABLED": [

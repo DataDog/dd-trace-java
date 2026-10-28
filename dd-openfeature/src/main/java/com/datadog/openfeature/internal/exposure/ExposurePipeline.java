@@ -5,7 +5,7 @@ import static com.datadog.openfeature.internal.EventPipeline.awaitThread;
 import com.datadog.openfeature.internal.EventPipeline;
 import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.bridge.EventTransport;
+import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

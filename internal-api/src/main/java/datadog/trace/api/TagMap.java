@@ -497,14 +497,27 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     /**
-     * Folds a tag hash to the 32-bit bucket hash. A tag id's serial is in bits 63-48, so it is
-     * folded down from there rather than from bit 32, where a bucket mask would discard it.
+     * Folds a tag hash to the 32-bit bucket hash, whose low bits pick the bucket.
      *
-     * <p>Never zero: BucketGroup treats a zero hash as a vacant slot. The fold can produce zero
-     * when a serial equals the id's flag bits (serial 4 with the trace-level bit, 4), so zero maps
-     * to the same nonzero sentinel {@link #_hash} uses.
+     * <p>A known tag with a slot is bucketed by its slot: slot coloring gives tags that appear
+     * together on a span type distinct slots, so they mostly land in distinct buckets and need no
+     * BucketGroup. Trace-level tags reuse the span-level slot numbers, so their level bit moves
+     * them to the other half of the buckets. The serial sits above the slot, so two known tags
+     * never share a bucket hash.
+     *
+     * <p>A known tag without a slot folds its serial (bits 63-48) down instead, and a custom tag
+     * uses its name hash.
+     *
+     * <p>Never zero: BucketGroup treats a zero hash as a vacant slot. A slotted known tag's hash
+     * carries its nonzero serial; the other folds map zero to the same nonzero sentinel {@link
+     * #_hash} uses.
      */
     static int bucketHash(long tagHash) {
+      int slot = (int) (tagHash >>> 32) & 0xFFFF;
+      if ((tagHash >>> 32) != 0 && slot != KnownTagCodec.NO_SLOT) {
+        int level = (int) (tagHash & KnownTagCodec.LEVEL_TRACE) << 1; // trace-level: flip bit 3
+        return ((int) (tagHash >>> 48) << 16) | (slot ^ level);
+      }
       int hash = (int) (tagHash >>> 48) ^ (int) tagHash;
       return hash == 0 ? 0xDD06 : hash;
     }
@@ -1502,7 +1515,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   @Deprecated
   @Override
   public Object put(@Nonnull String tag, Object value) {
-    TagMap.Entry entry = this.getAndSet(anyEntryFor(tag, value));
+    // a null value removes the tag, rather than mapping it to null as HashMap would
+    TagMap.Entry entry =
+        value == null ? this.getAndRemove(tag) : this.getAndSet(anyEntryFor(tag, value));
     return entry == null ? null : entry.objectValue();
   }
 
@@ -1556,7 +1571,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return tagId != 0 ? Entry.newDoubleEntry(tagId, value) : Entry.newDoubleEntry(tag, value);
   }
 
-  public void set(@Nonnull String tag, @Nonnull Object value) {
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(@Nonnull String tag, @Nullable Object value) {
+    if (value == null) {
+      this.getAndRemove(tag);
+      return;
+    }
     long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
@@ -1565,7 +1585,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
-  public void set(@Nonnull String tag, @Nonnull CharSequence value) {
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(@Nonnull String tag, @Nullable CharSequence value) {
+    if (value == null) {
+      this.getAndRemove(tag);
+      return;
+    }
     long tagId = KnownTagCodec.keyOf(tag);
     if (tagId != 0) {
       this.set(tagId, value);
@@ -1680,11 +1705,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
-  public void set(long tagId, @Nonnull Object value) {
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(long tagId, @Nullable Object value) {
+    if (value == null) {
+      this.getAndRemove(tagId);
+      return;
+    }
     this.putEntry(Entry.newAnyEntry(tagId, value));
   }
 
-  public void set(long tagId, @Nonnull CharSequence value) {
+  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  public void set(long tagId, @Nullable CharSequence value) {
+    if (value == null) {
+      this.getAndRemove(tagId);
+      return;
+    }
     this.putEntry(Entry.newObjectEntry(tagId, value));
   }
 
@@ -1797,11 +1832,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public Entry getAndSet(@Nonnull String tag, Object value) {
-    return this.getAndSet(anyEntryFor(tag, value));
+    return value == null ? this.getAndRemove(tag) : this.getAndSet(anyEntryFor(tag, value));
   }
 
   public Entry getAndSet(@Nonnull String tag, CharSequence value) {
-    return this.getAndSet(objectEntryFor(tag, value));
+    return value == null ? this.getAndRemove(tag) : this.getAndSet(objectEntryFor(tag, value));
   }
 
   public TagMap.Entry getAndSet(@Nonnull String tag, boolean value) {
