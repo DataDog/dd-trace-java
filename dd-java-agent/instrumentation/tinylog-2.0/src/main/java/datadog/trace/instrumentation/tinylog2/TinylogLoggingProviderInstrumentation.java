@@ -22,6 +22,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.tinylog.core.LogEntry;
 import org.tinylog.core.TinylogLoggingProvider;
+import org.tinylog.writers.Writer;
 
 @AutoService(InstrumenterModule.class)
 public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tracing
@@ -75,9 +76,12 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
   public static class SubmitLogAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
-        @Advice.This TinylogLoggingProvider provider, @Advice.Argument(0) LogEntry event) {
+        @Advice.This TinylogLoggingProvider provider,
+        @Advice.Argument(0) LogEntry event,
+        @Advice.Argument(1) Iterable<Writer> writers) {
       String level = event.getLevel().name();
       if (!AgentlessLogSubmission.isLevelEnabled(level)
+          || !writers.iterator().hasNext()
           || CallDepthThreadLocalMap.incrementCallDepth(AgentlessLogSubmission.class) > 0) {
         return;
       }
