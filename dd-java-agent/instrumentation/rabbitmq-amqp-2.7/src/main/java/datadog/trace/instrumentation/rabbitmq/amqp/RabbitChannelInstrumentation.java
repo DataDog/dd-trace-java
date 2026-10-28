@@ -14,6 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CLIENT_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
@@ -39,6 +40,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.MessageProperties;
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -214,15 +216,19 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       if (TIME_IN_QUEUE_ENABLED) {
         RabbitDecorator.injectTimeInQueueStart(headers);
       }
-      final boolean hasRoutingKey = routingKey != null && !routingKey.isEmpty();
-      DataStreamsTags tags;
-      if (isDefaultExchange && hasRoutingKey) {
-        tags = create("rabbitmq", OUTBOUND, routingKey);
-      } else {
-        tags = createWithExchange("rabbitmq", OUTBOUND, exchange, hasRoutingKey);
+      // With DSM off the DSM propagator injects nothing, so skip building its tags and context.
+      Context context = span;
+      if (traceConfig().isDataStreamsEnabled()) {
+        final boolean hasRoutingKey = routingKey != null && !routingKey.isEmpty();
+        DataStreamsTags tags;
+        if (isDefaultExchange && hasRoutingKey) {
+          tags = create("rabbitmq", OUTBOUND, routingKey);
+        } else {
+          tags = createWithExchange("rabbitmq", OUTBOUND, exchange, hasRoutingKey);
+        }
+        context = span.with(DataStreamsContext.fromTags(tags));
       }
-      DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-      defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
+      defaultPropagator().inject(context, headers, SETTER);
       props =
           new AMQP.BasicProperties(
               props.getContentType(),

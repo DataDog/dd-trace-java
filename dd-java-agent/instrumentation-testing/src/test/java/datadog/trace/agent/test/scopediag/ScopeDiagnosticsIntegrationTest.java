@@ -1,5 +1,6 @@
 package datadog.trace.agent.test.scopediag;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -14,10 +15,21 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.PendingTrace;
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.Instrumentation;
+import java.security.ProtectionDomain;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.agent.ByteBuddyAgent;
+import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.TargetType;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.implementation.FixedValue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -57,6 +69,47 @@ class ScopeDiagnosticsIntegrationTest {
     ScopeDiagnostics.reset();
     if (tracer != null) {
       tracer.close();
+    }
+  }
+
+  @Test
+  void doesNotInstrumentSameNamedClassInIsolatedLoader() {
+    ScopeDiagnostics.startRecording();
+    Instrumentation instrumentation = ByteBuddyAgent.getInstrumentation();
+    AtomicReference<byte[]> observed = new AtomicReference<>();
+    ClassFileTransformer observer =
+        new ClassFileTransformer() {
+          @Override
+          public byte[] transform(
+              ClassLoader loader,
+              String name,
+              Class<?> redefining,
+              ProtectionDomain protectionDomain,
+              byte[] bytes) {
+            if ("datadog/trace/core/scopemanager/ScopeContinuation".equals(name)
+                && loader != ScopeContinuationTransformer.class.getClassLoader()) {
+              observed.set(bytes.clone());
+            }
+            return null;
+          }
+        };
+    instrumentation.addTransformer(observer, true);
+    try {
+      DynamicType.Unloaded<?> duplicate =
+          new ByteBuddy()
+              .subclass(Object.class)
+              .name("datadog.trace.core.scopemanager.ScopeContinuation")
+              .defineMethod("register", TargetType.class, Visibility.PUBLIC)
+              .intercept(FixedValue.self())
+              .make();
+      duplicate.load(null, ClassLoadingStrategy.Default.WRAPPER);
+      assertNotNull(observed.get());
+      assertArrayEquals(
+          duplicate.getBytes(),
+          observed.get(),
+          "Isolated classes must not acquire probe references");
+    } finally {
+      instrumentation.removeTransformer(observer);
     }
   }
 

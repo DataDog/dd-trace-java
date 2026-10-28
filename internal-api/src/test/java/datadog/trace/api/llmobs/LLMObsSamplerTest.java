@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.DDTraceId;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -102,5 +103,12 @@ class LLMObsSamplerTest {
         assertTrue(high.sample(id), "id " + id + " kept at 0.1 but dropped at 0.5");
       }
     }
+  }
+
+  @Test
+  void decideRendersTheVerdictInItsWireForm() {
+    DDTraceId traceId = DDTraceId.from(1234567890123L);
+    assertEquals(LLMObsContext.SAMPLING_DECISION_SAMPLED, new LLMObsSampler(1.0).decide(traceId));
+    assertEquals(LLMObsContext.SAMPLING_DECISION_DROPPED, new LLMObsSampler(0.0).decide(traceId));
   }
 }
