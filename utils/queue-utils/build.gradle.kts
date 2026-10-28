@@ -11,6 +11,11 @@ dependencies {
   api(libs.jctools)
 }
 
+spotbugs {
+  // shortcut: keep 4.10.4 until SpotBugs fixes convergence in inherited JCTools fill methods.
+  toolVersion = libs.versions.spotbugs.queue.utils
+}
+
 // jctools-core-jdk11 contains Java 11 class files; JDK 8 javadoc cannot read them.
 tasks.named<Javadoc>("javadoc") {
   javadocTool.set(
