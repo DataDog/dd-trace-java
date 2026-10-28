@@ -13,7 +13,7 @@ It reads the `ciBuilderImage` Gradle property and adds
 
 For other tasks, declare the input explicitly. The provider returns an empty map locally:
 
-```kotlin
+```Gradle Kotlin DSL
 plugins {
   id("dd-trace-java.ci-builder-inputs")
 }
