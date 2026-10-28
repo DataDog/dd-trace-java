@@ -7,7 +7,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.api.logging.intake.LogsWriter;
-import datadog.trace.api.telemetry.CoreMetricCollector;
+import datadog.trace.api.metrics.LogsIntakeMetrics;
 import datadog.trace.util.AgentThreadFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,15 +23,12 @@ public class LogsWriterImpl implements LogsWriter {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogsWriterImpl.class);
 
   private static final long POLLING_THREAD_SHUTDOWN_TIMEOUT_MILLIS = 5_000;
-  static final String DROPPED_LOGS_METRIC = "logs_dropped";
-  static final String QUEUE_FULL_REASON = "reason:overfull_buffer";
 
   private final Map<String, Object> commonTags;
   private final BackendApiFactory apiFactory;
   private final Intake intake;
   private final BlockingQueue<Map<String, Object>> messageQueue;
   private final Thread messagePollingThread;
-  private final AtomicLong droppedLogs = new AtomicLong();
 
   public LogsWriterImpl(Config config, BackendApiFactory apiFactory, Intake intake) {
     this.apiFactory = apiFactory;
@@ -81,14 +77,9 @@ public class LogsWriterImpl implements LogsWriter {
   public void log(Map<String, Object> message) {
     message.putAll(commonTags);
     if (!messageQueue.offer(message)) {
-      droppedLogs.incrementAndGet();
+      LogsIntakeMetrics.getInstance().onLogDropped();
       LOGGER.debug("Log message queue is full, dropping log message");
     }
-  }
-
-  void reportDroppedLogs() {
-    CoreMetricCollector.getInstance()
-        .count(DROPPED_LOGS_METRIC, droppedLogs.getAndSet(0), QUEUE_FULL_REASON);
   }
 
   private void logPollingLoop() {
@@ -101,7 +92,7 @@ public class LogsWriterImpl implements LogsWriter {
         batch.add(messageQueue.take());
         messageQueue.drainTo(batch);
         logsDispatcher.dispatch(batch);
-        reportDroppedLogs();
+
       } catch (InterruptedException e) {
         break;
       }
@@ -112,6 +103,5 @@ public class LogsWriterImpl implements LogsWriter {
     if (!batch.isEmpty()) {
       logsDispatcher.dispatch(batch);
     }
-    reportDroppedLogs();
   }
 }

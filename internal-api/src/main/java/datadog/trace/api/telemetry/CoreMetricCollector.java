@@ -2,6 +2,7 @@ package datadog.trace.api.telemetry;
 
 import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.api.metrics.CoreCounter;
+import datadog.trace.api.metrics.LogsIntakeMetrics;
 import datadog.trace.api.metrics.SpanMetricRegistryImpl;
 import datadog.trace.api.metrics.SpanMetricsImpl;
 import datadog.trace.api.metrics.StatsMetrics;
@@ -20,6 +21,7 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
   private final SpanMetricRegistryImpl spanMetricRegistry = SpanMetricRegistryImpl.getInstance();
   private final BaggageMetrics baggageMetrics = BaggageMetrics.getInstance();
   private final StatsMetrics statsMetrics = StatsMetrics.getInstance();
+  private final LogsIntakeMetrics logsIntakeMetrics = LogsIntakeMetrics.getInstance();
 
   private final BlockingQueue<CoreMetric> metricsQueue;
 
@@ -64,6 +66,21 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
       if (!this.metricsQueue.offer(metric)) {
         // Stop adding metrics if the queue is full
         break;
+      }
+    }
+
+    LogsIntakeMetrics.TaggedCounter droppedLogs = this.logsIntakeMetrics.getDroppedLogs();
+    if (this.metricsQueue.remainingCapacity() > 0) {
+      long value = droppedLogs.getValueAndReset();
+      if (value > 0) {
+        this.metricsQueue.offer(
+            new CoreMetric(
+                METRIC_NAMESPACE,
+                true,
+                droppedLogs.getName(),
+                "count",
+                value,
+                droppedLogs.getTag()));
       }
     }
 
