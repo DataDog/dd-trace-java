@@ -1,7 +1,8 @@
 package org.example
 
 import cats.effect.IO
-import datadog.trace.api.civisibility.TestAutomationExclusions
+import datadog.trace.api.civisibility.NoAutoRetry
+import datadog.trace.api.civisibility.PreventFailureSuppression
 import weaver._
 
 class NamedExcludedSuite(tag: String) extends SimpleIOSuite {
@@ -12,9 +13,9 @@ class NamedExcludedSuite(tag: String) extends SimpleIOSuite {
   }
 }
 
-object TestAutomationNamed extends NamedExcludedSuite(TestAutomationExclusions.NO_AUTO_RETRY)
+object TestAutomationNamed extends NamedExcludedSuite(NoAutoRetry.TAG)
 
 object TestAutomationProvider extends BaseCatsSuite with BaseSuiteClass {
   def getSuite: EffectSuite[IO] =
-    new NamedExcludedSuite(TestAutomationExclusions.PREVENT_FAILURE_SUPPRESSION)
+    new NamedExcludedSuite(PreventFailureSuppression.TAG)
 }

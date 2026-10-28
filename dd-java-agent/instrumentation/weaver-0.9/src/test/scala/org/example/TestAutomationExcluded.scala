@@ -1,14 +1,15 @@
 package org.example
 
 import cats.effect.IO
-import datadog.trace.api.civisibility.TestAutomationExclusions
+import datadog.trace.api.civisibility.NoAutoRetry
+import datadog.trace.api.civisibility.PreventFailureSuppression
 import weaver._
 
 object TestAutomationExcluded extends SimpleIOSuite {
   private def excluded(name: String): TestName = TestName
     .fromString(name)
-    .tagged(TestAutomationExclusions.NO_AUTO_RETRY)
-    .tagged(TestAutomationExclusions.PREVENT_FAILURE_SUPPRESSION)
+    .tagged(NoAutoRetry.TAG)
+    .tagged(PreventFailureSuppression.TAG)
 
   test(excluded("protected_failure")) {
     IO.pure(expect(false))
