@@ -32,7 +32,7 @@ open class CiBuilderInputsExtension
         providers.provider { null }
       }
 
-    internal fun track(task: Task) {
+    internal fun addTo(task: Task) {
       if (enabled) {
         task.inputs.property("ciBuilderIdentity", identity)
       }

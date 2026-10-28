@@ -6,5 +6,5 @@ import org.gradle.kotlin.dsl.withType
 val ciBuilderInputs = extensions.create<CiBuilderInputsExtension>("ciBuilderInputs")
 
 tasks.withType<Test>().configureEach {
-  ciBuilderInputs.track(this)
+  ciBuilderInputs.addTo(this)
 }
