@@ -36,9 +36,9 @@ import java.util.List;
  * so the buffer holds exactly as much as a single array of the same capacity would. The last chunk
  * is only as long as the remaining capacity, so a small buffer is a single small chunk.
  *
- * <p><b>Small payloads stay small.</b> Chunks can start smaller than {@link #CHUNK_SIZE} and double
- * up to it (see {@link #ChunkedBuffer(int, int)}), so a buffer whose payloads are usually a few KB
- * holds a few KB rather than a whole chunk.
+ * <p><b>Small payloads stay small.</b> Chunks start at {@link #DEFAULT_FIRST_CHUNK_SIZE} and double
+ * up to {@link #CHUNK_SIZE}, so a buffer whose payloads are usually a few KB holds a few KB rather
+ * than a whole chunk. A large payload reaches full-size chunks after about 250 KB.
  *
  * <p><b>Retention.</b> Chunks are allocated on first use. {@link #reset()} keeps the chunks that
  * held completed data plus half of any surplus kept from the previous reset, so after a burst the
@@ -57,6 +57,9 @@ public class ChunkedBuffer {
    * exactly that size.
    */
   public static final int CHUNK_SIZE = 256 * 1024 - 32;
+
+  /** The size of the first chunk unless another is given; later chunks double. */
+  public static final int DEFAULT_FIRST_CHUNK_SIZE = 4 * 1024;
 
   /** Where writes go once the buffer has failed; reused from the start whenever it fills. */
   private static final int SCRATCH_SIZE = 64;
@@ -96,7 +99,7 @@ public class ChunkedBuffer {
    * @param maxBytes the most data the buffer may hold
    */
   public ChunkedBuffer(int maxBytes) {
-    this(maxBytes, CHUNK_SIZE);
+    this(maxBytes, DEFAULT_FIRST_CHUNK_SIZE);
   }
 
   /**
