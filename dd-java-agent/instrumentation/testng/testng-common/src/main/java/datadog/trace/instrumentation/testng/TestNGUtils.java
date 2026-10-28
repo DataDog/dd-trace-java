@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.testng;
 
+import static datadog.trace.api.civisibility.execution.TestAutomationExclusion.NO_AUTO_RETRY;
+
 import datadog.json.JsonWriter;
 import datadog.trace.api.civisibility.config.LibraryCapability;
-import datadog.trace.api.civisibility.config.TestExclusions;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
@@ -77,7 +78,7 @@ public abstract class TestNGUtils {
     if (RetryAnnotationTransformer.hasFrameworkOverride(annotation)) {
       return;
     }
-    if (TestExclusions.noAutoRetry(source, Arrays.asList(method.getGroups()))) {
+    if (NO_AUTO_RETRY.isDeclared(source, Arrays.asList(method.getGroups()))) {
       if (TEST_METHOD_GET_RETRY_ANALYZER_CLASS != null) {
         Class<?> nativeAnalyzer =
             METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER_CLASS, method);
@@ -288,7 +289,7 @@ public abstract class TestNGUtils {
     }
     if (analyzer != null
         && !(analyzer instanceof RetryAnalyzer)
-        && TestExclusions.noAutoRetry(toTestSourceData(result), getGroups(result))) {
+        && NO_AUTO_RETRY.isDeclared(toTestSourceData(result), getGroups(result))) {
       // TestNG invokes its own analyzer. Keep a separate Datadog policy for reporting and
       // quarantine.
       return RetryAnalyzer.forFrameworkMethod(method, toTestIdentifier(result));
