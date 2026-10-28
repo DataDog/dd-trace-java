@@ -1,4 +1,5 @@
 plugins {
+  // Tests load the native profiler selected for the image's libc variant.
   id 'dd-trace-java.ci-builder-inputs'
   id 'dd-trace-java.module.internal-library'
 }
