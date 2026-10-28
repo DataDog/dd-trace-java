@@ -100,6 +100,23 @@ errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = 
 errorprone-gradle-plugin = { module = "net.ltgt.gradle:gradle-errorprone-plugin", version.ref = "errorprone-gradle-plugin" }
 forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbiddenapis" }
 gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "gradle-tooling-api" }
+# Keep legacy JSR-305 contracts until their analysis consumers are migrated.
+# SpotBugs 4.10.5 consumers in analysed production classes:
+# - Nonnull, Nullable, CheckForNull: NP_METHOD_* override checks. Nullable means unknown
+#   nullness; CheckForNull means nullable. FindNullDeref is disabled in the shared convention.
+# - ParametersAreNonnullByDefault: parameter-default nullness metadata.
+# - Nonnegative: CheckTypeQualifiers (TQ_* value-flow warnings).
+# - concurrent.ThreadSafe: raises the priority of FindInconsistentSync2 warnings.
+# - concurrent.NotThreadSafe: skips FindInconsistentSync2 and SharedVariableAtomicityDetector.
+# - concurrent.GuardedBy: only GuardedBy("this") fields affect IS_FIELD_NOT_GUARDED heuristics.
+#   Our named-lock and method uses are not checked by SpotBugs. IntelliJ IDEA also supports
+#   GuardedBy, so absence of a SpotBugs check does not establish documentation-only usage.
+# Local markers need consumer support to preserve these effects; NullAway also reads nullness.
+# SpotBugs annotations and the analyser depend on jsr305 transitively, beyond this direct alias.
+# Track concurrency coverage and dependency removal:
+# https://github.com/jspecify/jspecify/issues/730
+# https://github.com/spotbugs/spotbugs/issues/421
+# https://github.com/spotbugs/spotbugs/issues/3323
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
