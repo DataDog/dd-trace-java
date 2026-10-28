@@ -71,8 +71,8 @@ class SpockTest extends CiVisibilityInstrumentationTest {
 
   def "test automation exclusions preserve data-driven #declarations with attempt to fix #attemptToFix"() {
     given:
-    fixture.executions.set(0, 0)
-    fixture.executions.set(1, 0)
+    fixture.EXECUTIONS.set(0, 0)
+    fixture.EXECUTIONS.set(1, 0)
     def names = ["protected_failure #row", "protected_failure 0", "protected_failure 1"]
     def ids = names.collect { new TestFQN(fixture.name, it) }
     givenDisabledTests(ids)
@@ -87,8 +87,8 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     runTests([fixture], false)
 
     then:
-    fixture.executions.get(0) == 1
-    fixture.executions.get(1) == 1
+    fixture.EXECUTIONS.get(0) == 1
+    fixture.EXECUTIONS.get(1) == 1
     def spans = TEST_WRITER.toList().flatten().findAll {
       it.getTag("test.suite") == fixture.name && it.getTag("test.name") in names.tail()
     }
