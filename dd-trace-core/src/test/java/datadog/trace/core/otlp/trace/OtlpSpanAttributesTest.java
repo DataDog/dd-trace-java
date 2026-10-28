@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
  */
 @WithConfig(key = GeneralConfig.TAGS, value = "team:core,region:us1")
 @WithConfig(key = TracerConfig.SPAN_TAGS, value = "owner:alice,tier:gold")
-class OtlpSpanTagsTest {
+class OtlpSpanAttributesTest {
 
   private CoreTracer tracer;
 

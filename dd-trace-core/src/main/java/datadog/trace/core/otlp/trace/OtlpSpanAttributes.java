@@ -13,12 +13,19 @@ import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.function.TriConsumer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.Metadata;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
-/** Span attribute keys shared by the OTLP protobuf and JSON trace writers. */
+/**
+ * Span attributes shared by the OTLP protobuf and JSON trace writers: the keys and baggage rules
+ * they use, and a {@link Writer} for the tags a span carries as attributes.
+ */
 final class OtlpSpanAttributes {
 
   static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
@@ -88,6 +95,66 @@ final class OtlpSpanAttributes {
   /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
   private static UTF8BytesString otelKey(long tagId) {
     return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
+  }
+
+  /**
+   * Writes the tags an OTLP span carries as attributes: the span's direct tags, plus the span
+   * defaults ({@code DD_TRACE_SPAN_TAGS}, {@code env}, ...) it doesn't set itself. The global tags
+   * are left to the resource, which carries them once per payload.
+   *
+   * <p>A span default is only written while the span still carries it: one the span removed, or
+   * that interception consumed into a span field (such as {@code resource.name}), is skipped. When
+   * the tracer tags need interception they're copied into each span, so global tags then also
+   * appear on the span, as before.
+   *
+   * <p>Not thread-safe: each writer owns one.
+   */
+  static final class Writer<T> {
+    private final T target;
+    private final TriConsumer<T, Integer, TagMap.EntryReader> tagWriter;
+
+    // per-span state
+    private Integer direction;
+    private TagMap spanTags;
+    private TagMap spanDefaultTags;
+    private final List<String> overriddenDefaults = new ArrayList<>(4);
+
+    Writer(T target, TriConsumer<T, Integer, TagMap.EntryReader> tagWriter) {
+      this.target = target;
+      this.tagWriter = tagWriter;
+    }
+
+    /** Writes the span's attribute tags, naming them for the span's {@code direction}. */
+    void write(Metadata metadata, Integer direction) {
+      this.direction = direction;
+      this.spanTags = metadata.getTags();
+      this.spanDefaultTags = metadata.getSpanDefaultTags();
+      try {
+        spanTags.forEachLocal(this, Writer::writeDirectTag);
+        if (!spanDefaultTags.isEmpty()) {
+          spanDefaultTags.forEach(this, Writer::writeDefaultTag);
+        }
+      } finally {
+        this.spanTags = null;
+        this.spanDefaultTags = null;
+        overriddenDefaults.clear();
+      }
+    }
+
+    private void writeDirectTag(TagMap.EntryReader entry) {
+      if (!spanDefaultTags.isEmpty() && spanDefaultTags.containsKey(entry.tag())) {
+        overriddenDefaults.add(entry.tag());
+      }
+      tagWriter.accept(target, direction, entry);
+    }
+
+    private void writeDefaultTag(TagMap.EntryReader entry) {
+      // skip defaults the span set itself, or no longer carries (removed, or consumed by
+      // interception)
+      if (!overriddenDefaults.contains(entry.tag()) && spanTags.getEntry(entry.tag()) != null) {
+        tagWriter.accept(target, direction, entry);
+      }
+    }
   }
 
   private OtlpSpanAttributes() {}
