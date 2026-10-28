@@ -99,7 +99,6 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
   }
 
-
   def "test #testcaseName"() {
     runTests(tests, success)
 
