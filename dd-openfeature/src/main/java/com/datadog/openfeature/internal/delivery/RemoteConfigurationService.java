@@ -25,6 +25,7 @@ public final class RemoteConfigurationService implements ConfigurationService {
     if (this.subscription != null) {
       return;
     }
+    LOGGER.debug("Feature Flags subscribing to Remote Configuration");
     this.subscription =
         this.source.subscribe(
             content -> {
@@ -36,7 +37,10 @@ public final class RemoteConfigurationService implements ConfigurationService {
               try {
                 configuration = UniversalFlagConfigParser.parse(content);
               } catch (final IOException | RuntimeException e) {
-                LOGGER.debug("Remote Configuration returned a malformed flag configuration", e);
+                LOGGER.debug(
+                    "Remote Configuration returned a malformed flag configuration ({}); retaining the current configuration",
+                    e.getClass().getSimpleName(),
+                    e);
                 return;
               }
               if (configuration != null) {

@@ -42,9 +42,9 @@ jobs:
             if (labelsCheckFailed) {
               core.setFailed('Please add at least one type, and one component or instrumentation label to the pull request.')
             }
-            // Check title does not contain tags other than a leading APM ticket
+            // Check title does not contain tag
             const title = context.payload.pull_request.title
-            const titleCheckFailed = title.replace(/^(?:🍒 \d+ - )?\[APM[A-Z]*-\d+\]\s+/, '').match(/\[.*\]/)
+            const titleCheckFailed = title.match(/\[.*\]/)
             if (titleCheckFailed) {
               core.setFailed('Please remove the tag from the pull request title.')
             }

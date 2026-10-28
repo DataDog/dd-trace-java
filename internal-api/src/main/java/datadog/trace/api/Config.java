@@ -89,8 +89,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -377,6 +375,9 @@ import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_DETECTION_INCL
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_EXCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_SHADING_IDENTIFIERS;
+import static datadog.trace.api.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL;
@@ -746,12 +747,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
@@ -1256,10 +1251,6 @@ public class Config {
   private final String remoteConfigTargetsKey;
 
   private final int remoteConfigMaxExtraServices;
-
-  private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
-  private final int featureFlaggingConfigurationSourcePollIntervalSeconds;
-  private final int featureFlaggingConfigurationSourceRequestTimeoutSeconds;
 
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
@@ -3002,35 +2993,6 @@ public class Config {
           "Unsupported Feature Flagging configuration source; provider disabled: '{}'",
           configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE));
     }
-    featureFlaggingConfigurationSourceAgentlessBaseUrl =
-        configProvider.getStringNotEmpty(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
-    int configuredFeatureFlaggingPollIntervalSeconds =
-        configProvider.getInteger(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
-            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS);
-    if (configuredFeatureFlaggingPollIntervalSeconds <= 0) {
-      log.warn(
-          "Invalid Feature Flagging agentless poll interval: {}. The value must be positive",
-          configuredFeatureFlaggingPollIntervalSeconds);
-      configuredFeatureFlaggingPollIntervalSeconds =
-          DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
-    }
-    featureFlaggingConfigurationSourcePollIntervalSeconds =
-        configuredFeatureFlaggingPollIntervalSeconds;
-    int configuredFeatureFlaggingRequestTimeoutSeconds =
-        configProvider.getInteger(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS,
-            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
-    if (configuredFeatureFlaggingRequestTimeoutSeconds <= 0) {
-      log.warn(
-          "Invalid Feature Flagging agentless request timeout: {}. The value must be positive",
-          configuredFeatureFlaggingRequestTimeoutSeconds);
-      configuredFeatureFlaggingRequestTimeoutSeconds =
-          DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
-    }
-    featureFlaggingConfigurationSourceRequestTimeoutSeconds =
-        configuredFeatureFlaggingRequestTimeoutSeconds;
 
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
@@ -4969,21 +4931,8 @@ public class Config {
     return instrumenterConfig.isFeatureFlaggingEnabled();
   }
 
-  public String getFeatureFlaggingConfigurationSource() {
-    final FeatureFlaggingSource source = instrumenterConfig.getFeatureFlaggingConfigurationSource();
-    return source == FeatureFlaggingSource.UNSET ? null : source.name().toLowerCase(Locale.ROOT);
-  }
-
-  public String getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() {
-    return featureFlaggingConfigurationSourceAgentlessBaseUrl;
-  }
-
-  public int getFeatureFlaggingConfigurationSourcePollIntervalSeconds() {
-    return featureFlaggingConfigurationSourcePollIntervalSeconds;
-  }
-
-  public int getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds() {
-    return featureFlaggingConfigurationSourceRequestTimeoutSeconds;
+  public FeatureFlaggingSource getFeatureFlaggingConfigurationSource() {
+    return instrumenterConfig.getFeatureFlaggingConfigurationSource();
   }
 
   public boolean isDynamicInstrumentationEnabled() {
@@ -6964,12 +6913,6 @@ public class Config {
         + isFeatureFlaggingProviderEnabled()
         + ", featureFlaggingConfigurationSource="
         + getFeatureFlaggingConfigurationSource()
-        + ", featureFlaggingConfigurationSourceAgentlessBaseUrl="
-        + featureFlaggingConfigurationSourceAgentlessBaseUrl
-        + ", featureFlaggingConfigurationSourcePollIntervalSeconds="
-        + featureFlaggingConfigurationSourcePollIntervalSeconds
-        + ", featureFlaggingConfigurationSourceRequestTimeoutSeconds="
-        + featureFlaggingConfigurationSourceRequestTimeoutSeconds
         + ", debuggerEnabled="
         + dynamicInstrumentationEnabled
         + ", debuggerUploadTimeout="

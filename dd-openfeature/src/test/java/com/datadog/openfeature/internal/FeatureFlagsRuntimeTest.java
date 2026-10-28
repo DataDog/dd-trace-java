@@ -1,6 +1,7 @@
 package com.datadog.openfeature.internal;
 
 import static java.util.Collections.emptyMap;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,13 +23,21 @@ import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
+import com.datadog.openfeature.testlog.CapturingServiceProvider;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 class FeatureFlagsRuntimeTest {
   private static final byte[] EMPTY_UFC =
@@ -136,6 +145,136 @@ class FeatureFlagsRuntimeTest {
       runtime.stop();
     }
     assertTrue(source.closed);
+  }
+
+  @AfterEach
+  void resetCapturedLogs() {
+    CapturingServiceProvider.reset();
+  }
+
+  @Test
+  void stoppingDoesNotDependOnTheLoggingBackend() {
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
+    CapturingServiceProvider.failOn("Feature Flags runtime stopped");
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(source, null),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    runtime.start();
+
+    assertThrows(IllegalStateException.class, runtime::stop);
+
+    assertTrue(source.closed);
+  }
+
+  @Test
+  void appliesConfigurationsWhenTheirLogFails() {
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
+    CapturingServiceProvider.failOn("Feature Flags configuration");
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(source, null),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final List<ServerConfiguration> received = new CopyOnWriteArrayList<>();
+    runtime.addConfigurationListener(received::add);
+    runtime.start();
+    try {
+      assertThrows(IllegalStateException.class, () -> source.listener.accept(EMPTY_UFC));
+      assertEquals(1, received.size(), "The listener must not wait for the log");
+      assertThrows(IllegalStateException.class, () -> source.listener.accept(null));
+      assertEquals(2, received.size(), "The removal must not wait for the log");
+      assertNull(received.get(1));
+
+      final List<ServerConfiguration> late = new CopyOnWriteArrayList<>();
+      runtime.addConfigurationListener(late::add);
+      assertTrue(late.isEmpty(), "The removed configuration is still the current one");
+    } finally {
+      CapturingServiceProvider.reset();
+      runtime.stop();
+    }
+  }
+
+  @Test
+  void reportsAppliedAndRemovedConfigurations() {
+    CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(source, null),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    runtime.start();
+    try {
+      source.listener.accept(EMPTY_UFC);
+      source.listener.accept(null);
+    } finally {
+      runtime.stop();
+    }
+
+    final List<String> messages =
+        CapturingServiceProvider.events().stream().map(e -> e.message).collect(Collectors.toList());
+    assertTrue(
+        messages.contains(
+            "Feature Flags configuration applied: flags=0, invalidFlags=0, configurationEnv=Test, createdAt=null"),
+        messages.toString());
+    assertTrue(messages.contains("Feature Flags configuration removed"), messages.toString());
+    assertTrue(messages.contains("Feature Flags runtime stopped"), messages.toString());
+  }
+
+  @Test
+  void concurrentRemovalIsDeliveredAfterTheInitialReplay() throws Exception {
+    final TestConfigurationSource source = new TestConfigurationSource();
+    final FeatureFlagsRuntime runtime =
+        FeatureFlagsRuntime.create(
+            new TestAgentBridge(source, null),
+            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    runtime.start();
+    source.listener.accept(EMPTY_UFC);
+    final List<ServerConfiguration> received = new CopyOnWriteArrayList<>();
+    final CountDownLatch replayStarted = new CountDownLatch(1);
+    final CountDownLatch finishReplay = new CountDownLatch(1);
+    final CountDownLatch removalStarted = new CountDownLatch(1);
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<?> registration =
+          executor.submit(
+              () ->
+                  runtime.addConfigurationListener(
+                      configuration -> {
+                        if (configuration != null) {
+                          replayStarted.countDown();
+                          try {
+                            assertTrue(finishReplay.await(5, SECONDS));
+                          } catch (final InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new AssertionError(e);
+                          }
+                        }
+                        received.add(configuration);
+                      }));
+      assertTrue(replayStarted.await(5, SECONDS));
+      final Future<?> removal =
+          executor.submit(
+              () -> {
+                removalStarted.countDown();
+                source.listener.accept(null);
+              });
+      assertTrue(removalStarted.await(5, SECONDS));
+      assertThrows(TimeoutException.class, () -> removal.get(100, MILLISECONDS));
+
+      finishReplay.countDown();
+      registration.get(5, SECONDS);
+      removal.get(5, SECONDS);
+
+      assertEquals(2, received.size());
+      assertEquals("Test", received.get(0).environment.name);
+      assertNull(received.get(1));
+    } finally {
+      finishReplay.countDown();
+      executor.shutdownNow();
+      runtime.stop();
+    }
   }
 
   @Test

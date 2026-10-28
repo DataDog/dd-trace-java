@@ -47,16 +47,22 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final Map<String, Object> hints) {
     try {
       if (details == null || details.getErrorCode() != null) {
+        log.trace("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
         return;
       }
       final ImmutableMetadata metadata = details.getFlagMetadata();
       if (metadata == null) {
+        log.trace("Feature Flagging exposure suppressed: metadata unavailable");
         return;
       }
       // The ImmutableMetadata getters build a debug message for every absent key.
       final Map<String, Object> values = metadata.asUnmodifiableMap();
-      if (!Boolean.TRUE.equals(values.get(DO_LOG))
-          || !Boolean.FALSE.equals(values.get(EXPOSURE_CACHE_HIT))) {
+      if (!Boolean.TRUE.equals(values.get(DO_LOG))) {
+        log.trace("Feature Flagging exposure suppressed: allocation does not log exposures");
+        return;
+      }
+      if (!Boolean.FALSE.equals(values.get(EXPOSURE_CACHE_HIT))) {
+        log.trace("Feature Flagging exposure suppressed: exposure already recorded");
         return;
       }
       final Object allocationValue = values.get(ALLOCATION_KEY);
@@ -65,11 +71,14 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final String variantKey = details.getVariant();
       final EvaluationContext context = ctx == null ? null : ctx.getCtx();
       if (allocationKey == null || variantKey == null || context == null) {
+        log.trace(
+            "Feature Flagging exposure suppressed: allocation, variant, or context unavailable");
         return;
       }
       final DDEvaluator evaluator = this.evaluatorSupplier.get();
       final ExposureDeduplicationCache cache = evaluator == null ? null : evaluator.exposureCache();
       if (cache == null) {
+        log.trace("Feature Flagging exposure suppressed: provider not initialized");
         return;
       }
       final String flag = details.getFlagKey();
@@ -77,9 +86,12 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final Integer serialId = serialValue instanceof Integer ? (Integer) serialValue : null;
       // The exposure is recorded even when it is not sent, so exposure hooks get the same
       // decisions whether or not exposures go to Datadog.
-      if (cache.recordIfChanged(
-              flag, context.getTargetingKey(), allocationKey, variantKey, serialId)
-          && evaluator.isExposureDeliveryEnabled()) {
+      if (!cache.recordIfChanged(
+          flag, context.getTargetingKey(), allocationKey, variantKey, serialId)) {
+        log.trace("Feature Flagging exposure suppressed: exposure already recorded");
+      } else if (!evaluator.isExposureDeliveryEnabled()) {
+        log.trace("Feature Flagging exposure suppressed: Datadog exposure delivery is disabled");
+      } else {
         evaluator.recordExposure(
             DDEvaluator.exposureEvent(
                 flag,

@@ -598,8 +598,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       return null
     }
     try {
-      ScopeDiagnostics.awaitQuiescence()
-      ScopeDiagnostics.stop()
+      ScopeDiagnostics.stopAfterQuiescence()
       def report = ScopeDiagnostics.report()
       if (report.hasFindings()) {
         if (phase != null) {

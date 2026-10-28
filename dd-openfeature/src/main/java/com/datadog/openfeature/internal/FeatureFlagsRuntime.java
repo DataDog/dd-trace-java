@@ -17,6 +17,7 @@ import com.datadog.openfeature.internal.exposure.ExposurePipeline;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationPipeline;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -99,6 +100,7 @@ public final class FeatureFlagsRuntime {
       throw new IllegalStateException("Feature Flags is disabled");
     }
     final boolean remoteConfig = CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(sourceName);
+    LOGGER.debug("Feature Flags runtime starting: configurationSource={}", sourceName);
     final RuntimeServices services = new RuntimeServices(bridge.healthMetrics());
     final ConfigurationService source;
     final EventTransport transport;
@@ -149,6 +151,11 @@ public final class FeatureFlagsRuntime {
                 context,
                 services)
             : null;
+    LOGGER.debug(
+        "Feature Flags event delivery: transport={}, exposures={}, evaluationCounts={}",
+        transport.getClass().getSimpleName(),
+        exposures != null ? "enabled" : "disabled",
+        evaluations != null ? "enabled" : "disabled");
     return new FeatureFlagsRuntime(source, exposures, evaluations);
   }
 
@@ -255,16 +262,34 @@ public final class FeatureFlagsRuntime {
     if (this.exposures != null) {
       this.exposures.awaitTermination(deadline);
     }
+    // Logged last: a diagnostic must not get in the way of the cleanup.
+    LOGGER.debug("Feature Flags runtime stopped");
   }
 
   private void onConfiguration(@Nullable final ServerConfiguration configuration) {
-    this.configuration = configuration;
-    for (final Consumer<ServerConfiguration> listener : this.listeners) {
+    final Iterator<Consumer<ServerConfiguration>> snapshot;
+    synchronized (this.listeners) {
+      this.configuration = configuration;
+      snapshot = this.listeners.iterator();
+    }
+    while (snapshot.hasNext()) {
+      final Consumer<ServerConfiguration> listener = snapshot.next();
       try {
         listener.accept(configuration);
       } catch (final RuntimeException e) {
         LOGGER.warn("Feature Flags configuration listener failed", e);
       }
+    }
+    // Logged last: a diagnostic must not keep the configuration from being applied.
+    if (configuration == null) {
+      LOGGER.debug("Feature Flags configuration removed");
+    } else if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(
+          "Feature Flags configuration applied: flags={}, invalidFlags={}, configurationEnv={}, createdAt={}",
+          configuration.flags == null ? "missing" : configuration.flags.size(),
+          configuration.invalidFlags == null ? 0 : configuration.invalidFlags.size(),
+          configuration.environment == null ? null : configuration.environment.name,
+          configuration.createdAt);
     }
   }
 
@@ -274,10 +299,13 @@ public final class FeatureFlagsRuntime {
    * @param listener the listener to add.
    */
   public void addConfigurationListener(final Consumer<ServerConfiguration> listener) {
-    this.listeners.add(listener);
-    final ServerConfiguration current = this.configuration;
-    if (current != null) {
-      listener.accept(current);
+    // Keep registration and replay atomic with notification snapshots.
+    synchronized (this.listeners) {
+      this.listeners.add(listener);
+      final ServerConfiguration current = this.configuration;
+      if (current != null) {
+        listener.accept(current);
+      }
     }
   }
 
