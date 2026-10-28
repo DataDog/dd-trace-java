@@ -44,7 +44,6 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
   }
 
-
   def "test automation exclusions preserve explicit framework retries"() {
     given:
     TestExplicitRetryExcluded.executions = 0

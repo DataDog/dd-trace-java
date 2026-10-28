@@ -15,10 +15,12 @@ import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.lang.reflect.Method;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
+import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.Reporter;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
+import org.testng.internal.ConstructorOrMethod;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
@@ -61,9 +63,11 @@ public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
         @Advice.Argument(2) final Object[] parameters) {
       TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(method, instance, parameters);
       ITestResult invocation = Reporter.getCurrentTestResult();
+      ITestNGMethod invocationMethod = invocation != null ? invocation.getMethod() : null;
+      ConstructorOrMethod constructorOrMethod =
+          invocationMethod != null ? invocationMethod.getConstructorOrMethod() : null;
       List<String> groups =
-          invocation != null
-                  && method.equals(TestNGUtils.toTestSourceData(invocation).getTestMethod())
+          constructorOrMethod != null && method.equals(constructorOrMethod.getMethod())
               ? TestNGUtils.getGroups(invocation)
               : TestNGUtils.getGroups(method);
       SkipReason skipReason =
