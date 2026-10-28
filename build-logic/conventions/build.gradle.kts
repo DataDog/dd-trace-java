@@ -1,17 +1,5 @@
 plugins {
   `kotlin-dsl`
-  `jvm-test-suite`
-}
-
-testing {
-  suites {
-    named<JvmTestSuite>("test") {
-      useJUnitJupiter(libs.versions.junit5)
-      dependencies {
-        implementation(gradleTestKit())
-      }
-    }
-  }
 }
 
 java {
