@@ -43,8 +43,18 @@ public class SpockUtils {
         SpockUtils::toTestIdentifier,
         SpockUtils::toTestSourceData,
         SpockUtils::shouldBeTraced);
+    TestDataFactory.registerTags(JUnitPlatformUtils.ENGINE_ID_SPOCK, SpockUtils::getTestTags);
     RetryDescriptorFactories.register(
         JUnitPlatformUtils.ENGINE_ID_SPOCK, new SpockRetryDescriptorFactory());
+  }
+
+  private static Collection<TestTag> getTestTags(TestDescriptor testDescriptor) {
+    if (testDescriptor instanceof SpockNode
+        && ((SpockNode<?>) testDescriptor).getNodeInfo() instanceof FeatureInfo) {
+      // IterationNode retains its feature metadata but does not expose its tags through getTags().
+      return getTags((SpockNode<?>) testDescriptor);
+    }
+    return testDescriptor.getTags();
   }
 
   /*
