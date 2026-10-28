@@ -1,0 +1,79 @@
+name: Requeue Datadog Merge Queue
+
+on:
+  check_run:
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  requeue_datadog_merge_queue:
+    name: Requeue merge queue rejection
+    if: >-
+      vars.MQ_REQUEUE_MODE != 'off' &&
+      github.event.check_run.name == 'devflow/merge' &&
+      github.event.check_run.conclusion == 'action_required' &&
+      (contains(github.event.check_run.output.title, 'contains failing jobs') ||
+       contains(github.event.check_run.output.title, 'has timeout') ||
+       contains(github.event.check_run.output.title, 'pipeline failed'))
+    runs-on: ubuntu-latest
+    concurrency: requeue-datadog-merge-queue-${{ github.event.check_run.head_sha }}
+    permissions:
+      id-token: write # required for OIDC token federation
+    steps:
+      - name: Get OIDC token
+        uses: DataDog/dd-octo-sts-action@c85802a58e202b7e764b5441e4378c76043c8108 # v1.0.5
+        id: octo-sts
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.requeue-datadog-merge-queue.comment-pr
+      - name: Post /merge comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 9.0.0
+        env:
+          MODE: ${{ vars.MQ_REQUEUE_MODE }}
+        with:
+          github-token: ${{ steps.octo-sts.outputs.token }}
+          script: |
+            const MAX_AUTO_REQUEUES = 1;
+            const { owner, repo } = context.repo;
+            const sha = context.payload.check_run.head_sha;
+
+            // Find the open pull request whose head is the rejected commit
+            let numbers = (await github.rest.repos.listPullRequestsAssociatedWithCommit({ owner, repo, commit_sha: sha }))
+              .data.map(p => p.number);
+            if (numbers.length === 0) {
+              // Commits from fork pull requests are not associated, fall back to search
+              numbers = (await github.rest.search.issuesAndPullRequests({ q: `repo:${owner}/${repo} is:pr is:open ${sha}` }))
+                .data.items.map(i => i.number);
+            }
+            let pr;
+            for (const number of numbers) {
+              const { data } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+              if (data.state === 'open' && !data.draft && data.head.sha === sha) {
+                pr = data;
+                break;
+              }
+            }
+            if (!pr) {
+              return core.info(`No open pull request with head ${sha}, skipping`);
+            }
+
+            // Only replay a plain /merge, never forced merges or cancellations
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pr.number, per_page: 100 });
+            const lastCommand = comments.map(c => c.body.trim().split('\n')[0].trim()).filter(l => /^\/merge\b/.test(l)).pop();
+            if (lastCommand !== '/merge') {
+              return core.info(`#${pr.number}: last merge command is "${lastCommand}", skipping`);
+            }
+
+            // Each merge queue attempt creates a new check run on the head commit
+            const runs = await github.paginate(github.rest.checks.listForRef, { owner, repo, ref: sha, check_name: 'devflow/merge', filter: 'all', per_page: 100 });
+            const rejections = runs.filter(r => r.conclusion === 'action_required').length;
+            if (rejections > MAX_AUTO_REQUEUES) {
+              return core.info(`#${pr.number}: ${rejections} rejections on ${sha}, leaving it to a human`);
+            }
+
+            if (process.env.MODE !== 'live') {
+              return core.info(`[dry-run] Would post /merge on #${pr.number} (${rejections} rejection(s) on ${sha})`);
+            }
+            await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body: '/merge' });
+            core.info(`Posted /merge on #${pr.number}`);

@@ -53,6 +53,18 @@ _Actions:_
 _Recovery:_ The workflow is expected to fail to block GitHub merge queue.
 This redirects GitHub's "Merge when ready" button to the Datadog merge queue system.
 
+### requeue-datadog-merge-queue [🔗](requeue-datadog-merge-queue.yaml)
+
+_Trigger:_ When the Datadog merge queue rejects a pull request because of a failing, failed, or timed out build pipeline (`devflow/merge` check run completed with `action_required`).
+
+_Actions:_
+
+* Post a `/merge` comment to add the pull request back to the Datadog merge queue,
+* Skip pull requests that are draft, whose last merge command was not a plain `/merge`, or already requeued once for the same commit.
+
+_Recovery:_ Post a `/merge` comment manually, or a `/merge -c` comment to cancel an unwanted requeue.
+Set the `MQ_REQUEUE_MODE` repository variable to `off` to disable the workflow, `dry-run` to only log decisions, or `live` to post comments.
+
 ### create-release-branch [🔗](create-release-branch.yaml)
 
 _Trigger:_ When a git tag matching the pattern "vM.N.0" is pushed (e.g. for a minor release).
