@@ -131,6 +131,60 @@ class RemoteConfigServiceImplTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void requestsADocumentReceivedBeforeAnySubscriberAgainWhenRejected() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.start();
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+
+    service.subscribe(
+        content -> {
+          throw new IllegalArgumentException("malformed");
+        });
+    service.subscribe(
+        content -> {
+          throw new IllegalArgumentException("malformed");
+        });
+
+    verify(poller, times(1)).removeListeners(Product.FFE_FLAGS);
+    verify(poller, times(2))
+        .addListener(eq(Product.FFE_FLAGS), any(ConfigurationDeserializer.class), eq(service));
+  }
+
+  @Test
+  void keepsADocumentReceivedBeforeAnySubscriberWhenAccepted() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.start();
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+
+    service.subscribe(content -> {});
+
+    verify(poller, never()).removeListeners(any());
+  }
+
+  @Test
+  void doesNotRequestAgainADocumentAlreadyRejectedOnDelivery() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.subscribe(
+        content -> {
+          throw new IllegalArgumentException("malformed");
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
+
+    service.subscribe(
+        content -> {
+          throw new IllegalArgumentException("malformed");
+        });
+
+    verify(poller, never()).removeListeners(any());
+  }
+
+  @Test
   void replaysTheCurrentDocumentToLateSubscribers() {
     final RemoteConfigServiceImpl service =
         new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
