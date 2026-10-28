@@ -147,23 +147,16 @@ independent review.
 
 For each changed method, decide *which multiplier applies* before flagging anything.
 
-**Pre-existing code the diff carries into a new context is in scope.** Leave unchanged
-lines alone unless the diff changes what they cost: they now run more often, under a new
-lock, on a different thread, or ahead of a new branch that makes them run more often.
-Then flag them as *carried in by this change* (see `checks.md` § Posture). Example: a
-change that moves an existing per-trace string concatenation inside a new `synchronized`
-block on the sampling path.
+**Unchanged code is in scope if the diff changes what it costs** — it now runs more often,
+under a new lock, or on the application thread. Flag it as *carried in by this change*
+(see `checks.md` § Posture).
 
 **Hot anchors** (reachable ⇒ assume hot): `@Advice.OnMethodEnter`/`OnMethodExit`,
 per-span / per-trace callbacks, request / message handlers, streaming chunk handlers.
 **Hot-path map** (where cost is multiplied per-span × spans/request × requests/sec):
 span lifecycle (create / setTag / finish), tag-map ops, serialization/encoding, the
 metrics/stats path, decorators, propagation (header read/write).
-**Propagation and header paths are exceptionally hot: bump severity one notch.** This
-includes the propagation state updated on every trace even when no header is written
-(propagation tags at span start, trace-id formatting, the sampling decision's
-bookkeeping). Eager work for an optional format (W3C/OTel tracestate, hex ids) belongs at
-inject/export time (see `checks.md` § Hot-path map).
+**Propagation and header paths: bump severity one notch** (see `checks.md` § Hot-path map).
 
 **Cold only with positive evidence:** one-time init, startup-only path, a genuinely
 rare error branch, or behind a guard that provably fires rarely. Watch the
