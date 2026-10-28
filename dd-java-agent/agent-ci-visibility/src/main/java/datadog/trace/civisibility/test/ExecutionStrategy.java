@@ -1,8 +1,10 @@
 package datadog.trace.civisibility.test;
 
+import static datadog.trace.api.civisibility.execution.TestAutomationExclusion.NO_AUTO_RETRY;
+import static datadog.trace.api.civisibility.execution.TestAutomationExclusion.PREVENT_FAILURE_SUPPRESSION;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.api.civisibility.config.TestExclusions;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -96,6 +98,7 @@ public class ExecutionStrategy {
     return skipReason(test, TestSourceData.UNKNOWN, Collections.emptyList());
   }
 
+  @Nullable
   public SkipReason skipReason(
       TestIdentifier test, TestSourceData source, Collection<String> tags) {
     if (test == null) {
@@ -103,11 +106,11 @@ public class ExecutionStrategy {
     }
 
     // test should not be skipped if it is an attempt to fix, independent of TIA or Disabled
-    if (isAttemptToFix(test) && !TestExclusions.noAutoRetry(source, tags)) {
+    if (isAttemptToFix(test) && !NO_AUTO_RETRY.isDeclared(source, tags)) {
       return null;
     }
 
-    if (isDisabled(test) && !TestExclusions.preventFailureSuppression(source, tags)) {
+    if (isDisabled(test) && !PREVENT_FAILURE_SUPPRESSION.isDeclared(source, tags)) {
       return SkipReason.DISABLED;
     }
 
@@ -133,9 +136,9 @@ public class ExecutionStrategy {
       return Regular.INSTANCE;
     }
 
-    boolean noAutoRetry = TestExclusions.noAutoRetry(testSource, testTags);
+    boolean noAutoRetry = NO_AUTO_RETRY.isDeclared(testSource, testTags);
     boolean quarantined =
-        isQuarantined(test) && !TestExclusions.preventFailureSuppression(testSource, testTags);
+        isQuarantined(test) && !PREVENT_FAILURE_SUPPRESSION.isDeclared(testSource, testTags);
     if (isAttemptToFix(test) && !noAutoRetry) {
       return new AttemptToFix(
           executionSettings.getTestManagementSettings().getAttemptToFixRetries());

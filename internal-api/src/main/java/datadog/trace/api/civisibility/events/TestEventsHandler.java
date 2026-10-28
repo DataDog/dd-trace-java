@@ -107,10 +107,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   @Nullable
   SkipReason skipReason(TestIdentifier test);
 
-  default SkipReason skipReason(
-      TestIdentifier test, TestSourceData source, Collection<String> tags) {
-    return skipReason(test);
-  }
+  @Nullable
+  SkipReason skipReason(TestIdentifier test, TestSourceData source, Collection<String> tags);
 
   @Override
   void close();
