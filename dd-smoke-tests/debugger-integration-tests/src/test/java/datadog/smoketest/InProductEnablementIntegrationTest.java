@@ -1,7 +1,6 @@
 package datadog.smoketest;
 
 import com.datadog.debugger.probe.LogProbe;
-import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.io.IOException;
 import okhttp3.mockwebserver.MockResponse;
@@ -53,7 +52,6 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     waitForReTransformation(appUrl); // wait for retransformation of removed probe
   }
 
-  @Flaky
   @Test
   @DisplayName("testDynamicInstrumentationEnablementWithLineProbe")
   void testDynamicInstrumentationEnablementWithLineProbe() throws Exception {
@@ -113,7 +111,6 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   // TODO test for failure of starting ER, SymDB and DI: should degrade gracefully
   // TODO by not providing endpoints
 
-  @Flaky
   @Test
   @DisplayName("testExceptionReplayEnablementFailure")
   @EnabledForJreRange(min = JRE.JAVA_11)
