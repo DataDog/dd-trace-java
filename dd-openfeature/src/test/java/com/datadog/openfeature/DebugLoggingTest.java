@@ -27,9 +27,11 @@ import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
 import dev.openfeature.sdk.HookContext;
+import dev.openfeature.sdk.ImmutableContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.MutableStructure;
 import dev.openfeature.sdk.OpenFeatureAPI;
+import dev.openfeature.sdk.Structure;
 import dev.openfeature.sdk.Value;
 import java.time.Duration;
 import java.util.AbstractList;
@@ -187,7 +189,7 @@ class DebugLoggingTest {
   @Test
   void containsAFailureToFormatTheEvaluation() {
     final EvaluationContext failing = mock(EvaluationContext.class);
-    when(failing.keySet()).thenThrow(new IllegalStateException("cannot render"));
+    when(failing.asUnmodifiableMap()).thenThrow(new IllegalStateException("cannot render"));
     final HookContext<Object> hookContext =
         HookContext.<Object>builder()
             .flagKey("flag")
@@ -395,6 +397,35 @@ class DebugLoggingTest {
 
     assertTrue(message.contains("...(truncated)"), message);
     assertTrue(message.length() < 2_000, "Logged " + message.length() + " characters");
+  }
+
+  @Test
+  void rendersAWideImmutableContextWithinTheBudget() {
+    final Map<String, Value> attributes = new HashMap<>();
+    for (int i = 0; i < 20_000; i++) {
+      attributes.put("attribute-" + i, new Value("value-" + i));
+    }
+
+    final String message =
+        hookMessage(hookContext(new ImmutableContext("u", attributes), new Value(0)), details());
+
+    assertTrue(message.contains("...(truncated)"), message);
+    assertTrue(message.length() < 2_000, "Logged " + message.length() + " characters");
+  }
+
+  @Test
+  void rendersAStructureWithoutCopyingItsKeysOrValues() {
+    final Map<String, Value> attributes = new HashMap<>();
+    attributes.put("plan", new Value("pro"));
+    final Structure structure = mock(Structure.class);
+    when(structure.asUnmodifiableMap()).thenReturn(Collections.unmodifiableMap(attributes));
+    when(structure.keySet()).thenThrow(new AssertionError("keySet() copies the keys"));
+    when(structure.getValue("plan")).thenThrow(new AssertionError("getValue() clones the value"));
+
+    final String message =
+        hookMessage(hookContext(new MutableContext("u"), new Value(structure)), details());
+
+    assertTrue(message.contains("defaultValue={plan=pro}"), message);
   }
 
   @Test

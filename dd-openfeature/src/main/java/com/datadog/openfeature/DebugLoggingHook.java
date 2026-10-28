@@ -181,38 +181,10 @@ final class DebugLoggingHook<T> implements Hook<T> {
         if (container instanceof Value) {
           writeValue((Value) container, depth);
         } else if (container instanceof Structure) {
-          final Structure structure = (Structure) container;
-          text("{");
-          boolean first = true;
-          for (final String key : structure.keySet()) {
-            if (this.truncated) {
-              break;
-            }
-            if (!first) {
-              text(", ");
-            }
-            first = false;
-            text(String.valueOf(key));
-            text("=");
-            write(structure.getValue(key), depth + 1);
-          }
-          text("}");
+          // A view: the keys and values of an immutable structure are copied on each access.
+          writeEntries(((Structure) container).asUnmodifiableMap(), depth);
         } else if (container instanceof Map) {
-          text("{");
-          boolean first = true;
-          for (final Map.Entry<?, ?> entry : ((Map<?, ?>) container).entrySet()) {
-            if (this.truncated) {
-              break;
-            }
-            if (!first) {
-              text(", ");
-            }
-            first = false;
-            write(entry.getKey(), depth + 1);
-            text("=");
-            write(entry.getValue(), depth + 1);
-          }
-          text("}");
+          writeEntries((Map<?, ?>) container, depth);
         } else {
           text("[");
           boolean first = true;
@@ -231,6 +203,24 @@ final class DebugLoggingHook<T> implements Hook<T> {
       } finally {
         this.path.remove(container);
       }
+    }
+
+    private void writeEntries(final Map<?, ?> map, final int depth) {
+      text("{");
+      boolean first = true;
+      for (final Map.Entry<?, ?> entry : map.entrySet()) {
+        if (this.truncated) {
+          break;
+        }
+        if (!first) {
+          text(", ");
+        }
+        first = false;
+        write(entry.getKey(), depth + 1);
+        text("=");
+        write(entry.getValue(), depth + 1);
+      }
+      text("}");
     }
 
     /**
