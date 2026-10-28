@@ -46,6 +46,7 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       return;
     }
     this.started = true;
+    LOGGER.debug("Feature Flagging starting remote_config configuration source");
     this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     listen();
     this.configurationPoller.start();
@@ -109,6 +110,7 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       return;
     }
     this.started = false;
+    LOGGER.debug("Feature Flagging remote_config configuration source stopped");
     this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     this.configurationPoller.removeListeners(FFE_FLAGS);
     this.configurationPoller.stop();
@@ -148,6 +150,15 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
           failure.addSuppressed(e);
         }
       }
+    }
+    // Logged last: a diagnostic must not get in the way of the delivery.
+    if (content == null) {
+      LOGGER.debug("Feature Flagging remote_config configuration removed: key={}", configKey);
+    } else {
+      LOGGER.debug(
+          "Feature Flagging remote_config configuration received: key={}, bytes={}",
+          configKey,
+          content.length);
     }
     if (failure != null) {
       throw failure;

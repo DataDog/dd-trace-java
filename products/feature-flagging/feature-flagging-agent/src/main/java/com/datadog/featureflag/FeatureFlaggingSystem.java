@@ -37,6 +37,7 @@ public class FeatureFlaggingSystem {
       LOGGER.debug("Feature Flagging system disabled");
       return;
     }
+    LOGGER.debug("Feature Flagging enabled; env={}", config.getEnv());
     // The tracing shutdown path stops the system before the JVM shutdown hooks, but it is missing
     // when tracing or its shutdown instrumentation is disabled. Stop from a shutdown hook as well
     // once the SDK subscribes to the shutdown, so it always flushes its pending events.
@@ -45,6 +46,8 @@ public class FeatureFlaggingSystem {
     try {
       backend.start();
     } catch (final RuntimeException | Error e) {
+      LOGGER.debug(
+          "Feature Flagging system initialization failed: {}", e.getClass().getSimpleName());
       backend.close();
       throw e;
     }
