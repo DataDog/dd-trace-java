@@ -5,6 +5,8 @@ import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.scalatest.ScalatestUtils
 import org.example.TestFailed
 import org.example.TestAutomationExcluded
+import org.example.TestAutomationNoRetry
+import org.example.TestAutomationPreventSuppression
 import org.example.TestFailedParameterized
 import org.example.TestFailedSuite
 import org.example.TestFailedThenSucceed
@@ -62,6 +64,55 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     skippedSpan.getTag("test.test_management.no_auto_retry") == true
     skippedSpan.getTag("test.test_management.prevent_failure_suppression") == true
     skippedSpan.getTag("test.status").toString() == "skip"
+  }
+
+
+  def "test automation no-auto-retry alone preserves quarantine suppression"() {
+    given:
+    def id = new TestFQN("org.example.TestAutomationNoRetry", "no_retry_failure")
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationNoRetry], true)
+
+    then:
+    def testSpans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "no_retry_failure" }
+    testSpans.size() == 1
+    def testSpan = testSpans.first()
+    testSpan.getTag("test.status").toString() == "fail"
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == null
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+  }
+
+  def "test automation failure protection alone preserves automatic retries"() {
+    given:
+    def id = new TestFQN("org.example.TestAutomationPreventSuppression", "blocking_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+
+    when:
+    runTests([TestAutomationPreventSuppression], false)
+
+    then:
+    def testSpans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "blocking_failure" }
+    testSpans.size() == 5 // Java's default ATR budget includes the initial execution.
+    testSpans.count { it.getTag("test.is_retry") == true } == 4
+    testSpans.count { it.getTag("test.final_status")?.toString() == "fail" } == 1
+    testSpans.every { it.getTag("test.status").toString() == "fail" }
+    testSpans.every { it.getTag("test.test_management.no_auto_retry") == null }
+    testSpans.every { it.getTag("test.test_management.prevent_failure_suppression") == true }
+    testSpans.every { it.getTag("test.test_management.is_test_disabled") == true }
+    testSpans.every { it.getTag("test.test_management.is_quarantined") == true }
   }
 
 
