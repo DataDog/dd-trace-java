@@ -325,10 +325,10 @@ Gradle tasks declare **inputs** (what they read) and **outputs** (what they prod
 #### Secrets in cached outputs
 
 Gradle caches declared task outputs, including test reports and captured stdout/stderr.
-Keep secrets out of generated files and test output; CI log masking does not sanitize cached files.
+Input fingerprints and CI log masking do not sanitize those files.
 
-Use `--no-build-cache --rerun-tasks` for signing/publishing invocations to disable cache reads
-and writes and force fresh execution. Unset credentials before subsequent tasks that do not need them.
+Keep credentials used for authentication or in-memory signing out of generated resources,
+archives, and reports. Unset credentials before subsequent tasks that do not need them.
 
 #### Declaring Inputs and Outputs
 

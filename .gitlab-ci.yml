@@ -150,10 +150,6 @@ default:
 .set_datadog_api_keys: &set_datadog_api_keys
   - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text)
 
-# Keep outputs produced with signing/publishing credentials out of task-output caches.
-.disable_build_cache: &disable_build_cache
-  - export GRADLE_ARGS="$GRADLE_ARGS --no-build-cache --rerun-tasks"
-
 # CI_NODE_INDEX and CI_NODE_TOTAL are 1-indexed and not always set. These steps normalize the numbers for jobs
 .normalize_node_index: &normalize_node_index
   - if [ "$CI_NO_SPLIT" == "true" ] ; then CI_NODE_INDEX=1; CI_NODE_TOTAL=1; fi # A job uses parallel but doesn't intend to split by index
@@ -561,7 +557,6 @@ test_published_artifacts:
   variables:
     CACHE_TYPE: "lib"
   script:
-    - *disable_build_cache
     - mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
     - rm -rf "${mvn_local_repo}/com/datadoghq"
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
@@ -1355,7 +1350,6 @@ deploy_to_maven_central:
     - when: manual
       allow_failure: true
   script:
-    - *disable_build_cache
     - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
     - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
@@ -1380,7 +1374,6 @@ deploy_snapshot_with_ddprof_snapshot:
     - when: manual
       allow_failure: true
   script:
-    - *disable_build_cache
     - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
     - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
