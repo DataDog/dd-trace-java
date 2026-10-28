@@ -14,6 +14,7 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.util.ChunkedBuffer;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -25,8 +26,6 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   private static final Logger log = LoggerFactory.getLogger(SerializingMetricWriter.class);
 
-  // payloads are usually a few KB: start small, and nothing is allocated until the first payload
-  private static final int FIRST_CHUNK_SIZE = 4 * 1024;
   private static final int MAX_PAYLOAD_SIZE = 5 << 20;
 
   private static final byte[] SEQUENCE = "Sequence".getBytes(ISO_8859_1);
@@ -100,7 +99,12 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   public SerializingMetricWriter(
       WellKnownTags wellKnownTags, Sink sink, boolean additionalTagsConfigured) {
-    this(wellKnownTags, sink, FIRST_CHUNK_SIZE, GitInfoProvider.INSTANCE, additionalTagsConfigured);
+    this(
+        wellKnownTags,
+        sink,
+        ChunkedBuffer.DEFAULT_FIRST_CHUNK_SIZE,
+        GitInfoProvider.INSTANCE,
+        additionalTagsConfigured);
   }
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink, int firstChunkSize) {
