@@ -20,6 +20,7 @@ final class CachedData {
         filter.exclude(filter.project(':internal-api'))
         filter.exclude(filter.project(':internal-api:internal-api-9'))
         filter.exclude(filter.project(':communication'))
+        filter.exclude(filter.project(':communication:otlp-exporter'))
         filter.exclude(filter.project(':components:context'))
         filter.exclude(filter.project(':components:environment'))
         filter.exclude(filter.project(':components:json'))

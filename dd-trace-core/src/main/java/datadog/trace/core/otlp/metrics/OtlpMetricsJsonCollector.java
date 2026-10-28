@@ -1,15 +1,16 @@
 package datadog.trace.core.otlp.metrics;
 
+import static datadog.communication.otlp.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_GAUGE;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeScopeAndSchema;
-import static datadog.trace.core.otlp.common.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.core.otlp.common.OtlpResourceJson.RESOURCE_FRAGMENT;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsJson.closeMetric;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsJson.openMetric;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsJson.writeDataPointValue;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.json.JsonWriter;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -21,7 +22,6 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
 import datadog.trace.core.otlp.common.LazyJsonArray;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import java.nio.ByteBuffer;
 import java.util.function.Consumer;
 

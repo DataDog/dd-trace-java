@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTR
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
@@ -21,7 +22,6 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.MetricWriter;
 import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpResourceJson;
 import datadog.trace.core.otlp.common.OtlpResourceProto;
 import datadog.trace.core.otlp.common.OtlpSender;
