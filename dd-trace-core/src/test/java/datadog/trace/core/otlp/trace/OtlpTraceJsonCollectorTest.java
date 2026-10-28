@@ -9,6 +9,7 @@ import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -463,6 +464,213 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @Test
+  void propagationTagsAreWrittenOncePerTraceOnTheSpanSelectedForSamplingTags() throws IOException {
+    AgentSpan root = startRootWithPropagationTags("root.op");
+    AgentSpan child = startChild(root, "child.op");
+    child.finish();
+    root.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) root, (CoreSpan<?>) child));
+    List<Map<String, Object>> parsedSpans = allSpans(collector.collectTraces());
+
+    // the collector selects the last exported span of each trace
+    assertEquals(asList("root.op", "child.op"), spanNames(parsedSpans));
+    assertPropagationTagsOnlyOn(parsedSpans, "child.op", "root.op", "child.op");
+  }
+
+  @Test
+  void partialFlushWithoutTheLocalRootStillCarriesPropagationTags() throws IOException {
+    AgentSpan root = startRootWithPropagationTags("root.op");
+    AgentSpan first = startChild(root, "first.child");
+    AgentSpan second = startChild(root, "second.child");
+    first.finish();
+    second.finish();
+
+    // a partial flush exports finished children while the local root is still open
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) first, (CoreSpan<?>) second));
+    List<Map<String, Object>> parsedSpans = allSpans(collector.collectTraces());
+    root.finish();
+
+    assertEquals(asList("first.child", "second.child"), spanNames(parsedSpans));
+    assertPropagationTagsOnlyOn(parsedSpans, "second.child", "first.child", "second.child");
+  }
+
+  @Test
+  void propagationTagsAreWrittenOnceForEachTraceInThePayload() throws IOException {
+    AgentSpan rootA = startRootWithPropagationTags("a.root");
+    AgentSpan childA = startChild(rootA, "a.child");
+    AgentSpan rootB = startRootWithPropagationTags("b.root");
+    AgentSpan firstB = startChild(rootB, "b.first");
+    AgentSpan secondB = startChild(rootB, "b.second");
+    AgentSpan rootC = startRootWithPropagationTags("c.root");
+    assertNotEquals(rootA.getTraceId(), rootB.getTraceId(), "trace IDs must be distinct");
+    assertNotEquals(rootB.getTraceId(), rootC.getTraceId(), "trace IDs must be distinct");
+    childA.finish();
+    rootA.finish();
+    firstB.finish();
+    secondB.finish();
+    rootC.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) rootA, (CoreSpan<?>) childA));
+    // partial flush of trace B, without its local root
+    collector.addTrace(asList((CoreSpan<?>) firstB, (CoreSpan<?>) secondB));
+    collector.addTrace(asList((CoreSpan<?>) rootC));
+    List<Map<String, Object>> parsedSpans = allSpans(collector.collectTraces());
+    rootB.finish();
+
+    assertEquals(
+        asList("a.root", "a.child", "b.first", "b.second", "c.root"), spanNames(parsedSpans));
+    assertPropagationTagsOnlyOn(parsedSpans, "a.child", "a.root", "a.child");
+    assertPropagationTagsOnlyOn(parsedSpans, "b.second", "b.first", "b.second");
+    assertPropagationTagsOnlyOn(parsedSpans, "c.root", "c.root");
+  }
+
+  /** Starts a local root span with a probability sampling decision and a baggage item. */
+  private static AgentSpan startRootWithPropagationTags(String resourceName) {
+    AgentSpan root = TRACER.startSpan("test", "op.root");
+    root.setResourceName(resourceName);
+    // 128-bit trace ids are on by default, so the root carries a _dd.p.tid propagation tag
+    assertNotEquals(0, root.getTraceId().toHighOrderLong());
+    ((DDSpan) root)
+        .spanContext()
+        .getPropagationTags()
+        .tryUpdateProbabilitySamplingDecision(
+            PrioritySampling.USER_KEEP,
+            SamplingMechanism.REMOTE_ADAPTIVE_RULE,
+            0.5,
+            false,
+            root.getTraceId().toLong(),
+            true);
+    root.setBaggageItem("baggage.key", "baggage.value");
+    return root;
+  }
+
+  private static AgentSpan startChild(AgentSpan parent, String resourceName) {
+    AgentSpan child = TRACER.startSpan("test", "op.child", parent.spanContext());
+    child.setResourceName(resourceName);
+    return child;
+  }
+
+  private static List<Object> spanNames(List<Map<String, Object>> spans) {
+    List<Object> names = new ArrayList<>();
+    for (Map<String, Object> span : spans) {
+      names.add(span.get("name"));
+    }
+    return names;
+  }
+
+  /**
+   * Asserts that, among the exported spans of one trace, only {@code carrier} has the root
+   * propagation tags (once each), and that every span keeps its baggage.
+   */
+  private static void assertPropagationTagsOnlyOn(
+      List<Map<String, Object>> spans, String carrier, String... traceSpans) {
+    for (String spanName : traceSpans) {
+      Map<String, Object> span = spanNamed(spans, spanName);
+      if (spanName.equals(carrier)) {
+        assertEquals(asList("-12"), attributeValues(span, "_dd.p.dm"), spanName);
+        assertEquals(asList("0.5"), attributeValues(span, "_dd.p.ksr"), spanName);
+        // the OTLP traceId already carries the upper 64 bits
+        assertFalse(attributeKeys(span).contains("_dd.p.tid"), "_dd.p.tid must not be exported");
+      } else {
+        for (String key : attributeKeys(span)) {
+          assertFalse(key.startsWith("_dd.p."), spanName + " must not carry " + key);
+        }
+      }
+      assertEquals(asList("baggage.value"), attributeValues(span, "baggage.key"), spanName);
+    }
+  }
+
+  @Test
+  void baggageDoesNotDuplicateDirectlyWrittenAttributes() throws IOException {
+    AgentSpan span = TRACER.startSpan("test", "op.direct");
+    span.setResourceName("direct.op");
+    span.setBaggageItem("resource.name", "baggage.resource");
+    span.setBaggageItem("operation.name", "baggage.operation");
+    span.setBaggageItem("thread.name", "baggage.thread");
+    span.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) span));
+    Map<String, Object> parsed = onlySpan(collector.collectTraces());
+
+    // each key must appear once, with the span's own value
+    assertEquals(asList("direct.op"), attributeValues(parsed, "resource.name"));
+    assertEquals(asList("op.direct"), attributeValues(parsed, "operation.name"));
+    assertEquals(asList(Thread.currentThread().getName()), attributeValues(parsed, "thread.name"));
+  }
+
+  @TableTest({
+    "scenario         | kind   | tag               | otelName            ",
+    "client hostname  | client | peer.hostname     | server.address      ",
+    "server hostname  | server | http.hostname     | server.address      ",
+    "server client ip | server | network.client.ip | network.peer.address"
+  })
+  void baggageDoesNotDuplicateDirectionScopedAttributes(String kind, String tag, String otelName)
+      throws IOException {
+    Map<String, Object> parsed = exportWithDirectionalBaggage(true, kind, tag, otelName);
+
+    // the tag is exported under its direction-specific name, once, with the span's own value
+    assertEquals(asList("span.value"), attributeValues(parsed, otelName));
+    assertTrue(attributeValues(parsed, tag).isEmpty(), "expected no " + tag);
+  }
+
+  @Test
+  void baggageIsKeptWhenOtelSemanticsDisabled() throws IOException {
+    // without the rename the tag keeps its Datadog name, so the baggage key is distinct
+    Map<String, Object> parsed =
+        exportWithDirectionalBaggage(false, "client", "peer.hostname", "server.address");
+
+    assertEquals(asList("span.value"), attributeValues(parsed, "peer.hostname"));
+    assertEquals(asList("baggage.value"), attributeValues(parsed, "server.address"));
+  }
+
+  @TableTest({
+    "scenario       | otelSemantics | baggageKey          | httpMethod    | httpRequestMethod",
+    "off, otel name | false         | http.request.method | span.value    | baggage.value    ",
+    "on, otel name  | true          | http.request.method |               | span.value       ",
+    "on, dd name    | true          | http.method         | baggage.value | span.value       "
+  })
+  void baggageIsSkippedOnlyWhenATagIsExportedUnderTheSameKey(
+      boolean otelSemantics, String baggageKey, String httpMethod, String httpRequestMethod)
+      throws IOException {
+    // http.method and http.request.method are aliases of one tag: lookups by either name find it,
+    // but only one of them is exported, so baggage under the other name must be kept
+    Map<String, Object> parsed =
+        exportWithDirectionalBaggage(otelSemantics, "server", "http.method", baggageKey);
+
+    assertEquals(expectedValues(httpMethod), attributeValues(parsed, "http.method"));
+    assertEquals(expectedValues(httpRequestMethod), attributeValues(parsed, "http.request.method"));
+  }
+
+  private static List<Object> expectedValues(String value) {
+    return value == null || value.isEmpty() ? new ArrayList<>() : asList((Object) value);
+  }
+
+  private static Map<String, Object> exportWithDirectionalBaggage(
+      boolean otelSemanticsEnabled, String kind, String tag, String baggageKey) throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(otelSemanticsEnabled);
+      configMock.when(Config::get).thenReturn(config);
+
+      AgentSpan span = TRACER.startSpan("test", "op.directionalBaggage");
+      span.setTag(SPAN_KIND, kind);
+      span.setTag(tag, "span.value");
+      span.setBaggageItem(baggageKey, "baggage.value");
+      span.finish();
+
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList((CoreSpan<?>) span));
+      return onlySpan(collector.collectTraces());
+    }
+  }
+
+  @Test
   void poisonedSpanResetsCollectorForNextTrace() throws IOException {
     // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
     DDSpan realSpan = startAndFinish("op.first", "GET /first", null);
@@ -609,6 +817,13 @@ class OtlpTraceJsonCollectorTest {
       result.add((Map<String, Object>) span);
     }
     return result;
+  }
+
+  private static Map<String, Object> spanNamed(List<Map<String, Object>> spans, String name) {
+    return spans.stream()
+        .filter(s -> name.equals(s.get("name")))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError(name + " span not found"));
   }
 
   @SuppressWarnings("unchecked")

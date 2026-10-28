@@ -100,9 +100,7 @@ public class MsgPackWriter implements WritableFormatter {
           buffer.mark();
           return true;
         } catch (BufferOverflowException fatal) {
-          log.debug(
-              "dropping message because its serialized size is too large (> {}MB)",
-              (buffer.capacity() >>> 20));
+          log.debug("dropping message because it exceeds a serialization buffer's capacity");
         }
       }
       buffer.reset();
