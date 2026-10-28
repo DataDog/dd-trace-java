@@ -42,6 +42,14 @@ public final class HashStore {
   private Set<String> removedFromParent;
 
   /**
+   * {@code parent}'s custom store, for an owner to borrow read-only until its first custom write,
+   * or null.
+   */
+  public static HashStore inheritedFrom(TagMap parent) {
+    return parent == null ? null : parent.nameStore;
+  }
+
+  /**
    * A fresh custom store for an owner's first custom write, reading through to {@code borrowed},
    * the store it borrowed until now (may be null).
    */
