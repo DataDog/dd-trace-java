@@ -75,6 +75,38 @@ class FeatureFlagsBackendTest {
   }
 
   @TableTest({
+    "scenario                  | canonical | legacy  | environment | expected ",
+    "canonical property        | 'false'   |         |             | 'false'  ",
+    "legacy property           |           | 'false' |             | 'false'  ",
+    "canonical enables         | 'true'    | 'false' |             | 'true'   ",
+    "canonical disables        | 'false'   | 'true'  |             | 'false'  ",
+    "legacy property beats env |           | 'false' | 'true'      | 'false'  ",
+    "canonical environment     |           |         | 'false'     | 'false'  ",
+    "invalid masks legacy      | 'invalid' | 'true'  |             | 'invalid'",
+    "blank masks legacy        | ''        | 'false' |             | ''       "
+  })
+  void resolvesEvaluationCountAliasesBeforeSourcePrecedence(
+      final String canonical,
+      final String legacy,
+      final String environment,
+      final String expected) {
+    if (canonical != null) {
+      WithConfigExtension.injectSysConfig("feature.flags.evaluation.counts.enabled", canonical);
+    }
+    if (legacy != null) {
+      WithConfigExtension.injectSysConfig("flagging.evaluation.counts.enabled", legacy);
+    }
+    if (environment != null) {
+      WithConfigExtension.injectEnvConfig("FEATURE_FLAGS_EVALUATION_COUNTS_ENABLED", environment);
+    }
+    when(this.config.configProvider()).thenReturn(Config.get().configProvider());
+
+    assertEquals(expected, this.backend.setting("feature.flags.evaluation.counts.enabled"));
+    // Older SDKs request the legacy key through the same bridge.
+    assertEquals(expected, this.backend.setting("flagging.evaluation.counts.enabled"));
+  }
+
+  @TableTest({
     "Scenario                       | Property  | Environment   | Expected     ",
     "blank property masks env       | ' '       | remote_config | agentless    ",
     "property overrides environment | agentless | remote_config | agentless    ",

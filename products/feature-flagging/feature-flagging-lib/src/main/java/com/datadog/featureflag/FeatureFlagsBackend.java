@@ -4,6 +4,8 @@ import static datadog.trace.api.FeatureFlaggingSource.AGENTLESS;
 import static datadog.trace.api.FeatureFlaggingSource.REMOTE_CONFIG;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_EVALUATION_COUNTS_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED;
 import static java.util.Locale.ROOT;
 
 import datadog.communication.BackendApiFactory;
@@ -73,6 +75,12 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
         return Boolean.toString(this.config.isFeatureFlaggingProviderEnabled());
       case FEATURE_FLAGS_CONFIGURATION_SOURCE:
         return this.config.getFeatureFlaggingConfigurationSource().name().toLowerCase(ROOT);
+      case FEATURE_FLAGS_EVALUATION_COUNTS_ENABLED:
+      case FLAGGING_EVALUATION_COUNTS_ENABLED:
+        return this.config
+            .configProvider()
+            .getString(
+                FEATURE_FLAGS_EVALUATION_COUNTS_ENABLED, null, FLAGGING_EVALUATION_COUNTS_ENABLED);
       case API_KEY:
         return this.config.getApiKey();
       case SITE:
