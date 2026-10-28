@@ -19,7 +19,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /** Span attribute keys shared by the OTLP protobuf and JSON trace writers. */
-final class OtlpTraceAttributes {
+final class OtlpSpanAttributes {
 
   static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
@@ -90,5 +90,5 @@ final class OtlpTraceAttributes {
     return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
   }
 
-  private OtlpTraceAttributes() {}
+  private OtlpSpanAttributes() {}
 }
