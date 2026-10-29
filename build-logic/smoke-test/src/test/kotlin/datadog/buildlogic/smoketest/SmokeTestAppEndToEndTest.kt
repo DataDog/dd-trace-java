@@ -10,7 +10,7 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import org.junit.jupiter.params.provider.ValueSource
+import org.tabletest.junit.TableTest
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -123,10 +123,15 @@ class SmokeTestAppEndToEndTest {
     assertThat(applicationOutput("target/sample.jar")).exists()
   }
 
-  @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = ["Gradle artifact", "Maven artifact", "extra file", "extra directory"])
-  fun `tests track nested application contents`(scenario: String) {
-    assertTestsTrackApplicationContents(scenario)
+  @TableTest(
+    "scenario        | input          ",
+    "Gradle artifact | Gradle artifact",
+    "Maven artifact  | Maven artifact ",
+    "extra file      | extra file     ",
+    "extra directory | extra directory",
+  )
+  fun `tests track nested application contents`(input: String) {
+    assertTestsTrackApplicationContents(input)
   }
 
   @Test
@@ -451,11 +456,17 @@ class SmokeTestAppEndToEndTest {
     assertThat(missingInput.output).contains("externalTool", "value")
   }
 
-  @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = ["Gradle Kotlin", "Maven Kotlin", "Gradle Groovy", "Maven Groovy"])
-  fun `explicit application inputs participate in caching`(scenario: String) {
-    val maven = scenario.startsWith("Maven")
-    val groovy = scenario.endsWith("Groovy")
+  @TableTest(
+    "scenario      | maven | groovy",
+    "Gradle Kotlin | false | false ",
+    "Maven Kotlin  | true  | false ",
+    "Gradle Groovy | false | true  ",
+    "Maven Groovy  | true  | true  ",
+  )
+  fun `explicit application inputs participate in caching`(
+    maven: Boolean,
+    groovy: Boolean,
+  ) {
     val application = if (maven) "mavenApp" else "gradleApp"
     val taskType = if (maven) "NestedMavenBuild" else "NestedGradleBuild"
     writeOuterSettings(withLocalBuildCache = true)
