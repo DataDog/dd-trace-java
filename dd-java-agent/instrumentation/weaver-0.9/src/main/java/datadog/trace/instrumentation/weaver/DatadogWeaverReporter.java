@@ -13,7 +13,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -40,7 +40,9 @@ public class DatadogWeaverReporter {
     try {
       scala.collection.Iterable<?> plan =
           (scala.collection.Iterable<?>) suite.getClass().getMethod("plan").invoke(suite);
-      Map<String, Collection<String>> tagsByName = new HashMap<>();
+      // TestName's name strings have declaration identity. Weaver carries the same
+      // string into TestOutcome, even when two declarations have equal display names.
+      Map<String, Collection<String>> tagsByDeclaration = new IdentityHashMap<>();
       scala.collection.Iterator<?> tests = plan.iterator();
       while (tests.hasNext()) {
         TestName testName = (TestName) tests.next();
@@ -54,10 +56,10 @@ public class DatadogWeaverReporter {
           }
         }
         if (!tags.isEmpty()) {
-          tagsByName.put(testName.name(), tags);
+          tagsByDeclaration.put(testName.name(), tags);
         }
       }
-      TEST_TAGS.put(suiteName, tagsByName);
+      TEST_TAGS.put(suiteName, tagsByDeclaration);
     } catch (Exception e) {
       LOGGER.debug("Could not read Weaver test declaration tags", e);
     }

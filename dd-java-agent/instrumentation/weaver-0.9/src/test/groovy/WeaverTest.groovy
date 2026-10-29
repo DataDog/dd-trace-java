@@ -6,6 +6,8 @@ import datadog.trace.instrumentation.weaver.WeaverUtils
 import org.example.TestCanceled
 import org.example.TestFailed
 import org.example.TestAutomationExcluded
+import org.example.TestAutomationDuplicateNames
+import org.example.TestAutomationDuplicatePureNames
 import org.example.TestAutomationNamed
 import org.example.TestAutomationProvider
 import org.example.TestFailedExceptionPure
@@ -35,6 +37,46 @@ class WeaverTest extends CiVisibilityInstrumentationTest {
     testSpans.every { it.getTag("test.test_management.prevent_failure_suppression") == true }
     testSpans.find { it.getTag("test.name") == "protected_failure" }.getTag("test.status").toString() == "fail"
     testSpans.find { it.getTag("test.name") == "protected_skip" }.getTag("test.status").toString() == "skip"
+  }
+
+  def "duplicate names retain each declaration's annotations and native selection in #testClass.simpleName"() {
+    when:
+    runTests([testClass])
+
+    then:
+    def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.suite") == testClass.name && it.getTag("test.name") != null }
+    spans.size() == expectedExecutions
+    def ignoredCollision = spans.find { it.getTag("test.name") == "ignored_collision" }
+    ignoredCollision.getTag("test.status").toString() == "pass"
+    ignoredCollision.getTag("test.test_management.no_auto_retry") == null
+    ignoredCollision.getTag("test.test_management.prevent_failure_suppression") == null
+    def duplicates = spans.findAll { it.getTag("test.name") == "runnable_collision" }
+    duplicates.size() == expectedExecutions - 3
+    def failed = duplicates.find { it.getTag("test.status").toString() == "fail" }
+    failed.getTag("test.test_management.no_auto_retry") == true
+    failed.getTag("test.test_management.prevent_failure_suppression") == null
+    def passed = duplicates.find { it.getTag("test.status").toString() == "pass" }
+    passed.getTag("test.test_management.no_auto_retry") == null
+    passed.getTag("test.test_management.prevent_failure_suppression") == true
+    def skipped = duplicates.findAll { it.getTag("test.status").toString() == "skip" }
+    skipped.size() == expectedExecutions - 5
+    skipped.every { it.getTag("test.test_management.no_auto_retry") == null }
+    skipped.every { it.getTag("test.test_management.prevent_failure_suppression") == null }
+    def copied = spans.findAll { it.getTag("test.name") == "copy_removed" }
+    copied.size() == 2
+    def annotatedCopy = copied.find { it.getTag("test.status").toString() == "fail" }
+    annotatedCopy.getTag("test.test_management.no_auto_retry") == true
+    annotatedCopy.getTag("test.test_management.prevent_failure_suppression") == null
+    def ordinaryCopy = copied.find { it.getTag("test.status").toString() == "pass" }
+    ordinaryCopy.getTag("test.test_management.no_auto_retry") == null
+    ordinaryCopy.getTag("test.test_management.prevent_failure_suppression") == null
+    testClass.executionCount() == expectedExecutions
+    testClass.ignoredExecutionCount() == 0
+
+    where:
+    testClass                        | expectedExecutions
+    TestAutomationDuplicateNames     | 6
+    TestAutomationDuplicatePureNames | 5
   }
 
   def "custom suite and provider identities preserve distinct declaration tags"() {
