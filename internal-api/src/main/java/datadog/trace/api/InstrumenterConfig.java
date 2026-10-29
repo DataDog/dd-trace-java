@@ -25,6 +25,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_REGEX_CACHE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
@@ -97,6 +98,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CODESOUR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXPERIMENTAL_REGEX_CACHE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_NATIVE_METHODS;
@@ -196,6 +198,7 @@ public class InstrumenterConfig {
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
   private final boolean jdbcPoolWaitingEnabled;
+  private final boolean regexCacheEnabled;
 
   private final String httpURLConnectionClassName;
   private final String axisTransportClassName;
@@ -351,6 +354,9 @@ public class InstrumenterConfig {
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
     jdbcPoolWaitingEnabled = configProvider.getBoolean(JDBC_POOL_WAITING_ENABLED, false);
+    regexCacheEnabled =
+        configProvider.getBoolean(
+            TRACE_EXPERIMENTAL_REGEX_CACHE_ENABLED, DEFAULT_TRACE_EXPERIMENTAL_REGEX_CACHE_ENABLED);
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
     axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
@@ -623,6 +629,10 @@ public class InstrumenterConfig {
     return jdbcPoolWaitingEnabled;
   }
 
+  public boolean isRegexCacheEnabled() {
+    return regexCacheEnabled;
+  }
+
   public String getHttpURLConnectionClassName() {
     return httpURLConnectionClassName;
   }
@@ -889,6 +899,8 @@ public class InstrumenterConfig {
         + '\''
         + ", jdbcPoolWaitingEnabled="
         + jdbcPoolWaitingEnabled
+        + ", regexCacheEnabled="
+        + regexCacheEnabled
         + ", httpURLConnectionClassName='"
         + httpURLConnectionClassName
         + '\''

@@ -5916,6 +5916,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_EXPERIMENTAL_REGEX_CACHE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_EXTENSIONS_PATH": [
       {
         "version": "A",
@@ -9562,6 +9570,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_REDIS_ENABLED", "DD_INTEGRATION_REDIS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_REGEX_CACHE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_REGEX_CACHE_ENABLED", "DD_INTEGRATION_REGEX_CACHE_ENABLED"]
       }
     ],
     "DD_TRACE_REJECTED_EXECUTION_HANDLER_ENABLED": [

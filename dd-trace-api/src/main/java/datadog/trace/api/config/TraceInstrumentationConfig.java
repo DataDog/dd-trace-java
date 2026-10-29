@@ -84,6 +84,9 @@ public final class TraceInstrumentationConfig {
   public static final String JDBC_POOL_WAITING_ENABLED =
       "trace.experimental.jdbc.pool.waiting.enabled";
 
+  public static final String TRACE_EXPERIMENTAL_REGEX_CACHE_ENABLED =
+      "trace.experimental.regex.cache.enabled";
+
   public static final String AKKA_FORK_JOIN_TASK_NAME = "trace.akka.fork.join.task.name";
   public static final String AKKA_FORK_JOIN_EXECUTOR_TASK_NAME =
       "trace.akka.fork.join.executor.task.name";
