@@ -5,6 +5,8 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -20,8 +22,13 @@ import datadog.trace.core.propagation.PropagationTags;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -229,5 +236,103 @@ public class PendingTraceTest extends PendingTraceTestBase {
     PendingTrace trace = newTrace(mock(CoreTracer.class), false, mock(HealthMetrics.class));
 
     assertNull(trace.getRunningSpans());
+  }
+
+  @Test
+  void finishedSpansWrittenNewestFirstAcrossSlotsAndOverflow() {
+    CoreTracer stubTracer = mock(CoreTracer.class);
+    PendingTrace trace = newTrace(stubTracer, false, HealthMetrics.NO_OP);
+    int count = 3 * PendingTrace.INLINE_SLOTS + 1; // spills twice, and ends mid-slots
+    List<DDSpan> spans = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      DDSpan span = createSimpleSpanWithID(trace, i + 1);
+      trace.registerSpan(span);
+      spans.add(span);
+    }
+    for (DDSpan span : spans) {
+      span.setDurationNano(1);
+      trace.onPublish(span);
+    }
+
+    ArgumentCaptor<SpanList> written = ArgumentCaptor.forClass(SpanList.class);
+    verify(stubTracer).write(written.capture());
+    Collections.reverse(spans);
+    assertEquals(spans, new ArrayList<>(written.getValue()));
+    assertTrue(trace.getSpans().isEmpty());
+  }
+
+  @Test
+  void concurrentFinishesAndWritesWriteEverySpanOnce() throws Exception {
+    CoreTracer stubTracer = mock(CoreTracer.class);
+    Queue<DDSpan> written = new ConcurrentLinkedQueue<>();
+    doAnswer(
+            invocation -> {
+              written.addAll(invocation.<SpanList>getArgument(0));
+              return null;
+            })
+        .when(stubTracer)
+        .write(any(SpanList.class));
+    PendingTrace trace = newTrace(stubTracer, false, HealthMetrics.NO_OP);
+
+    int threads = 8;
+    int perThread = 2_000;
+    List<List<DDSpan>> slices = new ArrayList<>();
+    for (int t = 0; t < threads; t++) {
+      List<DDSpan> slice = new ArrayList<>();
+      for (int i = 0; i < perThread; i++) {
+        DDSpan span = createSimpleSpanWithID(trace, t * perThread + i + 1);
+        trace.registerSpan(span);
+        span.setDurationNano(1);
+        slice.add(span);
+      }
+      slices.add(slice);
+    }
+
+    CountDownLatch start = new CountDownLatch(1);
+    AtomicBoolean finishing = new AtomicBoolean(true);
+    List<Thread> finishers = new ArrayList<>();
+    for (List<DDSpan> slice : slices) {
+      Thread finisher =
+          new Thread(
+              () -> {
+                awaitQuietly(start);
+                for (DDSpan span : slice) {
+                  trace.onPublish(span);
+                }
+              });
+      finisher.start();
+      finishers.add(finisher);
+    }
+    // a concurrent writer, as the buffer worker or a partial flush would be
+    Thread writer =
+        new Thread(
+            () -> {
+              awaitQuietly(start);
+              while (finishing.get()) {
+                trace.write();
+              }
+            });
+    writer.start();
+
+    start.countDown();
+    for (Thread finisher : finishers) {
+      finisher.join();
+    }
+    finishing.set(false);
+    writer.join();
+    trace.write();
+
+    assertEquals(threads * perThread, written.size());
+    assertEquals(threads * perThread, new HashSet<>(written).size());
+    assertEquals(0, trace.size());
+    assertTrue(trace.getSpans().isEmpty());
+  }
+
+  private static void awaitQuietly(CountDownLatch latch) {
+    try {
+      latch.await();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 }
