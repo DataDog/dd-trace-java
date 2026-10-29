@@ -30,6 +30,10 @@ public abstract class TestEventsHandlerHolder {
             "testng", null, TEST_STORE, TestNGUtils.capabilities(TestNGUtils.getTestNGVersion()));
   }
 
+  public static boolean isTestInProgress(ITestResult result) {
+    return TEST_STORE.get(result) != null;
+  }
+
   /** Used by instrumentation tests */
   public static void stop() {
     if (TEST_EVENTS_HANDLER != null) {

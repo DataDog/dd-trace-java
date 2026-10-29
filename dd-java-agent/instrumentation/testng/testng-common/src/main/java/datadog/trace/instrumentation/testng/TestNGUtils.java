@@ -280,6 +280,10 @@ public abstract class TestNGUtils {
     return version != null && testNGv75.compareTo(new ComparableVersion(version)) <= 0;
   }
 
+  public static boolean isTestStartMissingOnSkip(String version) {
+    return version != null && testNGv70.compareTo(new ComparableVersion(version)) > 0;
+  }
+
   public static boolean isTestOrderingSupported(String version) {
     return version != null && testNGv70.compareTo(new ComparableVersion(version)) <= 0;
   }

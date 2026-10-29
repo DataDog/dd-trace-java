@@ -32,16 +32,30 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-parameterized"                     | true    | [TestParameterized]
     "test-parameterized-modifies-params"     | true    | [TestParameterizedModifiesParams]
     "test-success-with-groups"               | true    | [TestSucceedGroups]
-    "test-class-skipped"                     | true    | [TestSkippedClass]
     "test-success-and-skipped"               | true    | [TestSucceedAndSkipped]
     "test-success-and-failure"               | false   | [TestFailedAndSucceed]
     "test-suite-teardown-failure"            | false   | [TestFailedSuiteTearDown]
-    "test-suite-setup-failure"               | false   | [TestFailedSuiteSetup]
     "test-multiple-successful-suites"        | true    | [TestSucceed, TestSucceedAndSkipped]
     "test-successful-suite-and-failed-suite" | false   | [TestSucceed, TestFailedAndSucceed]
     "test-nested-successful-suites"          | true    | [TestSucceedNested, TestSucceedNested.NestedSuite]
-    "test-nested-skipped-suites"             | true    | [TestSkippedNested]
     "test-factory-data-provider"             | true    | [TestSucceedDataProvider]
+  }
+
+  def "test skips without start notification #testcaseName"() {
+    runTests(tests, null, success)
+
+    assertSpansData(testcaseName, [:], ignoreSkipReason ? ["content.meta.['test.skip_reason']"] : [])
+    def skippedTests = TEST_WRITER.flatten().findAll { it.spanType?.toString() == "test" && it.getTag("test.status")?.toString() == "skip" }
+    assert !skippedTests.isEmpty()
+    assert skippedTests.every { it.getTag("test.skip_reason") != null }
+
+    where:
+    // the skip reasons for these tests vary across TestNG versions
+    testcaseName                 | success | tests                   | ignoreSkipReason
+    "test-class-skipped"         | true    | [TestSkippedClass]      | TestNGUtils.isTestStartMissingOnSkip(currentTestNGVersion)
+    "test-suite-setup-failure"   | false   | [TestFailedSuiteSetup]  | TestNGUtils.isTestStartMissingOnSkip(currentTestNGVersion)
+    "test-nested-skipped-suites" | true    | [TestSkippedNested]     | TestNGUtils.isTestStartMissingOnSkip(currentTestNGVersion)
+    "test-skipped-dependency"    | false   | [TestSkippedDependency] | true
   }
 
   def "test parallel execution #testcaseName"() {

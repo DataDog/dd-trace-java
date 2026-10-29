@@ -20,6 +20,11 @@ public class TracingListener extends TestNGClassListener
   public static final String FRAMEWORK_NAME = "testng";
   public static final String FRAMEWORK_VERSION = TestNGUtils.getTestNGVersion();
 
+  private static final String DEFAULT_SKIP_REASON = "Skipped by TestNG";
+
+  private static final boolean TEST_START_MISSING_ON_SKIP =
+      TestNGUtils.isTestStartMissingOnSkip(FRAMEWORK_VERSION);
+
   @Override
   public void onStart(final ITestContext context) {
     // ignore
@@ -126,6 +131,11 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onTestSkipped(final ITestResult result) {
+    if (TEST_START_MISSING_ON_SKIP && !TestEventsHandlerHolder.isTestInProgress(result)) {
+      // TestNG 6 can notify a skip without notifying the start first. On TestNG 7, a test that
+      // is not in progress was already reported by the retry instrumentation, so it is ignored
+      onTestStart(result);
+    }
     Throwable throwable = result.getThrowable();
     if (TestNGUtils.wasRetried(result)) {
       // TestNG reports tests retried with IRetryAnalyzer as skipped,
@@ -136,7 +146,8 @@ public class TracingListener extends TestNGClassListener
     } else {
       // Typically the way of skipping a TestNG test is throwing a SkipException
       String reason = throwable != null ? throwable.getMessage() : null;
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(result, reason);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
+          result, reason != null ? reason : DEFAULT_SKIP_REASON);
     }
     TestExecutionTracker executionTracker = executionTracker(result);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null, executionTracker);
