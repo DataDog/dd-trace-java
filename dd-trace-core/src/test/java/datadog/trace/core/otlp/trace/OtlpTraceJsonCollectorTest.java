@@ -299,6 +299,34 @@ class OtlpTraceJsonCollectorTest {
     assertEquals(2, ((Number) parsedSpan.get("kind")).intValue(), "SPAN_KIND_SERVER = 2");
   }
 
+  @TableTest({
+    "scenario                | otelSemantics | kind   | expectedKind | expectAttribute",
+    "server, otel semantics  | true          | server | 2            | false          ",
+    "server, dd semantics    | false         | server | 2            | true           ",
+    "no kind, otel semantics | true          |        | 0            | false          ",
+    "no kind, dd semantics   | false         |        | 0            | false          "
+  })
+  void spanKindIsOnlyAnAttributeWithoutOtelSemantics(
+      boolean otelSemantics, String kind, int expectedKind, boolean expectAttribute)
+      throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(otelSemantics);
+      configMock.when(Config::get).thenReturn(config);
+
+      DDSpan span = startAndFinish("op.kind", "GET /api", kind);
+
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList((CoreSpan<?>) span));
+      Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+      assertEquals(expectedKind, ((Number) parsedSpan.get("kind")).intValue());
+      Set<String> attrKeys = attributeKeys(parsedSpan);
+      assertEquals(expectAttribute, attrKeys.contains(SPAN_KIND), "got " + attrKeys);
+    }
+  }
+
   @Test
   void errorSpanHasStatusObject() throws IOException {
     AgentSpan agentSpan = TRACER.startSpan("test", "op.error");

@@ -9,11 +9,15 @@ import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_ID;
 import static datadog.trace.common.writer.ddagent.TraceMapper.THREAD_NAME;
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singleton;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.Metadata;
 import java.util.ArrayList;
@@ -69,6 +73,12 @@ final class OtlpSpanAttributes {
               PROCESS_TAGS_KEY.toString()));
 
   /**
+   * Tag keys not exported as attributes under OTel semantics, because the OTLP span carries them in
+   * its own fields: span.kind is the span's kind.
+   */
+  static final Set<String> OTEL_SPAN_FIELD_KEYS = singleton(Tags.SPAN_KIND);
+
+  /**
    * True if a span tag is exported under exactly {@code key}, so baggage under that key would
    * duplicate it. TagMap lookups resolve aliases (http.request.method finds http.method), so the
    * matching entry's exported name is compared with the key: it depends on OTel semantics and, for
@@ -107,11 +117,15 @@ final class OtlpSpanAttributes {
    * the tracer tags need interception they're copied into each span, so global tags then also
    * appear on the span, as before.
    *
+   * <p>Under OTel semantics the {@link #OTEL_SPAN_FIELD_KEYS} are not written: the OTLP span's own
+   * fields already carry them.
+   *
    * <p>Not thread-safe: each writer owns one.
    */
   static final class Writer<T> {
     private final T target;
     private final TriConsumer<T, Integer, TagMap.EntryReader> tagWriter;
+    private final Set<String> skippedKeys;
 
     // per-span state
     private Integer direction;
@@ -122,6 +136,8 @@ final class OtlpSpanAttributes {
     Writer(T target, TriConsumer<T, Integer, TagMap.EntryReader> tagWriter) {
       this.target = target;
       this.tagWriter = tagWriter;
+      this.skippedKeys =
+          Config.get().isTraceOtelSemanticsEnabled() ? OTEL_SPAN_FIELD_KEYS : emptySet();
     }
 
     /** Writes the span's attribute tags, naming them for the span's {@code direction}. */
@@ -142,6 +158,9 @@ final class OtlpSpanAttributes {
     }
 
     private void writeDirectTag(TagMap.EntryReader entry) {
+      if (isSkipped(entry)) {
+        return;
+      }
       if (!spanDefaultTags.isEmpty() && spanDefaultTags.containsKey(entry.tag())) {
         overriddenDefaults.add(entry.tag());
       }
@@ -151,9 +170,15 @@ final class OtlpSpanAttributes {
     private void writeDefaultTag(TagMap.EntryReader entry) {
       // skip defaults the span set itself, or no longer carries (removed, or consumed by
       // interception)
-      if (!overriddenDefaults.contains(entry.tag()) && spanTags.getEntry(entry.tag()) != null) {
+      if (!isSkipped(entry)
+          && !overriddenDefaults.contains(entry.tag())
+          && spanTags.getEntry(entry.tag()) != null) {
         tagWriter.accept(target, direction, entry);
       }
+    }
+
+    private boolean isSkipped(TagMap.EntryReader entry) {
+      return !skippedKeys.isEmpty() && skippedKeys.contains(entry.tag());
     }
   }
 
