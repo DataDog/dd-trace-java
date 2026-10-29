@@ -66,8 +66,24 @@ public final class LambdaScaApplication {
                   Proxy.newProxyInstance(
                       Context.class.getClassLoader(),
                       new Class<?>[] {Context.class},
-                      (proxy, method, arguments) ->
-                          "getAwsRequestId".equals(method.getName()) ? invocation : null);
+                      (proxy, method, arguments) -> {
+                        switch (method.getName()) {
+                          case "getAwsRequestId":
+                            return invocation;
+                          case "getRemainingTimeInMillis":
+                            return 30_000;
+                          case "getMemoryLimitInMB":
+                            return 1024;
+                          case "equals":
+                            return proxy == arguments[0];
+                          case "hashCode":
+                            return System.identityHashCode(proxy);
+                          case "toString":
+                            return "LambdaContext[requestId=" + invocation + "]";
+                          default:
+                            return null;
+                        }
+                      });
           ByteArrayOutputStream output = new ByteArrayOutputStream();
           try {
             handler.handleRequest(

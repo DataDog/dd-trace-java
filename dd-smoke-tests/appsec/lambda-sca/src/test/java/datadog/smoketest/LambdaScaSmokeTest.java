@@ -4,6 +4,7 @@ import static datadog.smoketest.backend.AgentBackend.testAgent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.test.util.PollingConditions;
 import groovy.json.JsonSlurper;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,23 +13,39 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-/** Verifies SCA reachability inside a Lambda handler with AppSec disabled. */
+/**
+ * Verifies SCA reachability inside a Lambda handler with AppSec enabled and disabled. The disabled
+ * configuration also verifies that SCA initializes independently of AppSec.
+ */
 class LambdaScaSmokeTest {
-  @RegisterExtension
-  static final SmokeServerApp app =
-      SmokeServerApp.named("lambda-sca")
-          .mainClass(
-              "datadog.smoketest.lambda.LambdaScaApplication",
-              System.getProperty("datadog.smoketest.lambda.classpath"))
-          .args("${app.httpPort}")
-          .env("AWS_LAMBDA_FUNCTION_NAME", "sca-smoke")
-          .env("_HANDLER", "datadog.smoketest.lambda.LambdaScaHandler::handleRequest")
-          .jvmArgs("-Ddd.appsec.sca.enabled=true", "-Ddd.appsec.enabled=false")
-          .backend(testAgent())
-          .build();
+  @RegisterExtension static final SmokeServerApp scaOnlyApp = createApp(false);
+
+  @RegisterExtension static final SmokeServerApp appsecApp = createApp(true);
+
+  private static SmokeServerApp createApp(boolean appsecEnabled) {
+    return SmokeServerApp.named(appsecEnabled ? "lambda-sca-appsec" : "lambda-sca-only")
+        .mainClass(
+            "datadog.smoketest.lambda.LambdaScaApplication",
+            System.getProperty("datadog.smoketest.lambda.classpath"))
+        .args("${app.httpPort}")
+        .env("AWS_LAMBDA_FUNCTION_NAME", "sca-smoke")
+        .env("_HANDLER", "datadog.smoketest.lambda.LambdaScaHandler::handleRequest")
+        .jvmArgs("-Ddd.appsec.sca.enabled=true", "-Ddd.appsec.enabled=" + appsecEnabled)
+        .backend(testAgent())
+        .build();
+  }
 
   @Test
   void reportsAVulnerableCallInsideTheLambdaHandlerWithScaAlone() {
+    assertReachability(scaOnlyApp);
+  }
+
+  @Test
+  void reportsAVulnerableCallInsideTheLambdaHandlerWithAppSecEnabled() {
+    assertReachability(appsecApp);
+  }
+
+  private static void assertReachability(SmokeServerApp app) {
     assertEquals(200, app.get("/load-dependency"));
     // Advisory telemetry is emitted after deferred retransformation has completed. No watched
     // method has executed yet, so this establishes readiness without a sleep or a warm-up call.
@@ -37,20 +54,27 @@ class LambdaScaSmokeTest {
         .waitForFlat(
             event ->
                 advisories(event).stream()
-                    .anyMatch(advisory -> Collections.emptyList().equals(advisory.get("reached"))),
-            10);
+                    .anyMatch(advisory -> Collections.emptyList().equals(advisory.get("reached"))));
 
     assertEquals(200, app.get("/invoke/warm"));
-    assertTrue(
-        app.waitForLogLine(line -> line.contains("LAMBDA_END warm")),
-        "real Lambda invocation advice must run");
+    new PollingConditions(30)
+        .eventually(
+            () ->
+                assertTrue(
+                    app.backend().traces().getTraces().stream()
+                        .flatMap(trace -> trace.getSpans().stream())
+                        .anyMatch(
+                            span ->
+                                "dd-tracer-serverless-span".equals(span.getName())
+                                    && "serverless".equals(span.getType())
+                                    && "warm".equals(span.getMeta().get("request_id"))),
+                    "expected serverless invocation span for request warm"));
     app.backend()
         .telemetry()
         .waitForFlat(
             event ->
                 reachedCallsites(event).stream()
-                    .anyMatch(hit -> "warmInvocation".equals(hit.get("symbol"))),
-            10);
+                    .anyMatch(hit -> "warmInvocation".equals(hit.get("symbol"))));
 
     Map<String, Object> caller =
         app.backend().telemetry().getFlatMessages().stream()
@@ -61,7 +85,7 @@ class LambdaScaSmokeTest {
     assertEquals("datadog.smoketest.lambda.LambdaScaHandler", caller.get("path"));
     assertEquals("warmInvocation", caller.get("symbol"));
     assertTrue(caller.get("line") instanceof Number, "caller line must be numeric");
-    assertEquals(37, ((Number) caller.get("line")).intValue());
+    assertEquals(38, ((Number) caller.get("line")).intValue());
   }
 
   @SuppressWarnings("unchecked")

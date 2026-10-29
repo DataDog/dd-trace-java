@@ -34,6 +34,7 @@ public final class LambdaScaHandler implements RequestStreamHandler {
             "createDirectory", Class.forName("com.github.junrar.rarfile.FileHeader"));
     method.setAccessible(true);
     try {
+      // LambdaScaSmokeTest asserts the exact line of this call; update it if this line moves.
       method.invoke(instance, (Object) null);
     } catch (InvocationTargetException failure) {
       // Reaching method entry is sufficient; no archive extraction or filesystem write is needed.
