@@ -50,7 +50,6 @@ public class Tags {
   public static final String DB_OPERATION = "db.operation";
   public static final String DB_STATEMENT = "db.statement";
   public static final String DB_WAREHOUSE = "db.warehouse";
-  public static final String DB_HOST = "db.host";
   public static final String DB_SCHEMA = "db.schema";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
   public static final String DB_POOL_NAME = "db.pool.name";

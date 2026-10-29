@@ -1,6 +1,6 @@
 package datadog.trace.lambda;
 
-import datadog.trace.api.appsec.MediaType;
+import datadog.trace.api.http.MediaType;
 import datadog.trace.lambda.MultipartSplitter.Part;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;

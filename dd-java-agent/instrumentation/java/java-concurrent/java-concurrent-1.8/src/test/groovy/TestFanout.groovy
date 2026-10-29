@@ -7,7 +7,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class TestFanout extends InstrumentationSpecification {
 
-  def "test propagate with fanout"() {
+  def "test propagate with fanout on #executorName"() {
     when:
     runUnderTrace("parent") {
       new Fanout(executor, 3, true).execute()
@@ -37,10 +37,9 @@ class TestFanout extends InstrumentationSpecification {
     executor.shutdownNow()
 
     where:
-    executor << [
-      Executors.newSingleThreadExecutor(),
-      Executors.newFixedThreadPool(3),
-      ForkJoinPool.commonPool()
-    ]
+    executorName        | executor
+    "single thread"     | Executors.newSingleThreadExecutor()
+    "fixed thread pool" | Executors.newFixedThreadPool(3)
+    "common fork join"  | ForkJoinPool.commonPool()
   }
 }

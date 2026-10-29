@@ -9,13 +9,11 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.test.junit.utils.config.WithConfig;
 import gw.internal.xml.ws.AsyncResponseImpl;
 import gw.internal.xml.ws.UnrelatedWorker;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
-@WithConfig(key = "integration.guidewire.enabled", value = "true")
 class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
 
   @FunctionalInterface

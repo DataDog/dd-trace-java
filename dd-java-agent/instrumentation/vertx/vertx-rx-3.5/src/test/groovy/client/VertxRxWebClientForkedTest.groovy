@@ -15,11 +15,6 @@ import spock.lang.Timeout
 @Timeout(10)
 class VertxRxWebClientForkedTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    return false
-  }
-
   @AutoCleanup
   @Shared
   Vertx vertx = Vertx.vertx(new VertxOptions())

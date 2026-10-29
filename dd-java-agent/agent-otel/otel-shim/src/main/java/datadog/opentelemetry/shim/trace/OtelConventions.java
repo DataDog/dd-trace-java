@@ -1,13 +1,6 @@
 package datadog.opentelemetry.shim.trace;
 
-import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_MESSAGE_ATTRIBUTE_KEY;
-import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_STACK_TRACE_ATTRIBUTE_KEY;
-import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_TYPE_ATTRIBUTE_KEY;
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
-import static datadog.trace.api.DDTags.ERROR_MSG;
-import static datadog.trace.api.DDTags.ERROR_STACK;
-import static datadog.trace.api.DDTags.ERROR_TYPE;
-import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
@@ -19,15 +12,22 @@ import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 import static io.opentelemetry.api.trace.SpanKind.PRODUCER;
 import static io.opentelemetry.api.trace.SpanKind.SERVER;
 import static java.lang.Boolean.parseBoolean;
+import static java.util.Collections.emptyMap;
 import static java.util.Locale.ROOT;
 
+import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanKind;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,10 +38,26 @@ public final class OtelConventions {
   static final String SPAN_TYPE = "span.type";
   static final String ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES = "analytics.event";
   static final String HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE = "http.response.status_code";
+  static final String EXCEPTION_SPAN_EVENT_NAME = "exception";
+  static final String EXCEPTION_MESSAGE_ATTRIBUTE = "exception.message";
+  static final String EXCEPTION_TYPE_ATTRIBUTE = "exception.type";
+  static final String EXCEPTION_STACK_TRACE_ATTRIBUTE = "exception.stacktrace";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelConventions.class);
 
   private OtelConventions() {}
+
+  /**
+   * The tag to store an attribute under on spans of {@code direction}. A direction-scoped
+   * OpenTelemetry name is stored as the Datadog tag it denotes there: {@code server.address} is
+   * {@code peer.hostname} on a client span and {@code http.hostname} on a server span. Every other
+   * name, and a direction-scoped one that denotes no tag in {@code direction}, is stored as
+   * written.
+   */
+  static String attributeTag(String key, int direction) {
+    long tagId = KnownTagCodec.directionalKeyOf(key, direction);
+    return tagId == 0 ? key : KnownTagCodec.nameOf(tagId);
+  }
 
   /**
    * Convert OpenTelemetry {@link SpanKind} to {@link Tags#SPAN_KIND} value.
@@ -136,18 +152,39 @@ public final class OtelConventions {
     }
   }
 
-  public static void setEventsAsTag(AgentSpan span, List<OtelSpanEvent> events) {
-    if (events == null || events.isEmpty()) {
-      return;
-    }
-    span.setTag(SPAN_EVENTS, OtelSpanEvent.toTag(events));
+  /**
+   * Ensures the event attributes contain all exception attributes, and applies them as span tags.
+   *
+   * <p>All exception span events get the following reserved attributes: {@link
+   * #EXCEPTION_MESSAGE_ATTRIBUTE}, {@link #EXCEPTION_TYPE_ATTRIBUTE} and {@link
+   * #EXCEPTION_STACK_TRACE_ATTRIBUTE}.
+   *
+   * @param span The span to set exception tags.
+   * @param exception The Throwable from which to build reserved attributes if missing.
+   * @param attributes The mutable Map-converted event attributes to complete with exception
+   *     attributes.
+   */
+  public static void applySpanEventExceptionAttributes(
+      AgentSpan span, Throwable exception, Map<String, Object> attributes) {
+    // Handle exception message
+    Object value =
+        attributes.computeIfAbsent(EXCEPTION_MESSAGE_ATTRIBUTE, k -> exception.getMessage());
+    span.setTag(KnownTags.ERROR_MESSAGE_ID, value);
+    // Handle exception type
+    value =
+        attributes.computeIfAbsent(EXCEPTION_TYPE_ATTRIBUTE, k -> exception.getClass().getName());
+    span.setTag(KnownTags.ERROR_TYPE_ID, value);
+    // Handle exception stacktrace
+    value =
+        attributes.computeIfAbsent(
+            EXCEPTION_STACK_TRACE_ATTRIBUTE, k -> stringifyErrorStack(exception));
+    span.setTag(KnownTags.ERROR_STACK_ID, value);
   }
 
-  public static void applySpanEventExceptionAttributesAsTags(
-      AgentSpan span, Attributes exceptionAttributes) {
-    span.setTag(ERROR_MSG, exceptionAttributes.get(EXCEPTION_MESSAGE_ATTRIBUTE_KEY));
-    span.setTag(ERROR_TYPE, exceptionAttributes.get(EXCEPTION_TYPE_ATTRIBUTE_KEY));
-    span.setTag(ERROR_STACK, exceptionAttributes.get(EXCEPTION_STACK_TRACE_ATTRIBUTE_KEY));
+  static String stringifyErrorStack(Throwable error) {
+    final StringWriter errorString = new StringWriter();
+    error.printStackTrace(new PrintWriter(errorString));
+    return errorString.toString();
   }
 
   private static String computeOperationName(AgentSpan span) {
@@ -253,7 +290,27 @@ public final class OtelConventions {
     return (String) tag;
   }
 
-  public static SpanAttributes convertAttributes(Attributes attributes) {
+  /**
+   * Converts OpenTelemetry attributes into span event attributes.
+   *
+   * @param attributes The OpenTelemetry attributes to convert.
+   * @param extraCapacity The number of attributes to be added after conversion.
+   * @return The attributes keyed by attribute name, mutable if extra capacity is requested.
+   */
+  static Map<String, Object> convertEventAttributes(Attributes attributes, int extraCapacity) {
+    int size = attributes == null ? 0 : attributes.size();
+    if (size + extraCapacity == 0) {
+      return emptyMap();
+    }
+    // Size the map to hold all attributes without resizing given the default load factor
+    Map<String, Object> map = new HashMap<>((int) ((size + extraCapacity) / 0.75f) + 1);
+    if (size > 0) {
+      attributes.forEach((key, value) -> map.put(key.getKey(), value));
+    }
+    return map;
+  }
+
+  public static SpanAttributes convertSpanAttributes(Attributes attributes) {
     if (attributes.isEmpty()) {
       return SpanAttributes.EMPTY;
     }

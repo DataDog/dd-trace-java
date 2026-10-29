@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
-  id 'idea'
 }
 
 muzzle {
@@ -123,12 +122,7 @@ configurations.named('latestDepForkedTestRuntimeClasspath') {
   }
 }
 
-tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
+tasks.named("compileMain_java11Java", JavaCompile) {
+  // Java 8 bytecode — override addSourceSetFor(11)'s Java 11 default
+  configureCompiler(it, JavaVersion.VERSION_1_8)
 }

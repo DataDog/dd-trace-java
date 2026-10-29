@@ -1,9 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
+import datadog.appsec.api.blocking.BlockingContentType
+import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.api.DDTags
 import datadog.trace.api.appsec.HttpClientRequest
 import datadog.trace.api.config.AppSecConfig
+import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.CallbackProvider
+import datadog.trace.api.gateway.Flow
 import static datadog.trace.api.gateway.Events.EVENTS
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
@@ -52,7 +56,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     AgentTracer.forceRegister(ORIGINAL_TRACER)
   }
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
 
   def "test onRequest"() {
     setup:
@@ -120,19 +124,22 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     0 * _
 
     where:
-    tagQueryString | url                                                   | expectedUrl           | expectedQuery      | expectedFragment      | hostname | port | expectedPath
-    false          | null                                                  | null                  | null               | null                  | null     | null | "/"
-    false          | ""                                                    | "/"                   | ""                 | null                  | null     | null | "/"
-    false          | "/path?query"                                         | "/path"               | ""                 | null                  | null     | null | "/path"
-    false          | "https://host:0"                                      | "https://host/"       | ""                 | null                  | "host"   | null | "/"
-    false          | "https://host/path"                                   | "https://host/path"   | ""                 | null                  | "host"   | null | "/path"
-    false          | "http://host:99/path?query#fragment"                  | "http://host:99/path" | ""                 | null                  | "host"   | 99   | "/path"
-    true           | null                                                  | null                  | null               | null                  | null     | null | "/"
-    true           | ""                                                    | "/"                   | null               | null                  | null     | null | "/"
-    true           | "/path?encoded+%28query%29%3F"                        | "/path"               | "encoded+(query)?" | null                  | null     | null | "/path"
-    true           | "https://host:0"                                      | "https://host/"       | null               | null                  | "host"   | null | "/"
-    true           | "https://host/path"                                   | "https://host/path"   | null               | null                  | "host"   | null | "/path"
-    true           | "http://host:99/path?query#encoded+%28fragment%29%3F" | "http://host:99/path" | "query"            | "encoded+(fragment)?" | "host"   | 99   | "/path"
+    tagQueryString | url                                                   | expectedUrl           | expectedQuery               | expectedFragment      | hostname | port | expectedPath
+    false          | null                                                  | null                  | null                        | null                  | null     | null | "/"
+    false          | ""                                                    | "/"                   | ""                          | null                  | null     | null | "/"
+    false          | "/path?query"                                         | "/path"               | ""                          | null                  | null     | null | "/path"
+    false          | "https://host:0"                                      | "https://host/"       | ""                          | null                  | "host"   | null | "/"
+    false          | "https://host/path"                                   | "https://host/path"   | ""                          | null                  | "host"   | null | "/path"
+    false          | "http://host:99/path?query#fragment"                  | "http://host:99/path" | ""                          | null                  | "host"   | 99   | "/path"
+    true           | null                                                  | null                  | null                        | null                  | null     | null | "/"
+    true           | ""                                                    | "/"                   | null                        | null                  | null     | null | "/"
+    true           | "/path?encoded+%28query%29%3F"                        | "/path"               | "encoded+(query)?"          | null                  | null     | null | "/path"
+    true           | "https://host:0"                                      | "https://host/"       | null                        | null                  | "host"   | null | "/"
+    true           | "https://host/path"                                   | "https://host/path"   | null                        | null                  | "host"   | null | "/path"
+    true           | "http://host:99/path?query#encoded+%28fragment%29%3F" | "http://host:99/path" | "query"                     | "encoded+(fragment)?" | "host"   | 99   | "/path"
+    true           | "http://host/path?token=first%26SECOND_HALF"          | "http://host/path"    | "token=first%26SECOND_HALF" | null                  | "host"   | null | "/path"
+    true           | "http://host/path?t%6fken=first%26SECOND_HALF"        | "http://host/path"    | "token=first%26SECOND_HALF" | null                  | "host"   | null | "/path"
+    true           | "http://host/path?q=one%26two%23three"                | "http://host/path"    | "q=one%26two%23three"       | null                  | "host"   | null | "/path"
 
     req = [url: url == null ? null : new URI(url)]
   }
@@ -252,6 +259,76 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     then:
     1 * callbackProvider.getCallback(EVENTS.httpClientRequest()) >> listener
     1 * listener.apply(reqCtx, _ as HttpClientRequest)
+  }
+
+  /**
+   * Fail-closed invariant: RASP must abort the SSRF attempt even when no blocking response can be
+   * committed, so the throw happens whether or not a {@link BlockResponseFunction} is present.
+   */
+  void "test SSRF blocking throws even without a BlockResponseFunction"() {
+    setup:
+    injectSysConfig(AppSecConfig.APPSEC_ENABLED, 'true')
+    injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, 'true')
+    def rba = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+    final callbackProvider = Mock(CallbackProvider)
+    final listener = Mock(BiFunction)
+    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    callbackProvider.getCallback(EVENTS.httpClientRequest()) >> listener
+    listener.apply(reqCtx, _ as HttpClientRequest) >> new Flow<Void>() {
+        @Override
+        Flow.Action getAction() {
+          return rba
+        }
+
+        @Override
+        Void getResult() {
+          return null
+        }
+      }
+    reqCtx.getBlockResponseFunction() >> null
+
+    final decorator = newDecorator()
+    final req = [method: "GET", url: new URI("http://localhost:1234/somepath")]
+
+    when:
+    decorator.onRequest(span2, req)
+
+    then:
+    thrown(BlockingException)
+  }
+
+  void "test SSRF blocking commits and throws when a BlockResponseFunction is present"() {
+    setup:
+    injectSysConfig(AppSecConfig.APPSEC_ENABLED, 'true')
+    injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, 'true')
+    def rba = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+    final callbackProvider = Mock(CallbackProvider)
+    final listener = Mock(BiFunction)
+    final brf = Mock(BlockResponseFunction)
+    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    callbackProvider.getCallback(EVENTS.httpClientRequest()) >> listener
+    listener.apply(reqCtx, _ as HttpClientRequest) >> new Flow<Void>() {
+        @Override
+        Flow.Action getAction() {
+          return rba
+        }
+
+        @Override
+        Void getResult() {
+          return null
+        }
+      }
+    reqCtx.getBlockResponseFunction() >> brf
+
+    final decorator = newDecorator()
+    final req = [method: "GET", url: new URI("http://localhost:1234/somepath")]
+
+    when:
+    decorator.onRequest(span2, req)
+
+    then:
+    thrown(BlockingException)
+    1 * brf.tryCommitBlockingResponse(reqCtx, rba)
   }
 
   @Override

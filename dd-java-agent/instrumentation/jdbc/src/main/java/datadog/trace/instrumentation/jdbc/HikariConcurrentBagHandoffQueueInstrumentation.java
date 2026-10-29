@@ -43,13 +43,6 @@ public final class HikariConcurrentBagHandoffQueueInstrumentation extends Instru
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HikariBlockedTracker", packageName + ".HikariBlockedTrackingSynchronousQueue",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(),

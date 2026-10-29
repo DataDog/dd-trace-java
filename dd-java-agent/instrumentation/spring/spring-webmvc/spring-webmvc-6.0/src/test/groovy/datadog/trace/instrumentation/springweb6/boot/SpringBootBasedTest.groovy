@@ -5,6 +5,8 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.WebsocketServer
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
+import datadog.trace.api.Config
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -43,12 +45,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
-
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
 
   @Shared
   def context
@@ -250,6 +246,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (Config.get().isTraceOtelSemanticsEnabled()) {
+      return super.expectedResourceName(endpoint, method, address)
+    }
     if (endpoint.status == 404 && endpoint.path == "/not-found") {
       return "404"
     } else if (endpoint.hasPathParam) {
@@ -516,6 +515,9 @@ class SpringBootRumInjectionForkedTest extends SpringBootBasedTest {
   boolean testRumInjection() {
     true
   }
+}
+
+class SpringBootOtelSemanticsForkedTest extends SpringBootBasedTest implements TestingOtelHttpSemantics {
 }
 
 /**

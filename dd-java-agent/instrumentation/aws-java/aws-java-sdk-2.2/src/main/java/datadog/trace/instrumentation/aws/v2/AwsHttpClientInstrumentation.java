@@ -15,7 +15,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -69,7 +68,7 @@ public final class AwsHttpClientInstrumentation
      * stored in channel attributes.
      */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static TraceScope methodEnter(
+    public static AutoCloseable methodEnter(
         @Advice.This final Object thiz,
         @Advice.Argument(1) final RequestExecutionContext requestExecutionContext) {
       final AgentSpan activeSpan = activeSpan();
@@ -91,7 +90,7 @@ public final class AwsHttpClientInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(@Advice.Enter final TraceScope scope) {
+    public static void methodExit(@Advice.Enter final AutoCloseable scope) throws Exception {
       scope.close();
     }
 

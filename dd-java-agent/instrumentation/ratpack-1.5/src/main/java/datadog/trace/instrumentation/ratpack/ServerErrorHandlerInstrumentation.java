@@ -30,13 +30,6 @@ public class ServerErrorHandlerInstrumentation extends InstrumenterModule.Tracin
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RatpackServerDecorator", packageName + ".RequestURIAdapterAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("error")

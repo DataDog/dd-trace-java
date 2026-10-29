@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
-  id 'idea'
 }
 
 muzzle {
@@ -17,7 +16,7 @@ tracerJava {
 
 ["compileMain_java11Java", "compileTestJava"].each {
   tasks.named(it, JavaCompile) {
-    configureCompiler(it, 11, JavaVersion.VERSION_11, "Needs access to module jdk.internal.vm.ci")
+    configureCompiler(it, JavaVersion.VERSION_11, "Uses --add-exports to access jdk.internal.vm.ci, which is incompatible with --release")
     it.options.compilerArgs.addAll([
       '-Xlint:all,-processing,-options,-path',
       '--add-modules',
@@ -39,10 +38,4 @@ dependencies {
 
 tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
-}
-
-idea {
-  module {
-    jdkName = '11'
-  }
 }

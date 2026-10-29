@@ -5,9 +5,17 @@ plugins {
 
 muzzle {
   pass {
+    name = 'scala-promise-2.13'
     group = 'org.scala-lang'
     module = "scala-library"
     versions = "[2.13,)"
+    assertInverse = true
+  }
+  pass {
+    name = 'scala-promise-unregister'
+    group = 'org.scala-lang'
+    module = "scala-library"
+    versions = "[2.13.17,)"
     assertInverse = true
   }
 }
@@ -28,19 +36,24 @@ evaluationDependsOn(':dd-java-agent:instrumentation:scala:scala-promise:scala-pr
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest')
+addTestSuite('scala21317Test')
 
 tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
 }
 
 sourceSets {
+  latestDepTest.java.srcDir 'src/scala21317Test/java'
+
   test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
   test.groovy.srcDir sourceSets.latestDepForkedTest.groovy
   latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
+  latestDepTest.groovy.srcDir 'src/scala21317Test/groovy'
   latestDepForkedTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
 
   test.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
   latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
+  latestDepTest.scala.srcDir 'src/scala21317Test/scala'
   latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
 }
 
@@ -56,12 +69,14 @@ tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepForkedTest.scala.classesDirectory)
 }
 
+tasks.named("compileScala21317TestGroovy", GroovyCompile) {
+  classpath += files(sourceSets.scala21317Test.scala.classesDirectory)
+}
+
 tasks.withType(ScalaCompile).configureEach {
-  // Despite the compatibility matrix, scala compiler doesn't properly
-  // get the right compiler flags with JDK11 toolchain. Using 8 works.
+  // Scala compilers here can't run on modern JDKs; pinned to JDK 8.
   // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
-  // * https://github.com/gradle/gradle/issues/19456
-  configureCompiler(it, 8)
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Scala compilers here do not run on modern JDKs")
 }
 
 dependencies {
@@ -73,4 +88,6 @@ dependencies {
 
   latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.+' // scala-lang 3.x requires scala 3.x compiler
   latestDepTestImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common')
+
+  scala21317TestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.13.17'
 }

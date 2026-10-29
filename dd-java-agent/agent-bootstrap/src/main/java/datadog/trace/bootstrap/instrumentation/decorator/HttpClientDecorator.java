@@ -7,8 +7,8 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.appsec.HttpClientRequest;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
@@ -23,9 +23,11 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.api.URIUtils;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.http.DatadogClientUrl;
+import datadog.trace.bootstrap.instrumentation.api.http.OtelClientUrl;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.BitSet;
@@ -42,6 +44,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   private static final String DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME = "DD-Client-Library-Language";
 
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
+  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
+  private static final TagExtractor<URI> URL_TAGS =
+      OTEL_SEMANTICS ? OtelClientUrl.INSTANCE : DatadogClientUrl.INSTANCE;
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
 
@@ -118,7 +123,11 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
               DSM_TRANSACTION_SOURCE_READER);
 
       String method = method(request);
-      span.setTag(Tags.HTTP_METHOD, method);
+      if (OTEL_SEMANTICS) {
+        OtelHttpSemantics.setRequestMethod(span, method);
+      } else {
+        span.setTag(KnownTags.HTTP_METHOD_ID, method);
+      }
 
       if (CLIENT_TAG_HEADERS) {
         for (Map.Entry<String, String> headerTag :
@@ -130,24 +139,23 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         }
       }
 
-      // Copy of HttpServerDecorator url handling
+      boolean resourceNameSet = false;
       try {
         final URI url = url(request);
         if (url != null) {
           onURI(span, url);
-          span.setTag(
-              Tags.HTTP_URL,
-              URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
-          if (Config.get().isHttpClientTagQueryString()) {
-            span.setTag(DDTags.HTTP_QUERY, url.getQuery());
-            span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
-          }
+          span.setTagsFrom(url, URL_TAGS);
+          // Explicit path mappings take precedence over the default name in either semantic mode.
           if (shouldSetResourceName()) {
-            HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
+            String path = url.getPath();
+            if (path != null) {
+              HTTP_RESOURCE_DECORATOR.withClientPath(span, method, path);
+              resourceNameSet = true;
+            }
           }
           // SSRF exploit prevention check
           onHttpClientRequest(span, url.toString());
-        } else if (shouldSetResourceName()) {
+        } else if (!OTEL_SEMANTICS && shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
       } catch (final BlockingException e) {
@@ -155,8 +163,17 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
       } finally {
+        if (!resourceNameSet) {
+          setOtelResourceNameFallback(span, method);
+        }
         ssrfIastCheck(request);
       }
+    }
+  }
+
+  private void setOtelResourceNameFallback(AgentSpan span, String method) {
+    if (OTEL_SEMANTICS && shouldSetResourceName()) {
+      OtelHttpSemantics.setMethodResourceName(span, method);
     }
   }
 
@@ -177,6 +194,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         span.setHttpStatusCode(status);
         if (CLIENT_ERROR_STATUSES.get(status)) {
           span.setError(true);
+          if (OTEL_SEMANTICS) {
+            OtelHttpSemantics.setErrorType(span, status);
+          }
         }
       }
 
@@ -264,8 +284,10 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+        brf.tryCommitBlockingResponse(ctx, rba);
       }
+      // Thrown even without a BlockResponseFunction: RASP must abort the SSRF attempt even when
+      // no blocking response can be committed.
       throw new BlockingException("Blocked request (for SSRF attempt)");
     }
   }

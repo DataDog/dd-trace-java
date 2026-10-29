@@ -1,5 +1,4 @@
 plugins {
-  id 'idea'
   id 'dd-trace-java.module.instrumentation'
   id 'dd-trace-java.call-site-instrumentation'
 }
@@ -11,12 +10,6 @@ testJvmConstraints {
 muzzle {
   pass {
     coreJdk()
-  }
-}
-
-idea {
-  module {
-    jdkName = '11'
   }
 }
 
@@ -33,9 +26,8 @@ dependencies {
 project.tasks.withType(AbstractCompile).configureEach {
   switch (it.name) {
     case 'compileCsiJava':
-      configureCompiler(it, 11, JavaVersion.VERSION_1_8)
       break
     default:
-      configureCompiler(it, 11)
+      configureCompiler(it, JavaVersion.VERSION_11)
   }
 }

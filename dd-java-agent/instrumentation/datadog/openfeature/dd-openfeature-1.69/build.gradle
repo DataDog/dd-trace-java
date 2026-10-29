@@ -1,0 +1,39 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+// The SDK releases with the agent bridge.
+// TODO APMLP-1512 Enable once dd-openfeature 1.69.0 is published.
+// muzzle {
+//   pass {
+//     group = 'com.datadoghq'
+//     module = 'dd-openfeature'
+//     versions = '[1.69.0,)'
+//   }
+// }
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
+
+dependencies {
+  main_java11CompileOnly project(':dd-openfeature')
+  main_java11CompileOnly project(':products:feature-flagging:feature-flagging-bootstrap')
+  main_java11CompileOnly libs.spotbugs.annotations
+
+  testImplementation project(':dd-openfeature')
+  testImplementation project(':products:feature-flagging:feature-flagging-bootstrap')
+  testImplementation libs.bundles.mockito
+}
+
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_11)
+}
+
+tasks.named("compileTestJava", JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_11)
+}

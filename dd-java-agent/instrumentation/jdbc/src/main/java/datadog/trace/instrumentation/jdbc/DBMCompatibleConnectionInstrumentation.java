@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
@@ -76,13 +77,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     // for testing purposes
     "test.TestConnection"
   };
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
-    };
-  }
 
   @Override
   public String[] knownMatchingTypes() {

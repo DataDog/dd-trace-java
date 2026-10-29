@@ -1,10 +1,13 @@
 package datadog.trace.instrumentation.tomcat;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -34,6 +37,25 @@ public class TomcatBlockingHelper {
     GET_OUTPUT_STREAM = mh;
   }
 
+  /**
+   * Reports a block failure on the AppSec context bound to the given Tomcat request, if the request
+   * still carries a datadog context with an active span.
+   */
+  private static void reportBlockFailure(Request request) {
+    Object contextObj = request.getAttribute(HttpServerDecorator.DD_CONTEXT_ATTRIBUTE);
+    if (!(contextObj instanceof Context)) {
+      return;
+    }
+    AgentSpan span = AgentSpan.fromContext((Context) contextObj);
+    if (span == null) {
+      return;
+    }
+    RequestContext reqCtx = span.getRequestContext();
+    if (reqCtx != null) {
+      BlockFailureReporter.reportBlockFailure(reqCtx);
+    }
+  }
+
   public static void commitBlockingResponse(
       TraceSegment segment, Request request, Response resp, Flow.Action.RequestBlockingAction rba) {
     commitBlockingResponse(
@@ -55,10 +77,16 @@ public class TomcatBlockingHelper {
       Map<String, String> extraHeaders,
       String securityResponseId) {
     if (GET_OUTPUT_STREAM == null) {
+      // a commit was genuinely attempted, but the JVM-wide reflection lookup failed at class init
+      reportBlockFailure(request);
       return false;
     }
     int httpCode = BlockingActionHelper.getHttpCode(statusCode);
     if (!start(resp, httpCode)) {
+      // Relies on the caller (TomcatDecorator.TomcatBlockResponseFunction) short-circuiting
+      // repeat calls for a request that already blocked successfully, so reaching here always
+      // means the response was committed by something other than us: a genuine block failure.
+      reportBlockFailure(request);
       return true;
     }
 
@@ -76,9 +104,16 @@ public class TomcatBlockingHelper {
       } catch (IllegalStateException ise) {
         tryWriteWithWriter(request, resp, templateType, securityResponseId);
       }
-      segment.effectivelyBlocked();
     } catch (Throwable e) {
       log.info("Error sending error page", e);
+      reportBlockFailure(request);
+      return true;
+    }
+    try {
+      segment.effectivelyBlocked();
+    } catch (Throwable ignored) {
+      // span/segment already finished - response was already sent successfully, blocking
+      // succeeded
     }
     return true;
   }

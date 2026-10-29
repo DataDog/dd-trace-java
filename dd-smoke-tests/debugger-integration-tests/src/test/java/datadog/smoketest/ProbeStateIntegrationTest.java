@@ -10,7 +10,6 @@ import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -18,22 +17,21 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.condition.DisabledIf;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 
 @NonRetryable
 public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest {
-
   @BeforeEach
   @Override
   void setup(TestInfo testInfo) throws Exception {
     super.setup(testInfo);
+    additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
+    // internal flag required to avoid racing source file tracking and class loading as
+    // source file tracking information may be missing when looking for class to retransform
+    additionalJvmArgs.add(
+        "-Ddd.internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled=true");
     appUrl = startAppAndAndGetUrl();
-  }
-
-  @Override
-  protected List<String> getDebuggerCommandParams() {
-    List<String> args = super.getDebuggerCommandParams();
-    args.add("-Ddd.third.party.excludes=datadog.smoketest");
-    return args;
   }
 
   @Test
@@ -77,12 +75,12 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @Test
   @DisplayName("testAddSourceFileProbeHugeInnerClasses")
   @Flaky
-  @Disabled
-  // @DisabledIf(
-  //     value = "datadog.environment.JavaVirtualMachine#isJ9",
-  //     disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
+  // Test disabled for JDK8 as the debuggerAgent is started async for JDK < 9
+  @EnabledForJreRange(min = JRE.JAVA_11)
   void testAddSourceFileProbeHugeInnerClasses() throws Exception {
-    waitForSpecificLine(appUrl, " totalentries: 5");
     LogProbe logProbe =
         LogProbe.builder()
             .probeId(PROBE_ID)

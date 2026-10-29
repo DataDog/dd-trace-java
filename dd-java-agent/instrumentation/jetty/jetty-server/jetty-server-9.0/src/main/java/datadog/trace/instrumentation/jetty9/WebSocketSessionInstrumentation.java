@@ -7,11 +7,11 @@ import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorat
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import java.util.Collections;
 import java.util.Map;
@@ -61,7 +61,7 @@ public class WebSocketSessionInstrumentation extends InstrumenterModule.Tracing
 
   public static class CloseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final Object session,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
 
@@ -81,7 +81,7 @@ public class WebSocketSessionInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable thrown,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
       if (scope != null) {

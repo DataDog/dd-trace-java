@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.hibernate.core.v4_0;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -62,7 +63,7 @@ public final class QueryInstrumentation extends AbstractHibernateInstrumentation
       final SessionState state =
           SessionMethodUtils.startScopeFrom(contextStore, query, operationName, null, true);
       if (state != null) {
-        DECORATOR.onStatement(state.getMethodScope().span(), query.getQueryString());
+        DECORATOR.onStatement(spanFromScope(state.getMethodScope()), query.getQueryString());
       }
       return state;
     }

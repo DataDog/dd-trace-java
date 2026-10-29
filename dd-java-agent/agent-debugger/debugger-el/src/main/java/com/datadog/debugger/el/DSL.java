@@ -203,8 +203,7 @@ public class DSL {
     return new ContainsExpression(target, value);
   }
 
-  public static StringPredicateExpression matches(
-      ValueExpression<?> valueExpression, StringValue str) {
+  public static MatchesExpression matches(ValueExpression<?> valueExpression, StringValue str) {
     return new MatchesExpression(valueExpression, str);
   }
 

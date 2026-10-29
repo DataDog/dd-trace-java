@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpClientResponse;
@@ -23,6 +23,8 @@ import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
@@ -113,20 +115,26 @@ class HttpServerResponseEndHandlerInstrumentationTest extends AbstractInstrument
                 .setProtocolVersion(HttpVersion.HTTP_2)
                 .setHttp2ClearTextUpgrade(false));
     try {
-      HttpClientResponse response =
+      Map.Entry<Integer, String> response =
           client
               .request(HttpMethod.GET, port, "localhost", "/end-handler-wrapper")
-              .compose(request -> request.send())
+              // Subscribe on the event loop before response data can be discarded.
+              .compose(request -> request.send().compose(this::collectResponse))
               .toCompletionStage()
               .toCompletableFuture()
               .get(10, TimeUnit.SECONDS);
-      Buffer body =
-          response.body().toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
-
-      assertWrapped(response.statusCode(), body.toString(StandardCharsets.UTF_8), HTTP2_RESPONSE);
+      assertWrapped(response.getKey(), response.getValue(), HTTP2_RESPONSE);
     } finally {
       client.close().toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
     }
+  }
+
+  private Future<Map.Entry<Integer, String>> collectResponse(HttpClientResponse response) {
+    return response
+        .body()
+        .map(
+            body ->
+                new SimpleEntry<>(response.statusCode(), body.toString(StandardCharsets.UTF_8)));
   }
 
   private static boolean hasVertx51Http1Response() {

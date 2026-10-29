@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation.ptags;
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.core.propagation.PropagationTags;
@@ -53,12 +55,14 @@ public class KnuthSamplingRateFormatBenchmark {
   @Param({"0.5", "0.1", "0.01", "0.001", "0.0001", "0.123456789", "0.999999"})
   double rate;
 
+  PropagationTags.Factory factory;
   PTagsFactory.PTags ptags;
 
   @Setup(Level.Trial)
   public void setUp() {
-    ptags = (PTagsFactory.PTags) PropagationTags.factory().empty();
-    ptags.updateKnuthSamplingRate(rate);
+    factory = PropagationTags.factory();
+    ptags = (PTagsFactory.PTags) factory.empty();
+    ptags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, rate, false, 1L, false);
   }
 
   /** Baseline: old implementation using String.format + substring trimming. */
@@ -82,16 +86,13 @@ public class KnuthSamplingRateFormatBenchmark {
     bh.consume(ptags.getKnuthSamplingRateTagValue());
   }
 
-  /**
-   * Models the per-trace allocation cost: resets the instance cache (simulating a new PTags), then
-   * calls updateKnuthSamplingRate. This is what every trace root pays. With the static cache
-   * applied, this should also be near-zero allocation after warmup.
-   */
+  /** Models a fresh trace's probability decision, including its propagation tags allocation. */
   @Benchmark
-  public void updateRateFreshTrace(Blackhole bh) {
-    ptags.updateKnuthSamplingRate(Double.NaN); // reset instance cache, like a new PTags
-    ptags.updateKnuthSamplingRate(rate);
-    bh.consume(ptags.getKnuthSamplingRateTagValue());
+  public void probabilityDecisionFreshTrace(Blackhole bh) {
+    PTagsFactory.PTags freshTags = (PTagsFactory.PTags) factory.empty();
+    freshTags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_DROP, AGENT_RATE, rate, false, 1L, false);
+    bh.consume(freshTags.getKnuthSamplingRateTagValue());
   }
 
   // ---- old implementation for comparison (%.6f with trailing zero removal) ----

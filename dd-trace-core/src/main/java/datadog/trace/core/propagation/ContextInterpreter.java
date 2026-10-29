@@ -19,6 +19,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
@@ -66,12 +67,14 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private TagContext.HttpHeaders httpHeaders;
   private final String customIpHeaderName;
   private final boolean clientIpResolutionEnabled;
-  private final boolean clientIpWithoutAppSec;
+  private final boolean collectClientIp;
   private final boolean aiGuardEnabled;
+  private final boolean otelSemanticsEnabled;
   private boolean collectIpHeaders;
   private final boolean requestHeaderTagsCommaAllowed;
   private final int baggageMaxItems;
   private final int baggageMaxBytes;
+  private final boolean apmTracingEnabled;
 
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -83,12 +86,14 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected ContextInterpreter(Config config) {
     this.customIpHeaderName = config.getTraceClientIpHeader();
     this.clientIpResolutionEnabled = config.isTraceClientIpResolverEnabled();
-    this.clientIpWithoutAppSec = config.isClientIpEnabled();
+    this.collectClientIp = config.isClientIpEnabled();
     this.aiGuardEnabled = config.isAiGuardEnabled();
+    this.otelSemanticsEnabled = config.isTraceOtelSemanticsEnabled();
     this.propagationTagsFactory = PropagationTags.factory(config);
     this.requestHeaderTagsCommaAllowed = config.isRequestHeaderTagsCommaAllowed();
     this.baggageMaxItems = config.getTraceBaggageMaxItems();
     this.baggageMaxBytes = config.getTraceBaggageMaxBytes();
+    this.apmTracingEnabled = config.isApmTracingEnabled();
   }
 
   final TagMap.Ledger tagLedger() {
@@ -122,7 +127,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean handledXForwarding(String key, String value) {
-    if (value == null || !collectIpHeaders) {
+    if (value == null || (!collectIpHeaders && !otelSemanticsEnabled)) {
       return false;
     }
 
@@ -134,7 +139,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       getHeaders().xForwardedHost = value;
       return true;
     }
-    if (X_FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
+    if (collectIpHeaders && X_FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
       getHeaders().xForwardedFor = value;
       return true;
     }
@@ -278,7 +283,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     fullContext = true;
     httpHeaders = null;
     collectIpHeaders =
-        this.clientIpWithoutAppSec
+        this.collectClientIp
             || this.clientIpResolutionEnabled
                 && (ActiveSubsystems.APPSEC_ACTIVE || this.aiGuardEnabled);
     headerTags = traceConfig.getRequestHeaderTags();
@@ -345,6 +350,17 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   private int samplingPriorityOrDefault(DDTraceId traceId, int samplingPriority) {
+    if (!apmTracingEnabled
+        && (propagationTags == null
+            || !ProductTraceSource.isProductMarked(
+                propagationTags.getTraceSource(),
+                ProductTraceSource.ASM,
+                ProductTraceSource.AI_GUARD))) {
+      // With APM tracing disabled, don't inherit an upstream APM decision: let the local sampler
+      // set the priority. Same products as TraceCollector.setSamplingPriorityIfNecessary. Needed
+      // when Data Jobs is enabled, where the drop can't override an already-set priority.
+      return PrioritySampling.UNSET;
+    }
     return samplingPriority == PrioritySampling.UNSET || DDTraceId.ZERO.equals(traceId)
         ? defaultSamplingPriority()
         : samplingPriority;

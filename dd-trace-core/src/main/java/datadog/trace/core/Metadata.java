@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
-import static java.util.Collections.emptyList;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.RadixTreeCache;
@@ -15,6 +14,8 @@ public final class Metadata {
   private final UTF8BytesString threadName;
   private final int httpStatusCode;
   private final TagMap tags;
+  private final TagMap globalTags;
+  private final TagMap spanDefaultTags;
   private final Map<String, String> baggage;
 
   private final int samplingPriority;
@@ -23,12 +24,16 @@ public final class Metadata {
   private final CharSequence origin;
   private final int longRunningVersion;
   private final UTF8BytesString processTags;
+  private final UTF8BytesString otlpExportMarker;
   private final List<? extends AgentSpanLink> spanLinks;
+  private final List<DDSpanEvent> spanEvents;
 
   public Metadata(
       long threadId,
       UTF8BytesString threadName,
       TagMap tags,
+      TagMap globalTags,
+      TagMap spanDefaultTags,
       Map<String, String> baggage,
       int samplingPriority,
       boolean measured,
@@ -37,11 +42,15 @@ public final class Metadata {
       CharSequence origin,
       int longRunningVersion,
       UTF8BytesString processTags,
-      List<? extends AgentSpanLink> spanLinks) {
+      UTF8BytesString otlpExportMarker,
+      List<? extends AgentSpanLink> spanLinks,
+      List<DDSpanEvent> spanEvents) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;
     this.tags = tags;
+    this.globalTags = globalTags;
+    this.spanDefaultTags = spanDefaultTags;
     this.baggage = baggage;
     this.samplingPriority = samplingPriority;
     this.measured = measured;
@@ -49,7 +58,9 @@ public final class Metadata {
     this.origin = origin;
     this.longRunningVersion = longRunningVersion;
     this.processTags = processTags;
-    this.spanLinks = spanLinks == null ? emptyList() : spanLinks;
+    this.otlpExportMarker = otlpExportMarker;
+    this.spanLinks = spanLinks;
+    this.spanEvents = spanEvents;
   }
 
   /**
@@ -93,6 +104,25 @@ public final class Metadata {
     return this.tags;
   }
 
+  /**
+   * The trace's global tags ({@code DD_TAGS}, or their remote-config override, which keeps the
+   * configured {@code env} and {@code version}). {@link #getTags()} already includes them, below
+   * the span defaults and the span's own tags; this lets a serializer that writes them once per
+   * payload, such as an OTLP resource, tell them apart.
+   */
+  public TagMap getGlobalTags() {
+    return globalTags;
+  }
+
+  /**
+   * The trace's span defaults ({@code DD_TRACE_SPAN_TAGS} and tracer-defined tags such as {@code
+   * env}), without the global tags; only the tracer-defined tags while a remote-config override is
+   * active. {@link #getTags()} already includes them, below the span's own tags.
+   */
+  public TagMap getSpanDefaultTags() {
+    return spanDefaultTags;
+  }
+
   public Map<String, String> getBaggage() {
     return baggage;
   }
@@ -121,7 +151,15 @@ public final class Metadata {
     return processTags;
   }
 
+  public UTF8BytesString otlpExportMarker() {
+    return otlpExportMarker;
+  }
+
   public List<? extends AgentSpanLink> getSpanLinks() {
     return spanLinks;
+  }
+
+  public List<DDSpanEvent> getSpanEvents() {
+    return spanEvents;
   }
 }

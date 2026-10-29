@@ -5,6 +5,7 @@ import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.initialization.Settings
 import java.net.URI
 
+// Requires Gradle 6.8+ for Settings.dependencyResolutionManagement.
 // Routes the public repositories declared by TestKit builds (see GradleFixture) through the
 // mirrors CI configures, so buildSrc tests do not hit Maven Central and get rate limited.
 //

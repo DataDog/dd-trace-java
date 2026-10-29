@@ -24,7 +24,7 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
   @Shared Object endPoint
 
   def setupSpec() {
-    localStack = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
+    localStack = new GenericContainer(DockerImageName.parse(System.getProperty("test.localstack.image")))
       .withExposedPorts(4566)
       .withEnv("SERVICES", "stepfunctions")
       .withReuse(true)
@@ -82,6 +82,7 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" localStack.getMappedPort(4566)
             "$Tags.PEER_HOSTNAME" localStack.getHost()
             "aws.service" "Sfn"
+            "aws.state_machine.arn" testStateMachineARN
             "aws.operation" "StartExecution"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" response.responseMetadata().requestId()

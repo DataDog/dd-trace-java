@@ -1,6 +1,6 @@
 package com.datadog.debugger;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -21,7 +21,7 @@ public class CodeOrigin04 {
       doExit(level - 1);
     } else {
       AgentSpan span;
-      AgentScope scope;
+      ContextScope scope;
       span = newSpan("exit");
       scope = tracerAPI.activateManualSpan(span);
       exit();

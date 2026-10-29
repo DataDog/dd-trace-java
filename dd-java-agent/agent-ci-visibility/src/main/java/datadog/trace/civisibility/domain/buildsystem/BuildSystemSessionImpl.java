@@ -8,11 +8,14 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.HasCustomBuckets;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.DynamicAutoTestRetrySettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.ExecutionSettingsFactory;
 import datadog.trace.civisibility.config.JvmInfo;
@@ -94,6 +97,15 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
             executionSettings.isCodeCoverageReportUploadEnabled(),
             getCoverageIncludedPackages(config, repoIndexProvider),
             config.getCiVisibilityCodeCoverageExcludes());
+
+    DynamicAutoTestRetrySettings dynamicAtrSettings =
+        executionSettings.getDynamicAutoTestRetrySettings();
+    if (dynamicAtrSettings.isEnabled()) {
+      metricCollector.add(
+          CiVisibilityCountMetric.DYNAMIC_ATR_RETRIES_ENABLED,
+          1,
+          dynamicAtrSettings.isCustom() ? HasCustomBuckets.TRUE : null);
+    }
 
     signalServer.registerSignalHandler(
         SignalType.MODULE_EXECUTION_RESULT, moduleSignalRouter::onModuleSignalReceived);

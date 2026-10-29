@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
 }
 
 muzzle {
@@ -28,7 +29,11 @@ tasks.named("jetty11Test", Test) {
   }
 }
 
-configureGroovyCompiler(11, "compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy")
+["compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy"].each {
+  tasks.named(it, GroovyCompile) {
+    configureCompiler(it, JavaVersion.VERSION_11)
+  }
+}
 
 ["jetty11Test", "jetty11LatestDepTest"].each { name ->
   tasks.named(name, Test) {

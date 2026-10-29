@@ -54,17 +54,6 @@ public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".JUnit4TracingListener",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("runChild")

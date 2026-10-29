@@ -5,8 +5,10 @@ import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.EvaluationTimeOutException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
+import java.util.Objects;
 
 /** Check whether a {@linkplain Value} was resolved correctly or symbol exists.<br> */
 public class IsDefinedExpression implements BooleanExpression {
@@ -40,5 +42,19 @@ public class IsDefinedExpression implements BooleanExpression {
 
   public ValueExpression<?> getValueExpression() {
     return valueExpression;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    IsDefinedExpression that = (IsDefinedExpression) o;
+    return Objects.equals(valueExpression, that.valueExpression);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(valueExpression);
   }
 }

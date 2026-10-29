@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.opentracing32;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
@@ -34,7 +35,7 @@ public class OTScopeManager implements ScopeManager {
     }
 
     final AgentSpan agentSpan = converter.toAgentSpan(span);
-    final AgentScope agentScope = tracer.activateManualSpan(agentSpan);
+    final ContextScope agentScope = tracer.activateManualSpan(agentSpan);
 
     return converter.toScope(agentScope, finishSpanOnClose);
   }
@@ -56,12 +57,14 @@ public class OTScopeManager implements ScopeManager {
   }
 
   static class OTScope implements Scope, TraceScope {
-    private final AgentScope delegate;
+    private final ContextScope delegate;
     private final boolean finishSpanOnClose;
     private final TypeConverter converter;
 
     OTScope(
-        final AgentScope delegate, final boolean finishSpanOnClose, final TypeConverter converter) {
+        final ContextScope delegate,
+        final boolean finishSpanOnClose,
+        final TypeConverter converter) {
       this.delegate = delegate;
       this.finishSpanOnClose = finishSpanOnClose;
       this.converter = converter;
@@ -72,13 +75,13 @@ public class OTScopeManager implements ScopeManager {
       delegate.close();
 
       if (finishSpanOnClose) {
-        delegate.span().finish();
+        AgentSpan.fromScope(delegate).finish();
       }
     }
 
     @Override
     public Span span() {
-      return converter.toSpan(delegate.span());
+      return converter.toSpan(AgentSpan.fromScope(delegate));
     }
 
     public boolean isFinishSpanOnClose() {
@@ -86,7 +89,7 @@ public class OTScopeManager implements ScopeManager {
     }
   }
 
-  private final class FakeScope implements AgentScope {
+  private final class FakeScope implements ContextScope {
     private final AgentSpan agentSpan;
 
     FakeScope(AgentSpan agentSpan) {
@@ -94,7 +97,7 @@ public class OTScopeManager implements ScopeManager {
     }
 
     @Override
-    public AgentSpan span() {
+    public Context context() {
       return agentSpan;
     }
 

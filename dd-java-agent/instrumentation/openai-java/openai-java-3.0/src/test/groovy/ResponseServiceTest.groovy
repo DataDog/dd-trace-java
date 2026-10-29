@@ -478,6 +478,16 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_tag.sampling_decision" "1"
             "_ml_obs_tag.sample_rate" "1"
             "_ml_obs_tag.ml_app" String
+            "gen_ai.operation.name" "llm"
+            "gen_ai.request.model" String
+            "gen_ai.provider.name" "openai"
+            "gen_ai.application.name" String
+            "gen_ai.usage.input_tokens" Double
+            "gen_ai.usage.output_tokens" Double
+            "gen_ai.usage.total_tokens" Double
+            "gen_ai.usage.reasoning_output_tokens" Double
+            "gen_ai.usage.cache_read_input_tokens" Double
+            "_dd.llmobs.artificial_gen_ai_tags" "true"
             "$CommonTags.INTEGRATION" "openai"
             "_ml_obs_tag.service" String
             "$CommonTags.DDTRACE_VERSION" String
@@ -490,12 +500,13 @@ class ResponseServiceTest extends OpenAiTest {
             "openai.request.endpoint" "/v1/responses"
             "openai.api_base" openAiBaseApi
             "$CommonTags.OPENAI_RESPONSE_MODEL" respModel
-            if (!isStreaming) {
-              "openai.organization.ratelimit.requests.limit" Integer
-              "openai.organization.ratelimit.requests.remaining" Integer
-              "openai.organization.ratelimit.tokens.limit" Integer
-              "openai.organization.ratelimit.tokens.remaining" Integer
+            def rateLimitValue = { value ->
+              value instanceof Integer || (isStreaming && value == null)
             }
+            "openai.organization.ratelimit.requests.limit" rateLimitValue
+            "openai.organization.ratelimit.requests.remaining" rateLimitValue
+            "openai.organization.ratelimit.tokens.limit" rateLimitValue
+            "openai.organization.ratelimit.tokens.remaining" rateLimitValue
             "$CommonTags.OPENAI_ORGANIZATION" "datadog-staging"
             if (reqModel != null) {
               "$CommonTags.OPENAI_REQUEST_MODEL" reqModel
