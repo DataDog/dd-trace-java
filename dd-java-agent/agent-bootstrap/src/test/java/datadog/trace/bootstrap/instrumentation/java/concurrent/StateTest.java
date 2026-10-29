@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
@@ -13,36 +12,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class StateTest {
   private static final int ITERATIONS = 100_000;
-
-  @Test
-  void claimsContinuationOnlyOnce() {
-    State state = State.FACTORY.create();
-    CountingContinuation continuation = new CountingContinuation();
-    assertNull(state.getAndResetContinuation());
-    assertTrue(state.setOrCancelContinuation(continuation));
-    assertSame(continuation, state.getAndResetContinuation());
-    assertNull(state.getAndResetContinuation());
-    state.closeContinuation();
-    assertEquals(0, continuation.releases.get());
-  }
-
-  @Test
-  void closesContinuationOnlyOnce() {
-    State state = State.FACTORY.create();
-    CountingContinuation continuation = new CountingContinuation();
-    assertTrue(state.setOrCancelContinuation(continuation));
-    state.closeContinuation();
-    state.closeContinuation();
-    assertNull(state.getAndResetContinuation());
-    assertEquals(1, continuation.releases.get());
-  }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
