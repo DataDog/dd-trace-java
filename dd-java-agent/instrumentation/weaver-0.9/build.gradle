@@ -70,14 +70,11 @@ tasks.named("compileWeaver010TestGroovy", GroovyCompile) {
   classpath += files(sourceSets.weaver010Test.scala.destinationDirectory)
 }
 
-// Scala 2 emits static suite-loaded callbacks with the task as its first argument.
+// Exercise the same native assertions for Scala 2 static callbacks and Scala 3 suite callbacks.
 ['scala212Test', 'scala213Test'].each { suiteName ->
-  addTestSuiteForDir(suiteName, 'scala2Test')
-  sourceSets.named(suiteName) {
-    scala {
-      srcDirs = ['src/test/scala']
-      include 'org/example/TestAutomationExcluded.scala', 'org/example/TestAutomationNamed.scala', 'org/example/TestAutomationDuplicateNames.scala'
-    }
+  addTestSuiteForDir(suiteName, 'test')
+  tasks.named(suiteName, Test) {
+    systemProperty 'weaver.scalaBinaryVersion', suiteName == 'scala212Test' ? '2.12' : '2.13'
   }
   configurations.matching { it.name.startsWith(suiteName) }.configureEach {
     exclude group: 'org.typelevel', module: 'weaver-cats_3'

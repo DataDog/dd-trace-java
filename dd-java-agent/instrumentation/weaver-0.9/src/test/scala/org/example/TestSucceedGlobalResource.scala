@@ -1,7 +1,7 @@
 package org.example
 
-import cats.effect.*
-import weaver.*
+import cats.effect._
+import weaver._
 
 object MyResource extends GlobalResource {
   override def sharedResources(global: GlobalWrite): Resource[IO, Unit] =
@@ -18,7 +18,7 @@ object MyResource extends GlobalResource {
 
 class TestSucceedGlobalResourceClass(global: GlobalRead) extends IOSuite {
 
-  import MyResource.*
+  import MyResource._
 
   override type Res = String
 

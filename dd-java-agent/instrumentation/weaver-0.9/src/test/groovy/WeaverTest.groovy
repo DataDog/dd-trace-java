@@ -1,7 +1,6 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.weaver.DatadogWeaverReporter
-import datadog.trace.instrumentation.weaver.WeaverIntegrationTestRunner
 import datadog.trace.instrumentation.weaver.WeaverUtils
 import org.example.TestCanceled
 import org.example.TestFailed
@@ -17,6 +16,13 @@ import org.example.TestSucceed
 import org.example.TestSucceedGlobalResource
 import org.example.TestSucceedPure
 import org.example.TestSucceedSuiteResource
+import org.slf4j.LoggerFactory
+import sbt.testing.EventHandler
+import sbt.testing.Logger
+import sbt.testing.SubclassFingerprint
+import sbt.testing.SuiteSelector
+import sbt.testing.TaskDef
+import weaver.framework.CatsEffect
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class WeaverTest extends CiVisibilityInstrumentationTest {
@@ -82,7 +88,7 @@ class WeaverTest extends CiVisibilityInstrumentationTest {
   def "custom suite and provider identities preserve distinct declaration tags"() {
     when:
     DatadogWeaverReporter.start()
-    WeaverIntegrationTestRunner.runTests([TestAutomationNamed.name, TestAutomationProvider.name])
+    runNativeSuites([TestAutomationNamed.name, TestAutomationProvider.name])
 
     then:
     def spans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "named_test" }
@@ -141,8 +147,41 @@ class WeaverTest extends CiVisibilityInstrumentationTest {
 
   void runTests(List<Class<?>> tests) {
     DatadogWeaverReporter.start()
-    def testNames = tests.collect { it.name }
-    WeaverIntegrationTestRunner.runTests(testNames)
-    DatadogWeaverReporter.stop()
+    try {
+      runNativeSuites(tests.collect { it.name })
+    } finally {
+      DatadogWeaverReporter.stop()
+    }
+  }
+
+  private void runNativeSuites(List<String> names) {
+    def scalaBinaryVersion = System.getProperty("weaver.scalaBinaryVersion", "3")
+    assert CatsEffect.protectionDomain.codeSource.location.toString().contains("weaver-cats_${scalaBinaryVersion}")
+    def output = new ByteArrayOutputStream()
+    def stream = new PrintStream(output, false, 'UTF-8')
+    def framework = new CatsEffect(stream)
+    def runner = framework.runner([] as String[], [] as String[], getClass().classLoader)
+    def fingerprint = framework.fingerprints().find { it instanceof SubclassFingerprint && it.isModule() && it.superclassName() == 'weaver.BaseCatsSuite' }
+    def definitions = names.collect { new TaskDef(it, fingerprint, false, [new SuiteSelector()] as sbt.testing.Selector[]) } as TaskDef[]
+    def events = []
+    def handler = { event -> events.add(event) } as EventHandler
+    def log = LoggerFactory.getLogger(WeaverTest)
+    def logger = [
+      ansiCodesSupported: { false },
+      error: { String message -> log.error(message) },
+      warn: { String message -> log.warn(message) },
+      info: { String message -> log.info(message) },
+      debug: { String message -> log.debug(message) },
+      trace: { Throwable error ->
+        log.error('Weaver error', error)
+      }
+    ] as Logger
+    try {
+      runner.tasks(definitions).each { it.execute(handler, [logger] as Logger[]) }
+      assert !events.empty
+    } finally {
+      runner.done()
+      stream.close()
+    }
   }
 }
