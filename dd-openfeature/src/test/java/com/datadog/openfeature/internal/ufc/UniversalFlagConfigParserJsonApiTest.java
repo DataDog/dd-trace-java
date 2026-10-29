@@ -119,13 +119,14 @@ class UniversalFlagConfigParserJsonApiTest {
     assertTrue(configuration.flags.containsKey("null-split"));
     assertTrue(configuration.flags.containsKey("no-rules"));
     assertTrue(configuration.flags.containsKey("no-conditions"));
-    assertTrue(configuration.flags.containsKey("no-operator"));
+    assertFalse(configuration.flags.containsKey("no-operator"));
     assertTrue(configuration.flags.containsKey("non-semver"));
     assertTrue(configuration.flags.containsKey("valid-semver"));
     assertFalse(configuration.flags.containsKey("invalid-semver"));
     assertFalse(configuration.flags.containsKey("non-string-semver"));
     assertFalse(configuration.flags.containsKey("null-flag"));
-    assertEquals(2, configuration.invalidFlags.size());
+    assertEquals(3, configuration.invalidFlags.size());
+    assertEquals("invalid_flag", configuration.invalidFlags.get("no-operator"));
     assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("invalid-semver"));
     assertEquals("invalid_semver_comparand", configuration.invalidFlags.get("non-string-semver"));
 

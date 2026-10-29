@@ -509,6 +509,60 @@ class EvaluationTelemetryOptOutTest {
   }
 
   @Test
+  void dependencyTelemetryHonorsEnabledProviderOptOut() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(true),
+        dependentConfiguration());
+
+    final FlagEvaluationDetails<Integer> optedOut =
+        this.client.getIntegerDetails("root", 0, context("subject-1", new Value(true)));
+
+    assertEquals(1, optedOut.getValue());
+    assertTelemetryCounts(0);
+    assertEquals(2, this.exposures.size(), "dependency and root exposures remain independent");
+  }
+
+  @Test
+  void dependencyTelemetryIncludesMetricsWhenProviderOptOutIsDisabled() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+
+    final FlagEvaluationDetails<Integer> included =
+        this.client.getIntegerDetails("root", 0, context("subject-2", new Value(true)));
+
+    assertEquals(1, included.getValue());
+    assertEquals(2, this.events.size(), "dependency and root evaluation events");
+    assertEquals(2, this.metrics.get(), "dependency and root OTel metrics");
+    assertEquals(1, this.spans.size(), "only the ordinary root span hook runs");
+    assertEquals(2, this.exposures.size());
+  }
+
+  @Test
+  void failingAfterHookDiscardsBufferedDependencyExposures() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    this.api.addHooks(
+        new Hook<Object>() {
+          @Override
+          public void after(
+              final HookContext<Object> context,
+              final FlagEvaluationDetails<Object> details,
+              final Map<String, Object> hints) {
+            throw new IllegalStateException("application hook failed");
+          }
+        });
+
+    final FlagEvaluationDetails<Integer> details =
+        this.client.getIntegerDetails("root", 0, context("subject", new Value(false)));
+
+    assertEquals(ErrorCode.GENERAL, details.getErrorCode());
+    assertEquals(0, details.getValue());
+    assertEquals(0, this.exposures.size());
+  }
+
+  @Test
   void concurrentSubjectsCannotChangeEachOthersDecision() throws Exception {
     start();
     final CountDownLatch optedOutEvaluated = new CountDownLatch(1);
@@ -604,7 +658,12 @@ class EvaluationTelemetryOptOutTest {
   }
 
   private void start(final Provider.Options options) throws Exception {
-    this.evaluator = new CapturingEvaluator(defaultConfiguration());
+    start(options, defaultConfiguration());
+  }
+
+  private void start(final Provider.Options options, final ServerConfiguration configuration)
+      throws Exception {
+    this.evaluator = new CapturingEvaluator(configuration);
     this.api.setProviderAndWait(provider(options, this.evaluator));
     this.client = this.api.getClient();
   }
@@ -649,6 +708,48 @@ class EvaluationTelemetryOptOutTest {
             singletonMap("on", new Variant("on", 1)),
             singletonList(allocation));
     return new ServerConfiguration("", "", false, null, singletonMap("flag", flag));
+  }
+
+  private static ServerConfiguration dependentConfiguration() {
+    final Allocation dependencyAllocation =
+        new Allocation(
+            "dependency-allocation",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+            true);
+    final Flag dependency =
+        new Flag(
+            "dependency",
+            true,
+            ValueType.INTEGER,
+            singletonMap("on", new Variant("on", 1)),
+            singletonList(dependencyAllocation));
+    final Rule rule =
+        new Rule(
+            singletonList(
+                new ConditionConfiguration(
+                    ConditionOperator.ONE_OF, null, "dependency", singletonList("on"))));
+    final Allocation rootAllocation =
+        new Allocation(
+            "root-allocation",
+            singletonList(rule),
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+            true);
+    final Flag root =
+        new Flag(
+            "root",
+            true,
+            ValueType.INTEGER,
+            singletonMap("on", new Variant("on", 1)),
+            singletonList(rootAllocation));
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("dependency", dependency);
+    flags.put("root", root);
+    return new ServerConfiguration("", "", false, null, flags);
   }
 
   private static ServerConfiguration targetingConfiguration(

@@ -43,6 +43,7 @@ public class Provider extends EventProvider implements Metadata {
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
   private final FlagEvalMetricsHook flagEvalMetricsHook;
+  private final boolean evaluationTelemetryOptOutEnabled;
   // Span enrichment: null unless the gate is on, so the feature has no idle overhead when off.
   private final SpanEnrichmentHook spanEnrichmentHook;
   // Precomputed hook list returned by getProviderHooks() on every evaluation. Immutable and built
@@ -90,6 +91,9 @@ public class Provider extends EventProvider implements Metadata {
     }
     this.flagEvalMetrics = metrics;
     this.flagEvalMetricsHook = hook;
+    this.evaluationTelemetryOptOutEnabled =
+        options.isEvaluationTelemetryOptOutParameterEnabled(this.settings);
+    configureDependencyTelemetry(evaluator);
 
     // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
     // per-evaluation overhead.
@@ -112,7 +116,7 @@ public class Provider extends EventProvider implements Metadata {
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
     }
-    if (options.isEvaluationTelemetryOptOutParameterEnabled(this.settings)) {
+    if (this.evaluationTelemetryOptOutEnabled) {
       for (int i = 0; i < hooks.size(); i++) {
         hooks.set(i, new EvaluationTelemetryOptOutHook(hooks.get(i)));
       }
@@ -279,9 +283,21 @@ public class Provider extends EventProvider implements Metadata {
 
   private Evaluator buildEvaluator() {
     if (evaluator != null) {
+      configureDependencyTelemetry(evaluator);
       return evaluator;
     }
-    return new DDEvaluator(this::onConfigurationChange, this.bridge, this.settings);
+    final DDEvaluator built =
+        new DDEvaluator(this::onConfigurationChange, this.bridge, this.settings);
+    configureDependencyTelemetry(built);
+    return built;
+  }
+
+  private void configureDependencyTelemetry(final Evaluator candidate) {
+    if (candidate instanceof DDEvaluator) {
+      ((DDEvaluator) candidate)
+          .configureDependencyTelemetry(
+              this.evaluationTelemetryOptOutEnabled, this.flagEvalMetrics);
+    }
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {

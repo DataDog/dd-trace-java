@@ -12,6 +12,8 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
+import dev.openfeature.sdk.Reason;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
@@ -46,9 +48,26 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final FlagEvaluationDetails<T> details,
       final Map<String, Object> hints) {
     try {
-      if (details == null || details.getErrorCode() != null) {
+      if (details == null) {
         log.trace("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
         return;
+      }
+      final DDEvaluator evaluator = this.evaluatorSupplier.get();
+      final List<com.datadog.openfeature.internal.evaluation.FlagEvaluator.DependencyExposure>
+          dependencyExposures =
+              evaluator == null
+                  ? java.util.Collections
+                      .<com.datadog.openfeature.internal.evaluation.FlagEvaluator
+                              .DependencyExposure>
+                          emptyList()
+                  : evaluator.takeDependencyExposures(details.getFlagMetadata());
+      if (details.getErrorCode() != null || Reason.ERROR.name().equals(details.getReason())) {
+        log.trace("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
+        return;
+      }
+      final EvaluationContext context = ctx == null ? null : ctx.getCtx();
+      if (evaluator != null) {
+        evaluator.recordDependencyExposures(dependencyExposures, context);
       }
       final ImmutableMetadata metadata = details.getFlagMetadata();
       if (metadata == null) {
@@ -69,13 +88,11 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final String allocationKey =
           allocationValue instanceof String ? (String) allocationValue : null;
       final String variantKey = details.getVariant();
-      final EvaluationContext context = ctx == null ? null : ctx.getCtx();
       if (allocationKey == null || variantKey == null || context == null) {
         log.trace(
             "Feature Flagging exposure suppressed: allocation, variant, or context unavailable");
         return;
       }
-      final DDEvaluator evaluator = this.evaluatorSupplier.get();
       final ExposureDeduplicationCache cache = evaluator == null ? null : evaluator.exposureCache();
       if (cache == null) {
         log.trace("Feature Flagging exposure suppressed: provider not initialized");

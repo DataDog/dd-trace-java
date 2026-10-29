@@ -1,5 +1,13 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALUATION_FEATURES;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
+
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
@@ -8,10 +16,13 @@ import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.exposure.Subject;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.ImmutableStructure;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Structure;
@@ -27,10 +38,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
+
+  private static final String DEPENDENCY_EXPOSURES_TOKEN = "__dd_dependency_exposures_token";
+  private static final String EVALUATION_TELEMETRY_OPT_OUT = "dd_evaluation_telemetry_opt_out";
 
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
@@ -81,7 +97,14 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   private final Settings settings;
   private final FlagEvaluator core;
   private final ConfigurationStore configuration = new ConfigurationStore();
+  private final ThreadLocal<List<FlagEvaluator.DependencyExposure>> stagedDependencyExposures =
+      new ThreadLocal<>();
+  private final AtomicLong nextDependencyExposureToken = new AtomicLong();
+  private final Map<Long, List<FlagEvaluator.DependencyExposure>> pendingDependencyExposures =
+      new ConcurrentHashMap<>();
   private volatile FeatureFlagsRuntime runtime;
+  private volatile boolean dependencyTelemetryOptOutEnabled;
+  private volatile FlagEvalMetrics dependencyMetrics;
 
   DDEvaluator(final Runnable configCallback, final AgentBridge bridge, final Settings settings) {
     this.configCallback = configCallback;
@@ -89,7 +112,17 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     this.settings = settings;
     // When span enrichment is off, the __dd_* span-enrichment metadata is attached only to
     // evaluations of allocations logging exposures, for the exposure hook.
-    this.core = new FlagEvaluator(settings.isSpanEnrichmentEnabled(), this::isExposed);
+    this.core =
+        new FlagEvaluator(
+            settings.isSpanEnrichmentEnabled(),
+            this::isExposed,
+            this::recordDependencyEvaluation,
+            (items, context) -> stagedDependencyExposures.set(items));
+  }
+
+  void configureDependencyTelemetry(final boolean optOutEnabled, final FlagEvalMetrics metrics) {
+    this.dependencyTelemetryOptOutEnabled = optOutEnabled;
+    this.dependencyMetrics = metrics;
   }
 
   @Override
@@ -147,7 +180,19 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
-    return core.evaluate(configuration.get(), target, key, defaultValue, context);
+    stagedDependencyExposures.remove();
+    final ProviderEvaluation<T> result =
+        core.evaluate(configuration.get(), target, key, defaultValue, context);
+    final List<FlagEvaluator.DependencyExposure> staged = stagedDependencyExposures.get();
+    stagedDependencyExposures.remove();
+    if (staged == null || staged.isEmpty() || result.getErrorCode() != null) {
+      return result;
+    }
+    final long token = nextDependencyExposureToken.incrementAndGet();
+    pendingDependencyExposures.put(token, staged);
+    result.setFlagMetadata(
+        withLongMetadata(result.getFlagMetadata(), DEPENDENCY_EXPOSURES_TOKEN, token));
+    return result;
   }
 
   static boolean isAllocationActive(final Allocation allocation, final Instant now) {
@@ -229,6 +274,159 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     final FeatureFlagsRuntime current = this.runtime;
     if (current != null) {
       current.recordExposure(event);
+    }
+  }
+
+  private void recordDependencyEvaluation(
+      final String flagKey,
+      final ProviderEvaluation<?> details,
+      final EvaluationContext context,
+      final long evaluationTimestampMs) {
+    if (dependencyTelemetryOptOutEnabled && isEvaluationTelemetryOptedOut(context)) {
+      return;
+    }
+    final ImmutableMetadata metadata = details.getFlagMetadata();
+    final Map<String, Object> values =
+        metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
+    final Object allocationValue = values.get(ALLOCATION_KEY);
+    final String allocationKey =
+        allocationValue instanceof String ? (String) allocationValue : null;
+    final FlagEvalMetrics metrics = dependencyMetrics;
+    if (metrics != null) {
+      metrics.record(
+          flagKey,
+          details.getVariant(),
+          details.getReason(),
+          details.getErrorCode(),
+          allocationKey);
+    }
+    final FeatureFlagsRuntime current = runtime();
+    final FlagEvaluationWriter writer = current == null ? null : current.evaluations();
+    if (writer == null || !writer.hasCapacityForEnqueue()) {
+      if (writer != null) {
+        writer.countPreQueueOverflow();
+      }
+      return;
+    }
+    final boolean observeFullEvaluationData =
+        Boolean.TRUE.equals(values.get(OBSERVE_FULL_EVALUATION_DATA));
+    String errorMessage = observeFullEvaluationData ? details.getErrorMessage() : null;
+    if ((errorMessage == null || errorMessage.isEmpty()) && details.getErrorCode() != null) {
+      errorMessage = details.getErrorCode().name();
+    }
+    final Map<String, Object> attrs;
+    if (observeFullEvaluationData) {
+      final CopyResult copy = copyPrunedContext(context);
+      if (copy.truncatedReason != null) {
+        writer.countContextTruncated(copy.truncatedReason);
+      }
+      attrs = copy.attrs;
+    } else {
+      attrs = Collections.emptyMap();
+    }
+    final Map<String, Object> features =
+        Boolean.TRUE.equals(values.get(HAS_EVALUATION_FEATURES))
+            ? SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX)
+            : Collections.<String, Object>emptyMap();
+    writer.enqueue(
+        new FlagEvalEvent(
+            flagKey,
+            details.getVariant(),
+            allocationKey,
+            context == null ? null : context.getTargetingKey(),
+            errorMessage,
+            evaluationTimestampMs,
+            observeFullEvaluationData,
+            attrs,
+            features));
+  }
+
+  List<FlagEvaluator.DependencyExposure> takeDependencyExposures(final ImmutableMetadata metadata) {
+    if (metadata == null) {
+      return Collections.emptyList();
+    }
+    final Object token = metadata.asUnmodifiableMap().get(DEPENDENCY_EXPOSURES_TOKEN);
+    if (!(token instanceof Long)) {
+      return Collections.emptyList();
+    }
+    final List<FlagEvaluator.DependencyExposure> exposures =
+        pendingDependencyExposures.remove((Long) token);
+    return exposures == null
+        ? Collections.<FlagEvaluator.DependencyExposure>emptyList()
+        : exposures;
+  }
+
+  void recordDependencyExposures(
+      final List<FlagEvaluator.DependencyExposure> exposures, final EvaluationContext context) {
+    final ExposureDeduplicationCache cache = exposureCache();
+    if (cache == null || context == null) {
+      return;
+    }
+    for (final FlagEvaluator.DependencyExposure exposure : exposures) {
+      final ProviderEvaluation<?> details = exposure.details;
+      final ImmutableMetadata metadata = details.getFlagMetadata();
+      final Map<String, Object> values =
+          metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
+      if (!Boolean.TRUE.equals(values.get(DO_LOG))) {
+        continue;
+      }
+      final Object allocationValue = values.get(ALLOCATION_KEY);
+      final String allocationKey =
+          allocationValue instanceof String ? (String) allocationValue : null;
+      final String variantKey = details.getVariant();
+      if (allocationKey == null || variantKey == null) {
+        continue;
+      }
+      final Object serialValue = values.get(SPLIT_SERIAL_ID);
+      final Integer serialId = serialValue instanceof Integer ? (Integer) serialValue : null;
+      if (cache.recordIfChanged(
+              exposure.flagKey, context.getTargetingKey(), allocationKey, variantKey, serialId)
+          && isExposureDeliveryEnabled()) {
+        recordExposure(
+            exposureEvent(
+                exposure.flagKey,
+                allocationKey,
+                variantKey,
+                context,
+                serialId,
+                SplitFeatureMetadata.featuresWithPrefix(metadata, EXPOSURE_FEATURE_PREFIX)));
+      }
+    }
+  }
+
+  private static boolean isEvaluationTelemetryOptedOut(final EvaluationContext context) {
+    final Value value = context == null ? null : context.getValue(EVALUATION_TELEMETRY_OPT_OUT);
+    return value != null && value.isBoolean() && Boolean.TRUE.equals(value.asBoolean());
+  }
+
+  private static ImmutableMetadata withLongMetadata(
+      final ImmutableMetadata metadata, final String key, final long value) {
+    final ImmutableMetadata.ImmutableMetadataBuilder builder = ImmutableMetadata.builder();
+    if (metadata != null) {
+      for (final Map.Entry<String, Object> entry : metadata.asUnmodifiableMap().entrySet()) {
+        addMetadata(builder, entry.getKey(), entry.getValue());
+      }
+    }
+    builder.addLong(key, value);
+    return builder.build();
+  }
+
+  private static void addMetadata(
+      final ImmutableMetadata.ImmutableMetadataBuilder builder,
+      final String key,
+      final Object value) {
+    if (value instanceof String) {
+      builder.addString(key, (String) value);
+    } else if (value instanceof Boolean) {
+      builder.addBoolean(key, (Boolean) value);
+    } else if (value instanceof Integer) {
+      builder.addInteger(key, (Integer) value);
+    } else if (value instanceof Long) {
+      builder.addLong(key, (Long) value);
+    } else if (value instanceof Float) {
+      builder.addFloat(key, (Float) value);
+    } else if (value instanceof Double) {
+      builder.addDouble(key, (Double) value);
     }
   }
 

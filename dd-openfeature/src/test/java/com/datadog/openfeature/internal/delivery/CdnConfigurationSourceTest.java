@@ -162,6 +162,9 @@ class CdnConfigurationSourceTest {
     assertEquals("GET", request.method);
     assertEquals("secret", request.header("DD-API-KEY"));
     assertEquals("gzip", request.header("Accept-Encoding"));
+    assertEquals(
+        CdnConfigurationSource.DEPENDENT_FLAG_CAPABILITY,
+        request.header(CdnConfigurationSource.FEATURE_FLAGS_CAPABILITIES_HEADER));
     assertEquals("java", request.header("Datadog-Meta-Lang"));
     assertNull(request.header("If-None-Match"));
   }
