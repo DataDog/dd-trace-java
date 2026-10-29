@@ -186,14 +186,14 @@ public final class OtlpTraceJson {
 
   public static class MetaWriter implements MetadataConsumer {
     private final JsonWriter writer;
-    private final OtlpSpanTags<JsonWriter> spanTags;
+    private final OtlpSpanAttributes.Writer<JsonWriter> spanTags;
 
     private boolean includeProcessTags;
     private boolean includeSamplingTags;
 
     public MetaWriter(JsonWriter writer) {
       this.writer = writer;
-      this.spanTags = new OtlpSpanTags<>(writer, OtlpTraceJson::writeSpanTag);
+      this.spanTags = new OtlpSpanAttributes.Writer<>(writer, OtlpTraceJson::writeSpanTag);
     }
 
     /** Call this to ensure process tags are written out for the next span. */
