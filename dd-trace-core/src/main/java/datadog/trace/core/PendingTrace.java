@@ -8,6 +8,7 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -93,13 +95,64 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   private final boolean strictTraceWrites;
   private final HealthMetrics healthMetrics;
 
-  /** Finished spans awaiting a write. */
-  private final ConcurrentLinkedDeque<DDSpan> spans;
+  /*
+   * Finished spans awaiting a write. A trace of up to INLINE_SLOTS spans -- the common case -- lives
+   * entirely in the inline slots: a finish claims a null slot by CAS and a drain empties each slot by
+   * CAS, so finishing takes no lock and allocates nothing, and because each slot is claimed on its
+   * own there is no shared index to reset under concurrent finishes. A finish that finds every slot
+   * taken first spills the slots into the overflow buffer under overflowLock, which is created by
+   * CAS on the first spill, so only traces with more spans than slots allocate one.
+   *
+   * Lock order: a drain holds this trace's monitor (see write) and then overflowLock; a spill takes
+   * overflowLock alone.
+   */
+  static final int INLINE_SLOTS = 8; // a .NET study found most trace segments have under 5 spans
+
+  private volatile DDSpan slot0;
+  private volatile DDSpan slot1;
+  private volatile DDSpan slot2;
+  private volatile DDSpan slot3;
+  private volatile DDSpan slot4;
+  private volatile DDSpan slot5;
+  private volatile DDSpan slot6;
+  private volatile DDSpan slot7;
+
+  private static final AtomicReferenceFieldUpdater<PendingTrace, DDSpan> SLOT0 =
+      AtomicReferenceFieldUpdater.newUpdater(PendingTrace.class, DDSpan.class, "slot0");
+  private static final AtomicReferenceFieldUpdater<PendingTrace, DDSpan> SLOT1 =
+      AtomicReferenceFieldUpdater.newUpdater(PendingTrace.class, DDSpan.class, "slot1");
+  private static final AtomicReferenceFieldUpdater<PendingTrace, DDSpan> SLOT2 =
+      AtomicReferenceFieldUpdater.newUpdater(PendingTrace.class, DDSpan.class, "slot2");
+  private static final AtomicReferenceFieldUpdater<PendingTrace, DDSpan> SLOT3 =
+      AtomicReferenceFieldUpdater.newUpdater(PendingTrace.class, DDSpan.class, "slot3");
+  private static final AtomicReferenceFieldUpdater<PendingTrace, DDSpan> SLOT4 =
+      AtomicReferenceFieldUpdater.newUpdater(PendingTrace.class, DDSpan.class, "slot4");
+  private static final AtomicReferenceFieldUpdater<PendingTrace, DDSpan> SLOT5 =
+      AtomicReferenceFieldUpdater.newUpdater(PendingTrace.class, DDSpan.class, "slot5");
+  private static final AtomicReferenceFieldUpdater<PendingTrace, DDSpan> SLOT6 =
+      AtomicReferenceFieldUpdater.newUpdater(PendingTrace.class, DDSpan.class, "slot6");
+  private static final AtomicReferenceFieldUpdater<PendingTrace, DDSpan> SLOT7 =
+      AtomicReferenceFieldUpdater.newUpdater(PendingTrace.class, DDSpan.class, "slot7");
+
+  private static final DDSpan[] NO_OVERFLOW = new DDSpan[0];
+
+  /** Created by CAS on the first spill; guards {@link #overflow} and {@link #overflowSize}. */
+  @Nullable private volatile ReentrantLock overflowLock;
+
+  private static final AtomicReferenceFieldUpdater<PendingTrace, ReentrantLock> OVERFLOW_LOCK =
+      AtomicReferenceFieldUpdater.newUpdater(
+          PendingTrace.class, ReentrantLock.class, "overflowLock");
+
+  /** Spilled spans in spill order, oldest first. Guarded by {@link #overflowLock}. */
+  private DDSpan[] overflow = NO_OVERFLOW;
+
+  /** Written under {@link #overflowLock}; read without it only to test for emptiness. */
+  private volatile int overflowSize;
 
   /**
    * Long-running traces only, null otherwise: registered spans not yet seen finished by a write, so
-   * the running ones can be written periodically. Finished spans reach a write through {@link
-   * #spans}, as without the feature, and are pruned from here by the next write.
+   * the running ones can be written periodically. Finished spans reach a write through the
+   * finished-span slots, as without the feature, and are pruned from here by the next write.
    */
   @Nullable private final ConcurrentLinkedDeque<DDSpan> runningSpans;
 
@@ -161,7 +214,6 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     this.pendingTraceBuffer = pendingTraceBuffer;
     this.strictTraceWrites = strictTraceWrites;
     this.healthMetrics = healthMetrics;
-    this.spans = new ConcurrentLinkedDeque<>();
     this.runningSpans =
         pendingTraceBuffer.longRunningSpansEnabled() ? new ConcurrentLinkedDeque<>() : null;
   }
@@ -221,7 +273,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   Integer evaluateSamplingPriority() {
     DDSpan span = runningSpans != null ? runningSpans.peek() : null;
     if (span == null) {
-      span = spans.peek();
+      span = anyFinishedSpan();
     }
     if (span == null) {
       return null;
@@ -277,7 +329,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   }
 
   PublishState onPublish(final DDSpan span) {
-    spans.addFirst(span);
+    addFinished(span);
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
     // write method.
@@ -301,10 +353,30 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   @Override
   public long oldestFinishedTime() {
     long oldest = Long.MAX_VALUE;
-    for (DDSpan span : spans) {
-      oldest = Math.min(oldest, span.getStartTime() + span.getDurationNano());
+    oldest = oldestFinishedTime(slot0, oldest);
+    oldest = oldestFinishedTime(slot1, oldest);
+    oldest = oldestFinishedTime(slot2, oldest);
+    oldest = oldestFinishedTime(slot3, oldest);
+    oldest = oldestFinishedTime(slot4, oldest);
+    oldest = oldestFinishedTime(slot5, oldest);
+    oldest = oldestFinishedTime(slot6, oldest);
+    oldest = oldestFinishedTime(slot7, oldest);
+    ReentrantLock lock = overflowLock;
+    if (lock != null) {
+      lock.lock();
+      try {
+        for (int i = 0; i < overflowSize; i++) {
+          oldest = oldestFinishedTime(overflow[i], oldest);
+        }
+      } finally {
+        lock.unlock();
+      }
     }
     return oldest;
+  }
+
+  private static long oldestFinishedTime(@Nullable DDSpan span, long oldest) {
+    return span == null ? oldest : Math.min(oldest, span.getStartTime() + span.getDurationNano());
   }
 
   /**
@@ -375,7 +447,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   }
 
   private int write(boolean isPartial) {
-    if (!spans.isEmpty() || (runningSpans != null && !runningSpans.isEmpty())) {
+    if (hasFinishedSpans() || (runningSpans != null && !runningSpans.isEmpty())) {
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time
         final SpanList trace;
@@ -415,13 +487,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   }
 
   int enqueueSpansToWrite(List<DDSpan> trace, boolean writeRunningSpans) {
-    int completedSpans = 0;
-    DDSpan span = spans.pollFirst();
-    while (null != span) {
-      trace.add(span);
-      completedSpans++;
-      span = spans.pollFirst();
-    }
+    int completedSpans = drainFinished(trace);
     if (runningSpans != null) {
       enqueueRunningSpansToWrite(runningSpans, trace, writeRunningSpans);
     }
@@ -431,8 +497,8 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   /**
    * Prunes finished spans from {@code runningSpans}, and with {@code writeRunningSpans} adds the
    * still-running ones to {@code trace}, stamped with their running duration. A pruned span is
-   * written through {@link #spans}: by this write if it was published before the drain above, else
-   * by a later one.
+   * written through the finished-span slots: by this write if it was published before the drain
+   * above, else by a later one.
    */
   private void enqueueRunningSpansToWrite(
       ConcurrentLinkedDeque<DDSpan> runningSpans, List<DDSpan> trace, boolean writeRunningSpans) {
@@ -514,8 +580,229 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     return trace.getLastWriteTime() - span.getStartTime();
   }
 
+  /** Adds a finished span: lock-free into a free slot, else after spilling the slots. */
+  private void addFinished(DDSpan span) {
+    while (!claimSlot(span)) {
+      spillSlots();
+    }
+  }
+
+  private boolean claimSlot(DDSpan span) {
+    return (slot0 == null && SLOT0.compareAndSet(this, null, span))
+        || (slot1 == null && SLOT1.compareAndSet(this, null, span))
+        || (slot2 == null && SLOT2.compareAndSet(this, null, span))
+        || (slot3 == null && SLOT3.compareAndSet(this, null, span))
+        || (slot4 == null && SLOT4.compareAndSet(this, null, span))
+        || (slot5 == null && SLOT5.compareAndSet(this, null, span))
+        || (slot6 == null && SLOT6.compareAndSet(this, null, span))
+        || (slot7 == null && SLOT7.compareAndSet(this, null, span));
+  }
+
+  /** Moves the slots into the overflow buffer to make room, creating the lock on first use. */
+  private void spillSlots() {
+    ReentrantLock lock = overflowLock;
+    if (lock == null) {
+      OVERFLOW_LOCK.compareAndSet(this, null, new ReentrantLock());
+      lock = overflowLock;
+    }
+    lock.lock();
+    try {
+      DDSpan[] overflow = this.overflow;
+      int size = this.overflowSize;
+      if (size + INLINE_SLOTS > overflow.length) {
+        this.overflow =
+            overflow =
+                Arrays.copyOf(overflow, Math.max(overflow.length << 1, size + 2 * INLINE_SLOTS));
+      }
+      this.overflowSize = takeSlotsOldestFirst(overflow, size);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  /** Empties the slots into {@code into} from {@code pos}, oldest claim first. */
+  private int takeSlotsOldestFirst(DDSpan[] into, int pos) {
+    DDSpan span;
+    if ((span = slot0) != null && SLOT0.compareAndSet(this, span, null)) {
+      into[pos++] = span;
+    }
+    if ((span = slot1) != null && SLOT1.compareAndSet(this, span, null)) {
+      into[pos++] = span;
+    }
+    if ((span = slot2) != null && SLOT2.compareAndSet(this, span, null)) {
+      into[pos++] = span;
+    }
+    if ((span = slot3) != null && SLOT3.compareAndSet(this, span, null)) {
+      into[pos++] = span;
+    }
+    if ((span = slot4) != null && SLOT4.compareAndSet(this, span, null)) {
+      into[pos++] = span;
+    }
+    if ((span = slot5) != null && SLOT5.compareAndSet(this, span, null)) {
+      into[pos++] = span;
+    }
+    if ((span = slot6) != null && SLOT6.compareAndSet(this, span, null)) {
+      into[pos++] = span;
+    }
+    if ((span = slot7) != null && SLOT7.compareAndSet(this, span, null)) {
+      into[pos++] = span;
+    }
+    return pos;
+  }
+
+  /** Empties the slots onto {@code into}, newest claim first. */
+  private int takeSlotsNewestFirst(List<DDSpan> into) {
+    int taken = 0;
+    DDSpan span;
+    if ((span = slot7) != null && SLOT7.compareAndSet(this, span, null)) {
+      into.add(span);
+      taken++;
+    }
+    if ((span = slot6) != null && SLOT6.compareAndSet(this, span, null)) {
+      into.add(span);
+      taken++;
+    }
+    if ((span = slot5) != null && SLOT5.compareAndSet(this, span, null)) {
+      into.add(span);
+      taken++;
+    }
+    if ((span = slot4) != null && SLOT4.compareAndSet(this, span, null)) {
+      into.add(span);
+      taken++;
+    }
+    if ((span = slot3) != null && SLOT3.compareAndSet(this, span, null)) {
+      into.add(span);
+      taken++;
+    }
+    if ((span = slot2) != null && SLOT2.compareAndSet(this, span, null)) {
+      into.add(span);
+      taken++;
+    }
+    if ((span = slot1) != null && SLOT1.compareAndSet(this, span, null)) {
+      into.add(span);
+      taken++;
+    }
+    if ((span = slot0) != null && SLOT0.compareAndSet(this, span, null)) {
+      into.add(span);
+      taken++;
+    }
+    return taken;
+  }
+
+  /**
+   * Moves every finished span onto {@code trace}, newest first, and returns how many. Callers hold
+   * this trace's monitor. A spill racing the unlocked slot pass only moves spans into the overflow
+   * buffer, where this pass or a later write picks them up.
+   */
+  private int drainFinished(List<DDSpan> trace) {
+    int drained = takeSlotsNewestFirst(trace);
+    ReentrantLock lock = overflowLock;
+    if (lock != null) {
+      lock.lock();
+      try {
+        DDSpan[] overflow = this.overflow;
+        int size = this.overflowSize;
+        for (int i = size - 1; i >= 0; i--) {
+          trace.add(overflow[i]);
+          overflow[i] = null;
+        }
+        this.overflowSize = 0;
+        drained += size;
+      } finally {
+        lock.unlock();
+      }
+    }
+    return drained;
+  }
+
+  private boolean hasFinishedSpans() {
+    return slot0 != null
+        || slot1 != null
+        || slot2 != null
+        || slot3 != null
+        || slot4 != null
+        || slot5 != null
+        || slot6 != null
+        || slot7 != null
+        || overflowSize != 0;
+  }
+
+  /** Some finished span, or null if there is none. */
+  @Nullable
+  private DDSpan anyFinishedSpan() {
+    DDSpan span;
+    if ((span = slot7) != null) {
+      return span;
+    }
+    if ((span = slot6) != null) {
+      return span;
+    }
+    if ((span = slot5) != null) {
+      return span;
+    }
+    if ((span = slot4) != null) {
+      return span;
+    }
+    if ((span = slot3) != null) {
+      return span;
+    }
+    if ((span = slot2) != null) {
+      return span;
+    }
+    if ((span = slot1) != null) {
+      return span;
+    }
+    if ((span = slot0) != null) {
+      return span;
+    }
+    Iterator<DDSpan> spans = getSpans().iterator();
+    return spans.hasNext() ? spans.next() : null;
+  }
+
+  /**
+   * A snapshot of the finished spans awaiting a write, newest first. Typed as a {@link Collection},
+   * not a {@link List}: the flare dump passes it to {@code TraceDumpJsonExporter.write}, whose
+   * {@code List} overload is the {@code Writer} no-op.
+   */
   Collection<DDSpan> getSpans() {
-    return spans;
+    List<DDSpan> snapshot = new ArrayList<>();
+    DDSpan span;
+    if ((span = slot7) != null) {
+      snapshot.add(span);
+    }
+    if ((span = slot6) != null) {
+      snapshot.add(span);
+    }
+    if ((span = slot5) != null) {
+      snapshot.add(span);
+    }
+    if ((span = slot4) != null) {
+      snapshot.add(span);
+    }
+    if ((span = slot3) != null) {
+      snapshot.add(span);
+    }
+    if ((span = slot2) != null) {
+      snapshot.add(span);
+    }
+    if ((span = slot1) != null) {
+      snapshot.add(span);
+    }
+    if ((span = slot0) != null) {
+      snapshot.add(span);
+    }
+    ReentrantLock lock = overflowLock;
+    if (lock != null) {
+      lock.lock();
+      try {
+        for (int i = overflowSize - 1; i >= 0; i--) {
+          snapshot.add(overflow[i]);
+        }
+      } finally {
+        lock.unlock();
+      }
+    }
+    return snapshot;
   }
 
   @VisibleForTesting
