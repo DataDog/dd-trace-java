@@ -1,0 +1,10 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.call-site-instrumentation'
+}
+
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
