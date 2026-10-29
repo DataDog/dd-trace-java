@@ -240,6 +240,16 @@ default:
   before_script:
     - source .gitlab/gitlab-utils.sh
     - *container_info
+    - |
+      if [ -z "${S3_BUILD_CACHE_PREFIX+x}" ]; then
+        s3_cache_arch=$(uname -m)
+        s3_cache_os=$(uname -s | tr '[:upper:]' '[:lower:]')
+        if [[ "${CI_COMMIT_TAG:-}" =~ [^[:space:]] ]]; then
+          export S3_BUILD_CACHE_PREFIX="v1/release/${CI_PIPELINE_ID:?}/$s3_cache_arch/$s3_cache_os/"
+        else
+          export S3_BUILD_CACHE_PREFIX="v1/$s3_cache_arch/$s3_cache_os/"
+        fi
+      fi
     # Akka token added to SSM from https://account.akka.io/token
     - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
@@ -575,6 +585,8 @@ validate_build:
   variables:
     CACHE_TYPE: "lib"
   script:
+    # Rebuild independently of the cache used to produce the reference artifacts.
+    - export GRADLE_ARGS="$GRADLE_ARGS --no-build-cache --rerun-tasks"
     # Preserve the `build` job artifacts before Gradle rebuilds and overwrites them under
     # workspace/**/build/libs, so jardiff can compare the rebuilt jars against them.
     - mkdir -p reference-artifacts
@@ -586,7 +598,6 @@ validate_build:
     # Refresh them here as well so the candidate uses the same dependency resolution.
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew --version
-    # This will run the shadowJar task and exercise the build cache, allowing to identify build-cache issues
     # Keep both JAR sets for direct inspection when the comparison fails.
     - |
       if ! ./gradlew compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS; then
