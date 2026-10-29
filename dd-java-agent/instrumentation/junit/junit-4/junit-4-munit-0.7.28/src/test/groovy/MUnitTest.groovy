@@ -9,6 +9,9 @@ import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import org.example.TestFailedAssumptionMUnit
 import org.example.TestFailedMUnit
 import org.example.TestAutomationExcluded
+import org.example.TestAutomationNoRetry
+import org.example.TestAutomationPreventSuppression
+import org.example.TestAutomationRetryEligibility
 import org.example.TestFailedThenSucceedMUnit
 import org.example.TestSkippedMUnit
 import org.example.TestSkippedSuiteMUnit
@@ -24,6 +27,8 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
 
   def "test automation exclusions preserve a blocking failure and execute once"() {
     given:
+    TestAutomationExcluded.executions().set(0)
+    TestAutomationExcluded.skippedExecutions().set(0)
     def id = new TestFQN("org.example.TestAutomationExcluded", "protected_failure")
     givenDisabledTests([id])
     givenQuarantinedTests([id])
@@ -37,6 +42,8 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     runTests([TestAutomationExcluded], false)
 
     then:
+    TestAutomationExcluded.executions().get() == 1
+    TestAutomationExcluded.skippedExecutions().get() == 0
     TEST_WRITER.toList().flatten().count { it.getTag("test.name") == "protected_failure" } == 1
     def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_failure" }
     testSpan != null
@@ -53,6 +60,105 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     skippedSpan.getTag("test.status").toString() == "skip"
   }
 
+
+  def "test automation no-auto-retry alone preserves quarantine suppression"() {
+    given:
+    TestAutomationNoRetry.executions().set(0)
+    def id = new TestFQN("org.example.TestAutomationNoRetry", "no_retry_failure")
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationNoRetry], true)
+
+    then:
+    TestAutomationNoRetry.executions().get() == 1
+    def testSpans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "no_retry_failure" }
+    testSpans.size() == 1
+    def testSpan = testSpans.first()
+    testSpan.getTag("test.status").toString() == "fail"
+    testSpan.getTag("test.final_status").toString() == "pass"
+    testSpan.getTag("test.failure_suppressed") == true
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == null
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+    testSpan.getTag("test.is_retry") == null
+    testSpan.getTag("test.retry_reason") == null
+  }
+
+  def "test automation failure protection alone preserves automatic retries"() {
+    given:
+    TestAutomationPreventSuppression.executions().set(0)
+    def id = new TestFQN("org.example.TestAutomationPreventSuppression", "blocking_failure")
+    givenQuarantinedTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+
+    when:
+    runTests([TestAutomationPreventSuppression], false)
+
+    then:
+    TestAutomationPreventSuppression.executions().get() == 5
+    def testSpans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "blocking_failure" }
+    testSpans.size() == 5
+    testSpans.count { it.getTag("test.is_retry") == true } == 4
+    testSpans.count { it.getTag("test.final_status")?.toString() == "fail" } == 1
+    testSpans.every { it.getTag("test.status").toString() == "fail" }
+    testSpans.every { it.getTag("test.test_management.no_auto_retry") == null }
+    testSpans.every { it.getTag("test.test_management.prevent_failure_suppression") == true }
+    testSpans.every { it.getTag("test.test_management.is_quarantined") == true }
+  }
+
+  def "test automation no-auto-retry excludes #feature while the native control repeats"() {
+    given:
+    TestAutomationRetryEligibility.excludedExecutions().set(0)
+    TestAutomationRetryEligibility.controlExecutions().set(0)
+    def excludedId = new TestFQN("org.example.TestAutomationRetryEligibility", "excluded_pass")
+    def controlId = new TestFQN("org.example.TestAutomationRetryEligibility", "control_pass")
+    if (feature == "EFD") {
+      givenEarlyFlakinessDetectionEnabled(true)
+      givenKnownTests([new TestFQN("org.example.OtherSuite", "known")])
+    } else {
+      givenKnownTests([excludedId, controlId])
+      givenAttemptToFixTests([excludedId, controlId])
+    }
+
+    when:
+    runTests([TestAutomationRetryEligibility], true)
+
+    then:
+    TestAutomationRetryEligibility.excludedExecutions().get() == 1
+    TestAutomationRetryEligibility.controlExecutions().get() == controlExecutions
+    def testSpans = TEST_WRITER.toList().flatten()
+    def excluded = testSpans.findAll { it.getTag("test.name") == "excluded_pass" }
+    def control = testSpans.findAll { it.getTag("test.name") == "control_pass" }
+    excluded.size() == 1
+    control.size() == controlExecutions
+    excluded.first().getTag("test.status").toString() == "pass"
+    excluded.first().getTag("test.test_management.no_auto_retry") == true
+    excluded.first().getTag("test.test_management.prevent_failure_suppression") == null
+    excluded.first().getTag("test.is_retry") == null
+    excluded.first().getTag("test.retry_reason") == null
+    excluded.first().getTag("test.test_management.attempt_to_fix_passed") == null
+    control.every { it.getTag("test.test_management.no_auto_retry") == null }
+    control.count { it.getTag("test.is_retry") == true } == controlExecutions - 1
+    if (feature == "EFD") {
+      assert excluded.first().getTag("test.is_new") == true
+    } else {
+      assert excluded.first().getTag("test.test_management.is_attempt_to_fix") == true
+    }
+
+    where:
+    feature         | controlExecutions
+    "EFD"           | 3
+    "Attempt to Fix" | 5
+  }
 
   def "test #testcaseName"() {
     runTests(tests)
