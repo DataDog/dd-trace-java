@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.mockito.ArgumentCaptor;
 
 @Timeout(60)
 public class PendingTraceTest extends PendingTraceTestBase {
@@ -42,6 +44,18 @@ public class PendingTraceTest extends PendingTraceTestBase {
   protected boolean useStrictTraceWrites() {
     // This tests the behavior of the relaxed pending trace implementation
     return false;
+  }
+
+  /** A trace over a stub tracer and a mock buffer, with or without long-running traces. */
+  private static PendingTrace newTrace(
+      CoreTracer stubTracer, boolean longRunning, HealthMetrics healthMetrics) {
+    CoreTracer.ConfigSnapshot traceConfig = mock(CoreTracer.ConfigSnapshot.class);
+    when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
+    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
+    PendingTraceBuffer buffer = mock(PendingTraceBuffer.class);
+    when(buffer.longRunningSpansEnabled()).thenReturn(longRunning);
+    return new PendingTrace(
+        stubTracer, DDTraceId.from(0), buffer, mock(TimeSource.class), null, false, healthMetrics);
   }
 
   private DDSpan createSimpleSpan(PendingTrace trace) {
@@ -98,23 +112,8 @@ public class PendingTraceTest extends PendingTraceTestBase {
 
   @Test
   void verifyHealthMetricsCalled() {
-    CoreTracer stubTracer = mock(CoreTracer.class);
-    CoreTracer.ConfigSnapshot traceConfig = mock(CoreTracer.ConfigSnapshot.class);
-    PendingTraceBuffer buffer = mock(PendingTraceBuffer.class);
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
-
-    when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
-
-    PendingTrace trace =
-        new PendingTrace(
-            stubTracer,
-            DDTraceId.from(0),
-            buffer,
-            mock(TimeSource.class),
-            null,
-            false,
-            healthMetrics);
+    PendingTrace trace = newTrace(mock(CoreTracer.class), false, healthMetrics);
 
     DDSpan span = createSimpleSpan(trace);
     trace.registerSpan(span);
@@ -128,24 +127,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
 
   @Test
   void writeWhenRunningSpansDisabledOnlyCompletedSpansWritten() {
-    CoreTracer stubTracer = mock(CoreTracer.class);
-    CoreTracer.ConfigSnapshot traceConfig = mock(CoreTracer.ConfigSnapshot.class);
-    PendingTraceBuffer buffer = mock(PendingTraceBuffer.class);
-    HealthMetrics healthMetrics = mock(HealthMetrics.class);
-
-    when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
-    when(buffer.longRunningSpansEnabled()).thenReturn(true);
-
-    PendingTrace trace =
-        new PendingTrace(
-            stubTracer,
-            DDTraceId.from(0),
-            buffer,
-            mock(TimeSource.class),
-            null,
-            false,
-            healthMetrics);
+    PendingTrace trace = newTrace(mock(CoreTracer.class), true, mock(HealthMetrics.class));
 
     DDSpan span1 = createSimpleSpanWithID(trace, 39);
     span1.setDurationNano(31);
@@ -159,36 +141,24 @@ public class PendingTraceTest extends PendingTraceTestBase {
     span2.setDurationNano(9191);
     trace.registerSpan(span2);
 
+    // finished spans reach the write through onPublish, once every span is registered
+    trace.onPublish(span1);
+    trace.onPublish(span2);
+
     List<DDSpan> traceToWrite = new ArrayList<>(0);
     int completedSpans = trace.enqueueSpansToWrite(traceToWrite, false);
 
     assertEquals(2, completedSpans);
     assertEquals(2, traceToWrite.size());
     assertTrue(traceToWrite.containsAll(Arrays.asList(span1, span2)));
-    assertEquals(1, trace.getSpans().size());
-    assertEquals(unfinishedSpan, trace.getSpans().iterator().next());
+    assertTrue(trace.getSpans().isEmpty());
+    assertEquals(1, trace.getRunningSpans().size());
+    assertEquals(unfinishedSpan, trace.getRunningSpans().iterator().next());
   }
 
   @Test
   void writeWhenRunningSpansEnabledCompleteAndRunningSpansWritten() {
-    CoreTracer stubTracer = mock(CoreTracer.class);
-    CoreTracer.ConfigSnapshot traceConfig = mock(CoreTracer.ConfigSnapshot.class);
-    PendingTraceBuffer buffer = mock(PendingTraceBuffer.class);
-    HealthMetrics healthMetrics = mock(HealthMetrics.class);
-
-    when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
-    when(buffer.longRunningSpansEnabled()).thenReturn(true);
-
-    PendingTrace trace =
-        new PendingTrace(
-            stubTracer,
-            DDTraceId.from(0),
-            buffer,
-            mock(TimeSource.class),
-            null,
-            false,
-            healthMetrics);
+    PendingTrace trace = newTrace(mock(CoreTracer.class), true, mock(HealthMetrics.class));
 
     DDSpan span1 = createSimpleSpanWithID(trace, 39);
     span1.setDurationNano(31);
@@ -206,6 +176,10 @@ public class PendingTraceTest extends PendingTraceTestBase {
     DDSpan unfinishedSpan2 = createSimpleSpanWithID(trace, 77771);
     trace.registerSpan(unfinishedSpan2);
 
+    // finished spans reach the write through onPublish, once every span is registered
+    trace.onPublish(span1);
+    trace.onPublish(span2);
+
     List<DDSpan> traceToWrite = new ArrayList<>(0);
     int completedSpans = trace.enqueueSpansToWrite(traceToWrite, true);
 
@@ -213,9 +187,47 @@ public class PendingTraceTest extends PendingTraceTestBase {
     assertEquals(4, traceToWrite.size());
     assertTrue(
         traceToWrite.containsAll(Arrays.asList(span1, span2, unfinishedSpan, unfinishedSpan2)));
-    assertEquals(2, trace.getSpans().size());
+    assertTrue(trace.getSpans().isEmpty());
+    assertEquals(2, trace.getRunningSpans().size());
     assertTrue(
-        new ArrayList<>(trace.getSpans())
+        new ArrayList<>(trace.getRunningSpans())
             .containsAll(Arrays.asList(unfinishedSpan, unfinishedSpan2)));
+  }
+
+  @Test
+  void runningSpanWrittenAgainOnceFinishedAndFinishedSpansNotRepeated() {
+    CoreTracer stubTracer = mock(CoreTracer.class);
+    PendingTrace trace = newTrace(stubTracer, true, mock(HealthMetrics.class));
+
+    DDSpan root = createSimpleSpanWithID(trace, 1);
+    trace.registerSpan(root);
+    DDSpan child = createSimpleSpanWithID(trace, 2);
+    trace.registerSpan(child);
+    child.setDurationNano(5);
+    trace.onPublish(child);
+
+    // periodic long-running write: the finished child, and the root as running
+    trace.setLongRunningTrackedState(LongRunningTracesTracker.WRITE_RUNNING_SPANS);
+    trace.write();
+
+    root.setDurationNano(10);
+    trace.onPublish(root);
+    trace.write();
+
+    ArgumentCaptor<SpanList> written = ArgumentCaptor.forClass(SpanList.class);
+    verify(stubTracer, times(2)).write(written.capture());
+    List<SpanList> writes = written.getAllValues();
+    assertEquals(2, writes.get(0).size());
+    assertTrue(writes.get(0).containsAll(Arrays.asList(child, root)));
+    assertEquals(Collections.singletonList(root), new ArrayList<>(writes.get(1)));
+    assertTrue(trace.getSpans().isEmpty());
+    assertTrue(trace.getRunningSpans().isEmpty());
+  }
+
+  @Test
+  void noRunningSpansListWithoutLongRunningTraces() {
+    PendingTrace trace = newTrace(mock(CoreTracer.class), false, mock(HealthMetrics.class));
+
+    assertNull(trace.getRunningSpans());
   }
 }
