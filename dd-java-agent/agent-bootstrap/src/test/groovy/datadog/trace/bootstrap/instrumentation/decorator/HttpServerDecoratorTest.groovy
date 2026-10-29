@@ -36,7 +36,7 @@ import static datadog.trace.api.gateway.Events.EVENTS
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
 
   static class MapCarrierVisitor
   implements AgentPropagation.ContextVisitor<Map> {
@@ -164,11 +164,14 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * _
 
     where:
-    rawQuery | rawResource | url                             | expectedUrl           | expectedQuery | expectedResource
-    false    | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query??"     | "/p ath"
-    false    | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath" | "query??"     | "/p%20ath"
-    true     | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query%3F?"   | "/p ath"
-    true     | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath" | "query%3F?"   | "/p%20ath"
+    rawQuery | rawResource | url                                            | expectedUrl           | expectedQuery                 | expectedResource
+    false    | false       | "http://host/p%20ath?query%3F?"                | "http://host/p ath"   | "query??"                     | "/p ath"
+    false    | true        | "http://host/p%20ath?query%3F?"                | "http://host/p%20ath" | "query??"                     | "/p%20ath"
+    true     | false       | "http://host/p%20ath?query%3F?"                | "http://host/p ath"   | "query%3F?"                   | "/p ath"
+    true     | true        | "http://host/p%20ath?query%3F?"                | "http://host/p%20ath" | "query%3F?"                   | "/p%20ath"
+    false    | false       | "http://host/path?t%6fken=first%26SECOND_HALF" | "http://host/path"    | "token=first%26SECOND_HALF"   | "/path"
+    true     | false       | "http://host/path?t%6fken=first%26SECOND_HALF" | "http://host/path"    | "t%6fken=first%26SECOND_HALF" | "/path"
+    false    | false       | "http://host/path?q=one%26two%23three"         | "http://host/path"    | "q=one%26two%23three"         | "/path"
 
     req = [url: url == null ? null : new URI(url)]
   }

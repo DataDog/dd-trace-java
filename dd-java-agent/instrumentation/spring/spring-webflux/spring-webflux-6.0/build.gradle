@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
 }
 
 testJvmConstraints {
@@ -9,6 +10,7 @@ testJvmConstraints {
 // test that webflux5 instrumentation works for webflux6 too
 addTestSuite('iastTest')
 addTestSuite('bootTest')
+addForkedTestTask('bootTest')
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepBootTest', 'latestDepTest', 'bootTest')

@@ -1604,6 +1604,22 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
       {
         "version": "A",
@@ -3322,6 +3338,14 @@
       }
     ],
     "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVESOCKET_INTERVAL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_OPTIONS": [
       {
         "version": "A",
         "type": "string",
@@ -8658,6 +8682,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_OPENAI_JAVA_ENABLED", "DD_INTEGRATION_OPENAI_JAVA_ENABLED"]
+      }
+    ],
+    "DD_TRACE_OPENFEATURE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_OPENFEATURE_ENABLED", "DD_INTEGRATION_OPENFEATURE_ENABLED"]
       }
     ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_ENABLED": [

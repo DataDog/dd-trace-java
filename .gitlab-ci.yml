@@ -5,7 +5,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha '454a97647cbc16ab7fd20e917aa31532ba7532eb' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
+    ref: &apm_sdks_benchmarks_sha 'cbb693ea82c5a07634865e6edcc79cbaf947ee67' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -56,15 +56,15 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "9.8.1" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "9.8.2" # must match gradle-wrapper.properties
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
-  BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
+  BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the ddoghq/images repo
   BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
   TEST_COUNTS_S3_BUCKET: "dd-trace-java-ci-test-reports"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 26
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 27
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -73,6 +73,9 @@ variables:
     value: "false"
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
+    value: "false"
+  SKIP_BUILD_CACHE:
+    description: "Run Gradle tasks without build-cache or up-to-date reuse"
     value: "false"
 
   # One pipeline injection package size ratchet
@@ -104,13 +107,12 @@ workflow:
       - "17"
       - "21"
       - "25"
-      - "27" # JDK 27 TODO: remove after GA (tip will move to 27)
-      - "semeru11"
       - "oracle8"
       - "zulu8"
       - "semeru8"
       - "ibm8"
       - "zulu11"
+      - "semeru11"
       - "semeru17"
       - "tip"
     CI_SPLIT: ["1/1"]
@@ -279,6 +281,7 @@ default:
       fi
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    - if [ "$SKIP_BUILD_CACHE" = "true" ]; then export GRADLE_ARGS="$GRADLE_ARGS --no-build-cache --rerun-tasks"; fi
     - *normalize_node_index
     # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
@@ -307,7 +310,7 @@ maven-central-pre-release-check:
       # See https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
       # Use the staging API search endpoint to validate the tokens without relying on a specific deployment
       AUTHORIZATION_HEADER="Authorization: Bearer $(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64)"
-      if ! curl --silent --show-error --fail \
+      if ! curl --silent --show-error --fail --retry 5 --retry-delay 2 --retry-connrefused \
         "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any" \
         --header "$AUTHORIZATION_HEADER" \
         > /dev/null; then
@@ -355,7 +358,7 @@ build:
   script:
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew --version
-    - ./gradlew clean :dd-java-agent:shadowJar :dd-java-agent:check :dd-trace-api:jar :dd-trace-ot:shadowJar :products:feature-flagging:feature-flagging-api:jar -PskipTests -x spotlessCheck $GRADLE_ARGS
+    - ./gradlew clean :dd-java-agent:shadowJar :dd-java-agent:check :dd-trace-api:jar :dd-trace-ot:shadowJar :dd-openfeature:jar -PskipTests -x spotlessCheck $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
     - echo "BUILD_JOB_ID=$CI_JOB_ID" >> build.env
@@ -365,7 +368,7 @@ build:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
-      - 'workspace/products/feature-flagging/feature-flagging-api/build/libs/*.jar'
+      - 'workspace/dd-openfeature/build/libs/*.jar'
       - 'upstream.env'
       - '.gradle/daemon/*/*.out.log'
     reports:
@@ -482,13 +485,18 @@ publish-artifacts-to-s3:
     - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-agent.jar
     - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-api.jar
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-ot.jar
-    - aws s3 cp workspace/products/feature-flagging/feature-flagging-api/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-openfeature.jar
+    - aws s3 cp workspace/dd-openfeature/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-openfeature.jar
     - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar
     - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-api.jar
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-ot.jar
-    - aws s3 cp workspace/products/feature-flagging/feature-flagging-api/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar
+    - aws s3 cp workspace/dd-openfeature/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar
     - |
-      cat << EOF > links.json 
+      # Print the agent version and public jar links so they are easy to copy from the DDCI UI
+      echo "Version of dd-java-agent: ${UPSTREAM_TRACER_VERSION}"
+      echo "Public Link to dd-java-agent.jar: https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar"
+      echo "Public Link to dd-openfeature.jar: https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar"
+    - |
+      cat << EOF > links.json
         {
           "S3 Links": [
             {
@@ -531,7 +539,7 @@ check-instrumentation-naming:
   needs: [ ]
   script:
     - ./gradlew --version
-    - ./gradlew checkInstrumentationNaming
+    - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
 config-inversion-linter:
   extends: .gradle_build
@@ -539,7 +547,7 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew checkConfigurations
+    - ./gradlew checkConfigurations $GRADLE_ARGS
 
 test_published_artifacts:
   extends: .gradle_build
@@ -584,6 +592,7 @@ validate_build:
     - cp workspace/dd-java-agent/build/libs/*.jar reference-artifacts/
     - cp workspace/dd-trace-api/build/libs/*.jar reference-artifacts/
     - cp workspace/dd-trace-ot/build/libs/*.jar reference-artifacts/
+    - cp workspace/dd-openfeature/build/libs/*.jar reference-artifacts/
     # Scheduled builds refresh dependency locks before creating the reference artifacts.
     # Refresh them here as well so the candidate uses the same dependency resolution.
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
@@ -597,6 +606,7 @@ validate_build:
         cp workspace/dd-java-agent/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
         cp workspace/dd-trace-api/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
         cp workspace/dd-trace-ot/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
+        cp workspace/dd-openfeature/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
         exit 1
       fi
   after_script:
@@ -852,7 +862,8 @@ muzzle-dep-report:
     # Enable for default test JVMs or for NON_DEFAULT_JVMS
     - if: '$NON_DEFAULT_JVMS == "true"'
       when: on_success
-    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+    # [ci: NON_DEFAULT_JVMS] with any other parameters in the commit message.
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bNON_DEFAULT_JVMS\b[^\]]*\]/'
       when: on_success
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: on_success
@@ -866,12 +877,19 @@ muzzle-dep-report:
     - job: build
       artifacts: false
   variables:
-    DEFAULT_TEST_JVMS: /^(11|17|21|25|27|tip)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
+    DEFAULT_TEST_JVMS: /^(11|17|21|25|tip)$/
     TEST_JVM_ARGS: "-Xshare:off"
   rules:
     # Java 8 is excluded from the arm64 test matrix for all distributions.
     # Java 8 JVMs are very slow on AARCH64.
     - if: '$testJvm =~ /^(8|oracle8|zulu8|semeru8|ibm8)$/'
+      when: never
+    # Java 11 is opt-in on arm64; HotSpot has very slow class retransformation.
+    # Vendor JVMs still follow the non-default JVM selection rules below.
+    - if: '$testJvm == "11" && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
+      when: on_success
+      allow_failure: true
+    - if: '$testJvm =~ /11$/ && $CI_COMMIT_MESSAGE !~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
       when: never
     # arm64 tests are newly introduced to the merge queue and master. Keep them
     # non-blocking (allow_failure) for now so we can collect stability stats and
@@ -887,10 +905,15 @@ muzzle-dep-report:
     - if: '$NON_DEFAULT_JVMS == "true"'
       when: on_success
       allow_failure: true
-    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+    # On feature branches/PRs, [ci: ARM64] in the commit message runs the default JVM subset,
+    # and [ci: ARM64, NON_DEFAULT_JVMS] runs all eligible JVMs. [ci: NON_DEFAULT_JVMS] alone only affects amd64.
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bARM64\b[^\]]*\]/ && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bNON_DEFAULT_JVMS\b[^\]]*\]/'
       when: on_success
       allow_failure: true
-    # Keep the default JVM subset available for manual runs on feature branches/PRs.
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bARM64\b[^\]]*\]/ && $testJvm =~ $DEFAULT_TEST_JVMS'
+      when: on_success
+      allow_failure: true
+    # Otherwise keep the default JVM subset available for manual runs.
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
@@ -995,6 +1018,8 @@ test_inst:
 
 test_inst_arm64:
   extends: .test_job_arm64_with_test_agent
+  # Instrumentation tests are slower on arm64 runners than the 1h default allows.
+  timeout: 75 minutes
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
@@ -1019,7 +1044,7 @@ test_inst_latest:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
+      - testJvm: ["8", "17", "21", "25", "tip"]
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -1032,7 +1057,7 @@ test_inst_latest_arm64:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
+      - testJvm: ["17", "21", "25", "tip"]
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -1102,7 +1127,7 @@ test_debugger:
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|27|tip|semeru8)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip|semeru8)$/
   parallel:
     matrix: *test_matrix
   # avoid running coverage for semeru8, semeru11, semeru17 and ibm8 as some tests are disabled and therefore cannot reach the
@@ -1206,7 +1231,9 @@ test_smoke_graalvm_arm64:
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
-    NON_DEFAULT_JVMS: "true"
+    # Treat the GraalVM JVMs as this job's defaults, so it follows the arm64 rules like the other arm64 jobs:
+    # automatic on master and the merge queue, manual on PRs unless the commit message contains [ci: ARM64].
+    DEFAULT_TEST_JVMS: /^graalvm(17|21|25)$/
   parallel:
     matrix:
       - testJvm: ["graalvm17", "graalvm21", "graalvm25"]

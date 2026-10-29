@@ -15,6 +15,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
@@ -612,12 +613,13 @@ public class DDSpanContext
    * earlier decorator) wins. Because it never clobbers, {@code apply} is order-independent and
    * self-neutralizes once construction has already seeded the same prototype.
    *
-   * <p>This is the shared seam for both the construction path ({@code CoreSpanBuilder}) and
-   * decorator {@code afterStart} (via {@link DDSpan#apply}). The context owns the tag map, so the
-   * eventual cheaper bulk-share path (skipping interception for non-intercepted tags) and the
-   * identity short-circuit will land here -- deferred to the dense-store / tag-registry work, which
-   * exposes intercept status at the internal-api level. Until then the constant tags route through
-   * the interceptor, identical to the per-tag calls this replaces.
+   * <p>This is the construction-time seam ({@code CoreSpanBuilder}) -- see {@link
+   * #applyOverwriting} for the decorator {@code afterStart} seam (via {@link
+   * DDSpan#applyOverwriting}), which needs different precedence. The context owns the tag map, so
+   * the eventual cheaper bulk-share path (skipping interception for non-intercepted tags) and the
+   * identity short-circuit will land here, with the dense store; a tag's intercept status is
+   * already on its id ({@link KnownTagCodec#isIntercepted}). Until then each constant tag is
+   * prechecked by the interceptor, identical to the per-tag calls this replaces.
    */
   public void apply(@Nonnull final SpanPrototype prototype) {
     if (this.spanType == null) {
@@ -632,6 +634,26 @@ public class DDSpanContext
       if (integrationName != null) {
         setIntegrationName(integrationName);
       }
+    }
+  }
+
+  /**
+   * Applies a {@link SpanPrototype} unconditionally: stamps its span type, constant tags, and
+   * integration name over whatever is already present. This is the decorator {@code afterStart}
+   * seam -- see {@link datadog.trace.bootstrap.instrumentation.api.AgentSpan#applyOverwriting} for
+   * why it needs different precedence than {@link #apply}.
+   */
+  public void applyOverwriting(@Nonnull final SpanPrototype prototype) {
+    final CharSequence spanType = prototype.spanType();
+    if (spanType != null) {
+      setSpanType(spanType);
+    }
+    final TagMap tags = prototype.tags();
+    setAllTags(tags, true);
+    tagInterceptor.resolveSplitByTagsPrecedence(this, tags);
+    final CharSequence integrationName = prototype.integrationName();
+    if (integrationName != null) {
+      setIntegrationName(integrationName);
     }
   }
 
@@ -652,8 +674,7 @@ public class DDSpanContext
             if (ctx.unsafeTags.containsKey(tag)) {
               return;
             }
-            final Object value = tagEntry.objectValue();
-            if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+            if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
               ctx.unsafeTags.set(tagEntry);
             }
           });
@@ -855,6 +876,10 @@ public class DDSpanContext
     return traceCollector;
   }
 
+  public TagMap getGlobalTags() {
+    return traceCollector.getTraceConfig().globalTags;
+  }
+
   public RequestContext getRequestContext() {
     return this;
   }
@@ -1001,10 +1026,31 @@ public class DDSpanContext
   }
 
   /**
+   * Removes a known tag by id rather than by its name. An id the id-keyed setters ignore is ignored
+   * here too.
+   *
+   * @param tagId a {@code KnownTags.*_ID} constant
+   */
+  public void removeTag(long tagId) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagId == KnownTags.SPAN_KIND_ID) {
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
+    synchronized (unsafeTags) {
+      unsafeTags.getAndRemove(tagId);
+    }
+  }
+
+  /**
    * Sets a tag to the span. Tags are not propagated to the children.
    *
    * <p>Existing tag value with the same value will be replaced. Setting a tag with a {@code null}
    * value will remove the tag from the span.
+   *
+   * <p>A known tag's name is resolved to its id once, and the id-keyed setter does the rest; only a
+   * custom tag is handled by name.
    *
    * @param tag The tag name.
    * @param value The nullable tag value.
@@ -1013,9 +1059,12 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (null == value) {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (null == value) {
       removeTag(tag);
-    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1026,11 +1075,112 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (null == value) {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (null == value) {
       removeTag(tag);
-    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+    } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  /*
+   * Id-keyed setters, mirroring the String setters above. With a constant id, the
+   * KnownTagCodec.INTERCEPTED test folds, leaving only the split-by-tags table load; an id set never
+   * takes the custom-tag path. An id that names no known tag is ignored, like a null tag.
+   */
+  public void setTag(final long tagId, final Object value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (null == value) {
+      removeTag(tagId);
+    } else if (!tagInterceptor.needsIntercept(tagId)
+        || !tagInterceptor.interceptTag(this, tagId, value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.internals().setKnown(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final CharSequence value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (null == value) {
+      removeTag(tagId);
+    } else if (!tagInterceptor.needsIntercept(tagId)
+        || !tagInterceptor.interceptTag(this, tagId, value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.internals().setKnown(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final boolean value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBox(tagId, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.internals().setKnown(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final int value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBox(tagId, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.internals().setKnown(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final long value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBox(tagId, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.internals().setKnown(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final float value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBox(tagId, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.internals().setKnown(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final double value) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (tagInterceptor.needsIntercept(tagId)) {
+      this.setBox(tagId, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.internals().setKnown(tagId, value);
       }
     }
   }
@@ -1040,11 +1190,8 @@ public class DDSpanContext
       return;
     }
 
-    // pre-check to avoid boxing
-    boolean intercepted =
-        precheckIntercept(entry.tag())
-            && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
-    if (!intercepted) {
+    // the interceptor prechecks the entry, to avoid boxing
+    if (!tagInterceptor.interceptTag(this, entry)) {
       synchronized (unsafeTags) {
         unsafeTags.set(entry);
       }
@@ -1052,16 +1199,7 @@ public class DDSpanContext
   }
 
   /*
-   * Uses to determine if there's an opportunity to avoid primitve boxing.
-   * If the underlying map doesn't support efficient primitives, then boxing is used.
-   * If the tag may be intercepted, then boxing is also used.
-   */
-  private boolean precheckIntercept(String tag) {
-    return tagInterceptor.needsIntercept(tag);
-  }
-
-  /*
-   * Used when precheckIntercept determines that boxing is unavoidable
+   * Used when the interceptor's precheck says the tag may be intercepted, so boxing is unavoidable
    *
    * Either because the tagInterceptor needs to be fully checked (which requires boxing)
    * In that case, a box has already been created so it makes sense to pass the box
@@ -1072,10 +1210,10 @@ public class DDSpanContext
    * The TagMap isn't optimized and will need to box the primitive regardless of
    * tag interception
    */
-  private void setBox(String tag, Object box) {
-    if (!tagInterceptor.interceptTag(this, tag, box)) {
+  private void setBox(long tagId, Object box) {
+    if (!tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (unsafeTags) {
-        unsafeTags.set(tag, box);
+        unsafeTags.internals().setKnown(tagId, box);
       }
     }
   }
@@ -1084,9 +1222,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
-    } else {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1097,9 +1237,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
-    } else {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1110,10 +1252,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    // check needsIntercept first to avoid unnecessary boxing
-    boolean intercepted =
-        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
-    if (!intercepted) {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1124,9 +1267,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
-    } else {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1137,9 +1282,11 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    if (precheckIntercept(tag)) {
-      this.setBox(tag, value);
-    } else {
+    final long tagId = KnownTagCodec.keyOf(tag);
+    if (tagId != 0) {
+      setTag(tagId, value);
+    } else if (!tagInterceptor.needsInterceptCustomTag(tag)
+        || !tagInterceptor.interceptCustomTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -1163,10 +1310,7 @@ public class DDSpanContext
         map.forEach(
             this,
             (ctx, tagEntry) -> {
-              String tag = tagEntry.tag();
-              Object value = tagEntry.objectValue();
-
-              if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+              if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
                 ctx.unsafeTags.set(tagEntry);
               }
             });
@@ -1193,9 +1337,7 @@ public class DDSpanContext
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
-          Object value = entry.objectValue();
-
-          if (!tagInterceptor.interceptTag(this, tag, value)) {
+          if (!tagInterceptor.interceptTag(this, entry)) {
             unsafeTags.set(entry);
           }
         }
@@ -1265,7 +1407,45 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    return unsafeTags.getObject(tag);
+    Object value = unsafeTags.getObject(tag);
+    return value != null ? value : unsafeGetDirectionScopedTag(tag);
+  }
+
+  /**
+   * Resolves an OpenTelemetry name whose tag depends on the span's direction, by this span's kind:
+   * {@code server.address} is {@code http.hostname} on inbound spans and {@code peer.hostname} on
+   * outbound ones. Tried only after a plain lookup misses, so a tag set under the literal name
+   * wins; null when the name isn't direction-scoped or the span has no direction.
+   */
+  private Object unsafeGetDirectionScopedTag(final String tag) {
+    int direction = directionOfKind(spanKindOrdinal);
+    if (direction == KnownTagCodec.DIRECTION_UNKNOWN) {
+      return null;
+    }
+    long tagId = KnownTagCodec.directionalKeyOf(tag, direction);
+    if (tagId == 0) {
+      return null;
+    }
+    TagMap.Entry entry = unsafeTags.getEntry(tagId);
+    return entry == null ? null : entry.objectValue();
+  }
+
+  /**
+   * The {@link KnownTagCodec} direction of a span-kind ordinal; brokers and custom kinds have none.
+   */
+  static int directionOfKind(byte spanKindOrdinal) {
+    switch (spanKindOrdinal) {
+      case SPAN_KIND_SERVER:
+      case SPAN_KIND_CONSUMER:
+        return KnownTagCodec.DIRECTION_INBOUND;
+      case SPAN_KIND_CLIENT:
+      case SPAN_KIND_PRODUCER:
+        return KnownTagCodec.DIRECTION_OUTBOUND;
+      case SPAN_KIND_INTERNAL:
+        return KnownTagCodec.DIRECTION_NONE;
+      default:
+        return KnownTagCodec.DIRECTION_UNKNOWN;
+    }
   }
 
   @Deprecated
@@ -1391,11 +1571,14 @@ public class DDSpanContext
                 : serializedPropagationTags.createTagMap();
       }
 
+      CoreTracer.ConfigSnapshot traceConfig = traceCollector.getTraceConfig();
       consumer.accept(
           new Metadata(
               threadId,
               threadName,
               unsafeTags,
+              traceConfig.globalTags,
+              traceConfig.spanDefaultTags,
               baggageItemsWithPropagationTags,
               getSamplingPriority(),
               measured,

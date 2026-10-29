@@ -2,14 +2,14 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :dd-java-agent:dependencies --write-locks
-at.yawk.lz4:lz4-java:1.11.4=sharedShadowInclude
+at.yawk.lz4:lz4-java:1.12.1=sharedShadowInclude
 cafe.cryptography:curve25519-elisabeth:0.1.0=sharedShadowInclude,testRuntimeClasspath,traceShadowInclude
 cafe.cryptography:ed25519-elisabeth:0.1.0=sharedShadowInclude,testRuntimeClasspath,traceShadowInclude
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
 com.datadoghq.okhttp3:okhttp:3.12.15=sharedShadowInclude,testCompileClasspath,testRuntimeClasspath,traceShadowInclude
 com.datadoghq.okio:okio:1.17.6=sharedShadowInclude,testCompileClasspath,testRuntimeClasspath,traceShadowInclude
-com.datadoghq:dd-instrument-java:0.0.5=shadowInclude,testCompileClasspath,testRuntimeClasspath,traceShadowInclude
+com.datadoghq:dd-instrument-java:0.0.6=shadowInclude,testCompileClasspath,testRuntimeClasspath,traceShadowInclude
 com.datadoghq:dd-javac-plugin-client:0.2.2=shadowInclude,testCompileClasspath,testRuntimeClasspath,traceShadowInclude
 com.datadoghq:java-dogstatsd-client:4.4.5=sharedShadowInclude,testRuntimeClasspath,traceShadowInclude
 com.datadoghq:sketches-java:0.8.3=sharedShadowInclude,testRuntimeClasspath,traceShadowInclude

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set +e  # Disable exiting from testagent response failure
-SUMMARY_RESPONSE=$(curl -s -w "\n%{http_code}" -o summary_response.txt "http://${CI_AGENT_HOST}:8126/test/trace_check/summary")
+SUMMARY_RESPONSE=$(curl -s --retry 5 --retry-delay 2 --retry-connrefused -w "\n%{http_code}" -o summary_response.txt "http://${CI_AGENT_HOST}:8126/test/trace_check/summary")
 set -e
 SUMMARY_RESPONSE_CODE=$(echo "$SUMMARY_RESPONSE" | awk 'END {print $NF}')
 
@@ -16,7 +16,7 @@ else
   exit 0
 fi
 
-RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt "http://${CI_AGENT_HOST}:8126/test/trace_check/failures")
+RESPONSE=$(curl -s --retry 5 --retry-delay 2 --retry-connrefused -w "\n%{http_code}" -o response.txt "http://${CI_AGENT_HOST}:8126/test/trace_check/failures")
 RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
 
 if [[ $RESPONSE_CODE -eq 200 ]]; then

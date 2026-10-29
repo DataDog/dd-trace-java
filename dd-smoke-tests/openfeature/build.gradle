@@ -15,12 +15,11 @@ smokeTestApp {
     artifactPath = 'libs/openfeature-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
   }
-  projectJar('featureFlaggingApiJar', project(':products:feature-flagging:feature-flagging-api'))
+  projectJar('featureFlaggingApiJar', project(':dd-openfeature'))
 }
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
-  testImplementation project(':products:feature-flagging:feature-flagging-lib')
 }
 
 spotless {

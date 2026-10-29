@@ -75,7 +75,7 @@ build-exploration-tests-image:
       - "*_surefire-reports.tar.gz"
       - "*_debugger-dumps.tar.gz"
 
-exploration-tests-method-jsoup:
+exploration-tests-log_method-jsoup:
   needs: [ build ]
   dependencies:
     - build
@@ -83,9 +83,9 @@ exploration-tests-method-jsoup:
   variables:
     PROJECT: jsoup
   script:
-    - ./run-exploration-tests.sh "method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+    - ./run-exploration-tests.sh "log_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
-exploration-tests-line-jsoup:
+exploration-tests-log_line-jsoup:
   needs: [ build ]
   dependencies:
     - build
@@ -93,9 +93,29 @@ exploration-tests-line-jsoup:
   variables:
     PROJECT: jsoup
   script:
-    - ./run-exploration-tests.sh "line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+    - ./run-exploration-tests.sh "log_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
-exploration-tests-method-jackson-core:
+exploration-tests-metric_method-jsoup:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jsoup
+  script:
+    - ./run-exploration-tests.sh "metric_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-metric_line-jsoup:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jsoup
+  script:
+    - ./run-exploration-tests.sh "metric_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-log_method-jackson-core:
   needs: [ build ]
   dependencies:
     - build
@@ -103,9 +123,9 @@ exploration-tests-method-jackson-core:
   variables:
     PROJECT: jackson-core
   script:
-    - ./run-exploration-tests.sh "method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+    - ./run-exploration-tests.sh "log_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
-exploration-tests-line-jackson-core:
+exploration-tests-log_line-jackson-core:
   needs: [ build ]
   dependencies:
     - build
@@ -113,9 +133,29 @@ exploration-tests-line-jackson-core:
   variables:
     PROJECT: jackson-core
   script:
-    - ./run-exploration-tests.sh "line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+    - ./run-exploration-tests.sh "log_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
-exploration-tests-method-jackson-databind:
+exploration-tests-metric_method-jackson-core:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-core
+  script:
+    - ./run-exploration-tests.sh "metric_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-metric_line-jackson-core:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-core
+  script:
+    - ./run-exploration-tests.sh "metric_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-log_method-jackson-databind:
   needs: [ build ]
   dependencies:
     - build
@@ -123,9 +163,9 @@ exploration-tests-method-jackson-databind:
   variables:
     PROJECT: jackson-databind
   script:
-    - ./run-exploration-tests.sh "method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+    - ./run-exploration-tests.sh "log_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
 
-exploration-tests-line-jackson-databind:
+exploration-tests-log_line-jackson-databind:
   needs: [ build ]
   dependencies:
     - build
@@ -133,21 +173,41 @@ exploration-tests-line-jackson-databind:
   variables:
     PROJECT: jackson-databind
   script:
-    - ./run-exploration-tests.sh "line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"
+    - ./run-exploration-tests.sh "log_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"
 
-exploration-tests-method-okhttp:
+exploration-tests-metric_method-jackson-databind:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-databind
+  script:
+    - ./run-exploration-tests.sh "metric_method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+
+exploration-tests-metric_line-jackson-databind:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-databind
+  script:
+    - ./run-exploration-tests.sh "metric_line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"
+
+exploration-tests-log_method-okhttp:
   needs: [ build ]
   dependencies:
     - build
   <<: *common-exploration-tests
   variables:
     PROJECT: okhttp
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_MEMORY_REQUEST: 10Gi
+    KUBERNETES_MEMORY_LIMIT: 10Gi
   script:
     - sdk use java 17.0.10-tem
     - java -XshowSettings:system -version
-    - ./run-exploration-tests.sh "method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+    - ./run-exploration-tests.sh "log_method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
   after_script:
     - cp /exploration-tests/${PROJECT}/agent.log ${PROJECT}_agent.log || true
     - gzip ${PROJECT}_agent.log || true

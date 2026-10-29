@@ -3,6 +3,7 @@ import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 
 plugins {
   `java-library`
+  `java-test-fixtures`
   id("dd-trace-java.module.internal-api")
   id("dd-trace-java.jmh-conventions")
   id("dd-trace-java.tag-registry-generator")
@@ -266,6 +267,7 @@ extra["excludedClassesInstructionCoverage"] = listOf("datadog.trace.util.stacktr
 
 tagRegistry {
   tagConventionsFile.set(rootProject.layout.projectDirectory.file("tag-conventions.yaml"))
+  tracerOverlayFile.set(rootProject.layout.projectDirectory.file("tag-conventions-java.yaml"))
 }
 
 dependencies {
@@ -276,7 +278,6 @@ dependencies {
   api(project(":components:context"))
   api(project(":components:environment"))
   api(project(":components:json"))
-  implementation(project(":products:feature-flagging:feature-flagging-config"))
   api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
 

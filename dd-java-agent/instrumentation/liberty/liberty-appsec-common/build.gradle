@@ -1,0 +1,58 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+def openlibertyHomeDir = project.layout.buildDirectory.dir("openliberty")
+
+configurations {
+  register("zipped")
+}
+
+// Since this task output is used in dependencies it has to be declared before, it can be configured later
+def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
+  extractDir.set(openlibertyHomeDir)
+}
+
+dependencies {
+  zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '21.0.0.3', ext: 'zip'
+
+  compileOnly files(unpackOpenLiberty.map { it.extractedJars.get() })
+
+  // IBM jars are compileOnly, tests need them on the runtime classpath too
+  testImplementation files(unpackOpenLiberty.map { it.extractedJars.get() })
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+}
+
+// unzips only the jars LibertyBlockingHelper needs from the 'zipped' configuration so 'compileOnly' can reference them
+abstract class UnpackOpenLiberty extends Copy {
+  // never "wlp/lib/*.jar": it pulls a jar that JDK 25+ javac cannot read
+  static final List<String> COMPILE_JARS = [
+    "wlp/lib/com.ibm.ws.transport.http*.jar",
+    "wlp/lib/com.ibm.ws.channelfw*.jar",
+    "wlp/lib/com.ibm.ws.logging*.jar"
+  ]
+
+  @Input
+  final Property<String> configurationName = project.objects.property(String).convention("zipped")
+
+  @OutputDirectory
+  final DirectoryProperty extractDir = project.objects.directoryProperty()
+
+  @OutputFiles
+  final Provider<FileTree> extractedJars = project.providers.provider {
+    project.fileTree(extractDir) {
+      include COMPILE_JARS
+    }
+  }
+
+  UnpackOpenLiberty() {
+    from project.zipTree(configurationName.map {
+      project.configurations.named(it).map {
+        it.singleFile
+      }
+    })
+    include COMPILE_JARS
+    into extractDir
+  }
+}

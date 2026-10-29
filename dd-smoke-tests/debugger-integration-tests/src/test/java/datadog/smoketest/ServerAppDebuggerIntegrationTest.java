@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,10 +34,12 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   protected static final String TEST_APP_CLASS_NAME = "ServerDebuggerTestApplication";
   protected static final String FULL_METHOD_NAME = "fullMethod";
   protected static final String TRACED_METHOD_NAME = "tracedMethod";
+  protected static final Duration HTTP_CLIENT_TIMEOUT = Duration.ofSeconds(30);
 
   protected MockWebServer controlServer;
   protected HttpUrl controlUrl;
-  private OkHttpClient httpClient = new OkHttpClient();
+  private OkHttpClient httpClient =
+      new OkHttpClient.Builder().readTimeout(HTTP_CLIENT_TIMEOUT).build();
   protected String appUrl;
 
   @BeforeEach

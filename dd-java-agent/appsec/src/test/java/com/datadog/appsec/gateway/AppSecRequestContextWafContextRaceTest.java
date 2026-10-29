@@ -119,6 +119,52 @@ class AppSecRequestContextWafContextRaceTest {
   }
 
   @Test
+  void readyContextIsAbsentBeforeFirstUse() {
+    AppSecRequestContext ctx = new AppSecRequestContext();
+
+    assertNull(ctx.getWafContextIfReady(false, false));
+  }
+
+  @Test
+  void readyContextIsTheCreatedContext() {
+    AppSecRequestContext ctx = new AppSecRequestContext();
+    try {
+      WafContext created = ctx.getOrCreateWafContext(wafHandle, true, false);
+
+      assertSame(created, ctx.getWafContextIfReady(true, false));
+      assertSame(created, ctx.getWafContextIfReady(false, true));
+    } finally {
+      ctx.closeWafContext();
+    }
+  }
+
+  @Test
+  void readyContextRequiresMetricsTheCallNeeds() {
+    AppSecRequestContext ctx = new AppSecRequestContext();
+    try {
+      WafContext created = ctx.getOrCreateWafContext(wafHandle, true, false);
+
+      // The first RASP call must go through getOrCreateWafContext so RASP metrics get created.
+      assertNull(ctx.getWafContextIfReady(true, true));
+      assertSame(created, ctx.getOrCreateWafContext(wafHandle, true, true));
+      assertNotNull(ctx.getRaspMetrics());
+      assertSame(created, ctx.getWafContextIfReady(true, true));
+    } finally {
+      ctx.closeWafContext();
+    }
+  }
+
+  @Test
+  void readyContextIsAbsentAfterClose() {
+    AppSecRequestContext ctx = new AppSecRequestContext();
+    assertNotNull(ctx.getOrCreateWafContext(wafHandle, false, false));
+
+    ctx.closeWafContext();
+
+    assertNull(ctx.getWafContextIfReady(false, false));
+  }
+
+  @Test
   void fallbackCloseDoesNotClosePendingApiSecurityWafContext() {
     AppSecRequestContext ctx = new AppSecRequestContext();
     WafContext created = ctx.getOrCreateWafContext(wafHandle, false, false);

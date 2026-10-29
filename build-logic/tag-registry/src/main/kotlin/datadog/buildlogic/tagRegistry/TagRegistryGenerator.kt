@@ -8,17 +8,19 @@ import java.util.Locale
 
 /** Emits the Java tag registry and reports in a deterministic order. */
 object TagRegistryGenerator {
-  /** Parses the conventions YAML and writes the full generated tree under [outDir]. */
-  fun generate(tagConventionsFile: File, outDir: File) {
+  /**
+   * Parses the conventions YAML, plus the tracer overlay when there is one, and writes the full
+   * generated tree under [outDir].
+   */
+  fun generate(tagConventionsFile: File, outDir: File, tracerOverlayFile: File? = null) {
     val mapper = ObjectMapper(YAMLFactory())
-    val domain: Map<String, Any?> =
-      tagConventionsFile.inputStream().use {
-        mapper.readValue(it, object : TypeReference<Map<String, Any?>>() {})
-      }
+    fun read(file: File): Map<String, Any?> = file.inputStream().use { mapper.readValue(it, object : TypeReference<Map<String, Any?>>() {}) } ?: emptyMap()
+    val domain = read(tagConventionsFile)
+    val overlay = tracerOverlayFile?.let(::read) ?: emptyMap()
 
     // Validate before touching the destination tree: an invalid domain model must fail loudly,
     // not after the previous (valid) generated output has already been wiped out.
-    val conv = TagConventions.parse(domain)
+    val conv = TagConventions.parse(domain, overlay)
     val reg = TagRegistry.build(conv)
 
     // Remove obsolete generated files when the output changes.
@@ -68,18 +70,20 @@ object TagRegistryGenerator {
       """
       # Tag id assignment.  tags=${reg.tags.size}
 
-      # TAGS     serial lvl id                 required     name
+      # TAGS     serial lvl int slot id                 required     name
       """.trimIndent()
     )
-    for ((name, _, required, serial, traceLevel, id) in reg.tags) {
+    for (t in reg.tags) {
       appendLine(
-        "  %6d   %s  %-18s %-12s %s".format(
+        "  %6d   %s   %s   %4s %-18s %-12s %s".format(
           Locale.ROOT,
-          serial,
-          if (traceLevel) "T" else "-",
-          "0x%016X".format(Locale.ROOT, id),
-          required,
-          name
+          t.serial,
+          if (t.traceLevel) "T" else "-",
+          if (t.intercepted) "I" else "-",
+          if (t.slot == TagRegistry.NO_SLOT) "-" else t.slot.toString(),
+          "0x%016X".format(Locale.ROOT, t.id),
+          t.required,
+          t.name
         )
       )
     }
@@ -98,23 +102,16 @@ object TagRegistryGenerator {
       """
 
       # DIRECTION-SCOPED OPENTELEMETRY NAMES. Each applies only on spans of the given direction, so
-      # it is not in the tables above; name resolution does not use it until it knows the direction.
+      # it is not in the tables above: a tag is emitted under it when its span has that direction,
+      # and a value written under it is resolved to the tag once the span's direction is known.
       """.trimIndent()
     )
     val scoped =
-      reg.tags.filter { it.otelDirection != null }.sortedWith(compareBy({ it.declaredOtelName }, { it.otelDirection }))
-    for (t in scoped) {
-      appendLine("  %-30s %-9s -> %s".format(Locale.ROOT, t.declaredOtelName, t.otelDirection!!.yamlKey, t.name))
-    }
-    appendLine(
-      """
-
-      # SHARED DATADOG NAMES. One Datadog name for a tag per direction: emitting it needs no context,
-      # but resolving the name to a tag needs the span's direction, so keyOf does not resolve it yet.
-      """.trimIndent()
-    )
-    for ((ddName, shared) in reg.tags.filter { it.sharedNameDirection != null }.groupBy { it.ddName }.toSortedMap()) {
-      appendLine("  %-30s -> %s".format(Locale.ROOT, ddName, shared.joinToString(", ") { it.name }))
+      reg.tags
+        .flatMap { t -> t.scopedOtelNames.map { (direction, otel) -> Triple(otel, direction, t.name) } }
+        .sortedWith(compareBy({ it.first }, { it.second }))
+    for ((otel, direction, canonical) in scoped) {
+      appendLine("  %-30s %-9s -> %s".format(Locale.ROOT, otel, direction.yamlKey, canonical))
     }
   }
 }

@@ -500,12 +500,13 @@ class ResponseServiceTest extends OpenAiTest {
             "openai.request.endpoint" "/v1/responses"
             "openai.api_base" openAiBaseApi
             "$CommonTags.OPENAI_RESPONSE_MODEL" respModel
-            if (!isStreaming) {
-              "openai.organization.ratelimit.requests.limit" Integer
-              "openai.organization.ratelimit.requests.remaining" Integer
-              "openai.organization.ratelimit.tokens.limit" Integer
-              "openai.organization.ratelimit.tokens.remaining" Integer
+            def rateLimitValue = { value ->
+              value instanceof Integer || (isStreaming && value == null)
             }
+            "openai.organization.ratelimit.requests.limit" rateLimitValue
+            "openai.organization.ratelimit.requests.remaining" rateLimitValue
+            "openai.organization.ratelimit.tokens.limit" rateLimitValue
+            "openai.organization.ratelimit.tokens.remaining" rateLimitValue
             "$CommonTags.OPENAI_ORGANIZATION" "datadog-staging"
             if (reqModel != null) {
               "$CommonTags.OPENAI_REQUEST_MODEL" reqModel

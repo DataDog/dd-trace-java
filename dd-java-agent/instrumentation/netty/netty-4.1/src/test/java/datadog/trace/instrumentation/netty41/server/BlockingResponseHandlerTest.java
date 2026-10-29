@@ -6,7 +6,9 @@ import static io.netty.handler.codec.http.HttpMethod.GET;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -16,18 +18,43 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.NettyBlockResponseFunction;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.local.LocalChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.util.concurrent.Future;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class BlockingResponseHandlerTest {
+
+  @Test
+  void discardedCloseFrameCompletesPromiseAndNotifiesCloseListener() {
+    EmbeddedChannel channel =
+        new EmbeddedChannel(BlockingResponseHandler.IgnoreAllWritesHandler.INSTANCE);
+    CloseWebSocketFrame frame = new CloseWebSocketFrame();
+    ChannelPromise promise = channel.newPromise();
+    promise.addListener(ChannelFutureListener.CLOSE);
+
+    try {
+      channel.pipeline().writeAndFlush(frame, promise);
+
+      assertTrue(promise.isDone());
+      assertInstanceOf(ClosedChannelException.class, promise.cause());
+      assertEquals(0, frame.refCnt());
+      assertNull(channel.readOutbound());
+      assertFalse(channel.isActive());
+    } finally {
+      channel.finishAndReleaseAll();
+    }
+  }
 
   @Test
   void removesResponseFunctionHandlersWhenResponseTracingIsUnavailable() {

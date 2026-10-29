@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
   id 'dd-trace-java.testcontainers'
 }
 
@@ -15,9 +16,13 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
+// This non-Docker-Hub image has a separate mirror in CI.
+def pubSubEmulatorImage = providers.environmentVariable('CI').isPresent()
+  ? 'registry.ddbuild.io/images/mirror/google.com/cloudsdktool/google-cloud-cli:emulators'
+  : 'gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators'
 
 dependencies {
-  testContainerImage(image('gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators', 'test.pubsub.image'))
+  testContainerImage(image(pubSubEmulatorImage, 'test.pubsub.image'))
 
   compileOnly group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.116.0'
   testImplementation group: 'org.testcontainers', name: 'gcloud', version: libs.versions.testcontainers.get()
