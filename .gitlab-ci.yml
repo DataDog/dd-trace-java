@@ -5,7 +5,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha 'bffc4e99f65d0accac069b87162891742c555efa' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
+    ref: &apm_sdks_benchmarks_sha 'cbb693ea82c5a07634865e6edcc79cbaf947ee67' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -74,6 +74,9 @@ variables:
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
+  SKIP_BUILD_CACHE:
+    description: "Run Gradle tasks without build-cache or up-to-date reuse"
+    value: "false"
 
   # One pipeline injection package size ratchet
   OCI_PACKAGE_MAX_SIZE_BYTES: 40_000_000
@@ -104,12 +107,12 @@ workflow:
       - "17"
       - "21"
       - "25"
-      - "semeru11"
       - "oracle8"
       - "zulu8"
       - "semeru8"
       - "ibm8"
       - "zulu11"
+      - "semeru11"
       - "semeru17"
       - "tip"
     CI_SPLIT: ["1/1"]
@@ -278,6 +281,7 @@ default:
       fi
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    - if [ "$SKIP_BUILD_CACHE" = "true" ]; then export GRADLE_ARGS="$GRADLE_ARGS --no-build-cache --rerun-tasks"; fi
     - *normalize_node_index
     # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
@@ -487,7 +491,12 @@ publish-artifacts-to-s3:
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-ot.jar
     - aws s3 cp workspace/dd-openfeature/build/libs/dd-openfeature-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar
     - |
-      cat << EOF > links.json 
+      # Print the agent version and public jar links so they are easy to copy from the DDCI UI
+      echo "Version of dd-java-agent: ${UPSTREAM_TRACER_VERSION}"
+      echo "Public Link to dd-java-agent.jar: https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar"
+      echo "Public Link to dd-openfeature.jar: https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-openfeature.jar"
+    - |
+      cat << EOF > links.json
         {
           "S3 Links": [
             {
@@ -530,7 +539,7 @@ check-instrumentation-naming:
   needs: [ ]
   script:
     - ./gradlew --version
-    - ./gradlew checkInstrumentationNaming
+    - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
 config-inversion-linter:
   extends: .gradle_build
@@ -538,7 +547,7 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew checkConfigurations
+    - ./gradlew checkConfigurations $GRADLE_ARGS
 
 test_published_artifacts:
   extends: .gradle_build
@@ -554,6 +563,7 @@ test_published_artifacts:
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - ./gradlew publishToMavenLocal $GRADLE_ARGS
+    - unset GPG_PRIVATE_KEY GPG_PASSWORD
     - cd test-published-dependencies
     - printf '\norg.gradle.console=colored\n' >> gradle.properties
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms1G -Xmx1G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
@@ -875,6 +885,13 @@ muzzle-dep-report:
     # Java 8 JVMs are very slow on AARCH64.
     - if: '$testJvm =~ /^(8|oracle8|zulu8|semeru8|ibm8)$/'
       when: never
+    # Java 11 is opt-in on arm64; HotSpot has very slow class retransformation.
+    # Vendor JVMs still follow the non-default JVM selection rules below.
+    - if: '$testJvm == "11" && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
+      when: on_success
+      allow_failure: true
+    - if: '$testJvm =~ /11$/ && $CI_COMMIT_MESSAGE !~ /\[ci:[^\]]*\bJAVA11\b[^\]]*\]/'
+      when: never
     # arm64 tests are newly introduced to the merge queue and master. Keep them
     # non-blocking (allow_failure) for now so we can collect stability stats and
     # fix flaky/failing jobs without blocking the whole team. Remove allow_failure
@@ -890,7 +907,7 @@ muzzle-dep-report:
       when: on_success
       allow_failure: true
     # On feature branches/PRs, [ci: ARM64] in the commit message runs the default JVM subset,
-    # and [ci: ARM64, NON_DEFAULT_JVMS] runs all JVMs. [ci: NON_DEFAULT_JVMS] alone only affects amd64.
+    # and [ci: ARM64, NON_DEFAULT_JVMS] runs all eligible JVMs. [ci: NON_DEFAULT_JVMS] alone only affects amd64.
     - if: '$CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bARM64\b[^\]]*\]/ && $CI_COMMIT_MESSAGE =~ /\[ci:[^\]]*\bNON_DEFAULT_JVMS\b[^\]]*\]/'
       when: on_success
       allow_failure: true

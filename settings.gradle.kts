@@ -165,7 +165,6 @@ include(":dd-java-agent:agent-aiguard")
 include(
   ":products:feature-flagging:feature-flagging-agent",
   ":products:feature-flagging:feature-flagging-bootstrap",
-  ":products:feature-flagging:feature-flagging-config",
   ":products:feature-flagging:feature-flagging-lib"
 )
 
@@ -271,6 +270,7 @@ include(
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
   ":dd-smoke-tests:appsec:spring-tomcat7",
+  ":dd-smoke-tests:appsec:lambda-sca",
   ":dd-smoke-tests:appsec:springboot",
   ":dd-smoke-tests:appsec:springboot-grpc",
   ":dd-smoke-tests:appsec:springboot-graphql",

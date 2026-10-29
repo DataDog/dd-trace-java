@@ -1,6 +1,5 @@
 package datadog.communication.serialization;
 
-import datadog.trace.api.internal.VisibleForTesting;
 import java.nio.ByteBuffer;
 
 public final class FlushingBuffer implements StreamingBuffer {
@@ -19,6 +18,14 @@ public final class FlushingBuffer implements StreamingBuffer {
   @Override
   public int capacity() {
     return buffer.capacity();
+  }
+
+  /** Returns a view of complete messages, excluding any unfinished message. */
+  public ByteBuffer completedMessages() {
+    ByteBuffer slice = buffer.duplicate();
+    slice.position(0);
+    slice.limit(mark);
+    return slice;
   }
 
   @Override
@@ -107,8 +114,7 @@ public final class FlushingBuffer implements StreamingBuffer {
     mark = 0;
   }
 
-  @VisibleForTesting
-  int getMessageCount() {
+  public int messageCount() {
     return messageCount;
   }
 }

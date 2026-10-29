@@ -64,7 +64,8 @@ to `.classdata` to prevent unintended loading. See [`docs/how_to_work_with_gradl
 
 - **`agent-tooling/`** — Instrumentation framework. Key types:
   - `InstrumenterModule` — Base class for all instrumentation modules. Declares a target system
-    (Tracing, AppSec, IAST, Profiling, CiVisibility, USM, etc.) and one or more instrumentations.
+    (Tracing, AppSec, IAST, Profiling, CiVisibility, USM, FeatureFlags, etc.) and one or more
+    instrumentations.
   - `Instrumenter` — Type matching interface: `ForSingleType`, `ForKnownTypes`,
     `ForTypeHierarchy`, `ForBootstrap`.
   - `muzzle/` — Build-time and runtime safety checks. Verifies that expected types and methods
@@ -229,9 +230,8 @@ Current products:
 
 - `metrics/` — StatsD client and monitoring abstraction. Provides `Monitoring` interface with
   counters, timers, and histograms for internal agent metrics collection.
-- `feature-flagging/` — Server-side feature flag evaluation driven by remote configuration.
-  Implements the OpenFeature SDK, handles the Unified Feature Control (UFC) protocol,
-  and tracks flag exposure per user/session.
+- `feature-flagging/` — Agent services for the [`dd-openfeature/`](#dd-openfeature) SDK:
+  remote configuration, event delivery through the Datadog Agent, and span enrichment.
 
 ### `communication/`
 
@@ -278,6 +278,12 @@ Legacy OpenTracing compatibility library. Publishes a standalone JAR artifact (`
 that implements the `io.opentracing.Tracer` interface by wrapping the Datadog `CoreTracer`.
 This is a pure library for manual instrumentation only — there is no auto-instrumentation or
 bytecode advice.
+
+### `dd-openfeature/`
+
+Feature Flags OpenFeature provider. Publishes a standalone JAR artifact (`dd-openfeature.jar`, Java 11+)
+that works without the agent. When the agent is attached, an instrumentation connects it to the
+`products/feature-flagging/` agent services.
 
 ### `dd-smoke-tests/`
 

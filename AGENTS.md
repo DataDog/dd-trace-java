@@ -71,6 +71,10 @@ docs/                     Developer documentation (see below)
 ## PR conventions
 
 - Title: imperative verb sentence describing user-visible change (e.g. "Fix span sampling rule parsing")
+- Description: follow the section guidance in [the PR template](.github/pull_request_template.md).
+  Write for a human reviewer first: short, plain and skimmable. Explain the intent and rationale of the change,
+  not its content: the diff already shows the code, so don't walk through it file by file or list the classes and methods touched.
+- Size: keep PRs small (under 1000 added lines), split larger changes into stacked PRs.
 - Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
 - Use `tag: no release notes` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable

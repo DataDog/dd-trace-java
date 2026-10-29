@@ -876,6 +876,10 @@ public class DDSpanContext
     return traceCollector;
   }
 
+  public TagMap getGlobalTags() {
+    return traceCollector.getTraceConfig().globalTags;
+  }
+
   public RequestContext getRequestContext() {
     return this;
   }

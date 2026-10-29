@@ -8,7 +8,8 @@ public interface ConfigurationSource {
    * Subscribes to configuration updates.
    *
    * @param listener the listener receiving raw UFC JSON documents, or {@code null} when the
-   *     configuration is removed.
+   *     configuration is removed. It throws a {@link RuntimeException} to reject a malformed
+   *     document, which the source reports as not applied.
    * @return the handle to close to unsubscribe.
    */
   AutoCloseable subscribe(Consumer<byte[]> listener);

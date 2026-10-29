@@ -152,6 +152,7 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
     assertTracerVersion(
       expectedVersion = "1.52.1",
       // GitLab tag pipelines set CI_COMMIT_TAG, not CI_COMMIT_BRANCH
+      env = mapOf("GITLAB_CI" to "true", "CI_COMMIT_TAG" to "v1.52.1"),
       unsetEnv = setOf("CI_COMMIT_BRANCH"),
       beforeGradle = {
         initGitRepo()
@@ -161,6 +162,51 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
         exec("git", "commit", "-am", "Another commit")
         exec("git", "tag", "v1.52.1", "-m", "")
         exec("git", "switch", "--detach", "v1.52.1")
+      },
+    )
+  }
+
+  @Test
+  fun `should increment minor on tag checked out by a GitLab branch pipeline`() {
+    assertTracerVersion(
+      expectedVersion = "1.53.0-SNAPSHOT",
+      // A master pipeline that starts after the tag is pushed must not release that tag again
+      env = mapOf("GITLAB_CI" to "true", "CI_COMMIT_BRANCH" to "master"),
+      beforeGradle = {
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "--detach", "v1.52.0")
+      },
+    )
+  }
+
+  @Test
+  fun `should increment patch on tag checked out by a GitLab release branch pipeline`() {
+    assertTracerVersion(
+      expectedVersion = "1.52.2-SNAPSHOT",
+      env = mapOf("GITLAB_CI" to "true", "CI_COMMIT_BRANCH" to "release/v1.52.x"),
+      beforeGradle = {
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "-c", "release/v1.52.x")
+        writeSettings("// Committed change ", append = true)
+        exec("git", "commit", "-am", "Another commit")
+        exec("git", "tag", "v1.52.1", "-m", "")
+        exec("git", "switch", "--detach", "v1.52.1")
+      },
+    )
+  }
+
+  @Test
+  fun `should increment minor on tag checked out by a GitLab pipeline of another tag`() {
+    assertTracerVersion(
+      expectedVersion = "1.53.0-SNAPSHOT",
+      env = mapOf("GITLAB_CI" to "true", "CI_COMMIT_TAG" to "v1.51.0"),
+      unsetEnv = setOf("CI_COMMIT_BRANCH"),
+      beforeGradle = {
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "--detach", "v1.52.0")
       },
     )
   }
@@ -276,7 +322,8 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
       "printVersion",
       "--quiet",
       env = env,
-      unsetEnv = unsetEnv,
+      // Keep the tests independent of the GitLab pipeline running them
+      unsetEnv = unsetEnv + setOf("GITLAB_CI", "CI_COMMIT_TAG"),
       gradleProjectDir = workingDirectory
     )
 

@@ -224,7 +224,9 @@ On pull requests, arm64 tests are manual jobs. To run them on CI, include one of
 texts in the commit message:
 
 * `[ci: ARM64]` to run them on the default arm64 JVMs.
-* `[ci: ARM64, NON_DEFAULT_JVMS]` to run them on all JVMs.
+* `[ci: ARM64, NON_DEFAULT_JVMS]` to run them on all eligible JVMs.
+* `[ci: ARM64, JAVA11]` to add Java 11 to the default arm64 JVMs.
+* `[ci: ARM64, NON_DEFAULT_JVMS, JAVA11]` to also include Java 11 vendor JVMs (Zulu and Semeru).
 
 ### Running System Tests
 

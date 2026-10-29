@@ -727,4 +727,18 @@ class TagMapReadThroughTest {
     assertEquals("x-val", out.get("x"));
     assertEquals("y-val", out.get("y"));
   }
+
+  @Test
+  void forEachLocalSkipsParentEntries() {
+    TagMap child = TagMap.createFromParent(frozenParent());
+    child.set("b", "child-b"); // shadows parent "b"
+    child.set("c", "child-c");
+
+    Map<String, Object> out = new HashMap<>();
+    child.forEachLocal(out, (map, entry) -> map.put(entry.tag(), entry.objectValue()));
+
+    assertEquals(2, out.size());
+    assertEquals("child-b", out.get("b"));
+    assertEquals("child-c", out.get("c"));
+  }
 }
