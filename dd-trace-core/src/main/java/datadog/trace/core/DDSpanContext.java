@@ -19,6 +19,7 @@ import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TagStore;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -68,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext {
+    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext, TagStore {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -1399,6 +1400,50 @@ public class DDSpanContext
     }
   }
 
+  /*
+   * TagStore: the span's tags as stored, loaded and stored with no locking, interception or
+   * interpretation -- the storage beneath the span, as a Map was beneath a TagMap. A span isn't
+   * conceptually a TagStore. It implements one so post-processing is handed the span's storage
+   * without allocating: a wrapper would be free only if escape analysis removed it, and the
+   * post-processor chain's dispatch loop defeats that. Callers hold the span's tag lock, as
+   * post-processing does.
+   */
+
+  @Override
+  public Object load(String tag) {
+    return unsafeTags.getObject(tag);
+  }
+
+  @Override
+  public String loadString(String tag) {
+    return unsafeTags.getString(tag);
+  }
+
+  @Override
+  public Object load(long tagId) {
+    return unsafeTags.load(tagId);
+  }
+
+  @Override
+  public String loadString(long tagId) {
+    return unsafeTags.loadString(tagId);
+  }
+
+  @Override
+  public void store(String tag, Object value) {
+    unsafeTags.set(tag, value);
+  }
+
+  @Override
+  public void store(long tagId, Object value) {
+    unsafeTags.set(tagId, value);
+  }
+
+  @Override
+  public void store(TagMap.EntryReader entry) {
+    unsafeTags.set(entry);
+  }
+
   /**
    * This is not thread-safe and must only be used when it can be guaranteed that the context will
    * not be mutated. This is internal API and must not be exposed to users.
@@ -1504,7 +1549,7 @@ public class DDSpanContext
 
   void earlyProcessTags(AppendableSpanLinks links) {
     synchronized (unsafeTags) {
-      TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
+      TagsPostProcessorFactory.eagerProcessor().processTags(this, this, links);
     }
   }
 
