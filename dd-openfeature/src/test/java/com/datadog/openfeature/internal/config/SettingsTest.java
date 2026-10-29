@@ -192,6 +192,25 @@ class SettingsTest {
     assertFalse(settings.isEvaluationCountsEnabled());
   }
 
+  @Test
+  void readsTraceDebugFromTheBridgeThenSystemPropertiesThenEnvironment() {
+    final Map<String, String> bridge = new HashMap<>();
+    final Map<String, String> properties = new HashMap<>();
+    final Map<String, String> environment = new HashMap<>();
+    final Settings settings =
+        new Settings(new SettingAgentBridge(bridge), properties::get, environment::get);
+    assertFalse(settings.isTraceDebug());
+
+    environment.put("DD_TRACE_DEBUG", "1");
+    assertTrue(settings.isTraceDebug());
+
+    properties.put("dd.trace.debug", "false");
+    assertFalse(settings.isTraceDebug());
+
+    bridge.put("trace.debug", "TRUE");
+    assertTrue(settings.isTraceDebug());
+  }
+
   private static void putIfNotNull(
       final Map<String, String> map, final String key, final String value) {
     if (value != null) {

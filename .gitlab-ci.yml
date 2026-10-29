@@ -74,6 +74,9 @@ variables:
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
+  SKIP_BUILD_CACHE:
+    description: "Run Gradle tasks without build-cache or up-to-date reuse"
+    value: "false"
 
   # One pipeline injection package size ratchet
   OCI_PACKAGE_MAX_SIZE_BYTES: 40_000_000
@@ -278,6 +281,7 @@ default:
       fi
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    - if [ "$SKIP_BUILD_CACHE" = "true" ]; then export GRADLE_ARGS="$GRADLE_ARGS --no-build-cache --rerun-tasks"; fi
     - *normalize_node_index
     # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
@@ -535,7 +539,7 @@ check-instrumentation-naming:
   needs: [ ]
   script:
     - ./gradlew --version
-    - ./gradlew checkInstrumentationNaming
+    - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
 config-inversion-linter:
   extends: .gradle_build
@@ -543,7 +547,7 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew checkConfigurations
+    - ./gradlew checkConfigurations $GRADLE_ARGS
 
 test_published_artifacts:
   extends: .gradle_build

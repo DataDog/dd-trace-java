@@ -5,7 +5,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,6 +17,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -28,8 +34,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
 
 class RemoteConfigServiceImplTest {
   private static final byte[] DOCUMENT = "{\"flags\":{}}".getBytes(UTF_8);
@@ -67,6 +78,110 @@ class RemoteConfigServiceImplTest {
     assertArrayEquals(DOCUMENT, first.get(0));
     assertNull(first.get(1));
     assertEquals(2, second.size());
+  }
+
+  @Test
+  void reportsRejectedDocumentsOnceEverySubscriberIsNotified() {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    final IllegalArgumentException rejection = new IllegalArgumentException("malformed");
+    final IllegalStateException otherRejection = new IllegalStateException("malformed too");
+    final List<byte[]> received = new ArrayList<>();
+    service.subscribe(
+        content -> {
+          throw rejection;
+        });
+    service.subscribe(received::add);
+    service.subscribe(
+        content -> {
+          throw otherRejection;
+        });
+
+    final IllegalArgumentException reported =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
+
+    assertSame(rejection, reported);
+    assertArrayEquals(new Throwable[] {otherRejection}, reported.getSuppressed());
+    assertEquals(1, received.size());
+    assertArrayEquals(DOCUMENT, received.get(0));
+  }
+
+  @Test
+  void lateSubscribersRejectingTheCurrentDocumentStaySubscribed() throws Exception {
+    final RemoteConfigServiceImpl service =
+        new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+    final List<byte[]> received = new ArrayList<>();
+
+    final AutoCloseable subscription =
+        service.subscribe(
+            content -> {
+              if (content != null) {
+                throw new IllegalArgumentException("malformed");
+              }
+              received.add(null);
+            });
+    service.accept("key", null, mock(PollingRateHinter.class));
+    subscription.close();
+
+    assertEquals(1, received.size());
+    assertNull(received.get(0));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void requestsADocumentReceivedBeforeAnySubscriberAgainWhenRejected() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.start();
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+
+    service.subscribe(
+        content -> {
+          throw new IllegalArgumentException("malformed");
+        });
+    service.subscribe(
+        content -> {
+          throw new IllegalArgumentException("malformed");
+        });
+
+    verify(poller, times(1)).removeListeners(Product.FFE_FLAGS);
+    verify(poller, times(2))
+        .addListener(eq(Product.FFE_FLAGS), any(ConfigurationDeserializer.class), eq(service));
+  }
+
+  @Test
+  void keepsADocumentReceivedBeforeAnySubscriberWhenAccepted() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.start();
+    service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
+
+    service.subscribe(content -> {});
+
+    verify(poller, never()).removeListeners(any());
+  }
+
+  @Test
+  void doesNotRequestAgainADocumentAlreadyRejectedOnDelivery() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+    service.subscribe(
+        content -> {
+          throw new IllegalArgumentException("malformed");
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
+
+    service.subscribe(
+        content -> {
+          throw new IllegalArgumentException("malformed");
+        });
+
+    verify(poller, never()).removeListeners(any());
   }
 
   @Test
@@ -175,7 +290,89 @@ class RemoteConfigServiceImplTest {
     verify(poller, times(1))
         .removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     verify(poller, times(1)).removeListeners(Product.FFE_FLAGS);
-    verify(poller, never()).stop();
+    verify(poller, times(1)).stop();
     assertEquals(0, received.size());
+  }
+
+  @Test
+  void restartsBalancePollerReferences() {
+    final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
+
+    service.start();
+    service.close();
+    service.subscribe(content -> {});
+    service.close();
+
+    verify(poller, times(2)).start();
+    verify(poller, times(2)).stop();
+  }
+
+  @Nested
+  class Diagnostics {
+    private final Logger logger = (Logger) LoggerFactory.getLogger(RemoteConfigServiceImpl.class);
+    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private Level previousLevel;
+    private RemoteConfigServiceImpl service;
+
+    @BeforeEach
+    void captureLogs() {
+      previousLevel = logger.getLevel();
+      logger.setLevel(Level.DEBUG);
+      appender.start();
+      logger.addAppender(appender);
+      service = new RemoteConfigServiceImpl(mock(ConfigurationPoller.class));
+    }
+
+    @AfterEach
+    void restoreLogging() {
+      logger.detachAppender(appender);
+      appender.stop();
+      logger.setLevel(previousLevel);
+    }
+
+    @Test
+    void reportsLifecycle() {
+      service.start();
+      service.close();
+
+      assertLogged("starting remote_config configuration source");
+      assertLogged("remote_config configuration source stopped");
+    }
+
+    @Test
+    void reportsReceivedConfiguration() {
+      service.accept("config", DOCUMENT, mock(PollingRateHinter.class));
+
+      assertLogged("configuration received: key=config, bytes=" + DOCUMENT.length);
+    }
+
+    @Test
+    void reportsRemovedConfiguration() {
+      service.accept("config", null, mock(PollingRateHinter.class));
+
+      assertLogged("configuration removed: key=config");
+    }
+
+    @Test
+    void reportsTheDocumentOnlyOnceItIsDelivered() {
+      final AtomicBoolean loggedBeforeDelivery = new AtomicBoolean(true);
+      service.subscribe(
+          content ->
+              loggedBeforeDelivery.set(
+                  appender.list.stream()
+                      .anyMatch(e -> e.getFormattedMessage().contains("configuration received"))));
+
+      service.accept("config", DOCUMENT, mock(PollingRateHinter.class));
+
+      assertFalse(loggedBeforeDelivery.get(), "The log must not delay the delivery");
+      assertLogged("configuration received: key=config, bytes=" + DOCUMENT.length);
+    }
+
+    private void assertLogged(final String text) {
+      assertTrue(
+          appender.list.stream().anyMatch(e -> e.getFormattedMessage().contains(text)),
+          "Missing log: " + text);
+    }
   }
 }
