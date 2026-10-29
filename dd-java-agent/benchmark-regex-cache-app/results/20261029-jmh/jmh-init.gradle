@@ -1,0 +1,14 @@
+allprojects {
+  if (path == ':dd-java-agent:agent-bootstrap') {
+    afterEvaluate {
+      jmh {
+        includes = ['RegexOpsBenchmark']
+        fork = 2; warmupIterations = 3; warmup = '1s'; iterations = 4; timeOnIteration = '1s'
+        profilers = ['gc']
+        resultFormat = 'JSON'
+        resultsFile = rootProject.file('dd-java-agent/benchmark-regex-cache-app/results/20261029-jmh/jmh-result.json')
+        humanOutputFile = rootProject.file('dd-java-agent/benchmark-regex-cache-app/results/20261029-jmh/jmh-output.txt')
+      }
+    }
+  }
+}

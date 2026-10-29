@@ -1,0 +1,36 @@
+| op | case | input | JDK ns/op | RegexOps ns/op | delta | JDK B/op | RegexOps B/op |
+|---|---|---|---:|---:|---:|---:|---:|
+| compile | literal (hit) | short | 92.2 ± 2.2 | 4.5 ± 0.1 | -95.1% | 784 | 0 |
+| compile | literal (hit) | long | 91.7 ± 1.8 | 4.6 ± 0.2 | -95.0% | 784 | 0 |
+| compileFlagsFind | literal (hit) | short | 574.9 ± 112.0 | 339.3 ± 143.3 | -41.0% | 1000 | 216 |
+| compileFlagsFind | literal (hit) | long | 19199.7 ± 328.3 | 18618.5 ± 121.2 | -3.0% | 1000 | 216 |
+| patternMatches | literal (hit) | short | 172.7 ± 2.2 | 90.4 ± 4.4 | -47.7% | 1040 | 128 |
+| patternMatches | literal (hit) | long | 4004.1 ± 46.6 | 4880.3 ± 114.1 | +21.9% | 1040 | 128 |
+| matches | literal (hit) | short | 175.1 ± 2.6 | 88.5 ± 3.1 | -49.5% | 1040 | 128 |
+| matches | literal (hit) | long | 4567.2 ± 691.6 | 5012.6 ± 83.6 | +9.8% | 1040 | 128 |
+| replaceAll | literal (hit) | short | 332.0 ± 6.4 | 268.3 ± 3.6 | -19.2% | 1312 | 392 |
+| replaceAll | literal (hit) | long | 13450.4 ± 367.4 | 12869.6 ± 76.3 | -4.3% | 7312 | 6392 |
+| replaceFirst | literal (hit) | short | 348.9 ± 7.8 | 242.6 ± 45.6 | -30.5% | 1216 | 496 |
+| replaceFirst | literal (hit) | long | 424.8 ± 23.9 | 307.3 ± 44.3 | -27.7% | 5120 | 4400 |
+| split | literal (hit) | short | 137.9 ± 6.4 | 158.1 ± 2.9 | +14.7% | 1040 | 496 |
+| split | literal (hit) | long | 3696.6 ± 511.4 | 3579.2 ± 73.7 | -3.2% | 14608 | 14064 |
+| splitLimit | literal (hit) | short | 132.4 ± 1.7 | 123.5 ± 3.1 | -6.7% | 1040 | 496 |
+| splitLimit | literal (hit) | long | 2126.6 ± 34.2 | 2147.0 ± 33.4 | +1.0% | 3008 | 2464 |
+| splitFastpath | literal (hit) | short | 33.0 ± 0.6 | 35.0 ± 1.3 | +6.1% | 296 | 296 |
+| splitFastpath | literal (hit) | long | 1457.5 ± 40.7 | 1445.5 ± 20.3 | -0.8% | 14312 | 14312 |
+| compile | dynamic (miss) | short | 97.4 ± 1.1 | 138.0 ± 4.6 | +41.7% | 808 | 808 |
+| compile | dynamic (miss) | long | 140.2 ± 26.0 | 135.5 ± 2.5 | -3.4% | 808 | 808 |
+| compileFlagsFind | dynamic (miss) | short | 467.4 ± 185.3 | 560.2 ± 25.8 | +19.9% | 1024 | 1024 |
+| compileFlagsFind | dynamic (miss) | long | 17889.2 ± 2777.2 | 19154.7 ± 380.4 | +7.1% | 1024 | 1024 |
+| patternMatches | dynamic (miss) | short | 199.6 ± 2.0 | 244.6 ± 1.9 | +22.5% | 1064 | 1064 |
+| patternMatches | dynamic (miss) | long | 4030.4 ± 77.1 | 4108.3 ± 75.5 | +1.9% | 1064 | 1064 |
+| matches | dynamic (miss) | short | 179.9 ± 3.4 | 214.1 ± 3.9 | +19.0% | 1064 | 1064 |
+| matches | dynamic (miss) | long | 4117.1 ± 41.8 | 4155.8 ± 85.9 | +0.9% | 1064 | 1064 |
+| replaceAll | dynamic (miss) | short | 358.4 ± 85.5 | 373.8 ± 6.7 | +4.3% | 1336 | 1336 |
+| replaceAll | dynamic (miss) | long | 13612.4 ± 601.1 | 13341.6 ± 241.9 | -2.0% | 7336 | 7336 |
+| replaceFirst | dynamic (miss) | short | 341.2 ± 26.8 | 397.6 ± 7.4 | +16.6% | 1240 | 1240 |
+| replaceFirst | dynamic (miss) | long | 435.5 ± 5.8 | 475.8 ± 9.2 | +9.3% | 5144 | 5144 |
+| split | dynamic (miss) | short | 153.4 ± 1.0 | 181.2 ± 13.0 | +18.1% | 1064 | 1064 |
+| split | dynamic (miss) | long | 3659.1 ± 51.6 | 3840.8 ± 246.9 | +5.0% | 14632 | 14632 |
+| splitLimit | dynamic (miss) | short | 133.5 ± 2.3 | 166.5 ± 2.1 | +24.7% | 1064 | 1064 |
+| splitLimit | dynamic (miss) | long | 2213.0 ± 24.3 | 2359.4 ± 143.3 | +6.6% | 3032 | 3032 |

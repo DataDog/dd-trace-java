@@ -1,0 +1,107 @@
+== starting fake trace agent on 18126
+== [noagent] startup x5
+  noagent    startup discarded run: 969.6 ms
+  noagent    startup run 1: 784.7 ms
+  noagent    startup run 2: 807.2 ms
+  noagent    startup run 3: 816.6 ms
+  noagent    startup run 4: 795.1 ms
+  noagent    startup run 5: 818.4 ms
+== [noagent] load: warmup 15s + 30s per endpoint, 8 connections
+  noagent    noregex       113573 req/s  p50     67.1 us  p99    139.6 us  cpu    32.1 us/req  errors 0
+  noagent    split         112787 req/s  p50     67.9 us  p99    138.8 us  cpu    32.8 us/req  errors 0
+  noagent    sanitize      108360 req/s  p50     70.3 us  p99    148.8 us  cpu    34.5 us/req  errors 0
+  noagent    email         108710 req/s  p50     70.3 us  p99    145.8 us  cpu    35.3 us/req  errors 0
+  noagent    mask          113424 req/s  p50     67.6 us  p99    136.9 us  cpu    32.3 us/req  errors 0
+  noagent    compile       108792 req/s  p50     70.2 us  p99    144.3 us  cpu    36.4 us/req  errors 0
+  noagent    dynamic       110714 req/s  p50     68.9 us  p99    144.1 us  cpu    33.7 us/req  errors 0
+== [agent] startup x5
+  agent      startup discarded run: 1549.6 ms
+  agent      startup run 1: 1509.4 ms
+  agent      startup run 2: 1413.6 ms
+  agent      startup run 3: 1410.2 ms
+  agent      startup run 4: 1463.7 ms
+  agent      startup run 5: 1418.8 ms
+== [agent] load: warmup 15s + 30s per endpoint, 8 connections
+  agent      noregex       101538 req/s  p50     73.0 us  p99    167.8 us  cpu    44.9 us/req  errors 0
+  agent      split         101844 req/s  p50     73.2 us  p99    164.9 us  cpu    45.2 us/req  errors 0
+  agent      sanitize      100238 req/s  p50     74.3 us  p99    166.6 us  cpu    46.9 us/req  errors 0
+  agent      email         100018 req/s  p50     74.3 us  p99    167.6 us  cpu    47.7 us/req  errors 0
+  agent      mask          102037 req/s  p50     72.5 us  p99    166.7 us  cpu    44.9 us/req  errors 0
+  agent      compile        95936 req/s  p50     76.5 us  p99    182.8 us  cpu    50.2 us/req  errors 0
+  agent      dynamic       103533 req/s  p50     71.8 us  p99    162.3 us  cpu    45.0 us/req  errors 0
+  fake agent has received 10922 trace payloads so far
+== [agent-cache] startup x5
+  agent-cache startup discarded run: 1579.2 ms
+  agent-cache startup run 1: 1590.0 ms
+  agent-cache startup run 2: 1643.5 ms
+  agent-cache startup run 3: 1661.9 ms
+  agent-cache startup run 4: 1569.3 ms
+  agent-cache startup run 5: 1616.3 ms
+== [agent-cache] load: warmup 15s + 30s per endpoint, 8 connections
+  agent-cache noregex       103123 req/s  p50     72.3 us  p99    164.7 us  cpu    43.9 us/req  errors 0
+  agent-cache split         104152 req/s  p50     71.9 us  p99    161.2 us  cpu    43.7 us/req  errors 0
+  agent-cache sanitize      102414 req/s  p50     72.8 us  p99    164.3 us  cpu    45.4 us/req  errors 0
+  agent-cache email         105092 req/s  p50     70.9 us  p99    159.5 us  cpu    43.6 us/req  errors 0
+  agent-cache mask          103408 req/s  p50     72.4 us  p99    162.0 us  cpu    43.8 us/req  errors 0
+  agent-cache compile        98442 req/s  p50     75.8 us  p99    170.6 us  cpu    49.0 us/req  errors 0
+  agent-cache dynamic       103044 req/s  p50     71.9 us  p99    167.6 us  cpu    44.4 us/req  errors 0
+  fake agent has received 22054 trace payloads so far
+== done: <repo>/dd-java-agent/benchmark-regex-cache-app/results/20261029-runbench-pass1/summary.md
+# Regex cache benchmark
+
+- date: 2026-10-29T20:08:21Z
+- host: Darwin 25.6.0 arm64
+- cpus: 16
+- java: openjdk version 21.0.11 2026-04-21 LTS
+- agentJar: <repo>/dd-java-agent/build/libs/dd-java-agent-1.68.0-SNAPSHOT.jar
+- agentCommit: 96d05b7385
+- startupRuns: 5
+- warmupS: 15
+- durationS: 30
+- connections: 8
+- heap: 512m
+
+## Startup to first successful request (ms)
+
+| config | median | min | max | runs |
+|---|---:|---:|---:|---:|
+| noagent | 807 | 785 | 818 | 5 |
+| agent | 1419 | 1410 | 1509 | 5 |
+| agent-cache | 1616 | 1569 | 1662 | 5 |
+
+## Load (relative columns vs `noagent`)
+
+| endpoint | config | req/s | req/s vs base | p50 us | p99 us | CPU us/req | CPU/req vs base | GC ms | errors |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| noregex | noagent | 113573 | - | 67.1 | 139.6 | 32.12 | - | 71 | 0 |
+| noregex | agent | 101538 | -10.6% | 73.0 | 167.8 | 44.86 | +39.7% | 111 | 0 |
+| noregex | agent-cache | 103123 | -9.2% | 72.3 | 164.7 | 43.89 | +36.7% | 110 | 0 |
+| split | noagent | 112787 | - | 67.9 | 138.8 | 32.75 | - | 69 | 0 |
+| split | agent | 101844 | -9.7% | 73.2 | 164.9 | 45.19 | +38.0% | 109 | 0 |
+| split | agent-cache | 104152 | -7.7% | 71.9 | 161.2 | 43.73 | +33.5% | 105 | 0 |
+| sanitize | noagent | 108360 | - | 70.3 | 148.8 | 34.50 | - | 70 | 0 |
+| sanitize | agent | 100238 | -7.5% | 74.3 | 166.6 | 46.95 | +36.1% | 109 | 0 |
+| sanitize | agent-cache | 102414 | -5.5% | 72.8 | 164.3 | 45.42 | +31.6% | 105 | 0 |
+| email | noagent | 108710 | - | 70.3 | 145.8 | 35.27 | - | 172 | 0 |
+| email | agent | 100018 | -8.0% | 74.3 | 167.6 | 47.66 | +35.1% | 213 | 0 |
+| email | agent-cache | 105092 | -3.3% | 70.9 | 159.5 | 43.58 | +23.6% | 112 | 0 |
+| mask | noagent | 113424 | - | 67.6 | 136.9 | 32.27 | - | 70 | 0 |
+| mask | agent | 102037 | -10.0% | 72.5 | 166.7 | 44.90 | +39.2% | 110 | 0 |
+| mask | agent-cache | 103408 | -8.8% | 72.4 | 162.0 | 43.80 | +35.7% | 103 | 0 |
+| compile | noagent | 108792 | - | 70.2 | 144.3 | 36.36 | - | 64 | 0 |
+| compile | agent | 95936 | -11.8% | 76.5 | 182.8 | 50.17 | +38.0% | 100 | 0 |
+| compile | agent-cache | 98442 | -9.5% | 75.8 | 170.6 | 48.95 | +34.6% | 95 | 0 |
+| dynamic | noagent | 110714 | - | 68.9 | 144.1 | 33.67 | - | 73 | 0 |
+| dynamic | agent | 103533 | -6.5% | 71.8 | 162.3 | 44.99 | +33.6% | 110 | 0 |
+| dynamic | agent-cache | 103044 | -6.9% | 71.9 | 167.6 | 44.39 | +31.8% | 119 | 0 |
+
+## RegexCache counters at end of each config's load phase
+
+-1 means the counters were not reachable (no agent, or agent without RegexCache).
+
+| config | hits | misses | admissions |
+|---|---:|---:|---:|
+| noagent | -1 | -1 | -1 |
+| agent | 0 | 0 | 0 |
+| agent-cache | 65368822 | 4634160 | 6 |
+exit=0

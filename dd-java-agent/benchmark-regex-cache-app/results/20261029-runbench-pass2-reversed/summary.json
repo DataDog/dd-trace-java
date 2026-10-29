@@ -1,0 +1,53 @@
+{
+  "meta": {
+    "date": "2026-10-29T20:25:32Z",
+    "host": "Darwin 25.6.0 arm64",
+    "cpus": "16",
+    "java": "openjdk version 21.0.11 2026-04-21 LTS",
+    "agentJar": "<repo>/dd-java-agent/build/libs/dd-java-agent-1.68.0-SNAPSHOT.jar",
+    "agentCommit": "96d05b7385",
+    "startupRuns": "5",
+    "warmupS": "15",
+    "durationS": "30",
+    "connections": "8",
+    "heap": "512m"
+  },
+  "configs": {
+    "agent-cache": {
+      "startupMs": {"median": 1628.175, "runs": [1651.095, 1628.175, 1610.039, 1698.285, 1619.524]},
+      "endpoints": {
+        "noregex": {"requests": 3026894, "errors": 0, "seconds": 30.002, "rps": 100890.120, "p50Us": 73.250, "p90Us": 97.916, "p99Us": 171.500, "maxUs": 44119.708, "cpuMs": 135274.209, "cpuUsPerReq": 44.691, "gcCount": 199, "gcMs": 109, "regexHits": 0, "regexMisses": 1, "regexAdmissions": 0},
+        "split": {"requests": 3104927, "errors": 0, "seconds": 30.001, "rps": 103492.764, "p50Us": 71.833, "p90Us": 95.084, "p99Us": 164.458, "maxUs": 48636.084, "cpuMs": 136850.299, "cpuUsPerReq": 44.075, "gcCount": 201, "gcMs": 106, "regexHits": 4635201, "regexMisses": 3, "regexAdmissions": 1},
+        "sanitize": {"requests": 3040112, "errors": 0, "seconds": 30.001, "rps": 101334.797, "p50Us": 73.500, "p90Us": 96.917, "p99Us": 164.375, "maxUs": 48378.459, "cpuMs": 139998.274, "cpuUsPerReq": 46.050, "gcCount": 199, "gcMs": 106, "regexHits": 9094273, "regexMisses": 6, "regexAdmissions": 2},
+        "email": {"requests": 3078357, "errors": 0, "seconds": 30.003, "rps": 102603.068, "p50Us": 72.708, "p90Us": 95.541, "p99Us": 162.541, "maxUs": 47778.542, "cpuMs": 137576.293, "cpuUsPerReq": 44.691, "gcCount": 210, "gcMs": 110, "regexHits": 55262641, "regexMisses": 8, "regexAdmissions": 3},
+        "mask": {"requests": 2968313, "errors": 0, "seconds": 30.001, "rps": 98940.805, "p50Us": 74.083, "p90Us": 101.167, "p99Us": 177.208, "maxUs": 52221.500, "cpuMs": 133332.163, "cpuUsPerReq": 44.918, "gcCount": 190, "gcMs": 104, "regexHits": 59808897, "regexMisses": 10, "regexAdmissions": 4},
+        "compile": {"requests": 2974045, "errors": 0, "seconds": 30.001, "rps": 99130.717, "p50Us": 75.125, "p90Us": 97.417, "p99Us": 168.375, "maxUs": 47288.917, "cpuMs": 145565.635, "cpuUsPerReq": 48.945, "gcCount": 186, "gcMs": 96, "regexHits": 64262696, "regexMisses": 12, "regexAdmissions": 5},
+        "dynamic": {"requests": 3096702, "errors": 0, "seconds": 30.001, "rps": 103218.445, "p50Us": 72.125, "p90Us": 93.959, "p99Us": 163.875, "maxUs": 53806.500, "cpuMs": 138800.751, "cpuUsPerReq": 44.822, "gcCount": 214, "gcMs": 116, "regexHits": 64262696, "regexMisses": 4592423, "regexAdmissions": 5}
+      }
+    },
+    "agent": {
+      "startupMs": {"median": 1457.351, "runs": [1407.028, 1508.397, 1687.954, 1457.351, 1423.117]},
+      "endpoints": {
+        "noregex": {"requests": 3135085, "errors": 0, "seconds": 30.001, "rps": 104500.785, "p50Us": 71.375, "p90Us": 93.125, "p99Us": 162.542, "maxUs": 53231.167, "cpuMs": 136312.335, "cpuUsPerReq": 43.480, "gcCount": 205, "gcMs": 111, "regexHits": 0, "regexMisses": 0, "regexAdmissions": 0},
+        "split": {"requests": 3146419, "errors": 0, "seconds": 30.006, "rps": 104859.476, "p50Us": 71.167, "p90Us": 92.583, "p99Us": 161.792, "maxUs": 52482.000, "cpuMs": 136618.287, "cpuUsPerReq": 43.420, "gcCount": 209, "gcMs": 117, "regexHits": 0, "regexMisses": 0, "regexAdmissions": 0},
+        "sanitize": {"requests": 2987422, "errors": 0, "seconds": 30.004, "rps": 99568.207, "p50Us": 73.917, "p90Us": 99.834, "p99Us": 175.209, "maxUs": 47456.417, "cpuMs": 137789.903, "cpuUsPerReq": 46.123, "gcCount": 203, "gcMs": 109, "regexHits": 0, "regexMisses": 0, "regexAdmissions": 0},
+        "email": {"requests": 3013910, "errors": 0, "seconds": 30.001, "rps": 100459.767, "p50Us": 74.292, "p90Us": 95.708, "p99Us": 165.750, "maxUs": 47084.833, "cpuMs": 141619.673, "cpuUsPerReq": 46.989, "gcCount": 403, "gcMs": 209, "regexHits": 0, "regexMisses": 0, "regexAdmissions": 0},
+        "mask": {"requests": 3133611, "errors": 0, "seconds": 30.005, "rps": 104435.738, "p50Us": 71.542, "p90Us": 92.750, "p99Us": 161.250, "maxUs": 50270.167, "cpuMs": 136901.317, "cpuUsPerReq": 43.688, "gcCount": 209, "gcMs": 113, "regexHits": 0, "regexMisses": 0, "regexAdmissions": 0},
+        "compile": {"requests": 3004555, "errors": 0, "seconds": 30.000, "rps": 100150.312, "p50Us": 74.708, "p90Us": 96.208, "p99Us": 162.375, "maxUs": 49039.083, "cpuMs": 145676.156, "cpuUsPerReq": 48.485, "gcCount": 195, "gcMs": 102, "regexHits": 0, "regexMisses": 0, "regexAdmissions": 0},
+        "dynamic": {"requests": 3052254, "errors": 0, "seconds": 30.001, "rps": 101738.822, "p50Us": 73.083, "p90Us": 95.958, "p99Us": 168.666, "maxUs": 46898.834, "cpuMs": 136878.988, "cpuUsPerReq": 44.845, "gcCount": 210, "gcMs": 112, "regexHits": 0, "regexMisses": 0, "regexAdmissions": 0}
+      }
+    },
+    "noagent": {
+      "startupMs": {"median": 806.353, "runs": [817.49, 832.112, 803.57, 785.413, 806.353]},
+      "endpoints": {
+        "noregex": {"requests": 3385236, "errors": 0, "seconds": 30.004, "rps": 112824.374, "p50Us": 67.875, "p90Us": 84.042, "p99Us": 140.834, "maxUs": 47753.459, "cpuMs": 108900.490, "cpuUsPerReq": 32.169, "gcCount": 134, "gcMs": 67, "regexHits": -1, "regexMisses": -1, "regexAdmissions": -1},
+        "split": {"requests": 3367151, "errors": 0, "seconds": 30.002, "rps": 112232.455, "p50Us": 68.542, "p90Us": 84.083, "p99Us": 136.666, "maxUs": 49842.500, "cpuMs": 110889.242, "cpuUsPerReq": 32.933, "gcCount": 137, "gcMs": 66, "regexHits": -1, "regexMisses": -1, "regexAdmissions": -1},
+        "sanitize": {"requests": 3421733, "errors": 0, "seconds": 30.003, "rps": 114046.351, "p50Us": 66.750, "p90Us": 83.667, "p99Us": 139.000, "maxUs": 49667.334, "cpuMs": 114135.578, "cpuUsPerReq": 33.356, "gcCount": 145, "gcMs": 70, "regexHits": -1, "regexMisses": -1, "regexAdmissions": -1},
+        "email": {"requests": 3297333, "errors": 0, "seconds": 30.003, "rps": 109901.791, "p50Us": 69.417, "p90Us": 86.083, "p99Us": 144.166, "maxUs": 45706.458, "cpuMs": 115221.019, "cpuUsPerReq": 34.944, "gcCount": 356, "gcMs": 172, "regexHits": -1, "regexMisses": -1, "regexAdmissions": -1},
+        "mask": {"requests": 3308713, "errors": 0, "seconds": 30.003, "rps": 110280.370, "p50Us": 68.292, "p90Us": 86.084, "p99Us": 154.375, "maxUs": 47719.750, "cpuMs": 108445.299, "cpuUsPerReq": 32.776, "gcCount": 135, "gcMs": 66, "regexHits": -1, "regexMisses": -1, "regexAdmissions": -1},
+        "compile": {"requests": 3237374, "errors": 0, "seconds": 30.004, "rps": 107899.369, "p50Us": 70.709, "p90Us": 87.250, "p99Us": 145.792, "maxUs": 44270.459, "cpuMs": 118500.768, "cpuUsPerReq": 36.604, "gcCount": 126, "gcMs": 62, "regexHits": -1, "regexMisses": -1, "regexAdmissions": -1},
+        "dynamic": {"requests": 3384712, "errors": 0, "seconds": 30.006, "rps": 112801.693, "p50Us": 67.708, "p90Us": 84.250, "p99Us": 139.583, "maxUs": 47646.125, "cpuMs": 113270.674, "cpuUsPerReq": 33.465, "gcCount": 146, "gcMs": 70, "regexHits": -1, "regexMisses": -1, "regexAdmissions": -1}
+      }
+    }
+  }
+}
