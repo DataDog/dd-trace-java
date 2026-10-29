@@ -52,7 +52,8 @@ public final class FeatureFlaggingGateway {
      * Subscribes to the Feature Flags Remote Configuration product.
      *
      * @param listener the listener receiving raw configuration documents, or {@code null} when the
-     *     configuration is removed.
+     *     configuration is removed. It throws a {@link RuntimeException} to reject a malformed
+     *     document, reported to Remote Configuration as an apply error.
      * @return the handle to close to unsubscribe.
      */
     AutoCloseable subscribeRemoteConfig(Consumer<byte[]> listener);
@@ -98,5 +99,15 @@ public final class FeatureFlaggingGateway {
      * @param defaultValue the native default value.
      */
     void enrichRuntimeDefault(String flagKey, @Nullable Object defaultValue);
+
+    /**
+     * Subscribes to the agent shutdown, notified before the agent releases its Feature Flags
+     * resources: before the JVM shutdown hooks when the tracing shutdown instrumentation runs,
+     * otherwise from a JVM shutdown hook.
+     *
+     * @param listener the listener run at shutdown, typically flushing the SDK pending events.
+     * @return the handle to close to unsubscribe.
+     */
+    AutoCloseable subscribeShutdown(Runnable listener);
   }
 }

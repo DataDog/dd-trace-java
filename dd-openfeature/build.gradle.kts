@@ -62,7 +62,8 @@ tasks.named<Jar>("jar") {
 
 // The agent bridge SPI versions, with the first SDK release shipping each of them. A released
 // version is frozen (only default methods can be added): check it against that release.
-// TODO Set the v1 baseline once the first SDK release with the agent bridge is published.
+// TODO APMLP-1512 Set the v1 baseline to 1.69.0, the first SDK release with the agent bridge,
+//  once it is published.
 val bridgeSpiBaselines = mapOf<String, String?>(
   "v1" to null,
 )
@@ -101,7 +102,8 @@ val japicmpPublicApi = tasks.register<JapicmpTask>("japicmpPublicApi") {
   packageIncludes.addAll("com.datadog.openfeature", "datadog.trace.api.openfeature")
   failOnModification.set(true)
   failOnSourceIncompatibility.set(true)
-  // TODO Remove once the baseline is 1.69.0 or later: earlier releases link the agent bootstrap API.
+  // TODO APMLP-1512 Remove once the baseline is 1.69.0 or later: earlier releases link the agent
+  //  bootstrap API.
   ignoreMissingClasses.set(true)
   txtOutputFile.set(layout.buildDirectory.file("reports/japicmp/public-api.txt"))
 }
