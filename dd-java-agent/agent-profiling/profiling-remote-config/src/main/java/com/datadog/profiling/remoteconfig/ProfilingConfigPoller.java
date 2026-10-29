@@ -62,10 +62,12 @@ public final class ProfilingConfigPoller {
   /** Remote-config callbacks all come from the single poller thread. */
   final class Updater implements ProductListener {
     private final Map<String, String> configs = new HashMap<>();
+    private String configId;
 
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter) {
       String json = new String(content, UTF_8);
+      configId = configKey.getConfigId();
       configs.put(configKey.getConfigId(), json);
       log.debug("Received DEBUG config {}: {}", configKey.getConfigId(), json);
     }
@@ -79,7 +81,7 @@ public final class ProfilingConfigPoller {
     @Override
     public void commit(PollingRateHinter hinter) {
       try {
-        handler.onConfigsChanged(unmodifiableMap(new HashMap<>(configs)));
+        handler.onConfigsChanged(configId, unmodifiableMap(new HashMap<>(configs)));
       } catch (Throwable t) {
         log.warn(SEND_TELEMETRY, "Failed to apply DEBUG remote config", t);
       }

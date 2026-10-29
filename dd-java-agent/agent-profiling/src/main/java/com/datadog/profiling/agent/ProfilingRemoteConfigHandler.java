@@ -36,6 +36,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   private Map<String, String> appliedValues;
   // configs received before the profiler was available
   private Map<String, String> pendingConfigsById;
+  private String pendingConfigId;
   private boolean closed;
 
   /**
@@ -91,13 +92,15 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     if (pendingConfigsById != null) {
       log.debug("Applying buffered DEBUG remote config");
       Map<String, String> pending = pendingConfigsById;
+      String pendingId = pendingConfigId;
       pendingConfigsById = null;
-      applyConfigs(pending);
+      pendingConfigId = null;
+      applyConfigs(pendingId, pending);
     }
   }
 
   @Override
-  public synchronized void onConfigsChanged(Map<String, String> configsById) {
+  public synchronized void onConfigsChanged(String configId, Map<String, String> configsById) {
     if (closed) {
       log.debug("Profiling is shut down, ignoring DEBUG remote config");
       return;
@@ -107,11 +110,12 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       pendingConfigsById = configsById;
       return;
     }
-    applyConfigs(configsById);
+    applyConfigs(configId, configsById);
   }
 
   /** Applies the given configs to the profiling system. Must be called with the lock held. */
-  private void applyConfigs(Map<String, String> configsById) {
+  private void applyConfigs(String configId, Map<String, String> configsById) {
+    log.debug("DEBUG remote config received: " + configId);
     final Map<String, String> values =
         configsById.isEmpty() ? null : ProfilingConfigMerger.merge(configsById);
     if (Objects.equals(values, appliedValues)) {
