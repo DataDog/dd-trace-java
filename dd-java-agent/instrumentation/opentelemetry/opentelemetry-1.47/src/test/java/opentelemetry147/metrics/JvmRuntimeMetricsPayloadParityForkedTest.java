@@ -178,10 +178,13 @@ class JvmRuntimeMetricsPayloadParityForkedTest {
       if (valueSeparator <= 0 || tagsSeparator < 0) {
         continue;
       }
+      // Fields after the tags, such as the container ID (|c:) added inside containers, are not tags
+      int tagsEnd = line.indexOf('|', tagsSeparator + 2);
       points.add(
           new MetricPoint(
               line.substring(0, valueSeparator),
-              parseColonTags(line.substring(tagsSeparator + 2))));
+              parseColonTags(
+                  line.substring(tagsSeparator + 2, tagsEnd < 0 ? line.length() : tagsEnd))));
     }
     assertFalse(points.isEmpty(), "DogStatsD payload did not contain metric points");
     return points;
