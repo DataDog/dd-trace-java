@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -242,7 +243,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void setTraceSegmentTagsAndDataOnCorrectSpan() {
+  void setTraceSegmentTagsAndDataOnTopSpan() {
     ExtractedContext extracted =
         (ExtractedContext)
             new ExtractedContext(
@@ -265,26 +266,19 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     currentTS.setDataTop("ctd", "[1]");
     currentTS.setTagTop("ctt", "t1");
-    currentTS.setDataCurrent("ccd", "[2]");
-    currentTS.setTagCurrent("cct", "t2");
     topTS.setDataTop("ttd", "[3]");
     topTS.setTagTop("ttt", "t3");
-    topTS.setDataCurrent("tcd", "[4]");
-    topTS.setTagCurrent("tct", "t4");
+
+    assertSame(topTS, currentTS);
 
     Map<String, Object> expectedTopTags = new HashMap<>();
     expectedTopTags.put(dataTag("ctd"), "[1]");
     expectedTopTags.put("ctt", "t1");
     expectedTopTags.put(dataTag("ttd"), "[3]");
     expectedTopTags.put("ttt", "t3");
-    expectedTopTags.put(dataTag("tcd"), "[4]");
-    expectedTopTags.put("tct", "t4");
     assertTagmap(topC.getTags(), expectedTopTags, true);
 
-    Map<String, Object> expectedCurrentTags = new HashMap<>();
-    expectedCurrentTags.put(dataTag("ccd"), "[2]");
-    expectedCurrentTags.put("cct", "t2");
-    assertTagmap(currentC.getTags(), expectedCurrentTags, true);
+    assertTagmap(currentC.getTags(), new HashMap<>(), true);
 
     current.finish();
     top.finish();
