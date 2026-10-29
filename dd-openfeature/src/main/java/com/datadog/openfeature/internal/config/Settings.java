@@ -38,6 +38,7 @@ public final class Settings {
       "feature.flags.exposures.datadog.logging.enabled";
   static final String EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED =
       "feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
+  static final String EXPERIMENTATION_OPT_OUT_MODE = "feature.flags.experimentation.opt.out.mode";
   static final String TRACE_DEBUG = "trace.debug";
   static final String API_KEY = "api-key";
   static final String SITE = "site";
@@ -177,7 +178,7 @@ public final class Settings {
 
   /** Returns the configured experimentation opt-out mode, disabled by default. */
   public String experimentationOptOutMode() {
-    final String mode = get("feature.flags.experimentation.opt.out.mode");
+    final String mode = get(EXPERIMENTATION_OPT_OUT_MODE);
     return mode == null ? "disabled" : mode;
   }
 

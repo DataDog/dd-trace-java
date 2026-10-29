@@ -106,7 +106,7 @@ public final class FlagEvaluator {
       final Instant experimentationCutoff;
       try {
         experimentationCutoff = ExperimentationOptOut.cutoff(experimentationOptOutMode, context);
-      } catch (final IllegalArgumentException e) {
+      } catch (final ExperimentationOptOut.InvalidTimestampException e) {
         // This diagnostic is fixed SDK text. It contains no customer context values.
         return ProviderEvaluation.<T>builder()
             .value(defaultValue)
@@ -314,9 +314,9 @@ public final class FlagEvaluator {
 
     switch (condition.operator) {
       case MATCHES:
-        return matchesRegex(attributeValue, condition.value);
+        return matchesRegex(attributeValue, condition);
       case NOT_MATCHES:
-        return !matchesRegex(attributeValue, condition.value);
+        return !matchesRegex(attributeValue, condition);
       case ONE_OF:
         return isOneOf(attributeValue, condition.value);
       case NOT_ONE_OF:
@@ -346,21 +346,15 @@ public final class FlagEvaluator {
     }
   }
 
-  private static boolean matchesRegex(final Object attributeValue, final Object conditionValue) {
-    // PatternSyntaxException is intentionally not caught here so it propagates to evaluate(),
-    // which maps it to ErrorCode.PARSE_ERROR.
-    final Pattern pattern = Pattern.compile(normalizeRegex(String.valueOf(conditionValue)));
+  private static boolean matchesRegex(
+      final Object attributeValue, final ConditionConfiguration condition) {
+    // Parsed configurations cache the validated pattern. Directly constructed configurations
+    // retain the same syntax and error handling.
+    final Pattern pattern =
+        condition.regex != null
+            ? condition.regex
+            : ConditionConfiguration.compileRegex(condition.value);
     return pattern.matcher(String.valueOf(attributeValue)).find();
-  }
-
-  private static String normalizeRegex(final String regex) {
-    return regex
-        .replace("[:alnum:]", "\\p{Alnum}")
-        .replace("[:alpha:]", "\\p{Alpha}")
-        .replace("[:digit:]", "\\p{Digit}")
-        .replace("[:lower:]", "\\p{Lower}")
-        .replace("[:upper:]", "\\p{Upper}")
-        .replace("[:space:]", "\\p{Space}");
   }
 
   private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {

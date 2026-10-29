@@ -16,6 +16,8 @@ import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.Split;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
+import dev.openfeature.sdk.ImmutableContext;
+import dev.openfeature.sdk.LayeredEvaluationContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import java.util.HashMap;
@@ -49,6 +51,9 @@ public class ExperimentationOptOutBenchmark {
   @Param({"false", "true"})
   public boolean optedOut;
 
+  @Param({"0", "16"})
+  public int extraAttributes;
+
   private Provider provider;
   private MutableContext context;
 
@@ -70,6 +75,9 @@ public class ExperimentationOptOutBenchmark {
     provider =
         new Provider(new Provider.Options().experimentationOptOutMode(mode), evaluator, false);
     context = new MutableContext("subject");
+    for (int i = 0; i < extraAttributes; i++) {
+      context.add("attribute" + i, "value" + i);
+    }
     if (optedOut) {
       context.add("dd_experimentation_opt_out_at", "2026-10-19T12:00:00Z");
     }
@@ -91,6 +99,15 @@ public class ExperimentationOptOutBenchmark {
   @Benchmark
   public ProviderEvaluation<Boolean> evaluate() {
     return provider.getBooleanEvaluation("flag", false, context);
+  }
+
+  @Benchmark
+  public ProviderEvaluation<Boolean> evaluateFreshLayeredContext() {
+    return provider.getBooleanEvaluation(
+        "flag",
+        false,
+        new LayeredEvaluationContext(
+            ImmutableContext.EMPTY, ImmutableContext.EMPTY, null, context));
   }
 
   @TearDown

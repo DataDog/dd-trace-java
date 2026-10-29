@@ -614,33 +614,9 @@ class EvaluationTelemetryOptOutTest {
       final boolean excludeExperimentation,
       final boolean suppressTelemetry)
       throws Exception {
-    final ServerConfiguration configuration = defaultConfiguration();
-    final Flag flag = configuration.flags.get("flag");
-    final Allocation original = flag.allocations.get(0);
-    final Allocation experiment =
-        new Allocation(
-            original.key,
-            original.rules,
-            original.startAt,
-            original.endAt,
-            original.splits,
-            original.doLog,
-            java.time.Instant.parse("2026-10-19T11:59:59.999999999Z"));
-    final Allocation ordinary =
-        new Allocation(
-            "ordinary",
-            null,
-            null,
-            null,
-            singletonList(new Split(emptyList(), "off", emptyMap(), 8)),
-            false);
-    final Map<String, Variant> variants = new HashMap<>(flag.variations);
-    variants.put("off", new Variant("off", 2));
-    final Flag withFallback =
-        new Flag("flag", true, ValueType.INTEGER, variants, asList(experiment, ordinary));
     this.evaluator =
         new CapturingEvaluator(
-            new ServerConfiguration("", "", false, null, singletonMap("flag", withFallback)), mode);
+            experimentationConfiguration("2026-10-19T11:59:59.999999999Z"), mode);
     this.api.setProviderAndWait(
         provider(
             new Provider.Options()
@@ -662,6 +638,59 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(excludeExperimentation ? 0 : 1, this.exposures.size());
     assertTelemetryCounts(suppressTelemetry ? 0 : 1);
     assertEquals(1, this.customerEvaluations.size());
+  }
+
+  @TableTest({
+    "mode                    | activation           | excluded",
+    "IMMEDIATE               | 2026-10-19T11:59:59Z | true    ",
+    "FUTURE_EXPERIMENTS_ONLY | 2026-10-19T12:00:00Z | true    ",
+    "FUTURE_EXPERIMENTS_ONLY | 2026-10-19T11:59:59Z | false   "
+  })
+  void optOutDoesNotConsumeOrClearExposureDeduplication(
+      final ExperimentationOptOutMode mode, final String activation, final boolean excluded)
+      throws Exception {
+    this.evaluator = new CapturingEvaluator(experimentationConfiguration(activation), mode);
+    this.api.setProviderAndWait(
+        provider(new Provider.Options().experimentationOptOutMode(mode), this.evaluator));
+    final Client client = this.api.getClient();
+    final MutableContext optedOut =
+        new MutableContext("subject").add("dd_experimentation_opt_out_at", "2026-10-19T12:00:00Z");
+    final MutableContext participating = new MutableContext("subject");
+    assertEquals(excluded ? 2 : 1, client.getIntegerValue("flag", 0, optedOut));
+    assertEquals(excluded ? 0 : 1, this.exposures.size());
+    assertEquals(1, client.getIntegerValue("flag", 0, participating));
+    assertEquals(1, this.exposures.size(), "exclusion must not consume the first exposure");
+    assertEquals(excluded ? 2 : 1, client.getIntegerValue("flag", 0, optedOut));
+    assertEquals(1, client.getIntegerValue("flag", 0, participating));
+    assertEquals(1, this.exposures.size(), "exclusion must not clear the previous exposure");
+  }
+
+  private static ServerConfiguration experimentationConfiguration(final String activation) {
+    final ServerConfiguration configuration = defaultConfiguration();
+    final Flag flag = configuration.flags.get("flag");
+    final Allocation original = flag.allocations.get(0);
+    final Allocation experiment =
+        new Allocation(
+            original.key,
+            original.rules,
+            original.startAt,
+            original.endAt,
+            original.splits,
+            original.doLog,
+            java.time.Instant.parse(activation));
+    final Allocation ordinary =
+        new Allocation(
+            "ordinary",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "off", emptyMap(), 8)),
+            false);
+    final Map<String, Variant> variants = new HashMap<>(flag.variations);
+    variants.put("off", new Variant("off", 2));
+    final Flag withFallback =
+        new Flag("flag", true, ValueType.INTEGER, variants, asList(experiment, ordinary));
+    return new ServerConfiguration("", "", false, null, singletonMap("flag", withFallback));
   }
 
   private void start() throws Exception {

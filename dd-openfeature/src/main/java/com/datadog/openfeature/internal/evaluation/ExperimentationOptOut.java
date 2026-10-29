@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-/** Validates the subject's opt-out timestamp before allocation selection. */
+/** Resolves opt-out policy, validates subject timestamps, and excludes experiment allocations. */
 public final class ExperimentationOptOut {
   public static final String ATTRIBUTE = "dd_experimentation_opt_out_at";
   public static final String INVALID_TIMESTAMP =
@@ -31,7 +31,6 @@ public final class ExperimentationOptOut {
     }
     final String configured = settings.experimentationOptOutMode();
     switch (configured.trim().toLowerCase(Locale.ROOT)) {
-      case "":
       case "disabled":
         return ExperimentationOptOutMode.DISABLED;
       case "immediate":
@@ -60,7 +59,14 @@ public final class ExperimentationOptOut {
         // Do not expose the supplied context value in the diagnostic.
       }
     }
-    throw new IllegalArgumentException(INVALID_TIMESTAMP);
+    throw new InvalidTimestampException();
+  }
+
+  /** Distinguishes invalid subject input from exceptions thrown by a context implementation. */
+  static final class InvalidTimestampException extends IllegalArgumentException {
+    InvalidTimestampException() {
+      super(INVALID_TIMESTAMP);
+    }
   }
 
   /** Checks prepared activation states before selecting an allocation. */

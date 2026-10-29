@@ -4,7 +4,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.LocalHttpServer;
@@ -12,8 +15,10 @@ import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import dev.openfeature.sdk.ErrorCode;
+import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
+import dev.openfeature.sdk.exceptions.FatalError;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -119,18 +124,25 @@ class ExperimentationOptOutProviderTest {
   }
 
   @TableTest({
-    "Scenario        | deprecatedAlias | mode                    | expectedValue",
-    "SDK disabled    | false           | DISABLED                | experiment   ",
-    "SDK immediate   | false           | IMMEDIATE               | ordinary     ",
-    "SDK future      | false           | FUTURE_EXPERIMENTS_ONLY | ordinary     ",
-    "alias disabled  | true            | DISABLED                | experiment   ",
-    "alias immediate | true            | IMMEDIATE               | ordinary     ",
-    "alias future    | true            | FUTURE_EXPERIMENTS_ONLY | ordinary     "
+    "Scenario                                 | deprecatedAlias | mode                    | configured              | expectedValue",
+    "explicit False DISABLED                  | false           | DISABLED                | unsupported             | experiment   ",
+    "configured False DISABLED                | false           | DEFAULT                 | disabled                | experiment   ",
+    "explicit False IMMEDIATE                 | false           | IMMEDIATE               | unsupported             | ordinary     ",
+    "configured False IMMEDIATE               | false           | DEFAULT                 | immediate               | ordinary     ",
+    "explicit False FUTURE_EXPERIMENTS_ONLY   | false           | FUTURE_EXPERIMENTS_ONLY | unsupported             | ordinary     ",
+    "configured False FUTURE_EXPERIMENTS_ONLY | false           | DEFAULT                 | future_experiments_only | ordinary     ",
+    "explicit True DISABLED                   | true            | DISABLED                | unsupported             | experiment   ",
+    "configured True DISABLED                 | true            | DEFAULT                 | disabled                | experiment   ",
+    "explicit True IMMEDIATE                  | true            | IMMEDIATE               | unsupported             | ordinary     ",
+    "configured True IMMEDIATE                | true            | DEFAULT                 | immediate               | ordinary     ",
+    "explicit True FUTURE_EXPERIMENTS_ONLY    | true            | FUTURE_EXPERIMENTS_ONLY | unsupported             | ordinary     ",
+    "configured True FUTURE_EXPERIMENTS_ONLY  | true            | DEFAULT                 | future_experiments_only | ordinary     "
   })
   @SuppressWarnings("deprecation")
   void publicProvidersApplyOptOutAfterHttpConfiguration(
       final boolean deprecatedAlias,
       final ExperimentationOptOutMode mode,
+      final String configured,
       final String expectedValue)
       throws Exception {
     try (final LocalHttpServer server = new LocalHttpServer()) {
@@ -146,7 +158,7 @@ class ExperimentationOptOutProviderTest {
               "dd.feature.flags.configuration.source", "agentless",
               "dd.feature.flags.configuration.source.agentless.base.url",
                   server.uri("/").toString(),
-              "dd.feature.flags.experimentation.opt.out.mode", "invalid-overridden-mode",
+              "dd.feature.flags.experimentation.opt.out.mode", configured,
               "dd.api.key", "");
       properties.forEach(
           (key, value) -> previousProperties.put(key, System.setProperty(key, value)));
@@ -163,6 +175,8 @@ class ExperimentationOptOutProviderTest {
                 : new Provider(options);
         // The policy is resolved at construction, before initialization or later option changes.
         options.experimentationOptOutMode(ExperimentationOptOutMode.DEFAULT);
+        System.setProperty(
+            "dd.feature.flags.experimentation.opt.out.mode", "unsupported-after-construction");
         final MutableContext context = new MutableContext("subject").add(ATTRIBUTE, CUTOFF);
         try {
           provider.initialize(context);
@@ -186,6 +200,229 @@ class ExperimentationOptOutProviderTest {
             });
       }
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  @SuppressWarnings("deprecation")
+  void disabledProductDoesNotValidateAnUnusedMode(final boolean alias) {
+    final String enabledKey = "dd.feature.flags.enabled";
+    final String modeKey = "dd.feature.flags.experimentation.opt.out.mode";
+    final String previousEnabled = System.setProperty(enabledKey, "false");
+    final String previousMode = System.setProperty(modeKey, "unsupported");
+    try {
+      final Provider provider =
+          alias ? new datadog.trace.api.openfeature.Provider() : new Provider();
+      try {
+        // Disabling Feature Flags keeps the existing initialization failure, not a mode error.
+        final FatalError error =
+            assertThrows(
+                FatalError.class, () -> provider.initialize(new MutableContext("subject")));
+        assertEquals(
+            "Failed to initialize Datadog Feature Flags provider: Feature Flags is disabled",
+            error.getMessage());
+      } finally {
+        provider.shutdown();
+      }
+    } finally {
+      restoreProperty(enabledKey, previousEnabled);
+      restoreProperty(modeKey, previousMode);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"IMMEDIATE", "FUTURE_EXPERIMENTS_ONLY"})
+  void excludedAllocationDoesNotEvaluateSubjectDependentNumericRules(final String mode)
+      throws Exception {
+    final DDEvaluator evaluator =
+        evaluator(withRule(configuration(activation("equal"), "true", false), "GT", "10"), mode);
+    final MutableContext context = new MutableContext("subject").add("attribute", "not-a-number");
+    assertEquals(
+        ErrorCode.TYPE_MISMATCH,
+        evaluator.evaluate(String.class, "target", "default", context).getErrorCode());
+    context.add(ATTRIBUTE, CUTOFF);
+    final ProviderEvaluation<String> result =
+        evaluator.evaluate(String.class, "target", "default", context);
+    assertNull(result.getErrorCode());
+    assertEquals("ordinary", result.getValue());
+  }
+
+  @Test
+  void configurationRefreshReplacesActivationAndRecoversFromInvalidMetadata() throws Exception {
+    final DDEvaluator evaluator = evaluator(null, "FUTURE_EXPERIMENTS_ONLY");
+    final MutableContext context = new MutableContext("subject").add(ATTRIBUTE, CUTOFF);
+    for (final String activation : new String[] {"before", "equal", "invalid", "before"}) {
+      evaluator.accept(
+          UniversalFlagConfigParser.parse(
+              configuration(activation(activation), "true", false).getBytes(UTF_8)));
+      final ProviderEvaluation<String> result =
+          evaluator.evaluate(String.class, "target", "default", context);
+      if ("invalid".equals(activation)) {
+        assertEquals(ErrorCode.PARSE_ERROR, result.getErrorCode());
+        assertEquals("default", result.getValue());
+      } else {
+        assertNull(result.getErrorCode());
+        assertEquals("before".equals(activation) ? "experiment" : "ordinary", result.getValue());
+      }
+      assertEquals(
+          "ordinary", evaluator.evaluate(String.class, "neighbor", "default", context).getValue());
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void invalidSubjectRetainsEvaluationDataConsent(final boolean consent) throws Exception {
+    final String json =
+        configuration(null, "true", false)
+            .replaceFirst("\\{", "{\"observeFullEvaluationData\":" + consent + ",");
+    final ProviderEvaluation<String> result = evaluate(json, "immediate", "invalid", "target");
+    assertEquals(ErrorCode.INVALID_CONTEXT, result.getErrorCode());
+    assertEquals("default", result.getValue());
+    assertEquals(consent, result.getFlagMetadata().getBoolean("observe_full_evaluation_data"));
+  }
+
+  @Test
+  void missingAllocationsRetainGeneralErrorInFutureMode() throws Exception {
+    final ProviderEvaluation<String> result =
+        evaluate(
+            "{\"flags\":{\"target\":{\"enabled\":true,\"variationType\":\"STRING\"}}}",
+            "future_experiments_only",
+            "valid",
+            "target");
+    assertEquals(ErrorCode.GENERAL, result.getErrorCode());
+    assertEquals("default", result.getValue());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"keySet", "getValue"})
+  void contextImplementationFailureIsNotAnInvalidTimestamp(final String method) throws Exception {
+    final EvaluationContext context = mock(EvaluationContext.class);
+    when(context.keySet()).thenReturn(Set.of(ATTRIBUTE));
+    if ("keySet".equals(method)) {
+      when(context.keySet()).thenThrow(new IllegalArgumentException("context failure"));
+    } else {
+      when(context.getValue(ATTRIBUTE)).thenThrow(new IllegalArgumentException("context failure"));
+    }
+    final ProviderEvaluation<String> result =
+        evaluator(configuration(null, "true", false), "IMMEDIATE")
+            .evaluate(String.class, "target", "default", context);
+    assertEquals(ErrorCode.GENERAL, result.getErrorCode());
+    assertEquals("default", result.getValue());
+  }
+
+  @TableTest({
+    "operator    | position   ",
+    "MATCHES     | excluded   ",
+    "MATCHES     | unreachable",
+    "MATCHES     | expired    ",
+    "MATCHES     | disabled   ",
+    "NOT_MATCHES | excluded   ",
+    "NOT_MATCHES | unreachable",
+    "NOT_MATCHES | expired    ",
+    "NOT_MATCHES | disabled   "
+  })
+  void malformedRegexFailsOnlyItsFlagRegardlessOfSelection(
+      final String operator, final String position) throws Exception {
+    String json =
+        withRule(
+            configuration(activation("equal"), "true", "unreachable".equals(position)),
+            operator,
+            "\"*@datadoghq.com\"");
+    if ("expired".equals(position)) {
+      json =
+          json.replace(
+              "\"key\":\"experiment\",\"rules\"",
+              "\"key\":\"experiment\",\"endAt\":\"2000-01-01T00:00:00Z\",\"rules\"");
+    }
+    if ("disabled".equals(position)) {
+      json = json.replaceFirst("\"enabled\":true", "\"enabled\":false");
+    }
+    for (final String mode : new String[] {"DISABLED", "IMMEDIATE", "FUTURE_EXPERIMENTS_ONLY"}) {
+      final DDEvaluator evaluator = evaluator(json, mode);
+      for (final boolean optedOut : new boolean[] {false, true}) {
+        for (final boolean hasAttribute : new boolean[] {false, true}) {
+          final MutableContext context = new MutableContext("subject");
+          if (optedOut) context.add(ATTRIBUTE, CUTOFF);
+          if (hasAttribute) context.add("attribute", "user@example.com");
+          final ProviderEvaluation<String> result =
+              evaluator.evaluate(String.class, "target", "default", context);
+          assertEquals(ErrorCode.PARSE_ERROR, result.getErrorCode());
+          assertEquals("default", result.getValue());
+          final ProviderEvaluation<String> neighbor =
+              evaluator.evaluate(String.class, "neighbor", "default", context);
+          assertNull(neighbor.getErrorCode());
+          assertEquals("ordinary", neighbor.getValue());
+        }
+      }
+      assertEquals(
+          "DISABLED".equals(mode) ? ErrorCode.PARSE_ERROR : ErrorCode.INVALID_CONTEXT,
+          evaluator
+              .evaluate(
+                  String.class,
+                  "target",
+                  "default",
+                  new MutableContext("subject").add(ATTRIBUTE, "bad"))
+              .getErrorCode());
+    }
+  }
+
+  @TableTest({
+    "type    | value         | valid",
+    "INTEGER | 42            | true ",
+    "INTEGER | '\"42\"'      | true ",
+    "INTEGER | '\"invalid\"' | false",
+    "INTEGER | true          | false",
+    "NUMERIC | 4.2           | true ",
+    "NUMERIC | '\"4.2\"'     | true ",
+    "NUMERIC | '\"invalid\"' | false",
+    "NUMERIC | '{}'          | false"
+  })
+  void numericVariantValidityIsIndependentOfOptOut(
+      final String type, final String value, final boolean valid) throws Exception {
+    // Only the experiment variant in the target flag changes; the neighboring flag remains valid.
+    final String original = configuration(activation("equal"), "true", false);
+    final int neighbor = original.indexOf(",\"neighbor\":");
+    final String target =
+        original
+            .substring(0, neighbor)
+            .replace("\"variationType\":\"STRING\"", "\"variationType\":\"" + type + "\"")
+            .replace("\"value\":\"experiment\"", "\"value\":" + value)
+            .replace("\"value\":\"ordinary\"", "\"value\":1");
+    for (final String mode : new String[] {"IMMEDIATE", "FUTURE_EXPERIMENTS_ONLY"}) {
+      final DDEvaluator evaluator = evaluator(target + original.substring(neighbor), mode);
+      final MutableContext context = new MutableContext("subject").add(ATTRIBUTE, CUTOFF);
+      final ProviderEvaluation<?> result =
+          "INTEGER".equals(type)
+              ? evaluator.evaluate(Integer.class, "target", 0, context)
+              : evaluator.evaluate(Double.class, "target", 0.0, context);
+      assertEquals(valid ? null : ErrorCode.PARSE_ERROR, result.getErrorCode());
+      assertEquals(valid ? 1.0 : 0.0, ((Number) result.getValue()).doubleValue());
+      assertEquals(
+          "ordinary", evaluator.evaluate(String.class, "neighbor", "default", context).getValue());
+    }
+  }
+
+  private static DDEvaluator evaluator(final String json, final String mode) throws Exception {
+    final DDEvaluator evaluator =
+        new DDEvaluator(
+            () -> {}, AgentBridge.NONE, TestSettings.of(), ExperimentationOptOutMode.valueOf(mode));
+    if (json != null) evaluator.accept(UniversalFlagConfigParser.parse(json.getBytes(UTF_8)));
+    return evaluator;
+  }
+
+  private static String withRule(final String json, final String operator, final String operand) {
+    return json.replace(
+        "\"key\":\"experiment\",\"doLog\"",
+        "\"key\":\"experiment\",\"rules\":[{\"conditions\":[{\"attribute\":\"attribute\",\"operator\":\""
+            + operator
+            + "\",\"value\":"
+            + operand
+            + "}]}],\"doLog\"");
+  }
+
+  private static void restoreProperty(final String key, final String previous) {
+    if (previous == null) System.clearProperty(key);
+    else System.setProperty(key, previous);
   }
 
   private static ProviderEvaluation<String> evaluate(

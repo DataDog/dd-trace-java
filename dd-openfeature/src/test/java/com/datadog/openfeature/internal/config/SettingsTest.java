@@ -95,6 +95,9 @@ class SettingsTest {
   @TableTest({
     "scenario             | agent     | property    | environment | expected   ",
     "default              |           |             |             | disabled   ",
+    "blank defaults       | ' '       | ''          | ' '         | disabled   ",
+    "blank property       |           | ' '         | immediate   | immediate  ",
+    "blank agent          | ' '       | disabled    | immediate   | disabled   ",
     "environment enables  |           |             | immediate   | immediate  ",
     "property wins        |           | disabled    | immediate   | disabled   ",
     "agent wins           | immediate | disabled    | disabled    | immediate  ",
@@ -102,7 +105,7 @@ class SettingsTest {
   })
   void resolvesExperimentationOptOutSource(
       final String agent, final String property, final String environment, final String expected) {
-    final String key = "feature.flags.experimentation.opt.out.mode";
+    final String key = Settings.EXPERIMENTATION_OPT_OUT_MODE;
     final Map<String, String> bridge = new HashMap<>();
     final Map<String, String> properties = new HashMap<>();
     final Map<String, String> variables = new HashMap<>();

@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 
@@ -90,7 +91,11 @@ class CanonicalFixtureTest {
   private void evaluateCanonicalFixture(
       final FixtureCase testCase, final ExperimentationOptOutMode mode) throws IOException {
     final DDEvaluator evaluator =
-        new DDEvaluator(mock(Runnable.class), AgentBridge.NONE, TestSettings.of(), mode);
+        new DDEvaluator(
+            mock(Runnable.class),
+            AgentBridge.NONE,
+            TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"),
+            mode);
     evaluator.accept(
         UniversalFlagConfigParser.parse(
             Files.readAllBytes(fixtureRoot().resolve("ufc-config.json"))));
@@ -119,6 +124,17 @@ class CanonicalFixtureTest {
       }
     } else if (!"ERROR".equals(testCase.resultReason)) {
       assertNull(details.getErrorCode());
+    }
+    final Map<String, Object> metadata = details.getFlagMetadata().asUnmodifiableMap();
+    if (testCase.checksSerialId) {
+      if (testCase.resultSerialId == null) {
+        assertFalse(metadata.containsKey("__dd_split_serial_id"));
+      } else {
+        assertEquals(testCase.resultSerialId.intValue(), metadata.get("__dd_split_serial_id"));
+      }
+    }
+    if (testCase.resultDoLog != null) {
+      assertEquals(testCase.resultDoLog, metadata.get("__dd_do_log"));
     }
     if (testCase.resultAllocationKey != null) {
       assertThat(
@@ -260,6 +276,9 @@ class CanonicalFixtureTest {
     final String resultErrorCode;
     final String resultVariant;
     final String resultAllocationKey;
+    final boolean checksSerialId;
+    final Number resultSerialId;
+    final Boolean resultDoLog;
 
     @SuppressWarnings("unchecked")
     FixtureCase(final String fileName, final int index, final Map<String, Object> json) {
@@ -273,6 +292,9 @@ class CanonicalFixtureTest {
       this.targetingKey = (String) json.get("targetingKey");
       this.variationType = (String) json.get("variationType");
       final Map<String, Object> result = (Map<String, Object>) json.get("result");
+      this.checksSerialId = result.containsKey("serialId");
+      this.resultSerialId = (Number) result.get("serialId");
+      this.resultDoLog = (Boolean) result.get("doLog");
       this.resultValue = normalize(result.get("value"));
       this.resultReason = (String) result.get("reason");
       this.resultErrorCode = (String) result.get("errorCode");

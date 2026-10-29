@@ -1,5 +1,6 @@
 package com.datadog.openfeature.internal.evaluation;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -11,9 +12,9 @@ import com.datadog.openfeature.Provider;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.ufc.Allocation;
+import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.Value;
-import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -31,7 +32,6 @@ class ExperimentationOptOutTest {
   @ParameterizedTest
   @ValueSource(
       strings = {
-        "",
         "disabled",
         "immediate",
         " IMMEDIATE ",
@@ -106,6 +106,7 @@ class ExperimentationOptOutTest {
             new Value("2026-10-19T15:30:60Z"),
             new Value("2026-10-19T15:30:00+99:00"),
             new Value(" 2026-10-19T15:30:00Z"),
+            new Value(Instant.parse("2026-10-19T12:00:00Z")),
             new Value(true),
             new Value(42))
         .map(Arguments::of);
@@ -137,38 +138,59 @@ class ExperimentationOptOutTest {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "2026-10-19T15:30:00Z",
-        "2026-10-19T15:30:00.123456789Z",
-        "2026-10-19T15:30:00.123456789123Z",
-        "2026-10-19T15:30:00+05:30",
-        "2026-10-19T15:30:00+24:00",
-        "2026-10-19T15:30:00+00:60",
-        "2026-10-19T15:30:60Z",
-        "2026-02-30T00:00:00Z",
-        "2026-10-19t15:30:00z",
-        "2026-10-19T5:30:00Z",
-        "2026-10-19"
-      })
-  void timestampValidationMatchesAllocationTimestamps(final String timestamp) {
-    boolean accepted;
-    try {
-      DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(timestamp, Instant::from);
-      accepted = true;
-    } catch (final DateTimeException e) {
-      accepted = false;
-    }
+  @TableTest({
+    "timestamp                         | accepted",
+    "2026-10-19T15:30:00Z              | true    ",
+    "2026-10-19T15:30:00.123456789Z    | true    ",
+    "2026-10-19T15:30:00.123456789123Z | false   ",
+    "2026-10-19T15:30:00+05:30         | true    ",
+    "2026-10-19T15:30:00+18:00         | true    ",
+    "2026-10-19T15:30:00+18:01         | false   ",
+    "2026-10-19T15:30:00+24:00         | false   ",
+    "2026-10-19T15:30:00+00:60         | false   ",
+    "2026-10-19T15:30:60Z              | false   ",
+    "2026-02-30T00:00:00Z              | false   ",
+    "2024-02-29T00:00:00Z              | true    ",
+    "2026-10-19t15:30:00z              | true    ",
+    "2026-10-19T5:30:00Z               | false   ",
+    "2026-10-19                        | false   ",
+    "2026-10-19T15:30:00               | false   ",
+    "2026-10-19T15:30Z                 | true    ",
+    "2026-10-19T15:30:00.Z             | true    ",
+    "2026-10-19T15:30:00+05            | true    ",
+    "2026-10-19T15:30:00+05:30:15      | true    ",
+    "+10000-10-19T15:30:00Z            | true    ",
+    "' 2026-10-19T15:30:00Z'           | false   ",
+    "2026-10-19T24:00:00Z              | false   "
+  })
+  void timestampDialectHasIndependentExpectations(final String timestamp, final boolean accepted)
+      throws Exception {
     final MutableContext context =
         new MutableContext().add(ExperimentationOptOut.ATTRIBUTE, timestamp);
     if (accepted) {
       assertNotNull(ExperimentationOptOut.cutoff(ExperimentationOptOutMode.IMMEDIATE, context));
     } else {
       assertThrows(
-          IllegalArgumentException.class,
+          ExperimentationOptOut.InvalidTimestampException.class,
           () -> ExperimentationOptOut.cutoff(ExperimentationOptOutMode.IMMEDIATE, context));
     }
+    final String json =
+        "{\"flags\":{\"flag\":{\"allocations\":[{\"randomizationActivatedAt\":\""
+            + timestamp
+            + "\"}]}}}";
+    final Allocation allocation =
+        UniversalFlagConfigParser.parse(json.getBytes(UTF_8)).flags.get("flag").allocations.get(0);
+    assertEquals(!accepted, allocation.invalidRandomizationActivation);
+    assertEquals(accepted, allocation.randomizationActivatedAt != null);
+  }
+
+  @Test
+  void rawNullEntryIsPresentAndInvalid() {
+    final MutableContext context =
+        new MutableContext(Collections.singletonMap(ExperimentationOptOut.ATTRIBUTE, null));
+    assertThrows(
+        ExperimentationOptOut.InvalidTimestampException.class,
+        () -> ExperimentationOptOut.cutoff(ExperimentationOptOutMode.IMMEDIATE, context));
   }
 
   @TableTest({

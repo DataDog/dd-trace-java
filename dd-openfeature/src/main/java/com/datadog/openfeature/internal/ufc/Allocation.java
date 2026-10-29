@@ -11,10 +11,10 @@ public final class Allocation {
   public final List<Split> splits;
   public final Boolean doLog;
 
-  /** First activation of this allocation's randomization; null means unknown. */
+  /** First activation of this allocation's randomization; null means unknown or malformed. */
   public final Instant randomizationActivatedAt;
 
-  /** Invalid activation is retained for future-mode evaluation errors. */
+  /** Distinguishes malformed activation from missing/null for future-mode evaluation errors. */
   public final boolean invalidRandomizationActivation;
 
   public Allocation(
