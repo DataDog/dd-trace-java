@@ -45,7 +45,7 @@ _Recovery:_ Update the pull request or add a comment to trigger the action again
 _Trigger:_ When creating or updating a pull request targeting `master` or a patch release (`release/vM.N.x`) branch, or when labels are updated. Draft pull requests are skipped.
 
 _Action:_ Fail the pull request if it adds 1000 lines or more, then comment asking to split it into smaller stacked pull requests.
-Deleted lines, moved code (detected using `git diff --color-moved`), test code and resources (`src/test`), and `gradle.lockfile` files are not counted.
+Deleted lines, moved code, test code and resources, and Gradle lock files files are not counted.
 
 _Recovery:_ Split the pull request into smaller stacked pull requests. To override this check entirely, add the `tag: override pr size check` label to the PR. Remove the label to re-enable the check.
 

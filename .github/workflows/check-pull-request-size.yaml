@@ -49,7 +49,8 @@ jobs:
             --no-ext-diff \
             HEAD^1 HEAD \
             -- . \
-            ':(exclude,glob)**/src/test/**' \
+            ':(exclude,glob)**/src/test*/**' \
+            ':(exclude,glob)**/src/*Test*/**' \
             ':(exclude,glob)**/gradle.lockfile' |
             awk '/^\033\[32m\+/ { count++ } END { print count + 0 }')
           echo "Added lines: $ADDED_LINES"
@@ -107,7 +108,7 @@ jobs:
 
             const body = `**❌ Pull Request Too Large**\n\n` +
               `This pull request adds **${addedLines}** lines while the limit is **${maxAddedLines}** lines.\n` +
-              `Deleted lines, moved code, test code and resources (\`src/test\`), and \`gradle.lockfile\` files are not counted.\n\n` +
+              `Deleted lines, moved code, test code and resources (\`src/test\`, \`src/testFixtures\`, \`src/latestDepTest\`, and other test source sets), and \`gradle.lockfile\` files are not counted.\n\n` +
               `Please split it into smaller stacked pull requests, each one targeting the branch of the previous one. ` +
               `See the [pull request size guidelines](https://github.com/DataDog/dd-trace-java/blob/master/CONTRIBUTING.md#pull-request-size) for more details.\n\n` +
               `If this PR cannot be split, exceptionnaly add the \`${overrideLabel}\` label to bypass this workflow.\n\n` +
