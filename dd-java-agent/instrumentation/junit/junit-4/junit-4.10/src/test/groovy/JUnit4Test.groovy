@@ -15,6 +15,26 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
 
   def runner = new JUnitCore()
 
+  def "test runner without suite lifecycle events"() {
+    when:
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(false))
+    def result
+    try {
+      result = runner.run(TestSucceedCustomRunner)
+    } finally {
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.JUNIT4)
+    }
+
+    assert result.runCount == 2
+    assert result.ignoreCount == 1
+    assert result.failures*.description*.methodName == ["existing failure"]
+    assert result.failures*.exception*.class == [AssertionError]
+    assertSpansData("test-custom-runner")
+
+    then:
+    noExceptionThrown()
+  }
+
   def "test #testcaseName"() {
     runTests(tests, success)
 
