@@ -5,11 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
@@ -117,15 +118,8 @@ class HttpServerResponseEndHandlerInstrumentationTest extends AbstractInstrument
       Map.Entry<Integer, String> response =
           client
               .request(HttpMethod.GET, port, "localhost", "/end-handler-wrapper")
-              .compose(HttpClientRequest::send)
               // Subscribe on the event loop before response data can be discarded.
-              .compose(
-                  resp ->
-                      resp.body()
-                          .map(
-                              body ->
-                                  new SimpleEntry<>(
-                                      resp.statusCode(), body.toString(StandardCharsets.UTF_8))))
+              .compose(request -> request.send().compose(this::collectResponse))
               .toCompletionStage()
               .toCompletableFuture()
               .get(10, TimeUnit.SECONDS);
@@ -133,6 +127,14 @@ class HttpServerResponseEndHandlerInstrumentationTest extends AbstractInstrument
     } finally {
       client.close().toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
     }
+  }
+
+  private Future<Map.Entry<Integer, String>> collectResponse(HttpClientResponse response) {
+    return response
+        .body()
+        .map(
+            body ->
+                new SimpleEntry<>(response.statusCode(), body.toString(StandardCharsets.UTF_8)));
   }
 
   private static boolean hasVertx51Http1Response() {
