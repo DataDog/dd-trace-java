@@ -13,14 +13,14 @@ open class CiBuilderInputsExtension
     providers: ProviderFactory,
   ) {
     // CI selection changes task configuration, so it is a configuration-cache input.
-    private val enabled = providers.environmentVariable("GITLAB_CI").orNull == "true"
+    private val enabled = providers.environmentVariable("CI").orNull == "true"
 
-    /** Builder identity and platform in GitLab CI; an empty map in local builds. */
+    /** Builder identity and platform in CI; an empty map in local builds. */
     val identity: Provider<Map<String, String>> =
       if (enabled) {
         providers.gradleProperty("ciBuilderImage").orElse("").map { image ->
           if (image.isBlank()) {
-            throw GradleException("ciBuilderImage must be a nonblank CI builder identity when GITLAB_CI=true")
+            throw GradleException("ciBuilderImage must be a nonblank CI builder identity when CI=true")
           }
           mapOf(
             "image" to image,
