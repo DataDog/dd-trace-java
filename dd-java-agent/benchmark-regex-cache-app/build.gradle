@@ -1,0 +1,37 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '3.3.5'
+  id 'io.spring.dependency-management' version '1.1.6'
+}
+
+repositories {
+  mavenCentral()
+}
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+  targetCompatibility = JavaVersion.VERSION_17
+}
+
+sourceSets {
+  loadgen {
+    java.srcDirs = ['src/loadgen/java']
+  }
+}
+
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+}
+
+tasks.named('bootJar') {
+  archiveFileName = 'regex-bench-app.jar'
+}
+
+tasks.register('loadgenJar', Jar) {
+  archiveFileName = 'regex-bench-tools.jar'
+  from sourceSets.loadgen.output
+}
+
+tasks.named('assemble') {
+  dependsOn 'loadgenJar'
+}
