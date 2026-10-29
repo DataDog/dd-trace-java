@@ -77,8 +77,7 @@ public class TracingListener extends TestNGClassListener
   public void onTestStart(final ITestResult result) {
     TestSuiteDescriptor suiteDescriptor =
         TestNGUtils.toSuiteDescriptor(result.getMethod().getTestClass());
-    String testName =
-        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
+    String testName = TestNGUtils.getTestName(result);
     String testParameters = TestNGUtils.getParameters(result);
     List<String> groups = TestNGUtils.getGroups(result);
     TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);

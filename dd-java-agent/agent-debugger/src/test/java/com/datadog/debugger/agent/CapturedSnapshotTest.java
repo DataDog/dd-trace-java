@@ -1943,7 +1943,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertEquals(2, result);
     assertEquals(1, listener.snapshots.size());
     ProbeImplementation probeImplementation = listener.snapshots.get(0).getProbe();
-    assertFalse(((CapturedContextProbe) probeImplementation).isCaptureSnapshot());
+    assertTrue(((CapturedContextProbe) probeImplementation).isCaptureSnapshot());
     assertEquals("main", probeImplementation.getLocation().getMethod());
   }
 
@@ -3329,7 +3329,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Config config = mock(Config.class);
     when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
     when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
-    when(config.getDynamicInstrumentationInstrumentTheWorld()).thenReturn("method");
+    when(config.getDynamicInstrumentationInstrumentTheWorld()).thenReturn("log_method");
     when(config.getDynamicInstrumentationExcludeFiles()).thenReturn(excludeFileName);
     when(config.getDynamicInstrumentationIncludeFiles()).thenReturn(includeFileName);
     when(config.getFinalDebuggerSnapshotUrl())

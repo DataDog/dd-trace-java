@@ -44,6 +44,9 @@ smokeTestApp {
       '-Dquarkus.package.jar.enabled=false',
       )
     environment.put('GRAALVM_HOME', graalvmHome)
+    inputs {
+      property('graalvmRelease', fileContent(graalvmHome, 'release'))
+    }
   }
   projectJar('apiJar', project(':dd-trace-api'))
   projectJar('agentJar', project(':dd-java-agent'), 'shadow')

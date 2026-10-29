@@ -89,8 +89,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -129,6 +127,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTEL_HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_LOGS_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_METRICS_ENDPOINT;
@@ -188,6 +187,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LAMBDA_SNAPSTART_CL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST;
@@ -375,6 +375,9 @@ import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_DETECTION_INCL
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_EXCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_SHADING_IDENTIFIERS;
+import static datadog.trace.api.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL;
@@ -744,12 +747,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
@@ -1255,10 +1252,6 @@ public class Config {
 
   private final int remoteConfigMaxExtraServices;
 
-  private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
-  private final int featureFlaggingConfigurationSourcePollIntervalSeconds;
-  private final int featureFlaggingConfigurationSourceRequestTimeoutSeconds;
-
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
   private final boolean dbmPropagationOracleActionOnlyEnabled;
@@ -1560,11 +1553,33 @@ public class Config {
 
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
-    traceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
+    traceOtelSemanticsEnabled =
+        configProvider.getBoolean(
+            TRACE_OTEL_SEMANTICS_ENABLED, DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED);
+    String configuredTraceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
+    if (traceOtelSemanticsEnabled) {
+      if (configuredTraceOtelExporter != null
+          && !"otlp".equalsIgnoreCase(configuredTraceOtelExporter)) {
+        logOverriddenSettingWarning(TRACE_OTEL_EXPORTER, TRACE_OTEL_SEMANTICS_ENABLED, "otlp");
+      }
+      traceOtelExporter = "otlp";
+      reportOtelSemanticsOverride(TRACE_OTEL_EXPORTER, traceOtelExporter);
+    } else {
+      traceOtelExporter = configuredTraceOtelExporter;
+    }
     boolean otlpTracesExporter = isTraceOtlpExporterEnabled();
-    writerType =
+    String configuredWriterType =
         configProvider.getString(
             WRITER_TYPE, otlpTracesExporter ? OTLP_WRITER_TYPE : DEFAULT_AGENT_WRITER_TYPE);
+    if (traceOtelSemanticsEnabled) {
+      if (!OTLP_WRITER_TYPE.equals(configuredWriterType)) {
+        logOverriddenSettingWarning(WRITER_TYPE, TRACE_OTEL_SEMANTICS_ENABLED, OTLP_WRITER_TYPE);
+      }
+      writerType = OTLP_WRITER_TYPE;
+      reportOtelSemanticsOverride(WRITER_TYPE, writerType);
+    } else {
+      writerType = configuredWriterType;
+    }
     boolean isDatadogTraceWriter = !otlpTracesExporter;
     injectBaggageAsTagsEnabled =
         configProvider.getBoolean(WRITER_BAGGAGE_INJECT, isDatadogTraceWriter);
@@ -1777,14 +1792,32 @@ public class Config {
     sqsInjectDatadogAttributeEnabled =
         isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "sqs");
 
-    spanAttributeSchemaVersion = schemaVersionFromConfig();
+    int configuredSpanAttributeSchemaVersion = schemaVersionFromConfig();
+    if (traceOtelSemanticsEnabled) {
+      if (configuredSpanAttributeSchemaVersion != SpanNaming.SCHEMA_MIN_VERSION) {
+        logOtelSemanticsOverride(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v" + SpanNaming.SCHEMA_MIN_VERSION);
+      }
+      spanAttributeSchemaVersion = SpanNaming.SCHEMA_MIN_VERSION;
+      reportOtelSemanticsOverride(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v" + spanAttributeSchemaVersion);
+    } else {
+      spanAttributeSchemaVersion = configuredSpanAttributeSchemaVersion;
+    }
 
     peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
 
     // following two only used in v0.
     // in v1+ defaults are always calculated regardless this feature flag
-    peerServiceDefaultsEnabled =
+    boolean configuredPeerServiceDefaultsEnabled =
         configProvider.getBoolean(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
+    if (traceOtelSemanticsEnabled) {
+      if (configuredPeerServiceDefaultsEnabled) {
+        logOtelSemanticsOverride(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
+      }
+      peerServiceDefaultsEnabled = false;
+      reportOtelSemanticsOverride(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
+    } else {
+      peerServiceDefaultsEnabled = configuredPeerServiceDefaultsEnabled;
+    }
     peerServiceComponentOverrides =
         configProvider.getMergedMap(TRACE_PEER_SERVICE_COMPONENT_OVERRIDES);
     // feature flag to remove fake services in v0
@@ -1816,7 +1849,9 @@ public class Config {
     httpClientErrorStatuses =
         configProvider.getIntegerRange(
             TRACE_HTTP_CLIENT_ERROR_STATUSES,
-            DEFAULT_HTTP_CLIENT_ERROR_STATUSES,
+            traceOtelSemanticsEnabled
+                ? DEFAULT_OTEL_HTTP_CLIENT_ERROR_STATUSES
+                : DEFAULT_HTTP_CLIENT_ERROR_STATUSES,
             HTTP_CLIENT_ERROR_STATUSES);
 
     httpServerTagQueryString =
@@ -2213,7 +2248,6 @@ public class Config {
             OtlpConfig.Temporality.class,
             OtlpConfig.Temporality.DELTA);
 
-    traceOtelSemanticsEnabled = configProvider.getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, false);
     // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
     // export and OTLP metrics export are both enabled.
     otelTracesSpanMetricsEnabled =
@@ -2959,35 +2993,6 @@ public class Config {
           "Unsupported Feature Flagging configuration source; provider disabled: '{}'",
           configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE));
     }
-    featureFlaggingConfigurationSourceAgentlessBaseUrl =
-        configProvider.getStringNotEmpty(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
-    int configuredFeatureFlaggingPollIntervalSeconds =
-        configProvider.getInteger(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
-            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS);
-    if (configuredFeatureFlaggingPollIntervalSeconds <= 0) {
-      log.warn(
-          "Invalid Feature Flagging agentless poll interval: {}. The value must be positive",
-          configuredFeatureFlaggingPollIntervalSeconds);
-      configuredFeatureFlaggingPollIntervalSeconds =
-          DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
-    }
-    featureFlaggingConfigurationSourcePollIntervalSeconds =
-        configuredFeatureFlaggingPollIntervalSeconds;
-    int configuredFeatureFlaggingRequestTimeoutSeconds =
-        configProvider.getInteger(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS,
-            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
-    if (configuredFeatureFlaggingRequestTimeoutSeconds <= 0) {
-      log.warn(
-          "Invalid Feature Flagging agentless request timeout: {}. The value must be positive",
-          configuredFeatureFlaggingRequestTimeoutSeconds);
-      configuredFeatureFlaggingRequestTimeoutSeconds =
-          DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
-    }
-    featureFlaggingConfigurationSourceRequestTimeoutSeconds =
-        configuredFeatureFlaggingRequestTimeoutSeconds;
 
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
@@ -3283,7 +3288,9 @@ public class Config {
             TRACE_LONG_RUNNING_FLUSH_INTERVAL, DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
     serviceDiscoveryEnabled =
         configProvider.getBoolean(
-            TRACE_SERVICE_DISCOVERY_ENABLED, DEFAULT_SERVICE_DISCOVERY_ENABLED);
+            TRACE_SERVICE_DISCOVERY_ENABLED,
+            DEFAULT_SERVICE_DISCOVERY_ENABLED
+                && !(isCiVisibilityEnabled() && ciVisibilityAgentlessEnabled));
 
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
@@ -4983,21 +4990,8 @@ public class Config {
     return instrumenterConfig.isFeatureFlaggingEnabled();
   }
 
-  public String getFeatureFlaggingConfigurationSource() {
-    final FeatureFlaggingSource source = instrumenterConfig.getFeatureFlaggingConfigurationSource();
-    return source == FeatureFlaggingSource.UNSET ? null : source.name().toLowerCase(Locale.ROOT);
-  }
-
-  public String getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() {
-    return featureFlaggingConfigurationSourceAgentlessBaseUrl;
-  }
-
-  public int getFeatureFlaggingConfigurationSourcePollIntervalSeconds() {
-    return featureFlaggingConfigurationSourcePollIntervalSeconds;
-  }
-
-  public int getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds() {
-    return featureFlaggingConfigurationSourceRequestTimeoutSeconds;
+  public FeatureFlaggingSource getFeatureFlaggingConfigurationSource() {
+    return instrumenterConfig.getFeatureFlaggingConfigurationSource();
   }
 
   public boolean isDynamicInstrumentationEnabled() {
@@ -5603,6 +5597,11 @@ public class Config {
     return version;
   }
 
+  /** Tags set on every span ({@code DD_TRACE_SPAN_TAGS}), without the global tags. */
+  public Map<String, String> getSpanTags() {
+    return spanTags;
+  }
+
   public Map<String, String> getMergedSpanTags() {
     // Do not include runtimeId into span tags: we only want that added to the root span
     final Map<String, String> result = newHashMap(getGlobalTags().size() + spanTags.size());
@@ -6189,6 +6188,19 @@ public class Config {
         "Setting {} is overridden by setting {} with value {}.",
         propertyNameToSystemPropertyName(setting),
         propertyNameToSystemPropertyName(overridingSetting),
+        value);
+  }
+
+  private static void reportOtelSemanticsOverride(String setting, Object value) {
+    ConfigCollector.get().put(setting, value, ConfigOrigin.CALCULATED, Integer.MAX_VALUE);
+  }
+
+  private static void logOtelSemanticsOverride(String setting, Object value) {
+    log.warn(
+        SEND_TELEMETRY,
+        "Enabling {} overrode {} to {}",
+        propertyNameToEnvironmentVariableName(TRACE_OTEL_SEMANTICS_ENABLED),
+        propertyNameToEnvironmentVariableName(setting),
         value);
   }
 
@@ -6949,12 +6961,6 @@ public class Config {
         + isFeatureFlaggingProviderEnabled()
         + ", featureFlaggingConfigurationSource="
         + getFeatureFlaggingConfigurationSource()
-        + ", featureFlaggingConfigurationSourceAgentlessBaseUrl="
-        + featureFlaggingConfigurationSourceAgentlessBaseUrl
-        + ", featureFlaggingConfigurationSourcePollIntervalSeconds="
-        + featureFlaggingConfigurationSourcePollIntervalSeconds
-        + ", featureFlaggingConfigurationSourceRequestTimeoutSeconds="
-        + featureFlaggingConfigurationSourceRequestTimeoutSeconds
         + ", debuggerEnabled="
         + dynamicInstrumentationEnabled
         + ", debuggerUploadTimeout="

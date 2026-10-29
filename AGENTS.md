@@ -71,6 +71,10 @@ docs/                     Developer documentation (see below)
 ## PR conventions
 
 - Title: imperative verb sentence describing user-visible change (e.g. "Fix span sampling rule parsing")
+- Description: follow the section guidance in [the PR template](.github/pull_request_template.md).
+  Write for a human reviewer first: short, plain and skimmable. Explain the intent and rationale of the change,
+  not its content: the diff already shows the code, so don't walk through it file by file or list the classes and methods touched.
+- Size: keep PRs small (under 1000 added lines), split larger changes into stacked PRs.
 - Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
 - Use `tag: no release notes` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable
@@ -81,6 +85,18 @@ docs/                     Developer documentation (see below)
 
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
+
+## CI scripts
+
+Every `curl` that runs in CI (`.gitlab-ci.yml`, `.gitlab/`, GitHub Actions, the scripts they call, and the Dockerfiles they build) should:
+
+- **Fail on HTTP errors**: pass `-f`/`--fail`. Without it, a 4xx/5xx exits 0 and the error page is used as if it were the real response (e.g. piped into `bash` or `jq`).
+- **Retry transient errors**: pass `--retry 5 --retry-delay 2` (add `--retry-connrefused` for remote endpoints).
+- **Propagate the failure**: the job must stop when curl fails. Never pipe `curl` straight into `bash`/`sh`: download to a file with `-f`, then run it.
+
+Example: `curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o out.tar.gz "$url"`
+
+Exception: a script that checks the HTTP status itself (`-w "%{http_code}"`, e.g. `.gitlab/check_test_agent_results.sh`) may skip `--fail`, but still needs `--retry`.
 
 ## Critical constraints
 

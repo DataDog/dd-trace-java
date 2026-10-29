@@ -96,7 +96,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
             "Accept-Encoding",
             "Content-Encoding",
             "User-Agent",
-            "DD-CI-PROVIDER-NAME"
+            "DD-CI-PROVIDER-NAME",
+            "DD-EVP-ORIGIN",
+            "DD-EVP-ORIGIN-VERSION"
           ],
           "config": {}
         }""")
@@ -224,6 +226,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
       "${getMaxMemoryArgumentForFork()}",
       "${getMinMemoryArgumentForFork()}",
       "-javaagent:${shadowJarPath}",
+      SCOPE_DIAGNOSTICS_ARGUMENT,
       isIBM ? "-Xdump:directory=${tmpDir}" : "-XX:ErrorFile=${tmpDir}/hs_err_pid%p.log",
       "-Ddd.trace.agent.port=${server.address.port}",
       "-Ddd.env=${ENV}",

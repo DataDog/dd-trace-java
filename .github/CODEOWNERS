@@ -159,9 +159,9 @@
 /internal-api/src/*/*/datadog/trace/api/metrics/BaggageMetrics*         @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/*/*/datadog/trace/api/PropagationStyle*               @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/*/*/datadog/trace/api/TracePropagation*               @DataDog/apm-sdk-capabilities
-/dd-trace-api/src/*/*/datadog/trace/api/metrics                         @DataDog/apm-sdk-capabilities
 /dd-trace-api/src/*/*/datadog/trace/api/sampling                        @DataDog/apm-sdk-capabilities
 /internal-api/src/*/*/datadog/trace/bootstrap                           @DataDog/apm-sdk-capabilities
+/internal-api/src/*/*/datadog/trace/bootstrap/instrumentation/api/http/ @DataDog/apm-sdk-capabilities
 /internal-api/src/*/*/datadog/trace/api/propagation/                    @DataDog/apm-sdk-capabilities
 /internal-api/src/*/*/datadog/trace/api/sampling                        @DataDog/apm-sdk-capabilities
 /internal-api/src/*/*/datadog/trace/api/scopemanager/                   @DataDog/apm-sdk-capabilities
@@ -325,6 +325,7 @@
 /dd-java-agent/instrumentation/**/*BlockResponseFunction.java                                        @DataDog/asm-java
 /dd-java-agent/instrumentation/undertow/undertow-common/src/main/java/**/UndertowBlockingHandler.java @DataDog/asm-java
 /dd-java-agent/instrumentation/jetty/jetty-server/*/src/main/*/**/JettyCommitResponse*.java          @DataDog/asm-java
+/dd-java-agent/instrumentation/liberty/liberty-appsec-common/                                        @DataDog/asm-java
 
 # bootstrap / internal-api blocking and RASP glue
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/blocking/                       @DataDog/asm-java
@@ -399,9 +400,12 @@
 **/kafka*/**/*Iast*                                                                          @DataDog/asm-java @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 
 # @DataDog/feature-flagging-and-experimentation-sdk
-/dd-openfeature/              @DataDog/feature-flagging-and-experimentation-sdk
-/dd-smoke-tests/openfeature/  @DataDog/feature-flagging-and-experimentation-sdk
-/products/feature-flagging/   @DataDog/feature-flagging-and-experimentation-sdk
+/dd-java-agent/instrumentation/datadog/openfeature/  @DataDog/feature-flagging-and-experimentation-sdk
+/dd-openfeature/                                     @DataDog/feature-flagging-and-experimentation-sdk
+/dd-smoke-tests/openfeature/                         @DataDog/feature-flagging-and-experimentation-sdk
+/dd-smoke-tests/openfeature-legacy/                  @DataDog/feature-flagging-and-experimentation-sdk
+/dd-trace-api/**/config/FeatureFlaggingConfig*       @DataDog/feature-flagging-and-experimentation-sdk
+/products/feature-flagging/                          @DataDog/feature-flagging-and-experimentation-sdk
 
 # @DataDog/profiling-java
 /dd-java-agent/ddprof-lib/                                                                              @DataDog/profiling-java

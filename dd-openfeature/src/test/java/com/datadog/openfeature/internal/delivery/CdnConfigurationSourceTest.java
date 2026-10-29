@@ -17,7 +17,7 @@ import static org.mockito.Mockito.verify;
 
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.RuntimeServices;
-import com.datadog.openfeature.internal.bridge.HealthMetrics;
+import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
