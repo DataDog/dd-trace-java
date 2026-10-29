@@ -563,6 +563,7 @@ test_published_artifacts:
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - ./gradlew publishToMavenLocal $GRADLE_ARGS
+    - unset GPG_PRIVATE_KEY GPG_PASSWORD
     - cd test-published-dependencies
     - printf '\norg.gradle.console=colored\n' >> gradle.properties
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms1G -Xmx1G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
