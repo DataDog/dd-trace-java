@@ -397,6 +397,7 @@ include(
   ":dd-java-agent:instrumentation:hibernate:hibernate-core-4.3",
   ":dd-java-agent:instrumentation:hystrix-1.4",
   ":dd-java-agent:instrumentation:ignite-2.0",
+  ":dd-java-agent:instrumentation:jackson-blackbird:jackson-blackbird-2.12",
   ":dd-java-agent:instrumentation:jackson-core:jackson-core-1.9.13",
   ":dd-java-agent:instrumentation:jackson-core:jackson-core-2.0",
   ":dd-java-agent:instrumentation:jackson-core:jackson-core-2.12",
