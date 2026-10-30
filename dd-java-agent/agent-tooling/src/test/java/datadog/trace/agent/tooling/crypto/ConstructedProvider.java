@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.crypto;
 
 import java.security.Provider;
 
-/** A provider without an {@code INSTANCE} field, created through its no-arg constructor. */
 public final class ConstructedProvider extends Provider {
   static final String NAME = "ConstructedProvider";
 

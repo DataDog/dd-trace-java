@@ -27,7 +27,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Forked because it mutates the JVM-wide JCA provider list. */
 class CryptoProviderInstallerForkedTest {
   private static final String FAKE = FakeNativeProvider.class.getName();
 
@@ -149,6 +148,14 @@ class CryptoProviderInstallerForkedTest {
   }
 
   @Test
+  void skipsWhenAppRegistersProviderWhileProviderInitialises() {
+    FakeNativeProvider.beforeHealthCheck =
+        () -> Security.addProvider(new NamedProvider("TestOther"));
+    assertEquals(SKIPPED_NON_JDK_PROVIDER, install(FAKE));
+    assertNull(Security.getProvider(FakeNativeProvider.NAME));
+  }
+
+  @Test
   void jdkProvidersAreRecognised() {
     for (Provider provider : Security.getProviders()) {
       assertTrue(CryptoProviderInstaller.isJdkProvider(provider), provider.getName());
@@ -158,7 +165,10 @@ class CryptoProviderInstallerForkedTest {
 
   @Test
   void defaultJdkIsNotFips() {
-    assertFalse(CryptoProviderInstaller.isFipsEnvironment(noFipsFlag));
+    assertFalse(CryptoProviderInstaller.isKernelFipsMode(noFipsFlag));
+    for (Provider provider : Security.getProviders()) {
+      assertFalse(CryptoProviderInstaller.isFipsProvider(provider), provider.getName());
+    }
   }
 
   private CryptoProviderInstaller.Outcome install(String className) {

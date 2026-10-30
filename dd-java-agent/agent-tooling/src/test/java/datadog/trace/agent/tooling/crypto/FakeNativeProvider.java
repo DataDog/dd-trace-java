@@ -2,13 +2,13 @@ package datadog.trace.agent.tooling.crypto;
 
 import java.security.Provider;
 
-/** Stands in for ACCP: same {@code INSTANCE} field and health-check methods. */
 public final class FakeNativeProvider extends Provider {
   static final String NAME = "FakeNativeProvider";
 
   static volatile Throwable loadingError;
   static volatile boolean fips;
   static volatile boolean healthy = true;
+  static volatile Runnable beforeHealthCheck;
 
   public static final FakeNativeProvider INSTANCE = new FakeNativeProvider();
 
@@ -21,6 +21,7 @@ public final class FakeNativeProvider extends Provider {
     loadingError = null;
     fips = false;
     healthy = true;
+    beforeHealthCheck = null;
   }
 
   public Throwable getLoadingError() {
@@ -32,6 +33,10 @@ public final class FakeNativeProvider extends Provider {
   }
 
   public void assertHealthy() {
+    Runnable hook = beforeHealthCheck;
+    if (hook != null) {
+      hook.run();
+    }
     if (!healthy) {
       throw new IllegalStateException("self-test failed");
     }
