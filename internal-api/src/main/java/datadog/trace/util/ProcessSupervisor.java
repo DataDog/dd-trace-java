@@ -6,6 +6,7 @@ import static datadog.trace.util.ProcessSupervisor.Health.FAULTED;
 import static datadog.trace.util.ProcessSupervisor.Health.HEALTHY;
 import static datadog.trace.util.ProcessSupervisor.Health.INTERRUPTED;
 import static datadog.trace.util.ProcessSupervisor.Health.READY_TO_START;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -36,7 +37,18 @@ public class ProcessSupervisor implements Closeable {
 
   private static final long HEALTHY_DELAY_MILLIS = 10_000;
   private static final long FAULTED_DELAY_MILLIS = 2_000;
-  private static final int MAX_FAULTS = 5;
+  private static final long MAX_FAULTED_DELAY_MILLIS = 60_000;
+
+  // Lifecycle events are logged at info level. A process that keeps failing quickly would flood
+  // the log, so after this many failures in a row the details go to debug level until the
+  // process stays up for STABLE_RUN_MILLIS.
+  private static final int QUIET_AFTER_FAILURES = 5;
+  private static final long STABLE_RUN_MILLIS = 60_000;
+
+  private static final long STOP_WAIT_MILLIS = 200;
+
+  // A process this supervisor started is restarted after failing this many health checks in a row
+  private static final int MAX_FAILED_HEALTH_CHECKS = 3;
 
   private final String imageName;
   private final ProcessBuilder processBuilder;
@@ -45,8 +57,12 @@ public class ProcessSupervisor implements Closeable {
 
   private long nextCheckMillis = 0;
   private Health currentHealth = Health.NEVER_CHECKED;
+  private Health lastCheckResult = Health.NEVER_CHECKED;
   private Process currentProcess;
-  private int faults;
+  private long currentProcessStartedMillis;
+  private int failedHealthChecks;
+  private final FaultBackoff faultBackoff = new FaultBackoff();
+  private int failuresInARow;
 
   private volatile boolean stopping = false;
 
@@ -70,23 +86,26 @@ public class ProcessSupervisor implements Closeable {
   private void mainLoop() {
     try {
       while (!stopping) {
-        if (currentHealth == FAULTED && ++faults >= MAX_FAULTS) {
-          log.warn("Failed to start process [{}] after {} attempts", imageName, faults);
-          break;
-        }
         try {
           long delayMillis = nextCheckMillis - System.currentTimeMillis();
           if (delayMillis > 0) {
             Thread.sleep(delayMillis);
           }
-          currentHealth = healthCheck.run(currentHealth);
-          if (currentHealth == READY_TO_START) {
-            startProcessAndWait();
+          if (currentProcess == null) {
+            currentHealth = healthCheck.run(currentHealth);
+            logHealthCheckChange(currentHealth);
+          }
+          if (currentProcess != null || currentHealth == READY_TO_START) {
+            startProcessAndSupervise();
           }
         } catch (InterruptedException e) {
           currentHealth = INTERRUPTED;
         } catch (Throwable e) {
-          log.warn("Exception starting process: [{}]", imageName, e);
+          if (failuresInARow++ < QUIET_AFTER_FAILURES) {
+            log.warn("Exception starting process: [{}]", imageName, e);
+          } else {
+            log.debug("Exception starting process: [{}]", imageName, e);
+          }
           currentHealth = FAULTED;
         }
         scheduleNextHealthCheck();
@@ -96,45 +115,177 @@ public class ProcessSupervisor implements Closeable {
     }
   }
 
+  private void logHealthCheckChange(Health result) {
+    Health previous = lastCheckResult;
+    lastCheckResult = result;
+    if (result == previous) {
+      return;
+    }
+    if (result == HEALTHY) {
+      // These checks only run while this supervisor has no running process of its own,
+      // so a healthy result means another process (usually another worker) is serving it.
+      failuresInARow = 0;
+      log.info(
+          "Process [{}] is already running and was not started by this process (pid {}); using it",
+          imageName,
+          PidHelper.getPid());
+    } else if (result == READY_TO_START && previous == HEALTHY) {
+      logLifecycle(
+          "Process [{}] that this process (pid {}) was using is no longer available",
+          imageName,
+          PidHelper.getPid());
+    }
+  }
+
   private void scheduleNextHealthCheck() {
     long now = System.currentTimeMillis();
     if (currentHealth == HEALTHY) {
       nextCheckMillis = now + HEALTHY_DELAY_MILLIS;
     } else if (currentHealth == FAULTED) {
-      nextCheckMillis = now + FAULTED_DELAY_MILLIS;
+      nextCheckMillis = now + faultBackoff.recordFault();
     } else { // interrupted
       nextCheckMillis = Long.max(nextCheckMillis, now + 100);
     }
   }
 
-  private void startProcessAndWait() throws Exception {
+  private void startProcessAndSupervise() throws Exception {
     if (currentProcess == null) {
       log.debug("Starting process: [{}]", imageName);
       try (TraceScope ignored = AgentTracer.get().muteTracing()) {
         currentProcess = processBuilder.start();
       }
+      currentProcessStartedMillis = System.currentTimeMillis();
+      failedHealthChecks = 0;
       currentHealth = HEALTHY;
-      faults = 0;
+      logLifecycle(
+          "Started process [{}] with pid {} from this process (pid {})",
+          imageName,
+          pidOrUnknown(currentProcess),
+          PidHelper.getPid());
     }
 
-    // Block until the process exits
-    int code = currentProcess.waitFor();
-    log.debug("Process [{}] has exited with code {}", imageName, code);
+    String childPid = pidOrUnknown(currentProcess);
+
+    // Keep checking on the process until it exits
+    while (!currentProcess.waitFor(HEALTHY_DELAY_MILLIS, MILLISECONDS)) {
+      faultBackoff.recordUptime(System.currentTimeMillis() - currentProcessStartedMillis);
+      if (healthCheck != ALWAYS_READY && !passesHealthCheck(childPid)) {
+        restartUnhealthyProcess(childPid);
+        return;
+      }
+    }
+    int code = currentProcess.exitValue();
     currentHealth = code == 0 ? INTERRUPTED : FAULTED;
+
+    long ranMillis = System.currentTimeMillis() - currentProcessStartedMillis;
+    faultBackoff.recordUptime(ranMillis);
+    if (ranMillis >= STABLE_RUN_MILLIS) {
+      failuresInARow = 0;
+    }
+    logLifecycle(
+        "Process [{}] with pid {} exited with code {} after {} ms",
+        imageName,
+        childPid,
+        code,
+        ranMillis);
+    if (code != 0 && ++failuresInARow == QUIET_AFTER_FAILURES) {
+      log.warn(
+          "Process [{}] has exited with an error {} times in a row; "
+              + "further starts and exits are logged at debug level until it stays up for {} seconds",
+          imageName,
+          failuresInARow,
+          MILLISECONDS.toSeconds(STABLE_RUN_MILLIS));
+    }
 
     // Process is dead, no longer needs to be tracked
     currentProcess = null;
   }
 
+  /**
+   * Checks on the running process this supervisor started.
+   *
+   * @return false once it has failed {@link #MAX_FAILED_HEALTH_CHECKS} health checks in a row
+   */
+  private boolean passesHealthCheck(String childPid) throws InterruptedException {
+    if (healthCheck.run(HEALTHY) == HEALTHY) {
+      if (failedHealthChecks > 0) {
+        logLifecycle(
+            "Process [{}] with pid {} is passing health checks again", imageName, childPid);
+      }
+      failedHealthChecks = 0;
+      return true;
+    }
+    if (++failedHealthChecks == 1) {
+      logLifecycle(
+          "Process [{}] with pid {} started by this process (pid {}) failed a health check",
+          imageName,
+          childPid,
+          PidHelper.getPid());
+    }
+    return failedHealthChecks < MAX_FAILED_HEALTH_CHECKS;
+  }
+
+  private void restartUnhealthyProcess(String childPid) {
+    if (failuresInARow++ < QUIET_AFTER_FAILURES) {
+      log.warn(
+          "Process [{}] with pid {} failed {} health checks in a row; restarting it",
+          imageName,
+          childPid,
+          failedHealthChecks);
+    } else {
+      log.debug(
+          "Process [{}] with pid {} failed {} health checks in a row; restarting it",
+          imageName,
+          childPid,
+          failedHealthChecks);
+    }
+    stopProcess();
+    // The next health check starts a new process through the normal start path, after a backoff
+    currentHealth = FAULTED;
+  }
+
   private void stopProcess() {
     if (currentProcess != null) {
-      log.debug("Stopping process: [{}]", imageName);
-      currentProcess.destroy();
-      if (currentProcess.isAlive()) {
+      String childPid = pidOrUnknown(currentProcess);
+      log.info("Stopping process [{}] with pid {}", imageName, childPid);
+      boolean stopped = false;
+      try {
+        currentProcess.destroy();
+        stopped = currentProcess.waitFor(STOP_WAIT_MILLIS, MILLISECONDS);
+        if (!stopped) {
+          currentProcess.destroyForcibly();
+          stopped = currentProcess.waitFor(STOP_WAIT_MILLIS, MILLISECONDS);
+        }
+      } catch (InterruptedException e) {
         currentProcess.destroyForcibly();
+        Thread.currentThread().interrupt();
       }
-      currentProcess = null;
+      if (stopped) {
+        log.info("Stopped process [{}] with pid {}", imageName, childPid);
+        currentProcess = null;
+      } else {
+        // Keep tracking it, so a restart does not start a second copy while this one runs
+        log.warn(
+            "Process [{}] with pid {} was still running after the stop request",
+            imageName,
+            childPid);
+      }
+    } else {
+      log.debug("No process [{}] started by this process to stop", imageName);
     }
+  }
+
+  private void logLifecycle(String format, Object... arguments) {
+    if (failuresInARow < QUIET_AFTER_FAILURES) {
+      log.info(format, arguments);
+    } else {
+      log.debug(format, arguments);
+    }
+  }
+
+  private static String pidOrUnknown(Process process) {
+    String pid = PidHelper.getPid(process);
+    return pid.isEmpty() ? "unknown" : pid;
   }
 
   @Override
@@ -144,6 +295,38 @@ public class ProcessSupervisor implements Closeable {
     try {
       supervisorThread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (Throwable ignored) {
+    }
+    if (supervisorThread.isAlive()) {
+      log.warn(
+          "Supervisor for process [{}] did not finish stopping within {} ms; "
+              + "the process may be left running",
+          imageName,
+          THREAD_JOIN_TIMOUT_MS);
+    }
+  }
+
+  /**
+   * Counts faults in a row and spaces out the retries that follow them. Faults are forgotten only
+   * once a process has stayed up for {@link #STABLE_RUN_MILLIS}, so an agent that keeps exiting
+   * soon after it starts backs off instead of restarting every few seconds. Retries never stop.
+   */
+  static final class FaultBackoff {
+    private static final int MAX_DOUBLINGS = 5;
+
+    private int faults;
+
+    /** Records a fault and returns how long to wait before the next health check. */
+    long recordFault() {
+      faults++;
+      int doublings = Math.min(faults - 1, MAX_DOUBLINGS);
+      return Math.min(FAULTED_DELAY_MILLIS << doublings, MAX_FAULTED_DELAY_MILLIS);
+    }
+
+    /** Forgets earlier faults once a process has been up for a stable period. */
+    void recordUptime(long upMillis) {
+      if (upMillis >= STABLE_RUN_MILLIS) {
+        faults = 0;
+      }
     }
   }
 
