@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -425,7 +426,7 @@ class WorkQueueContractTest {
     assertFalse(queue.tryPut("c"));
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   void aBoundedMpmcQueueRoundsItsCapacityUpToTheRing() {
     // The bound is the ring's own capacity, not the number asked for, so the counter and the ring
     // can never disagree about what full means. A caller asking for 100 gets 128.
@@ -437,7 +438,7 @@ class WorkQueueContractTest {
     assertEquals(128, queue.size());
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   void aBoundedMpmcQueueTooSmallForTheRingIsRaisedRatherThanRefused() {
     // JCTools will not build a ring of one. Rounding up is the established answer to a capacity
     // the ring cannot honour, and throwing here would only surprise a caller who asked for less.
@@ -447,7 +448,7 @@ class WorkQueueContractTest {
     assertFalse(queue.tryPut("c"));
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   void severalProducersAndConsumersOnAnArrayRingLoseNothingAndLeakNoPlace()
       throws InterruptedException {
     // Admission claims a place before it stores, and places outstanding never exceed the ring's
@@ -530,7 +531,7 @@ class WorkQueueContractTest {
     assertFalse(queue.tryPut("overflow"));
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   void unboundedQueueNeverRejects() {
     WorkQueue<String> queue = WorkQueues.createUnboundedMpmcQueue();
     for (int i = 0; i < 1000; i++) {
@@ -539,7 +540,7 @@ class WorkQueueContractTest {
     assertEquals(1000, queue.size());
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   void unboundedQueueStillCloses() {
     WorkQueue<String> queue = WorkQueues.createUnboundedMpmcQueue();
     queue.close();
@@ -733,7 +734,7 @@ class WorkQueueContractTest {
     assertEquals(Arrays.asList("filled"), consumeAll(queue));
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   void unboundedReservationAlwaysSucceeds() {
     WorkQueue<String> queue = WorkQueues.createUnboundedMpmcQueue();
     for (int i = 0; i < 1000; i++) {
@@ -1145,6 +1146,145 @@ class WorkQueueContractTest {
     assertFalse(queue.tryPut("overflow"));
   }
 
+  // --- The contextual consumers, and the release paths the batch admission depends on. ---
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aContextualConsumerSeesTheContextAndEachForm(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    List<String> seen = new ArrayList<>();
+
+    queue.tryPut("a");
+    assertTrue(queue.process("ctx", (context, item) -> seen.add(context + ":" + item)));
+
+    queue.tryPut("b");
+    assertTrue(
+        queue.processOrHandle(
+            "ctx",
+            (context, item) -> {
+              throw new IllegalStateException(context + ":" + item);
+            },
+            (item, failure) -> seen.add("handled " + failure.getMessage())));
+
+    queue.tryPut("c");
+    AtomicInteger attempts = new AtomicInteger();
+    while (queue.processOrRetry(
+        "ctx",
+        (context, item) -> {
+          if (attempts.incrementAndGet() == 1) {
+            throw new IllegalStateException("first attempt");
+          }
+          seen.add(context + ":" + item);
+        },
+        maxRetries(1))) {
+      // drain, including the retry
+    }
+
+    assertEquals(Arrays.asList("ctx:a", "handled ctx:b", "ctx:c"), seen);
+    assertEquals(2, attempts.get(), "the failed attempt was retried once");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void everyConsumerFormReportsAnEmptyQueue(String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    assertFalse(queue.processOrHandle(item -> fail("no item"), (item, failure) -> fail("no item")));
+    assertFalse(queue.process("ctx", (context, item) -> fail("no item")));
+    assertFalse(queue.processOrRetry("ctx", (context, item) -> fail("no item"), maxRetries(1)));
+    assertFalse(
+        queue.processOrHandle(
+            "ctx", (context, item) -> fail("no item"), (item, failure) -> fail("no item")));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aThrowingTwoContextProducerGivesBackItsPlace(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            queue.tryPut(
+                "one",
+                "two",
+                (first, second) -> {
+                  throw new IllegalStateException("boom");
+                }));
+    assertEquals(0, queue.size());
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i), "the throw must not have cost the queue a place");
+    }
+  }
+
+  /** The array form of {@link #aNullElementThrowsOutOfABatchAndAbandonsTheRest}. */
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aNullElementThrowsOutOfAnArrayBatchAndAbandonsTheRest(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    assertThrows(NullPointerException.class, () -> queue.tryPutBatch("a", null, "b"));
+    assertEquals(Arrays.asList("a"), consumeAll(queue), "what came before the null is admitted");
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i), "the throw must not have cost the queue a place");
+    }
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aThrowingProducerInABatchGivesBackTheRunsPlaces(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            queue.tryPutBatch(
+                Arrays.asList(1, 2, 3),
+                "x",
+                (source, suffix) -> {
+                  if (source == 2) {
+                    throw new IllegalStateException("boom");
+                  }
+                  return source + suffix;
+                }));
+    assertEquals(Arrays.asList("1x"), consumeAll(queue), "what came before the throw is admitted");
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i), "the throw must not have cost the queue a place");
+    }
+  }
+
+  /**
+   * A batch claims places by {@code size()} before it walks the iterator, so a collection that
+   * reports more than it yields -- a lying {@code size()}, or one changing underneath -- must not
+   * keep the difference.
+   */
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("boundedQueues")
+  void aCollectionThatOverstatesItsSizeCostsNoPlaces(
+      String name, IntFunction<WorkQueue<String>> factory) {
+    WorkQueue<String> queue = factory.apply(CAPACITY);
+    assertTrue(queue.tryPutBatch(new OverstatedSize<>("a")).isEmpty());
+    assertEquals(
+        1, queue.tryPutBatch(new OverstatedSize<>(1), "x", (source, suffix) -> source + suffix));
+    assertEquals(Arrays.asList("a", "1x"), consumeAll(queue));
+    for (int i = 0; i < CAPACITY; i++) {
+      assertTrue(queue.tryPut("e" + i), "place " + i + " was kept for an element that never came");
+    }
+  }
+
+  /** Holds the given elements but reports a few more, the way a racing size() can. */
+  private static final class OverstatedSize<E> extends ArrayList<E> {
+    @SafeVarargs
+    OverstatedSize(E... elements) {
+      super(Arrays.asList(elements));
+    }
+
+    @Override
+    public int size() {
+      return super.size() + 2;
+    }
+  }
+
   /**
    * A backing that claims to be unable to store anything, so the one outcome no real backing
    * produces -- a refusal of an element a place was already claimed for -- can be tested at all.
@@ -1165,7 +1305,7 @@ class WorkQueueContractTest {
     }
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   void aRefusedFillGivesThePlaceBack() {
     RefusingWorkQueue<String> queue = new RefusingWorkQueue<>(1);
     try (Reservation<String> place = queue.tryReserve()) {
@@ -1177,12 +1317,34 @@ class WorkQueueContractTest {
     assertTrue(queue.tryReserve().granted(), "the place was lost for good");
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   void aRefusedStoreOnAPlainPutIsReportedAndLeaksNoPlace() {
     RefusingWorkQueue<String> queue = new RefusingWorkQueue<>(1);
     assertFalse(queue.tryPut("lost"));
     assertEquals(0, queue.size());
     // And the place came back, which is the part a leak would break.
+    assertTrue(queue.tryReserve().granted(), "the place was lost for good");
+  }
+
+  @Test
+  void aRefusedStoreInABatchIsReturnedAndLeaksNoPlace() {
+    RefusingWorkQueue<String> queue = new RefusingWorkQueue<>(2);
+    assertEquals(Arrays.asList("a", "b"), queue.tryPutBatch("a", "b"));
+    assertEquals(Arrays.asList("c", "d"), queue.tryPutBatch(Arrays.asList("c", "d")));
+    assertEquals(0, queue.size(), "a refused element must give its place back");
+    assertTrue(queue.tryReserve().granted(), "the places were lost for good");
+  }
+
+  @Test
+  void aRefusedStoreInAProducerBatchIsRejectedAndLeaksNoPlace() {
+    RefusingWorkQueue<String> queue = new RefusingWorkQueue<>(1);
+    List<Integer> rejected = new ArrayList<>();
+    assertEquals(
+        0,
+        queue.tryPutBatch(
+            Arrays.asList(1), "x", (source, suffix) -> source + suffix, rejected::add));
+    assertEquals(Arrays.asList(1), rejected, "the refusal reaches the reject handler");
+    assertEquals(0, queue.size());
     assertTrue(queue.tryReserve().granted(), "the place was lost for good");
   }
 
