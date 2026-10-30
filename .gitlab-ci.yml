@@ -297,12 +297,7 @@ maven-central-pre-release-check:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: .pre
   rules:
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      when: on_success
-      allow_failure: false
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
-      allow_failure: false
+    - when: never
   script:
     - |
       MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
@@ -326,11 +321,7 @@ dd-octo-sts-pre-release-check:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
-      allow_failure: false
+    - when: never
   before_script:
     - dd-octo-sts version
     - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
@@ -375,6 +366,8 @@ build:
       dotenv: build.env
 
 build_tests:
+  rules:
+    - when: never
   extends: .gradle_build
   variables:
     <<: *tier_xl_variables
@@ -409,8 +402,7 @@ populate_plugin_cache:
       when: always
       unprotect: true
   rules:
-    - if: '$POPULATE_CACHE'
-      when: on_success
+    - when: never
   script:
     - mkdir -p .gradle-plugin-cache
     - sudo chown -R 1001:1001 .gradle-plugin-cache
@@ -444,8 +436,7 @@ populate_dep_cache:
     - *dependency_cache
     - *build_cache
   rules:
-    - if: '$POPULATE_CACHE'
-      when: on_success
+    - when: never
   before_script:
     - !reference [.gradle_build, before_script]
     # Seed the otherwise cold writable cache, keeping the cache uploaded below self-contained.
@@ -521,6 +512,8 @@ publish-artifacts-to-s3:
 
 
 spotless:
+  rules:
+    - when: never
   extends: .gradle_build
   stage: tests
   needs: []
@@ -534,6 +527,8 @@ spotless:
     - cd test-published-dependencies && ./gradlew spotlessCheck $GRADLE_ARGS
 
 check-instrumentation-naming:
+  rules:
+    - when: never
   extends: .gradle_build
   stage: tests
   needs: [ ]
@@ -542,6 +537,8 @@ check-instrumentation-naming:
     - ./gradlew checkInstrumentationNaming $GRADLE_ARGS
 
 config-inversion-linter:
+  rules:
+    - when: never
   extends: .gradle_build
   stage: tests
   needs: []
@@ -550,6 +547,8 @@ config-inversion-linter:
     - ./gradlew checkConfigurations $GRADLE_ARGS
 
 test_published_artifacts:
+  rules:
+    - when: never
   extends: .gradle_build
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}7 # Needs Java7 for some tests
   stage: tests
@@ -581,6 +580,8 @@ test_published_artifacts:
       - ./check_reports
 
 validate_build:
+  rules:
+    - when: never
   extends: .gradle_build
   stage: tests
   needs: [ build ]
@@ -658,17 +659,23 @@ validate_build:
       - data_integrity_failure
 
 check_build_src:
+  rules:
+    - when: never
   extends: .check_job
   needs: []
   variables:
     GRADLE_TARGET: ":buildSrc:build :build-logic:check"
 
 check_base:
+  rules:
+    - when: never
   extends: .check_job
   variables:
     GRADLE_TARGET: ":baseCheck"
 
 check_inst:
+  rules:
+    - when: never
   extends: .check_job
   parallel: 4
   variables:
@@ -676,6 +683,8 @@ check_inst:
     CACHE_TYPE: "inst"
 
 check_smoke:
+  rules:
+    - when: never
   extends: .check_job
   parallel: 4
   variables:
@@ -683,11 +692,15 @@ check_smoke:
     CACHE_TYPE: "smoke"
 
 check_profiling:
+  rules:
+    - when: never
   extends: .check_job
   variables:
     GRADLE_TARGET: ":profilingCheck"
 
 check_debugger:
+  rules:
+    - when: never
   extends: .check_job
   variables:
     GRADLE_TARGET: ":debuggerCheck"
@@ -705,11 +718,7 @@ muzzle:
             CACHE_TYPE: "inst"
   stage: tests
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-      when: never
-    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
-      when: never
-    - when: on_success
+    - when: never
   parallel:
     matrix:
       - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
@@ -743,11 +752,7 @@ muzzle-dep-report:
   needs: *needs_build_tests_inst
   stage: tests
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-      when: never
-    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
-      when: never
-    - when: on_success
+    - when: never
   variables:
     CACHE_TYPE: "inst"
   script:
@@ -963,6 +968,8 @@ muzzle-dep-report:
     - .test_job_with_test_agent_common
 
 agent_integration_tests:
+  rules:
+    - when: never
   extends: .test_job_amd64
   tags: [ "arch:amd64" ]
   variables:
@@ -980,6 +987,8 @@ agent_integration_tests:
         DD_API_KEY: "invalid_key_but_this_is_fine"
 
 test_base:
+  rules:
+    - when: never
   extends: .test_job_amd64
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
@@ -1000,6 +1009,8 @@ test_base:
     - !reference [.test_job_common, script]
 
 test_base_arm64:
+  rules:
+    - when: never
   extends: .test_job_arm64
   variables:
     GRADLE_TARGET: ":baseTest"
@@ -1008,6 +1019,8 @@ test_base_arm64:
     matrix: *test_matrix_4
 
 test_inst:
+  rules:
+    - when: never
   extends: .test_job_amd64_with_test_agent
   needs: *needs_build_tests_inst
   variables:
@@ -1018,6 +1031,8 @@ test_inst:
     matrix: *test_matrix_8
 
 test_inst_arm64:
+  rules:
+    - when: never
   extends: .test_job_arm64_with_test_agent
   # Instrumentation tests are slower on arm64 runners than the 1h default allows.
   timeout: 75 minutes
@@ -1029,6 +1044,8 @@ test_inst_arm64:
     matrix: *test_matrix_8
 
 test_inst_latest:
+  rules:
+    - when: never
   extends: .test_job_amd64_with_test_agent
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
@@ -1051,6 +1068,8 @@ test_inst_latest:
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
 
 test_inst_latest_arm64:
+  rules:
+    - when: never
   extends: .test_job_arm64_with_test_agent
   variables:
     <<: *tier_l_variables
@@ -1071,9 +1090,7 @@ test_flaky:
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
   rules:
-    - *master_only
-    - if: $RUN_FLAKY_TESTS == "true"
-      when: on_success
+    - when: never
   parallel:
     matrix:
       - GRADLE_TARGET: [":baseTest", ":smokeTest", ":debuggerTest"]
@@ -1091,12 +1108,12 @@ test_flaky_inst:
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
   rules:
-    - *master_only
-    - if: $RUN_FLAKY_TESTS == "true"
-      when: on_success
+    - when: never
   parallel: 6
 
 test_profiling:
+  rules:
+    - when: never
   extends: .test_job_amd64
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
@@ -1114,6 +1131,8 @@ test_profiling:
     matrix: *test_matrix
 
 test_profiling_arm64:
+  rules:
+    - when: never
   extends: .test_job_arm64
   variables:
     GRADLE_TARGET: ":profilingTest"
@@ -1124,6 +1143,8 @@ test_profiling_arm64:
 # specific jvms list for debugger project because J9-based JVMs have issues with local vars
 # so need to test at least against one J9-based JVM
 test_debugger:
+  rules:
+    - when: never
   extends: .test_job_amd64
   variables:
     GRADLE_TARGET: ":debuggerTest"
@@ -1138,6 +1159,8 @@ test_debugger:
     - !reference [.test_job_common, script]
 
 test_debugger_arm64:
+  rules:
+    - when: never
   extends: .test_job_arm64
   variables:
     GRADLE_TARGET: ":debuggerTest"
@@ -1151,6 +1174,8 @@ test_debugger_arm64:
     - !reference [.test_job_common, script]
 
 test_smoke:
+  rules:
+    - when: never
   extends: .test_job_amd64_with_test_agent
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
@@ -1171,6 +1196,8 @@ test_smoke:
     matrix: *test_matrix_8
 
 test_smoke_arm64:
+  rules:
+    - when: never
   extends: .test_job_arm64_with_test_agent
   variables:
     <<: *tier_l_variables
@@ -1184,12 +1211,7 @@ test_ssi_smoke:
   extends: .test_job_amd64
   needs: *needs_build_tests_smoke
   rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-      when: on_success
-    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-      when: on_success
-    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
-      when: on_success
+    - when: never
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :smokeTest"
@@ -1200,6 +1222,8 @@ test_ssi_smoke:
     matrix: *test_matrix_8
 
 test_ssi_smoke_arm64:
+  rules:
+    - when: never
   extends: .test_job_arm64
   variables:
     <<: *tier_l_variables
@@ -1211,6 +1235,8 @@ test_ssi_smoke_arm64:
     matrix: *test_matrix_8
 
 test_smoke_graalvm:
+  rules:
+    - when: never
   extends: .test_job_amd64
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
@@ -1225,6 +1251,8 @@ test_smoke_graalvm:
       - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
 
 test_smoke_graalvm_arm64:
+  rules:
+    - when: never
   extends: .test_job_arm64
   tags: [ "arch:arm64" ]
   variables:
@@ -1240,6 +1268,8 @@ test_smoke_graalvm_arm64:
       - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
 
 test_smoke_semeru8_debugger:
+  rules:
+    - when: never
   extends: .test_job_amd64
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
@@ -1255,16 +1285,7 @@ aggregate_test_counts:
   # Keep stage ordering, but prevent GitLab from downloading all previous-stage artifacts.
   dependencies: []
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      when: on_success
-    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-      when: on_success
-    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
-      when: on_success
-    - if: '$CI_COMMIT_BRANCH'
-      when: on_success
+    - when: never
   script:
     - *set_datadog_api_keys
     - export TEST_COUNTS_S3_PREFIX="test-counts/${CI_PIPELINE_ID}"
@@ -1284,14 +1305,7 @@ deploy_to_profiling_backend:
   stage: publish
   needs: [ build ]
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: on_success
-    - if: '$CI_COMMIT_TAG =~ /^v.*/'
-      when: on_success
-    - when: manual
-      allow_failure: true
+    - when: never
   trigger:
     project: DataDog/profiling-backend
     branch: dogfooding
@@ -1326,6 +1340,8 @@ deploy_to_di_backend:manual:
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
 deploy_to_reliability_env:
+  rules:
+    - when: never
   needs: [ build ]
 
 # If the deploy_to_maven_central job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
@@ -1339,16 +1355,7 @@ deploy_to_maven_central:
   variables:
     CACHE_TYPE: "lib"
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      when: on_success
-    # Do not deploy release candidate versions
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
-      allow_failure: true
-    - when: manual
-      allow_failure: true
+    - when: never
   script:
     - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
     - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
@@ -1369,11 +1376,7 @@ deploy_snapshot_with_ddprof_snapshot:
   variables:
     CACHE_TYPE: "lib"
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    # Manual trigger only - for testing with ddprof snapshot versions
-    - when: manual
-      allow_failure: true
+    - when: never
   script:
     - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
     - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
@@ -1396,10 +1399,7 @@ deploy_artifacts_to_github:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
+    - when: never
   # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
   needs:
@@ -1428,7 +1428,7 @@ deploy_artifacts_to_github:
 
 requirements_json_test:
   rules:
-    - when: on_success
+    - when: never
   variables:
     REQUIREMENTS_BLOCK_JSON_PATH: "metadata/requirements-block.json"
     REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
@@ -1441,10 +1441,7 @@ override_verify_maven_central:
   stage: publish
   needs: [ ]
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: manual
-      allow_failure: true
+    - when: never
   script:
     - touch OVERRIDE_MAVEN_VERIFY
   cache: # Cache is used to signal between the override_verify_maven_central and verify_maven_central_deployment jobs
@@ -1460,10 +1457,7 @@ verify_maven_central_deployment:
   stage: publish-release-artifacts
   needs: [ deploy_to_maven_central ]
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
+    - when: never
   cache: # Cache is used to signal between the override_verify_maven_central and verify_maven_central_deployment jobs
     - key: $CI_PIPELINE_ID-OVERRIDE_SIGNAL
       paths:
@@ -1515,6 +1509,8 @@ configure_system_tests:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
 
 create_key:
+  rules:
+    - when: never
   stage: generate-signing-key
   when: manual
   needs: [ ]
@@ -1530,12 +1526,16 @@ create_key:
       - pubkeys
 
 validate_supported_configurations_v2_local_file:
+  rules:
+    - when: never
   extends: .validate_supported_configurations_v2_local_file
   variables:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
     BACKFILLED: "false"
 
 update_central_configurations_version_range_v2:
+  rules:
+    - when: never
   extends: .update_central_configurations_version_range_v2
   variables:
     LOCAL_REPO_NAME: "dd-trace-java"
