@@ -5,6 +5,7 @@ import datadog.gradle.plugin.ci.testAggregate
 plugins {
   kotlin("jvm") version libs.versions.kotlin.plugin apply false
 
+  id("dd-trace-java.inline-of-duty")
   id("dd-trace-java.ci-jobs")
   id("dd-trace-java.config-inversion-linter")
   id("dd-trace-java.dependency-locking")

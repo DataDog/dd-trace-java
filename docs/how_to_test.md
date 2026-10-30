@@ -209,6 +209,21 @@ using the test command for this module only:
 > [!TIP]
 > Flaky tests can be disabled by setting the Gradle property `skipFlakyTests` (ex. `./gradlew -PskipFlakyTests <task>`).
 
+### JIT Inlining Report
+
+Add `-PinlineOfDuty` to an ordinary test command to capture HotSpot inlining decisions
+and generate `build/reports/inline-of-duty/index.html`. The Gradle report finalizer
+also runs when tests fail. Capture is disabled by default and needs no Python or
+external analyzer. See the [plugin guide](../build-logic/inline-of-duty/README.md)
+for aggregate reports, existing captures, interpretation and CI configuration.
+With `INLINE_OF_DUTY=true`, CI also runs `aggregate_inline_of_duty` after the regular
+test stages and publishes one pipeline-wide report from the available job captures.
+Exports default to the top 10 qualified contexts (`-PinlineOfDutyTop=X`), retaining
+exact category totals; full evidence is opt-in (`-PinlineOfDutyFullEvidence=true`).
+A compact `summary.md` provides cumulative counts and percentages. The
+`post_jit_inlining_comment` job posts it on the matching PR and updates the same
+comment on later runs.
+
 ### Running Tests on Another JVM
 
 To run tests on a different JVM than the one used for the build, you can specify it using the `-PtestJvm=` command line
