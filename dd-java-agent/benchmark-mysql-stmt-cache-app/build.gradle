@@ -1,0 +1,56 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '3.3.5'
+  id 'io.spring.dependency-management' version '1.1.6'
+}
+
+repositories {
+  mavenCentral()
+}
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+  targetCompatibility = JavaVersion.VERSION_17
+}
+def connectorJ = 'com.mysql:mysql-connector-j:8.4.0'
+
+sourceSets {
+  loadgen {
+    java.srcDirs = ['src/loadgen/java']
+  }
+  micro {
+    java.srcDirs = ['src/micro/java']
+  }
+}
+
+configurations {
+  microImplementation
+}
+
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+  implementation connectorJ
+
+  microImplementation connectorJ
+}
+
+tasks.named('bootJar') {
+  archiveFileName = 'stmtcache-bench-app.jar'
+}
+
+tasks.register('loadgenJar', Jar) {
+  archiveFileName = 'stmtcache-bench-tools.jar'
+  from sourceSets.loadgen.output
+}
+tasks.register('microJar', Jar) {
+  archiveFileName = 'stmtcache-micro.jar'
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  from sourceSets.micro.output
+  from { configurations.microRuntimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+  exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+}
+
+tasks.named('assemble') {
+  dependsOn 'loadgenJar', 'microJar'
+}
