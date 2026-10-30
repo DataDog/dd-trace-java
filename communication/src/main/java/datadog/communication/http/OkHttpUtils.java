@@ -177,12 +177,13 @@ public final class OkHttpUtils {
         .dispatcher(
             dispatcher != null ? dispatcher : new Dispatcher(RejectingExecutorService.INSTANCE));
 
+    final boolean useNamedPipe = unixDomainSocketPath == null && namedPipe != null;
     if (unixDomainSocketPath != null) {
       builder.socketFactory(
           new UnixDomainSocketFactory(
               new File(unixDomainSocketPath), useJdkUnixDomainSocket, agentConfiguredUsingDefault));
       log.debug("Using UnixDomainSocket as http transport");
-    } else if (namedPipe != null) {
+    } else if (useNamedPipe) {
       builder.socketFactory(new NamedPipeSocketFactory(namedPipe));
       log.debug("Using NamedPipe as http transport");
     }
@@ -204,7 +205,11 @@ public final class OkHttpUtils {
       builder.retryOnConnectionFailure(retryOnConnectionFailure);
     }
 
-    if (maxRunningRequests != null) {
+    if (useNamedPipe) {
+      // NamedPipeSocket can't time out a read, so OkHttp's health check on a pooled connection can
+      // block forever. Don't keep idle pipe connections; each request opens its own.
+      builder.connectionPool(new ConnectionPool(0, 1, SECONDS));
+    } else if (maxRunningRequests != null) {
       // Reusing connections causes non daemon threads to be created which causes agent to prevent
       // app from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
       builder.connectionPool(new ConnectionPool(maxRunningRequests, 1, SECONDS));
