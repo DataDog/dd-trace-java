@@ -1,13 +1,18 @@
 package datadog.common.queue;
 
+import static datadog.contract.Confined.Extent.CALL;
+
+import datadog.contract.Confined;
 import javax.annotation.Nonnull;
 
 /**
  * The capability to resubmit work after a consumer failure.
  *
  * <p>Only obtainable inside {@link RetryStrategy#onFailure}, never from a plain consumer, so
- * re-enqueue-after-failure stays visibly distinct from ordinary admission.
+ * re-enqueue-after-failure stays visibly distinct from ordinary admission. Valid only during that
+ * call: it carries the failed item's attempt count, which a later or different use would misreport.
  */
+@Confined(CALL)
 public interface RetryQueue<T> {
   /**
    * Resubmits the failed item.
