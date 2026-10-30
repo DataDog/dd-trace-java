@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,6 +22,8 @@ public class JUnit4TracingListener extends TracingListener {
 
   private final ContextStore<Description, TestExecutionTracker> executionTrackers;
   private final Map<TestSuiteDescriptor, Description> startedSuites = new ConcurrentHashMap<>();
+  private final ThreadLocal<List<TestSuiteDescriptor>> suitesByThread =
+      ThreadLocal.withInitial(ArrayList::new);
 
   public JUnit4TracingListener(ContextStore<Description, TestExecutionTracker> executionTrackers) {
     this.executionTrackers = executionTrackers;
@@ -43,6 +46,7 @@ public class JUnit4TracingListener extends TracingListener {
         suiteDescriptor,
         key -> {
           onTestSuiteStart(key, description);
+          suitesByThread.get().add(key);
           return description;
         });
   }
@@ -86,10 +90,22 @@ public class JUnit4TracingListener extends TracingListener {
         .onTestSuiteFinish(suiteDescriptor, null);
   }
 
-  public void finishTestSuites() {
-    // Some runners, including ScalaTest's JUnitRunner, never emit suite lifecycle events.
-    for (TestSuiteDescriptor suiteDescriptor : startedSuites.keySet()) {
-      finishTestSuite(suiteDescriptor);
+  public int getStartedSuiteCount() {
+    return suitesByThread.get().size();
+  }
+
+  public void finishTestSuites(int previousSuiteCount) {
+    // Nested runners share the listener, but must finish their own suites on the originating
+    // thread.
+    List<TestSuiteDescriptor> suites = suitesByThread.get();
+    try {
+      for (int i = suites.size() - 1; i >= previousSuiteCount; i--) {
+        finishTestSuite(suites.remove(i));
+      }
+    } finally {
+      if (suites.isEmpty()) {
+        suitesByThread.remove();
+      }
     }
   }
 

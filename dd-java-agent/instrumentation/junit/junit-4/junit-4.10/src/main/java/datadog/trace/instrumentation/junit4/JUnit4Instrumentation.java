@@ -100,7 +100,10 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
   public static class JUnit4Advice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static JUnit4TracingListener addTracingListener(
-        @Advice.This final Runner runner, @Advice.Argument(0) final RunNotifier runNotifier) {
+        @Advice.This final Runner runner,
+        @Advice.Argument(0) final RunNotifier runNotifier,
+        @Advice.Local("suiteCount") int suiteCount,
+        @Advice.Local("listenerAdded") boolean listenerAdded) {
       if (!JUnit4Utils.runnerToFramework(runner).equals(TestFrameworkInstrumentation.JUNIT4)) {
         // checking class names in hierarchyMatcher alone is not enough:
         // for example, Karate calls #run method of its super class,
@@ -117,6 +120,11 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
 
       for (final RunListener listener : runListeners) {
         RunListener tracingListener = JUnit4Utils.toTracingListener(listener);
+        if (tracingListener instanceof JUnit4TracingListener) {
+          JUnit4TracingListener junit4Listener = (JUnit4TracingListener) tracingListener;
+          suiteCount = junit4Listener.getStartedSuiteCount();
+          return junit4Listener;
+        }
         if (tracingListener != null) {
           // prevents installing TracingListener multiple times
           return null;
@@ -127,18 +135,23 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
           new JUnit4TracingListener(
               InstrumentationContext.get(Description.class, TestExecutionTracker.class));
       runNotifier.addListener(tracingListener);
+      listenerAdded = true;
       return tracingListener;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishTestSuites(
         @Advice.Enter final JUnit4TracingListener tracingListener,
-        @Advice.Argument(0) final RunNotifier runNotifier) {
+        @Advice.Argument(0) final RunNotifier runNotifier,
+        @Advice.Local("suiteCount") final int suiteCount,
+        @Advice.Local("listenerAdded") final boolean listenerAdded) {
       if (tracingListener != null) {
         try {
-          tracingListener.finishTestSuites();
+          tracingListener.finishTestSuites(suiteCount);
         } finally {
-          runNotifier.removeListener(tracingListener);
+          if (listenerAdded) {
+            runNotifier.removeListener(tracingListener);
+          }
         }
       }
     }

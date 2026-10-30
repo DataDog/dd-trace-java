@@ -2,12 +2,15 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit4.JUnit4Utils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import org.example.*
 import org.junit.jupiter.api.Assumptions
+import org.junit.experimental.ParallelComputer
+import org.junit.runner.Computer
 import org.junit.runner.JUnitCore
 
 @DisableTestTrace(reason = "avoid self-tracing")
@@ -33,6 +36,42 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
 
     then:
     noExceptionThrown()
+  }
+
+  def "test multiple runners without suite lifecycle events #mode"() {
+    when:
+    def initialSpan = AgentTracer.activeSpan()
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(false))
+    def result
+    try {
+      result = runner.run(computer, tests as Class[])
+    } finally {
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.JUNIT4)
+    }
+
+    assert result.runCount == 4
+    assert result.ignoreCount == 2
+    assert result.failures*.description*.methodName == ["existing failure", "existing failure"]
+    assert result.failures*.exception*.class == [AssertionError, AssertionError]
+
+    def events = getEventsAsJson(TEST_WRITER.toList())
+    def suites = events.findAll { it.type == "test_suite_end" }
+    assert suites*.content*.meta*.get("test.suite").sort() == [TestSucceedCustomRunner.name, TestSucceedCustomRunner.AnotherSuite.name].sort()
+    suites.each { suite ->
+      def suiteTests = events.findAll { it.type == "test" && it.content.test_suite_id == suite.content.test_suite_id }
+      assert suiteTests.size() == 3
+      assert suiteTests.collectEntries { [(it.content.meta["test.name"]): it.content.meta["test.status"]] } == ["adds": "pass", "existing failure": "fail", "ignored": "skip"]
+    }
+    assert AgentTracer.activeSpan() == initialSpan
+
+    then:
+    noExceptionThrown()
+
+    where:
+    mode                  | computer                          | tests
+    "parallel"            | new ParallelComputer(true, false) | [TestSucceedCustomRunner, TestSucceedCustomRunner.AnotherSuite]
+    "sequential"          | new Computer()                    | [TestSucceedCustomRunner, TestSucceedCustomRunner.AnotherSuite]
+    "sequential reversed" | new Computer()                    | [TestSucceedCustomRunner.AnotherSuite, TestSucceedCustomRunner]
   }
 
   def "test #testcaseName"() {

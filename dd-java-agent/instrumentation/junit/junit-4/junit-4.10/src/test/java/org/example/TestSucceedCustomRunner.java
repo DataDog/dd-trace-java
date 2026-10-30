@@ -9,6 +9,8 @@ import org.junit.runner.notification.RunNotifier;
 @RunWith(TestSucceedCustomRunner.CustomRunner.class)
 public class TestSucceedCustomRunner {
 
+  public static class AnotherSuite extends TestSucceedCustomRunner {}
+
   public static class CustomRunner extends Runner {
     private final Class<?> testClass;
 
