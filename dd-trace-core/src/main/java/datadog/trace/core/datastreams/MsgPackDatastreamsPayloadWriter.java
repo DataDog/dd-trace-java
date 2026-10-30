@@ -2,7 +2,7 @@ package datadog.trace.core.datastreams;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
-import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.ChunkedStreamingBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -14,6 +14,7 @@ import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.Sink;
+import java.nio.BufferOverflowException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -62,18 +63,27 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] CONFIG_MEMBER_PROTOCOL = "MemberProtocol".getBytes(ISO_8859_1);
   private static final byte[] CONFIG_ENTRIES = "Config".getBytes(ISO_8859_1);
 
-  private static final int INITIAL_CAPACITY = 512 * 1024;
+  private static final int MAX_PAYLOAD_SIZE = 5 << 20;
 
   private final WritableFormatter writer;
   private final Sink sink;
-  private final GrowableBuffer buffer;
+  private final ChunkedStreamingBuffer buffer;
   private final WellKnownTags wellKnownTags;
   private final byte[] tracerVersionValue;
   private final byte[] primaryTagValue;
 
   public MsgPackDatastreamsPayloadWriter(
       Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag) {
-    buffer = new GrowableBuffer(INITIAL_CAPACITY);
+    this(sink, wellKnownTags, tracerVersion, primaryTag, MAX_PAYLOAD_SIZE);
+  }
+
+  MsgPackDatastreamsPayloadWriter(
+      Sink sink,
+      WellKnownTags wellKnownTags,
+      String tracerVersion,
+      String primaryTag,
+      int maxPayloadSize) {
+    buffer = new ChunkedStreamingBuffer(maxPayloadSize, sink);
     writer = new MsgPackWriter(buffer);
     this.sink = sink;
     this.wellKnownTags = wellKnownTags;
@@ -108,6 +118,20 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   @Override
   public void writePayload(Collection<StatsBucket> data, String serviceNameOverride) {
+    try {
+      write(data, serviceNameOverride);
+    } catch (BufferOverflowException ignored) {
+      // the buffer discards the rest of the payload, and mark() below reports it
+    }
+    if (buffer.mark()) {
+      buffer.flush();
+    } else {
+      log.debug("dropping a data streams payload larger than {} bytes", buffer.capacity());
+      buffer.reset();
+    }
+  }
+
+  private void write(Collection<StatsBucket> data, String serviceNameOverride) {
     final List<UTF8BytesString> processTags = ProcessTags.getTagsAsUTF8ByteStringList();
     final boolean hasProcessTags = processTags != null;
     writer.startMap(8 + (hasProcessTags ? 1 : 0));
@@ -199,10 +223,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       writer.startArray(processTags.size());
       processTags.forEach(writer::writeUTF8);
     }
-
-    buffer.mark();
-    sink.accept(buffer.messageCount(), buffer.slice());
-    buffer.reset();
   }
 
   private void writeBucket(StatsBucket bucket, Writable packer) {
