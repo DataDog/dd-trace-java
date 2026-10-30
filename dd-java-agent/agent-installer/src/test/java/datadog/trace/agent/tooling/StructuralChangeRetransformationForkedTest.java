@@ -2,39 +2,49 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.util.CollectionUtils.appendToArray;
 import static datadog.trace.util.CollectionUtils.arrayContains;
+import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.EnumSet;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
 import net.bytebuddy.description.method.MethodList;
+import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
+import net.bytebuddy.utility.JavaModule;
 import net.bytebuddy.utility.OpenedClassReader;
 import org.junit.jupiter.api.Test;
 
+@WithConfig(key = "resolver.simple.method.graph", value = "true")
 class StructuralChangeRetransformationForkedTest {
 
   private static final String TARGET_CLASS_NAME =
       "datadog.trace.agent.tooling.GeneratedStructuralChangeTarget";
+  private static final AtomicInteger NEXT_TARGET_ID = new AtomicInteger();
 
   @Test
   void reappliesStructuralChangeWhenRetransformingClassModifiedOnInitialLoad() throws Exception {
@@ -43,13 +53,15 @@ class StructuralChangeRetransformationForkedTest {
     StructuralChangeInstrumentation structuralChange = new StructuralChangeInstrumentation();
     ClassFileTransformer transformer = installTransformer(instrumentation, structuralChange);
     try {
-      Class<?> targetClass = loadTargetClass();
+      Class<?> targetClass = loadTargetClass(structuralChange.instrumentedType());
 
+      assertNull(structuralChange.error.get());
       assertEquals(1, structuralChange.transformations.get());
       assertTrue(StructuralChangeMarker.class.isAssignableFrom(targetClass));
 
       instrumentation.retransformClasses(targetClass);
 
+      assertNull(structuralChange.error.get());
       assertEquals(2, structuralChange.transformations.get());
       assertTrue(StructuralChangeMarker.class.isAssignableFrom(targetClass));
     } finally {
@@ -61,18 +73,47 @@ class StructuralChangeRetransformationForkedTest {
   void skipsStructuralChangeForClassLoadedBeforeTransformerInstallation() throws Exception {
     Instrumentation instrumentation = ByteBuddyAgent.install();
 
-    Class<?> targetClass = loadTargetClass();
-
     StructuralChangeInstrumentation structuralChange = new StructuralChangeInstrumentation();
+    Class<?> targetClass = loadTargetClass(structuralChange.instrumentedType());
     ClassFileTransformer transformer = installTransformer(instrumentation, structuralChange);
     try {
+      assertNull(structuralChange.error.get());
       assertEquals(0, structuralChange.transformations.get());
       assertFalse(StructuralChangeMarker.class.isAssignableFrom(targetClass));
 
       instrumentation.retransformClasses(targetClass);
 
+      assertNull(structuralChange.error.get());
       assertEquals(0, structuralChange.transformations.get());
       assertFalse(StructuralChangeMarker.class.isAssignableFrom(targetClass));
+    } finally {
+      instrumentation.removeTransformer(transformer);
+    }
+  }
+
+  @Test
+  void advisesPreloadedMethodsWhenStructuralChangeIsSkipped() throws Exception {
+    Instrumentation instrumentation = ByteBuddyAgent.install();
+    StructuralChangeInstrumentation structuralChange = new StructuralChangeInstrumentation(true);
+    Class<?> targetClass = loadTargetClass(structuralChange.instrumentedType());
+    assertEquals(
+        1, targetClass.getMethod("value").invoke(targetClass.getConstructor().newInstance()));
+
+    ClassFileTransformer transformer = installTransformer(instrumentation, structuralChange);
+    try {
+      assertNull(structuralChange.error.get());
+      assertEquals(0, structuralChange.transformations.get());
+      assertFalse(StructuralChangeMarker.class.isAssignableFrom(targetClass));
+      assertEquals(
+          2, targetClass.getMethod("value").invoke(targetClass.getConstructor().newInstance()));
+
+      instrumentation.retransformClasses(targetClass);
+
+      assertNull(structuralChange.error.get());
+      assertEquals(0, structuralChange.transformations.get());
+      assertFalse(StructuralChangeMarker.class.isAssignableFrom(targetClass));
+      assertEquals(
+          2, targetClass.getMethod("value").invoke(targetClass.getConstructor().newInstance()));
     } finally {
       instrumentation.removeTransformer(transformer);
     }
@@ -90,6 +131,18 @@ class StructuralChangeRetransformationForkedTest {
             new AgentBuilder.Default()
                 .disableClassFormatChanges()
                 .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+                .with(
+                    new AgentBuilder.Listener.Adapter() {
+                      @Override
+                      public void onError(
+                          String name,
+                          ClassLoader loader,
+                          JavaModule module,
+                          boolean loaded,
+                          Throwable throwable) {
+                        structuralChange.error.compareAndSet(null, throwable);
+                      }
+                    })
                 .ignore(none()),
             instrumenterIndex,
             EnumSet.of(InstrumenterModule.TargetSystem.TRACING),
@@ -102,10 +155,12 @@ class StructuralChangeRetransformationForkedTest {
     return transformer;
   }
 
-  private Class<?> loadTargetClass() {
+  private Class<?> loadTargetClass(String targetName) {
     return new ByteBuddy()
         .subclass(Object.class)
-        .name(TARGET_CLASS_NAME)
+        .name(targetName)
+        .defineMethod("value", int.class, Visibility.PUBLIC)
+        .intercept(FixedValue.value(1))
         .make()
         .load(getClass().getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
         .getLoaded();
@@ -119,14 +174,22 @@ class StructuralChangeRetransformationForkedTest {
           Instrumenter.HasMethodAdvice {
 
     private final AtomicInteger transformations = new AtomicInteger();
+    private final AtomicReference<Throwable> error = new AtomicReference<>();
+    private final String targetName = TARGET_CLASS_NAME + NEXT_TARGET_ID.incrementAndGet();
+    private final boolean adviseValue;
 
     private StructuralChangeInstrumentation() {
+      this(false);
+    }
+
+    private StructuralChangeInstrumentation(boolean adviseValue) {
       super("structural-change-retransformation-test");
+      this.adviseValue = adviseValue;
     }
 
     @Override
     public String instrumentedType() {
-      return TARGET_CLASS_NAME;
+      return targetName;
     }
 
     @Override
@@ -139,7 +202,14 @@ class StructuralChangeRetransformationForkedTest {
     }
 
     @Override
-    public void methodAdvice(MethodTransformer transformer) {}
+    public void methodAdvice(MethodTransformer transformer) {
+      if (adviseValue) {
+        transformer.applyAdvice(named("value"), ValueAdvice.class.getName());
+      } else {
+        // Resolving this class would fail before the independent structural advice can run.
+        transformer.applyAdvice(named("absent"), "missing.Advice");
+      }
+    }
 
     @Override
     public Class<?> structuralChangeMarker() {
@@ -150,6 +220,13 @@ class StructuralChangeRetransformationForkedTest {
       public static ReferenceMatcher create() {
         return ReferenceMatcher.NO_REFERENCES;
       }
+    }
+  }
+
+  public static class ValueAdvice {
+    @Advice.OnMethodExit
+    public static void exit(@Advice.Return(readOnly = false) int value) {
+      value++;
     }
   }
 
