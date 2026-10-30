@@ -163,6 +163,17 @@ class FlatHashtableTest {
   }
 
   @Test
+  void tablesKeepThePreciseEntryArrayTypeThroughGrowth() {
+    // the array constructor mints a real TestHashedEntry[], not an Object[] or a base-type array
+    TestHashedEntry[] table = FlatHashtable.create(1, TestHashedEntry[]::new);
+    assertSame(TestHashedEntry[].class, table.getClass());
+
+    TestHashedEntry[] grown = FlatHashtable.resize(table, TestHashedEntry[]::new);
+    assertSame(TestHashedEntry[].class, grown.getClass());
+    assertEquals(table.length * 2, grown.length);
+  }
+
+  @Test
   void capacityFor_roundsToPowerOfTwoAtLeastTwiceLimit() {
     assertEquals(2, FlatHashtable.capacityFor(1));
     assertEquals(8, FlatHashtable.capacityFor(4));
@@ -177,14 +188,14 @@ class FlatHashtableTest {
 
   @Test
   void create_allocatesTypedTableOfCapacity() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
+    TestEntry[] table = FlatHashtable.create(4, TestEntry[]::new);
     assertEquals(8, table.length);
     assertEquals(TestEntry.class, table.getClass().getComponentType());
   }
 
   @Test
   void getOrCreate_insertsOnceAndReturnsTheExistingEntry() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 8);
+    TestEntry[] table = FlatHashtable.create(8, TestEntry[]::new);
     TestEntry first = FlatHashtable.tryGetOrCreate(table, "a", TestEntryStrategy.INSTANCE, CREATE);
     assertEquals("a", first.key);
     // A second call must return the SAME instance, not mint a new one.
@@ -194,7 +205,7 @@ class FlatHashtableTest {
 
   @Test
   void get_returnsNullForAbsentKey() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 8);
+    TestEntry[] table = FlatHashtable.create(8, TestEntry[]::new);
     assertNull(FlatHashtable.get(table, "missing", TestEntryStrategy.INSTANCE));
     FlatHashtable.tryGetOrCreate(table, "present", TestEntryStrategy.INSTANCE, CREATE);
     assertNull(FlatHashtable.get(table, "still-missing", TestEntryStrategy.INSTANCE));
@@ -203,7 +214,7 @@ class FlatHashtableTest {
   @Test
   void getOrCreate_returnsNullWhenTableIsFull() {
     // capacityFor(1) == 2 slots.
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1);
+    TestEntry[] table = FlatHashtable.create(1, TestEntry[]::new);
     assertTrue(
         FlatHashtable.tryGetOrCreate(table, "k0", TestEntryStrategy.INSTANCE, CREATE) != null);
     assertTrue(
@@ -226,7 +237,7 @@ class FlatHashtableTest {
   @Test
   void collision_probesPastOccupiedSlots_andResolvesEach() {
     // 8 slots; COLLIDING sends all to slot 0
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
+    TestEntry[] table = FlatHashtable.create(4, TestEntry[]::new);
     TestEntry a = FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
     // slot 0 taken -> 1
     TestEntry b = FlatHashtable.tryGetOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
@@ -251,7 +262,7 @@ class FlatHashtableTest {
   @Test
   void collision_probeWrapsAroundToFront() {
     // 2 slots (0,1), mask=1; LAST_SLOT starts at 1
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1);
+    TestEntry[] table = FlatHashtable.create(1, TestEntry[]::new);
     // -> slot 1
     TestEntry k0 = FlatHashtable.tryGetOrCreate(table, "k0", TestLastSlotStrategy.INSTANCE, CREATE);
     // taken -> wraps to 0
@@ -265,7 +276,7 @@ class FlatHashtableTest {
 
   @Test
   void get_returnsNullWhenTableFullAndKeyAbsent() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1); // 2 slots
+    TestEntry[] table = FlatHashtable.create(1, TestEntry[]::new); // 2 slots
     FlatHashtable.tryGetOrCreate(table, "k0", TestCollidingStrategy.INSTANCE, CREATE);
     // fills slots 0 and 1
     FlatHashtable.tryGetOrCreate(table, "k1", TestCollidingStrategy.INSTANCE, CREATE);
@@ -276,7 +287,7 @@ class FlatHashtableTest {
 
   @Test
   void insert_generalFlavor_placesViaHashOfAndResolves() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 8);
+    TestEntry[] table = FlatHashtable.create(8, TestEntry[]::new);
     TestEntry e = new TestEntry("a");
     // flavor 2: the home comes from TestEntryStrategy.INSTANCE.hashOf(e)
     assertTrue(FlatHashtable.insert(table, e, TestEntryStrategy.INSTANCE));
@@ -285,7 +296,7 @@ class FlatHashtableTest {
 
   @Test
   void insert_entryFlavor_placesViaCachedHashAndResolves() {
-    TestHashedEntry[] table = FlatHashtable.create(TestHashedEntry.class, 8);
+    TestHashedEntry[] table = FlatHashtable.create(8, TestHashedEntry[]::new);
     TestHashedEntry e = new TestHashedEntry("a");
     // flavor 1: the home comes from the Entry's own cached hash, no strategy needed
     assertTrue(FlatHashtable.insert(table, e));
@@ -294,7 +305,7 @@ class FlatHashtableTest {
 
   @Test
   void insert_returnsFalseWhenFull() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1); // 2 slots
+    TestEntry[] table = FlatHashtable.create(1, TestEntry[]::new); // 2 slots
     assertTrue(FlatHashtable.insert(table, new TestEntry("k0"), TestEntryStrategy.INSTANCE));
     assertTrue(FlatHashtable.insert(table, new TestEntry("k1"), TestEntryStrategy.INSTANCE));
     // no room
@@ -303,7 +314,7 @@ class FlatHashtableTest {
 
   @Test
   void forEach_visitsEveryEntry() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 8);
+    TestEntry[] table = FlatHashtable.create(8, TestEntry[]::new);
     FlatHashtable.tryGetOrCreate(table, "a", TestEntryStrategy.INSTANCE, CREATE);
     FlatHashtable.tryGetOrCreate(table, "b", TestEntryStrategy.INSTANCE, CREATE);
     FlatHashtable.tryGetOrCreate(table, "c", TestEntryStrategy.INSTANCE, CREATE);
@@ -315,7 +326,7 @@ class FlatHashtableTest {
 
   @Test
   void forEach_contextVariant_passesContextWithoutCapture() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 8);
+    TestEntry[] table = FlatHashtable.create(8, TestEntry[]::new);
     FlatHashtable.tryGetOrCreate(table, "a", TestEntryStrategy.INSTANCE, CREATE);
     FlatHashtable.tryGetOrCreate(table, "b", TestEntryStrategy.INSTANCE, CREATE);
 
@@ -326,7 +337,7 @@ class FlatHashtableTest {
 
   @Test
   void iterator_yieldsEveryEntrySharingTheHash() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4); // COLLIDING sends all to slot 0
+    TestEntry[] table = FlatHashtable.create(4, TestEntry[]::new); // COLLIDING sends all to slot 0
     TestEntry a = FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
     TestEntry b = FlatHashtable.tryGetOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
     TestEntry c = FlatHashtable.tryGetOrCreate(table, "c", TestCollidingStrategy.INSTANCE, CREATE);
@@ -341,7 +352,7 @@ class FlatHashtableTest {
 
   @Test
   void iterator_filtersOutEntriesWithADifferentHash() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4); // entries at slot 0, hashOf == 0
+    TestEntry[] table = FlatHashtable.create(4, TestEntry[]::new); // entries at slot 0, hashOf == 0
     FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
     FlatHashtable.tryGetOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
 
@@ -354,7 +365,7 @@ class FlatHashtableTest {
 
   @Test
   void iterator_emptyRunHasNoNext() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
+    TestEntry[] table = FlatHashtable.create(4, TestEntry[]::new);
     Iterator<TestEntry> it = FlatHashtable.iterator(table, 0, TestCollidingStrategy.INSTANCE);
     assertFalse(it.hasNext());
     assertThrows(NoSuchElementException.class, it::next);
@@ -364,7 +375,7 @@ class FlatHashtableTest {
   void iterator_fullTable_yieldsMatchesIncludingTheWrappingSlot() {
     // 2 slots, both filled by colliding (hash 0) entries -> the probe has no empty slot to stop at,
     // so the traversal must yield the entry on the wrapping slot and then terminate on wrap.
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1);
+    TestEntry[] table = FlatHashtable.create(1, TestEntry[]::new);
     TestEntry a = FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
     TestEntry b = FlatHashtable.tryGetOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
 
@@ -380,7 +391,7 @@ class FlatHashtableTest {
   void iterator_fullTable_absentHash_terminatesOnWrap() {
     // Full table, iterating a hash no stored entry has (all hashOf == 0) -> the traversal walks
     // every slot and wraps without ever hitting an empty one, then reports no elements.
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1);
+    TestEntry[] table = FlatHashtable.create(1, TestEntry[]::new);
     FlatHashtable.tryGetOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
     FlatHashtable.tryGetOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
 
@@ -431,18 +442,18 @@ class FlatHashtableTest {
 
   @Test
   void create_honorsLoadFactor() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4, FlatHashtable.LOW_LOAD_FACTOR);
+    TestEntry[] table = FlatHashtable.create(4, FlatHashtable.LOW_LOAD_FACTOR, TestEntry[]::new);
     assertEquals(16, table.length);
   }
 
   @Test
   void resize_generalFlavor_growsAndKeepsEveryEntryFindable() {
     // 8 slots with only 2 entries -> the rehash loop skips empty slots as well as copying entries.
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
+    TestEntry[] table = FlatHashtable.create(4, TestEntry[]::new);
     FlatHashtable.insert(table, new TestEntry("a"), TestEntryStrategy.INSTANCE);
     FlatHashtable.insert(table, new TestEntry("b"), TestEntryStrategy.INSTANCE);
 
-    TestEntry[] grown = FlatHashtable.resize(table, TestEntryStrategy.INSTANCE);
+    TestEntry[] grown = FlatHashtable.resize(table, TestEntryStrategy.INSTANCE, TestEntry[]::new);
     assertEquals(16, grown.length);
     assertNotSame(table, grown);
     assertEquals("a", FlatHashtable.get(grown, "a", TestEntryStrategy.INSTANCE).key);
@@ -451,11 +462,11 @@ class FlatHashtableTest {
 
   @Test
   void resize_entryFlavor_growsAndKeepsEveryEntryFindable() {
-    TestHashedEntry[] table = FlatHashtable.create(TestHashedEntry.class, 4); // 8 slots, 2 entries
+    TestHashedEntry[] table = FlatHashtable.create(4, TestHashedEntry[]::new); // 8 slots, 2 entries
     FlatHashtable.insert(table, new TestHashedEntry("a"));
     FlatHashtable.insert(table, new TestHashedEntry("b"));
 
-    TestHashedEntry[] grown = FlatHashtable.resize(table);
+    TestHashedEntry[] grown = FlatHashtable.resize(table, TestHashedEntry[]::new);
     assertEquals(16, grown.length);
     assertEquals("a", FlatHashtable.get(grown, "a", TestHashedStrategy.INSTANCE).key);
     assertEquals("b", FlatHashtable.get(grown, "b", TestHashedStrategy.INSTANCE).key);
@@ -463,10 +474,11 @@ class FlatHashtableTest {
 
   @Test
   void resizingInsert_generalFlavor_growsPastCapacityAndReturnsTheTable() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1); // 2 slots
+    TestEntry[] table = FlatHashtable.create(1, TestEntry[]::new); // 2 slots
     for (int i = 0; i < 10; ++i) {
       table =
-          FlatHashtable.resizingInsert(table, new TestEntry("k" + i), TestEntryStrategy.INSTANCE);
+          FlatHashtable.resizingInsert(
+              table, new TestEntry("k" + i), TestEntryStrategy.INSTANCE, TestEntry[]::new);
     }
     assertTrue(table.length >= 16); // grew from 2 to hold 10 at load factor <= 0.5
     for (int i = 0; i < 10; ++i) {
@@ -476,9 +488,10 @@ class FlatHashtableTest {
 
   @Test
   void resizingInsert_entryFlavor_growsPastCapacityAndReturnsTheTable() {
-    TestHashedEntry[] table = FlatHashtable.create(TestHashedEntry.class, 1); // 2 slots
+    TestHashedEntry[] table = FlatHashtable.create(1, TestHashedEntry[]::new); // 2 slots
     for (int i = 0; i < 10; ++i) {
-      table = FlatHashtable.resizingInsert(table, new TestHashedEntry("k" + i));
+      table =
+          FlatHashtable.resizingInsert(table, new TestHashedEntry("k" + i), TestHashedEntry[]::new);
     }
     assertTrue(table.length >= 16);
     for (int i = 0; i < 10; ++i) {
@@ -498,7 +511,7 @@ class FlatHashtableTest {
 
   @Test
   void entryIterator_yieldsEveryEntrySharingTheHash() {
-    TestHashEntry[] table = FlatHashtable.create(TestHashEntry.class, 4);
+    TestHashEntry[] table = FlatHashtable.create(4, TestHashEntry[]::new);
     TestHashEntry a = new TestHashEntry("a", 0);
     TestHashEntry b = new TestHashEntry("b", 0);
     TestHashEntry c = new TestHashEntry("c", 0);
@@ -517,7 +530,7 @@ class FlatHashtableTest {
 
   @Test
   void entryIterator_filtersOutEntriesWithADifferentHash() {
-    TestHashEntry[] table = FlatHashtable.create(TestHashEntry.class, 4); // 8 slots, mask 7
+    TestHashEntry[] table = FlatHashtable.create(4, TestHashEntry[]::new); // 8 slots, mask 7
     FlatHashtable.insert(table, new TestHashEntry("a", 0));
     FlatHashtable.insert(table, new TestHashEntry("b", 0));
     // shares the home slot (0) but a different hash -> must be filtered out
@@ -535,7 +548,7 @@ class FlatHashtableTest {
 
   @Test
   void entryIterator_emptyRunHasNoNext() {
-    TestHashEntry[] table = FlatHashtable.create(TestHashEntry.class, 4);
+    TestHashEntry[] table = FlatHashtable.create(4, TestHashEntry[]::new);
     Iterator<TestHashEntry> it = FlatHashtable.iterator(table, 0);
     assertFalse(it.hasNext());
     assertThrows(NoSuchElementException.class, it::next);
@@ -543,7 +556,7 @@ class FlatHashtableTest {
 
   @Test
   void caseInsensitiveStrategy_matchesRegardlessOfCase() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
+    TestEntry[] table = FlatHashtable.create(4, TestEntry[]::new);
     TestEntry stored =
         FlatHashtable.tryGetOrCreate(
             table, "Content-Type", TestCaseInsensitiveStrategy.INSTANCE, CREATE);
@@ -575,7 +588,7 @@ class FlatHashtableTest {
   void caseInsensitiveStrategy_doesNotFalseMissOnSupplementaryCasePair() {
     String s1 = new String(Character.toChars(0x10400)); // DESERET CAPITAL LETTER LONG I
     String s2 = new String(Character.toChars(0x10428)); // DESERET SMALL LETTER LONG I
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
+    TestEntry[] table = FlatHashtable.create(4, TestEntry[]::new);
     TestEntry stored =
         FlatHashtable.tryGetOrCreate(table, s1, TestCaseInsensitiveStrategy.INSTANCE, CREATE);
 
