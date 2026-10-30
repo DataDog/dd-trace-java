@@ -2,6 +2,7 @@ FROM debian:bookworm-slim
 
 ARG JAVA_11_VERSION=11.0.32.1+1-tem
 ARG JAVA_17_VERSION=17.0.21.0+9-tem
+ARG JAVA_21_VERSION=21.0.13.0+9-tem
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates && \
@@ -23,13 +24,14 @@ RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
     sdk env install && \
     sdk install java ${JAVA_11_VERSION} && \
     sdk install java ${JAVA_17_VERSION} && \
+    sdk install java ${JAVA_21_VERSION} && \
     sdk flush"
 
 ENV JAVA_11_HOME=/root/.sdkman/candidates/java/${JAVA_11_VERSION}
 # Keep OkHttp's Java 11 test launcher on the scrubbed image JDK, not a runtime download.
 RUN mkdir -p "$HOME/.gradle" && \
     printf '%s\n' \
-      "org.gradle.java.installations.paths=$JAVA_11_HOME,$HOME/.sdkman/candidates/java/8.0.372-tem,$HOME/.sdkman/candidates/java/${JAVA_17_VERSION}" \
+      "org.gradle.java.installations.paths=$JAVA_11_HOME,$HOME/.sdkman/candidates/java/8.0.372-tem,$HOME/.sdkman/candidates/java/${JAVA_17_VERSION},$HOME/.sdkman/candidates/java/${JAVA_21_VERSION}" \
       'org.gradle.java.installations.auto-download=false' > "$HOME/.gradle/gradle.properties"
 
 # Distrust the affected roots before Maven or Gradle downloads any build inputs.
