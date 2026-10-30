@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.FrozenTags;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import io.netty.util.AttributeKey;
+import java.net.SocketAddress;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -29,9 +30,13 @@ public final class AttributeKeys {
   public static final AttributeKey<Boolean> HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY =
       attributeKey("datadog.http2.connection.codec");
 
-  /** A client connection's peer tags, frozen on first use: its remote address never changes. */
+  /** A client channel's peer tags, frozen from its remote address. */
   public static final AttributeKey<FrozenTags> PEER_TAGS_ATTRIBUTE_KEY =
       attributeKey("datadog.client.peer.tags");
+
+  /** The remote address {@link #PEER_TAGS_ATTRIBUTE_KEY}'s tags were frozen from. */
+  public static final AttributeKey<SocketAddress> PEER_TAGS_ADDRESS_ATTRIBUTE_KEY =
+      attributeKey("datadog.client.peer.tags.address");
 
   public static final AttributeKey<Context> PARENT_CONTEXT_ATTRIBUTE_KEY =
       attributeKey("datadog.server.parent-context");
