@@ -325,10 +325,12 @@ public class HttpCodec {
     private final List<String> keysAndValues;
 
     /**
-     * The parent span identifier from {@link DatadogHttpCodec#SPAN_ID_KEY} header formatted as 16
-     * hexadecimal characters, {@code null} if absent or invalid.
+     * The parent span identifier from {@link DatadogHttpCodec#SPAN_ID_KEY} header, valid only if
+     * {@link #hasDatadogSpanId}. Kept unformatted since its hex form is rarely read.
      */
-    private String datadogSpanIdHex;
+    private long datadogSpanId;
+
+    private boolean hasDatadogSpanId;
 
     public ExtractionCache(C carrier, AgentPropagation.ContextVisitor<C> getter) {
       this.keysAndValues = new ArrayList<>(32);
@@ -346,15 +348,19 @@ public class HttpCodec {
     private void cacheDatadogSpanId(String key, String value) {
       if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
         try {
-          // Parse numeric header value to format it as 16 hexadecimal character format
-          this.datadogSpanIdHex = DDSpanId.toHexStringPadded(DDSpanId.from(value));
+          this.datadogSpanId = DDSpanId.from(value);
+          this.hasDatadogSpanId = true;
         } catch (NumberFormatException ignored) {
         }
       }
     }
 
+    /**
+     * Returns the {@link DatadogHttpCodec#SPAN_ID_KEY} header formatted as 16 hexadecimal
+     * characters, {@code null} if absent or invalid.
+     */
     private String getDatadogSpanIdHex() {
-      return this.datadogSpanIdHex;
+      return this.hasDatadogSpanId ? DDSpanId.toHexStringPadded(this.datadogSpanId) : null;
     }
 
     @Override
