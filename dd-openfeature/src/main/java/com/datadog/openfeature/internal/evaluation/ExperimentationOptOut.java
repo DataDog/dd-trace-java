@@ -17,7 +17,7 @@ public final class ExperimentationOptOut {
   public static final String ATTRIBUTE = "dd_experimentation_opt_out_at";
   public static final String INVALID_TIMESTAMP =
       ATTRIBUTE
-          + " must be an RFC3339 timestamp string; supply a valid timestamp to opt out,"
+          + " must be an ISO offset date-time string; supply a valid timestamp to opt out,"
           + " or omit the attribute to permit experimentation";
 
   private ExperimentationOptOut() {}

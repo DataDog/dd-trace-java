@@ -124,7 +124,10 @@ class ExperimentationOptOutTest {
       final IllegalArgumentException error =
           assertThrows(
               IllegalArgumentException.class, () -> ExperimentationOptOut.cutoff(mode, context));
-      assertEquals(ExperimentationOptOut.INVALID_TIMESTAMP, error.getMessage());
+      assertEquals(
+          "dd_experimentation_opt_out_at must be an ISO offset date-time string;"
+              + " supply a valid timestamp to opt out, or omit the attribute to permit experimentation",
+          error.getMessage());
     }
     assertNull(ExperimentationOptOut.cutoff(ExperimentationOptOutMode.DISABLED, context));
   }
