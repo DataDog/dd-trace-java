@@ -3676,20 +3676,7 @@ public class Config {
    * tunnelled over the socket.
    */
   public String getAgentHttpUrl() {
-    return toAgentHttpUrl(agentUrl, agentHost, agentPort);
-  }
-
-  /**
-   * Returns {@code agentUrl}, or a placeholder HTTP URL built from {@code agentHost} and {@code
-   * agentPort} when it is a unix domain socket URL. See {@link #getAgentHttpUrl()}.
-   */
-  public static String toAgentHttpUrl(
-      final String agentUrl, final String agentHost, final int agentPort) {
-    if (agentUrl.startsWith("unix:")) {
-      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
-      return "http://" + agentHost + ":" + agentPort;
-    }
-    return agentUrl;
+    return AgentUrls.toHttpUrl(agentUrl, agentHost, agentPort);
   }
 
   /**

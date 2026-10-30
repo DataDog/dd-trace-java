@@ -1,7 +1,7 @@
 package datadog.communication.http;
 
 import static datadog.communication.http.SocketUtils.discoverApmSocket;
-import static datadog.trace.api.Config.toAgentHttpUrl;
+import static datadog.trace.api.AgentUrls.toHttpUrl;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -347,7 +347,7 @@ public final class OkHttpUtils {
     if (agentUrl == null) {
       return null;
     }
-    return HttpUrl.parse(toAgentHttpUrl(agentUrl, config.getAgentHost(), config.getAgentPort()));
+    return HttpUrl.parse(toHttpUrl(agentUrl, config.getAgentHost(), config.getAgentPort()));
   }
 
   public static RequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {
