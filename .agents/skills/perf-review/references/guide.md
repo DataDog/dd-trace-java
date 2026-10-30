@@ -286,10 +286,8 @@ cold. Do not apply "AppSec = cold" uniformly across AppSec sub-products.
 
 *Examples:*
 - An LLMObs 5 MB mapper buffer. Same "big buffer" shape as the oversized `StringBuilder`
-  above, *opposite verdict* on per-call cost: the large-denominator (500 ms+ LLM call)
-  absorbs it. Retaining the buffer is a separate question: a constant addition to the app's
-  live set doesn't scale with the LLM call (see J13 in `checks.md`; this buffer is now
-  chunked, APMLP-2114).
+  above, *opposite verdict*: the large-denominator (500 ms+ LLM call) absorbs the cost.
+  The right call was to accept it.
 - An LLMObs streaming helper that accumulated all SSE chunks into an `ArrayList` held
   until stream close. The large-denominator rule would have suppressed this; the chunk-level
   carve-out catches it: SEV-1, regardless of stream duration.
