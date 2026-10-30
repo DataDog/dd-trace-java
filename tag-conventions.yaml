@@ -224,6 +224,14 @@ span_types:
       - { dd-name: db.operation, type: string, required: recommended, otel-name: db.operation.name, span-kind-neutral: true }
       - { dd-name: db.user,      type: string, required: recommended }
       - { dd-name: db.statement, type: string, required: recommended, otel-name: db.query.text, span-kind-neutral: true }
+      # Identity encoded in an Amazon RDS endpoint hostname. dbinstanceidentifier and
+      # dbclusteridentifier match the dimension tags on the aws.rds.* integration metrics so a
+      # database client span and the RDS integration join on the same keys.
+      - { dd-name: aws.region,            type: string, required: optional }
+      - { dd-name: aws.rds.identifier,    type: string, required: optional }
+      - { dd-name: aws.rds.endpoint_type, type: string, required: optional }
+      - { dd-name: dbinstanceidentifier,  type: string, required: optional }
+      - { dd-name: dbclusteridentifier,   type: string, required: optional }
       # A command's outcome (Redis, Memcached).
       - { dd-name: db.command.cancelled,     type: boolean, required: optional }
       - { dd-name: db.command.results.count, type: int,     required: optional }
