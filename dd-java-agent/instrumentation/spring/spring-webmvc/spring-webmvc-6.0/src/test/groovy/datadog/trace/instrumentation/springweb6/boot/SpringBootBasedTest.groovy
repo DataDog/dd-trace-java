@@ -25,7 +25,6 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import org.springframework.beans.BeansException
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.MediaType
 import org.springframework.web.socket.BinaryMessage
@@ -68,7 +67,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
         "spring.web.resources.add-mappings"             : false,
         "server.forward-headers-strategy": "NONE"])
       context = app.run()
-      port = (context as ServletWebServerApplicationContext).webServer.port
+      port = context.webServer.port // ServletWebServerApplicationContext moved package in Boot 4
       try {
         endpoint = context.getBean(WebsocketEndpoint)
       } catch (BeansException ignored) {
