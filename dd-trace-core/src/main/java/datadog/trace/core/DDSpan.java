@@ -35,6 +35,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.FrozenTags;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
@@ -611,6 +612,15 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   public DDSpan setTagsFrom(final TagContributor contributor) {
     if (contributor != null) {
       context.setTagsFrom(contributor);
+    }
+    return this;
+  }
+
+  /** Applies frozen tags under the span's tag lock, copying them in at once where it can. */
+  @Override
+  public DDSpan setTagsFrom(final FrozenTags frozen) {
+    if (frozen != null && !frozen.isEmpty()) {
+      context.setTagsFrom(frozen);
     }
     return this;
   }
