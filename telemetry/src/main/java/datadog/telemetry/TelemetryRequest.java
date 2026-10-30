@@ -1,6 +1,5 @@
 package datadog.telemetry;
 
-import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
@@ -66,15 +65,6 @@ public class TelemetryRequest {
             .addHeader("DD-Client-Library-Language", DDTags.LANGUAGE_TAG_VALUE)
             .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
             .post(requestBody);
-
-    final String containerId = ContainerInfo.get().getContainerId();
-    if (containerId != null) {
-      builder.addHeader("Datadog-Container-ID", containerId);
-    }
-    final String entityId = ContainerInfo.getEntityId();
-    if (entityId != null) {
-      builder.addHeader("Datadog-Entity-ID", entityId);
-    }
 
     if (debug) {
       builder.addHeader("DD-Telemetry-Debug-Enabled", "true");
