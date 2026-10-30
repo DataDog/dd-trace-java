@@ -53,7 +53,6 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
   }
 
-
   def "test #testcaseName"() {
     Assumptions.assumeTrue(assumption)
 
