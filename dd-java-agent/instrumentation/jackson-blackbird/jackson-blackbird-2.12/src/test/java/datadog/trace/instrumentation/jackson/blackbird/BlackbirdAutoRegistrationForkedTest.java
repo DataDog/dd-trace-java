@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -12,15 +13,20 @@ import com.fasterxml.jackson.module.blackbird.BlackbirdModule;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.test.junit.utils.config.WithConfig;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-/** With the agent and the flag on, mappers the app creates get Blackbird and behave the same. */
 @WithConfig(
     key = TraceInstrumentationConfig.TRACE_EXPERIMENTAL_JACKSON_BLACKBIRD_ENABLED,
     value = "true")
 class BlackbirdAutoRegistrationForkedTest extends AbstractInstrumentationTest {
+
+  @BeforeEach
+  void resetCap() {
+    BlackbirdRegistrar.resetForTests();
+  }
 
   private static long blackbirdCount(ObjectMapper m) {
     return m.getRegisteredModuleIds().stream()
@@ -28,7 +34,6 @@ class BlackbirdAutoRegistrationForkedTest extends AbstractInstrumentationTest {
         .count();
   }
 
-  /** What an application does: create a mapper, then configure it. */
   private static ObjectMapper appMapper(Corpus.Setup setup) {
     final ObjectMapper m = new ObjectMapper();
     setup.configure.accept(m);
@@ -56,6 +61,32 @@ class BlackbirdAutoRegistrationForkedTest extends AbstractInstrumentationTest {
   void subclassesAreLeftAlone() {
     assertEquals(0, blackbirdCount(new Differential.PlainObjectMapper()));
     assertEquals(0, blackbirdCount(new ObjectMapper() {}));
+  }
+
+  @Test
+  void registrationsAreCappedPerClassLoader() throws Exception {
+    for (int i = 0; i < BlackbirdRegistrar.MAX_REGISTRATIONS; i++) {
+      assertEquals(1, blackbirdCount(new ObjectMapper()), "mapper " + i);
+    }
+    final ObjectMapper overCap = new ObjectMapper();
+    assertEquals(0, blackbirdCount(overCap));
+    final Corpus.Case c = Corpus.cases().get(0);
+    final ObjectMapper baseline = new Differential.PlainObjectMapper();
+    assertEquals(baseline.writeValueAsString(c.value), overCap.writeValueAsString(c.value));
+  }
+
+  @Test
+  void failedRegistrationDisablesLaterMappers() {
+    final Module broken =
+        new BlackbirdModule() {
+          @Override
+          public void setupModule(SetupContext context) {
+            throw new LinkageError("skewed databind");
+          }
+        };
+    BlackbirdRegistrar.tryRegister(new Differential.PlainObjectMapper(), broken);
+    assertEquals(0, blackbirdCount(new ObjectMapper()));
+    assertEquals(0, blackbirdCount(new JsonMapper()));
   }
 
   @Test
