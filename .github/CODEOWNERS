@@ -19,6 +19,7 @@
 
 # Shared communication
 /communication/*.*                                                   @DataDog/apm-java
+/communication/*.md                                                  @DataDog/apm-lang-platform-java
 /communication/src/*/*/datadog/communication/*.*                     @DataDog/apm-java
 /communication/src/*/*/datadog/communication/ddagent/                @DataDog/apm-java
 /communication/src/*/*/datadog/communication/http/                   @DataDog/apm-java
@@ -29,6 +30,7 @@
 /communication/src/test/resources/                                   @DataDog/apm-java
 
 # Shared utility modules
+/utils/*.md               @DataDog/apm-lang-platform-java
 /utils/filesystem-utils/  @DataDog/apm-java
 /utils/logging-utils/     @DataDog/apm-java
 /utils/queue-utils/       @DataDog/apm-java
@@ -47,6 +49,7 @@
 /dd-java-agent/load-generator/         @DataDog/apm-java
 
 # Core tracing API
+/dd-trace-api/*.md                                    @DataDog/apm-lang-platform-java
 /dd-trace-api/src/*/*/datadog/trace/api/*.*           @DataDog/apm-java
 /dd-trace-api/**/config/CwsConfig*                    @DataDog/apm-java
 /dd-trace-api/**/config/GeneralConfig*                @DataDog/apm-java
@@ -58,6 +61,7 @@
 /dd-trace-api/src/*/*/datadog/trace/payloadtags/      @DataDog/apm-java
 
 # Core tracer
+/dd-trace-core/*.md                                          @DataDog/apm-lang-platform-java
 /dd-trace-core/src/test                                      @DataDog/apm-java
 /dd-trace-core/src/*/*/datadog/context/*.*                   @DataDog/apm-java
 /dd-trace-core/src/*/*/datadog/trace/api/naming/             @DataDog/apm-java
@@ -80,6 +84,7 @@
 /dd-trace-core/src/traceAgentTest/                           @DataDog/apm-java
 
 # Core internal API
+/internal-api/*.md                                     @DataDog/apm-lang-platform-java
 /internal-api/internal-api-9/                          @DataDog/apm-java
 /internal-api/src/test                                 @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/advice/            @DataDog/apm-java
