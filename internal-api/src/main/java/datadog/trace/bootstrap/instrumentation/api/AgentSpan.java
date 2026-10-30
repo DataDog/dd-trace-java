@@ -185,7 +185,7 @@ public interface AgentSpan
    */
   default AgentSpan setTagsFrom(final FrozenTags frozen) {
     if (frozen != null) {
-      frozen.tags().forEach(this, (span, tagEntry) -> span.setTag(tagEntry));
+      frozen.replay(this);
     }
     return this;
   }

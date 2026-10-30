@@ -246,7 +246,7 @@ class TagStoresTest {
     HashIdStore target = new HashIdStore(null);
     assertFalse(target.seedAbsent(denseSource(KnownTags.COMPONENT)));
     assertFalse(target.seedAbsent(new HashIdStore(null)));
-    assertFalse(target.seedAbsent(denseSource(KnownTags.COMPONENT), target, TagStoresTest::put));
+    assertFalse(target.seedPartial(denseSource(KnownTags.COMPONENT), target, TagStoresTest::put));
   }
 
   /** The caller's tag-by-tag fallback for a partial seed: an overwriting put. */
@@ -266,7 +266,7 @@ class TagStoresTest {
 
     Map<Long, Object> handedBack = new HashMap<>();
     assertTrue(
-        target.seedAbsent(
+        target.seedPartial(
             source,
             target,
             (store, entry) -> {
@@ -289,7 +289,7 @@ class TagStoresTest {
     DenseIdStore target = new DenseIdStore(null);
 
     assertTrue(
-        target.seedAbsent(
+        target.seedPartial(
             source,
             target,
             (store, entry) -> {
@@ -310,7 +310,7 @@ class TagStoresTest {
 
     Map<Long, Object> handedBack = new HashMap<>();
     assertTrue(
-        target.seedAbsent(
+        target.seedPartial(
             source,
             target,
             (store, entry) -> {
@@ -350,7 +350,7 @@ class TagStoresTest {
     DenseIdStore target = new DenseIdStore(null);
     target.store(KnownTags.SPAN_KIND, "client"); // so the all-at-once copy can't take it
 
-    assertFalse(target.seedAbsent(child, target, TagStoresTest::put), "read-through source");
+    assertFalse(target.seedPartial(child, target, TagStoresTest::put), "read-through source");
     assertEquals(1, target.size(), "nothing copied");
   }
 

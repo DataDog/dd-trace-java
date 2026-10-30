@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.PEER_TAGS_ADDRESS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.PEER_TAGS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE_SECURE;
@@ -113,22 +114,28 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
   }
 
   /**
-   * The peer tags of the connection {@code channel} belongs to, frozen on first use and kept on the
-   * connection: its remote address never changes, so later requests skip rebuilding the IP string
-   * and resolving the hostname. HTTP/2 streams share their parent connection's tags. Not cached
-   * while the connection has no remote address yet.
+   * The peer tags of {@code channel}'s remote address, frozen once per address and kept on the
+   * channel, so later requests skip rebuilding the IP string and resolving the hostname. An HTTP/2
+   * stream reports its connection's address object, so its tags are kept on the connection and
+   * shared by its streams; any other parent (a server channel) reports a different address, so the
+   * channel keeps its own. The cached tags are reused only while the channel still reports the
+   * address object they were frozen from. Nothing is cached while there is no remote address yet.
+   * Called on the channel's event loop, which HTTP/2 streams share with their connection.
    */
   private static FrozenTags peerTags(final Channel channel) {
-    final Channel connection = channel.parent() != null ? channel.parent() : channel;
-    final Attribute<FrozenTags> attribute = connection.attr(PEER_TAGS_ATTRIBUTE_KEY);
-    FrozenTags tags = attribute.get();
-    if (tags == null) {
-      final SocketAddress address = connection.remoteAddress();
-      if (!(address instanceof InetSocketAddress)) {
-        return FrozenTags.EMPTY;
-      }
+    final SocketAddress address = channel.remoteAddress();
+    if (!(address instanceof InetSocketAddress)) {
+      return FrozenTags.EMPTY;
+    }
+    final Channel parent = channel.parent();
+    final Channel holder = parent != null && parent.remoteAddress() == address ? parent : channel;
+    final Attribute<FrozenTags> tagsAttribute = holder.attr(PEER_TAGS_ATTRIBUTE_KEY);
+    final Attribute<SocketAddress> addressAttribute = holder.attr(PEER_TAGS_ADDRESS_ATTRIBUTE_KEY);
+    FrozenTags tags = tagsAttribute.get();
+    if (tags == null || addressAttribute.get() != address) {
       tags = FrozenTags.of((InetSocketAddress) address, PeerSocketAddress.INSTANCE);
-      attribute.set(tags); // racing requests freeze equal tags; either may win
+      tagsAttribute.set(tags);
+      addressAttribute.set(address);
     }
     return tags;
   }
