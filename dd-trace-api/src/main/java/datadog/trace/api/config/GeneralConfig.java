@@ -140,5 +140,8 @@ public final class GeneralConfig {
   public static final String INSTRUMENTATION_SOURCE = "instrumentation.source";
   public static final String APP_LOGS_COLLECTION_ENABLED = "app.logs.collection.enabled";
 
+  public static final String TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED =
+      "trace.aws.lambda.strip.context.enabled";
+
   private GeneralConfig() {}
 }

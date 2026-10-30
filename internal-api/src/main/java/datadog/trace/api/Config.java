@@ -176,6 +176,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOG
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_TAG_KEYS;
@@ -440,6 +441,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
+import static datadog.trace.api.config.GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
@@ -1408,6 +1410,7 @@ public class Config {
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
   private final int dogStatsDPort;
+  private final boolean lambdaStripInjectedContextEnabled;
 
   private String env;
   private String version;
@@ -1802,6 +1805,10 @@ public class Config {
     } else {
       spanAttributeSchemaVersion = configuredSpanAttributeSchemaVersion;
     }
+
+    lambdaStripInjectedContextEnabled =
+        configProvider.getBoolean(
+            TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, DEFAULT_TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED);
 
     peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
 
@@ -5456,6 +5463,10 @@ public class Config {
     return sfnInjectDatadogAttributeEnabled;
   }
 
+  public boolean isLambdaStripInjectedContextEnabled() {
+    return lambdaStripInjectedContextEnabled;
+  }
+
   /**
    * @return A map of tags to be applied only to the local application root span.
    */
@@ -7215,6 +7226,8 @@ public class Config {
         + sqsInjectDatadogAttributeEnabled
         + ", snsInjectDatadogAttributeEnabled="
         + snsInjectDatadogAttributeEnabled
+        + ", lambdaStripInjectedContextEnabled="
+        + lambdaStripInjectedContextEnabled
         + '}';
   }
 }

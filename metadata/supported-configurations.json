@@ -4988,6 +4988,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_AWS_LAMBDA_ENABLED", "DD_INTEGRATION_AWS_LAMBDA_ENABLED"]
       }
     ],
+    "DD_TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_AWS_PROPAGATION_ENABLED": [
       {
         "version": "A",
