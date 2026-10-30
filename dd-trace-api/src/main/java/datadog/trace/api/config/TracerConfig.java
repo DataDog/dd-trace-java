@@ -154,6 +154,13 @@ public final class TracerConfig {
 
   public static final String TRACE_LONG_RUNNING_ENABLED = "trace.experimental.long-running.enabled";
 
+  /**
+   * Experimental: install a native JCA provider (Amazon Corretto Crypto Provider, if it is on the
+   * application class path) ahead of the JDK providers once the agent has started.
+   */
+  public static final String TRACE_EXPERIMENTAL_CRYPTO_PROVIDER_ENABLED =
+      "trace.experimental.crypto.provider.enabled";
+
   public static final String TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL =
       "trace.experimental.long-running.initial.flush.interval";
   public static final String TRACE_LONG_RUNNING_FLUSH_INTERVAL =
