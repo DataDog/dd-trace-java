@@ -110,3 +110,17 @@ val japicmpPublicApi = tasks.register<JapicmpTask>("japicmpPublicApi") {
 tasks.named("check") {
   dependsOn(japicmpPublicApi)
 }
+
+// These suites read shared fixtures directly from the smoke-test resources.
+tasks.withType<Test>().configureEach {
+  inputs.dir(
+    rootProject.layout.projectDirectory.dir(
+      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data"
+    )
+  ).withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.dir(
+    rootProject.layout.projectDirectory.dir(
+      "dd-smoke-tests/openfeature/src/test/resources/experimentation-opt-out"
+    )
+  ).withPathSensitivity(PathSensitivity.RELATIVE)
+}

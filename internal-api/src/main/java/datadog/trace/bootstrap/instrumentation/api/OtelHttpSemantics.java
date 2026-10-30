@@ -5,6 +5,7 @@ import static datadog.trace.util.IntStringUtils.parseNonNegativeInt;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.TagStore;
 import datadog.trace.api.cache.RadixTreeCache;
 import java.net.URI;
 import java.util.Arrays;
@@ -49,6 +50,12 @@ public final class OtelHttpSemantics {
   public static Object urlOrPath(final Map<String, ?> tags) {
     Object url = tags.get(Tags.HTTP_URL);
     return url != null ? url : tags.get(KnownTags.URL_PATH_NAME);
+  }
+
+  /** {@link #urlOrPath(Map)}, from a span's tags as stored. */
+  public static Object urlOrPath(final TagStore tags) {
+    Object url = tags.load(KnownTags.HTTP_URL_ID);
+    return url != null ? url : tags.load(KnownTags.URL_PATH_ID);
   }
 
   public static String redactedUrl(final URI url) {

@@ -74,34 +74,19 @@ abstract class AbstractOpenFeatureSmokeTest extends AbstractServerSmokeTest {
     assert !testCases.isEmpty()
 
     when:
-    final results = testCases.collect {
-      testCase ->
+    final results = testCases.collect { testCase ->
       final response = evaluate(testCase)
       final responseBody = new JsonSlurper().parse(response.body().byteStream())
       return [testCase: testCase, response: response, body: responseBody]
     }
-    final expectedExposures = uniqueExpectedExposures(results)
+    final expectedExposures = buildExpectedExposures(results)
 
     then:
     results.every {
       it.response.code() == 200
     }
     !expectedExposures.isEmpty()
-    new PollingConditions(timeout: 10).eventually {
-      final requests = evpProxyMessages*.getV2() as List<Map<String, Object>>
-      final events = requests*.exposures.flatten()
-      assert events.size() == expectedExposures.size()
-      expectedExposures.each {
-        expected ->
-        assert events.find {
-          event ->
-          event.flag.key == expected.flag &&
-          event.allocation.key == expected.allocation &&
-          event.variant.key == expected.variant &&
-          event.subject.id == expected.targetingKey
-        } != null : "Unable to find exposure ${expected}"
-      }
-    }
+    assertExposures(expectedExposures)
   }
 
   @Unroll("test open feature evaluation - #testCase.fileName[#testCase.index] - flag=#testCase.flag")
@@ -166,9 +151,25 @@ abstract class AbstractOpenFeatureSmokeTest extends AbstractServerSmokeTest {
     return result
   }
 
-  protected List<Map<String, String>> uniqueExpectedExposures(final List<Map<String, Object>> results) {
+  protected void assertExposures(final List<Map<String, Object>> expectedExposures) {
+    new PollingConditions(timeout: 10).eventually {
+      final requests = evpProxyMessages*.getV2() as List<Map<String, Object>>
+      final events = requests*.exposures.flatten().collect {
+        event ->
+        [flag: event.flag.key, allocation: event.allocation.key, variant: event.variant.key,
+          targetingKey: event.subject.id, serialId: event.serial_id]
+      }
+      assert events.countBy {
+        it
+      } == expectedExposures.countBy {
+        it
+      }
+    }
+  }
+
+  protected List<Map<String, Object>> buildExpectedExposures(final List<Map<String, Object>> results) {
     final expected = []
-    final seen = [] as Set<String>
+    final previousBySubject = [:]
     results.each { result ->
       final testCase = result.testCase as Map<String, Object>
       final body = result.body as Map<String, Object>
@@ -183,10 +184,12 @@ abstract class AbstractOpenFeatureSmokeTest extends AbstractServerSmokeTest {
         flag: flag,
         allocation: allocation,
         variant: variant,
-        targetingKey: testCase.targetingKey
+        targetingKey: testCase.targetingKey,
+        serialId: body.flagMetadata?.__dd_split_serial_id
       ]
-      final key = "${exposure.flag}\u0000${exposure.targetingKey}\u0000${exposure.allocation}\u0000${exposure.variant}"
-      if (seen.add(key)) {
+      // The cache stores the last assignment per flag and subject. A -> B -> A emits three events.
+      final key = [flag, testCase.targetingKey]
+      if (previousBySubject.put(key, exposure) != exposure) {
         expected.add(exposure)
       }
     }

@@ -25,6 +25,7 @@ import static org.msgpack.core.MessageFormat.UINT8;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.communication.serialization.ByteBufferConsumer;
+import datadog.communication.serialization.ChunkedStreamingBuffer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDTags;
@@ -32,6 +33,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.common.writer.ChunkJoiner;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.TraceGenerator;
 import datadog.trace.core.DDSpanContext;
@@ -74,6 +76,26 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
     "100k buffer, 1000 traces, high cardinality | 102400     | 1000       | false         "
   })
   void testTracesWrittenCorrectly(int bufferSize, int traceCount, boolean lowCardinality) {
+    writeAndVerify(bufferSize, traceCount, lowCardinality, false);
+  }
+
+  /** Overflow must stop the mapper before it counts a trace, or the payload header is wrong. */
+  @TableTest({
+    "scenario                                   | bufferSize | traceCount | lowCardinality",
+    "20k buffer, 1 trace, low cardinality       | 20480      | 1          | true          ",
+    "30k buffer, 2 traces, low cardinality      | 30720      | 2          | true          ",
+    "30k buffer, 2 traces, high cardinality     | 30720      | 2          | false         ",
+    "100k buffer, 100 traces, low cardinality   | 102400     | 100        | true          ",
+    "100k buffer, 1000 traces, low cardinality  | 102400     | 1000       | true          ",
+    "100k buffer, 1000 traces, high cardinality | 102400     | 1000       | false         "
+  })
+  void testTracesWrittenCorrectlyToChunkedBuffer(
+      int bufferSize, int traceCount, boolean lowCardinality) {
+    writeAndVerify(bufferSize, traceCount, lowCardinality, true);
+  }
+
+  private void writeAndVerify(
+      int bufferSize, int traceCount, boolean lowCardinality, boolean chunked) {
     CiVisibilityWellKnownTags wellKnownTags =
         new CiVisibilityWellKnownTags(
             "runtimeid",
@@ -91,7 +113,11 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality);
     PayloadVerifier verifier = new PayloadVerifier(wellKnownTags, traces, mapper);
 
-    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier));
+    MsgPackWriter packer =
+        new MsgPackWriter(
+            chunked
+                ? new ChunkedStreamingBuffer(bufferSize, ChunkJoiner.joining(verifier))
+                : new FlushingBuffer(bufferSize, verifier));
 
     boolean tracesFitInBuffer = true;
     for (List<TraceGenerator.PojoSpan> trace : traces) {

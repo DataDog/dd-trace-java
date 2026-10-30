@@ -82,4 +82,22 @@ public class GrowableBufferTest {
     assertEquals((byte) 64, slice.get());
     assertEquals((byte) -128, slice.get());
   }
+
+  @Test
+  public void rewindDiscardsBytesWrittenSinceLastMark() {
+    GrowableBuffer gb = new GrowableBuffer(4);
+    gb.putInt(1);
+    gb.mark();
+    // grows the buffer past the mark before rewinding
+    gb.putLong(2);
+
+    gb.rewind();
+    gb.putInt(3);
+    gb.mark();
+
+    ByteBuffer contents = gb.slice();
+    assertEquals(8, contents.remaining());
+    assertEquals(1, contents.getInt());
+    assertEquals(3, contents.getInt());
+  }
 }

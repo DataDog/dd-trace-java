@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.communication.serialization.ByteBufferConsumer;
+import datadog.communication.serialization.ChunkedStreamingBuffer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDTags;
@@ -25,7 +26,9 @@ import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.msgpack.core.MessagePack;
+import org.msgpack.core.MessageUnpacker;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 @SuppressWarnings("unchecked")
@@ -782,6 +787,72 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
       tracer.close();
     } finally {
       LLMObs.deregisterProcessor();
+    }
+  }
+
+  /**
+   * A chunked buffer must stop the mapper at the overflow, like {@code FlushingBuffer}: otherwise
+   * the rejected trace is counted in the flushed payload's span count, and its processor runs again
+   * on retry.
+   */
+  @Test
+  void testChunkedBufferOverflowKeepsPayloadsValidAndRunsProcessorOnce() throws Exception {
+    AtomicInteger calls = new AtomicInteger();
+    LLMObsMetricCollector.get().drain();
+    LLMObs.registerProcessor(
+        span -> {
+          calls.incrementAndGet();
+          return "true".equals(span.getTag("drop")) ? null : span;
+        });
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      AgentSpan first = newLlmObsSpan(tracer, "first", false);
+      AgentSpan dropped = newLlmObsSpan(tracer, "dropped", true);
+      AgentSpan retained = newLlmObsSpan(tracer, "retained", false);
+      String largeInput = String.join("", Collections.nCopies(600, "x"));
+      for (AgentSpan span : Arrays.asList(first, dropped, retained)) {
+        span.setTag(
+            "_ml_obs_tag.input",
+            Collections.singletonList(LLMObs.LLMMessage.from("user", largeInput)));
+      }
+
+      LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+      List<byte[]> payloads = new ArrayList<>();
+      // like PayloadDispatcherImpl: the payload, and its span count, is built when it's flushed
+      MsgPackWriter packer =
+          new MsgPackWriter(
+              new ChunkedStreamingBuffer(
+                  1024,
+                  (messageCount, chunks) -> {
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    try {
+                      mapper
+                          .newPayload()
+                          .withBody(messageCount, chunks)
+                          .writeTo(Channels.newChannel(out));
+                    } catch (IOException e) {
+                      throw new UncheckedIOException(e);
+                    }
+                    payloads.add(out.toByteArray());
+                  }));
+
+      assertTrue(packer.format(Collections.singletonList((DDSpan) first), mapper));
+      assertTrue(packer.format(Arrays.asList((DDSpan) dropped, (DDSpan) retained), mapper));
+      packer.flush();
+
+      assertEquals(2, payloads.size());
+      for (byte[] payload : payloads) {
+        try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(payload)) {
+          unpacker.unpackValue();
+          assertFalse(unpacker.hasNext(), "payload decodes exactly");
+        }
+      }
+      assertEquals(3, calls.get());
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+      LLMObsMetricCollector.get().drain();
     }
   }
 

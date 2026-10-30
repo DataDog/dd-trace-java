@@ -1612,6 +1612,14 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "disabled",
+        "aliases": []
+      }
+    ],
     "DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED": [
       {
         "version": "A",
