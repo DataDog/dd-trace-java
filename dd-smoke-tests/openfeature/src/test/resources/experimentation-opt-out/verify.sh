@@ -40,7 +40,7 @@ if [ "$(jq 'length' <<<"$EXPECTED")" -ne "$EXPECTED_CASES" ] ||
   [ "$(jq '[.[].id] | unique | length' <<<"$EXPECTED")" -ne "$EXPECTED_CASES" ]; then
   fail "expected $EXPECTED_CASES unique policy cases"
 fi
-if [ "$(jq --null-input --argjson expected "$EXPECTED" --slurpfile actual "$CASES" '$expected == $actual[0]')" != "true" ]; then
+if [ "$(jq --null-input --argjson expected "$EXPECTED" --slurpfile actual "$CASES" '$actual == [$expected]')" != "true" ]; then
   fail "cases.json differs from the pinned policy extraction"
 fi
 echo "Verified all $EXPECTED_CASES policy cases against the pinned source"
