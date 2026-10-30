@@ -63,6 +63,19 @@ public abstract class IdStore {
   }
 
   /**
+   * The partial form of {@link #seedAbsent(IdStore)}: copies in the tags of {@code source} that
+   * can't already be present here, hands each of the rest to {@code maybePresent} for the caller to
+   * set tag by tag, and returns true. Returns false, having done nothing, when this store can't
+   * seed in bulk at all or {@code source} isn't a plain frozen list of tags; the caller then sets
+   * every tag itself. {@code source} must be frozen, and {@code maybePresent} must not keep the
+   * entry it is handed.
+   */
+  public <T> boolean seedAbsent(
+      IdStore source, T thisObj, BiConsumer<T, ? super EntryReader> maybePresent) {
+    return false;
+  }
+
+  /**
    * Whether {@link #seedAbsent} can ever succeed for this kind of store, so a caller can skip it,
    * and the lock it needs, when it can't.
    */

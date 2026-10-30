@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.FrozenTags;
 import datadog.trace.bootstrap.instrumentation.api.TagContributor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.test.junit.utils.config.WithConfig;
+import java.util.TreeMap;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -90,12 +91,46 @@ class DDSpanFrozenTagsDenseForkedTest extends DDSpanFrozenTagsTest {
   }
 
   @Test
-  void aTagTheSpanAlreadyHasSendsTheSetOneAtATime() {
+  void tagsTheSpanAlreadyHasAreOverwrittenAndTheRestGoInBulk() {
+    // the shape of an HTTP client: peer.hostname and peer.port first from the URL, then all the
+    // peer tags from the connection, which win
+    DDSpan live = start();
+    DDSpan replayed = start();
+    try {
+      for (DDSpan span : new DDSpan[] {live, replayed}) {
+        span.setTag(Tags.PEER_HOSTNAME, "url.example");
+        span.setTag(Tags.PEER_PORT, 80);
+      }
+      live.setTag(KnownTags.PEER_HOSTNAME_ID, "db.example");
+      live.setTag(KnownTags.PEER_IPV4_ID, "10.0.0.1");
+      live.setTag(KnownTags.PEER_PORT_ID, 5432);
+      assertTrue(replayed.spanContext().setTagsFrom(PEER_TAGS));
+
+      assertEquals("db.example", replayed.getTag(Tags.PEER_HOSTNAME));
+      assertEquals("10.0.0.1", replayed.getTag(Tags.PEER_HOST_IPV4));
+      assertEquals(5432, replayed.getTag(Tags.PEER_PORT));
+      assertEquals(new TreeMap<>(live.getTags()), new TreeMap<>(replayed.getTags()));
+    } finally {
+      live.finish();
+      replayed.finish();
+    }
+  }
+
+  @Test
+  void aSpanKindTheSpanAlreadyHasIsOverwrittenWithItsOrdinal() {
+    FrozenTags frozen =
+        FrozenTags.of(
+            (TagContributor)
+                target -> {
+                  target.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+                  target.setTag(KnownTags.PEER_IPV4_ID, "10.0.0.1");
+                });
     DDSpan span = start();
     try {
-      span.setTag(Tags.PEER_PORT, 1);
-      assertFalse(span.spanContext().setTagsFrom(PEER_TAGS));
-      assertEquals(5432, span.getTag(Tags.PEER_PORT)); // still overwritten
+      span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
+      assertTrue(span.spanContext().setTagsFrom(frozen));
+      assertEquals(Tags.SPAN_KIND_CLIENT, span.getTag(Tags.SPAN_KIND));
+      assertEquals(Tags.SPAN_KIND_CLIENT, span.getSpanKindString());
     } finally {
       span.finish();
     }

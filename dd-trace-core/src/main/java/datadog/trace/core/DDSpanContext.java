@@ -1993,16 +1993,24 @@ public class DDSpanContext
   }
 
   /**
-   * Applies frozen tags as if their recorded writes were made now, under one lock: in bulk when the
-   * plan allows it and the masks prove none of the known tags is already on the span ({@link
-   * #seedKnownInBulk}), otherwise one at a time through the interceptor, as {@code setTag} does.
-   * Custom tags always go one at a time. Returns whether the known tags went in bulk, for tests.
+   * Applies frozen tags as if their recorded writes were made now, under one lock. When the plan
+   * allows bulk (no known tag needs the interceptor beyond span.kind), the known tags the masks
+   * prove absent are copied in at once and the ones that may be present -- typically set earlier
+   * from another source, which these overwrite -- go one at a time through the interceptor, as
+   * {@code setTag} does (the partial {@code IdStore.seedAbsent}); span.kind's ordinal is then set
+   * directly. Otherwise every tag goes one at a time. Custom tags always do. Returns whether the
+   * bulk path was taken, for tests.
    */
   boolean setTagsFrom(final FrozenTags frozen) {
     final SeedPlan plan = seedPlanFor(frozen);
     final TagMap tags = frozen.tags();
     synchronized (knownTags) {
-      if (seedKnownInBulk(plan, tags)) {
+      if (plan.bulk
+          && knownTags.seedAbsent(
+              tags.knownStore(), this, (ctx, tagEntry) -> ctx.putIntercepted(tagEntry))) {
+        if (plan.kindOrdinal != SPAN_KIND_UNSET) {
+          spanKindOrdinal = plan.kindOrdinal;
+        }
         HashStore custom = tags.customStore();
         if (custom != null) {
           custom.forEach(this, (ctx, tagEntry) -> ctx.putIntercepted(tagEntry));
