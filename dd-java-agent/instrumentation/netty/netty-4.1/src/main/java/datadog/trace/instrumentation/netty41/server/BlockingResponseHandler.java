@@ -247,8 +247,12 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
         throws Exception {
       log.info("Ignored write of object {}", msg);
       ReferenceCountUtil.release(msg);
-      // Releasing the message does not complete the write; notify listeners that it failed.
-      promise.tryFailure(new ClosedChannelException());
+      // Releasing a message does not complete its write; notify ordinary promise listeners.
+      // Failing void promises can recurse through exceptionCaught into further error-response
+      // writes.
+      if (!promise.isVoid()) {
+        promise.tryFailure(new ClosedChannelException());
+      }
     }
   }
 }
