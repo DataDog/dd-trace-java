@@ -1,6 +1,8 @@
 package datadog.trace.core;
 
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.api.DDTags;
@@ -11,6 +13,10 @@ import datadog.trace.bootstrap.instrumentation.api.TagContributor;
 import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
+import datadog.trace.core.taginterceptor.RuleFlags;
+import datadog.trace.core.taginterceptor.TagInterceptor;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.TreeMap;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -195,6 +201,74 @@ class DDSpanFrozenTagsTest extends DDCoreJavaSpecification {
       assertEquals(before, span.getTags().size());
     } finally {
       span.finish();
+    }
+  }
+
+  @Test
+  void aRecordedRemovalRemovesTheSpansTag() {
+    FrozenTags frozen =
+        FrozenTags.of(
+            (TagContributor)
+                target -> {
+                  target.setTag("custom.stale", (Object) null);
+                  target.setTag(KnownTags.PEER_HOSTNAME_ID, (CharSequence) null);
+                  target.setTag(KnownTags.PEER_IPV4_ID, "10.0.0.1");
+                });
+    DDSpan span = start();
+    try {
+      span.setTag("custom.stale", "stale");
+      span.setTag(Tags.PEER_HOSTNAME, "url.example");
+      span.setTagsFrom(frozen);
+
+      assertNull(span.getTag("custom.stale"));
+      assertNull(span.getTag(Tags.PEER_HOSTNAME));
+      assertEquals("10.0.0.1", span.getTag(Tags.PEER_HOST_IPV4));
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void splitByTagsSeesTheWritesInTheirOrder() {
+    // split-by-tags makes each routed write set the service, so the last one decides it: the
+    // replay must make the writes in the extraction's order, not the store's
+    Set<String> splitTags = new HashSet<>(asList("custom.first", "custom.second", "custom.third"));
+    CoreTracer splitting =
+        tracerBuilder()
+            .writer(new ListWriter())
+            .tagInterceptor(
+                new TagInterceptor(true, "my-service", splitTags, new RuleFlags(), false))
+            .build();
+    try {
+      for (String[] order :
+          new String[][] {
+            {"custom.first", "custom.second", "custom.third"},
+            {"custom.third", "custom.second", "custom.first"},
+            {"custom.second", "custom.third", "custom.first"}
+          }) {
+        TagContributor writes =
+            target -> {
+              for (String tag : order) {
+                target.setTag(tag, tag + "-service");
+              }
+            };
+        FrozenTags frozen = FrozenTags.of(writes);
+        DDSpan live = (DDSpan) splitting.startSpan("test-instr", "frozen-tags.op");
+        DDSpan replayed = (DDSpan) splitting.startSpan("test-instr", "frozen-tags.op");
+        try {
+          writes.addTo(live);
+          replayed.setTagsFrom(frozen);
+
+          assertEquals(order[2] + "-service", live.getServiceName());
+          assertEquals(live.getServiceName(), replayed.getServiceName());
+          assertEquals(new TreeMap<>(live.getTags()), new TreeMap<>(replayed.getTags()));
+        } finally {
+          live.finish();
+          replayed.finish();
+        }
+      }
+    } finally {
+      splitting.close();
     }
   }
 }

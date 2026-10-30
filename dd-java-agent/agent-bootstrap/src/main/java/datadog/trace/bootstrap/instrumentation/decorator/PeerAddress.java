@@ -14,6 +14,10 @@ import java.net.InetAddress;
  * Extracts the peer tags of a remote {@link InetAddress}: its IP, as {@code peer.ipv4} or {@code
  * peer.ipv6}, and, when the address was resolved and peer hostnames are enabled, {@code
  * peer.hostname}.
+ *
+ * <p>Resolving the hostname may do a reverse DNS lookup, so don't apply this with {@code
+ * span.setTagsFrom(address, extractor)}, which holds the span's tag lock while it runs: call {@code
+ * extract} on the span directly, or freeze it once per address ({@code FrozenTags.of}).
  */
 public final class PeerAddress implements TagExtractor<InetAddress> {
   /** For an address that was resolved from a hostname. */

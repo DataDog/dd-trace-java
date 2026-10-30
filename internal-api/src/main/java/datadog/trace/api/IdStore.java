@@ -70,7 +70,7 @@ public abstract class IdStore {
    * every tag itself. {@code source} must be frozen, and {@code maybePresent} must not keep the
    * entry it is handed.
    */
-  public <T> boolean seedAbsent(
+  public <T> boolean seedPartial(
       IdStore source, T thisObj, BiConsumer<T, ? super EntryReader> maybePresent) {
     return false;
   }

@@ -367,7 +367,7 @@ final class DenseIdStore extends IdStore {
    * so one appended here can't make a later one present.
    */
   @Override
-  public <T> boolean seedAbsent(
+  public <T> boolean seedPartial(
       IdStore source, T thisObj, BiConsumer<T, ? super EntryReader> maybePresent) {
     if (this.seedAbsent(source)) {
       return true;

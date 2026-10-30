@@ -190,9 +190,15 @@ public abstract class BaseDecorator {
         throwable instanceof ExecutionException ? throwable.getCause() : throwable, errorPriority);
   }
 
+  // The peer extractors write straight to the span rather than through setTagsFrom: resolving the
+  // hostname can mean a reverse DNS lookup, which mustn't run under the span's tag lock. To skip
+  // the lookup per span, freeze the extraction once per address instead (FrozenTags).
+
   public final void onPeerConnection(
       final AgentSpan span, @Nullable final InetSocketAddress remoteConnection) {
-    span.setTagsFrom(remoteConnection, PeerSocketAddress.INSTANCE);
+    if (remoteConnection != null) {
+      PeerSocketAddress.INSTANCE.extract(remoteConnection, span);
+    }
   }
 
   public final void onPeerConnection(
@@ -202,7 +208,9 @@ public abstract class BaseDecorator {
 
   public final void onPeerConnection(
       AgentSpan span, @Nullable InetAddress remoteAddress, boolean resolved) {
-    span.setTagsFrom(remoteAddress, resolved ? PeerAddress.RESOLVED : PeerAddress.UNRESOLVED);
+    if (remoteAddress != null) {
+      (resolved ? PeerAddress.RESOLVED : PeerAddress.UNRESOLVED).extract(remoteAddress, span);
+    }
   }
 
   public void setPeerPort(AgentSpan span, String port) {
