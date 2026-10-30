@@ -2870,7 +2870,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
             .add(TriggerProbe.builder().probeId(PROBE_ID4).where(where).build())
             .build();
 
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
     tracer.addTraceInterceptor(traceInterceptor);

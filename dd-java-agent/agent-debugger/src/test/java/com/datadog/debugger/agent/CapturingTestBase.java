@@ -27,6 +27,7 @@ import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.Redaction;
+import datadog.trace.core.CoreTracer;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -60,9 +61,14 @@ public class CapturingTestBase {
   protected MockInstrumentationListener instrumentationListener;
   protected ProbeStatusSink probeStatusSink;
   protected ProbeMetadata probeMetadata = new ProbeMetadata();
+  protected CoreTracer tracer;
 
   @AfterEach
   public void after() {
+    if (tracer != null) {
+      tracer.close();
+      tracer = null;
+    }
     if (currentTransformer != null) {
       instr.removeTransformer(currentTransformer);
     }
