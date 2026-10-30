@@ -11,6 +11,11 @@ class TagConventions private constructor(
   private val traceLevel: List<Tag>,
   /** Datadog names the tracer intercepts on the set-path, from the tracer overlay. */
   val interceptedNames: Set<String> = emptySet(),
+  /**
+   * Java constant bases that replace a sanitized name in KnownTags, by Datadog or OpenTelemetry name,
+   * from the tracer overlay.
+   */
+  val javaNames: Map<String, String> = emptyMap(),
 ) {
   /**
    * A tag's identity: its Datadog name, plus the direction when that name is declared once per
@@ -311,11 +316,13 @@ class TagConventions private constructor(
      * tags the tracer also routes.
      */
     @Suppress("UNCHECKED_CAST")
+    private val JAVA_CONSTANT_BASE = Regex("[A-Z][A-Z0-9_]*")
+
     fun parse(root: Map<String, Any?>, overlay: Map<String, Any?> = emptyMap()): TagConventions {
       for (section in listOf("span_types", "mixins", "trace_level")) {
         require(root[section] == null || root[section] is Map<*, *>) { "$section must be a mapping" }
       }
-      val overlayKeys = setOf("tags", "span_types", "mixins", "intercepted")
+      val overlayKeys = setOf("tags", "span_types", "mixins", "intercepted", "java_names")
       require(overlay.keys.all { it in overlayKeys }) {
         "the tracer overlay may only declare $overlayKeys, not ${overlay.keys - overlayKeys}"
       }
@@ -323,6 +330,16 @@ class TagConventions private constructor(
       val interceptedRaw = overlay["intercepted"]
       require(interceptedRaw == null || (interceptedRaw is List<*> && interceptedRaw.all { it is String })) {
         "intercepted must be a list of Datadog tag names"
+      }
+      val javaNamesRaw = overlay["java_names"]
+      require(javaNamesRaw == null || javaNamesRaw is Map<*, *>) {
+        "java_names must be a mapping of tag names to Java constant bases"
+      }
+      val javaNames = (javaNamesRaw as? Map<*, *>).orEmpty().entries.associate { (tag, base) ->
+        require(tag is String && base is String && JAVA_CONSTANT_BASE.matches(base)) {
+          "java_names maps '$tag' to '$base', not to an upper-case Java identifier"
+        }
+        tag to base
       }
       // An overlay tag exists only to be routed, so it is intercepted without being listed.
       val intercepted =
@@ -404,7 +421,7 @@ class TagConventions private constructor(
           )
         }
       validateOtelNameScope(spanTypes, mixins, traceLevel)
-      val conv = TagConventions(spanTypes, mixins, traceLevel, intercepted)
+      val conv = TagConventions(spanTypes, mixins, traceLevel, intercepted, javaNames)
       val declared = conv.allDeclaredTags().map { it.ddName }.toSet()
       for (name in intercepted) {
         require(name in declared) { "intercepted tag '$name' is not declared" }

@@ -29,7 +29,7 @@ class TagMapEntryCreateByIdTest {
         TagMap.Entry.create(KnownTags.DB_USER_NAME, 1.5f),
         TagMap.Entry.create(KnownTags.DB_USER_ID, 1.5f));
     assertEquivalent(
-        TagMap.Entry.create(KnownTags.DB_POOL_NAME, 2.5d),
+        TagMap.Entry.create(KnownTags.DB_POOL_NAME_NAME, 2.5d),
         TagMap.Entry.create(KnownTags.DB_POOL_NAME_ID, 2.5d));
   }
 
