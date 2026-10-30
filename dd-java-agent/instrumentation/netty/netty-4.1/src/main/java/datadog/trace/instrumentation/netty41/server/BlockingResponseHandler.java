@@ -248,10 +248,12 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
         throws Exception {
       log.info("Ignored write of object {}", msg);
       ReferenceCountUtil.release(msg);
+      // Fail close frames so Netty's close listener runs. Complete other discarded writes
+      // successfully to avoid re-entering framework error handling (e.g. in Vert.x).
       if (msg instanceof CloseWebSocketFrame) {
-        // Let Netty's close listener run when a close frame is discarded. Failing other writes
-        // can re-enter framework error handling after the blocking response (e.g. in Vert.x).
         promise.tryFailure(new ClosedChannelException());
+      } else {
+        promise.trySuccess();
       }
     }
   }

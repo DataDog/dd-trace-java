@@ -20,6 +20,7 @@ import datadog.context.Context;
 import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.NettyBlockResponseFunction;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
@@ -44,7 +45,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 class BlockingResponseHandlerTest {
 
   @ParameterizedTest
-  @MethodSource("discardedHttpWritesDoNotFireExceptionsArguments")
+  @MethodSource("discardedHttpWritesArguments")
   void discardedHttpWritesDoNotFireExceptions(HttpContent message) {
     EmbeddedChannel channel =
         new EmbeddedChannel(BlockingResponseHandler.IgnoreAllWritesHandler.INSTANCE);
@@ -60,7 +61,28 @@ class BlockingResponseHandlerTest {
     }
   }
 
-  static Stream<HttpContent> discardedHttpWritesDoNotFireExceptionsArguments() {
+  @ParameterizedTest
+  @MethodSource("discardedHttpWritesArguments")
+  void discardedHttpWritesCompletePromiseAndNotifyListener(HttpContent message) {
+    EmbeddedChannel channel =
+        new EmbeddedChannel(BlockingResponseHandler.IgnoreAllWritesHandler.INSTANCE);
+    AtomicReference<ChannelFuture> notifiedPromise = new AtomicReference<>();
+    try {
+      ChannelFuture future = channel.pipeline().writeAndFlush(message);
+      future.addListener((ChannelFutureListener) notifiedPromise::set);
+
+      assertTrue(future.isSuccess());
+      assertSame(future, notifiedPromise.get());
+      channel.checkException();
+      assertEquals(0, message.refCnt());
+      assertNull(channel.readOutbound());
+      assertTrue(channel.isActive());
+    } finally {
+      channel.finishAndReleaseAll();
+    }
+  }
+
+  static Stream<HttpContent> discardedHttpWritesArguments() {
     return Stream.of(
         new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.buffer().writeByte(1)),
         new DefaultLastHttpContent(Unpooled.buffer().writeByte(1)));
