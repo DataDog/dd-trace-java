@@ -28,5 +28,13 @@ public final class FeatureFlaggingConfig {
   public static final String FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED =
       "feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
 
+  /**
+   * Lets the {@code dd_experimentation_opt_out_at} evaluation context attribute opt subjects out of
+   * experimentation. Maps to {@code DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE}. Accepted
+   * values: {@code disabled} (default), {@code immediate}, and {@code future_experiments_only}.
+   */
+  public static final String FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE =
+      "feature.flags.experimentation.opt.out.mode";
+
   private FeatureFlaggingConfig() {}
 }

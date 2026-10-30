@@ -52,6 +52,7 @@ Settings are read from the Datadog Java agent configuration when attached, then 
 | `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS` | `5` | CDN request timeout. |
 | `DD_FLAGGING_EVALUATION_COUNTS_ENABLED` | `true` | Sends aggregated flag evaluation counts. |
 | `DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED` | `true` | Sends exposures to Datadog. See [Stop sending exposures to Datadog](#stop-sending-exposures-to-datadog). |
+| `DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE` | `disabled` | Controls per-subject experimentation opt-out: `disabled`, `immediate`, or `future_experiments_only`. See [Per-subject experimentation opt-out](#per-subject-experimentation-opt-out). |
 | `DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED` | `false` | Lets the `dd_evaluation_telemetry_opt_out` context attribute opt subjects out of evaluation telemetry. See [Per-subject evaluation telemetry opt-out](#per-subject-evaluation-telemetry-opt-out). |
 | `DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED` | `false` | Adds flag evaluations to the local root span. Requires `dd-java-agent`. |
 | `DD_API_KEY`, `DD_SITE`, `DD_ENV`, `DD_SERVICE`, `DD_VERSION` | | Credentials and event context. |
@@ -132,6 +133,92 @@ DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 The provider then sends no exposures to Datadog. `ExposureHook` callbacks still receive every evaluation, and `shouldSend()` gives the same result as before. The default is `true`.
 
 This setting stops exposures only. Flag evaluation events have their own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`. The Java provider does not read dd-trace-py's `DD_FFE_INTAKE_ENABLED`.
+
+## Per-subject experimentation opt-out
+
+Set `DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE=immediate` before constructing the provider.
+The default is `disabled`. Existing configuration delivery and credentials are still required.
+
+```java
+import com.datadog.openfeature.Provider;
+import dev.openfeature.sdk.MutableContext;
+import dev.openfeature.sdk.OpenFeatureAPI;
+
+OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+api.setProviderAndWait(new Provider());
+boolean enabled = api.getClient().getBooleanValue("new-checkout", false,
+    new MutableContext("subject-123")
+        .add("dd_experimentation_opt_out_at", "2026-10-19T12:00:00Z"));
+```
+
+In immediate mode, a valid timestamp string excludes the subject from allocations with `doLog=true`.
+This includes completed-experiment winners that still log exposures; omitted, null, and false `doLog` retain Java's ordinary-allocation behavior.
+Evaluation continues through ordinary feature allocations. If none match, the provider returns the application's default.
+A future timestamp also takes effect immediately. It does not schedule exclusion.
+
+Omit the attribute for subjects who can participate. OpenFeature merges API, transaction, client, and invocation
+contexts. Omitting it from an invocation does not remove an inherited value; remove it from the layer that owns it.
+Setting it to null does not restore participation.
+
+Invalid, null, empty, or non-string values return the application's default with `INVALID_CONTEXT` and a diagnostic.
+This validation runs after configuration readiness and before flag lookup, so it also applies to ordinary and missing
+flags. Before configuration is ready the result remains `PROVIDER_NOT_READY`. Disabled mode ignores the attribute,
+including invalid values. Supply `Instant.toString()` as a string; passing an `Instant` object is invalid.
+
+Java uses `DateTimeFormatter.ISO_OFFSET_DATE_TIME`, also used for allocation `startAt`, `endAt`, and activation.
+It validates calendar dates, accepts up to nine fractional digits and offsets through ±18:00, and rejects leap
+seconds, missing offsets, and surrounding whitespace. Its ISO syntax also accepts lowercase `t`/`z`, omitted
+seconds, an empty fractional part, hour-only or second-bearing offsets, and signed extended years. This is Java's
+existing grammar, not the browser SDK's timestamp grammar.
+
+An explicit option overrides configuration:
+
+```java
+import com.datadog.openfeature.ExperimentationOptOutMode;
+
+Provider provider = new Provider(new Provider.Options()
+    .experimentationOptOutMode(ExperimentationOptOutMode.DISABLED));
+```
+
+`DEFAULT` reads the normal SDK configuration sources, including
+`-Ddd.feature.flags.experimentation.opt.out.mode=immediate`.
+The provider resolves the mode at construction; later changes to options or configuration do not change it.
+Unsupported values throw `IllegalArgumentException` when Feature Flags is enabled. A disabled product skips this
+unused setting's validation and retains its existing initialization behavior. Passing null to the option throws
+`NullPointerException`.
+The deprecated `datadog.trace.api.openfeature.Provider` alias uses the same evaluator
+and accepts the same `com.datadog.openfeature.ExperimentationOptOutMode` options.
+
+This setting is independent of evaluation telemetry opt-out.
+Immediate withdrawal can change an enrolled subject's experience. Account for this change in experiment analysis.
+
+Use `future_experiments_only` or `ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY` to exclude newer experiments.
+Supply the same stored `dd_experimentation_opt_out_at` timestamp with each evaluation.
+For exposure-logging allocations, the provider compares `randomizationActivatedAt` with that timestamp:
+
+| Allocation activation | Behavior |
+| --- | --- |
+| Before the subject's opt-out time | Evaluate normally, including exposure logging |
+| Equal to or after the opt-out time | Skip the allocation and continue ordinary delivery |
+| Missing or null | Skip the allocation because its activation time is unknown |
+
+Ordinary allocations remain available. Missing subject attributes preserve normal evaluation.
+Both enabled modes reject invalid subject timestamps.
+Malformed activation metadata on any allocation, including an ordinary, unreachable, or disabled flag's allocation,
+returns `PARSE_ERROR` for the affected flag only in future mode with a valid subject timestamp.
+Disabled mode, immediate mode, and evaluations without a subject timestamp preserve ordinary evaluation.
+Invalid regex patterns and unconvertible numeric variant values are configuration errors regardless of opt-out:
+the parser rejects only the affected flag, including when the malformed allocation would be skipped.
+Java's existing regex syntax and numeric coercions remain supported.
+Comparisons retain nanosecond precision and account for timezone offsets.
+The cutoff does not depend on the SDK clock. It is not a scheduled change or proof of prior enrollment.
+An older allocation can still assign a subject for the first time.
+
+Enable future mode after the configuration service supplies stable activation timestamps and preserves ordinary fallback allocations.
+Keep the subject's stored opt-out time stable across sessions and SDK instances.
+The provider stores no consent history and emits no new event type. The opt-out attribute remains in the evaluation
+context: existing exposure reports can include it, and evaluation events can include it when full evaluation data
+reporting is enabled. Existing reporting controls and consent settings still apply.
 
 ## Per-subject evaluation telemetry opt-out
 
