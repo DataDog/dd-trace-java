@@ -60,7 +60,6 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     skippedSpan.getTag("test.status").toString() == "skip"
   }
 
-
   def "test automation no-auto-retry alone preserves quarantine suppression"() {
     given:
     TestAutomationNoRetry.executions().set(0)
