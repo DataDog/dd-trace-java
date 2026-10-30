@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.scalatest;
 
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.NoAutoRetry;
+import datadog.trace.api.civisibility.PreventFailureSuppression;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
@@ -85,8 +87,7 @@ public class RunContext {
   public Collection<String> exclusionTags(TestIdentifier test) {
     Collection<String> exclusions = new ArrayList<>();
     for (String tag : tags(test)) {
-      if ("datadog_no_auto_retry".equals(tag)
-          || "datadog_prevent_failure_suppression".equals(tag)) {
+      if (NoAutoRetry.TAG.equals(tag) || PreventFailureSuppression.TAG.equals(tag)) {
         exclusions.add(tag);
       }
     }
