@@ -175,13 +175,15 @@ class WAFModuleHandleReloadRaceTest {
       assertTrue(creating.await(10, TimeUnit.SECONDS));
       updateThread.start();
       long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+      // keep the observed state: a parked thread can transiently leave WAITING, so don't resample
+      boolean blocked = false;
       while (!update.isDone()
-          && !blockedInHandleReplacement(updateThread)
+          && !(blocked = blockedInHandleReplacement(updateThread))
           && System.nanoTime() < deadline) {
         Thread.yield();
       }
       assertFalse(update.isDone(), "reload must wait for context creation");
-      assertTrue(blockedInHandleReplacement(updateThread));
+      assertTrue(blocked, "reload must be parked in initOrUpdateWafHandle");
       assertTrue(initialHandle.isOnline(), "handle must remain online during context creation");
     } finally {
       finishCreation.countDown();
