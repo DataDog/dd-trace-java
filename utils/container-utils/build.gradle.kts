@@ -1,6 +1,4 @@
 plugins {
-  // ContainerInfoTest invokes the image's ls -id command.
-  id("dd-trace-java.ci-builder-inputs")
   `java-library`
   id("dd-trace-java.module.internal-library")
 }

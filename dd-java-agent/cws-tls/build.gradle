@@ -2,8 +2,6 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.apache.maven.model.License
 
 plugins {
-  // CWS tests exercise JNA native memory and the image's native runtime.
-  id 'dd-trace-java.ci-builder-inputs'
   id 'com.gradleup.shadow'
   id 'dd-trace-java.version-file'
   id 'dd-trace-java.module.product-subsystem'

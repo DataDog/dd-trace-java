@@ -386,6 +386,18 @@ tasks.register("processData") {
 > Prefer annotations in custom task classes for better type safety and documentation.
 > Use the programmatic API for ad-hoc tasks registered with `tasks.register`.
 
+#### CI Builder Image Inputs
+
+Apply the [`dd-trace-java.ci-builder-inputs` convention](../build-logic/conventions/README.md)
+when a module's cacheable tasks depend on the CI image's native toolchain, runtime libraries,
+or tool-specific output, such as Git pack generation. Routine uses of `cat`, `echo`, `ls`
+or `sleep` alone do not justify invalidating tasks on every image change.
+
+The convention adds the builder identity to `Test`, `Exec` and `JavaExec` inputs when
+`CI=true`. Other task types, including native smoke producers, declare the identity
+explicitly. See the convention reference for the CI property and input declarations.
+Local builds require no configuration.
+
 #### Lazy Configuration with Providers
 
 Gradle uses **lazy configuration** to defer value resolution until needed. Instead of setting values directly, you use `Property` and `Provider` types:
