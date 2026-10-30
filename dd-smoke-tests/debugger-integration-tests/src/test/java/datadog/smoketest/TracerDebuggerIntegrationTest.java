@@ -12,7 +12,6 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import datadog.trace.util.TagsHelper;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -24,7 +23,6 @@ import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-@Flaky
 @NonRetryable
 public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
 
