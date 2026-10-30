@@ -309,6 +309,15 @@ def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
 }
 includeShadowJar(traceShadowJar, 'trace', includedJarFileTree)
 
+[sharedShadowJar, traceShadowJar].each { shadowJarTask ->
+  shadowJarTask.configure {
+    // Track packaged bytes, including version files ignored by classpath normalization.
+    inputs.files(includedDependencies)
+      .withPropertyName('packagedDependencies')
+      .withPathSensitivity(PathSensitivity.NONE)
+  }
+}
+
 tasks.named("shadowJar", ShadowJar) {
   // Include AgentPreCheck compiled with Java 6.
   from sourceSets.main_java6.output
