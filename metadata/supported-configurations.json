@@ -5876,6 +5876,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_EXPERIMENTAL_CRYPTO_PROVIDER_START_DELAY": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "15",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED": [
       {
         "version": "A",

@@ -5,6 +5,7 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static datadog.trace.api.Config.isExplicitlyDisabled;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_CRYPTO_PROVIDER_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
@@ -12,6 +13,7 @@ import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.bootstrap.config.provider.StableConfigSource.FLEET;
 import static datadog.trace.bootstrap.config.provider.StableConfigSource.LOCAL;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.CRYPTO_PROVIDER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
@@ -136,7 +138,10 @@ public class Agent {
     APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
     LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
-    FEATURE_FLAGS(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED, true);
+    FEATURE_FLAGS(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED, true),
+    EXPERIMENTAL_CRYPTO_PROVIDER(
+        TracerConfig.TRACE_EXPERIMENTAL_CRYPTO_PROVIDER_ENABLED,
+        DEFAULT_TRACE_EXPERIMENTAL_CRYPTO_PROVIDER_ENABLED);
 
     private final String configKey;
     private final String systemProp;
@@ -346,6 +351,10 @@ public class Agent {
 
     final boolean appUsingCustomLogManager = isAppUsingCustomLogManager(libraries);
     final boolean appUsingCustomJMXBuilder = isAppUsingCustomJMXBuilder(libraries);
+
+    if (isFeatureEnabled(AgentFeature.EXPERIMENTAL_CRYPTO_PROVIDER)) {
+      maybeInstallCryptoProvider(appUsingCustomLogManager);
+    }
 
     /*
      * java.util.logging.LogManager maintains a final static LogManager, which is created during class initialization.
@@ -566,6 +575,56 @@ public class Agent {
         AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
     installDatadogTracer(initTelemetry, scoClass, scoClass.getConstructor().newInstance());
     startJmx(); // send runtime metrics along with the traces
+  }
+
+  /**
+   * Experimental: puts a native JCA provider ahead of the JDK ones after a start delay, like
+   * JMXFetch, so the app's main has had a chance to configure JCA, JUL and the default file system
+   * first. JCA lookups the app makes before the provider is installed keep using the JDK providers.
+   */
+  private static void maybeInstallCryptoProvider(boolean appUsingCustomLogManager) {
+    ClassLoadCallBack callback = new InstallCryptoProviderCallback(getCryptoProviderStartDelay());
+    if (appUsingCustomLogManager) {
+      log.debug("Custom logger detected. Delaying crypto provider installation.");
+      registerLogManagerCallback(callback);
+    } else {
+      callback.run();
+    }
+  }
+
+  protected static class InstallCryptoProviderCallback extends ClassLoadCallBack {
+    private final int startDelay;
+
+    InstallCryptoProviderCallback(final int startDelay) {
+      this.startDelay = startDelay;
+    }
+
+    @Override
+    public AgentThread agentThread() {
+      return CRYPTO_PROVIDER_STARTUP;
+    }
+
+    @Override
+    public void execute() {
+      if (startDelay > 0) {
+        AgentTaskScheduler.get()
+            .schedule(
+                InstallCryptoProviderCallback::installCryptoProvider, startDelay, TimeUnit.SECONDS);
+      } else {
+        installCryptoProvider();
+      }
+    }
+
+    private static void installCryptoProvider() {
+      try {
+        AGENT_CLASSLOADER
+            .loadClass("datadog.trace.agent.tooling.crypto.CryptoProviderInstaller")
+            .getMethod("install")
+            .invoke(null);
+      } catch (Throwable e) {
+        log.debug("Experimental crypto provider installation failed", e);
+      }
+    }
   }
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
@@ -1850,6 +1909,19 @@ public class Agent {
         return Integer.parseInt(startDelay);
       } catch (NumberFormatException e) {
         // fall back to default delay
+      }
+    }
+    return DEFAULT_JMX_START_DELAY;
+  }
+
+  private static int getCryptoProviderStartDelay() {
+    String startDelay =
+        ddGetProperty("dd." + TracerConfig.TRACE_EXPERIMENTAL_CRYPTO_PROVIDER_START_DELAY);
+    if (startDelay != null) {
+      try {
+        return Integer.parseInt(startDelay);
+      } catch (NumberFormatException e) {
+        log.debug("Invalid crypto provider start delay: {}", startDelay);
       }
     }
     return DEFAULT_JMX_START_DELAY;

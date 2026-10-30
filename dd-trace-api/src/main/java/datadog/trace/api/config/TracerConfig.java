@@ -156,10 +156,13 @@ public final class TracerConfig {
 
   /**
    * Experimental: install a native JCA provider (Amazon Corretto Crypto Provider, if it is on the
-   * application class path) ahead of the JDK providers once the agent has started.
+   * application class path) ahead of the JDK providers after a start delay.
    */
   public static final String TRACE_EXPERIMENTAL_CRYPTO_PROVIDER_ENABLED =
       "trace.experimental.crypto.provider.enabled";
+
+  public static final String TRACE_EXPERIMENTAL_CRYPTO_PROVIDER_START_DELAY =
+      "trace.experimental.crypto.provider.start-delay";
 
   public static final String TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL =
       "trace.experimental.long-running.initial.flush.interval";

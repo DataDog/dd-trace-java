@@ -32,6 +32,8 @@ public final class AgentThreadFactory implements ThreadFactory {
     PROFILER_RECORDING_SCHEDULER("dd-profiler-recording-scheduler"),
     PROFILER_HTTP_DISPATCHER("dd-profiler-http-dispatcher"),
 
+    CRYPTO_PROVIDER_STARTUP("dd-agent-startup-crypto-provider"),
+
     APPSEC_HTTP_DISPATCHER("dd-appsec-http-dispatcher"),
 
     CRASHTRACKING_HTTP_DISPATCHER("dd-crashtracking-http-dispatcher"),
