@@ -1,0 +1,133 @@
+plugins {
+  id 'java'
+}
+
+repositories {
+  mavenCentral()
+}
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(21)
+  }
+}
+tasks.withType(JavaCompile).configureEach {
+  options.release = 21
+  options.encoding = 'UTF-8'
+}
+
+def accpVersion = '2.5.0'
+def accpClassifiers = ['linux-aarch_64', 'linux-x86_64', 'osx-aarch_64', 'osx-x86_64']
+def hostOs = System.getProperty('os.name').toLowerCase().contains('mac') ? 'osx' : 'linux'
+def hostArch = System.getProperty('os.arch') in ['aarch64', 'arm64'] ? 'aarch_64' : 'x86_64'
+def hostAccpClassifier = "${hostOs}-${hostArch}"
+
+sourceSets {
+  shared {
+    java.srcDirs = ['src/shared/java']
+    resources.srcDirs = ['src/shared/resources']
+  }
+  main {
+    compileClasspath += shared.output
+    runtimeClasspath += shared.output
+  }
+  test {
+    compileClasspath += shared.output
+    runtimeClasspath += shared.output
+  }
+  loadgen {
+    java.srcDirs = ['src/loadgen/java']
+  }
+  jmh {
+    java.srcDirs = ['src/jmh/java']
+    compileClasspath += shared.output
+    runtimeClasspath += shared.output
+  }
+}
+
+configurations {
+  accp {
+    canBeConsumed = false
+    transitive = false
+  }
+  junitConsole {
+    canBeConsumed = false
+    transitive = false
+  }
+}
+
+dependencies {
+  implementation platform('org.springframework.boot:spring-boot-dependencies:3.3.5')
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+
+  compileOnly "software.amazon.cryptools:AmazonCorrettoCryptoProvider:${accpVersion}:linux-x86_64"
+  testCompileOnly "software.amazon.cryptools:AmazonCorrettoCryptoProvider:${accpVersion}:linux-x86_64"
+  jmhCompileOnly "software.amazon.cryptools:AmazonCorrettoCryptoProvider:${accpVersion}:linux-x86_64"
+  accpClassifiers.each { c ->
+    accp "software.amazon.cryptools:AmazonCorrettoCryptoProvider:${accpVersion}:${c}"
+  }
+
+  testImplementation platform('org.junit:junit-bom:5.10.5')
+  testImplementation 'org.junit.jupiter:junit-jupiter'
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+  testRuntimeOnly "software.amazon.cryptools:AmazonCorrettoCryptoProvider:${accpVersion}:${hostAccpClassifier}"
+  junitConsole 'org.junit.platform:junit-platform-console-standalone:1.10.5'
+
+  jmhImplementation 'org.openjdk.jmh:jmh-core:1.37'
+  jmhAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+}
+
+tasks.named('test', Test) {
+  useJUnitPlatform()
+  testLogging {
+    events 'passed', 'skipped', 'failed'
+    exceptionFormat 'full'
+  }
+}
+
+tasks.register('accpJars', Sync) {
+  from configurations.accp
+  into layout.buildDirectory.dir('accp')
+}
+
+tasks.named('jar', Jar) {
+  archiveFileName = 'crypto-bench-app.jar'
+  from sourceSets.shared.output
+}
+
+tasks.register('appDist', Sync) {
+  from tasks.named('jar')
+  from configurations.runtimeClasspath
+  into layout.buildDirectory.dir('app/lib')
+}
+
+tasks.register('loadgenJar', Jar) {
+  archiveFileName = 'crypto-bench-tools.jar'
+  from sourceSets.loadgen.output
+}
+
+tasks.register('jmhJar', Jar) {
+  archiveFileName = 'crypto-bench-jmh.jar'
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  manifest { attributes 'Main-Class': 'org.openjdk.jmh.Main' }
+  from sourceSets.jmh.output
+  from sourceSets.shared.output
+  from {
+    configurations.jmhRuntimeClasspath.filter { it.name.endsWith('.jar') }.collect { zipTree(it) }
+  }
+  exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
+}
+
+tasks.register('testBundle', Sync) {
+  from(sourceSets.test.output) { into 'classes' }
+  from(sourceSets.shared.output) { into 'classes' }
+  from(configurations.testRuntimeClasspath.filter { !it.name.startsWith('AmazonCorrettoCryptoProvider') }) {
+    into 'lib'
+  }
+  from(configurations.junitConsole) { into 'console' }
+  into layout.buildDirectory.dir('testbundle')
+}
+
+tasks.register('benchAll') {
+  dependsOn 'accpJars', 'appDist', 'loadgenJar', 'jmhJar', 'testBundle'
+}
