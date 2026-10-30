@@ -87,26 +87,56 @@ public class MsgPackWriter implements WritableFormatter {
   public <T> boolean format(T message, Mapper<T> mapper) {
     try {
       mapper.map(message, this);
-      buffer.mark();
-      return true;
-    } catch (BufferOverflowException overflow) {
-      // if the buffer has finite capacity, it will overflow
-      // if we tried to serialise a message larger than the
-      // max capacity, then reject the message
-      if (buffer.flush()) {
-        try {
-          mapper.reset();
-          mapper.map(message, this, true);
-          buffer.mark();
-          return true;
-        } catch (BufferOverflowException fatal) {
-          log.debug("dropping message because it exceeds a serialization buffer's capacity");
-        }
+      if (buffer.mark()) {
+        return true;
       }
-      buffer.reset();
-      // the buffer is now empty, so drop any mapper state from the rejected message
+      // the buffer ran out of room without throwing and has rewound the message
+    } catch (BufferOverflowException overflow) {
+      buffer.rewind();
+    } catch (Throwable failure) {
+      discardFailedMessage(mapper);
+      throw failure;
+    }
+    return retryInEmptyBuffer(message, mapper);
+  }
+
+  /**
+   * Retries a message that didn't fit after sending what the buffer holds. A message larger than
+   * the buffer's capacity is rejected.
+   */
+  private <T> boolean retryInEmptyBuffer(T message, Mapper<T> mapper) {
+    if (buffer.flush()) {
+      try {
+        mapper.reset();
+        mapper.map(message, this, true);
+        if (buffer.mark()) {
+          return true;
+        }
+      } catch (BufferOverflowException fatal) {
+        // rejected below
+      } catch (Throwable failure) {
+        discardFailedMessage(mapper);
+        throw failure;
+      }
+      log.debug("dropping message because it exceeds a serialization buffer's capacity");
+    }
+    buffer.reset();
+    // the buffer is now empty, so drop any mapper state from the rejected message
+    mapper.reset();
+    return false;
+  }
+
+  /**
+   * Drops a message that failed part-way without corrupting the payload. Its bytes are rewound, but
+   * mapper state (string tables, counts) may still refer to them, so the completed messages are
+   * sent as their own payload and the mapper starts a new one.
+   */
+  private void discardFailedMessage(Mapper<?> mapper) {
+    buffer.rewind();
+    try {
+      buffer.flush();
+    } finally {
       mapper.reset();
-      return false;
     }
   }
 

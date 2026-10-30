@@ -1,5 +1,6 @@
 package datadog.trace.common.writer;
 
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -166,14 +167,14 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     dispatcher.addTrace(Collections.emptyList());
     dispatcher.onDroppedTrace(20);
     dispatcher.onDroppedTrace(2);
-    Payload payload = dispatcher.newPayload(1, ByteBuffer.allocate(0));
+    Payload payload = dispatcher.newPayload(1, singletonList(ByteBuffer.allocate(0)));
 
     // dropped counts are accumulated
     assertEquals(22, payload.droppedSpans());
     assertEquals(2, payload.droppedTraces());
 
     // create another payload
-    Payload newPayload = dispatcher.newPayload(1, ByteBuffer.allocate(0));
+    Payload newPayload = dispatcher.newPayload(1, singletonList(ByteBuffer.allocate(0)));
 
     // counts are reset after access
     assertEquals(0, newPayload.droppedSpans());
