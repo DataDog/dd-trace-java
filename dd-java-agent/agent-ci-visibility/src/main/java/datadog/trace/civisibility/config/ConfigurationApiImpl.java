@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import okhttp3.Call;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import okio.Okio;
@@ -210,18 +211,15 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   @Override
   public Map<String, Collection<TestFQN>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException {
-    OkHttpUtils.CustomListener telemetryListener =
-        new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST)
-            .requestErrors(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.KNOWN_TESTS_REQUEST_MS)
-            .responseBytes(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_BYTES)
-            .build();
+    // Listener that both emits per-request metrics and accumulates total request time
+    AccumulatingTelemetryListener accumulatingListener =
+        new AccumulatingTelemetryListener(metricCollector);
 
     // Aggregate tests map across all pages: module -> suite -> tests
     Map<String, Map<String, List<String>>> aggregateTests = new HashMap<>();
     String pageState = null;
     int pageNumber = 0;
+    long startMs = System.currentTimeMillis();
 
     do {
       pageNumber += 1;
@@ -241,7 +239,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
                   testFullNamesResponseAdapter.fromJson(Okio.buffer(Okio.source(is)))
                       .data
                       .attributes,
-              telemetryListener,
+              accumulatingListener,
               false);
 
       mergeKnownTests(aggregateTests, knownTests.tests);
@@ -266,6 +264,13 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             : 0;
     LOGGER.debug("Received {} known tests in total", knownTestsCount);
     metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, knownTestsCount);
+    long totalFetchMs = System.currentTimeMillis() - startMs;
+    metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED, pageNumber);
+    metricCollector.add(
+        CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS, (int) totalFetchMs);
+    metricCollector.add(
+        CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS,
+        accumulatingListener.getTotalRequestMs());
     // returning null disables features that rely on known tests; this is intentional on the very
     // first execution for a repository, when we want to seed the backend with the initial set.
     return testsByModule;
@@ -342,5 +347,64 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         CiVisibilityDistributionMetric.TEST_MANAGEMENT_TESTS_RESPONSE_TESTS, testsCount);
 
     return response.toTestFQNsBySetting();
+  }
+
+  /**
+   * Listener that emits per-request telemetry metrics and accumulates total request duration across
+   * all retry attempts. By measuring each OkHttp call individually, this excludes retry backoff
+   * sleeps from total_request_ms, ensuring it represents the sum of actual request times.
+   */
+  private static class AccumulatingTelemetryListener extends OkHttpUtils.CustomListener {
+    private final TelemetryListener delegate;
+    private long callStartMs;
+    private int totalRequestMs;
+
+    public AccumulatingTelemetryListener(CiVisibilityMetricCollector metricCollector) {
+      this.delegate =
+          (TelemetryListener)
+              new TelemetryListener.Builder(metricCollector)
+                  .requestCount(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST)
+                  .requestErrors(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST_ERRORS)
+                  .requestDuration(CiVisibilityDistributionMetric.KNOWN_TESTS_REQUEST_MS)
+                  .responseBytes(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_BYTES)
+                  .build();
+    }
+
+    @Override
+    public void callStart(Call call) {
+      callStartMs = System.currentTimeMillis();
+      delegate.callStart(call);
+    }
+
+    @Override
+    public void requestBodyEnd(Call call, long byteCount) {
+      delegate.requestBodyEnd(call, byteCount);
+    }
+
+    @Override
+    public void responseHeadersEnd(Call call, okhttp3.Response response) {
+      delegate.responseHeadersEnd(call, response);
+    }
+
+    @Override
+    public void responseBodyEnd(Call call, long byteCount) {
+      delegate.responseBodyEnd(call, byteCount);
+    }
+
+    @Override
+    public void callEnd(Call call) {
+      delegate.callEnd(call);
+      totalRequestMs += (int) (System.currentTimeMillis() - callStartMs);
+    }
+
+    @Override
+    public void callFailed(Call call, IOException ioe) {
+      delegate.callFailed(call, ioe);
+      totalRequestMs += (int) (System.currentTimeMillis() - callStartMs);
+    }
+
+    public int getTotalRequestMs() {
+      return totalRequestMs;
+    }
   }
 }
