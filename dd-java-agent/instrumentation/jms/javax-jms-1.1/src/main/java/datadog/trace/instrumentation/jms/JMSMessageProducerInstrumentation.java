@@ -14,6 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
+import static datadog.trace.instrumentation.jms.JMSDecorator.isDataStreamsSupported;
 import static datadog.trace.instrumentation.jms.JMSDecorator.messageTechnology;
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -112,7 +113,7 @@ public final class JMSMessageProducerInstrumentation
           && !destinationName.isEmpty()
           && Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
+        if (isDataStreamsSupported(tech)) {
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
@@ -182,7 +183,7 @@ public final class JMSMessageProducerInstrumentation
           && !destinationName.isEmpty()
           && Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
+        if (isDataStreamsSupported(tech)) {
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
