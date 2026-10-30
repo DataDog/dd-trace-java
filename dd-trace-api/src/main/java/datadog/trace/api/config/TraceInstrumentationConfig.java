@@ -154,6 +154,13 @@ public final class TraceInstrumentationConfig {
   public static final String SERVLET_PRINCIPAL_ENABLED = "trace.servlet.principal.enabled";
   public static final String SERVLET_ASYNC_TIMEOUT_ERROR = "trace.servlet.async-timeout.error";
 
+  /**
+   * Restores the old Undertow behavior of renaming the request (resource, route and servlet.path)
+   * to the target of an internal forward, include, error or async dispatch.
+   */
+  public static final String UNDERTOW_DISPATCH_RENAME_RESOURCE =
+      "trace.undertow.dispatch.rename-resource";
+
   public static final String SERVLET_ROOT_CONTEXT_SERVICE_NAME =
       "trace.servlet.root-context.service.name";
 

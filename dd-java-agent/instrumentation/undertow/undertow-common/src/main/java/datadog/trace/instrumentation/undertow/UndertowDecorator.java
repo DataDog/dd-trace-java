@@ -43,6 +43,8 @@ public class UndertowDecorator
       UTF8BytesString.create(DECORATE.operationName());
   public static final boolean UNDERTOW_LEGACY_TRACING =
       Config.get().isLegacyTracingEnabled(true, "undertow");
+  public static final boolean UNDERTOW_DISPATCH_RENAME_RESOURCE =
+      Config.get().isUndertowDispatchRenameResource();
 
   @Override
   protected String[] instrumentationNames() {
