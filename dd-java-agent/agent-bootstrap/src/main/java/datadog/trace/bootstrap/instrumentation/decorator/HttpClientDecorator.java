@@ -6,6 +6,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
+import datadog.context.ContextKey;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.KnownTags;
@@ -40,6 +43,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   private static final Logger log = LoggerFactory.getLogger(HttpClientDecorator.class);
 
+  private static final ContextKey<AgentSpan> CLIENT_SPAN_KEY =
+      ContextKey.named("dd-http-client-span");
+
   private static final String DATADOG_META_LANG_HEADER_NAME = "Datadog-Meta-Lang";
   private static final String DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME = "DD-Client-Library-Language";
 
@@ -53,6 +59,16 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   private static final boolean CLIENT_TAG_HEADERS = Config.get().isHttpClientTagHeaders();
 
   private static final boolean APPSEC_RASP_ENABLED = Config.get().isAppSecRaspEnabled();
+
+  /** Marks the active HTTP client span so lower-level transports can avoid duplicating it. */
+  public static ContextScope suppressNestedClientSpans(final AgentSpan span) {
+    return Context.current().with(CLIENT_SPAN_KEY, span).attach();
+  }
+
+  /** Returns whether {@code span} owns the HTTP request represented by {@code context}. */
+  public static boolean isNestedClientSpanSuppressed(final Context context, final AgentSpan span) {
+    return context != null && span != null && context.get(CLIENT_SPAN_KEY) == span;
+  }
 
   protected abstract String method(REQUEST request);
 

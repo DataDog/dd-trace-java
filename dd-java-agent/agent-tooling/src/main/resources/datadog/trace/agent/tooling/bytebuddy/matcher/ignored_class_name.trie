@@ -162,7 +162,9 @@
 0 akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 0 akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport$class
 0 akka.http.scaladsl.unmarshalling.*
-0 akka.http.scaladsl.server.PathMatcher$Matched
+# Path matchers supply route templates when OTel HTTP semantics are enabled
+0 akka.http.scaladsl.server.PathMatcher*
+0 akka.http.scaladsl.server.ImplicitPathMatcherConstruction*
 0 akka.http.scaladsl.server.directives.ParameterDirectives$class
 0 akka.http.scaladsl.server.directives.ParameterDirectives
 0 akka.http.scaladsl.server.directives.BasicDirectives$class
