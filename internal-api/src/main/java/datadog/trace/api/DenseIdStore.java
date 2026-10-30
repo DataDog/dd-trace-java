@@ -359,6 +359,61 @@ final class DenseIdStore extends IdStore {
     return true;
   }
 
+  /**
+   * The partial bulk seed: when the occupancy words share no bit, the two array copies of {@link
+   * #seedAbsent(IdStore)}; otherwise a walk over {@code source} that appends each tag whose slot
+   * bit is clear here and hands the others, which may be present, to {@code maybePresent}. The bits
+   * are checked against this store as it was before the walk: {@code source}'s tags are distinct,
+   * so one appended here can't make a later one present.
+   */
+  @Override
+  public <T> boolean seedPartial(
+      IdStore source, T thisObj, BiConsumer<T, ? super EntryReader> maybePresent) {
+    if (this.seedAbsent(source)) {
+      return true;
+    }
+    if (!(source instanceof DenseIdStore)) {
+      return false;
+    }
+    DenseIdStore src = (DenseIdStore) source;
+    int n = src.used;
+    if (src.parent != null || n != src.count) {
+      return false; // read-through or tombstones: not a plain list of tags
+    }
+    long maybeHere = this.tombstoneMask | this.inheritedMask;
+    long spanHere = this.spanOccupancy | maybeHere;
+    long traceHere = this.traceOccupancy | maybeHere;
+    if (this.used + n > this.serials.length) {
+      this.growTo(this.used + n);
+    }
+    DenseReader collided = null;
+    for (int i = 0; i < n; i++) {
+      char serial = src.serials[i];
+      long tagId = KnownTagCodec.idOf(serial);
+      long bit = slotBit(tagId);
+      int level = levelOf(tagId);
+      if (((level == TRACE_LEVEL ? traceHere : spanHere) & bit) != 0L) {
+        if (collided == null) {
+          collided = new DenseReader(); // not this.reader: maybePresent's writes reuse that
+        }
+        collided.set(tagId, src.values[i]);
+        maybePresent.accept(thisObj, collided);
+      } else {
+        // re-read used and the arrays: maybePresent may have appended or grown them
+        int at = this.used;
+        if (at == this.serials.length) {
+          this.growTo(at + 1);
+        }
+        this.serials[at] = serial;
+        this.values[at] = src.values[i];
+        this.used = at + 1;
+        this.count++;
+        this.markLocal(bit, level);
+      }
+    }
+    return true;
+  }
+
   /** Grows the arrays to hold at least {@code minCapacity} slots. Rare, so kept out of line. */
   private void growTo(int minCapacity) {
     int newCap =

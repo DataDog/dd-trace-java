@@ -6,6 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.PEER_TAGS_ADDRESS_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.PEER_TAGS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE_SECURE;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.NETTY_CLIENT;
@@ -17,12 +19,15 @@ import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.FrozenTags;
+import datadog.trace.bootstrap.instrumentation.decorator.PeerSocketAddress;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.util.Attribute;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
@@ -84,10 +89,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       decorate.afterStart(span);
       decorate.onRequest(span, request);
 
-      SocketAddress socketAddress = ctx.channel().remoteAddress();
-      if (socketAddress instanceof InetSocketAddress) {
-        decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
-      }
+      span.setTagsFrom(peerTags(ctx.channel()));
 
       // AWS calls are often signed, so we can't add headers without breaking the signature.
       if (!awsClientCall) {
@@ -109,6 +111,33 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         parentScope.close();
       }
     }
+  }
+
+  /**
+   * The peer tags of {@code channel}'s remote address, frozen once per address and kept on the
+   * channel, so later requests skip rebuilding the IP string and resolving the hostname. An HTTP/2
+   * stream reports its connection's address object, so its tags are kept on the connection and
+   * shared by its streams; any other parent (a server channel) reports a different address, so the
+   * channel keeps its own. The cached tags are reused only while the channel still reports the
+   * address object they were frozen from. Nothing is cached while there is no remote address yet.
+   * Called on the channel's event loop, which HTTP/2 streams share with their connection.
+   */
+  private static FrozenTags peerTags(final Channel channel) {
+    final SocketAddress address = channel.remoteAddress();
+    if (!(address instanceof InetSocketAddress)) {
+      return FrozenTags.EMPTY;
+    }
+    final Channel parent = channel.parent();
+    final Channel holder = parent != null && parent.remoteAddress() == address ? parent : channel;
+    final Attribute<FrozenTags> tagsAttribute = holder.attr(PEER_TAGS_ATTRIBUTE_KEY);
+    final Attribute<SocketAddress> addressAttribute = holder.attr(PEER_TAGS_ADDRESS_ATTRIBUTE_KEY);
+    FrozenTags tags = tagsAttribute.get();
+    if (tags == null || addressAttribute.get() != address) {
+      tags = FrozenTags.of((InetSocketAddress) address, PeerSocketAddress.INSTANCE);
+      tagsAttribute.set(tags);
+      addressAttribute.set(address);
+    }
+    return tags;
   }
 
   private static ContextContinuation takeConnectParentContinuation(

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.kafka_clients;
 
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.CONSUMER_GROUP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_CLUSTER_ID;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MESSAGING_DESTINATION_NAME;
@@ -16,6 +15,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.FrozenTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -114,27 +114,23 @@ public class KafkaDecorator extends MessagingClientDecorator {
     return spanKind;
   }
 
+  /** {@code record}'s topic, or {@code "kafka"} when it has none. */
+  static String topicOf(final ConsumerRecord<?, ?> record) {
+    return record.topic() == null ? "kafka" : record.topic();
+  }
+
+  /**
+   * Decorates a consumed record's span. {@code consumerTags} are the destination, group, cluster id
+   * and bootstrap servers, frozen once per topic per poll ({@link KafkaConsumerTags}).
+   */
   public void onConsume(
-      final AgentSpan span,
-      final ConsumerRecord record,
-      String consumerGroup,
-      String clusterId,
-      String bootstrapServers) {
+      final AgentSpan span, final ConsumerRecord record, final FrozenTags consumerTags) {
     if (record != null) {
-      final String topic = record.topic() == null ? "kafka" : record.topic();
+      final String topic = topicOf(record);
       span.setResourceName(CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, CONSUMER_PREFIX));
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
-      span.setTag(MESSAGING_DESTINATION_NAME, topic);
-      if (consumerGroup != null) {
-        span.setTag(CONSUMER_GROUP, consumerGroup);
-      }
-      if (clusterId != null) {
-        span.setTag(KAFKA_CLUSTER_ID, clusterId);
-      }
-      if (bootstrapServers != null) {
-        span.setTag(KAFKA_BOOTSTRAP_SERVERS, bootstrapServers);
-      }
+      span.setTagsFrom(consumerTags);
       // TODO - do we really need both? This mechanism already adds a lot of... baggage.
       // check to not record a duration if the message was sent from an old Kafka client
       if (record.timestampType() != TimestampType.NO_TIMESTAMP_TYPE) {

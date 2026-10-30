@@ -40,6 +40,7 @@ import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.FrozenTags;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -758,8 +759,9 @@ public class DDSpanContext
   }
 
   /**
-   * How a {@link SpanPrototype}'s tags are seeded into a span, cached on the prototype for the
-   * interceptor it was checked against ({@link SpanPrototype#seedPlan}).
+   * How a {@link SpanPrototype}'s or {@link FrozenTags}' tags are copied into a span, cached on the
+   * prototype or frozen tags for the interceptor it was checked against ({@link
+   * SpanPrototype#seedPlan}, {@link FrozenTags#applyPlan}).
    */
   private static final class SeedPlan {
     final TagInterceptor interceptor;
@@ -783,18 +785,57 @@ public class DDSpanContext
 
   private SeedPlan seedPlanFor(final SpanPrototype prototype) {
     Object cached = prototype.seedPlan();
-    if (cached instanceof SeedPlan && ((SeedPlan) cached).interceptor == tagInterceptor) {
+    if (isCurrentPlan(cached)) {
       return (SeedPlan) cached;
     }
-    TagMap tags = prototype.tags();
-    TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND_ID);
-    SeedPlan plan =
-        new SeedPlan(
-            tagInterceptor,
-            tags.knownStore().supportsBulkSeed() && tagInterceptor.canSeedInBulk(tags),
-            kind == null ? SPAN_KIND_UNSET : spanKindOrdinalOf(kind.stringValue()));
+    SeedPlan plan = newSeedPlan(prototype.tags());
     prototype.seedPlan(plan);
     return plan;
+  }
+
+  private SeedPlan seedPlanFor(final FrozenTags frozen) {
+    Object cached = frozen.applyPlan();
+    if (isCurrentPlan(cached)) {
+      return (SeedPlan) cached;
+    }
+    TagMap tags = frozen.tags();
+    SeedPlan plan = newSeedPlan(tags);
+    if (plan.bulk && (frozen.isReplayOnly() || anyCustomTagIntercepted(tags))) {
+      // copying the net result in wouldn't be the same as the writes: replay them instead
+      plan = new SeedPlan(tagInterceptor, false, plan.kindOrdinal);
+    }
+    frozen.applyPlan(plan);
+    return plan;
+  }
+
+  /**
+   * Whether split-by-tags routes any of {@code tags}' custom tags. canSeedInBulk leaves custom tags
+   * out, since a prototype seeds them one at a time; frozen tags in bulk set them in no particular
+   * order, which only matters when they're routed, the last routed write deciding the service.
+   */
+  private boolean anyCustomTagIntercepted(final TagMap tags) {
+    HashStore custom = tags.customStore();
+    if (custom == null) {
+      return false;
+    }
+    for (final TagMap.EntryReader tagEntry : tags) {
+      if (tagEntry.tagId() == 0 && tagInterceptor.needsInterceptCustomTag(tagEntry.tag())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean isCurrentPlan(final Object cached) {
+    return cached instanceof SeedPlan && ((SeedPlan) cached).interceptor == tagInterceptor;
+  }
+
+  private SeedPlan newSeedPlan(final TagMap tags) {
+    TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND_ID);
+    return new SeedPlan(
+        tagInterceptor,
+        tags.knownStore().supportsBulkSeed() && tagInterceptor.canSeedInBulk(tags),
+        kind == null ? SPAN_KIND_UNSET : spanKindOrdinalOf(kind.stringValue()));
   }
 
   /**
@@ -1971,6 +2012,37 @@ public class DDSpanContext
   void setTagsFrom(final TagContributor contributor) {
     synchronized (knownTags) {
       contributor.addTo(new HeldSpanData(this));
+    }
+  }
+
+  /**
+   * Applies frozen tags as if their recorded writes were made now, under one lock. When the plan
+   * allows bulk -- no write needs the interceptor beyond span.kind, and none removes a tag or sets
+   * an empty value -- their net result is copied in: the known tags the masks prove absent at once,
+   * the ones that may be present (typically set earlier from another source, which these overwrite)
+   * one at a time through the interceptor, as {@code setTag} does (the partial {@code
+   * IdStore.seedPartial}), then span.kind's ordinal directly and the custom tags one at a time.
+   * Otherwise the writes are replayed in order, exactly as the extraction made them. Returns
+   * whether the bulk path was taken, for tests.
+   */
+  boolean setTagsFrom(final FrozenTags frozen) {
+    final SeedPlan plan = seedPlanFor(frozen);
+    final TagMap tags = frozen.tags();
+    synchronized (knownTags) {
+      if (plan.bulk
+          && knownTags.seedPartial(
+              tags.knownStore(), this, (ctx, tagEntry) -> ctx.putIntercepted(tagEntry))) {
+        if (plan.kindOrdinal != SPAN_KIND_UNSET) {
+          spanKindOrdinal = plan.kindOrdinal;
+        }
+        HashStore custom = tags.customStore();
+        if (custom != null) {
+          custom.forEach(this, (ctx, tagEntry) -> ctx.putIntercepted(tagEntry));
+        }
+        return true;
+      }
+      frozen.replay(new HeldSpanData(this));
+      return false;
     }
   }
 

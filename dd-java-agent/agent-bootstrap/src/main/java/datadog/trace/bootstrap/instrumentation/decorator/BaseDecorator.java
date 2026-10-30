@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -15,8 +13,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import java.lang.reflect.Method;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutionException;
@@ -194,11 +190,14 @@ public abstract class BaseDecorator {
         throwable instanceof ExecutionException ? throwable.getCause() : throwable, errorPriority);
   }
 
+  // The peer extractors write straight to the span rather than through setTagsFrom: resolving the
+  // hostname can mean a reverse DNS lookup, which mustn't run under the span's tag lock. To skip
+  // the lookup per span, freeze the extraction once per address instead (FrozenTags).
+
   public final void onPeerConnection(
       final AgentSpan span, @Nullable final InetSocketAddress remoteConnection) {
     if (remoteConnection != null) {
-      onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
-      setPeerPort(span, remoteConnection.getPort());
+      PeerSocketAddress.INSTANCE.extract(remoteConnection, span);
     }
   }
 
@@ -210,15 +209,7 @@ public abstract class BaseDecorator {
   public final void onPeerConnection(
       AgentSpan span, @Nullable InetAddress remoteAddress, boolean resolved) {
     if (remoteAddress != null) {
-      String ip = remoteAddress.getHostAddress();
-      if (resolved && Config.get().isPeerHostNameEnabled()) {
-        span.setTag(KnownTags.PEER_HOSTNAME_ID, hostName(remoteAddress, ip));
-      }
-      if (remoteAddress instanceof Inet4Address) {
-        span.setTag(KnownTags.PEER_IPV4_ID, ip);
-      } else if (remoteAddress instanceof Inet6Address) {
-        span.setTag(KnownTags.PEER_IPV6_ID, ip);
-      }
+      (resolved ? PeerAddress.RESOLVED : PeerAddress.UNRESOLVED).extract(remoteAddress, span);
     }
   }
 

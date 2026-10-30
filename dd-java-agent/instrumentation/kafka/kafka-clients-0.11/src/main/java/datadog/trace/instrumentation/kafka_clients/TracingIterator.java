@@ -46,7 +46,9 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   private final KafkaDecorator decorator;
   private final String group;
   private final String clusterId;
-  private final String bootstrapServers;
+
+  /** This poll's consumer tags, frozen per topic. */
+  private final KafkaConsumerTags consumerTags;
 
   public TracingIterator(
       final Iterator<ConsumerRecord<?, ?>> delegateIterator,
@@ -60,7 +62,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     this.decorator = decorator;
     this.group = group;
     this.clusterId = clusterId;
-    this.bootstrapServers = bootstrapServers;
+    this.consumerTags = new KafkaConsumerTags(group, clusterId, bootstrapServers);
   }
 
   @Override
@@ -146,7 +148,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
         decorator.afterStart(span);
-        decorator.onConsume(span, val, group, clusterId, bootstrapServers);
+        decorator.onConsume(span, val, consumerTags.of(val));
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
           activateNext(span);
         } else {
