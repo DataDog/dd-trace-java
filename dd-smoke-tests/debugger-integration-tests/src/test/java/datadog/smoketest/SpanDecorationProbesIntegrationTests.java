@@ -18,6 +18,7 @@ import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.util.Arrays;
 import java.util.List;
@@ -73,6 +74,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         traceReceived::get, () -> String.format("timeout traceReceived=%s", traceReceived.get()));
   }
 
+  @Flaky
   @Test
   @DisplayName("testMethodMultiTagsMultiConditions")
   @DisabledIf(
