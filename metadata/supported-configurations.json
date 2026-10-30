@@ -5876,6 +5876,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_EXPERIMENTAL_JACKSON_BLACKBIRD_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_EXPERIMENTAL_JDBC_POOL_WAITING_ENABLED": [
       {
         "version": "A",
@@ -6978,6 +6986,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_JACKSON_2_ENABLED", "DD_INTEGRATION_JACKSON_2_ENABLED"]
+      }
+    ],
+    "DD_TRACE_JACKSON_BLACKBIRD_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JACKSON_BLACKBIRD_ENABLED", "DD_INTEGRATION_JACKSON_BLACKBIRD_ENABLED"]
       }
     ],
     "DD_TRACE_JACKSON_CORE_ENABLED": [

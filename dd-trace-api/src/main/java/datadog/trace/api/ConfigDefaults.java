@@ -306,6 +306,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_SSI_INJECTION_FORCE = false;
   static final String DEFAULT_INSTRUMENTATION_SOURCE = "manual";
 
+  static final boolean DEFAULT_TRACE_EXPERIMENTAL_JACKSON_BLACKBIRD_ENABLED = false;
+
   static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
       new HashSet<>(
           asList(
