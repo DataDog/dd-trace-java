@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.clearInvocations;
@@ -126,6 +127,20 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
     }
     assertEquals(MAX_TRACKED_TRACES, tracker.trackedCount());
     assertEquals(1, tracker.getDropped());
+  }
+
+  @Test
+  void fullTrackerLeavesOverflowTraceForBufferFallback() {
+    for (int i = 0; i < MAX_TRACKED_TRACES; i++) {
+      tracker.add(newTraceToTrack());
+    }
+
+    PendingTrace overflowTrace = newTraceToTrack();
+
+    assertFalse(
+        tracker.add(overflowTrace),
+        "a trace rejected at capacity must remain available to the buffer's fallback path");
+    assertEquals(LongRunningTracesTracker.NOT_TRACKED, overflowTrace.getLongRunningTrackedState());
   }
 
   @Test
