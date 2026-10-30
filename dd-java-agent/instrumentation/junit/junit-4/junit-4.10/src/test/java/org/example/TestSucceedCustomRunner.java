@@ -29,6 +29,10 @@ public class TestSucceedCustomRunner {
 
     @Override
     public void run(RunNotifier notifier) {
+      emitTestEvents(notifier);
+    }
+
+    protected void emitTestEvents(RunNotifier notifier) {
       // Like ScalaTest's JUnitRunner, emit test callbacks without suite lifecycle callbacks.
       notifier.fireTestIgnored(testDescription("ignored"));
       Description passing = testDescription("adds");

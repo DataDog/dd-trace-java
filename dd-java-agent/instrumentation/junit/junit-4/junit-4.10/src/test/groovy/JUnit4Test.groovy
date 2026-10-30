@@ -13,6 +13,9 @@ import org.junit.experimental.ParallelComputer
 import org.junit.runner.Computer
 import org.junit.runner.JUnitCore
 
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
+
 @DisableTestTrace(reason = "avoid self-tracing")
 class JUnit4Test extends CiVisibilityInstrumentationTest {
 
@@ -72,6 +75,46 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     "parallel"            | new ParallelComputer(true, false) | [TestSucceedCustomRunner, TestSucceedCustomRunner.AnotherSuite]
     "sequential"          | new Computer()                    | [TestSucceedCustomRunner, TestSucceedCustomRunner.AnotherSuite]
     "sequential reversed" | new Computer()                    | [TestSucceedCustomRunner.AnotherSuite, TestSucceedCustomRunner]
+  }
+
+  def "test executor callbacks without suite lifecycle events"() {
+    setup:
+    def executor = Executors.newSingleThreadExecutor()
+    TestSucceedExecutorRunner.executor = executor
+
+    when:
+    def initialSpan = AgentTracer.activeSpan()
+    def initialWorkerSpan = CompletableFuture.supplyAsync({ AgentTracer.activeSpan() }, executor).join()
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(false))
+    def result
+    def workerSpan
+    try {
+      result = runner.run(TestSucceedExecutorRunner)
+      workerSpan = CompletableFuture.supplyAsync({ AgentTracer.activeSpan() }, executor).join()
+    } finally {
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.JUNIT4)
+    }
+
+    assert workerSpan == initialWorkerSpan
+    assert AgentTracer.activeSpan() == initialSpan
+    assert result.runCount == 2
+    assert result.ignoreCount == 1
+    assert result.failures*.description*.methodName == ["existing failure"]
+    assert result.failures*.exception*.class == [AssertionError]
+
+    def events = getEventsAsJson(TEST_WRITER.toList())
+    def suites = events.findAll { it.type == "test_suite_end" }
+    assert suites*.content*.meta*.get("test.suite") == [TestSucceedExecutorRunner.name]
+    def suiteTests = events.findAll { it.type == "test" && it.content.test_suite_id == suites[0].content.test_suite_id }
+    assert suiteTests.size() == 3
+    assert suiteTests.collectEntries { [(it.content.meta["test.name"]): it.content.meta["test.status"]] } == ["adds": "pass", "existing failure": "fail", "ignored": "skip"]
+
+    then:
+    noExceptionThrown()
+
+    cleanup:
+    executor.shutdownNow()
+    TestSucceedExecutorRunner.executor = null
   }
 
   def "test #testcaseName"() {
