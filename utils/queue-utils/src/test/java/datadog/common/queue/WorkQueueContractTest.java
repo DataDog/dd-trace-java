@@ -632,7 +632,7 @@ class WorkQueueContractTest {
     assertEquals(Arrays.asList("a", "b"), consumed);
   }
 
-  // A reservation claims capacity on every backing; only the array backing also holds position.
+  // A reservation claims capacity, not a position: the element joins the queue when it is filled.
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
@@ -660,9 +660,8 @@ class WorkQueueContractTest {
     assertNotNull(place);
     place.close();
 
-    // The array backing reclaims the slot as the consumer passes over it rather than at close, so
-    // the capacity is back once the queue has been drained, not necessarily the instant it is
-    // abandoned. What both backings promise is that nothing is ever consumed for it.
+    // Closing an unfilled reservation gives its capacity back at once, and nothing is ever consumed
+    // for it.
     assertTrue(consumeAll(queue).isEmpty(), "an abandoned place produces no element");
     assertEquals(0, queue.size());
     for (int i = 0; i < CAPACITY; i++) {
@@ -694,7 +693,7 @@ class WorkQueueContractTest {
     assertFalse(queue.tryReserve().granted());
   }
 
-  /** The array backing claims a slot, so the element keeps the position it was reserved at. */
+  /** A reservation holds no position, so the element joins the queue in fill order. */
   @ParameterizedTest(name = "{0}")
   @MethodSource("boundedQueues")
   void reservationJoinsWhereItIsFilledRatherThanWhereItWasClaimed(
