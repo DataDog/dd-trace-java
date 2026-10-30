@@ -147,11 +147,16 @@ independent review.
 
 For each changed method, decide *which multiplier applies* before flagging anything.
 
+**Unchanged code is in scope if the diff changes what it costs** — it now runs more often,
+under a new lock, or on the application thread. Flag it as *carried in by this change*
+(see `checks.md` § Posture).
+
 **Hot anchors** (reachable ⇒ assume hot): `@Advice.OnMethodEnter`/`OnMethodExit`,
 per-span / per-trace callbacks, request / message handlers, streaming chunk handlers.
 **Hot-path map** (where cost is multiplied per-span × spans/request × requests/sec):
 span lifecycle (create / setTag / finish), tag-map ops, serialization/encoding, the
 metrics/stats path, decorators, propagation (header read/write).
+**Propagation and header paths: bump severity one notch** (see `checks.md` § Hot-path map).
 
 **Cold only with positive evidence:** one-time init, startup-only path, a genuinely
 rare error branch, or behind a guard that provably fires rarely. Watch the
