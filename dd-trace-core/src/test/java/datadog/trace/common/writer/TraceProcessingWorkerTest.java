@@ -11,6 +11,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult;
@@ -25,6 +26,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -145,6 +147,64 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       assertTrue(flushed);
       assertEquals(1, flushCount.get());
       assertTrue(worker.getPrimaryQueue().isEmpty());
+    }
+  }
+
+  @Test
+  void flushWaitsForInFlightSingleSpanSampling() throws Exception {
+    CountDownLatch samplingStarted = new CountDownLatch(1);
+    CountDownLatch allowSampling = new CountDownLatch(1);
+    SingleSpanSampler blockingSampler =
+        new SingleSpanSampler() {
+          @Override
+          public <T extends CoreSpan<T>> boolean setSamplingPriority(T span) {
+            samplingStarted.countDown();
+            try {
+              allowSampling.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            return true;
+          }
+        };
+    AtomicInteger serializedTraces = new AtomicInteger();
+    PayloadDispatcher dispatcher = mock(PayloadDispatcher.class);
+    doAnswer(
+            invocation -> {
+              serializedTraces.incrementAndGet();
+              return null;
+            })
+        .when(dispatcher)
+        .addTrace(any());
+
+    try (TraceProcessingWorker worker =
+        new TraceProcessingWorker(
+            10,
+            mock(HealthMetrics.class),
+            dispatcher,
+            () -> false,
+            FAST_LANE,
+            100,
+            TimeUnit.SECONDS,
+            blockingSampler)) {
+      try {
+        worker.start();
+        DDSpan span = mock(DDSpan.class);
+        when(span.samplingPriority()).thenReturn((int) PrioritySampling.USER_DROP);
+
+        assertEquals(
+            PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING,
+            worker.publish(span, PrioritySampling.USER_DROP, Collections.singletonList(span)));
+        assertTrue(samplingStarted.await(3, TimeUnit.SECONDS));
+
+        assertTrue(worker.flush(3, TimeUnit.SECONDS));
+        assertEquals(
+            1,
+            serializedTraces.get(),
+            "flush returned before an accepted single-span-sampling candidate was serialized");
+      } finally {
+        allowSampling.countDown();
+      }
     }
   }
 

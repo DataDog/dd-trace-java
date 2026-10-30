@@ -45,6 +45,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
@@ -377,6 +380,168 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     buffer.flush();
 
     assertEquals(3, counter.get());
+  }
+
+  @Test
+  void flushDrainClearsEnqueuedStateBeforeWriting() throws Exception {
+    CountDownLatch workerBlocked = new CountDownLatch(1);
+    CountDownLatch allowWorker = new CountDownLatch(1);
+    CountDownLatch traceWrites = new CountDownLatch(2);
+    doAnswer(
+            invocation -> {
+              traceWrites.countDown();
+              return null;
+            })
+        .when(tracer)
+        .write(any());
+    PendingTraceBuffer.Element blocker =
+        new PendingTraceBuffer.Element() {
+          @Override
+          public long oldestFinishedTime() {
+            workerBlocked.countDown();
+            try {
+              allowWorker.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            return 0;
+          }
+
+          @Override
+          public boolean lastReferencedNanosAgo(long nanos) {
+            return false;
+          }
+
+          @Override
+          public void write() {}
+
+          @Override
+          public DDSpan getRootSpan() {
+            return null;
+          }
+
+          @Override
+          public boolean setEnqueued(boolean enqueued) {
+            return true;
+          }
+
+          @Override
+          public boolean writeOnBufferFull() {
+            return true;
+          }
+        };
+
+    buffer.start();
+    bufferSpy.enqueue(blocker);
+    assertTrue(workerBlocked.await(3, TimeUnit.SECONDS));
+
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      Future<?> flush = executor.submit(buffer::flush);
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+      while (delayingBuffer.getQueue().isEmpty() && System.nanoTime() < deadline) {
+        Thread.yield();
+      }
+      assertEquals(1, delayingBuffer.getQueue().size(), "flush marker was not queued");
+
+      PendingTrace trace = factory.create(DDTraceId.ONE);
+      DDSpan parent = newSpanOf(trace);
+      DDSpan child = newSpanOf(parent);
+      parent.finish();
+
+      assertEquals(1, trace.getIsEnqueued());
+      allowWorker.countDown();
+      flush.get(3, TimeUnit.SECONDS);
+
+      assertTrue(trace.isRootSpanWritten());
+      assertEquals(
+          0,
+          trace.getIsEnqueued(),
+          "a trace written by the flush drain must be eligible for re-enqueue");
+
+      child.finish();
+      assertTrue(traceWrites.await(3, TimeUnit.SECONDS));
+      assertEquals(0, trace.size());
+      verify(tracer, times(2)).write(any());
+    } finally {
+      allowWorker.countDown();
+      executor.shutdownNow();
+    }
+  }
+
+  @Test
+  void flushDrainDoesNotConsumeTracerDumpMarker() throws Exception {
+    CountDownLatch workerBlocked = new CountDownLatch(1);
+    CountDownLatch allowWorker = new CountDownLatch(1);
+    PendingTraceBuffer.Element blocker =
+        new PendingTraceBuffer.Element() {
+          @Override
+          public long oldestFinishedTime() {
+            workerBlocked.countDown();
+            try {
+              allowWorker.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            return 0;
+          }
+
+          @Override
+          public boolean lastReferencedNanosAgo(long nanos) {
+            return false;
+          }
+
+          @Override
+          public void write() {}
+
+          @Override
+          public DDSpan getRootSpan() {
+            return null;
+          }
+
+          @Override
+          public boolean setEnqueued(boolean enqueued) {
+            return true;
+          }
+
+          @Override
+          public boolean writeOnBufferFull() {
+            return true;
+          }
+        };
+
+    buffer.start();
+    bufferSpy.enqueue(blocker);
+    assertTrue(workerBlocked.await(3, TimeUnit.SECONDS));
+
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    Future<?> flare = null;
+    try {
+      Future<?> flush = executor.submit(buffer::flush);
+      awaitQueueSize(1);
+
+      flare = executor.submit(TracerFlare::prepareForFlare);
+      awaitQueueSize(2);
+
+      allowWorker.countDown();
+      flush.get(3, TimeUnit.SECONDS);
+      flare.get(3, TimeUnit.SECONDS);
+    } finally {
+      allowWorker.countDown();
+      buffer.close();
+      if (flare != null) {
+        flare.get(3, TimeUnit.SECONDS);
+      }
+      executor.shutdownNow();
+    }
+  }
+
+  private void awaitQueueSize(int expectedSize) throws InterruptedException {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+    while (delayingBuffer.getQueue().size() != expectedSize && System.nanoTime() < deadline) {
+      Thread.yield();
+    }
+    assertEquals(expectedSize, delayingBuffer.getQueue().size());
   }
 
   @Test
