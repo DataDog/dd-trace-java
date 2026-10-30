@@ -17,6 +17,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.util.ReferenceCountUtil;
 import java.nio.channels.ClosedChannelException;
 import java.util.Map;
@@ -247,8 +248,11 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
         throws Exception {
       log.info("Ignored write of object {}", msg);
       ReferenceCountUtil.release(msg);
-      // Releasing the message does not complete the write; notify listeners that it failed.
-      promise.tryFailure(new ClosedChannelException());
+      if (msg instanceof CloseWebSocketFrame) {
+        // Let Netty's close listener run when a close frame is discarded. Failing other writes
+        // can re-enter framework error handling after the blocking response (e.g. in Vert.x).
+        promise.tryFailure(new ClosedChannelException());
+      }
     }
   }
 }

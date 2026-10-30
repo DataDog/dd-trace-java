@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.netty41.server;
 import static datadog.trace.instrumentation.netty41.server.BlockingResponseHandler.BEFORE_BLOCKING_HANDLER_NAME;
 import static datadog.trace.instrumentation.netty41.server.BlockingResponseHandler.HANDLER_NAME;
 import static io.netty.handler.codec.http.HttpMethod.GET;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -18,6 +19,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.NettyBlockResponseFunction;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
@@ -25,15 +27,44 @@ import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.local.LocalChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.util.concurrent.Future;
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class BlockingResponseHandlerTest {
+
+  @ParameterizedTest
+  @MethodSource("discardedHttpWritesDoNotFireExceptionsArguments")
+  void discardedHttpWritesDoNotFireExceptions(HttpContent message) {
+    EmbeddedChannel channel =
+        new EmbeddedChannel(BlockingResponseHandler.IgnoreAllWritesHandler.INSTANCE);
+    try {
+      channel.pipeline().writeAndFlush(message, channel.voidPromise());
+
+      channel.checkException();
+      assertEquals(0, message.refCnt());
+      assertNull(channel.readOutbound());
+      assertTrue(channel.isActive());
+    } finally {
+      channel.finishAndReleaseAll();
+    }
+  }
+
+  static Stream<HttpContent> discardedHttpWritesDoNotFireExceptionsArguments() {
+    return Stream.of(
+        new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.buffer().writeByte(1)),
+        new DefaultLastHttpContent(Unpooled.buffer().writeByte(1)));
+  }
 
   @Test
   void discardedCloseFrameCompletesPromiseAndNotifiesCloseListener() {
