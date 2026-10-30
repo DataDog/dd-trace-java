@@ -1,0 +1,1 @@
+/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java -jar build/libs/benchmark-jackson-blackbird-app-jmh.jar 'JacksonBlackbirdBenchmark.FirstUse' -bm ss -bs 100 -wi 3 -i 5 -f 5 -tu us -prof gc -rf json -rff results/20261030-jmh-firstuse-singleshot/jmh-result.json

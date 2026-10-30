@@ -1,0 +1,7 @@
+/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+-Xms512m
+-Xmx512m
+-XX:+UseG1GC
+-DPORT=18080
+-jar
+<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/libs/json-bench-app.jar

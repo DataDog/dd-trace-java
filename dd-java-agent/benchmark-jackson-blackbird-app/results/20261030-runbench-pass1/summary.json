@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "date": "2026-10-30T21:23:54Z",
+    "host": "Darwin 25.6.0 arm64",
+    "cpus": "16",
+    "java": "openjdk version 21.0.11 2026-04-21 LTS",
+    "agentJar": "<repo>/dd-java-agent/build/libs/dd-java-agent-1.68.0-SNAPSHOT.jar",
+    "agentCommit": "6ec66f0b77",
+    "startupRuns": "5",
+    "warmupS": "15",
+    "durationS": "30",
+    "connections": "8",
+    "heap": "512m"
+  },
+  "configs": {
+    "noagent": {
+      "startupMs": {"median": 875.768, "runs": [951.38, 877.529, 857.024, 861.29, 875.768]},
+      "endpoints": {
+        "nojson": {"requests": 3229145, "errors": 0, "seconds": 30.002, "rps": 107630.740, "p50Us": 69.542, "p90Us": 88.625, "p99Us": 155.292, "maxUs": 49430.833, "cpuMs": 110342.711, "cpuUsPerReq": 34.171, "gcCount": 225, "gcMs": 115, "classesLoaded": 2, "springMapperBlackbird": 0, "newMapperBlackbird": 0},
+        "json": {"requests": 2372673, "errors": 0, "seconds": 30.004, "rps": 79079.836, "p50Us": 95.542, "p90Us": 117.125, "p99Us": 197.917, "maxUs": 97027.291, "cpuMs": 128929.577, "cpuUsPerReq": 54.339, "gcCount": 233, "gcMs": 119, "classesLoaded": 0, "springMapperBlackbird": 0, "newMapperBlackbird": 0},
+        "jsonlist": {"requests": 1471017, "errors": 0, "seconds": 30.002, "rps": 49031.269, "p50Us": 131.250, "p90Us": 242.292, "p99Us": 586.833, "maxUs": 95267.334, "cpuMs": 114386.394, "cpuUsPerReq": 77.760, "gcCount": 143, "gcMs": 88, "classesLoaded": 0, "springMapperBlackbird": 0, "newMapperBlackbird": 0},
+        "newmapper": {"requests": 607882, "errors": 0, "seconds": 30.001, "rps": 20262.099, "p50Us": 331.250, "p90Us": 561.917, "p99Us": 1194.916, "maxUs": 19114.167, "cpuMs": 182728.686, "cpuUsPerReq": 300.599, "gcCount": 851, "gcMs": 656, "classesLoaded": 0, "springMapperBlackbird": 0, "newMapperBlackbird": 0}
+      }
+    },
+    "agent": {
+      "startupMs": {"median": 1614.424, "runs": [1625.728, 1603.34, 1698.692, 1614.424, 1498.725]},
+      "endpoints": {
+        "nojson": {"requests": 2884211, "errors": 0, "seconds": 30.006, "rps": 96122.507, "p50Us": 74.458, "p90Us": 104.875, "p99Us": 194.958, "maxUs": 44973.958, "cpuMs": 133504.989, "cpuUsPerReq": 46.288, "gcCount": 269, "gcMs": 160, "classesLoaded": 60, "springMapperBlackbird": 0, "newMapperBlackbird": 0},
+        "json": {"requests": 1924650, "errors": 0, "seconds": 30.003, "rps": 64149.186, "p50Us": 110.583, "p90Us": 164.083, "p99Us": 297.417, "maxUs": 42419.583, "cpuMs": 148279.226, "cpuUsPerReq": 77.042, "gcCount": 252, "gcMs": 167, "classesLoaded": 0, "springMapperBlackbird": 0, "newMapperBlackbird": 0},
+        "jsonlist": {"requests": 1661466, "errors": 0, "seconds": 30.005, "rps": 55372.236, "p50Us": 135.250, "p90Us": 174.667, "p99Us": 282.791, "maxUs": 53647.125, "cpuMs": 148022.529, "cpuUsPerReq": 89.092, "gcCount": 201, "gcMs": 124, "classesLoaded": 1, "springMapperBlackbird": 0, "newMapperBlackbird": 0},
+        "newmapper": {"requests": 720686, "errors": 0, "seconds": 30.001, "rps": 24021.908, "p50Us": 313.125, "p90Us": 360.041, "p99Us": 967.167, "maxUs": 87682.500, "cpuMs": 218913.058, "cpuUsPerReq": 303.757, "gcCount": 1025, "gcMs": 671, "classesLoaded": 0, "springMapperBlackbird": 0, "newMapperBlackbird": 0}
+      }
+    },
+    "agent-blackbird": {
+      "startupMs": {"median": 1481.432, "runs": [1481.432, 1460.858, 1513.917, 1556.956, 1457.955]},
+      "endpoints": {
+        "nojson": {"requests": 2889368, "errors": 0, "seconds": 30.002, "rps": 96304.840, "p50Us": 74.584, "p90Us": 105.000, "p99Us": 185.708, "maxUs": 73485.708, "cpuMs": 135318.966, "cpuUsPerReq": 46.833, "gcCount": 271, "gcMs": 171, "classesLoaded": 61, "springMapperBlackbird": 1, "newMapperBlackbird": 1},
+        "json": {"requests": 2176238, "errors": 0, "seconds": 30.004, "rps": 72530.668, "p50Us": 100.917, "p90Us": 130.791, "p99Us": 243.458, "maxUs": 52049.166, "cpuMs": 145463.557, "cpuUsPerReq": 66.842, "gcCount": 261, "gcMs": 147, "classesLoaded": 0, "springMapperBlackbird": 1, "newMapperBlackbird": 1},
+        "jsonlist": {"requests": 1726875, "errors": 0, "seconds": 30.003, "rps": 57556.291, "p50Us": 131.167, "p90Us": 165.917, "p99Us": 269.916, "maxUs": 50519.625, "cpuMs": 147474.398, "cpuUsPerReq": 85.400, "gcCount": 184, "gcMs": 101, "classesLoaded": 2, "springMapperBlackbird": 1, "newMapperBlackbird": 1},
+        "newmapper": {"requests": 748056, "errors": 0, "seconds": 30.005, "rps": 24931.296, "p50Us": 304.959, "p90Us": 346.125, "p99Us": 935.042, "maxUs": 38057.292, "cpuMs": 221232.640, "cpuUsPerReq": 295.743, "gcCount": 1070, "gcMs": 677, "classesLoaded": 1, "springMapperBlackbird": 1, "newMapperBlackbird": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+Starting a Gradle Daemon, 6 stopped Daemons could not be reused, use --status for details
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :compileTestJava NO-SOURCE
+> Task :processTestResources NO-SOURCE
+> Task :testClasses UP-TO-DATE
+> Task :compileJmhJava UP-TO-DATE
+> Task :processJmhResources NO-SOURCE
+> Task :jmhClasses UP-TO-DATE
+
+> Task :jmhRunBytecodeGenerator
+Processing 3 classes from <repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/classes/java/jmh with "reflection" generator
+Writing out Java source to <repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/jmh-generated-sources and resources to <repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/jmh-generated-resources
+Processing 0 classes from <repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/classes/java/test with "reflection" generator
+Writing out Java source to <repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/jmh-generated-sources and resources to <repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/jmh-generated-resources
+
+> Task :jmhCompileGeneratedClasses UP-TO-DATE
+> Task :jmhJar
+> Task :jmh
+
+[Incubating] Problems report is available at: file://<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.8.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 15m 26s
+7 actionable tasks: 3 executed, 4 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.8.2/userguide/configuration_cache_enabling.html
+exit=0

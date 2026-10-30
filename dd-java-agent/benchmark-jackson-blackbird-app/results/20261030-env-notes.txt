@@ -1,0 +1,8 @@
+Benchmark run 2026-10-30 16:57-17:42 EDT, Apple M-series, 16 cpus, 64 GB, Zulu 21.0.11 (apps + JMH).
+Before running: idle Gradle daemons stopped in all dd-trace-java-poc-* worktrees; Colima stopped (not needed).
+No other JVM workload during the runs. A local Datadog Agent stayed running in the background.
+Spotlight (mds_stores / mdworker) was indexing throughout, at 150-280% CPU; it could not be stopped without sudo.
+Load averages: 53 at start; 112 at pass-1 start (17:13); 41-51 during pass 1; 17 at end of pass 2.
+jmh/: default settings (2 forks, 5x1s warmup, 5x1s measure, -prof gc). FirstUse blackbird failed in every fork with
+  OutOfMemoryError: Compressed class space after ~3 warmup iterations (Blackbird hidden classes per mapper accumulate).
+jmh-firstuse-singleshot/: FirstUse rerun bounded: -bm ss -bs 100 -wi 3 -i 5 -f 5 (800 mappers/fork); score = us per batch of 100.

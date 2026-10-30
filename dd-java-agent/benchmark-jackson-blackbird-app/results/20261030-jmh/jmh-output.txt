@@ -1,0 +1,2017 @@
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 10 s each
+# Measurement: 5 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse
+# Parameters: (mapper = plain)
+
+# Run progress: 0.00% complete, ETA 00:20:40
+# Fork: 1 of 5
+# Warmup Iteration   1: 92.284 us/op
+# Warmup Iteration   2: 88.127 us/op
+# Warmup Iteration   3: 87.388 us/op
+# Warmup Iteration   4: 87.030 us/op
+# Warmup Iteration   5: 86.975 us/op
+Iteration   1: 87.065 us/op
+                 gc.alloc.rate:      3769.939 MB/sec
+                 gc.alloc.rate.norm: 344176.625 B/op
+                 gc.count:           63.000 counts
+                 gc.time:            38.000 ms
+
+Iteration   2: 87.447 us/op
+                 gc.alloc.rate:      3753.298 MB/sec
+                 gc.alloc.rate.norm: 344161.315 B/op
+                 gc.count:           63.000 counts
+                 gc.time:            36.000 ms
+
+Iteration   3: 88.063 us/op
+                 gc.alloc.rate:      3726.933 MB/sec
+                 gc.alloc.rate.norm: 344149.515 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            37.000 ms
+
+Iteration   4: 86.897 us/op
+                 gc.alloc.rate:      3776.894 MB/sec
+                 gc.alloc.rate.norm: 344148.202 B/op
+                 gc.count:           63.000 counts
+                 gc.time:            37.000 ms
+
+Iteration   5: 87.564 us/op
+                 gc.alloc.rate:      3748.232 MB/sec
+                 gc.alloc.rate.norm: 344157.903 B/op
+                 gc.count:           63.000 counts
+                 gc.time:            35.000 ms
+
+
+# Run progress: 8.06% complete, ETA 00:19:03
+# Fork: 2 of 5
+# Warmup Iteration   1: 92.835 us/op
+# Warmup Iteration   2: 88.198 us/op
+# Warmup Iteration   3: 88.006 us/op
+# Warmup Iteration   4: 89.052 us/op
+# Warmup Iteration   5: 88.383 us/op
+Iteration   1: 88.801 us/op
+                 gc.alloc.rate:      3708.451 MB/sec
+                 gc.alloc.rate.norm: 345313.183 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            35.000 ms
+
+Iteration   2: 88.767 us/op
+                 gc.alloc.rate:      3709.806 MB/sec
+                 gc.alloc.rate.norm: 345309.782 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            36.000 ms
+
+Iteration   3: 88.926 us/op
+                 gc.alloc.rate:      3703.149 MB/sec
+                 gc.alloc.rate.norm: 345304.472 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            36.000 ms
+
+Iteration   4: 90.388 us/op
+                 gc.alloc.rate:      3643.192 MB/sec
+                 gc.alloc.rate.norm: 345298.307 B/op
+                 gc.count:           60.000 counts
+                 gc.time:            32.000 ms
+
+Iteration   5: 89.656 us/op
+                 gc.alloc.rate:      3672.884 MB/sec
+                 gc.alloc.rate.norm: 345294.364 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            37.000 ms
+
+
+# Run progress: 16.13% complete, ETA 00:17:22
+# Fork: 3 of 5
+# Warmup Iteration   1: 92.330 us/op
+# Warmup Iteration   2: 87.427 us/op
+# Warmup Iteration   3: 87.362 us/op
+# Warmup Iteration   4: 87.278 us/op
+# Warmup Iteration   5: 88.191 us/op
+Iteration   1: 88.192 us/op
+                 gc.alloc.rate:      3723.583 MB/sec
+                 gc.alloc.rate.norm: 344344.516 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            37.000 ms
+
+Iteration   2: 87.465 us/op
+                 gc.alloc.rate:      3754.676 MB/sec
+                 gc.alloc.rate.norm: 344359.431 B/op
+                 gc.count:           63.000 counts
+                 gc.time:            39.000 ms
+
+Iteration   3: 87.453 us/op
+                 gc.alloc.rate:      3755.270 MB/sec
+                 gc.alloc.rate.norm: 344365.462 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            38.000 ms
+
+Iteration   4: 87.572 us/op
+                 gc.alloc.rate:      3750.224 MB/sec
+                 gc.alloc.rate.norm: 344371.508 B/op
+                 gc.count:           63.000 counts
+                 gc.time:            37.000 ms
+
+Iteration   5: 86.876 us/op
+                 gc.alloc.rate:      3780.249 MB/sec
+                 gc.alloc.rate.norm: 344371.070 B/op
+                 gc.count:           63.000 counts
+                 gc.time:            38.000 ms
+
+
+# Run progress: 24.19% complete, ETA 00:15:42
+# Fork: 4 of 5
+# Warmup Iteration   1: 93.447 us/op
+# Warmup Iteration   2: 88.649 us/op
+# Warmup Iteration   3: 89.087 us/op
+# Warmup Iteration   4: 88.212 us/op
+# Warmup Iteration   5: 88.527 us/op
+Iteration   1: 88.036 us/op
+                 gc.alloc.rate:      3738.144 MB/sec
+                 gc.alloc.rate.norm: 345081.247 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            39.000 ms
+
+Iteration   2: 89.713 us/op
+                 gc.alloc.rate:      3668.405 MB/sec
+                 gc.alloc.rate.norm: 345092.638 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            37.000 ms
+
+Iteration   3: 89.224 us/op
+                 gc.alloc.rate:      3688.513 MB/sec
+                 gc.alloc.rate.norm: 345095.544 B/op
+                 gc.count:           61.000 counts
+                 gc.time:            36.000 ms
+
+Iteration   4: 88.498 us/op
+                 gc.alloc.rate:      3718.607 MB/sec
+                 gc.alloc.rate.norm: 345078.212 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            36.000 ms
+
+Iteration   5: 88.267 us/op
+                 gc.alloc.rate:      3728.542 MB/sec
+                 gc.alloc.rate.norm: 345096.425 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            37.000 ms
+
+
+# Run progress: 32.26% complete, ETA 00:14:02
+# Fork: 5 of 5
+# Warmup Iteration   1: 91.578 us/op
+# Warmup Iteration   2: 86.964 us/op
+# Warmup Iteration   3: 87.824 us/op
+# Warmup Iteration   4: 87.732 us/op
+# Warmup Iteration   5: 86.990 us/op
+Iteration   1: 87.114 us/op
+                 gc.alloc.rate:      3773.524 MB/sec
+                 gc.alloc.rate.norm: 344700.487 B/op
+                 gc.count:           63.000 counts
+                 gc.time:            36.000 ms
+
+Iteration   2: 86.456 us/op
+                 gc.alloc.rate:      3802.142 MB/sec
+                 gc.alloc.rate.norm: 344690.025 B/op
+                 gc.count:           64.000 counts
+                 gc.time:            38.000 ms
+
+Iteration   3: 86.529 us/op
+                 gc.alloc.rate:      3798.882 MB/sec
+                 gc.alloc.rate.norm: 344684.405 B/op
+                 gc.count:           63.000 counts
+                 gc.time:            38.000 ms
+
+Iteration   4: 87.861 us/op
+                 gc.alloc.rate:      3741.529 MB/sec
+                 gc.alloc.rate.norm: 344705.444 B/op
+                 gc.count:           62.000 counts
+                 gc.time:            37.000 ms
+
+Iteration   5: 87.987 us/op
+                 gc.alloc.rate:      3735.950 MB/sec
+                 gc.alloc.rate.norm: 344686.884 B/op
+                 gc.count:           63.000 counts
+                 gc.time:            37.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse":
+  88.033 ±(99.9%) 0.769 us/op [Average]
+  (min, avg, max) = (86.456, 88.033, 90.388), stdev = 1.026
+  CI (99.9%): [87.264, 88.801] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate":
+  3734.841 ±(99.9%) 29.976 MB/sec [Average]
+  (min, avg, max) = (3643.192, 3734.841, 3802.142), stdev = 40.017
+  CI (99.9%): [3704.865, 3764.816] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate.norm":
+  344721.479 ±(99.9%) 328.141 B/op [Average]
+  (min, avg, max) = (344148.202, 344721.479, 345313.183), stdev = 438.059
+  CI (99.9%): [344393.338, 345049.619] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.count":
+  1559.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (60.000, 62.360, 64.000), stdev = 0.810
+  CI (99.9%): [1559.000, 1559.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.time":
+  919.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (32.000, 36.760, 39.000), stdev = 1.451
+  CI (99.9%): [919.000, 919.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 10 s each
+# Measurement: 5 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse
+# Parameters: (mapper = blackbird)
+
+# Run progress: 40.32% complete, ETA 00:12:21
+# Fork: 1 of 5
+# Warmup Iteration   1: 1209.441 us/op
+# Warmup Iteration   2: 1436.681 us/op
+# Warmup Iteration   3: 1736.536 us/op
+# Warmup Iteration   4: <failure>
+
+java.lang.OutOfMemoryError: Compressed class space
+	at java.base/java.lang.ClassLoader.defineClass0(Native Method)
+	at java.base/java.lang.System$2.defineClass(System.java:2395)
+	at java.base/java.lang.invoke.MethodHandles$Lookup$ClassDefiner.defineClass(MethodHandles.java:2505)
+	at java.base/java.lang.invoke.InvokerBytecodeGenerator.loadMethod(InvokerBytecodeGenerator.java:249)
+	at java.base/java.lang.invoke.InvokerBytecodeGenerator.generateCustomizedCode(InvokerBytecodeGenerator.java:712)
+	at java.base/java.lang.invoke.LambdaForm.compileToBytecode(LambdaForm.java:849)
+	at java.base/java.lang.invoke.DirectMethodHandle.makePreparedLambdaForm(DirectMethodHandle.java:303)
+	at java.base/java.lang.invoke.DirectMethodHandle.preparedLambdaForm(DirectMethodHandle.java:231)
+	at java.base/java.lang.invoke.DirectMethodHandle.preparedLambdaForm(DirectMethodHandle.java:216)
+	at java.base/java.lang.invoke.DirectMethodHandle.preparedLambdaForm(DirectMethodHandle.java:225)
+	at java.base/java.lang.invoke.DirectMethodHandle.make(DirectMethodHandle.java:106)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.getDirectMethodCommon(MethodHandles.java:4109)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.getDirectMethodNoSecurityManager(MethodHandles.java:4065)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.unreflect(MethodHandles.java:3451)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.nextProperty(BBDeserializerModifier.java:173)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.findOptimizableProperties(BBDeserializerModifier.java:130)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.updateBuilder(BBDeserializerModifier.java:83)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.buildBeanDeserializer(BeanDeserializerFactory.java:287)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.createBeanDeserializer(BeanDeserializerFactory.java:151)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer2(DeserializerCache.java:450)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer(DeserializerCache.java:394)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:295)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findContextualValueDeserializer(DeserializationContext.java:636)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:190)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:30)
+	at com.fasterxml.jackson.databind.DeserializationContext.handlePrimaryContextualization(DeserializationContext.java:851)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerBase.resolve(BeanDeserializerBase.java:561)
+	at com.fasterxml.jackson.module.blackbird.deser.SuperSonicBeanDeserializer.resolve(SuperSonicBeanDeserializer.java:79)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:326)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+
+
+
+# Run progress: 48.39% complete, ETA 00:09:31
+# Fork: 2 of 5
+# Warmup Iteration   1: 1198.896 us/op
+# Warmup Iteration   2: 1459.460 us/op
+# Warmup Iteration   3: 1802.556 us/op
+# Warmup Iteration   4: <failure>
+
+java.lang.OutOfMemoryError: Compressed class space
+	at java.base/java.lang.ClassLoader.defineClass0(Native Method)
+	at java.base/java.lang.System$2.defineClass(System.java:2395)
+	at java.base/java.lang.invoke.MethodHandles$Lookup$ClassDefiner.defineClass(MethodHandles.java:2505)
+	at java.base/java.lang.invoke.InvokerBytecodeGenerator.loadMethod(InvokerBytecodeGenerator.java:249)
+	at java.base/java.lang.invoke.InvokerBytecodeGenerator.generateCustomizedCode(InvokerBytecodeGenerator.java:712)
+	at java.base/java.lang.invoke.LambdaForm.compileToBytecode(LambdaForm.java:849)
+	at java.base/java.lang.invoke.DirectMethodHandle.makePreparedLambdaForm(DirectMethodHandle.java:303)
+	at java.base/java.lang.invoke.DirectMethodHandle.preparedLambdaForm(DirectMethodHandle.java:231)
+	at java.base/java.lang.invoke.DirectMethodHandle.preparedLambdaForm(DirectMethodHandle.java:216)
+	at java.base/java.lang.invoke.DirectMethodHandle.preparedLambdaForm(DirectMethodHandle.java:225)
+	at java.base/java.lang.invoke.DirectMethodHandle.make(DirectMethodHandle.java:106)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.getDirectMethodCommon(MethodHandles.java:4109)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.getDirectMethodNoSecurityManager(MethodHandles.java:4065)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.unreflect(MethodHandles.java:3451)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.nextProperty(BBDeserializerModifier.java:173)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.findOptimizableProperties(BBDeserializerModifier.java:130)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.updateBuilder(BBDeserializerModifier.java:83)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.buildBeanDeserializer(BeanDeserializerFactory.java:287)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.createBeanDeserializer(BeanDeserializerFactory.java:151)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer2(DeserializerCache.java:450)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer(DeserializerCache.java:394)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:295)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findContextualValueDeserializer(DeserializationContext.java:636)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:190)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:30)
+	at com.fasterxml.jackson.databind.DeserializationContext.handlePrimaryContextualization(DeserializationContext.java:851)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerBase.resolve(BeanDeserializerBase.java:561)
+	at com.fasterxml.jackson.module.blackbird.deser.SuperSonicBeanDeserializer.resolve(SuperSonicBeanDeserializer.java:79)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:326)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+
+
+
+# Run progress: 56.45% complete, ETA 00:07:19
+# Fork: 3 of 5
+# Warmup Iteration   1: 1202.250 us/op
+# Warmup Iteration   2: 1565.060 us/op
+# Warmup Iteration   3: 1726.980 us/op
+# Warmup Iteration   4: <failure>
+
+java.lang.OutOfMemoryError: Compressed class space
+	at java.base/java.lang.ClassLoader.defineClass0(Native Method)
+	at java.base/java.lang.System$2.defineClass(System.java:2395)
+	at java.base/java.lang.invoke.MethodHandles$Lookup$ClassDefiner.defineClass(MethodHandles.java:2505)
+	at java.base/java.lang.invoke.InvokerBytecodeGenerator.loadMethod(InvokerBytecodeGenerator.java:249)
+	at java.base/java.lang.invoke.InvokerBytecodeGenerator.generateCustomizedCode(InvokerBytecodeGenerator.java:712)
+	at java.base/java.lang.invoke.LambdaForm.compileToBytecode(LambdaForm.java:849)
+	at java.base/java.lang.invoke.DirectMethodHandle.makePreparedLambdaForm(DirectMethodHandle.java:303)
+	at java.base/java.lang.invoke.DirectMethodHandle.preparedLambdaForm(DirectMethodHandle.java:231)
+	at java.base/java.lang.invoke.DirectMethodHandle.preparedLambdaForm(DirectMethodHandle.java:216)
+	at java.base/java.lang.invoke.DirectMethodHandle.preparedLambdaForm(DirectMethodHandle.java:225)
+	at java.base/java.lang.invoke.DirectMethodHandle.make(DirectMethodHandle.java:106)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.getDirectMethodCommon(MethodHandles.java:4109)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.getDirectMethodNoSecurityManager(MethodHandles.java:4065)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.unreflect(MethodHandles.java:3451)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.nextProperty(BBDeserializerModifier.java:173)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.findOptimizableProperties(BBDeserializerModifier.java:130)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.updateBuilder(BBDeserializerModifier.java:83)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.buildBeanDeserializer(BeanDeserializerFactory.java:287)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.createBeanDeserializer(BeanDeserializerFactory.java:151)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer2(DeserializerCache.java:450)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer(DeserializerCache.java:394)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:295)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findContextualValueDeserializer(DeserializationContext.java:636)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:190)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:30)
+	at com.fasterxml.jackson.databind.DeserializationContext.handlePrimaryContextualization(DeserializationContext.java:851)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerBase.resolve(BeanDeserializerBase.java:561)
+	at com.fasterxml.jackson.module.blackbird.deser.SuperSonicBeanDeserializer.resolve(SuperSonicBeanDeserializer.java:79)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:326)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+
+
+
+# Run progress: 64.52% complete, ETA 00:05:32
+# Fork: 4 of 5
+# Warmup Iteration   1: 1205.996 us/op
+# Warmup Iteration   2: 1448.237 us/op
+# Warmup Iteration   3: 1827.926 us/op
+# Warmup Iteration   4: <failure>
+
+java.lang.InternalError: java.lang.OutOfMemoryError: Compressed class space
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.generateInnerClass(InnerClassLambdaMetafactory.java:364)
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.spinInnerClass(InnerClassLambdaMetafactory.java:286)
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.buildCallSite(InnerClassLambdaMetafactory.java:221)
+	at java.base/java.lang.invoke.LambdaMetafactory.metafactory(LambdaMetafactory.java:341)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.createSetter(BBDeserializerModifier.java:208)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.nextProperty(BBDeserializerModifier.java:187)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.findOptimizableProperties(BBDeserializerModifier.java:130)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.updateBuilder(BBDeserializerModifier.java:83)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.buildBeanDeserializer(BeanDeserializerFactory.java:287)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.createBeanDeserializer(BeanDeserializerFactory.java:151)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer2(DeserializerCache.java:450)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer(DeserializerCache.java:394)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:295)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findContextualValueDeserializer(DeserializationContext.java:636)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:190)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:30)
+	at com.fasterxml.jackson.databind.DeserializationContext.handlePrimaryContextualization(DeserializationContext.java:851)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerBase.resolve(BeanDeserializerBase.java:561)
+	at com.fasterxml.jackson.module.blackbird.deser.SuperSonicBeanDeserializer.resolve(SuperSonicBeanDeserializer.java:79)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:326)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findRootValueDeserializer(DeserializationContext.java:669)
+	at com.fasterxml.jackson.databind.ObjectMapper._findRootDeserializer(ObjectMapper.java:5036)
+	at com.fasterxml.jackson.databind.ObjectMapper._readMapAndClose(ObjectMapper.java:4906)
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3909)
+	at com.example.jsonbench.jmh.JacksonBlackbirdBenchmark$FirstUse.newMapperFirstUse(JacksonBlackbirdBenchmark.java:123)
+	at com.example.jsonbench.jmh.jmh_generated.JacksonBlackbirdBenchmark_FirstUse_newMapperFirstUse_jmhTest.newMapperFirstUse_avgt_jmhStub(JacksonBlackbirdBenchmark_FirstUse_newMapperFirstUse_jmhTest.java:236)
+	at com.example.jsonbench.jmh.jmh_generated.JacksonBlackbirdBenchmark_FirstUse_newMapperFirstUse_jmhTest.newMapperFirstUse_AverageTime(JacksonBlackbirdBenchmark_FirstUse_newMapperFirstUse_jmhTest.java:176)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:527)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:504)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: java.lang.OutOfMemoryError: Compressed class space
+	at java.base/java.lang.ClassLoader.defineClass0(Native Method)
+	at java.base/java.lang.System$2.defineClass(System.java:2395)
+	at java.base/java.lang.invoke.MethodHandles$Lookup$ClassDefiner.defineClass(MethodHandles.java:2505)
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.generateInnerClass(InnerClassLambdaMetafactory.java:361)
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.spinInnerClass(InnerClassLambdaMetafactory.java:286)
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.buildCallSite(InnerClassLambdaMetafactory.java:221)
+	at java.base/java.lang.invoke.LambdaMetafactory.metafactory(LambdaMetafactory.java:341)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.createSetter(BBDeserializerModifier.java:208)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.nextProperty(BBDeserializerModifier.java:187)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.findOptimizableProperties(BBDeserializerModifier.java:130)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.updateBuilder(BBDeserializerModifier.java:83)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.buildBeanDeserializer(BeanDeserializerFactory.java:287)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.createBeanDeserializer(BeanDeserializerFactory.java:151)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer2(DeserializerCache.java:450)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer(DeserializerCache.java:394)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:295)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findContextualValueDeserializer(DeserializationContext.java:636)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:190)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:30)
+	at com.fasterxml.jackson.databind.DeserializationContext.handlePrimaryContextualization(DeserializationContext.java:851)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerBase.resolve(BeanDeserializerBase.java:561)
+	at com.fasterxml.jackson.module.blackbird.deser.SuperSonicBeanDeserializer.resolve(SuperSonicBeanDeserializer.java:79)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:326)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findRootValueDeserializer(DeserializationContext.java:669)
+	at com.fasterxml.jackson.databind.ObjectMapper._findRootDeserializer(ObjectMapper.java:5036)
+	at com.fasterxml.jackson.databind.ObjectMapper._readMapAndClose(ObjectMapper.java:4906)
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3909)
+	at com.example.jsonbench.jmh.JacksonBlackbirdBenchmark$FirstUse.newMapperFirstUse(JacksonBlackbirdBenchmark.java:123)
+
+
+
+# Run progress: 72.58% complete, ETA 00:04:01
+# Fork: 5 of 5
+# Warmup Iteration   1: 1225.990 us/op
+# Warmup Iteration   2: 1435.002 us/op
+# Warmup Iteration   3: 1754.645 us/op
+# Warmup Iteration   4: <failure>
+
+java.lang.InternalError: java.lang.OutOfMemoryError: Compressed class space
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.generateInnerClass(InnerClassLambdaMetafactory.java:364)
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.spinInnerClass(InnerClassLambdaMetafactory.java:286)
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.buildCallSite(InnerClassLambdaMetafactory.java:221)
+	at java.base/java.lang.invoke.LambdaMetafactory.metafactory(LambdaMetafactory.java:341)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.createSetter(BBDeserializerModifier.java:208)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.nextProperty(BBDeserializerModifier.java:187)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.findOptimizableProperties(BBDeserializerModifier.java:130)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.updateBuilder(BBDeserializerModifier.java:83)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.buildBeanDeserializer(BeanDeserializerFactory.java:287)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.createBeanDeserializer(BeanDeserializerFactory.java:151)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer2(DeserializerCache.java:450)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer(DeserializerCache.java:394)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:295)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findContextualValueDeserializer(DeserializationContext.java:636)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:190)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:30)
+	at com.fasterxml.jackson.databind.DeserializationContext.handlePrimaryContextualization(DeserializationContext.java:851)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerBase.resolve(BeanDeserializerBase.java:561)
+	at com.fasterxml.jackson.module.blackbird.deser.SuperSonicBeanDeserializer.resolve(SuperSonicBeanDeserializer.java:79)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:326)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findRootValueDeserializer(DeserializationContext.java:669)
+	at com.fasterxml.jackson.databind.ObjectMapper._findRootDeserializer(ObjectMapper.java:5036)
+	at com.fasterxml.jackson.databind.ObjectMapper._readMapAndClose(ObjectMapper.java:4906)
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3909)
+	at com.example.jsonbench.jmh.JacksonBlackbirdBenchmark$FirstUse.newMapperFirstUse(JacksonBlackbirdBenchmark.java:123)
+	at com.example.jsonbench.jmh.jmh_generated.JacksonBlackbirdBenchmark_FirstUse_newMapperFirstUse_jmhTest.newMapperFirstUse_avgt_jmhStub(JacksonBlackbirdBenchmark_FirstUse_newMapperFirstUse_jmhTest.java:236)
+	at com.example.jsonbench.jmh.jmh_generated.JacksonBlackbirdBenchmark_FirstUse_newMapperFirstUse_jmhTest.newMapperFirstUse_AverageTime(JacksonBlackbirdBenchmark_FirstUse_newMapperFirstUse_jmhTest.java:176)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:527)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:504)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: java.lang.OutOfMemoryError: Compressed class space
+	at java.base/java.lang.ClassLoader.defineClass0(Native Method)
+	at java.base/java.lang.System$2.defineClass(System.java:2395)
+	at java.base/java.lang.invoke.MethodHandles$Lookup$ClassDefiner.defineClass(MethodHandles.java:2505)
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.generateInnerClass(InnerClassLambdaMetafactory.java:361)
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.spinInnerClass(InnerClassLambdaMetafactory.java:286)
+	at java.base/java.lang.invoke.InnerClassLambdaMetafactory.buildCallSite(InnerClassLambdaMetafactory.java:221)
+	at java.base/java.lang.invoke.LambdaMetafactory.metafactory(LambdaMetafactory.java:341)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.createSetter(BBDeserializerModifier.java:208)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.nextProperty(BBDeserializerModifier.java:187)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.findOptimizableProperties(BBDeserializerModifier.java:130)
+	at com.fasterxml.jackson.module.blackbird.deser.BBDeserializerModifier.updateBuilder(BBDeserializerModifier.java:83)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.buildBeanDeserializer(BeanDeserializerFactory.java:287)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerFactory.createBeanDeserializer(BeanDeserializerFactory.java:151)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer2(DeserializerCache.java:450)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createDeserializer(DeserializerCache.java:394)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:295)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findContextualValueDeserializer(DeserializationContext.java:636)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:190)
+	at com.fasterxml.jackson.databind.deser.std.CollectionDeserializer.createContextual(CollectionDeserializer.java:30)
+	at com.fasterxml.jackson.databind.DeserializationContext.handlePrimaryContextualization(DeserializationContext.java:851)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerBase.resolve(BeanDeserializerBase.java:561)
+	at com.fasterxml.jackson.module.blackbird.deser.SuperSonicBeanDeserializer.resolve(SuperSonicBeanDeserializer.java:79)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCache2(DeserializerCache.java:326)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache._createAndCacheValueDeserializer(DeserializerCache.java:273)
+	at com.fasterxml.jackson.databind.deser.DeserializerCache.findValueDeserializer(DeserializerCache.java:173)
+	at com.fasterxml.jackson.databind.DeserializationContext.findRootValueDeserializer(DeserializationContext.java:669)
+	at com.fasterxml.jackson.databind.ObjectMapper._findRootDeserializer(ObjectMapper.java:5036)
+	at com.fasterxml.jackson.databind.ObjectMapper._readMapAndClose(ObjectMapper.java:4906)
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3909)
+	at com.example.jsonbench.jmh.JacksonBlackbirdBenchmark$FirstUse.newMapperFirstUse(JacksonBlackbirdBenchmark.java:123)
+
+
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize
+# Parameters: (mapper = plain, shape = small)
+
+# Run progress: 80.65% complete, ETA 00:02:41
+# Fork: 1 of 2
+# Warmup Iteration   1: 374.895 ns/op
+# Warmup Iteration   2: 348.931 ns/op
+# Warmup Iteration   3: 342.987 ns/op
+# Warmup Iteration   4: 341.891 ns/op
+# Warmup Iteration   5: 341.384 ns/op
+Iteration   1: 337.121 ns/op
+                 gc.alloc.rate:      3824.230 MB/sec
+                 gc.alloc.rate.norm: 1352.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   2: 336.448 ns/op
+                 gc.alloc.rate:      3831.872 MB/sec
+                 gc.alloc.rate.norm: 1352.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   3: 336.936 ns/op
+                 gc.alloc.rate:      3826.238 MB/sec
+                 gc.alloc.rate.norm: 1352.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   4: 339.172 ns/op
+                 gc.alloc.rate:      3801.111 MB/sec
+                 gc.alloc.rate.norm: 1352.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   5: 337.459 ns/op
+                 gc.alloc.rate:      3820.241 MB/sec
+                 gc.alloc.rate.norm: 1352.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            2.000 ms
+
+
+# Run progress: 81.45% complete, ETA 00:02:35
+# Fork: 2 of 2
+# Warmup Iteration   1: 371.785 ns/op
+# Warmup Iteration   2: 343.408 ns/op
+# Warmup Iteration   3: 345.547 ns/op
+# Warmup Iteration   4: 344.131 ns/op
+# Warmup Iteration   5: 343.247 ns/op
+Iteration   1: 348.168 ns/op
+                 gc.alloc.rate:      3702.925 MB/sec
+                 gc.alloc.rate.norm: 1352.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   2: 348.256 ns/op
+                 gc.alloc.rate:      3701.973 MB/sec
+                 gc.alloc.rate.norm: 1352.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 348.238 ns/op
+                 gc.alloc.rate:      3702.029 MB/sec
+                 gc.alloc.rate.norm: 1352.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   4: 345.535 ns/op
+                 gc.alloc.rate:      3731.100 MB/sec
+                 gc.alloc.rate.norm: 1352.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   5: 345.333 ns/op
+                 gc.alloc.rate:      3733.193 MB/sec
+                 gc.alloc.rate.norm: 1352.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize":
+  342.266 ±(99.9%) 7.934 ns/op [Average]
+  (min, avg, max) = (336.448, 342.266, 348.256), stdev = 5.248
+  CI (99.9%): [334.332, 350.201] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate":
+  3767.491 ±(99.9%) 87.252 MB/sec [Average]
+  (min, avg, max) = (3701.973, 3767.491, 3831.872), stdev = 57.712
+  CI (99.9%): [3680.239, 3854.743] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm":
+  1352.002 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (1352.002, 1352.002, 1352.002), stdev = 0.001
+  CI (99.9%): [1352.002, 1352.002] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.count":
+  64.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (6.000, 6.400, 7.000), stdev = 0.516
+  CI (99.9%): [64.000, 64.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.time":
+  28.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (2.000, 2.800, 3.000), stdev = 0.422
+  CI (99.9%): [28.000, 28.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize
+# Parameters: (mapper = plain, shape = medium)
+
+# Run progress: 82.26% complete, ETA 00:02:29
+# Fork: 1 of 2
+# Warmup Iteration   1: 2377.357 ns/op
+# Warmup Iteration   2: 2170.397 ns/op
+# Warmup Iteration   3: 2164.761 ns/op
+# Warmup Iteration   4: 2159.746 ns/op
+# Warmup Iteration   5: 2149.223 ns/op
+Iteration   1: 2151.559 ns/op
+                 gc.alloc.rate:      1801.179 MB/sec
+                 gc.alloc.rate.norm: 4064.015 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 2160.521 ns/op
+                 gc.alloc.rate:      1793.700 MB/sec
+                 gc.alloc.rate.norm: 4064.015 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 2163.077 ns/op
+                 gc.alloc.rate:      1791.547 MB/sec
+                 gc.alloc.rate.norm: 4064.015 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   4: 2173.280 ns/op
+                 gc.alloc.rate:      1783.162 MB/sec
+                 gc.alloc.rate.norm: 4064.015 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   5: 2150.951 ns/op
+                 gc.alloc.rate:      1801.617 MB/sec
+                 gc.alloc.rate.norm: 4064.015 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+
+# Run progress: 83.06% complete, ETA 00:02:23
+# Fork: 2 of 2
+# Warmup Iteration   1: 2363.291 ns/op
+# Warmup Iteration   2: 2161.902 ns/op
+# Warmup Iteration   3: 2155.399 ns/op
+# Warmup Iteration   4: 2155.640 ns/op
+# Warmup Iteration   5: 2146.879 ns/op
+Iteration   1: 2152.193 ns/op
+                 gc.alloc.rate:      1800.645 MB/sec
+                 gc.alloc.rate.norm: 4064.015 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 2156.747 ns/op
+                 gc.alloc.rate:      1796.839 MB/sec
+                 gc.alloc.rate.norm: 4064.015 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 2154.400 ns/op
+                 gc.alloc.rate:      1798.755 MB/sec
+                 gc.alloc.rate.norm: 4064.015 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 2159.137 ns/op
+                 gc.alloc.rate:      1794.857 MB/sec
+                 gc.alloc.rate.norm: 4064.015 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   5: 2151.246 ns/op
+                 gc.alloc.rate:      1801.371 MB/sec
+                 gc.alloc.rate.norm: 4064.015 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize":
+  2157.311 ±(99.9%) 10.657 ns/op [Average]
+  (min, avg, max) = (2150.951, 2157.311, 2173.280), stdev = 7.049
+  CI (99.9%): [2146.654, 2167.969] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate":
+  1796.367 ±(99.9%) 8.830 MB/sec [Average]
+  (min, avg, max) = (1783.162, 1796.367, 1801.617), stdev = 5.840
+  CI (99.9%): [1787.538, 1805.197] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm":
+  4064.015 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (4064.015, 4064.015, 4064.015), stdev = 0.001
+  CI (99.9%): [4064.015, 4064.015] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.count":
+  30.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (3.000, 3.000, 3.000), stdev = 0.001
+  CI (99.9%): [30.000, 30.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.time":
+  14.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (1.000, 1.400, 2.000), stdev = 0.516
+  CI (99.9%): [14.000, 14.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize
+# Parameters: (mapper = plain, shape = list100)
+
+# Run progress: 83.87% complete, ETA 00:02:17
+# Fork: 1 of 2
+# Warmup Iteration   1: 38487.465 ns/op
+# Warmup Iteration   2: 37622.461 ns/op
+# Warmup Iteration   3: 37772.681 ns/op
+# Warmup Iteration   4: 37482.774 ns/op
+# Warmup Iteration   5: 37632.590 ns/op
+Iteration   1: 37559.285 ns/op
+                 gc.alloc.rate:      1554.588 MB/sec
+                 gc.alloc.rate.norm: 61232.261 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 37620.552 ns/op
+                 gc.alloc.rate:      1552.073 MB/sec
+                 gc.alloc.rate.norm: 61232.260 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 37628.281 ns/op
+                 gc.alloc.rate:      1551.673 MB/sec
+                 gc.alloc.rate.norm: 61232.259 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   4: 37783.639 ns/op
+                 gc.alloc.rate:      1545.347 MB/sec
+                 gc.alloc.rate.norm: 61232.260 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   5: 39164.463 ns/op
+                 gc.alloc.rate:      1490.817 MB/sec
+                 gc.alloc.rate.norm: 61232.270 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            1.000 ms
+
+
+# Run progress: 84.68% complete, ETA 00:02:11
+# Fork: 2 of 2
+# Warmup Iteration   1: 38926.647 ns/op
+# Warmup Iteration   2: 37609.349 ns/op
+# Warmup Iteration   3: 37719.069 ns/op
+# Warmup Iteration   4: 37518.761 ns/op
+# Warmup Iteration   5: 37648.476 ns/op
+Iteration   1: 37584.273 ns/op
+                 gc.alloc.rate:      1553.564 MB/sec
+                 gc.alloc.rate.norm: 61232.259 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   2: 37639.194 ns/op
+                 gc.alloc.rate:      1551.307 MB/sec
+                 gc.alloc.rate.norm: 61232.259 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 37620.969 ns/op
+                 gc.alloc.rate:      1551.937 MB/sec
+                 gc.alloc.rate.norm: 61232.260 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 38070.138 ns/op
+                 gc.alloc.rate:      1533.722 MB/sec
+                 gc.alloc.rate.norm: 61232.262 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   5: 38455.776 ns/op
+                 gc.alloc.rate:      1518.293 MB/sec
+                 gc.alloc.rate.norm: 61232.264 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            1.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize":
+  37912.657 ±(99.9%) 790.773 ns/op [Average]
+  (min, avg, max) = (37559.285, 37912.657, 39164.463), stdev = 523.047
+  CI (99.9%): [37121.884, 38703.430] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate":
+  1540.332 ±(99.9%) 31.497 MB/sec [Average]
+  (min, avg, max) = (1490.817, 1540.332, 1554.588), stdev = 20.833
+  CI (99.9%): [1508.835, 1571.829] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm":
+  61232.261 ±(99.9%) 0.005 B/op [Average]
+  (min, avg, max) = (61232.259, 61232.261, 61232.270), stdev = 0.003
+  CI (99.9%): [61232.256, 61232.267] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.count":
+  26.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (2.000, 2.600, 3.000), stdev = 0.516
+  CI (99.9%): [26.000, 26.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.time":
+  14.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (1.000, 1.400, 2.000), stdev = 0.516
+  CI (99.9%): [14.000, 14.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize
+# Parameters: (mapper = blackbird, shape = small)
+
+# Run progress: 85.48% complete, ETA 00:02:04
+# Fork: 1 of 2
+# Warmup Iteration   1: 326.245 ns/op
+# Warmup Iteration   2: 303.561 ns/op
+# Warmup Iteration   3: 300.486 ns/op
+# Warmup Iteration   4: 299.206 ns/op
+# Warmup Iteration   5: 297.002 ns/op
+Iteration   1: 298.920 ns/op
+                 gc.alloc.rate:      4159.862 MB/sec
+                 gc.alloc.rate.norm: 1304.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   2: 298.999 ns/op
+                 gc.alloc.rate:      4158.745 MB/sec
+                 gc.alloc.rate.norm: 1304.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 297.178 ns/op
+                 gc.alloc.rate:      4184.167 MB/sec
+                 gc.alloc.rate.norm: 1304.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   4: 298.040 ns/op
+                 gc.alloc.rate:      4172.073 MB/sec
+                 gc.alloc.rate.norm: 1304.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   5: 297.978 ns/op
+                 gc.alloc.rate:      4172.888 MB/sec
+                 gc.alloc.rate.norm: 1304.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+
+# Run progress: 86.29% complete, ETA 00:01:58
+# Fork: 2 of 2
+# Warmup Iteration   1: 325.131 ns/op
+# Warmup Iteration   2: 300.838 ns/op
+# Warmup Iteration   3: 299.857 ns/op
+# Warmup Iteration   4: 299.293 ns/op
+# Warmup Iteration   5: 298.098 ns/op
+Iteration   1: 301.085 ns/op
+                 gc.alloc.rate:      4129.928 MB/sec
+                 gc.alloc.rate.norm: 1304.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   2: 301.517 ns/op
+                 gc.alloc.rate:      4124.007 MB/sec
+                 gc.alloc.rate.norm: 1304.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   3: 299.942 ns/op
+                 gc.alloc.rate:      4145.540 MB/sec
+                 gc.alloc.rate.norm: 1304.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   4: 297.653 ns/op
+                 gc.alloc.rate:      4177.542 MB/sec
+                 gc.alloc.rate.norm: 1304.002 B/op
+                 gc.count:           8.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   5: 298.715 ns/op
+                 gc.alloc.rate:      4162.514 MB/sec
+                 gc.alloc.rate.norm: 1304.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize":
+  299.003 ±(99.9%) 2.182 ns/op [Average]
+  (min, avg, max) = (297.178, 299.003, 301.517), stdev = 1.444
+  CI (99.9%): [296.820, 301.185] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate":
+  4158.727 ±(99.9%) 30.255 MB/sec [Average]
+  (min, avg, max) = (4124.007, 4158.727, 4184.167), stdev = 20.012
+  CI (99.9%): [4128.472, 4188.982] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm":
+  1304.002 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (1304.002, 1304.002, 1304.002), stdev = 0.001
+  CI (99.9%): [1304.002, 1304.002] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.count":
+  70.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (6.000, 7.000, 8.000), stdev = 0.471
+  CI (99.9%): [70.000, 70.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.time":
+  29.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (2.000, 2.900, 3.000), stdev = 0.316
+  CI (99.9%): [29.000, 29.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize
+# Parameters: (mapper = blackbird, shape = medium)
+
+# Run progress: 87.10% complete, ETA 00:01:52
+# Fork: 1 of 2
+# Warmup Iteration   1: 1897.924 ns/op
+# Warmup Iteration   2: 1805.491 ns/op
+# Warmup Iteration   3: 1789.518 ns/op
+# Warmup Iteration   4: 1780.076 ns/op
+# Warmup Iteration   5: 1792.231 ns/op
+Iteration   1: 1787.627 ns/op
+                 gc.alloc.rate:      2027.032 MB/sec
+                 gc.alloc.rate.norm: 3800.012 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   2: 1798.060 ns/op
+                 gc.alloc.rate:      2015.290 MB/sec
+                 gc.alloc.rate.norm: 3800.012 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 1776.715 ns/op
+                 gc.alloc.rate:      2039.473 MB/sec
+                 gc.alloc.rate.norm: 3800.012 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   4: 1771.429 ns/op
+                 gc.alloc.rate:      2045.590 MB/sec
+                 gc.alloc.rate.norm: 3800.012 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 1778.107 ns/op
+                 gc.alloc.rate:      2037.775 MB/sec
+                 gc.alloc.rate.norm: 3800.012 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+
+# Run progress: 87.90% complete, ETA 00:01:45
+# Fork: 2 of 2
+# Warmup Iteration   1: 1929.569 ns/op
+# Warmup Iteration   2: 1841.021 ns/op
+# Warmup Iteration   3: 1814.445 ns/op
+# Warmup Iteration   4: 1809.890 ns/op
+# Warmup Iteration   5: 1815.210 ns/op
+Iteration   1: 1839.185 ns/op
+                 gc.alloc.rate:      1970.212 MB/sec
+                 gc.alloc.rate.norm: 3800.013 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 1820.206 ns/op
+                 gc.alloc.rate:      1990.776 MB/sec
+                 gc.alloc.rate.norm: 3800.013 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 1823.856 ns/op
+                 gc.alloc.rate:      1986.745 MB/sec
+                 gc.alloc.rate.norm: 3800.012 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   4: 1821.579 ns/op
+                 gc.alloc.rate:      1989.258 MB/sec
+                 gc.alloc.rate.norm: 3800.012 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 1826.632 ns/op
+                 gc.alloc.rate:      1983.657 MB/sec
+                 gc.alloc.rate.norm: 3800.013 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize":
+  1804.340 ±(99.9%) 37.354 ns/op [Average]
+  (min, avg, max) = (1771.429, 1804.340, 1839.185), stdev = 24.707
+  CI (99.9%): [1766.986, 1841.693] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate":
+  2008.581 ±(99.9%) 41.625 MB/sec [Average]
+  (min, avg, max) = (1970.212, 2008.581, 2045.590), stdev = 27.532
+  CI (99.9%): [1966.956, 2050.206] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm":
+  3800.012 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (3800.012, 3800.012, 3800.013), stdev = 0.001
+  CI (99.9%): [3800.012, 3800.013] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.count":
+  34.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (3.000, 3.400, 4.000), stdev = 0.516
+  CI (99.9%): [34.000, 34.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.time":
+  16.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (1.000, 1.600, 2.000), stdev = 0.516
+  CI (99.9%): [16.000, 16.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize
+# Parameters: (mapper = blackbird, shape = list100)
+
+# Run progress: 88.71% complete, ETA 00:01:38
+# Fork: 1 of 2
+# Warmup Iteration   1: 33455.824 ns/op
+# Warmup Iteration   2: 32329.883 ns/op
+# Warmup Iteration   3: 32455.048 ns/op
+# Warmup Iteration   4: 32406.157 ns/op
+# Warmup Iteration   5: 32486.905 ns/op
+Iteration   1: 32377.337 ns/op
+                 gc.alloc.rate:      1662.008 MB/sec
+                 gc.alloc.rate.norm: 56432.223 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 32678.264 ns/op
+                 gc.alloc.rate:      1646.733 MB/sec
+                 gc.alloc.rate.norm: 56432.225 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 34432.865 ns/op
+                 gc.alloc.rate:      1562.782 MB/sec
+                 gc.alloc.rate.norm: 56432.238 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 32333.591 ns/op
+                 gc.alloc.rate:      1664.285 MB/sec
+                 gc.alloc.rate.norm: 56432.222 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 32849.684 ns/op
+                 gc.alloc.rate:      1638.074 MB/sec
+                 gc.alloc.rate.norm: 56432.226 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+
+# Run progress: 89.52% complete, ETA 00:01:32
+# Fork: 2 of 2
+# Warmup Iteration   1: 33140.986 ns/op
+# Warmup Iteration   2: 31875.088 ns/op
+# Warmup Iteration   3: 32251.233 ns/op
+# Warmup Iteration   4: 31888.420 ns/op
+# Warmup Iteration   5: 31881.820 ns/op
+Iteration   1: 32001.011 ns/op
+                 gc.alloc.rate:      1681.586 MB/sec
+                 gc.alloc.rate.norm: 56432.220 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   2: 32586.045 ns/op
+                 gc.alloc.rate:      1651.400 MB/sec
+                 gc.alloc.rate.norm: 56432.225 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 33259.605 ns/op
+                 gc.alloc.rate:      1617.902 MB/sec
+                 gc.alloc.rate.norm: 56432.230 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   4: 32982.901 ns/op
+                 gc.alloc.rate:      1631.525 MB/sec
+                 gc.alloc.rate.norm: 56432.227 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 32370.422 ns/op
+                 gc.alloc.rate:      1662.325 MB/sec
+                 gc.alloc.rate.norm: 56432.223 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize":
+  32787.172 ±(99.9%) 1031.744 ns/op [Average]
+  (min, avg, max) = (32001.011, 32787.172, 34432.865), stdev = 682.435
+  CI (99.9%): [31755.428, 33818.917] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate":
+  1641.862 ±(99.9%) 50.317 MB/sec [Average]
+  (min, avg, max) = (1562.782, 1641.862, 1681.586), stdev = 33.282
+  CI (99.9%): [1591.545, 1692.179] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm":
+  56432.226 ±(99.9%) 0.008 B/op [Average]
+  (min, avg, max) = (56432.220, 56432.226, 56432.238), stdev = 0.005
+  CI (99.9%): [56432.218, 56432.233] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.count":
+  28.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (2.000, 2.800, 3.000), stdev = 0.422
+  CI (99.9%): [28.000, 28.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.deserialize:gc.time":
+  13.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (1.000, 1.300, 2.000), stdev = 0.483
+  CI (99.9%): [13.000, 13.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize
+# Parameters: (mapper = plain, shape = small)
+
+# Run progress: 90.32% complete, ETA 00:01:25
+# Fork: 1 of 2
+# Warmup Iteration   1: 237.213 ns/op
+# Warmup Iteration   2: 216.060 ns/op
+# Warmup Iteration   3: 221.321 ns/op
+# Warmup Iteration   4: 222.283 ns/op
+# Warmup Iteration   5: 222.950 ns/op
+Iteration   1: 220.718 ns/op
+                 gc.alloc.rate:      3594.527 MB/sec
+                 gc.alloc.rate.norm: 832.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   2: 260.172 ns/op
+                 gc.alloc.rate:      3049.414 MB/sec
+                 gc.alloc.rate.norm: 832.002 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 221.759 ns/op
+                 gc.alloc.rate:      3577.540 MB/sec
+                 gc.alloc.rate.norm: 832.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   4: 221.340 ns/op
+                 gc.alloc.rate:      3584.273 MB/sec
+                 gc.alloc.rate.norm: 832.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   5: 225.945 ns/op
+                 gc.alloc.rate:      3511.027 MB/sec
+                 gc.alloc.rate.norm: 832.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+
+# Run progress: 91.13% complete, ETA 00:01:18
+# Fork: 2 of 2
+# Warmup Iteration   1: 257.236 ns/op
+# Warmup Iteration   2: 228.044 ns/op
+# Warmup Iteration   3: 218.402 ns/op
+# Warmup Iteration   4: 220.958 ns/op
+# Warmup Iteration   5: 220.310 ns/op
+Iteration   1: 218.027 ns/op
+                 gc.alloc.rate:      3638.882 MB/sec
+                 gc.alloc.rate.norm: 832.002 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   2: 220.079 ns/op
+                 gc.alloc.rate:      3604.917 MB/sec
+                 gc.alloc.rate.norm: 832.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 217.370 ns/op
+                 gc.alloc.rate:      3649.867 MB/sec
+                 gc.alloc.rate.norm: 832.001 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   4: 234.539 ns/op
+                 gc.alloc.rate:      3382.455 MB/sec
+                 gc.alloc.rate.norm: 832.002 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   5: 291.280 ns/op
+                 gc.alloc.rate:      2723.606 MB/sec
+                 gc.alloc.rate.norm: 832.002 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            2.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize":
+  233.123 ±(99.9%) 36.464 ns/op [Average]
+  (min, avg, max) = (217.370, 233.123, 291.280), stdev = 24.119
+  CI (99.9%): [196.659, 269.587] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate":
+  3431.651 ±(99.9%) 464.031 MB/sec [Average]
+  (min, avg, max) = (2723.606, 3431.651, 3649.867), stdev = 306.928
+  CI (99.9%): [2967.619, 3895.682] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm":
+  832.002 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (832.001, 832.002, 832.002), stdev = 0.001
+  CI (99.9%): [832.001, 832.002] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.count":
+  58.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (5.000, 5.800, 7.000), stdev = 0.632
+  CI (99.9%): [58.000, 58.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.time":
+  25.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (2.000, 2.500, 3.000), stdev = 0.527
+  CI (99.9%): [25.000, 25.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize
+# Parameters: (mapper = plain, shape = medium)
+
+# Run progress: 91.94% complete, ETA 00:01:11
+# Fork: 1 of 2
+# Warmup Iteration   1: 1453.400 ns/op
+# Warmup Iteration   2: 1291.526 ns/op
+# Warmup Iteration   3: 1273.018 ns/op
+# Warmup Iteration   4: 1265.858 ns/op
+# Warmup Iteration   5: 1264.698 ns/op
+Iteration   1: 1278.096 ns/op
+                 gc.alloc.rate:      1796.400 MB/sec
+                 gc.alloc.rate.norm: 2408.009 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 1277.146 ns/op
+                 gc.alloc.rate:      1797.916 MB/sec
+                 gc.alloc.rate.norm: 2408.009 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 1265.013 ns/op
+                 gc.alloc.rate:      1815.101 MB/sec
+                 gc.alloc.rate.norm: 2408.009 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 1253.788 ns/op
+                 gc.alloc.rate:      1831.431 MB/sec
+                 gc.alloc.rate.norm: 2408.009 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 1243.301 ns/op
+                 gc.alloc.rate:      1846.839 MB/sec
+                 gc.alloc.rate.norm: 2408.009 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+
+# Run progress: 92.74% complete, ETA 00:01:04
+# Fork: 2 of 2
+# Warmup Iteration   1: 1385.748 ns/op
+# Warmup Iteration   2: 1289.128 ns/op
+# Warmup Iteration   3: 1246.839 ns/op
+# Warmup Iteration   4: 1250.275 ns/op
+# Warmup Iteration   5: 1250.546 ns/op
+Iteration   1: 1259.027 ns/op
+                 gc.alloc.rate:      1823.730 MB/sec
+                 gc.alloc.rate.norm: 2408.009 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 1257.386 ns/op
+                 gc.alloc.rate:      1826.190 MB/sec
+                 gc.alloc.rate.norm: 2408.009 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 1279.943 ns/op
+                 gc.alloc.rate:      1793.958 MB/sec
+                 gc.alloc.rate.norm: 2408.009 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 1283.036 ns/op
+                 gc.alloc.rate:      1789.616 MB/sec
+                 gc.alloc.rate.norm: 2408.009 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 1256.283 ns/op
+                 gc.alloc.rate:      1827.741 MB/sec
+                 gc.alloc.rate.norm: 2408.009 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize":
+  1265.302 ±(99.9%) 20.364 ns/op [Average]
+  (min, avg, max) = (1243.301, 1265.302, 1283.036), stdev = 13.470
+  CI (99.9%): [1244.938, 1285.666] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate":
+  1814.892 ±(99.9%) 29.265 MB/sec [Average]
+  (min, avg, max) = (1789.616, 1814.892, 1846.839), stdev = 19.357
+  CI (99.9%): [1785.627, 1844.157] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm":
+  2408.009 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (2408.009, 2408.009, 2408.009), stdev = 0.001
+  CI (99.9%): [2408.009, 2408.009] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.count":
+  30.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (3.000, 3.000, 3.000), stdev = 0.001
+  CI (99.9%): [30.000, 30.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.time":
+  13.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (1.000, 1.300, 2.000), stdev = 0.483
+  CI (99.9%): [13.000, 13.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize
+# Parameters: (mapper = plain, shape = list100)
+
+# Run progress: 93.55% complete, ETA 00:00:57
+# Fork: 1 of 2
+# Warmup Iteration   1: 23292.743 ns/op
+# Warmup Iteration   2: 21890.212 ns/op
+# Warmup Iteration   3: 22346.950 ns/op
+# Warmup Iteration   4: 22019.164 ns/op
+# Warmup Iteration   5: 21953.171 ns/op
+Iteration   1: 23463.264 ns/op
+                 gc.alloc.rate:      2082.995 MB/sec
+                 gc.alloc.rate.norm: 51256.921 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   2: 22137.515 ns/op
+                 gc.alloc.rate:      2207.894 MB/sec
+                 gc.alloc.rate.norm: 51256.986 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 22206.466 ns/op
+                 gc.alloc.rate:      2201.051 MB/sec
+                 gc.alloc.rate.norm: 51257.007 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 22933.032 ns/op
+                 gc.alloc.rate:      2131.118 MB/sec
+                 gc.alloc.rate.norm: 51256.891 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   5: 23675.847 ns/op
+                 gc.alloc.rate:      2064.364 MB/sec
+                 gc.alloc.rate.norm: 51256.836 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            1.000 ms
+
+
+# Run progress: 94.35% complete, ETA 00:00:50
+# Fork: 2 of 2
+# Warmup Iteration   1: 24169.092 ns/op
+# Warmup Iteration   2: 22621.898 ns/op
+# Warmup Iteration   3: 22103.536 ns/op
+# Warmup Iteration   4: 21917.916 ns/op
+# Warmup Iteration   5: 24000.823 ns/op
+Iteration   1: 21762.848 ns/op
+                 gc.alloc.rate:      2245.845 MB/sec
+                 gc.alloc.rate.norm: 51256.908 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   2: 21792.858 ns/op
+                 gc.alloc.rate:      2242.572 MB/sec
+                 gc.alloc.rate.norm: 51256.853 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 21323.310 ns/op
+                 gc.alloc.rate:      2292.094 MB/sec
+                 gc.alloc.rate.norm: 51256.952 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 21257.158 ns/op
+                 gc.alloc.rate:      2299.302 MB/sec
+                 gc.alloc.rate.norm: 51256.929 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 21330.381 ns/op
+                 gc.alloc.rate:      2291.297 MB/sec
+                 gc.alloc.rate.norm: 51256.883 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize":
+  22188.268 ±(99.9%) 1341.357 ns/op [Average]
+  (min, avg, max) = (21257.158, 22188.268, 23675.847), stdev = 887.225
+  CI (99.9%): [20846.911, 23529.625] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate":
+  2205.853 ±(99.9%) 130.585 MB/sec [Average]
+  (min, avg, max) = (2064.364, 2205.853, 2299.302), stdev = 86.374
+  CI (99.9%): [2075.268, 2336.439] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm":
+  51256.917 ±(99.9%) 0.082 B/op [Average]
+  (min, avg, max) = (51256.836, 51256.917, 51257.007), stdev = 0.054
+  CI (99.9%): [51256.834, 51256.999] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.count":
+  37.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (3.000, 3.700, 4.000), stdev = 0.483
+  CI (99.9%): [37.000, 37.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.time":
+  16.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (1.000, 1.600, 2.000), stdev = 0.516
+  CI (99.9%): [16.000, 16.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize
+# Parameters: (mapper = blackbird, shape = small)
+
+# Run progress: 95.16% complete, ETA 00:00:43
+# Fork: 1 of 2
+# Warmup Iteration   1: 226.731 ns/op
+# Warmup Iteration   2: 206.381 ns/op
+# Warmup Iteration   3: 208.468 ns/op
+# Warmup Iteration   4: 207.253 ns/op
+# Warmup Iteration   5: 206.159 ns/op
+Iteration   1: 204.566 ns/op
+                 gc.alloc.rate:      3654.492 MB/sec
+                 gc.alloc.rate.norm: 784.001 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   2: 205.314 ns/op
+                 gc.alloc.rate:      3641.158 MB/sec
+                 gc.alloc.rate.norm: 784.001 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   3: 222.576 ns/op
+                 gc.alloc.rate:      3358.707 MB/sec
+                 gc.alloc.rate.norm: 784.002 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            4.000 ms
+
+Iteration   4: 204.892 ns/op
+                 gc.alloc.rate:      3648.681 MB/sec
+                 gc.alloc.rate.norm: 784.001 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   5: 203.431 ns/op
+                 gc.alloc.rate:      3674.783 MB/sec
+                 gc.alloc.rate.norm: 784.001 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+
+# Run progress: 95.97% complete, ETA 00:00:36
+# Fork: 2 of 2
+# Warmup Iteration   1: 230.127 ns/op
+# Warmup Iteration   2: 208.235 ns/op
+# Warmup Iteration   3: 205.265 ns/op
+# Warmup Iteration   4: 203.450 ns/op
+# Warmup Iteration   5: 203.444 ns/op
+Iteration   1: 204.533 ns/op
+                 gc.alloc.rate:      3655.179 MB/sec
+                 gc.alloc.rate.norm: 784.001 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   2: 206.240 ns/op
+                 gc.alloc.rate:      3624.921 MB/sec
+                 gc.alloc.rate.norm: 784.001 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 205.222 ns/op
+                 gc.alloc.rate:      3642.844 MB/sec
+                 gc.alloc.rate.norm: 784.001 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   4: 203.833 ns/op
+                 gc.alloc.rate:      3667.740 MB/sec
+                 gc.alloc.rate.norm: 784.001 B/op
+                 gc.count:           7.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   5: 200.632 ns/op
+                 gc.alloc.rate:      3726.067 MB/sec
+                 gc.alloc.rate.norm: 784.001 B/op
+                 gc.count:           6.000 counts
+                 gc.time:            2.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize":
+  206.124 ±(99.9%) 9.033 ns/op [Average]
+  (min, avg, max) = (200.632, 206.124, 222.576), stdev = 5.975
+  CI (99.9%): [197.091, 215.157] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate":
+  3629.457 ±(99.9%) 149.627 MB/sec [Average]
+  (min, avg, max) = (3358.707, 3629.457, 3726.067), stdev = 98.969
+  CI (99.9%): [3479.830, 3779.084] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm":
+  784.001 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (784.001, 784.001, 784.002), stdev = 0.001
+  CI (99.9%): [784.001, 784.001] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.count":
+  61.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (6.000, 6.100, 7.000), stdev = 0.316
+  CI (99.9%): [61.000, 61.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.time":
+  28.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (2.000, 2.800, 4.000), stdev = 0.632
+  CI (99.9%): [28.000, 28.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize
+# Parameters: (mapper = blackbird, shape = medium)
+
+# Run progress: 96.77% complete, ETA 00:00:29
+# Fork: 1 of 2
+# Warmup Iteration   1: 1212.171 ns/op
+# Warmup Iteration   2: 1107.300 ns/op
+# Warmup Iteration   3: 1113.841 ns/op
+# Warmup Iteration   4: 1115.216 ns/op
+# Warmup Iteration   5: 1132.206 ns/op
+Iteration   1: 1125.520 ns/op
+                 gc.alloc.rate:      1816.425 MB/sec
+                 gc.alloc.rate.norm: 2144.008 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   2: 1151.964 ns/op
+                 gc.alloc.rate:      1774.760 MB/sec
+                 gc.alloc.rate.norm: 2144.008 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 1117.971 ns/op
+                 gc.alloc.rate:      1828.686 MB/sec
+                 gc.alloc.rate.norm: 2144.008 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 1142.365 ns/op
+                 gc.alloc.rate:      1789.674 MB/sec
+                 gc.alloc.rate.norm: 2144.008 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   5: 1110.005 ns/op
+                 gc.alloc.rate:      1841.774 MB/sec
+                 gc.alloc.rate.norm: 2144.008 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            1.000 ms
+
+
+# Run progress: 97.58% complete, ETA 00:00:22
+# Fork: 2 of 2
+# Warmup Iteration   1: 1209.341 ns/op
+# Warmup Iteration   2: 1121.750 ns/op
+# Warmup Iteration   3: 1104.763 ns/op
+# Warmup Iteration   4: 1115.938 ns/op
+# Warmup Iteration   5: 1104.977 ns/op
+Iteration   1: 1110.512 ns/op
+                 gc.alloc.rate:      1840.998 MB/sec
+                 gc.alloc.rate.norm: 2144.008 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   2: 1107.522 ns/op
+                 gc.alloc.rate:      1845.972 MB/sec
+                 gc.alloc.rate.norm: 2144.008 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 1117.971 ns/op
+                 gc.alloc.rate:      1828.689 MB/sec
+                 gc.alloc.rate.norm: 2144.008 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 1135.860 ns/op
+                 gc.alloc.rate:      1799.925 MB/sec
+                 gc.alloc.rate.norm: 2144.008 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 1149.085 ns/op
+                 gc.alloc.rate:      1778.816 MB/sec
+                 gc.alloc.rate.norm: 2144.008 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize":
+  1126.878 ±(99.9%) 25.352 ns/op [Average]
+  (min, avg, max) = (1107.522, 1126.878, 1151.964), stdev = 16.769
+  CI (99.9%): [1101.526, 1152.229] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate":
+  1814.572 ±(99.9%) 40.706 MB/sec [Average]
+  (min, avg, max) = (1774.760, 1814.572, 1845.972), stdev = 26.924
+  CI (99.9%): [1773.866, 1855.277] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm":
+  2144.008 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (2144.008, 2144.008, 2144.008), stdev = 0.001
+  CI (99.9%): [2144.008, 2144.008] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.count":
+  32.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (3.000, 3.200, 4.000), stdev = 0.422
+  CI (99.9%): [32.000, 32.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.time":
+  15.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (1.000, 1.500, 2.000), stdev = 0.527
+  CI (99.9%): [15.000, 15.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=<repo>/dd-java-agent/benchmark-jackson-blackbird-app/build/tmp/jmh -Duser.country=US -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize
+# Parameters: (mapper = blackbird, shape = list100)
+
+# Run progress: 98.39% complete, ETA 00:00:14
+# Fork: 1 of 2
+# Warmup Iteration   1: 20894.432 ns/op
+# Warmup Iteration   2: 18859.632 ns/op
+# Warmup Iteration   3: 18946.907 ns/op
+# Warmup Iteration   4: 20852.980 ns/op
+# Warmup Iteration   5: 18707.034 ns/op
+Iteration   1: 18665.241 ns/op
+                 gc.alloc.rate:      2373.372 MB/sec
+                 gc.alloc.rate.norm: 46456.867 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 19421.631 ns/op
+                 gc.alloc.rate:      2280.946 MB/sec
+                 gc.alloc.rate.norm: 46456.905 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 19084.300 ns/op
+                 gc.alloc.rate:      2321.236 MB/sec
+                 gc.alloc.rate.norm: 46456.977 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   4: 18748.580 ns/op
+                 gc.alloc.rate:      2362.795 MB/sec
+                 gc.alloc.rate.norm: 46456.833 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   5: 18791.305 ns/op
+                 gc.alloc.rate:      2357.374 MB/sec
+                 gc.alloc.rate.norm: 46456.906 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            1.000 ms
+
+
+# Run progress: 99.19% complete, ETA 00:00:07
+# Fork: 2 of 2
+# Warmup Iteration   1: 20129.395 ns/op
+# Warmup Iteration   2: 18620.842 ns/op
+# Warmup Iteration   3: 19005.557 ns/op
+# Warmup Iteration   4: 18934.611 ns/op
+# Warmup Iteration   5: 19511.605 ns/op
+Iteration   1: 18820.731 ns/op
+                 gc.alloc.rate:      2353.773 MB/sec
+                 gc.alloc.rate.norm: 46456.881 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 19105.522 ns/op
+                 gc.alloc.rate:      2318.680 MB/sec
+                 gc.alloc.rate.norm: 46456.907 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 18837.125 ns/op
+                 gc.alloc.rate:      2351.720 MB/sec
+                 gc.alloc.rate.norm: 46456.937 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 18417.764 ns/op
+                 gc.alloc.rate:      2405.157 MB/sec
+                 gc.alloc.rate.norm: 46456.939 B/op
+                 gc.count:           4.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   5: 18440.758 ns/op
+                 gc.alloc.rate:      2402.241 MB/sec
+                 gc.alloc.rate.norm: 46456.902 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            2.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize":
+  18833.296 ±(99.9%) 463.898 ns/op [Average]
+  (min, avg, max) = (18417.764, 18833.296, 19421.631), stdev = 306.840
+  CI (99.9%): [18369.398, 19297.194] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate":
+  2352.729 ±(99.9%) 57.581 MB/sec [Average]
+  (min, avg, max) = (2280.946, 2352.729, 2405.157), stdev = 38.086
+  CI (99.9%): [2295.148, 2410.311] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm":
+  46456.905 ±(99.9%) 0.061 B/op [Average]
+  (min, avg, max) = (46456.833, 46456.905, 46456.977), stdev = 0.040
+  CI (99.9%): [46456.845, 46456.966] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.count":
+  40.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (3.000, 4.000, 5.000), stdev = 0.471
+  CI (99.9%): [40.000, 40.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.serialize:gc.time":
+  16.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (1.000, 1.600, 2.000), stdev = 0.516
+  CI (99.9%): [16.000, 16.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:15:21
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                                 (mapper)  (shape)  Mode  Cnt       Score      Error   Units
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse                         plain      N/A  avgt   25      88.033 ±    0.769   us/op
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate           plain      N/A  avgt   25    3734.841 ±   29.976  MB/sec
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate.norm      plain      N/A  avgt   25  344721.479 ±  328.141    B/op
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.count                plain      N/A  avgt   25    1559.000             counts
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.time                 plain      N/A  avgt   25     919.000                 ms
+JacksonBlackbirdBenchmark.deserialize                                        plain    small  avgt   10     342.266 ±    7.934   ns/op
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate                          plain    small  avgt   10    3767.491 ±   87.252  MB/sec
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm                     plain    small  avgt   10    1352.002 ±    0.001    B/op
+JacksonBlackbirdBenchmark.deserialize:gc.count                               plain    small  avgt   10      64.000             counts
+JacksonBlackbirdBenchmark.deserialize:gc.time                                plain    small  avgt   10      28.000                 ms
+JacksonBlackbirdBenchmark.deserialize                                        plain   medium  avgt   10    2157.311 ±   10.657   ns/op
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate                          plain   medium  avgt   10    1796.367 ±    8.830  MB/sec
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm                     plain   medium  avgt   10    4064.015 ±    0.001    B/op
+JacksonBlackbirdBenchmark.deserialize:gc.count                               plain   medium  avgt   10      30.000             counts
+JacksonBlackbirdBenchmark.deserialize:gc.time                                plain   medium  avgt   10      14.000                 ms
+JacksonBlackbirdBenchmark.deserialize                                        plain  list100  avgt   10   37912.657 ±  790.773   ns/op
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate                          plain  list100  avgt   10    1540.332 ±   31.497  MB/sec
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm                     plain  list100  avgt   10   61232.261 ±    0.005    B/op
+JacksonBlackbirdBenchmark.deserialize:gc.count                               plain  list100  avgt   10      26.000             counts
+JacksonBlackbirdBenchmark.deserialize:gc.time                                plain  list100  avgt   10      14.000                 ms
+JacksonBlackbirdBenchmark.deserialize                                    blackbird    small  avgt   10     299.003 ±    2.182   ns/op
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate                      blackbird    small  avgt   10    4158.727 ±   30.255  MB/sec
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm                 blackbird    small  avgt   10    1304.002 ±    0.001    B/op
+JacksonBlackbirdBenchmark.deserialize:gc.count                           blackbird    small  avgt   10      70.000             counts
+JacksonBlackbirdBenchmark.deserialize:gc.time                            blackbird    small  avgt   10      29.000                 ms
+JacksonBlackbirdBenchmark.deserialize                                    blackbird   medium  avgt   10    1804.340 ±   37.354   ns/op
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate                      blackbird   medium  avgt   10    2008.581 ±   41.625  MB/sec
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm                 blackbird   medium  avgt   10    3800.012 ±    0.001    B/op
+JacksonBlackbirdBenchmark.deserialize:gc.count                           blackbird   medium  avgt   10      34.000             counts
+JacksonBlackbirdBenchmark.deserialize:gc.time                            blackbird   medium  avgt   10      16.000                 ms
+JacksonBlackbirdBenchmark.deserialize                                    blackbird  list100  avgt   10   32787.172 ± 1031.744   ns/op
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate                      blackbird  list100  avgt   10    1641.862 ±   50.317  MB/sec
+JacksonBlackbirdBenchmark.deserialize:gc.alloc.rate.norm                 blackbird  list100  avgt   10   56432.226 ±    0.008    B/op
+JacksonBlackbirdBenchmark.deserialize:gc.count                           blackbird  list100  avgt   10      28.000             counts
+JacksonBlackbirdBenchmark.deserialize:gc.time                            blackbird  list100  avgt   10      13.000                 ms
+JacksonBlackbirdBenchmark.serialize                                          plain    small  avgt   10     233.123 ±   36.464   ns/op
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate                            plain    small  avgt   10    3431.651 ±  464.031  MB/sec
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm                       plain    small  avgt   10     832.002 ±    0.001    B/op
+JacksonBlackbirdBenchmark.serialize:gc.count                                 plain    small  avgt   10      58.000             counts
+JacksonBlackbirdBenchmark.serialize:gc.time                                  plain    small  avgt   10      25.000                 ms
+JacksonBlackbirdBenchmark.serialize                                          plain   medium  avgt   10    1265.302 ±   20.364   ns/op
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate                            plain   medium  avgt   10    1814.892 ±   29.265  MB/sec
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm                       plain   medium  avgt   10    2408.009 ±    0.001    B/op
+JacksonBlackbirdBenchmark.serialize:gc.count                                 plain   medium  avgt   10      30.000             counts
+JacksonBlackbirdBenchmark.serialize:gc.time                                  plain   medium  avgt   10      13.000                 ms
+JacksonBlackbirdBenchmark.serialize                                          plain  list100  avgt   10   22188.268 ± 1341.357   ns/op
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate                            plain  list100  avgt   10    2205.853 ±  130.585  MB/sec
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm                       plain  list100  avgt   10   51256.917 ±    0.082    B/op
+JacksonBlackbirdBenchmark.serialize:gc.count                                 plain  list100  avgt   10      37.000             counts
+JacksonBlackbirdBenchmark.serialize:gc.time                                  plain  list100  avgt   10      16.000                 ms
+JacksonBlackbirdBenchmark.serialize                                      blackbird    small  avgt   10     206.124 ±    9.033   ns/op
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate                        blackbird    small  avgt   10    3629.457 ±  149.627  MB/sec
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm                   blackbird    small  avgt   10     784.001 ±    0.001    B/op
+JacksonBlackbirdBenchmark.serialize:gc.count                             blackbird    small  avgt   10      61.000             counts
+JacksonBlackbirdBenchmark.serialize:gc.time                              blackbird    small  avgt   10      28.000                 ms
+JacksonBlackbirdBenchmark.serialize                                      blackbird   medium  avgt   10    1126.878 ±   25.352   ns/op
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate                        blackbird   medium  avgt   10    1814.572 ±   40.706  MB/sec
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm                   blackbird   medium  avgt   10    2144.008 ±    0.001    B/op
+JacksonBlackbirdBenchmark.serialize:gc.count                             blackbird   medium  avgt   10      32.000             counts
+JacksonBlackbirdBenchmark.serialize:gc.time                              blackbird   medium  avgt   10      15.000                 ms
+JacksonBlackbirdBenchmark.serialize                                      blackbird  list100  avgt   10   18833.296 ±  463.898   ns/op
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate                        blackbird  list100  avgt   10    2352.729 ±   57.581  MB/sec
+JacksonBlackbirdBenchmark.serialize:gc.alloc.rate.norm                   blackbird  list100  avgt   10   46456.905 ±    0.061    B/op
+JacksonBlackbirdBenchmark.serialize:gc.count                             blackbird  list100  avgt   10      40.000             counts
+JacksonBlackbirdBenchmark.serialize:gc.time                              blackbird  list100  avgt   10      16.000                 ms
+
+Benchmark result is saved to <repo>/dd-java-agent/benchmark-jackson-blackbird-app/results/20261030-jmh/jmh-result.json

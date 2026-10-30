@@ -1,0 +1,107 @@
+== building app and tools
+== starting fake trace agent on 18126
+== [noagent] startup x5
+  noagent    startup discarded run: 925.8 ms
+  noagent    startup run 1: 951.4 ms
+  noagent    startup run 2: 877.5 ms
+  noagent    startup run 3: 857.0 ms
+  noagent    startup run 4: 861.3 ms
+  noagent    startup run 5: 875.8 ms
+== [noagent] load: warmup 15s + 30s per endpoint, 8 connections
+  noagent          nojson         107631 req/s  p50     69.5 us  p99    155.3 us  cpu    34.2 us/req  errors 0
+  noagent          json            79080 req/s  p50     95.5 us  p99    197.9 us  cpu    54.3 us/req  errors 0
+  noagent          jsonlist        49031 req/s  p50    131.3 us  p99    586.8 us  cpu    77.8 us/req  errors 0
+  noagent          newmapper       20262 req/s  p50    331.3 us  p99   1194.9 us  cpu   300.6 us/req  errors 0
+== [agent] startup x5
+  agent      startup discarded run: 1856.9 ms
+  agent      startup run 1: 1625.7 ms
+  agent      startup run 2: 1603.3 ms
+  agent      startup run 3: 1698.7 ms
+  agent      startup run 4: 1614.4 ms
+  agent      startup run 5: 1498.7 ms
+== [agent] load: warmup 15s + 30s per endpoint, 8 connections
+  agent            nojson          96123 req/s  p50     74.5 us  p99    195.0 us  cpu    46.3 us/req  errors 0
+  agent            json            64149 req/s  p50    110.6 us  p99    297.4 us  cpu    77.0 us/req  errors 0
+  agent            jsonlist        55372 req/s  p50    135.3 us  p99    282.8 us  cpu    89.1 us/req  errors 0
+  agent            newmapper       24022 req/s  p50    313.1 us  p99    967.2 us  cpu   303.8 us/req  errors 0
+  fake agent has received 3642 trace payloads so far
+== [agent-blackbird] startup x5
+  agent-blackbird startup discarded run: 1529.6 ms
+  agent-blackbird startup run 1: 1481.4 ms
+  agent-blackbird startup run 2: 1460.9 ms
+  agent-blackbird startup run 3: 1513.9 ms
+  agent-blackbird startup run 4: 1557.0 ms
+  agent-blackbird startup run 5: 1458.0 ms
+== [agent-blackbird] load: warmup 15s + 30s per endpoint, 8 connections
+  agent-blackbird  nojson          96305 req/s  p50     74.6 us  p99    185.7 us  cpu    46.8 us/req  errors 0
+  agent-blackbird  json            72531 req/s  p50    100.9 us  p99    243.5 us  cpu    66.8 us/req  errors 0
+  agent-blackbird  jsonlist        57556 req/s  p50    131.2 us  p99    269.9 us  cpu    85.4 us/req  errors 0
+  agent-blackbird  newmapper       24931 req/s  p50    305.0 us  p99    935.0 us  cpu   295.7 us/req  errors 0
+  fake agent has received 7534 trace payloads so far
+== done: <repo>/dd-java-agent/benchmark-jackson-blackbird-app/results/20261030-runbench-pass1/summary.md
+# Jackson Blackbird benchmark
+
+- date: 2026-10-30T21:23:54Z
+- host: Darwin 25.6.0 arm64
+- cpus: 16
+- java: openjdk version 21.0.11 2026-04-21 LTS
+- agentJar: <repo>/dd-java-agent/build/libs/dd-java-agent-1.68.0-SNAPSHOT.jar
+- agentCommit: 6ec66f0b77
+- startupRuns: 5
+- warmupS: 15
+- durationS: 30
+- connections: 8
+- heap: 512m
+
+## Startup to first successful request (ms)
+
+| config | median | min | max | runs |
+|---|---:|---:|---:|---:|
+| noagent | 876 | 857 | 951 | 5 |
+| agent | 1614 | 1499 | 1699 | 5 |
+| agent-blackbird | 1481 | 1458 | 1557 | 5 |
+
+## Load (relative columns vs `noagent`)
+
+| endpoint | config | req/s | req/s vs base | p50 us | p99 us | CPU us/req | CPU/req vs base | GC ms | classes loaded | errors |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| nojson | noagent | 107631 | - | 69.5 | 155.3 | 34.17 | - | 115 | 2 | 0 |
+| nojson | agent | 96123 | -10.7% | 74.5 | 195.0 | 46.29 | +35.5% | 160 | 60 | 0 |
+| nojson | agent-blackbird | 96305 | -10.5% | 74.6 | 185.7 | 46.83 | +37.1% | 171 | 61 | 0 |
+| json | noagent | 79080 | - | 95.5 | 197.9 | 54.34 | - | 119 | 0 | 0 |
+| json | agent | 64149 | -18.9% | 110.6 | 297.4 | 77.04 | +41.8% | 167 | 0 | 0 |
+| json | agent-blackbird | 72531 | -8.3% | 100.9 | 243.5 | 66.84 | +23.0% | 147 | 0 | 0 |
+| jsonlist | noagent | 49031 | - | 131.3 | 586.8 | 77.76 | - | 88 | 0 | 0 |
+| jsonlist | agent | 55372 | +12.9% | 135.3 | 282.8 | 89.09 | +14.6% | 124 | 1 | 0 |
+| jsonlist | agent-blackbird | 57556 | +17.4% | 131.2 | 269.9 | 85.40 | +9.8% | 101 | 2 | 0 |
+| newmapper | noagent | 20262 | - | 331.3 | 1194.9 | 300.60 | - | 656 | 0 | 0 |
+| newmapper | agent | 24022 | +18.6% | 313.1 | 967.2 | 303.76 | +1.1% | 671 | 0 | 0 |
+| newmapper | agent-blackbird | 24931 | +23.0% | 305.0 | 935.0 | 295.74 | -1.6% | 677 | 1 | 0 |
+
+## Blackbird status at the end of each config's load phase
+
+1 = Blackbird registered on Spring's ObjectMapper / on a `new ObjectMapper()` created at app startup; classes = classes loaded during the last endpoint's measured window.
+
+| config | Spring mapper | new mapper | classes loaded (last endpoint) |
+|---|---:|---:|---:|
+| noagent | 0 | 0 | 0 |
+| agent | 0 | 0 | 0 |
+| agent-blackbird | 1 | 1 | 1 |
+
+## Response bytes vs `noagent`
+
+| endpoint | config | bytes | identical |
+|---|---|---:|---|
+| nojson | noagent | 5025 | yes |
+| nojson | agent | 5025 | yes |
+| nojson | agent-blackbird | 5025 | yes |
+| json | noagent | 4805 | yes |
+| json | agent | 4805 | yes |
+| json | agent-blackbird | 4805 | yes |
+| jsonlist | noagent | 17730 | yes |
+| jsonlist | agent | 17730 | yes |
+| jsonlist | agent-blackbird | 17730 | yes |
+| newmapper | noagent | 4805 | yes |
+| newmapper | agent | 4805 | yes |
+| newmapper | agent-blackbird | 4805 | yes |
+exit=0

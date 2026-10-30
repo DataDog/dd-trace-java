@@ -1,0 +1,511 @@
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, single-shot each
+# Measurement: 5 iterations, single-shot each, 100 calls per op
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse
+# Parameters: (mapper = plain)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 5
+# Warmup Iteration   1: 90674.708 us/op
+# Warmup Iteration   2: 4933.917 us/op
+# Warmup Iteration   3: 4135.583 us/op
+Iteration   1: 105837.792 us/op
+                 gc.alloc.rate:      334.376 MB/sec
+                 gc.alloc.rate.norm: 37142232.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 50061.667 us/op
+                 gc.alloc.rate:      706.168 MB/sec
+                 gc.alloc.rate.norm: 37158784.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 37886.417 us/op
+                 gc.alloc.rate:      900.824 MB/sec
+                 gc.alloc.rate.norm: 35887496.000 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 33514.292 us/op
+                 gc.alloc.rate:      1005.149 MB/sec
+                 gc.alloc.rate.norm: 35444320.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 23736.167 us/op
+                 gc.alloc.rate:      1404.692 MB/sec
+                 gc.alloc.rate.norm: 35213432.000 B/op
+                 gc.count:           ≈ 0 counts
+
+
+# Run progress: 10.00% complete, ETA 00:00:05
+# Fork: 2 of 5
+# Warmup Iteration   1: 82826.791 us/op
+# Warmup Iteration   2: 4646.125 us/op
+# Warmup Iteration   3: 4069.084 us/op
+Iteration   1: 104029.167 us/op
+                 gc.alloc.rate:      340.340 MB/sec
+                 gc.alloc.rate.norm: 37160888.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 51320.833 us/op
+                 gc.alloc.rate:      691.650 MB/sec
+                 gc.alloc.rate.norm: 37319384.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 39070.917 us/op
+                 gc.alloc.rate:      878.968 MB/sec
+                 gc.alloc.rate.norm: 36121512.000 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 36302.417 us/op
+                 gc.alloc.rate:      936.318 MB/sec
+                 gc.alloc.rate.norm: 35741864.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            ≈ 0 ms
+
+Iteration   5: 23959.000 us/op
+                 gc.alloc.rate:      1404.974 MB/sec
+                 gc.alloc.rate.norm: 35457016.000 B/op
+                 gc.count:           ≈ 0 counts
+
+
+# Run progress: 20.00% complete, ETA 00:00:04
+# Fork: 3 of 5
+# Warmup Iteration   1: 82321.167 us/op
+# Warmup Iteration   2: 4766.541 us/op
+# Warmup Iteration   3: 3955.625 us/op
+Iteration   1: 109289.250 us/op
+                 gc.alloc.rate:      323.712 MB/sec
+                 gc.alloc.rate.norm: 37129992.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 51227.459 us/op
+                 gc.alloc.rate:      688.975 MB/sec
+                 gc.alloc.rate.norm: 37137200.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 44120.708 us/op
+                 gc.alloc.rate:      772.328 MB/sec
+                 gc.alloc.rate.norm: 35892552.000 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 34541.792 us/op
+                 gc.alloc.rate:      972.097 MB/sec
+                 gc.alloc.rate.norm: 35354256.000 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 26903.083 us/op
+                 gc.alloc.rate:      1240.557 MB/sec
+                 gc.alloc.rate.norm: 35174936.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+
+# Run progress: 30.00% complete, ETA 00:00:03
+# Fork: 4 of 5
+# Warmup Iteration   1: 85681.333 us/op
+# Warmup Iteration   2: 4639.166 us/op
+# Warmup Iteration   3: 4365.709 us/op
+Iteration   1: 106491.000 us/op
+                 gc.alloc.rate:      332.334 MB/sec
+                 gc.alloc.rate.norm: 37145576.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 49590.041 us/op
+                 gc.alloc.rate:      714.112 MB/sec
+                 gc.alloc.rate.norm: 37226104.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 36339.458 us/op
+                 gc.alloc.rate:      939.357 MB/sec
+                 gc.alloc.rate.norm: 35932296.000 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 33893.167 us/op
+                 gc.alloc.rate:      993.697 MB/sec
+                 gc.alloc.rate.norm: 35424040.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 24753.916 us/op
+                 gc.alloc.rate:      1348.485 MB/sec
+                 gc.alloc.rate.norm: 35199968.000 B/op
+                 gc.count:           ≈ 0 counts
+
+
+# Run progress: 40.00% complete, ETA 00:00:03
+# Fork: 5 of 5
+# Warmup Iteration   1: 83934.458 us/op
+# Warmup Iteration   2: 4816.333 us/op
+# Warmup Iteration   3: 4023.625 us/op
+Iteration   1: 108698.417 us/op
+                 gc.alloc.rate:      325.762 MB/sec
+                 gc.alloc.rate.norm: 37160592.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 51111.625 us/op
+                 gc.alloc.rate:      691.937 MB/sec
+                 gc.alloc.rate.norm: 37170872.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 36010.958 us/op
+                 gc.alloc.rate:      948.303 MB/sec
+                 gc.alloc.rate.norm: 35899456.000 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 34510.625 us/op
+                 gc.alloc.rate:      974.855 MB/sec
+                 gc.alloc.rate.norm: 35416504.000 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 23546.792 us/op
+                 gc.alloc.rate:      1418.432 MB/sec
+                 gc.alloc.rate.norm: 35212192.000 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse":
+  N = 25
+  mean =  51069.878 ±(99.9%) 22307.559 us/op
+
+  Histogram, us/op:
+    [ 20000.000,  25000.000) = 4 
+    [ 25000.000,  30000.000) = 1 
+    [ 30000.000,  35000.000) = 4 
+    [ 35000.000,  40000.000) = 5 
+    [ 40000.000,  45000.000) = 1 
+    [ 45000.000,  50000.000) = 1 
+    [ 50000.000,  55000.000) = 4 
+    [ 55000.000,  60000.000) = 0 
+    [ 60000.000,  65000.000) = 0 
+    [ 65000.000,  70000.000) = 0 
+    [ 70000.000,  75000.000) = 0 
+    [ 75000.000,  80000.000) = 0 
+    [ 80000.000,  85000.000) = 0 
+    [ 85000.000,  90000.000) = 0 
+    [ 90000.000,  95000.000) = 0 
+    [ 95000.000, 100000.000) = 0 
+    [100000.000, 105000.000) = 1 
+
+  Percentiles, us/op:
+      p(0.0000) =  23546.792 us/op
+     p(50.0000) =  37886.417 us/op
+     p(90.0000) = 107373.967 us/op
+     p(95.0000) = 109112.000 us/op
+     p(99.0000) = 109289.250 us/op
+     p(99.9000) = 109289.250 us/op
+     p(99.9900) = 109289.250 us/op
+     p(99.9990) = 109289.250 us/op
+     p(99.9999) = 109289.250 us/op
+    p(100.0000) = 109289.250 us/op
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate":
+  851.536 ±(99.9%) 260.840 MB/sec [Average]
+  (min, avg, max) = (323.712, 851.536, 1418.432), stdev = 348.214
+  CI (99.9%): [590.696, 1112.376] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate.norm":
+  36204938.560 ±(99.9%) 633456.275 B/op [Average]
+  (min, avg, max) = (35174936.000, 36204938.560, 37319384.000), stdev = 845646.004
+  CI (99.9%): [35571482.285, 36838394.835] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.count":
+  15.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (≈ 0, 0.600, 1.000), stdev = 0.500
+  CI (99.9%): [15.000, 15.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.time":
+  14.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (≈ 0, 0.560, 1.000), stdev = 0.507
+  CI (99.9%): [14.000, 14.000] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.11, OpenJDK 64-Bit Server VM, 21.0.11+10-LTS
+# VM invoker: /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, single-shot each
+# Measurement: 5 iterations, single-shot each, 100 calls per op
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse
+# Parameters: (mapper = blackbird)
+
+# Run progress: 50.00% complete, ETA 00:00:02
+# Fork: 1 of 5
+# Warmup Iteration   1: 92209.167 us/op
+# Warmup Iteration   2: 9161.458 us/op
+# Warmup Iteration   3: 7820.125 us/op
+Iteration   1: 280884.958 us/op
+                 gc.alloc.rate:      371.912 MB/sec
+                 gc.alloc.rate.norm: 109577808.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            4.000 ms
+
+Iteration   2: 197117.167 us/op
+                 gc.alloc.rate:      516.992 MB/sec
+                 gc.alloc.rate.norm: 106921368.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            6.000 ms
+
+Iteration   3: 125884.041 us/op
+                 gc.alloc.rate:      797.786 MB/sec
+                 gc.alloc.rate.norm: 105398952.000 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            5.000 ms
+
+Iteration   4: 133180.584 us/op
+                 gc.alloc.rate:      753.994 MB/sec
+                 gc.alloc.rate.norm: 105377952.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            7.000 ms
+
+Iteration   5: 139487.584 us/op
+                 gc.alloc.rate:      717.273 MB/sec
+                 gc.alloc.rate.norm: 105006864.000 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            13.000 ms
+
+
+# Run progress: 60.00% complete, ETA 00:00:02
+# Fork: 2 of 5
+# Warmup Iteration   1: 89828.000 us/op
+# Warmup Iteration   2: 8948.500 us/op
+# Warmup Iteration   3: 8061.166 us/op
+Iteration   1: 274756.541 us/op
+                 gc.alloc.rate:      379.414 MB/sec
+                 gc.alloc.rate.norm: 109352552.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            4.000 ms
+
+Iteration   2: 206730.958 us/op
+                 gc.alloc.rate:      489.951 MB/sec
+                 gc.alloc.rate.norm: 106272664.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            7.000 ms
+
+Iteration   3: 131290.917 us/op
+                 gc.alloc.rate:      759.740 MB/sec
+                 gc.alloc.rate.norm: 104675032.000 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            4.000 ms
+
+Iteration   4: 129668.792 us/op
+                 gc.alloc.rate:      768.734 MB/sec
+                 gc.alloc.rate.norm: 104641600.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            8.000 ms
+
+Iteration   5: 133495.083 us/op
+                 gc.alloc.rate:      744.352 MB/sec
+                 gc.alloc.rate.norm: 104289168.000 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            15.000 ms
+
+
+# Run progress: 70.00% complete, ETA 00:00:02
+# Fork: 3 of 5
+# Warmup Iteration   1: 92048.250 us/op
+# Warmup Iteration   2: 9339.167 us/op
+# Warmup Iteration   3: 8177.916 us/op
+Iteration   1: 271556.875 us/op
+                 gc.alloc.rate:      383.429 MB/sec
+                 gc.alloc.rate.norm: 109226504.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            4.000 ms
+
+Iteration   2: 166900.875 us/op
+                 gc.alloc.rate:      608.393 MB/sec
+                 gc.alloc.rate.norm: 106553880.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            6.000 ms
+
+Iteration   3: 123512.167 us/op
+                 gc.alloc.rate:      814.338 MB/sec
+                 gc.alloc.rate.norm: 105551736.000 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            5.000 ms
+
+Iteration   4: 125405.000 us/op
+                 gc.alloc.rate:      801.534 MB/sec
+                 gc.alloc.rate.norm: 105528000.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            7.000 ms
+
+Iteration   5: 127017.791 us/op
+                 gc.alloc.rate:      788.531 MB/sec
+                 gc.alloc.rate.norm: 105141920.000 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            12.000 ms
+
+
+# Run progress: 80.00% complete, ETA 00:00:01
+# Fork: 4 of 5
+# Warmup Iteration   1: 92783.291 us/op
+# Warmup Iteration   2: 9341.500 us/op
+# Warmup Iteration   3: 7850.625 us/op
+Iteration   1: 306095.417 us/op
+                 gc.alloc.rate:      341.177 MB/sec
+                 gc.alloc.rate.norm: 109542520.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            4.000 ms
+
+Iteration   2: 201982.834 us/op
+                 gc.alloc.rate:      503.039 MB/sec
+                 gc.alloc.rate.norm: 106608952.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            7.000 ms
+
+Iteration   3: 126110.167 us/op
+                 gc.alloc.rate:      796.355 MB/sec
+                 gc.alloc.rate.norm: 105398656.000 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            4.000 ms
+
+Iteration   4: 128769.834 us/op
+                 gc.alloc.rate:      779.864 MB/sec
+                 gc.alloc.rate.norm: 105387896.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            8.000 ms
+
+Iteration   5: 162947.041 us/op
+                 gc.alloc.rate:      616.590 MB/sec
+                 gc.alloc.rate.norm: 105422080.000 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            12.000 ms
+
+
+# Run progress: 90.00% complete, ETA 00:00:00
+# Fork: 5 of 5
+# Warmup Iteration   1: 91935.291 us/op
+# Warmup Iteration   2: 9871.000 us/op
+# Warmup Iteration   3: 8818.000 us/op
+Iteration   1: 278791.834 us/op
+                 gc.alloc.rate:      374.763 MB/sec
+                 gc.alloc.rate.norm: 109602096.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            4.000 ms
+
+Iteration   2: 182426.250 us/op
+                 gc.alloc.rate:      556.865 MB/sec
+                 gc.alloc.rate.norm: 106585248.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            6.000 ms
+
+Iteration   3: 124637.416 us/op
+                 gc.alloc.rate:      806.042 MB/sec
+                 gc.alloc.rate.norm: 105429448.000 B/op
+                 gc.count:           2.000 counts
+                 gc.time:            5.000 ms
+
+Iteration   4: 130355.250 us/op
+                 gc.alloc.rate:      770.405 MB/sec
+                 gc.alloc.rate.norm: 105407952.000 B/op
+                 gc.count:           5.000 counts
+                 gc.time:            8.000 ms
+
+Iteration   5: 128836.250 us/op
+                 gc.alloc.rate:      777.102 MB/sec
+                 gc.alloc.rate.norm: 105088560.000 B/op
+                 gc.count:           3.000 counts
+                 gc.time:            13.000 ms
+
+
+
+Result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse":
+  N = 25
+  mean = 173513.665 ±(99.9%) 46022.026 us/op
+
+  Histogram, us/op:
+    [100000.000, 125000.000) = 2 
+    [125000.000, 150000.000) = 12 
+    [150000.000, 175000.000) = 2 
+    [175000.000, 200000.000) = 2 
+    [200000.000, 225000.000) = 2 
+    [225000.000, 250000.000) = 0 
+    [250000.000, 275000.000) = 2 
+    [275000.000, 300000.000) = 2 
+    [300000.000, 325000.000) = 1 
+    [325000.000, 350000.000) = 0 
+    [350000.000, 375000.000) = 0 
+
+  Percentiles, us/op:
+      p(0.0000) = 123512.167 us/op
+     p(50.0000) = 133495.083 us/op
+     p(90.0000) = 279629.084 us/op
+     p(95.0000) = 298532.279 us/op
+     p(99.0000) = 306095.417 us/op
+     p(99.9000) = 306095.417 us/op
+     p(99.9900) = 306095.417 us/op
+     p(99.9990) = 306095.417 us/op
+     p(99.9999) = 306095.417 us/op
+    p(100.0000) = 306095.417 us/op
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate":
+  640.743 ±(99.9%) 128.084 MB/sec [Average]
+  (min, avg, max) = (341.177, 640.743, 814.338), stdev = 170.989
+  CI (99.9%): [512.659, 768.827] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate.norm":
+  106319576.320 ±(99.9%) 1291707.219 B/op [Average]
+  (min, avg, max) = (104289168.000, 106319576.320, 109602096.000), stdev = 1724392.182
+  CI (99.9%): [105027869.101, 107611283.539] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.count":
+  100.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (2.000, 4.000, 5.000), stdev = 1.291
+  CI (99.9%): [100.000, 100.000] (assumes normal distribution)
+
+Secondary result "com.example.jsonbench.jmh.JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.time":
+  178.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (4.000, 7.120, 15.000), stdev = 3.333
+  CI (99.9%): [178.000, 178.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:00:08
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                                 (mapper)  Mode  Cnt          Score         Error   Units
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse                         plain    ss   25      51069.878 ±   22307.559   us/op
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate           plain    ss   25        851.536 ±     260.840  MB/sec
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate.norm      plain    ss   25   36204938.560 ±  633456.275    B/op
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.count                plain    ss   25         15.000                counts
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.time                 plain    ss   25         14.000                    ms
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse                     blackbird    ss   25     173513.665 ±   46022.026   us/op
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate       blackbird    ss   25        640.743 ±     128.084  MB/sec
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.alloc.rate.norm  blackbird    ss   25  106319576.320 ± 1291707.219    B/op
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.count            blackbird    ss   25        100.000                counts
+JacksonBlackbirdBenchmark.FirstUse.newMapperFirstUse:gc.time             blackbird    ss   25        178.000                    ms
+
+Benchmark result is saved to results/20261030-jmh-firstuse-singleshot/jmh-result.json
