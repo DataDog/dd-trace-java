@@ -1,0 +1,36 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
+}
+
+muzzle {
+  pass {
+    group = 'mysql'
+    module = 'mysql-connector-java'
+    versions = '[8.0.11,8.0.31)' // later versions are relocations to com.mysql:mysql-connector-j
+    assertInverse = false
+  }
+  pass {
+    group = 'com.mysql'
+    module = 'mysql-connector-j'
+    versions = '[8.0.31,)'
+    assertInverse = false
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+dependencies {
+  testContainerImage(image('mysql:8.0', 'test.mysql.image'))
+
+  testImplementation group: 'com.mysql', name: 'mysql-connector-j', version: '8.0.33'
+  testImplementation group: 'com.zaxxer', name: 'HikariCP', version: '4.0.3'
+  testImplementation group: 'org.testcontainers', name: 'mysql', version: libs.versions.testcontainers.get()
+
+  latestDepTestImplementation group: 'com.mysql', name: 'mysql-connector-j', version: '9.+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
