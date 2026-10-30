@@ -228,11 +228,10 @@ public class DatadogReporter {
     String testName = event.testName();
     Object testQualifier = null;
     String testParameters = null;
-    Collection<String> categories = Collections.emptyList();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
 
     TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null);
-    categories = context.exclusionTags(skippableTest);
+    Collection<String> categories = context.exclusionTags(skippableTest);
     SkipReason reason = context.getSkipReason(skippableTest);
 
     TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
