@@ -46,7 +46,7 @@ public final class ProfilingConfigPoller {
       return;
     }
     // the poller itself is started by the agent once all products have been registered
-    poller.addListener(Product.DEBUG, new Updater());
+    poller.addListener(Product.DEBUG, new Updater(config.getEnv(), config.getServiceName()));
     configPoller = poller;
     log.debug("Subscribed to DEBUG remote config");
   }
@@ -57,16 +57,34 @@ public final class ProfilingConfigPoller {
       configPoller.removeListeners(Product.DEBUG);
       configPoller = null;
     }
+    log.debug("Stopped DEBUG remote config");
   }
 
   /** Remote-config callbacks all come from the single poller thread. */
   final class Updater implements ProductListener {
     private final Map<String, String> configs = new HashMap<>();
+    private final String env;
+    private final String service;
     private String configId;
+
+    Updater(String env, String service) {
+      this.env = env;
+      this.service = service;
+    }
 
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter) {
       String json = new String(content, UTF_8);
+      if (!ProfilingConfigTargets.matches(json, env, service)) {
+        // may have targeted this application before, in which case it no longer applies
+        configs.remove(configKey.getConfigId());
+        log.debug(
+            "Ignoring DEBUG config {}: not targeting env={} service={}",
+            configKey.getConfigId(),
+            env,
+            service);
+        return;
+      }
       configId = configKey.getConfigId();
       configs.put(configKey.getConfigId(), json);
       log.debug("Received DEBUG config {}: {}", configKey.getConfigId(), json);

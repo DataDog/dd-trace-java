@@ -21,10 +21,16 @@ import org.slf4j.LoggerFactory;
  * configuration applies again.
  *
  * <p>This handler can be created before the profiler is initialized. Configs received before the
- * profiler is available are buffered and applied once {@link #setProfilingSystem} is called.
+ * profiler is available via {@link #setProfilingSystem} are dropped, not buffered.
  */
 final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
   private static final Logger log = LoggerFactory.getLogger(ProfilingRemoteConfigHandler.class);
+
+  /**
+   * While a config with this id is active, its configuration is applied but the profiler is kept
+   * stopped.
+   */
+  static final String DISABLE_CONFIG_ID = "preset-disabled";
 
   private volatile ProfilingSystem profilingSystem;
   private final ConfigProvider localConfig;
@@ -34,9 +40,8 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
 
   // the remote values currently applied, null when the local configuration applies
   private Map<String, String> appliedValues;
-  // configs received before the profiler was available
-  private Map<String, String> pendingConfigsById;
-  private String pendingConfigId;
+  // whether the currently applied configs include the disable config
+  private boolean appliedDisable;
   private boolean closed;
 
   /**
@@ -83,20 +88,9 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     this.anyProfilingEnabled = anyProfilingEnabled;
   }
 
-  /**
-   * Sets the profiling system. If configs were received before this call, they are applied
-   * immediately.
-   */
+  /** Sets the profiling system; only configs received from now on are applied to it. */
   synchronized void setProfilingSystem(ProfilingSystem profilingSystem) {
     this.profilingSystem = profilingSystem;
-    if (pendingConfigsById != null) {
-      log.debug("Applying buffered DEBUG remote config");
-      Map<String, String> pending = pendingConfigsById;
-      String pendingId = pendingConfigId;
-      pendingConfigsById = null;
-      pendingConfigId = null;
-      applyConfigs(pendingId, pending);
-    }
   }
 
   @Override
@@ -106,8 +100,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       return;
     }
     if (profilingSystem == null) {
-      log.debug("Profiler not yet initialized, buffering DEBUG remote config");
-      pendingConfigsById = configsById;
+      log.debug("Profiler not yet initialized, dropping DEBUG remote config {}", configId);
       return;
     }
     applyConfigs(configId, configsById);
@@ -118,7 +111,8 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     log.debug("DEBUG remote config received: " + configId);
     final Map<String, String> values =
         configsById.isEmpty() ? null : ProfilingConfigMerger.merge(configsById);
-    if (Objects.equals(values, appliedValues)) {
+    final boolean disable = configsById.containsKey(DISABLE_CONFIG_ID);
+    if (Objects.equals(values, appliedValues) && disable == appliedDisable) {
       log.debug("DEBUG remote config unchanged, nothing to do");
       return;
     }
@@ -136,7 +130,15 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
 
     final boolean running = profilingSystem.isRunning();
     try {
-      if (!enabled) {
+      if (disable) {
+        // the configuration can only be applied while stopped, and the profiler stays stopped
+        if (running) {
+          log.debug("Profiling lifecycle: running -> stopped ({})", DISABLE_CONFIG_ID);
+          profilingSystem.stop(false);
+        }
+        profilingSystem.reconfigure(config);
+        log.debug("Applied {} configuration, profiling stays stopped", DISABLE_CONFIG_ID);
+      } else if (!enabled) {
         if (running) {
           log.debug("Profiling lifecycle: running -> stopped (all profiling disabled)");
           profilingSystem.stop(false);
@@ -156,6 +158,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
             values == null ? "local" : "remote");
       }
       appliedValues = values;
+      appliedDisable = disable;
     } catch (UnsupportedEnvironmentException | RuntimeException e) {
       log.warn(SEND_TELEMETRY, "Failed to apply DEBUG remote config", e);
     }
