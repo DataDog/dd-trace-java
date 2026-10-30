@@ -1,0 +1,3 @@
+Hello, world!
+Temporary Campaigner smoke test. DO NOT MERGE.
+This file is only for verifying automated draft PR creation.
