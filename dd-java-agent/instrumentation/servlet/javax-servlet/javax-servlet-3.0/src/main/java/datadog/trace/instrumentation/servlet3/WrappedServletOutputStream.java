@@ -95,6 +95,10 @@ public class WrappedServletOutputStream extends ServletOutputStream {
     filtered.commit();
   }
 
+  public void discard() {
+    filtered.discard();
+  }
+
   public void setFilter(boolean filter) {
     filtered.setFilter(filter);
   }

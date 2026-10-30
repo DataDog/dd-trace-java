@@ -196,6 +196,57 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     downstream.toByteArray() == "abc<script></script></head>0123456789</head>".getBytes("UTF-8")
   }
 
+  def 'should drain and reset a partial match on commit'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES)
+
+    when:
+    piped.write("</he".getBytes("UTF-8"))
+    piped.commit()
+    piped.write("ad>".getBytes("UTF-8"))
+    piped.close()
+
+    then:
+    downstream.toByteArray() == "</head>".getBytes("UTF-8")
+  }
+
+  def 'should drain a partial match before flushing'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES)
+
+    when:
+    piped.write("</he".getBytes("UTF-8"))
+    piped.flush()
+
+    then:
+    downstream.toByteArray() == "</he".getBytes("UTF-8")
+
+    when:
+    piped.write("ad>".getBytes("UTF-8"))
+    piped.close()
+
+    then:
+    downstream.toByteArray() == "</head>".getBytes("UTF-8")
+  }
+
+  def 'should discard buffered content and matching state'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES)
+
+    when:
+    piped.write("discarded</he".getBytes("UTF-8"))
+    downstream.reset()
+    piped.discard()
+    piped.write("kept</head>".getBytes("UTF-8"))
+    piped.close()
+
+    then:
+    downstream.toByteArray() == "kept<script></script></head>".getBytes("UTF-8")
+  }
+
   def 'should be resilient to exceptions when onBytesWritten callback is null'() {
     setup:
     def testBytes = "test content".getBytes("UTF-8")
