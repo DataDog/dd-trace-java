@@ -361,25 +361,17 @@ class W3CHttpCodec {
       } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
       }
-      DD128bTraceId traceId = null;
-      if (buildTraceId) {
-        traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
-        this.traceIdHigh = traceId.toHighOrderLong();
-        this.traceIdLow = traceId.toLong();
-      } else {
-        // as DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true) parses them
-        this.traceIdHigh =
-            LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START, 16, true);
-        this.traceIdLow =
-            LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START + 16, 16, true);
-      }
+      this.traceIdHigh = LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START, 16, true);
+      this.traceIdLow =
+          LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_TID_START + 16, 16, true);
       if (traceIdLow == 0) {
         throw new IllegalStateException(
             "Illegal all zero 64 bit trace id "
                 + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
       }
-      if (traceId != null) {
-        this.traceId = traceId;
+      if (buildTraceId) {
+        // Built from its parts, so it formats its hex form only if read, not per extraction
+        this.traceId = DD128bTraceId.from(traceIdHigh, traceIdLow);
       }
       this.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
       if (this.spanId == 0) {
