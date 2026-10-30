@@ -1,0 +1,55 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '3.3.5'
+  id 'io.spring.dependency-management' version '1.1.6'
+  id 'me.champeau.jmh' version '0.7.2'
+}
+
+repositories {
+  mavenCentral()
+}
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+  targetCompatibility = JavaVersion.VERSION_17
+}
+
+sourceSets {
+  loadgen {
+    java.srcDirs = ['src/loadgen/java']
+  }
+}
+
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation 'com.fasterxml.jackson.module:jackson-module-blackbird'
+}
+
+jmh {
+  jmhVersion = '1.37'
+  includes = [project.findProperty('jmhIncludes') ?: 'JacksonBlackbirdBenchmark']
+  if (project.hasProperty('jmhFork')) fork = (project.property('jmhFork') as String).toInteger()
+  if (project.hasProperty('jmhWarmupIterations')) warmupIterations = (project.property('jmhWarmupIterations') as String).toInteger()
+  if (project.hasProperty('jmhIterations')) iterations = (project.property('jmhIterations') as String).toInteger()
+  if (project.hasProperty('jmhTime')) {
+    warmup = project.property('jmhTime') as String
+    timeOnIteration = project.property('jmhTime') as String
+  }
+  profilers = ['gc']
+  resultFormat = 'JSON'
+  resultsFile = file(project.findProperty('jmhResults') ?: "$buildDir/results/jmh/results.json")
+  humanOutputFile = file(project.findProperty('jmhHuman') ?: "$buildDir/results/jmh/human.txt")
+}
+
+tasks.named('bootJar') {
+  archiveFileName = 'json-bench-app.jar'
+}
+
+tasks.register('loadgenJar', Jar) {
+  archiveFileName = 'json-bench-tools.jar'
+  from sourceSets.loadgen.output
+}
+
+tasks.named('assemble') {
+  dependsOn 'loadgenJar'
+}
