@@ -42,11 +42,11 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     def testSpans = TEST_WRITER.toList().flatten().findAll { it.getTag("test.name") == "Addition" }
     testSpans.size() == 1
     def testSpan = testSpans.first()
-    testSpan.getTag("test.test_management.no_auto_retry") == true
-    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
-    testSpan.getTag("test.test_management.is_test_disabled") == true
-    testSpan.getTag("test.test_management.is_quarantined") == true
-    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.no_auto_retry")
+    testSpan.getTag("test.test_management.prevent_failure_suppression")
+    testSpan.getTag("test.test_management.is_test_disabled")
+    testSpan.getTag("test.test_management.is_quarantined")
+    testSpan.getTag("test.test_management.is_attempt_to_fix")
     testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
   }
 
