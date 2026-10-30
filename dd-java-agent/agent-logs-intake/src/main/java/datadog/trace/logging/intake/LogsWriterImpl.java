@@ -83,14 +83,19 @@ public class LogsWriterImpl implements LogsWriter {
   }
 
   private void logPollingLoop() {
-    BackendApi backendApi = apiFactory.createBackendApi(intake);
-    LogsDispatcher logsDispatcher = new LogsDispatcher(backendApi);
+    // Created for the first log. Building the HTTP client initializes TLS, which can initialize
+    // the JUL LogManager on this thread before the application configures it, for example with
+    // JBoss LogManager.
+    LogsDispatcher logsDispatcher = null;
 
     while (!Thread.currentThread().isInterrupted()) {
       try {
         List<Map<String, Object>> batch = new ArrayList<>();
         batch.add(messageQueue.take());
         messageQueue.drainTo(batch);
+        if (logsDispatcher == null) {
+          logsDispatcher = createDispatcher();
+        }
         logsDispatcher.dispatch(batch);
 
       } catch (InterruptedException e) {
@@ -101,7 +106,15 @@ public class LogsWriterImpl implements LogsWriter {
     List<Map<String, Object>> batch = new ArrayList<>();
     messageQueue.drainTo(batch);
     if (!batch.isEmpty()) {
+      if (logsDispatcher == null) {
+        logsDispatcher = createDispatcher();
+      }
       logsDispatcher.dispatch(batch);
     }
+  }
+
+  private LogsDispatcher createDispatcher() {
+    BackendApi backendApi = apiFactory.createBackendApi(intake);
+    return new LogsDispatcher(backendApi);
   }
 }
