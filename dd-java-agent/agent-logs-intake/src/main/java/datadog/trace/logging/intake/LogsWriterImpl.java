@@ -7,6 +7,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.api.logging.intake.LogsWriter;
+import datadog.trace.api.metrics.LogsIntakeMetrics;
 import datadog.trace.util.AgentThreadFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +23,6 @@ public class LogsWriterImpl implements LogsWriter {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogsWriterImpl.class);
 
   private static final long POLLING_THREAD_SHUTDOWN_TIMEOUT_MILLIS = 5_000;
-  private static final int ENQUEUE_LOG_TIMEOUT_MILLIS = 1_000;
 
   private final Map<String, Object> commonTags;
   private final BackendApiFactory apiFactory;
@@ -76,15 +75,10 @@ public class LogsWriterImpl implements LogsWriter {
 
   @Override
   public void log(Map<String, Object> message) {
-    try {
-      message.putAll(commonTags);
-
-      if (!messageQueue.offer(message, ENQUEUE_LOG_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
-        LOGGER.debug("Timeout while trying to enqueue log message");
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      LOGGER.debug("Interrupted while trying to log");
+    message.putAll(commonTags);
+    if (!messageQueue.offer(message)) {
+      LogsIntakeMetrics.getInstance().onLogDropped();
+      LOGGER.debug("Log message queue is full, dropping log message");
     }
   }
 
