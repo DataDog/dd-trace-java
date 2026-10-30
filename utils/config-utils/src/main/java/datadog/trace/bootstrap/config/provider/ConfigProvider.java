@@ -350,6 +350,9 @@ public final class ConfigProvider {
       Map<String, String> parsedMap = ConfigConverter.parseMap(value, key, keyValueDelimiter);
 
       if (!parsedMap.isEmpty()) {
+        if (sources[i] instanceof OtelEnvironmentConfigSource) {
+          ((OtelEnvironmentConfigSource) sources[i]).decodeHeaders(key, parsedMap);
+        }
         if (collectConfig) {
           seqId++;
           ConfigCollector.get()

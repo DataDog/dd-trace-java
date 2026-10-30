@@ -191,6 +191,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import datadog.environment.EnvironmentVariables;
+import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
 import datadog.trace.bootstrap.config.provider.AgentArgsInjector;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.config.inversion.ConfigHelper;
@@ -198,6 +199,8 @@ import datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import datadog.trace.test.junit.utils.config.WithConfigExtension.TestEnvironmentVariables;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -208,6 +211,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeSet;
@@ -219,6 +223,7 @@ import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -798,6 +803,174 @@ class ConfigTest {
     assertEquals("production", tags.get("env"));
     assertEquals("1.0.0", tags.get("version"));
     assertEquals(expectedLogLevel, config.getLogLevel());
+  }
+
+  @Nested
+  class OtlpHeaders {
+    @TempDir File directory;
+
+    @AfterEach
+    void clearOtelMetrics() {
+      OtelEnvMetricCollectorImpl.getInstance().drain();
+    }
+
+    @BeforeEach
+    void enableOtlpSignals() {
+      System.setProperty("dd.logs.otel.enabled", "true");
+      System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true");
+      System.setProperty(DD_TRACE_OTEL_ENABLED_PROP, "true");
+      System.setProperty(OTEL_TRACES_EXPORTER_PROP, "otlp");
+    }
+
+    @TableTest({
+      "scenario         | signal  | environment",
+      "generic env      | all     | true       ",
+      "logs env         | logs    | true       ",
+      "metrics env      | metrics | true       ",
+      "traces env       | traces  | true       ",
+      "generic property | all     | false      ",
+      "logs property    | logs    | false      ",
+      "metrics property | metrics | false      ",
+      "traces property  | traces  | false      "
+    })
+    void decodeHeaderValuesAfterSeparatingEntries(String signal, boolean environment)
+        throws Exception {
+      setOtelHeaders(signal, "api-key=hello%20world%2Cvalue%3D1,other=value", environment);
+
+      Config config = newConfig();
+
+      Map<String, String> expected = new HashMap<>();
+      expected.put("api-key", "hello world,value=1");
+      expected.put("other", "value");
+      assertHeaders(config, signal, expected);
+    }
+
+    @TableTest({
+      "scenario          | encoded     | expected   ",
+      "plain             | plain-value | plain-value",
+      "literal plus      | a+b         | a+b        ",
+      "plus with escape  | a+b%20c     | 'a+b c'    ",
+      "encoded plus      | a%2Bb       | a+b        ",
+      "decode once       | %2520       | %20        ",
+      "lowercase escapes | a%2cb%3dc   | a,b=c      ",
+      "encoded percent   | 100%25      | 100%       ",
+      "leading space     | %20value    | ' value'   ",
+      "trailing space    | value%20    | 'value '   ",
+      "incomplete escape | value%      | value%     ",
+      "short escape      | value%2     | value%2    ",
+      "invalid hex       | value%GG    | value%GG   ",
+      "mixed invalid     | value%20%GG | value%20%GG"
+    })
+    void decodeValuesExactlyOnceAndPreserveMalformedEscapes(String encoded, String expected)
+        throws Exception {
+      setOtelHeaders("all", "encoded%2Dname=" + encoded + ",other=value", true);
+
+      Config config = newConfig();
+
+      Map<String, String> headers = new HashMap<>();
+      headers.put("encoded%2Dname", expected);
+      headers.put("other", "value");
+      assertHeaders(config, "all", headers);
+    }
+
+    @TableTest({
+      "scenario         | signal  | environment",
+      "logs env         | logs    | true       ",
+      "metrics env      | metrics | true       ",
+      "traces env       | traces  | true       ",
+      "logs property    | logs    | false      ",
+      "metrics property | metrics | false      ",
+      "traces property  | traces  | false      "
+    })
+    void signalHeadersOverrideGenericHeaders(String signal, boolean environment) throws Exception {
+      setOtelHeaders("all", "api-key=generic%20value,generic-only=value", environment);
+      setOtelHeaders(signal, "api-key=signal%20value", environment);
+
+      Config config = newConfig();
+
+      assertEquals(singletonMap("api-key", "signal value"), headersFor(config, signal));
+    }
+
+    @TableTest({
+      "scenario         | signal  | environment",
+      "logs env         | logs    | true       ",
+      "metrics env      | metrics | true       ",
+      "traces env       | traces  | true       ",
+      "logs property    | logs    | false      ",
+      "metrics property | metrics | false      ",
+      "traces property  | traces  | false      "
+    })
+    void datadogHeadersTakePrecedenceAndRemainLiteral(String signal, boolean environment)
+        throws Exception {
+      setOtelHeaders("all", "api-key=generic%20value", environment);
+      setOtelHeaders(signal, "api-key=signal%20value", environment);
+      String key = "otlp." + signal + ".headers";
+      if (environment) {
+        setEnv(
+            "DD_OTLP_" + signal.toUpperCase(Locale.ROOT) + "_HEADERS",
+            "api-key=dd%20value+literal");
+      } else {
+        System.setProperty("dd." + key, "api-key=dd%20value+literal");
+      }
+
+      assertEquals(singletonMap("api-key", "dd%20value+literal"), headersFor(newConfig(), signal));
+    }
+
+    @TableTest({
+      "scenario     | signal ",
+      "generic file | all    ",
+      "logs file    | logs   ",
+      "metrics file | metrics",
+      "traces file  | traces "
+    })
+    void decodeHeadersFromOtelConfigFile(String signal) throws Exception {
+      Properties properties = new Properties();
+      properties.setProperty(otelHeadersKey(signal), "api-key=hello%20world%2Cvalue%3D1");
+      File file = new File(directory, "otel.properties");
+      try (FileOutputStream output = new FileOutputStream(file)) {
+        properties.store(output, null);
+      }
+      System.setProperty("otel.javaagent.configuration-file", file.getAbsolutePath());
+
+      assertHeaders(newConfig(), signal, singletonMap("api-key", "hello world,value=1"));
+    }
+
+    private void setOtelHeaders(String signal, String value, boolean environment) {
+      String key = otelHeadersKey(signal);
+      if (environment) {
+        setEnv(key.toUpperCase(Locale.ROOT).replace('.', '_'), value);
+      } else {
+        System.setProperty(key, value);
+      }
+    }
+
+    private String otelHeadersKey(String signal) {
+      return "all".equals(signal)
+          ? OTEL_EXPORTER_OTLP_HEADERS_PROP
+          : "otel.exporter.otlp." + signal + ".headers";
+    }
+
+    private void assertHeaders(Config config, String signal, Map<String, String> expected) {
+      for (String candidate : asList("logs", "metrics", "traces")) {
+        assertEquals(
+            "all".equals(signal) || signal.equals(candidate) ? expected : emptyMap(),
+            headersFor(config, candidate),
+            candidate);
+      }
+    }
+
+    private Map<String, String> headersFor(Config config, String signal) {
+      switch (signal) {
+        case "logs":
+          return config.getOtlpLogsHeaders();
+        case "metrics":
+          return config.getOtlpMetricsHeaders();
+        case "traces":
+          return config.getOtlpTracesHeaders();
+        default:
+          throw new IllegalArgumentException(signal);
+      }
+    }
   }
 
   @Test

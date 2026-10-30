@@ -58,6 +58,8 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -428,6 +430,27 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       }
     }
     return null;
+  }
+
+  /** Decodes OTLP header values after parsing so encoded separators remain part of the value. */
+  void decodeHeaders(String key, Map<String, String> headers) {
+    if (OTLP_LOGS_HEADERS.equals(key)
+        || OTLP_METRICS_HEADERS.equals(key)
+        || OTLP_TRACES_HEADERS.equals(key)) {
+      headers.replaceAll((name, value) -> decodeHeaderValue(value));
+    }
+  }
+
+  private static String decodeHeaderValue(String value) {
+    if (value.indexOf('%') == -1) {
+      return value;
+    }
+    try {
+      // Baggage-style percent encoding preserves literal '+', unlike form encoding.
+      return URLDecoder.decode(value.replace("+", "%2B"), "UTF-8");
+    } catch (UnsupportedEncodingException | IllegalArgumentException ignored) {
+      return value;
+    }
   }
 
   /** Parses a comma-separated list of items. */
