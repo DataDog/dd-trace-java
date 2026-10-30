@@ -641,7 +641,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         snapshot -> {
           if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
             assertEquals(1, snapshot.getEvaluationErrors().size());
-            assertEquals("timeout (50ms)", snapshot.getEvaluationErrors().get(0).getMessage());
+            assertEquals("timeout (200ms)", snapshot.getEvaluationErrors().get(0).getMessage());
             snapshotReceived.set(true);
           }
         });
