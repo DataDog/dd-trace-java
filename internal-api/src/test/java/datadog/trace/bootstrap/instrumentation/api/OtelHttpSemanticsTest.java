@@ -13,6 +13,8 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.TagMap;
+import datadog.trace.api.TagStore;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -77,6 +79,26 @@ class OtelHttpSemanticsTest {
     tags.put(KnownTags.URL_PATH_NAME, path);
 
     assertEquals(expected, OtelHttpSemantics.urlOrPath(tags));
+  }
+
+  /** From a span's tags as stored, it answers as it does from the same tags as a map. */
+  @TableTest({
+    "Scenario       | Http URL                 | URL path  ",
+    "No URL or path |                          |           ",
+    "URL only       | https://example.com/full |           ",
+    "Path only      |                          | /orders   ",
+    "Prefer URL     | https://example.com/full | /different",
+    "Empty URL      | ''                       | /orders   ",
+    "Empty path     |                          | ''        "
+  })
+  void urlOrPathFromTagStoreMatchesMap(String httpUrl, String path) {
+    TagMap tags = TagMap.create();
+    tags.store(KnownTags.HTTP_URL_ID, httpUrl);
+    tags.store(KnownTags.URL_PATH_ID, path);
+
+    assertEquals(
+        OtelHttpSemantics.urlOrPath((Map<String, Object>) tags),
+        OtelHttpSemantics.urlOrPath((TagStore) tags));
   }
 
   @Test

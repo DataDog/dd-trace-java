@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -223,15 +222,13 @@ public final class TraceMapperV0_5 implements TraceMapper {
           + msgpackArrayHeaderSize(stringCount)
           + dictionary.remaining()
           + msgpackArrayHeaderSize(traceCount())
-          + body.remaining();
+          + bodySize();
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
       for (ByteBuffer buffer : toList()) {
-        while (buffer.hasRemaining()) {
-          channel.write(buffer);
-        }
+        writeFully(buffer, channel);
       }
     }
 
@@ -241,13 +238,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     private List<ByteBuffer> toList() {
-      return Arrays.asList(
+      return bodyAfter(
           // msgpack array header with 2 elements (FIXARRAY | 2)
           ByteBuffer.allocate(1).put(0, (byte) 0x92),
           msgpackArrayHeader(stringCount),
-          dictionary,
-          msgpackArrayHeader(traceCount()),
-          body);
+          dictionary.duplicate(),
+          msgpackArrayHeader(traceCount()));
     }
   }
 

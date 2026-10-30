@@ -4,10 +4,14 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.json.JsonMapper;
+import datadog.trace.api.Config;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -26,6 +30,8 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.AdditionalAnswers;
+import org.mockito.MockedStatic;
 
 /**
  * End-to-end check that the global tags are exported once, as OTLP resource attributes taken from
@@ -96,6 +102,32 @@ class OtlpSpanAttributesTest {
       assertEquals("alice", spanAttributes.get("owner"));
     } finally {
       interceptingTracer.close();
+    }
+  }
+
+  /** Under OTel semantics span.kind is left to the OTLP kind field, even as a span default. */
+  @Test
+  @WithConfig(key = TracerConfig.SPAN_TAGS, value = "owner:alice,span.kind:server")
+  void spanKindDefaultIsNotWrittenUnderOtelSemantics() throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
+      configMock.when(Config::get).thenReturn(config);
+
+      CoreTracer kindTracer = CoreTracer.builder().writer(new ListWriter()).build();
+      try {
+        DDSpan span = (DDSpan) kindTracer.startSpan("test", "op");
+        span.finish();
+
+        Map<String, Object> otlpSpan = onlySpan(collect(span));
+        assertEquals(2, ((Number) otlpSpan.get("kind")).intValue(), "SPAN_KIND_SERVER = 2");
+        Map<String, Object> spanAttributes = attributes(otlpSpan);
+        assertFalse(spanAttributes.containsKey("span.kind"));
+        assertEquals("alice", spanAttributes.get("owner"));
+      } finally {
+        kindTracer.close();
+      }
     }
   }
 
