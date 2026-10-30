@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.testng.execution.RetryAnalyzer;
+import datadog.trace.util.Strings;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.testng.IConfigurationListener;
@@ -147,7 +148,7 @@ public class TracingListener extends TestNGClassListener
       // Typically the way of skipping a TestNG test is throwing a SkipException
       String reason = throwable != null ? throwable.getMessage() : null;
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
-          result, reason != null ? reason : DEFAULT_SKIP_REASON);
+          result, Strings.isNotBlank(reason) ? reason : DEFAULT_SKIP_REASON);
     }
     TestExecutionTracker executionTracker = executionTracker(result);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null, executionTracker);

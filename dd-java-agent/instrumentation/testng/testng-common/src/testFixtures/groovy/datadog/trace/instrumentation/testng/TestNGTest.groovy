@@ -47,7 +47,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName, [:], ignoreSkipReason ? ["content.meta.['test.skip_reason']"] : [])
     def skippedTests = TEST_WRITER.flatten().findAll { it.spanType?.toString() == "test" && it.getTag("test.status")?.toString() == "skip" }
     assert !skippedTests.isEmpty()
-    assert skippedTests.every { it.getTag("test.skip_reason") != null }
+    assert skippedTests.every { it.getTag("test.skip_reason")?.toString()?.trim() }
 
     where:
     // the skip reasons for these tests vary across TestNG versions
