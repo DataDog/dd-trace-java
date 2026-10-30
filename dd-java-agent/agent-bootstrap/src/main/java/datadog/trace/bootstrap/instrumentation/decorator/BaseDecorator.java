@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -15,8 +13,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import java.lang.reflect.Method;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutionException;
@@ -196,10 +192,7 @@ public abstract class BaseDecorator {
 
   public final void onPeerConnection(
       final AgentSpan span, @Nullable final InetSocketAddress remoteConnection) {
-    if (remoteConnection != null) {
-      onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
-      setPeerPort(span, remoteConnection.getPort());
-    }
+    span.setTagsFrom(remoteConnection, PeerSocketAddress.INSTANCE);
   }
 
   public final void onPeerConnection(
@@ -209,17 +202,7 @@ public abstract class BaseDecorator {
 
   public final void onPeerConnection(
       AgentSpan span, @Nullable InetAddress remoteAddress, boolean resolved) {
-    if (remoteAddress != null) {
-      String ip = remoteAddress.getHostAddress();
-      if (resolved && Config.get().isPeerHostNameEnabled()) {
-        span.setTag(KnownTags.PEER_HOSTNAME_ID, hostName(remoteAddress, ip));
-      }
-      if (remoteAddress instanceof Inet4Address) {
-        span.setTag(KnownTags.PEER_IPV4_ID, ip);
-      } else if (remoteAddress instanceof Inet6Address) {
-        span.setTag(KnownTags.PEER_IPV6_ID, ip);
-      }
-    }
+    span.setTagsFrom(remoteAddress, resolved ? PeerAddress.RESOLVED : PeerAddress.UNRESOLVED);
   }
 
   public void setPeerPort(AgentSpan span, String port) {
