@@ -77,6 +77,12 @@ public abstract class ImmutableSpan implements AgentSpan {
     return this;
   }
 
+  /** Skips the replay: its tags would be discarded. */
+  @Override
+  public AgentSpan setTagsFrom(FrozenTags frozen) {
+    return this;
+  }
+
   @Override
   public AgentSpan setTag(String key, Number value) {
     return this;
