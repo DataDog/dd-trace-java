@@ -15,6 +15,7 @@ muzzle {
 
 // TestNG 6.9.10 returns empty result names for class-level @Test annotations.
 addTestSuiteForDir('testng6910Test', 'test')
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.testng', name: 'testng', version: '6.4'
@@ -24,6 +25,7 @@ dependencies {
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng:testng-common'))
   testImplementation group: 'org.testng', name: 'testng', version: '6.4'
   testng6910TestImplementation group: 'org.testng', name: 'testng', version: '6.9.10'
+  latestDepTestImplementation group: 'org.testng', name: 'testng', version: '6.+'
 }
 
 // gradle can't downgrade the testng dependencies with `strictly`
