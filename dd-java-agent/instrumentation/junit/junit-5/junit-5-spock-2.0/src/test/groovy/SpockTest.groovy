@@ -68,7 +68,6 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
   }
 
-
   def "test automation exclusions preserve data-driven #declarations with attempt to fix #attemptToFix"() {
     given:
     fixture.EXECUTIONS.set(0, 0)
