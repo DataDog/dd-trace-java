@@ -5924,6 +5924,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_EXPERIMENTAL_MYSQL_STMT_CACHE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_EXTENSIONS_PATH": [
       {
         "version": "A",
@@ -8418,6 +8426,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_MULTIPART_ENABLED", "DD_INTEGRATION_MULTIPART_ENABLED"]
+      }
+    ],
+    "DD_TRACE_MYSQL_STMT_CACHE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_MYSQL_STMT_CACHE_ENABLED", "DD_INTEGRATION_MYSQL_STMT_CACHE_ENABLED"]
       }
     ],
     "DD_TRACE_NATIVE_IMAGE_ENABLED": [
