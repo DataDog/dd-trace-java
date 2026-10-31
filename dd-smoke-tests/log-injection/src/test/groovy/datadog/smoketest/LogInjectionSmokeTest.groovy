@@ -36,6 +36,8 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   static final int TIMEOUT_SECS = 30
 
   static final String LOG4J2_BACKEND = "Log4j2"
+  static final String LOGBACK_BACKEND = "Logback"
+  static final Set<String> DIRECT_LOG_SUBMISSION_BACKENDS = [LOG4J2_BACKEND, LOGBACK_BACKEND] as Set
 
   @Shared
   File outputLogFile
@@ -190,7 +192,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   }
 
   def supportsDirectLogSubmission() {
-    return backend() == LOG4J2_BACKEND
+    return backend() in DIRECT_LOG_SUBMISSION_BACKENDS
   }
 
   def supportsAppLogCollection() {
@@ -601,7 +603,7 @@ class Log4j2InterfaceLog4j2LatestBackend extends Log4j2InterfaceLog4j2Backend {}
 
 class Slf4jInterfaceLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 }
 
@@ -708,7 +710,7 @@ class JULInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def propertiesFile = File.createTempFile("julConfig", ".properties")
 
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 
   def setupSpec() {
@@ -735,7 +737,7 @@ class JULInterfaceSlf4jToLogbackLatestBackend extends JULInterfaceSlf4jToLogback
 
 class JCLInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 }
 
@@ -745,7 +747,7 @@ class JCLInterfaceSlf4jToLogbackLatestBackend extends JCLInterfaceSlf4jToLogback
 
 class Log4j1InterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 }
 
@@ -755,7 +757,7 @@ class Log4j1InterfaceSlf4jToLogbackLatestBackend extends Log4j1InterfaceSlf4jToL
 
 class Log4j2InterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 }
 
@@ -805,7 +807,7 @@ class JBossInterfaceLog4j2LatestBackend extends JBossInterfaceLog4j2Backend {}
 
 class JBossInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 }
 
@@ -819,7 +821,7 @@ class FloggerInterfaceJULBackend extends JULBackend {}
 
 class FloggerInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() {
-    "Logback"
+    LOGBACK_BACKEND
   }
 
   List additionalArguments() {
