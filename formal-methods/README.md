@@ -22,3 +22,10 @@ invariant makes the runner return non-zero.
 
 See `formal-methods/tier1/CONTRACTS.md` for the coverage map and the Java code
 represented by each model.
+
+## Deterministic Java state machines
+
+The Tier-1 suite also generates bounded command sequences against selected Java
+implementations and compares their observations with a small reference model.
+See `formal-methods/tier1/STATE_MACHINE_TESTING.md` for the scheduling and
+counterexample-reduction rules.
