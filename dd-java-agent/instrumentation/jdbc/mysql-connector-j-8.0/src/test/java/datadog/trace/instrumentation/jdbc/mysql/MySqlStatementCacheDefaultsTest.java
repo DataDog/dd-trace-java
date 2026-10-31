@@ -60,8 +60,13 @@ class MySqlStatementCacheDefaultsTest {
     "cache as address property      | jdbc:mysql://address=(host=h)(cachePrepStmts=false)/db     ",
     "server prepared statements     | jdbc:mysql://h/db?useServerPrepStmts=true                  ",
     "server prepared statements off | jdbc:mysql://h/db?useServerPrepStmts=false                 ",
+    "cursor fetch                   | jdbc:mysql://h/db?useCursorFetch=true                      ",
     "config bundle                  | jdbc:mysql://h/db?useConfigs=maxPerformance                ",
-    "properties transform           | jdbc:mysql://h/db?propertiesTransform=com.example.Transform"
+    "properties transform           | jdbc:mysql://h/db?propertiesTransform=com.example.Transform",
+    "encoded cache off              | jdbc:mysql://h/db?%63achePrepStmts=false                   ",
+    "encoded cursor fetch           | jdbc:mysql://h/db?%75seCursorFetch=true                    ",
+    "encoded cache size             | jdbc:mysql://h/db?prepStmt%43acheSize=50                   ",
+    "encoded host property          | jdbc:mysql://(host=h,%63achePrepStmts=false)/db            "
   })
   void respectsOptOutsInUrl(final String url) {
     final Properties info = props("user", "u");
@@ -75,6 +80,7 @@ class MySqlStatementCacheDefaultsTest {
     "cache on                   | cachePrepStmts      | true     ",
     "cache off, other case      | CachePrepStmts      | false    ",
     "server prepared statements | useServerPrepStmts  | true     ",
+    "cursor fetch               | useCursorFetch      | true     ",
     "config bundle              | useConfigs          | fullDebug",
     "properties transform       | propertiesTransform | x.Y      "
   })
@@ -126,12 +132,24 @@ class MySqlStatementCacheDefaultsTest {
 
   @Test
   void doesNotOverrideCacheSizeFromUrl() {
-    // Connector/J lets Properties win over the URL, so adding a size here would override the URL's
     final Properties result =
         withDefaults(URL + "?prepStmtCacheSize=50&PREPSTMTCACHESQLLIMIT=512", new Properties());
     assertEquals("true", result.getProperty("cachePrepStmts"));
     assertNull(result.getProperty("prepStmtCacheSize"));
     assertNull(result.getProperty("prepStmtCacheSqlLimit"));
+  }
+
+  @Test
+  void leavesPropertiesSubclassesAlone() {
+    final Properties info =
+        new Properties() {
+          @Override
+          public String getProperty(final String key) {
+            return "password".equals(key) ? "decrypted" : super.getProperty(key);
+          }
+        };
+    info.setProperty("password", "ENC(abc)");
+    assertSame(info, withDefaults(URL, info));
   }
 
   @Test
