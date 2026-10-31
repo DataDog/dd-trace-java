@@ -8,6 +8,7 @@ alive.
 |---|---|---|---|---|
 | Pending traces | Every live trace has an owner | `TrackerOwnership` | Known violation | `LongRunningTracesTrackerTest.fullTrackerLeavesOverflowTraceForBufferFallback` |
 | Pending traces | A late child retains a writer after flush | `FlushDrainOwnership` | Known violation | `PendingTraceBufferTest.flushDrainClearsEnqueuedStateBeforeWriting` |
+| Pending traces | Each concurrent flush waits for its own accepted work | JCStress | Known violation: 6 forbidden outcomes in 913 samples | `PendingTraceBufferConcurrentFlushStressTest` |
 | Buffer commands | A waiting command remains owned or acknowledged | `FlushDumpMarker` | Known violation | `PendingTraceBufferTest.flushDrainDoesNotConsumeTracerDumpMarker` |
 | Writer pipeline | Flush covers accepted upstream sampling work | `SpanSamplingFlush` | Known violation | `TraceProcessingWorkerTest.flushWaitsForInFlightSingleSpanSampling` |
 | Writer pipeline | Flush covers accepted secondary-queue work | Generated reference model | Known violation | `TraceProcessingWorkerStateMachineTest.generatedCommandSequencesRespectFlushBarriers` |

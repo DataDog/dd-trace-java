@@ -90,7 +90,7 @@ tasks.register('jcstress', JavaExec) {
   dependsOn tasks.named('jcstressClasses')
   classpath = sourceSets.jcstress.runtimeClasspath
   mainClass = 'org.openjdk.jcstress.Main'
-  args '-t', 'datadog.trace.core.scopemanager.*', '-f', '1', '-iters', '5', '-time', '200'
+  args '-t', 'datadog.trace.core.*', '-f', '1', '-iters', '5', '-time', '200'
 }
 
 tasks.named('forkedTest', Test) {
