@@ -96,6 +96,7 @@ public class TracingRequestHandler extends RequestHandler2 {
       span = AgentSpan.fromContext(context);
       if (span != null) {
         DECORATE.onResponse(span, response);
+        DECORATE.onSuccessfulRequest(span, request);
         DECORATE.onServiceResponse(span, request.getServiceName(), response);
         DECORATE.beforeFinish(span);
         span.finish();
