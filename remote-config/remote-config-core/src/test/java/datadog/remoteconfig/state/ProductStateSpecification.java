@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -188,6 +189,27 @@ class ProductStateSpecification {
 
     // commit is still called despite the error
     verify(listener).commit(hinter);
+  }
+
+  @Test
+  void listenerFailureDoesNotPreventLaterListenersFromReceivingConfiguration() throws Exception {
+    ProductState productState = new ProductState(Product.ASM_DATA);
+    ProductListener failingListener = mock(ProductListener.class);
+    ProductListener healthyListener = mock(ProductListener.class);
+    productState.addProductListener(failingListener);
+    productState.addProductListener(healthyListener);
+
+    RemoteConfigResponse response =
+        buildResponse(targets("org/ASM_DATA/config1/foo", new TargetSpec(1, 8, "hash1")));
+    ParsedConfigKey key = ParsedConfigKey.parse("org/ASM_DATA/config1/foo");
+    doThrow(new RuntimeException("Listener error"))
+        .when(failingListener)
+        .accept(any(), any(), any());
+
+    assertTrue(productState.apply(response, Collections.singletonList(key), hinter));
+    assertFalse(productState.apply(response, Collections.singletonList(key), hinter));
+
+    verify(healthyListener, times(1)).accept(any(), any(), any());
   }
 
   @Test

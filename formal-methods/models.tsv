@@ -1,0 +1,9 @@
+# id	expectation	directory	module	invariant
+long-running-tracker	violation	long-running-traces	TrackerOwnership	LiveTraceHasOwner
+pending-trace-flush	violation	pending-trace-flush	FlushDrainOwnership	PendingChildHasWriter
+flush-dump-marker	violation	flush-dump-marker	FlushDumpMarker	WaitingDumpHasOwner
+span-sampling-flush	violation	span-sampling-flush	SpanSamplingFlush	FlushCoversAcceptedCandidate
+continuation-lifecycle	pass	continuation-lifecycle	ContinuationLifecycle	FinalizedAtMostOnce
+remote-config-listeners	violation	remote-config-listeners	ListenerDistribution	CachedTargetIsFullyDistributed
+telemetry-retry	pass	telemetry-retry	TelemetryRetryOwnership	AcceptedEventHasOwnerOrTerminal
+data-streams-close	violation	data-streams-close	DataStreamsClose	CloseReturnsOnlyAfterWorkerStops

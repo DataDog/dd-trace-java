@@ -37,4 +37,31 @@ final class DefaultDataStreamsMonitoringTestBridge {
       throw new IllegalStateException(e);
     }
   }
+
+  static int getInboxSize(DefaultDataStreamsMonitoring monitoring) {
+    try {
+      MessagePassingQueue<?> inbox = (MessagePassingQueue<?>) INBOX_FIELD.get(monitoring);
+      return inbox.size();
+    } catch (IllegalAccessException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  static boolean isThreadAlive(DefaultDataStreamsMonitoring monitoring) {
+    try {
+      Thread thread = (Thread) THREAD_FIELD.get(monitoring);
+      return thread.isAlive();
+    } catch (IllegalAccessException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  static void interruptThread(DefaultDataStreamsMonitoring monitoring) {
+    try {
+      Thread thread = (Thread) THREAD_FIELD.get(monitoring);
+      thread.interrupt();
+    } catch (IllegalAccessException e) {
+      throw new IllegalStateException(e);
+    }
+  }
 }

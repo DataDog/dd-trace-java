@@ -1,10 +1,14 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.FEATURE_CHECK_INTERVAL_NANOS;
+import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.getInboxSize;
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.getThreadState;
+import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.interruptThread;
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.isInboxEmpty;
+import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.isThreadAlive;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -1472,6 +1477,49 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
 
     // cleanup
     payloadWriter.close();
+  }
+
+  @Test
+  void closeStopsWorkerWhenInboxIsFull() throws InterruptedException {
+    CountDownLatch workerStarting = new CountDownLatch(1);
+    CountDownLatch allowWorker = new CountDownLatch(1);
+    DDAgentFeaturesDiscovery features = stubFeatures(true);
+    when(features.getDataStreamsEndpoint()).thenReturn(null);
+    org.mockito.Mockito.doAnswer(
+            invocation -> {
+              workerStarting.countDown();
+              allowWorker.await();
+              return null;
+            })
+        .when(features)
+        .discoverIfOutdated();
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            mock(Sink.class),
+            features,
+            new ControllableTimeSource(),
+            () -> stubTraceConfig(true),
+            mock(DatastreamsPayloadWriter.class),
+            DEFAULT_BUCKET_DURATION_NANOS);
+
+    try {
+      dataStreams.start();
+      assertTrue(workerStarting.await(3, SECONDS));
+      for (int i = 0; i < 1024; i++) {
+        dataStreams.trackBacklog(DataStreamsTags.EMPTY, i);
+      }
+      assertEquals(1024, getInboxSize(dataStreams));
+
+      dataStreams.close();
+
+      assertFalse(
+          isThreadAlive(dataStreams),
+          "close returned after losing the poison pill offered to a full inbox");
+    } finally {
+      allowWorker.countDown();
+      interruptThread(dataStreams);
+      dataStreams.close();
+    }
   }
 
   @Test
