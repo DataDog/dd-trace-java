@@ -1,0 +1,14 @@
+plugins {
+  id 'dd-trace-java.module.smoke-test'
+}
+
+description = 'Native-image build-time JMX regression reproducer'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+  nativeImageCapable = true
+}
+
+tasks.withType(Test).configureEach {
+  maxParallelForks = 1
+}
