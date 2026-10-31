@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty41.server;
 
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpHeaderNames.TRANSFER_ENCODING;
@@ -24,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.assertions.SpanMatcher;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -55,6 +57,8 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.channels.ClosedByInterruptException;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -68,6 +72,8 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.tabletest.junit.TableTest;
+import org.tabletest.junit.TypeConverter;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
@@ -382,6 +388,63 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       holdingHandler.failWrite(writeFailure);
       requestEnd.cancel();
       channel.finishAndReleaseAll();
+    }
+  }
+
+  @TableTest({
+    "Scenario                               | Write failure     | Status | Application error | Expected error",
+    "plain closed channel                   | closed            | 200    | false             | false         ",
+    "existing application error             | closed            | 200    | true              | true          ",
+    "HTTP error response                    | closed            | 500    | false             | true          ",
+    "closed channel with underlying failure | closed with cause | 200    | false             | true          ",
+    "interrupted operation                  | interrupted       | 200    | false             | true          ",
+    "wrapped closed channel                 | wrapped closed    | 200    | false             | true          "
+  })
+  void preservesImportantErrorsOnTerminalWriteFailure(
+      Throwable writeFailure, int status, boolean applicationError, boolean expectedError) {
+    HoldingOutboundHandler holdingHandler = new HoldingOutboundHandler();
+    EmbeddedChannel channel =
+        new EmbeddedChannel(holdingHandler, HttpServerResponseTracingHandler.INSTANCE);
+    AgentSpan span = startSpan("netty", "netty.request");
+    ServerRequestContext.add(channel, span, null);
+    if (applicationError) {
+      span.addThrowable(new IllegalStateException("application failure"));
+    }
+
+    try {
+      DefaultFullHttpResponse response =
+          new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(status));
+      response.headers().set(CONTENT_LENGTH, 0);
+      channel.writeOutbound(response);
+
+      holdingHandler.failWrite(writeFailure);
+      assertThrows(writeFailure.getClass(), channel::checkException);
+
+      assertEquals(status, span.getTag(Tags.HTTP_STATUS));
+      assertTraces(trace(span().root().operationName("netty.request").error(expectedError)));
+      if (applicationError) {
+        assertEquals(IllegalStateException.class.getName(), span.getTag(DDTags.ERROR_TYPE));
+        assertEquals("application failure", span.getTag(DDTags.ERROR_MSG));
+      }
+    } finally {
+      holdingHandler.failWrite(writeFailure);
+      channel.finishAndReleaseAll();
+    }
+  }
+
+  @TypeConverter
+  public static Throwable toWriteFailure(String value) {
+    switch (value) {
+      case "closed":
+        return new ClosedChannelException();
+      case "closed with cause":
+        return new ClosedChannelException().initCause(new IOException("transport failure"));
+      case "interrupted":
+        return new ClosedByInterruptException();
+      case "wrapped closed":
+        return new IOException("response failure", new ClosedChannelException());
+      default:
+        throw new IllegalArgumentException("Unknown write failure: " + value);
     }
   }
 
