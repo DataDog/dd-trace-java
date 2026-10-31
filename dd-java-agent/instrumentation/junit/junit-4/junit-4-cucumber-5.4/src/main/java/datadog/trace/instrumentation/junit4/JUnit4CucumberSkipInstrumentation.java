@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -82,16 +83,16 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
         @Advice.Argument(0) RunNotifier notifier) {
 
       TestIdentifier test = CucumberUtils.toTestIdentifier(description);
+      List<String> tags = CucumberUtils.getCategories(pickle);
       SkipReason skipReason =
           TestEventsHandlerHolder.HANDLERS
               .get(TestFrameworkInstrumentation.CUCUMBER)
-              .skipReason(test);
+              .skipReason(test, TestSourceData.UNKNOWN, tags);
       if (skipReason == null) {
         return null;
       }
 
       if (skipReason == SkipReason.ITR) {
-        List<String> tags = pickle.getTags();
         for (String tag : tags) {
           if (tag.endsWith(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
             return null;
