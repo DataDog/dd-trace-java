@@ -57,6 +57,7 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
       commonPackageName + ".TestEventsHandlerHolder",
       commonPackageName + ".TestNGClassListener",
       commonPackageName + ".execution.RetryAnalyzer",
+      commonPackageName + ".execution.RetryAnnotationTransformer",
       commonPackageName + ".TracingListener",
     };
   }
@@ -118,7 +119,7 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
       RetryAnalyzer ddRetryAnalyzer = (RetryAnalyzer) retryAnalyzer;
 
       if (result.getStatus() == ITestResult.FAILURE
-          && ddRetryAnalyzer.getAndResetSuppressFailures()) {
+          && ddRetryAnalyzer.getAndResetSuppressFailures(result)) {
         // "failed but within success percentage"
         result.setStatus(ITestResult.SUCCESS_PERCENTAGE_FAILURE);
       } else if (result.isSuccess() && ddRetryAnalyzer.shouldPropagateFailure()) {

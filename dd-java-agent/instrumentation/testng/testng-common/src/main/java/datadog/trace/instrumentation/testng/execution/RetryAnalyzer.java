@@ -6,19 +6,40 @@ import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGUtils;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.WeakHashMap;
 import org.testng.IRetryAnalyzer;
+import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 
 public class RetryAnalyzer implements IRetryAnalyzer {
 
+  private static final Map<ITestNGMethod, Map<TestIdentifier, RetryAnalyzer>> FRAMEWORK_TRACKERS =
+      Collections.synchronizedMap(
+          new WeakHashMap<ITestNGMethod, Map<TestIdentifier, RetryAnalyzer>>());
   private volatile TestExecutionPolicy executionPolicy;
 
-  @SuppressFBWarnings(
-      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification = "the field is confined to a single thread")
-  private boolean suppressFailures;
+  public static RetryAnalyzer forFrameworkMethod(ITestNGMethod method, TestIdentifier test) {
+    synchronized (FRAMEWORK_TRACKERS) {
+      Map<TestIdentifier, RetryAnalyzer> trackers = FRAMEWORK_TRACKERS.get(method);
+      if (trackers == null) {
+        trackers = new HashMap<>();
+        FRAMEWORK_TRACKERS.put(method, trackers);
+      }
+      RetryAnalyzer tracker = trackers.get(test);
+      if (tracker == null) {
+        tracker = new RetryAnalyzer();
+        trackers.put(test, tracker);
+      }
+      return tracker;
+    }
+  }
+
+  private static final String SUPPRESS_FAILURES_ATTRIBUTE =
+      RetryAnalyzer.class.getName() + ".suppressFailures";
 
   public void createExecutionPolicy(ITestResult result) {
     if (executionPolicy == null) {
@@ -46,17 +67,15 @@ public class RetryAnalyzer implements IRetryAnalyzer {
 
   public void setSuppressFailures(ITestResult result) {
     createExecutionPolicy(result);
-    suppressFailures = executionPolicy.suppressFailures();
+    result.setAttribute(SUPPRESS_FAILURES_ATTRIBUTE, executionPolicy.suppressFailures());
   }
 
   public boolean shouldPropagateFailure() {
     return executionPolicy != null && executionPolicy.propagateFailure();
   }
 
-  public boolean getAndResetSuppressFailures() {
-    boolean suppressFailures = this.suppressFailures;
-    this.suppressFailures = false;
-    return suppressFailures;
+  public boolean getAndResetSuppressFailures(ITestResult result) {
+    return Boolean.TRUE.equals(result.removeAttribute(SUPPRESS_FAILURES_ATTRIBUTE));
   }
 
   public TestExecutionTracker getExecutionTracker() {
