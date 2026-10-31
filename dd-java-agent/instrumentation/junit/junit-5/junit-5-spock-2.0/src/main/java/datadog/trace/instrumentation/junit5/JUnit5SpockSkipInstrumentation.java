@@ -9,11 +9,13 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import java.util.List;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -116,7 +118,8 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
 
         SkipReason suiteSkipReason = null;
         for (TestDescriptor feature : features) {
-          if (feature instanceof SpockNode && SpockUtils.isItrUnskippable((SpockNode<?>) feature)) {
+          List<String> tags = JUnitPlatformUtils.getTags(feature);
+          if (feature instanceof SpockNode && tags.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
             return;
           }
 
@@ -124,7 +127,9 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
           if (featureIdentifier == null) {
             return;
           }
-          SkipReason skipReason = testEventsHandler.skipReason(featureIdentifier);
+          SkipReason skipReason =
+              testEventsHandler.skipReason(
+                  featureIdentifier, SpockUtils.toTestSourceData(feature), tags);
           if (skipReason == null) {
             return;
           }
@@ -149,11 +154,13 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
         if (test == null) {
           return;
         }
-        SkipReason skipReason = testEventsHandler.skipReason(test);
+        List<String> tags = JUnitPlatformUtils.getTags(spockNode);
+        SkipReason skipReason =
+            testEventsHandler.skipReason(test, SpockUtils.toTestSourceData(spockNode), tags);
         if (skipReason == null) {
           return;
         }
-        if (skipReason == SkipReason.ITR && SpockUtils.isItrUnskippable(spockNode)) {
+        if (skipReason == SkipReason.ITR && tags.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
           return;
         }
         skipResult = Node.SkipResult.skip(skipReason.getDescription());
