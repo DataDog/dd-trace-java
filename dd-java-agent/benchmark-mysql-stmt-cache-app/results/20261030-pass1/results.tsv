@@ -1,0 +1,30 @@
+startup	noagent	1	948.854
+startup	noagent	2	945.474
+startup	noagent	3	996.123
+startup	noagent	4	942.226
+startup	noagent	5	959.724
+startup	noagent	6	899.805
+startup	noagent	7	964.768
+startup	noagent	8	902.837
+load	noagent	nodb	5032497	0	45.002	111828.705	67.542	85.375	145.875	43470.250	162937.376	32.377	183	93	0	-1
+load	noagent	db	169696	0	45.001	3770.919	2060.583	2395.334	3236.292	100497.459	30754.249	181.231	43	37	0	-1
+startup	agent	1	1582.947
+startup	agent	2	1549.456
+startup	agent	3	1647.513
+startup	agent	4	1558.521
+startup	agent	5	1561.740
+startup	agent	6	1544.680
+startup	agent	7	1580.953
+startup	agent	8	1609.267
+load	agent	nodb	4432097	0	45.003	98485.148	72.417	102.750	223.084	41782.625	192275.968	43.383	266	163	0	-1
+load	agent	db	173134	0	45.002	3847.223	2031.542	2354.375	2961.375	39367.083	37264.845	215.237	51	32	0	-1
+startup	agent-stmtcache	1	1587.648
+startup	agent-stmtcache	2	1524.542
+startup	agent-stmtcache	3	1526.059
+startup	agent-stmtcache	4	1485.619
+startup	agent-stmtcache	5	1500.635
+startup	agent-stmtcache	6	1494.097
+startup	agent-stmtcache	7	1546.764
+startup	agent-stmtcache	8	1510.708
+load	agent-stmtcache	nodb	4793160	0	45.001	106511.635	69.875	91.791	160.791	47238.375	204364.358	42.637	293	161	1	1
+load	agent-stmtcache	db	175280	0	45.002	3894.924	2030.375	2306.708	2664.792	15726.084	34889.594	199.051	49	31	1	5

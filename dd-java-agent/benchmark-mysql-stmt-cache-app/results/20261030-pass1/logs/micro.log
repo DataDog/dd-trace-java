@@ -1,0 +1,88 @@
+warmup prepare-only simple on     3214700 ops/s  wall    0.31 us/op  cpu    0.31 us/op  alloc     792 B/op
+warmup prepare-only simple off    1030689 ops/s  wall    0.97 us/op  cpu    0.96 us/op  alloc    1401 B/op
+warmup prepare-only orm    on     2339011 ops/s  wall    0.43 us/op  cpu    0.42 us/op  alloc    1304 B/op
+warmup prepare-only orm    off     257163 ops/s  wall    3.89 us/op  cpu    3.79 us/op  alloc    2968 B/op
+warmup prepare-exec simple on        4302 ops/s  wall  232.46 us/op  cpu   17.52 us/op  alloc    5353 B/op
+warmup prepare-exec simple off       4694 ops/s  wall  213.02 us/op  cpu   15.48 us/op  alloc    5932 B/op
+warmup prepare-exec orm    on        4198 ops/s  wall  238.22 us/op  cpu   15.75 us/op  alloc   11860 B/op
+warmup prepare-exec orm    off       3947 ops/s  wall  253.35 us/op  cpu   20.20 us/op  alloc   13524 B/op
+round0 prepare-only simple off    1052237 ops/s  wall    0.95 us/op  cpu    0.94 us/op  alloc    1400 B/op
+round0 prepare-only simple on     3531699 ops/s  wall    0.28 us/op  cpu    0.28 us/op  alloc     792 B/op
+round0 prepare-only orm    off     261732 ops/s  wall    3.82 us/op  cpu    3.81 us/op  alloc    2968 B/op
+round0 prepare-only orm    on     2365321 ops/s  wall    0.42 us/op  cpu    0.42 us/op  alloc    1304 B/op
+round0 prepare-exec simple off       4377 ops/s  wall  228.48 us/op  cpu   14.57 us/op  alloc    5911 B/op
+round0 prepare-exec simple on        4339 ops/s  wall  230.48 us/op  cpu   13.52 us/op  alloc    5303 B/op
+round0 prepare-exec orm    off       3676 ops/s  wall  272.02 us/op  cpu   20.74 us/op  alloc   13524 B/op
+round0 prepare-exec orm    on        3912 ops/s  wall  255.65 us/op  cpu   16.09 us/op  alloc   11860 B/op
+round1 prepare-only simple on     3536002 ops/s  wall    0.28 us/op  cpu    0.28 us/op  alloc     792 B/op
+round1 prepare-only simple off    1010791 ops/s  wall    0.99 us/op  cpu    0.98 us/op  alloc    1400 B/op
+round1 prepare-only orm    on     2350135 ops/s  wall    0.43 us/op  cpu    0.42 us/op  alloc    1304 B/op
+round1 prepare-only orm    off     260575 ops/s  wall    3.84 us/op  cpu    3.83 us/op  alloc    2968 B/op
+round1 prepare-exec simple on        4512 ops/s  wall  221.62 us/op  cpu   13.62 us/op  alloc    5303 B/op
+round1 prepare-exec simple off       4596 ops/s  wall  217.58 us/op  cpu   14.55 us/op  alloc    5911 B/op
+round1 prepare-exec orm    on        4154 ops/s  wall  240.73 us/op  cpu   15.52 us/op  alloc   11860 B/op
+round1 prepare-exec orm    off       3966 ops/s  wall  252.11 us/op  cpu   21.74 us/op  alloc   13524 B/op
+round2 prepare-only simple off    1022782 ops/s  wall    0.98 us/op  cpu    0.97 us/op  alloc    1400 B/op
+round2 prepare-only simple on     3059039 ops/s  wall    0.33 us/op  cpu    0.32 us/op  alloc     792 B/op
+round2 prepare-only orm    off     255338 ops/s  wall    3.92 us/op  cpu    3.90 us/op  alloc    2968 B/op
+round2 prepare-only orm    on     2099274 ops/s  wall    0.48 us/op  cpu    0.46 us/op  alloc    1304 B/op
+round2 prepare-exec simple off       4090 ops/s  wall  244.50 us/op  cpu   17.28 us/op  alloc    5911 B/op
+round2 prepare-exec simple on        3836 ops/s  wall  260.71 us/op  cpu   17.19 us/op  alloc    5303 B/op
+round2 prepare-exec orm    off       3553 ops/s  wall  281.46 us/op  cpu   23.49 us/op  alloc   13524 B/op
+round2 prepare-exec orm    on        3978 ops/s  wall  251.35 us/op  cpu   17.60 us/op  alloc   11860 B/op
+round3 prepare-only simple on     3031651 ops/s  wall    0.33 us/op  cpu    0.33 us/op  alloc     792 B/op
+round3 prepare-only simple off    1016448 ops/s  wall    0.98 us/op  cpu    0.98 us/op  alloc    1400 B/op
+round3 prepare-only orm    on     2151922 ops/s  wall    0.46 us/op  cpu    0.46 us/op  alloc    1304 B/op
+round3 prepare-only orm    off     238115 ops/s  wall    4.20 us/op  cpu    4.16 us/op  alloc    2968 B/op
+round3 prepare-exec simple on        3359 ops/s  wall  297.68 us/op  cpu   18.97 us/op  alloc    5303 B/op
+round3 prepare-exec simple off       3019 ops/s  wall  331.21 us/op  cpu   22.70 us/op  alloc    5911 B/op
+round3 prepare-exec orm    on        3250 ops/s  wall  307.71 us/op  cpu   21.23 us/op  alloc   11860 B/op
+round3 prepare-exec orm    off       2683 ops/s  wall  372.73 us/op  cpu   27.73 us/op  alloc   13524 B/op
+round4 prepare-only simple off     978220 ops/s  wall    1.02 us/op  cpu    1.01 us/op  alloc    1400 B/op
+round4 prepare-only simple on     3014374 ops/s  wall    0.33 us/op  cpu    0.33 us/op  alloc     792 B/op
+round4 prepare-only orm    off     251743 ops/s  wall    3.97 us/op  cpu    3.96 us/op  alloc    2968 B/op
+round4 prepare-only orm    on     2147493 ops/s  wall    0.47 us/op  cpu    0.46 us/op  alloc    1304 B/op
+round4 prepare-exec simple off       4914 ops/s  wall  203.50 us/op  cpu   15.02 us/op  alloc    5911 B/op
+round4 prepare-exec simple on        4708 ops/s  wall  212.41 us/op  cpu   14.55 us/op  alloc    5303 B/op
+round4 prepare-exec orm    off       4180 ops/s  wall  239.25 us/op  cpu   20.69 us/op  alloc   13524 B/op
+round4 prepare-exec orm    on        3311 ops/s  wall  301.99 us/op  cpu   18.72 us/op  alloc   11860 B/op
+round5 prepare-only simple on     1830919 ops/s  wall    0.55 us/op  cpu    0.41 us/op  alloc     792 B/op
+round5 prepare-only simple off     789816 ops/s  wall    1.27 us/op  cpu    1.07 us/op  alloc    1400 B/op
+round5 prepare-only orm    on     2178460 ops/s  wall    0.46 us/op  cpu    0.46 us/op  alloc    1304 B/op
+round5 prepare-only orm    off     245817 ops/s  wall    4.07 us/op  cpu    3.91 us/op  alloc    2968 B/op
+round5 prepare-exec simple on        4372 ops/s  wall  228.71 us/op  cpu   14.24 us/op  alloc    5303 B/op
+round5 prepare-exec simple off       4590 ops/s  wall  217.88 us/op  cpu   15.96 us/op  alloc    5911 B/op
+round5 prepare-exec orm    on        3699 ops/s  wall  270.34 us/op  cpu   17.35 us/op  alloc   11860 B/op
+round5 prepare-exec orm    off       3808 ops/s  wall  262.58 us/op  cpu   20.73 us/op  alloc   13524 B/op
+round6 prepare-only simple off    1032516 ops/s  wall    0.97 us/op  cpu    0.97 us/op  alloc    1400 B/op
+round6 prepare-only simple on     3081966 ops/s  wall    0.32 us/op  cpu    0.32 us/op  alloc     792 B/op
+round6 prepare-only orm    off     257963 ops/s  wall    3.88 us/op  cpu    3.85 us/op  alloc    2968 B/op
+round6 prepare-only orm    on     2205460 ops/s  wall    0.45 us/op  cpu    0.45 us/op  alloc    1304 B/op
+round6 prepare-exec simple off       4098 ops/s  wall  244.02 us/op  cpu   15.47 us/op  alloc    5911 B/op
+round6 prepare-exec simple on        4285 ops/s  wall  233.40 us/op  cpu   14.03 us/op  alloc    5303 B/op
+round6 prepare-exec orm    off       3931 ops/s  wall  254.37 us/op  cpu   20.36 us/op  alloc   13524 B/op
+round6 prepare-exec orm    on        3455 ops/s  wall  289.41 us/op  cpu   18.07 us/op  alloc   11860 B/op
+round7 prepare-only simple on     3075276 ops/s  wall    0.33 us/op  cpu    0.32 us/op  alloc     792 B/op
+round7 prepare-only simple off    1010043 ops/s  wall    0.99 us/op  cpu    0.98 us/op  alloc    1400 B/op
+round7 prepare-only orm    on     2218177 ops/s  wall    0.45 us/op  cpu    0.45 us/op  alloc    1304 B/op
+round7 prepare-only orm    off     259972 ops/s  wall    3.85 us/op  cpu    3.84 us/op  alloc    2968 B/op
+round7 prepare-exec simple on        4186 ops/s  wall  238.87 us/op  cpu   14.12 us/op  alloc    5303 B/op
+round7 prepare-exec simple off       4111 ops/s  wall  243.25 us/op  cpu   15.39 us/op  alloc    5911 B/op
+round7 prepare-exec orm    on        3750 ops/s  wall  266.67 us/op  cpu   16.46 us/op  alloc   11860 B/op
+round7 prepare-exec orm    off       3727 ops/s  wall  268.29 us/op  cpu   20.86 us/op  alloc   13524 B/op
+# Connector/J statement cache microbenchmark (no agent)
+
+- java: 21.0.11 OpenJDK 64-Bit Server VM
+- os: Mac OS X aarch64
+- driver: mysql-connector-j-8.4.0 (Revision: 1c3f5c149e0bfe31c7fbeb24e2d260cd890972c4)
+- server: MySQL 8.0.46
+- rounds: 8 x 5.0s per cell, median shown
+- url: jdbc:mysql://127.0.0.1:13306/bench
+
+| workload | query | off ops/s | on ops/s | off CPU us/op | on CPU us/op | CPU saved/op | CPU delta | off wall us/op | on wall us/op | off B/op | on B/op |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| prepare-only | simple | 1013620 | 3067158 | 0.98 | 0.32 | 0.66 | -66.9% | 0.99 | 0.33 | 1400 | 792 |
+| prepare-only | orm | 256651 | 2191960 | 3.88 | 0.45 | 3.42 | -88.4% | 3.90 | 0.46 | 2968 | 1304 |
+| prepare-exec | simple | 4244 | 4312 | 15.43 | 14.18 | 1.25 | -8.1% | 235.87 | 231.94 | 5911 | 5303 |
+| prepare-exec | orm | 3768 | 3724 | 20.80 | 17.48 | 3.32 | -16.0% | 265.43 | 268.51 | 13524 | 11860 |
+

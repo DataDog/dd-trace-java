@@ -1,0 +1,8 @@
+/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home/bin/java
+-Xms512m
+-Xmx512m
+-XX:+UseG1GC
+-DMYSQL_PORT=13306
+-DPORT=18080
+-jar
+<repo>/dd-java-agent/benchmark-mysql-stmt-cache-app/build/libs/stmtcache-bench-app.jar

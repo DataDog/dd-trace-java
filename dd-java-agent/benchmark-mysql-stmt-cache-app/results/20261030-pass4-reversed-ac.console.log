@@ -1,0 +1,92 @@
+== reusing running container stmtcache-bench-mysql
+== seeding demo schema (no agent)
+seeded 10000 items, 2000 customers, 40000 orders
+== starting fake trace agent on 18126
+== [agent-stmtcache] startup x8
+  agent-stmtcache startup discarded run: 1872.0 ms
+  agent-stmtcache startup run 1: 1648.3 ms
+  agent-stmtcache startup run 2: 1874.4 ms
+  agent-stmtcache startup run 3: 1663.6 ms
+  agent-stmtcache startup run 4: 1577.9 ms
+  agent-stmtcache startup run 5: 1761.5 ms
+  agent-stmtcache startup run 6: 1660.9 ms
+  agent-stmtcache startup run 7: 1663.0 ms
+  agent-stmtcache startup run 8: 1598.0 ms
+== [agent-stmtcache] load: warmup 20s + 45s per endpoint, 8 connections
+  agent-stmtcache nodb          104390 req/s  p50     71.6 us  p99    164.5 us  cpu    44.1 us/req  errors 0
+  agent-stmtcache db              3925 req/s  p50   2015.4 us  p99   2606.1 us  cpu   197.4 us/req  errors 0
+  effective statement cache: cachePrepStmts=1 cachedStatements=5 
+  fake agent has received 2507 trace payloads so far
+== [agent] startup x8
+  agent      startup discarded run: 1491.0 ms
+  agent      startup run 1: 1468.0 ms
+  agent      startup run 2: 1493.7 ms
+  agent      startup run 3: 1494.4 ms
+  agent      startup run 4: 1501.7 ms
+  agent      startup run 5: 1519.3 ms
+  agent      startup run 6: 1567.8 ms
+  agent      startup run 7: 1463.9 ms
+  agent      startup run 8: 1448.1 ms
+== [agent] load: warmup 20s + 45s per endpoint, 8 connections
+  agent      nodb          105360 req/s  p50     71.3 us  p99    163.5 us  cpu    43.1 us/req  errors 0
+  agent      db              3921 req/s  p50   2017.3 us  p99   2576.2 us  cpu   214.2 us/req  errors 0
+  effective statement cache: cachePrepStmts=0 cachedStatements=-1 
+  fake agent has received 5058 trace payloads so far
+== [noagent] startup x8
+  noagent    startup discarded run: 847.7 ms
+  noagent    startup run 1: 866.1 ms
+  noagent    startup run 2: 861.4 ms
+  noagent    startup run 3: 874.8 ms
+  noagent    startup run 4: 857.7 ms
+  noagent    startup run 5: 865.7 ms
+  noagent    startup run 6: 864.5 ms
+  noagent    startup run 7: 873.7 ms
+  noagent    startup run 8: 866.1 ms
+== [noagent] load: warmup 20s + 45s per endpoint, 8 connections
+  noagent    nodb          112747 req/s  p50     68.4 us  p99    133.6 us  cpu    31.8 us/req  errors 0
+  noagent    db              4010 req/s  p50   1975.3 us  p99   2526.1 us  cpu   171.7 us/req  errors 0
+  effective statement cache: cachePrepStmts=0 cachedStatements=-1 
+== done: <repo>/dd-java-agent/benchmark-mysql-stmt-cache-app/results/20261030-pass4-reversed-ac/summary.md
+# MySQL statement cache benchmark
+
+- date: 2026-10-31T00:37:17Z
+- host: Darwin 25.6.0 arm64
+- cpus: 16
+- java: openjdk version 21.0.11 2026-04-21 LTS
+- mysql: 8.0.46 (loopback)
+- agentJar: <repo>/dd-java-agent/build/libs/dd-java-agent-1.68.0-SNAPSHOT.jar
+- agentCommit: 73850292b7
+- startupRuns: 8
+- warmupS: 20
+- durationS: 45
+- connections: 8
+- heap: 512m
+
+## Startup to first successful request (ms)
+
+| config | median | min | max | runs |
+|---|---:|---:|---:|---:|
+| agent-stmtcache | 1662 | 1578 | 1874 | 8 |
+| agent | 1494 | 1448 | 1568 | 8 |
+| noagent | 866 | 858 | 875 | 8 |
+
+## Load (relative columns vs `agent-stmtcache`)
+
+| endpoint | config | req/s | req/s vs base | p50 us | p99 us | CPU us/req | CPU/req vs base | GC ms | errors |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| nodb | agent-stmtcache | 104390 | - | 71.6 | 164.5 | 44.13 | - | 152 | 0 |
+| nodb | agent | 105360 | +0.9% | 71.3 | 163.5 | 43.09 | -2.4% | 156 | 0 |
+| nodb | noagent | 112747 | +8.0% | 68.4 | 133.6 | 31.76 | -28.0% | 92 | 0 |
+| db | agent-stmtcache | 3925 | - | 2015.4 | 2606.1 | 197.38 | - | 31 | 0 |
+| db | agent | 3921 | -0.1% | 2017.3 | 2576.2 | 214.17 | +8.5% | 32 | 0 |
+| db | noagent | 4010 | +2.2% | 1975.3 | 2526.1 | 171.75 | -13.0% | 27 | 0 |
+
+## Effective Connector/J statement cache at end of each config's load phase
+
+Read from one pooled connection. cachePrepStmts: 1 on, 0 off. cachedStatements: parsed statements in that connection's cache, -1 when there is no cache.
+
+| config | cachePrepStmts | cachedStatements |
+|---|---:|---:|
+| agent-stmtcache | 1 | 5 |
+| agent | 0 | -1 |
+| noagent | 0 | -1 |

@@ -1,0 +1,15 @@
+Measurement runs, 2026-10-30, Apple M4 Max (16 cpu), macOS 26 (Darwin 25.6.0), JDK 21.0.11,
+Colima 4 vCPU / 12 GiB, mysql:8.0.46 on tmpfs over Colima port forwarding.
+Agent jar: dd-java-agent-1.68.0-SNAPSHOT.jar built from c68ab9877b (bench commit 2ed38b5048).
+The agentCommit 73850292b7 recorded in the summaries and console logs is a pre-rebase hash of
+2ed38b5048; the agent code differs from the measured build only in comments.
+Settings: --startup-runs 8 --warmup 20 --duration 45 --connections 8; micro: 8 measured rounds x 5 s
+per cell + 1 warmup round, one JVM per pass (2 forks total: pass1, pass2).
+
+Validity (decided from the /nodb control and noagent rows):
+- 20261030-pass1                 VALID.
+- 20261030-pass2-reversed        micro VALID. App: agent-stmtcache (both endpoints) and agent /nodb are VALID.
+                                 agent /db and every noagent row are INVALID because of host throttling:
+                                 noagent /nodb fell from 112k to 54k req/s.
+- 20261030-pass4-reversed-ac     VALID. On AC power. This replaces pass 2 as the second, reverse-order
+                                 load pass. (A third pass was discarded: the host slept during the run.)

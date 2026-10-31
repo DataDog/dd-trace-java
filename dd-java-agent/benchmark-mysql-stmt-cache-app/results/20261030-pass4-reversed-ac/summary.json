@@ -1,0 +1,39 @@
+{
+  "meta": {
+    "date": "2026-10-31T00:37:17Z",
+    "host": "Darwin 25.6.0 arm64",
+    "cpus": "16",
+    "java": "openjdk version 21.0.11 2026-04-21 LTS",
+    "mysql": "8.0.46 (loopback)",
+    "agentJar": "<repo>/dd-java-agent/build/libs/dd-java-agent-1.68.0-SNAPSHOT.jar",
+    "agentCommit": "73850292b7",
+    "startupRuns": "8",
+    "warmupS": "20",
+    "durationS": "45",
+    "connections": "8",
+    "heap": "512m"
+  },
+  "configs": {
+    "agent-stmtcache": {
+      "startupMs": {"median": 1661.947, "runs": [1648.305, 1874.385, 1663.586, 1577.858, 1761.457, 1660.937, 1662.956, 1598.035]},
+      "endpoints": {
+        "nodb": {"requests": 4697743, "errors": 0, "seconds": 45.002, "rps": 104390.454, "p50Us": 71.625, "p90Us": 93.625, "p99Us": 164.541, "maxUs": 54226.208, "cpuMs": 207329.878, "cpuUsPerReq": 44.134, "gcCount": 286, "gcMs": 152, "cachePrepStmts": 1, "cachedStatements": 1},
+        "db": {"requests": 176623, "errors": 0, "seconds": 45.002, "rps": 3924.754, "p50Us": 2015.375, "p90Us": 2271.667, "p99Us": 2606.125, "maxUs": 30479.541, "cpuMs": 34861.021, "cpuUsPerReq": 197.375, "gcCount": 50, "gcMs": 31, "cachePrepStmts": 1, "cachedStatements": 5}
+      }
+    },
+    "agent": {
+      "startupMs": {"median": 1494.055, "runs": [1467.993, 1493.683, 1494.427, 1501.739, 1519.307, 1567.79, 1463.902, 1448.147]},
+      "endpoints": {
+        "nodb": {"requests": 4741793, "errors": 0, "seconds": 45.005, "rps": 105360.442, "p50Us": 71.250, "p90Us": 91.750, "p99Us": 163.500, "maxUs": 51780.458, "cpuMs": 204332.335, "cpuUsPerReq": 43.092, "gcCount": 291, "gcMs": 156, "cachePrepStmts": 0, "cachedStatements": -1},
+        "db": {"requests": 176461, "errors": 0, "seconds": 45.002, "rps": 3921.153, "p50Us": 2017.333, "p90Us": 2262.125, "p99Us": 2576.208, "maxUs": 37515.791, "cpuMs": 37791.992, "cpuUsPerReq": 214.166, "gcCount": 52, "gcMs": 32, "cachePrepStmts": 0, "cachedStatements": -1}
+      }
+    },
+    "noagent": {
+      "startupMs": {"median": 865.876, "runs": [866.069, 861.361, 874.779, 857.729, 865.683, 864.514, 873.692, 866.132]},
+      "endpoints": {
+        "nodb": {"requests": 5073699, "errors": 0, "seconds": 45.001, "rps": 112746.987, "p50Us": 68.375, "p90Us": 83.834, "p99Us": 133.583, "maxUs": 53010.625, "cpuMs": 161119.216, "cpuUsPerReq": 31.756, "gcCount": 183, "gcMs": 92, "cachePrepStmts": 0, "cachedStatements": -1},
+        "db": {"requests": 180462, "errors": 0, "seconds": 45.002, "rps": 4010.064, "p50Us": 1975.292, "p90Us": 2222.125, "p99Us": 2526.083, "maxUs": 29538.541, "cpuMs": 30993.573, "cpuUsPerReq": 171.746, "gcCount": 46, "gcMs": 27, "cachePrepStmts": 0, "cachedStatements": -1}
+      }
+    }
+  }
+}

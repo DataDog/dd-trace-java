@@ -1,0 +1,197 @@
+== building app, tools and microbenchmark
+== starting mysql:8.0 as stmtcache-bench-mysql on 127.0.0.1:13306
+== seeding demo schema (no agent)
+seeded 10000 items, 2000 customers, 40000 orders
+== microbenchmark (no agent): 8 rounds x 5s per cell
+warmup prepare-only simple on     3214700 ops/s  wall    0.31 us/op  cpu    0.31 us/op  alloc     792 B/op
+warmup prepare-only simple off    1030689 ops/s  wall    0.97 us/op  cpu    0.96 us/op  alloc    1401 B/op
+warmup prepare-only orm    on     2339011 ops/s  wall    0.43 us/op  cpu    0.42 us/op  alloc    1304 B/op
+warmup prepare-only orm    off     257163 ops/s  wall    3.89 us/op  cpu    3.79 us/op  alloc    2968 B/op
+warmup prepare-exec simple on        4302 ops/s  wall  232.46 us/op  cpu   17.52 us/op  alloc    5353 B/op
+warmup prepare-exec simple off       4694 ops/s  wall  213.02 us/op  cpu   15.48 us/op  alloc    5932 B/op
+warmup prepare-exec orm    on        4198 ops/s  wall  238.22 us/op  cpu   15.75 us/op  alloc   11860 B/op
+warmup prepare-exec orm    off       3947 ops/s  wall  253.35 us/op  cpu   20.20 us/op  alloc   13524 B/op
+round0 prepare-only simple off    1052237 ops/s  wall    0.95 us/op  cpu    0.94 us/op  alloc    1400 B/op
+round0 prepare-only simple on     3531699 ops/s  wall    0.28 us/op  cpu    0.28 us/op  alloc     792 B/op
+round0 prepare-only orm    off     261732 ops/s  wall    3.82 us/op  cpu    3.81 us/op  alloc    2968 B/op
+round0 prepare-only orm    on     2365321 ops/s  wall    0.42 us/op  cpu    0.42 us/op  alloc    1304 B/op
+round0 prepare-exec simple off       4377 ops/s  wall  228.48 us/op  cpu   14.57 us/op  alloc    5911 B/op
+round0 prepare-exec simple on        4339 ops/s  wall  230.48 us/op  cpu   13.52 us/op  alloc    5303 B/op
+round0 prepare-exec orm    off       3676 ops/s  wall  272.02 us/op  cpu   20.74 us/op  alloc   13524 B/op
+round0 prepare-exec orm    on        3912 ops/s  wall  255.65 us/op  cpu   16.09 us/op  alloc   11860 B/op
+round1 prepare-only simple on     3536002 ops/s  wall    0.28 us/op  cpu    0.28 us/op  alloc     792 B/op
+round1 prepare-only simple off    1010791 ops/s  wall    0.99 us/op  cpu    0.98 us/op  alloc    1400 B/op
+round1 prepare-only orm    on     2350135 ops/s  wall    0.43 us/op  cpu    0.42 us/op  alloc    1304 B/op
+round1 prepare-only orm    off     260575 ops/s  wall    3.84 us/op  cpu    3.83 us/op  alloc    2968 B/op
+round1 prepare-exec simple on        4512 ops/s  wall  221.62 us/op  cpu   13.62 us/op  alloc    5303 B/op
+round1 prepare-exec simple off       4596 ops/s  wall  217.58 us/op  cpu   14.55 us/op  alloc    5911 B/op
+round1 prepare-exec orm    on        4154 ops/s  wall  240.73 us/op  cpu   15.52 us/op  alloc   11860 B/op
+round1 prepare-exec orm    off       3966 ops/s  wall  252.11 us/op  cpu   21.74 us/op  alloc   13524 B/op
+round2 prepare-only simple off    1022782 ops/s  wall    0.98 us/op  cpu    0.97 us/op  alloc    1400 B/op
+round2 prepare-only simple on     3059039 ops/s  wall    0.33 us/op  cpu    0.32 us/op  alloc     792 B/op
+round2 prepare-only orm    off     255338 ops/s  wall    3.92 us/op  cpu    3.90 us/op  alloc    2968 B/op
+round2 prepare-only orm    on     2099274 ops/s  wall    0.48 us/op  cpu    0.46 us/op  alloc    1304 B/op
+round2 prepare-exec simple off       4090 ops/s  wall  244.50 us/op  cpu   17.28 us/op  alloc    5911 B/op
+round2 prepare-exec simple on        3836 ops/s  wall  260.71 us/op  cpu   17.19 us/op  alloc    5303 B/op
+round2 prepare-exec orm    off       3553 ops/s  wall  281.46 us/op  cpu   23.49 us/op  alloc   13524 B/op
+round2 prepare-exec orm    on        3978 ops/s  wall  251.35 us/op  cpu   17.60 us/op  alloc   11860 B/op
+round3 prepare-only simple on     3031651 ops/s  wall    0.33 us/op  cpu    0.33 us/op  alloc     792 B/op
+round3 prepare-only simple off    1016448 ops/s  wall    0.98 us/op  cpu    0.98 us/op  alloc    1400 B/op
+round3 prepare-only orm    on     2151922 ops/s  wall    0.46 us/op  cpu    0.46 us/op  alloc    1304 B/op
+round3 prepare-only orm    off     238115 ops/s  wall    4.20 us/op  cpu    4.16 us/op  alloc    2968 B/op
+round3 prepare-exec simple on        3359 ops/s  wall  297.68 us/op  cpu   18.97 us/op  alloc    5303 B/op
+round3 prepare-exec simple off       3019 ops/s  wall  331.21 us/op  cpu   22.70 us/op  alloc    5911 B/op
+round3 prepare-exec orm    on        3250 ops/s  wall  307.71 us/op  cpu   21.23 us/op  alloc   11860 B/op
+round3 prepare-exec orm    off       2683 ops/s  wall  372.73 us/op  cpu   27.73 us/op  alloc   13524 B/op
+round4 prepare-only simple off     978220 ops/s  wall    1.02 us/op  cpu    1.01 us/op  alloc    1400 B/op
+round4 prepare-only simple on     3014374 ops/s  wall    0.33 us/op  cpu    0.33 us/op  alloc     792 B/op
+round4 prepare-only orm    off     251743 ops/s  wall    3.97 us/op  cpu    3.96 us/op  alloc    2968 B/op
+round4 prepare-only orm    on     2147493 ops/s  wall    0.47 us/op  cpu    0.46 us/op  alloc    1304 B/op
+round4 prepare-exec simple off       4914 ops/s  wall  203.50 us/op  cpu   15.02 us/op  alloc    5911 B/op
+round4 prepare-exec simple on        4708 ops/s  wall  212.41 us/op  cpu   14.55 us/op  alloc    5303 B/op
+round4 prepare-exec orm    off       4180 ops/s  wall  239.25 us/op  cpu   20.69 us/op  alloc   13524 B/op
+round4 prepare-exec orm    on        3311 ops/s  wall  301.99 us/op  cpu   18.72 us/op  alloc   11860 B/op
+round5 prepare-only simple on     1830919 ops/s  wall    0.55 us/op  cpu    0.41 us/op  alloc     792 B/op
+round5 prepare-only simple off     789816 ops/s  wall    1.27 us/op  cpu    1.07 us/op  alloc    1400 B/op
+round5 prepare-only orm    on     2178460 ops/s  wall    0.46 us/op  cpu    0.46 us/op  alloc    1304 B/op
+round5 prepare-only orm    off     245817 ops/s  wall    4.07 us/op  cpu    3.91 us/op  alloc    2968 B/op
+round5 prepare-exec simple on        4372 ops/s  wall  228.71 us/op  cpu   14.24 us/op  alloc    5303 B/op
+round5 prepare-exec simple off       4590 ops/s  wall  217.88 us/op  cpu   15.96 us/op  alloc    5911 B/op
+round5 prepare-exec orm    on        3699 ops/s  wall  270.34 us/op  cpu   17.35 us/op  alloc   11860 B/op
+round5 prepare-exec orm    off       3808 ops/s  wall  262.58 us/op  cpu   20.73 us/op  alloc   13524 B/op
+round6 prepare-only simple off    1032516 ops/s  wall    0.97 us/op  cpu    0.97 us/op  alloc    1400 B/op
+round6 prepare-only simple on     3081966 ops/s  wall    0.32 us/op  cpu    0.32 us/op  alloc     792 B/op
+round6 prepare-only orm    off     257963 ops/s  wall    3.88 us/op  cpu    3.85 us/op  alloc    2968 B/op
+round6 prepare-only orm    on     2205460 ops/s  wall    0.45 us/op  cpu    0.45 us/op  alloc    1304 B/op
+round6 prepare-exec simple off       4098 ops/s  wall  244.02 us/op  cpu   15.47 us/op  alloc    5911 B/op
+round6 prepare-exec simple on        4285 ops/s  wall  233.40 us/op  cpu   14.03 us/op  alloc    5303 B/op
+round6 prepare-exec orm    off       3931 ops/s  wall  254.37 us/op  cpu   20.36 us/op  alloc   13524 B/op
+round6 prepare-exec orm    on        3455 ops/s  wall  289.41 us/op  cpu   18.07 us/op  alloc   11860 B/op
+round7 prepare-only simple on     3075276 ops/s  wall    0.33 us/op  cpu    0.32 us/op  alloc     792 B/op
+round7 prepare-only simple off    1010043 ops/s  wall    0.99 us/op  cpu    0.98 us/op  alloc    1400 B/op
+round7 prepare-only orm    on     2218177 ops/s  wall    0.45 us/op  cpu    0.45 us/op  alloc    1304 B/op
+round7 prepare-only orm    off     259972 ops/s  wall    3.85 us/op  cpu    3.84 us/op  alloc    2968 B/op
+round7 prepare-exec simple on        4186 ops/s  wall  238.87 us/op  cpu   14.12 us/op  alloc    5303 B/op
+round7 prepare-exec simple off       4111 ops/s  wall  243.25 us/op  cpu   15.39 us/op  alloc    5911 B/op
+round7 prepare-exec orm    on        3750 ops/s  wall  266.67 us/op  cpu   16.46 us/op  alloc   11860 B/op
+round7 prepare-exec orm    off       3727 ops/s  wall  268.29 us/op  cpu   20.86 us/op  alloc   13524 B/op
+# Connector/J statement cache microbenchmark (no agent)
+
+- java: 21.0.11 OpenJDK 64-Bit Server VM
+- os: Mac OS X aarch64
+- driver: mysql-connector-j-8.4.0 (Revision: 1c3f5c149e0bfe31c7fbeb24e2d260cd890972c4)
+- server: MySQL 8.0.46
+- rounds: 8 x 5.0s per cell, median shown
+- url: jdbc:mysql://127.0.0.1:13306/bench
+
+| workload | query | off ops/s | on ops/s | off CPU us/op | on CPU us/op | CPU saved/op | CPU delta | off wall us/op | on wall us/op | off B/op | on B/op |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| prepare-only | simple | 1013620 | 3067158 | 0.98 | 0.32 | 0.66 | -66.9% | 0.99 | 0.33 | 1400 | 792 |
+| prepare-only | orm | 256651 | 2191960 | 3.88 | 0.45 | 3.42 | -88.4% | 3.90 | 0.46 | 2968 | 1304 |
+| prepare-exec | simple | 4244 | 4312 | 15.43 | 14.18 | 1.25 | -8.1% | 235.87 | 231.94 | 5911 | 5303 |
+| prepare-exec | orm | 3768 | 3724 | 20.80 | 17.48 | 3.32 | -16.0% | 265.43 | 268.51 | 13524 | 11860 |
+
+== starting fake trace agent on 18126
+== [noagent] startup x8
+  noagent    startup discarded run: 1037.6 ms
+  noagent    startup run 1: 948.9 ms
+  noagent    startup run 2: 945.5 ms
+  noagent    startup run 3: 996.1 ms
+  noagent    startup run 4: 942.2 ms
+  noagent    startup run 5: 959.7 ms
+  noagent    startup run 6: 899.8 ms
+  noagent    startup run 7: 964.8 ms
+  noagent    startup run 8: 902.8 ms
+== [noagent] load: warmup 20s + 45s per endpoint, 8 connections
+  noagent    nodb          111829 req/s  p50     67.5 us  p99    145.9 us  cpu    32.4 us/req  errors 0
+  noagent    db              3771 req/s  p50   2060.6 us  p99   3236.3 us  cpu   181.2 us/req  errors 0
+  effective statement cache: cachePrepStmts=0 cachedStatements=-1 
+== [agent] startup x8
+  agent      startup discarded run: 1658.5 ms
+  agent      startup run 1: 1582.9 ms
+  agent      startup run 2: 1549.5 ms
+  agent      startup run 3: 1647.5 ms
+  agent      startup run 4: 1558.5 ms
+  agent      startup run 5: 1561.7 ms
+  agent      startup run 6: 1544.7 ms
+  agent      startup run 7: 1581.0 ms
+  agent      startup run 8: 1609.3 ms
+== [agent] load: warmup 20s + 45s per endpoint, 8 connections
+  agent      nodb           98485 req/s  p50     72.4 us  p99    223.1 us  cpu    43.4 us/req  errors 0
+  agent      db              3847 req/s  p50   2031.5 us  p99   2961.4 us  cpu   215.2 us/req  errors 0
+  effective statement cache: cachePrepStmts=0 cachedStatements=-1 
+  fake agent has received 2424 trace payloads so far
+== [agent-stmtcache] startup x8
+  agent-stmtcache startup discarded run: 1672.1 ms
+  agent-stmtcache startup run 1: 1587.6 ms
+  agent-stmtcache startup run 2: 1524.5 ms
+  agent-stmtcache startup run 3: 1526.1 ms
+  agent-stmtcache startup run 4: 1485.6 ms
+  agent-stmtcache startup run 5: 1500.6 ms
+  agent-stmtcache startup run 6: 1494.1 ms
+  agent-stmtcache startup run 7: 1546.8 ms
+  agent-stmtcache startup run 8: 1510.7 ms
+== [agent-stmtcache] load: warmup 20s + 45s per endpoint, 8 connections
+  agent-stmtcache nodb          106512 req/s  p50     69.9 us  p99    160.8 us  cpu    42.6 us/req  errors 0
+  agent-stmtcache db              3895 req/s  p50   2030.4 us  p99   2664.8 us  cpu   199.1 us/req  errors 0
+  effective statement cache: cachePrepStmts=1 cachedStatements=6 
+  fake agent has received 5007 trace payloads so far
+== done: <repo>/dd-java-agent/benchmark-mysql-stmt-cache-app/results/20261030-pass1/summary.md
+# MySQL statement cache benchmark
+
+- date: 2026-10-30T21:51:02Z
+- host: Darwin 25.6.0 arm64
+- cpus: 16
+- java: openjdk version 21.0.11 2026-04-21 LTS
+- mysql: 8.0.46 (loopback)
+- agentJar: <repo>/dd-java-agent/build/libs/dd-java-agent-1.68.0-SNAPSHOT.jar
+- agentCommit: 73850292b7
+- startupRuns: 8
+- warmupS: 20
+- durationS: 45
+- connections: 8
+- heap: 512m
+
+## Startup to first successful request (ms)
+
+| config | median | min | max | runs |
+|---|---:|---:|---:|---:|
+| noagent | 947 | 900 | 996 | 8 |
+| agent | 1571 | 1545 | 1648 | 8 |
+| agent-stmtcache | 1518 | 1486 | 1588 | 8 |
+
+## Load (relative columns vs `noagent`)
+
+| endpoint | config | req/s | req/s vs base | p50 us | p99 us | CPU us/req | CPU/req vs base | GC ms | errors |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| nodb | noagent | 111829 | - | 67.5 | 145.9 | 32.38 | - | 93 | 0 |
+| nodb | agent | 98485 | -11.9% | 72.4 | 223.1 | 43.38 | +34.0% | 163 | 0 |
+| nodb | agent-stmtcache | 106512 | -4.8% | 69.9 | 160.8 | 42.64 | +31.7% | 161 | 0 |
+| db | noagent | 3771 | - | 2060.6 | 3236.3 | 181.23 | - | 37 | 0 |
+| db | agent | 3847 | +2.0% | 2031.5 | 2961.4 | 215.24 | +18.8% | 32 | 0 |
+| db | agent-stmtcache | 3895 | +3.3% | 2030.4 | 2664.8 | 199.05 | +9.8% | 31 | 0 |
+
+## Effective Connector/J statement cache at end of each config's load phase
+
+Read from one pooled connection. cachePrepStmts: 1 on, 0 off. cachedStatements: parsed statements in that connection's cache, -1 when there is no cache.
+
+| config | cachePrepStmts | cachedStatements |
+|---|---:|---:|
+| noagent | 0 | -1 |
+| agent | 0 | -1 |
+| agent-stmtcache | 1 | 5 |
+# Connector/J statement cache microbenchmark (no agent)
+
+- java: 21.0.11 OpenJDK 64-Bit Server VM
+- os: Mac OS X aarch64
+- driver: mysql-connector-j-8.4.0 (Revision: 1c3f5c149e0bfe31c7fbeb24e2d260cd890972c4)
+- server: MySQL 8.0.46
+- rounds: 8 x 5.0s per cell, median shown
+- url: jdbc:mysql://127.0.0.1:13306/bench
+
+| workload | query | off ops/s | on ops/s | off CPU us/op | on CPU us/op | CPU saved/op | CPU delta | off wall us/op | on wall us/op | off B/op | on B/op |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| prepare-only | simple | 1013620 | 3067158 | 0.98 | 0.32 | 0.66 | -66.9% | 0.99 | 0.33 | 1400 | 792 |
+| prepare-only | orm | 256651 | 2191960 | 3.88 | 0.45 | 3.42 | -88.4% | 3.90 | 0.46 | 2968 | 1304 |
+| prepare-exec | simple | 4244 | 4312 | 15.43 | 14.18 | 1.25 | -8.1% | 235.87 | 231.94 | 5911 | 5303 |
+| prepare-exec | orm | 3768 | 3724 | 20.80 | 17.48 | 3.32 | -16.0% | 265.43 | 268.51 | 13524 | 11860 |
