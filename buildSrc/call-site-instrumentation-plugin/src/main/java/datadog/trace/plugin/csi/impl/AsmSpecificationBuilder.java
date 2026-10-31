@@ -273,13 +273,10 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
 
     @Override
     public void visitEnd() {
-      adviceData.forEach(
-          (adviceCtor, list) ->
-              list.stream()
-                  .map(
-                      data ->
-                          adviceCtor.build(advice, parameters, data.signature, data.invokeDynamic))
-                  .forEach(spec.advices::add));
+      adviceData.forEach((adviceCtor, list) ->
+          list.stream()
+              .map(data -> adviceCtor.build(advice, parameters, data.signature, data.invokeDynamic))
+              .forEach(spec.advices::add));
     }
   }
 

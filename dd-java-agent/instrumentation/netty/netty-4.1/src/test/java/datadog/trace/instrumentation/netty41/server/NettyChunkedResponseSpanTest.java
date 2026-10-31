@@ -770,12 +770,11 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       response.headers().set(CONTENT_LENGTH, body.length);
       ctx.write(response);
       ctx.writeAndFlush(new DefaultFileRegion(fileChannel, 0, body.length))
-          .addListener(
-              future -> {
-                close(fileChannel);
-                delete(path);
-                knownLengthFileRegionWrites.offer(ctx);
-              });
+          .addListener(future -> {
+            close(fileChannel);
+            delete(path);
+            knownLengthFileRegionWrites.offer(ctx);
+          });
     }
 
     private void writeIncompleteKnownLengthResponse(ChannelHandlerContext ctx) {

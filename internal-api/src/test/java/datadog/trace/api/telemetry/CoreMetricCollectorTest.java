@@ -63,15 +63,14 @@ class CoreMetricCollectorTest extends DDJavaSpecification {
     int limit = 1024;
 
     // when
-    assertDoesNotThrow(
-        () -> {
-          for (int index = 0; index <= limit * 2; index++) {
-            SpanMetrics spanMetrics = registry.get("instr-" + index);
-            spanMetrics.onSpanCreated();
-            spanMetrics.onSpanCreated();
-            spanMetrics.onSpanFinished();
-          }
-        });
+    assertDoesNotThrow(() -> {
+      for (int index = 0; index <= limit * 2; index++) {
+        SpanMetrics spanMetrics = registry.get("instr-" + index);
+        spanMetrics.onSpanCreated();
+        spanMetrics.onSpanCreated();
+        spanMetrics.onSpanFinished();
+      }
+    });
 
     // then
     collector.prepareMetrics();

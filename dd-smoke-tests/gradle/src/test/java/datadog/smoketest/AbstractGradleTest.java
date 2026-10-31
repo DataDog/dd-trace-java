@@ -107,30 +107,28 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
     try (Stream<Path> files = Files.walk(testKitDir)) {
       files
           .filter(Files::isRegularFile)
-          .forEach(
-              file -> {
-                String name = file.getFileName().toString();
-                if (!name.startsWith("daemon-") || !name.endsWith(".out.log")) {
-                  return;
-                }
-                String pid =
-                    name.substring("daemon-".length(), name.length() - ".out.log".length());
-                if (!pid.matches("\\d+")) {
-                  // skip the UUID fallback Gradle uses when the PID is unavailable
-                  return;
-                }
-                ProcessBuilder kill =
-                    windows
-                        ? new ProcessBuilder("taskkill", "/F", "/PID", pid)
-                        : new ProcessBuilder("kill", pid);
-                try {
-                  kill.redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                } catch (Exception e) {
-                  // best effort — the daemon may already be stopped
-                }
-              });
+          .forEach(file -> {
+            String name = file.getFileName().toString();
+            if (!name.startsWith("daemon-") || !name.endsWith(".out.log")) {
+              return;
+            }
+            String pid = name.substring("daemon-".length(), name.length() - ".out.log".length());
+            if (!pid.matches("\\d+")) {
+              // skip the UUID fallback Gradle uses when the PID is unavailable
+              return;
+            }
+            ProcessBuilder kill =
+                windows
+                    ? new ProcessBuilder("taskkill", "/F", "/PID", pid)
+                    : new ProcessBuilder("kill", pid);
+            try {
+              kill.redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } catch (Exception e) {
+              // best effort — the daemon may already be stopped
+            }
+          });
     } catch (Exception e) {
       // best effort — failing to enumerate daemon logs must not fail the test run
     }

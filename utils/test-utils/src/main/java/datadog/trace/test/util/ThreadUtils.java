@@ -78,28 +78,27 @@ public class ThreadUtils {
     final CountDownLatch endBarrier = new CountDownLatch(poolSize + 1);
     for (int i = 0; i < poolSize; i++) {
       final int invocations = each + (remainder <= 0 ? 0 : 1);
-      executor.execute(
-          () -> {
+      executor.execute(() -> {
+        try {
+          startBarrier.countDown();
+          startBarrier.await();
+          for (int c = 0; c < invocations && throwable.get() == null; c++) {
             try {
-              startBarrier.countDown();
-              startBarrier.await();
-              for (int c = 0; c < invocations && throwable.get() == null; c++) {
-                try {
-                  closure.call();
-                } catch (Throwable t) {
-                  throwable.compareAndSet(null, t);
-                }
-              }
+              closure.call();
             } catch (Throwable t) {
               throwable.compareAndSet(null, t);
-            } finally {
-              try {
-                endBarrier.countDown();
-              } catch (Throwable t) {
-                throwable.compareAndSet(null, t);
-              }
             }
-          });
+          }
+        } catch (Throwable t) {
+          throwable.compareAndSet(null, t);
+        } finally {
+          try {
+            endBarrier.countDown();
+          } catch (Throwable t) {
+            throwable.compareAndSet(null, t);
+          }
+        }
+      });
       remainder--;
     }
     startBarrier.countDown();

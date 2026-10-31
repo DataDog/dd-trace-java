@@ -15,26 +15,23 @@ public class IastSinksVerticle extends AbstractVerticle {
     Router router = Router.router(vertx);
     router
         .route("/iast/sinks/reroute1")
-        .handler(
-            rc -> {
-              final String path = rc.request().getParam("path");
-              rc.reroute(path);
-            });
+        .handler(rc -> {
+          final String path = rc.request().getParam("path");
+          rc.reroute(path);
+        });
     router
         .route("/iast/sinks/reroute2")
-        .handler(
-            rc -> {
-              final String path = rc.request().getParam("path");
-              rc.reroute(HttpMethod.GET, path);
-            });
+        .handler(rc -> {
+          final String path = rc.request().getParam("path");
+          rc.reroute(HttpMethod.GET, path);
+        });
     router
         .route("/iast/sinks/putheader1")
-        .handler(
-            rc -> {
-              final String headerName = rc.request().getParam("name");
-              final String headerValue = rc.request().getParam("value");
-              rc.response().putHeader(headerName, headerValue).end();
-            });
+        .handler(rc -> {
+          final String headerName = rc.request().getParam("name");
+          final String headerValue = rc.request().getParam("value");
+          rc.response().putHeader(headerName, headerValue).end();
+        });
 
     vertx
         .createHttpServer()

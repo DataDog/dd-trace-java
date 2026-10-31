@@ -343,12 +343,11 @@ public interface AgentSpan
     // Prototype tags are fallback defaults: only fill keys this span has not already set.
     prototype
         .tags()
-        .forEach(
-            (tag, value) -> {
-              if (getTag(tag) == null) {
-                setTag(tag, value);
-              }
-            });
+        .forEach((tag, value) -> {
+          if (getTag(tag) == null) {
+            setTag(tag, value);
+          }
+        });
 
     // Never-clobber: only stamp the integration name when the context reports none.
     if (spanContext().getIntegrationName() == null) {

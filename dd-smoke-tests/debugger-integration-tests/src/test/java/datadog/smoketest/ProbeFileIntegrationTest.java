@@ -44,22 +44,20 @@ public class ProbeFileIntegrationTest extends ServerAppDebuggerIntegrationTest {
     execute(appUrl, TRACED_METHOD_NAME);
     AtomicBoolean snapshotReceived = new AtomicBoolean();
     AtomicBoolean traceReceived = new AtomicBoolean();
-    registerSnapshotListener(
-        snapshot -> {
-          assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-          assertEquals(5, snapshot.getCaptures().getReturn().getArguments().size());
-          snapshotReceived.set(true);
-        });
-    registerTraceListener(
-        decodedTrace -> {
-          for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (isDynamicSpan(span)) {
-              assertEquals("foobar", span.getMeta().get("client"));
-              assertEquals(PROBE_ID2.getId(), span.getMeta().get("_dd.di.client.probe_id"));
-              traceReceived.set(true);
-            }
-          }
-        });
+    registerSnapshotListener(snapshot -> {
+      assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
+      assertEquals(5, snapshot.getCaptures().getReturn().getArguments().size());
+      snapshotReceived.set(true);
+    });
+    registerTraceListener(decodedTrace -> {
+      for (DecodedSpan span : decodedTrace.getSpans()) {
+        if (isDynamicSpan(span)) {
+          assertEquals("foobar", span.getMeta().get("client"));
+          assertEquals(PROBE_ID2.getId(), span.getMeta().get("_dd.di.client.probe_id"));
+          traceReceived.set(true);
+        }
+      }
+    });
     processRequests(
         () -> snapshotReceived.get() && traceReceived.get(),
         () ->

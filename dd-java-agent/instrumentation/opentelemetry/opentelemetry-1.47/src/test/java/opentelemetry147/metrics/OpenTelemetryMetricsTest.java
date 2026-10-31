@@ -202,11 +202,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     AutoCloseable observable =
         meter
             .counterBuilder("observable-long-counter")
-            .buildWithCallback(
-                m -> {
-                  m.record(1);
-                  m.record(2, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1);
+              m.record(2, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1L, points.get("test:observable-long-counter"));
@@ -228,11 +227,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
         meter
             .counterBuilder("observable-double-counter")
             .ofDoubles()
-            .buildWithCallback(
-                m -> {
-                  m.record(1.2);
-                  m.record(3.4, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1.2);
+              m.record(3.4, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1.2, points.get("test:observable-double-counter"));
@@ -253,11 +251,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     AutoCloseable observable =
         meter
             .upDownCounterBuilder("observable-long-up-down-counter")
-            .buildWithCallback(
-                m -> {
-                  m.record(1);
-                  m.record(2, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1);
+              m.record(2, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1L, points.get("test:observable-long-up-down-counter"));
@@ -279,11 +276,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
         meter
             .upDownCounterBuilder("observable-double-up-down-counter")
             .ofDoubles()
-            .buildWithCallback(
-                m -> {
-                  m.record(1.2);
-                  m.record(3.4, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1.2);
+              m.record(3.4, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1.2, points.get("test:observable-double-up-down-counter"));
@@ -305,11 +301,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
         meter
             .gaugeBuilder("observable-long-gauge")
             .ofLongs()
-            .buildWithCallback(
-                m -> {
-                  m.record(1);
-                  m.record(2, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1);
+              m.record(2, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1L, points.get("test:observable-long-gauge"));
@@ -323,11 +318,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     AutoCloseable observable =
         meter
             .gaugeBuilder("observable-double-gauge")
-            .buildWithCallback(
-                m -> {
-                  m.record(1.2);
-                  m.record(3.4, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1.2);
+              m.record(3.4, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1.2, points.get("test:observable-double-gauge"));

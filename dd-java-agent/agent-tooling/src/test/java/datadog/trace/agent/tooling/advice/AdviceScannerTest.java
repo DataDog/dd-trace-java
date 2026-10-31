@@ -55,10 +55,9 @@ class AdviceScannerTest {
     assertFalse(invokeDynamic.getHandles().isEmpty());
     List<Usage> typeUsages =
         root.getUsages().stream()
-            .filter(
-                use ->
-                    use.getKind() == UsageKind.TYPE
-                        && use.getOwner().equals(Dependency.class.getName()))
+            .filter(use ->
+                use.getKind() == UsageKind.TYPE
+                    && use.getOwner().equals(Dependency.class.getName()))
             .collect(toList());
     assertEquals(
         Arrays.asList(Opcodes.NEW, Opcodes.ANEWARRAY, Opcodes.MULTIANEWARRAY, Opcodes.LDC),
@@ -68,11 +67,10 @@ class AdviceScannerTest {
         typeUsages.stream().map(Usage::getDescriptor).collect(toList()));
     assertTrue(
         typeUsages.stream()
-            .allMatch(
-                use ->
-                    use.getSource().getClassName().equals(AdviceRoot.class.getName())
-                        && use.getSource().getSourceFile().equals("AdviceScanningFixtures.java")
-                        && use.getSource().getLine() > 0));
+            .allMatch(use ->
+                use.getSource().getClassName().equals(AdviceRoot.class.getName())
+                    && use.getSource().getSourceFile().equals("AdviceScanningFixtures.java")
+                    && use.getSource().getLine() > 0));
 
     assertFalse(result.getClassInfo(ClassReader.class.getName()).isScanned());
     assertFalse(result.getClassInfo(String.class.getName()).isScanned());
@@ -183,13 +181,12 @@ class AdviceScannerTest {
     assertFalse(result.getClassInfo(AdviceSuperclass.class.getName()).isReachableFromAdvice());
     assertTrue(
         root.getUsages().stream()
-            .anyMatch(
-                usage ->
-                    usage.getKind() == UsageKind.METHOD
-                        && usage.getOpcode() == Opcodes.INVOKESPECIAL
-                        && usage.getOwner().equals(AdviceSuperclass.class.getName())
-                        && usage.getName().equals("<init>")
-                        && usage.getDescriptor().equals("(Ljava/lang/String;)V")));
+            .anyMatch(usage ->
+                usage.getKind() == UsageKind.METHOD
+                    && usage.getOpcode() == Opcodes.INVOKESPECIAL
+                    && usage.getOwner().equals(AdviceSuperclass.class.getName())
+                    && usage.getName().equals("<init>")
+                    && usage.getDescriptor().equals("(Ljava/lang/String;)V")));
   }
 
   @Test

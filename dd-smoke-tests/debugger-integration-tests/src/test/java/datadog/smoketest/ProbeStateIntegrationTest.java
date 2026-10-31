@@ -190,18 +190,17 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     addProbe(logProbe);
     AtomicBoolean received = new AtomicBoolean();
     AtomicBoolean error = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
-            assertEquals(
-                "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
-                probeStatus.getDiagnostics().getException().getMessage());
-            error.set(true);
-          }
-        });
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+        received.set(true);
+      }
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+        assertEquals(
+            "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
+            probeStatus.getDiagnostics().getException().getMessage());
+        error.set(true);
+      }
+    });
     processRequests(
         () -> received.get() && error.get(),
         () -> String.format("timeout received=%s error=%s", received.get(), error.get()));

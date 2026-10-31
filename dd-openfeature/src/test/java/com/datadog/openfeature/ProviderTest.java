@@ -445,12 +445,11 @@ public class ProviderTest {
     final Provider provider =
         newProvider(
             new Options().initTimeout(10, SECONDS),
-            new ProxyAgentBridge(
-                (route, json) -> {
-                  if ("flagevaluation".equals(route)) {
-                    posted.add(json);
-                  }
-                }));
+            new ProxyAgentBridge((route, json) -> {
+              if ("flagevaluation".equals(route)) {
+                posted.add(json);
+              }
+            }));
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     this.executor.submit(() -> api.setProviderAndWait(provider));
     awaitInitialization();
@@ -545,12 +544,8 @@ public class ProviderTest {
     when(evaluator.initialize(eq(10L), eq(SECONDS), any())).thenReturn(true);
     when(evaluator.hasConfiguration()).thenReturn(true);
     when(evaluator.evaluate(any(), any(), any(), any()))
-        .thenAnswer(
-            invocation ->
-                ProviderEvaluation.builder()
-                    .value(invocation.getArgument(2))
-                    .reason("MOCK")
-                    .build());
+        .thenAnswer(invocation ->
+            ProviderEvaluation.builder().value(invocation.getArgument(2)).reason("MOCK").build());
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     api.setProviderAndWait(new Provider(new Options().initTimeout(10, SECONDS), evaluator));
     final Client client = api.getClient();

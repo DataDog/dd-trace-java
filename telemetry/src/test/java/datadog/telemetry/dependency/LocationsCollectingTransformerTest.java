@@ -139,15 +139,14 @@ class LocationsCollectingTransformerTest {
       List<Future<?>> futures = new ArrayList<>();
       for (int i = 0; i < threads; i++) {
         futures.add(
-            executor.submit(
-                () -> {
-                  latch.countDown();
-                  awaitUninterruptibly(latch);
-                  ProtectionDomain domain;
-                  while ((domain = domains.poll()) != null) {
-                    mockTransformer.transform(null, null, null, domain, null);
-                  }
-                }));
+            executor.submit(() -> {
+              latch.countDown();
+              awaitUninterruptibly(latch);
+              ProtectionDomain domain;
+              while ((domain = domains.poll()) != null) {
+                mockTransformer.transform(null, null, null, domain, null);
+              }
+            }));
       }
       for (Future<?> future : futures) {
         future.get();
@@ -178,14 +177,13 @@ class LocationsCollectingTransformerTest {
       List<Future<?>> futures = new ArrayList<>();
       for (int i = 0; i < threads; i++) {
         futures.add(
-            executor.submit(
-                () -> {
-                  latch.countDown();
-                  awaitUninterruptibly(latch);
-                  for (int j = 0; j < iterationsPerThread; j++) {
-                    mockTransformer.transform(null, null, null, domain, null);
-                  }
-                }));
+            executor.submit(() -> {
+              latch.countDown();
+              awaitUninterruptibly(latch);
+              for (int j = 0; j < iterationsPerThread; j++) {
+                mockTransformer.transform(null, null, null, domain, null);
+              }
+            }));
       }
       for (Future<?> future : futures) {
         future.get();

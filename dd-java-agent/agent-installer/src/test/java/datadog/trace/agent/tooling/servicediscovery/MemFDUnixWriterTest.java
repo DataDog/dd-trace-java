@@ -46,15 +46,14 @@ class MemFDUnixWriterTest {
 
     try (Stream<Path> fdStream = Files.list(procSelfFd)) {
       memfdFound =
-          fdStream.anyMatch(
-              fd -> {
-                try {
-                  Path linkTarget = Files.readSymbolicLink(fd);
-                  return linkTarget.toString().contains(fileName);
-                } catch (IOException e) {
-                  return false;
-                }
-              });
+          fdStream.anyMatch(fd -> {
+            try {
+              Path linkTarget = Files.readSymbolicLink(fd);
+              return linkTarget.toString().contains(fileName);
+            } catch (IOException e) {
+              return false;
+            }
+          });
     }
     assertTrue(memfdFound, "memfd should be created and visible in /proc/self/fd");
   }

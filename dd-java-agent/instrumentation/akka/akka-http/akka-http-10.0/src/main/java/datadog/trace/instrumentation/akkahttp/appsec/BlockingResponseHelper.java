@@ -86,10 +86,8 @@ public class BlockingResponseHelper {
 
     List<akka.http.scaladsl.model.HttpHeader> headersList =
         rba.getExtraHeaders().entrySet().stream()
-            .map(
-                e ->
-                    (akka.http.scaladsl.model.HttpHeader)
-                        RawHeader.create(e.getKey(), e.getValue()))
+            .map(e ->
+                (akka.http.scaladsl.model.HttpHeader) RawHeader.create(e.getKey(), e.getValue()))
             .collect(ScalaListCollector.toScalaList());
 
     StatusCode code;

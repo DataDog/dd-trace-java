@@ -43,10 +43,9 @@ class ScaRealLibraryBytecodeTest {
   @BeforeEach
   void setUp() {
     ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
-    ScaReachabilityCallback.register(
-        (vulnId, artifact, version, dotClassName, methodName, line) ->
-            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-                artifact, version, vulnId, dotClassName, methodName, line));
+    ScaReachabilityCallback.register((vulnId, artifact, version, dotClassName, methodName, line) ->
+        ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+            artifact, version, vulnId, dotClassName, methodName, line));
   }
 
   @AfterEach

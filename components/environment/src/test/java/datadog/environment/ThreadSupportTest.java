@@ -59,11 +59,10 @@ class ThreadSupportTest {
   static void assertVirtualThread(ExecutorService executorService, boolean expected) {
     Future<Boolean> futureCurrent = executorService.submit(() -> ThreadSupport.isVirtual());
     Future<Boolean> futureGiven =
-        executorService.submit(
-            () -> {
-              Thread thread = Thread.currentThread();
-              return ThreadSupport.isVirtual(thread);
-            });
+        executorService.submit(() -> {
+          Thread thread = Thread.currentThread();
+          return ThreadSupport.isVirtual(thread);
+        });
     try {
       assertEquals(expected, futureCurrent.get(), "invalid current thread virtual status");
       assertEquals(expected, futureGiven.get(), "invalid given thread virtual status");

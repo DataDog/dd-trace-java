@@ -136,26 +136,24 @@ class LogCollectorTest {
     CountDownLatch bucketDetached = new CountDownLatch(1);
     CountDownLatch releaseDrain = new CountDownLatch(1);
     FutureTask<Collection<LogCollector.RawLogMessage>> drainTask =
-        new FutureTask<>(
-            () -> {
-              List<LogCollector.RawLogMessage> drainedLogGroups = new ArrayList<>();
-              ConcurrentHashtable.drain(
-                  state,
-                  drainedLogGroups,
-                  (logGroups, logGroup) -> {
-                    bucketDetached.countDown();
-                    await(releaseDrain);
-                    logGroups.add(logGroup);
-                  });
-              return drainedLogGroups;
-            });
+        new FutureTask<>(() -> {
+          List<LogCollector.RawLogMessage> drainedLogGroups = new ArrayList<>();
+          ConcurrentHashtable.drain(
+              state,
+              drainedLogGroups,
+              (logGroups, logGroup) -> {
+                bucketDetached.countDown();
+                await(releaseDrain);
+                logGroups.add(logGroup);
+              });
+          return drainedLogGroups;
+        });
     Thread drainThread = new Thread(drainTask, "log-collector-drain");
     FutureTask<Void> writerTask =
-        new FutureTask<>(
-            () -> {
-              logCollector.addLogMessage("ERROR", "Second", null);
-              return null;
-            });
+        new FutureTask<>(() -> {
+          logCollector.addLogMessage("ERROR", "Second", null);
+          return null;
+        });
     Thread writerThread = new Thread(writerTask, "log-collector-writer");
 
     // When
@@ -242,14 +240,13 @@ class LogCollectorTest {
     try {
       for (int i = 0; i < threadCount; i++) {
         futures[i] =
-            executor.submit(
-                () -> {
-                  await(start);
-                  for (int occurrence = 0; occurrence < messagesPerThread; occurrence++) {
-                    logCollector.addLogMessage("ERROR", "Message", null);
-                  }
-                  return null;
-                });
+            executor.submit(() -> {
+              await(start);
+              for (int occurrence = 0; occurrence < messagesPerThread; occurrence++) {
+                logCollector.addLogMessage("ERROR", "Message", null);
+              }
+              return null;
+            });
       }
 
       // When
@@ -277,12 +274,11 @@ class LogCollectorTest {
     try {
       for (int i = 0; i < threadCount; i++) {
         futures[i] =
-            executor.submit(
-                () -> {
-                  await(start);
-                  logCollector.addLogMessage("ERROR", "Message", throwableWithMethod("run", 10));
-                  return null;
-                });
+            executor.submit(() -> {
+              await(start);
+              logCollector.addLogMessage("ERROR", "Message", throwableWithMethod("run", 10));
+              return null;
+            });
       }
 
       // When
@@ -312,12 +308,11 @@ class LogCollectorTest {
       for (int i = 0; i < threadCount; i++) {
         String message = "Message " + i;
         futures[i] =
-            executor.submit(
-                () -> {
-                  await(start);
-                  logCollector.addLogMessage("ERROR", message, null);
-                  return null;
-                });
+            executor.submit(() -> {
+              await(start);
+              logCollector.addLogMessage("ERROR", message, null);
+              return null;
+            });
       }
 
       // When
@@ -380,11 +375,10 @@ class LogCollectorTest {
         .as("log group for message %s", message)
         .filteredOn(candidate -> message.equals(candidate.message))
         .singleElement()
-        .satisfies(
-            logGroup -> {
-              assertThat(logGroup.logLevel).isEqualTo("ERROR");
-              assertThat(logGroup.count).isEqualTo(count);
-              assertThat(logGroup.throwable).isNull();
-            });
+        .satisfies(logGroup -> {
+          assertThat(logGroup.logLevel).isEqualTo("ERROR");
+          assertThat(logGroup.count).isEqualTo(count);
+          assertThat(logGroup.throwable).isNull();
+        });
   }
 }

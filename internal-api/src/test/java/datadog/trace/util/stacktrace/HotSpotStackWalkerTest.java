@@ -96,10 +96,9 @@ public class HotSpotStackWalkerTest {
     // Then
     assertFalse(
         list.stream()
-            .anyMatch(
-                stackTraceElement ->
-                    stackTraceElement
-                        .toString()
-                        .equals("java.lang.Iterable.spliterator(Iterable.java:101)")));
+            .anyMatch(stackTraceElement ->
+                stackTraceElement
+                    .toString()
+                    .equals("java.lang.Iterable.spliterator(Iterable.java:101)")));
   }
 }

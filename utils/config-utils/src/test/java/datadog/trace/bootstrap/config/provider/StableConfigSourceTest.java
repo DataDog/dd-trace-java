@@ -141,10 +141,9 @@ public class StableConfigSourceTest extends DDJavaSpecification {
       assertEquals(0, stableCfg.getKeys().size());
       boolean hasExpectedLog =
           listAppender.list.stream()
-              .anyMatch(
-                  event ->
-                      "WARN".equals(event.getLevel().toString())
-                          && event.getFormattedMessage().contains(expectedLogSubstring));
+              .anyMatch(event ->
+                  "WARN".equals(event.getLevel().toString())
+                      && event.getFormattedMessage().contains(expectedLogSubstring));
       assertTrue(hasExpectedLog, "Expected WARN log containing: " + expectedLogSubstring);
     } finally {
       tempFile.delete();

@@ -27,107 +27,94 @@ public class IastSourcesVerticle extends AbstractVerticle {
     router.route().handler(BodyHandler.create());
     router
         .route("/iast/sources/header")
-        .handler(
-            rc -> {
-              final String value = rc.request().getHeader("name");
-              rc.response().end("Received " + value);
-            });
+        .handler(rc -> {
+          final String value = rc.request().getHeader("name");
+          rc.response().end("Received " + value);
+        });
     router
         .route("/iast/sources/headers")
-        .handler(
-            rc -> {
-              final MultiMap value = rc.request().headers();
-              rc.response().end("Received " + value.get("name"));
-            });
+        .handler(rc -> {
+          final MultiMap value = rc.request().headers();
+          rc.response().end("Received " + value.get("name"));
+        });
     router
         .route("/iast/sources/cookie")
-        .handler(
-            rc -> {
-              final Cookie cookie = rc.request().getCookie("name");
-              rc.response().end("Received " + cookie.getName() + " " + cookie.getValue());
-            });
+        .handler(rc -> {
+          final Cookie cookie = rc.request().getCookie("name");
+          rc.response().end("Received " + cookie.getName() + " " + cookie.getValue());
+        });
     router
         .route("/iast/sources/path/:name")
-        .handler(
-            rc -> {
-              final String value = rc.pathParam("name");
-              rc.response().end("Received " + value);
-            });
+        .handler(rc -> {
+          final String value = rc.pathParam("name");
+          rc.response().end("Received " + value);
+        });
     router
         .route("/iast/sources/parameter")
-        .handler(
-            rc -> {
-              final String value = rc.request().getParam("name");
-              rc.response().end("Received " + value);
-            });
+        .handler(rc -> {
+          final String value = rc.request().getParam("name");
+          rc.response().end("Received " + value);
+        });
     router
         .route("/iast/sources/parameters")
-        .handler(
-            rc -> {
-              final MultiMap value = rc.request().params();
-              rc.response().end("Received " + value.get("name"));
-            });
+        .handler(rc -> {
+          final MultiMap value = rc.request().params();
+          rc.response().end("Received " + value.get("name"));
+        });
     router
         .route("/iast/sources/form")
-        .handler(
-            rc -> {
-              final String value = rc.request().getFormAttribute("name");
-              rc.response().end("Received " + value);
-            });
+        .handler(rc -> {
+          final String value = rc.request().getFormAttribute("name");
+          rc.response().end("Received " + value);
+        });
     router
         .route("/iast/sources/body/string")
-        .handler(
-            rc -> {
-              final String encoding = rc.request().getParam("encoding");
-              if (encoding != null) {
-                rc.response().end("Received " + rc.body().asString(encoding));
-              } else {
-                rc.response().end("Received " + rc.body().asString());
-              }
-            });
+        .handler(rc -> {
+          final String encoding = rc.request().getParam("encoding");
+          if (encoding != null) {
+            rc.response().end("Received " + rc.body().asString(encoding));
+          } else {
+            rc.response().end("Received " + rc.body().asString());
+          }
+        });
     router
         .route("/iast/sources/body/json")
-        .handler(
-            rc -> {
-              rc.response().end("Received " + rc.body().asJsonObject());
-            });
+        .handler(rc -> {
+          rc.response().end("Received " + rc.body().asJsonObject());
+        });
     router
         .route("/body/jsonArray")
-        .handler(
-            rc -> {
-              rc.response().end("Received " + rc.body().asJsonArray());
-            });
+        .handler(rc -> {
+          rc.response().end("Received " + rc.body().asJsonArray());
+        });
 
     router
         .route("/iast/sources/eventBus")
-        .handler(
-            rc -> {
-              final JsonObject target = rc.body().asJsonObject();
-              rc.vertx()
-                  .eventBus()
-                  .request(EVENT_BUS_ENDPOINT, target)
-                  .andThen(
-                      reply -> {
-                        if (reply.succeeded()) {
-                          rc.response().end(reply.result().body().toString());
-                        } else {
-                          rc.fail(reply.cause());
-                        }
-                      });
-            });
+        .handler(rc -> {
+          final JsonObject target = rc.body().asJsonObject();
+          rc.vertx()
+              .eventBus()
+              .request(EVENT_BUS_ENDPOINT, target)
+              .andThen(reply -> {
+                if (reply.succeeded()) {
+                  rc.response().end(reply.result().body().toString());
+                } else {
+                  rc.fail(reply.cause());
+                }
+              });
+        });
     router
         .route("/iast/vulnerabilities/insecureCookie")
-        .handler(
-            rc -> {
-              final String cookieName = rc.request().getParam("name");
-              final String cookieValue = rc.request().getParam("value");
-              final String secure = rc.request().getParam("secure");
-              Cookie cookie = Cookie.cookie(cookieName, cookieValue);
-              if ("true".equals(secure)) {
-                cookie.setSecure(true);
-              }
-              rc.response().addCookie(cookie).end("Cookie Set");
-            });
+        .handler(rc -> {
+          final String cookieName = rc.request().getParam("name");
+          final String cookieValue = rc.request().getParam("value");
+          final String secure = rc.request().getParam("secure");
+          Cookie cookie = Cookie.cookie(cookieName, cookieValue);
+          if ("true".equals(secure)) {
+            cookie.setSecure(true);
+          }
+          rc.response().addCookie(cookie).end("Cookie Set");
+        });
 
     final EventBus eventBus = vertx.eventBus();
     eventBus.consumer(
@@ -162,18 +149,16 @@ public class IastSourcesVerticle extends AbstractVerticle {
         .createHttpServer(serverOptions)
         .requestHandler(router)
         .listen(0)
-        .onSuccess(
-            server ->
-                eventBus
-                    .request("PORT_DATA", server.actualPort())
-                    .andThen(
-                        ar -> {
-                          if (ar.succeeded()) {
-                            startPromise.complete();
-                          } else {
-                            startPromise.fail(ar.cause());
-                          }
-                        }))
+        .onSuccess(server ->
+            eventBus
+                .request("PORT_DATA", server.actualPort())
+                .andThen(ar -> {
+                  if (ar.succeeded()) {
+                    startPromise.complete();
+                  } else {
+                    startPromise.fail(ar.cause());
+                  }
+                }))
         .onFailure(startPromise::fail);
   }
 }

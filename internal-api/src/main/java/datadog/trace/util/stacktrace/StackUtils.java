@@ -69,9 +69,8 @@ public abstract class StackUtils {
       final Predicate<StackTraceElement> filterPredicate) {
     int stackCapacity = Config.get().getAppSecMaxStackTraceDepth();
     List<StackTraceElement> elements =
-        StackWalkerFactory.INSTANCE.walk(
-            stream ->
-                stream.filter(filterPredicate).limit(stackCapacity).collect(Collectors.toList()));
+        StackWalkerFactory.INSTANCE.walk(stream ->
+            stream.filter(filterPredicate).limit(stackCapacity).collect(Collectors.toList()));
     return IntStream.range(0, elements.size())
         .mapToObj(idx -> new StackTraceFrame(idx, elements.get(idx)))
         .collect(Collectors.toList());

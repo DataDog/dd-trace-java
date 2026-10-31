@@ -71,16 +71,15 @@ public final class RemoteConfig {
       Predicate<Map<String, Object>> predicate, double timeoutSeconds) {
     AtomicReference<Map<String, Object>> match = new AtomicReference<>();
     new PollingConditions(timeoutSeconds)
-        .eventually(
-            () -> {
-              for (Map<String, Object> request : requests()) {
-                if (predicate.test(request)) {
-                  match.set(request);
-                  return;
-                }
-              }
-              throw new AssertionError("No remote-config poll request matched yet");
-            });
+        .eventually(() -> {
+          for (Map<String, Object> request : requests()) {
+            if (predicate.test(request)) {
+              match.set(request);
+              return;
+            }
+          }
+          throw new AssertionError("No remote-config poll request matched yet");
+        });
     return match.get();
   }
 

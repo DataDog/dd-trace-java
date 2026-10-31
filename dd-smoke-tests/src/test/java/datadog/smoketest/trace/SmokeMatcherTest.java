@@ -199,10 +199,8 @@ class SmokeMatcherTest {
                         .root()
                         .metaStruct(
                             "_dd.stack",
-                            validates(
-                                v ->
-                                    ((List<?>) ((Map<?, ?>) v).get("vulnerability")).size()
-                                        == 99)))));
+                            validates(v ->
+                                ((List<?>) ((Map<?, ?>) v).get("vulnerability")).size() == 99)))));
   }
 
   @Test

@@ -110,11 +110,10 @@ public class CodeOriginTest extends CapturingTestBase {
         .with(InitializationStrategy.NoOp.INSTANCE)
         .with(TypeStrategy.Default.REDEFINE)
         .type(nameStartsWith("com.datadog.debugger."))
-        .transform(
-            (builder, typeDescription, classLoader, module, protectionDomain) ->
-                builder.visit(
-                    Advice.to(CodeOriginTestAdvice.class)
-                        .on(new Conjunction<>(isMethod(), isAnnotatedWith(CodeOrigin.class)))))
+        .transform((builder, typeDescription, classLoader, module, protectionDomain) ->
+            builder.visit(
+                Advice.to(CodeOriginTestAdvice.class)
+                    .on(new Conjunction<>(isMethod(), isAnnotatedWith(CodeOrigin.class)))))
     //        .installOn(instr)
     ;
   }

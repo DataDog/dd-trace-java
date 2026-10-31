@@ -76,10 +76,9 @@ class ScaReachabilityMethodLevelTest {
   void setUp() throws Exception {
     ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
     // Register the same handler as ScaReachabilitySystem.start() does in production
-    ScaReachabilityCallback.register(
-        (vulnId, artifact, version, dotClassName, methodName, line) ->
-            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-                artifact, version, vulnId, dotClassName, methodName, line));
+    ScaReachabilityCallback.register((vulnId, artifact, version, dotClassName, methodName, line) ->
+        ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+            artifact, version, vulnId, dotClassName, methodName, line));
     db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     transformer = new ScaReachabilityTransformer(db, null);
   }

@@ -5,7 +5,7 @@ import org.mule.runtime.api.util.HttpServerTestBridge;
 
 // Advice to call the bridge code that interacts with the test code
 public class HttpServerTestHandlerAdvice {
-  @Advice.OnMethodExit()
+  @Advice.OnMethodExit
   static void onExit(
       @Advice.Argument(value = 0) String requestPath,
       @Advice.Return(readOnly = false) Object[] ret) {

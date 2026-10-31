@@ -18,12 +18,11 @@ class ThreadLocalRecordingTest {
     Map<Thread, List<String>> callsByThread = new ConcurrentHashMap<>();
 
     ThreadLocal<Recording> sink =
-        ThreadLocal.withInitial(
-            () -> {
-              List<String> calls = new ArrayList<>();
-              callsByThread.put(Thread.currentThread(), calls);
-              return recordCalls(calls);
-            });
+        ThreadLocal.withInitial(() -> {
+          List<String> calls = new ArrayList<>();
+          callsByThread.put(Thread.currentThread(), calls);
+          return recordCalls(calls);
+        });
 
     Recording recording = new ThreadLocalRecording(sink);
 
@@ -34,21 +33,20 @@ class ThreadLocalRecordingTest {
 
     for (int i = 0; i < threadCount; i++) {
       threads[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  ready.await();
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                recording.start();
-                recording.reset();
-                recording.stop();
-                recording.flush();
-                done.countDown();
-              });
+          new Thread(() -> {
+            ready.countDown();
+            try {
+              ready.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            recording.start();
+            recording.reset();
+            recording.stop();
+            recording.flush();
+            done.countDown();
+          });
       threads[i].start();
     }
     done.await();

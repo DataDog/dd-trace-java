@@ -59,19 +59,18 @@ public final class MockAgentBackend extends AgentBackend {
   }
 
   private void serverSpecs(JavaTestHttpServer server) {
-    server.handlers(
-        h -> {
-          // Trace endpoints are method-agnostic prefix handlers: the tracer submits
-          // traces with PUT (DDAgentApi), not POST.
-          h.prefix("/info", this::sendInfo);
-          h.prefix("/v1.0/traces", api -> collectTraces(api, TraceFormat.V1));
-          h.prefix("/v0.5/traces", api -> collectTraces(api, TraceFormat.V05));
-          h.prefix("/v0.4/traces", api -> collectTraces(api, TraceFormat.V04));
-          h.prefix("/v0.7/config", this::serveRemoteConfig);
-          h.prefix("/telemetry/proxy", this::collectTelemetry);
-          // Everything else just succeeds.
-          h.all(api -> api.getResponse().status(200).send());
-        });
+    server.handlers(h -> {
+      // Trace endpoints are method-agnostic prefix handlers: the tracer submits
+      // traces with PUT (DDAgentApi), not POST.
+      h.prefix("/info", this::sendInfo);
+      h.prefix("/v1.0/traces", api -> collectTraces(api, TraceFormat.V1));
+      h.prefix("/v0.5/traces", api -> collectTraces(api, TraceFormat.V05));
+      h.prefix("/v0.4/traces", api -> collectTraces(api, TraceFormat.V04));
+      h.prefix("/v0.7/config", this::serveRemoteConfig);
+      h.prefix("/telemetry/proxy", this::collectTelemetry);
+      // Everything else just succeeds.
+      h.all(api -> api.getResponse().status(200).send());
+    });
   }
 
   private void sendInfo(HandlerApi api) {

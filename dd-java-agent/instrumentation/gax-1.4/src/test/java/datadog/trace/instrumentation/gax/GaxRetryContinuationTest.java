@@ -67,16 +67,15 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
       AgentSpan parent = startSpan("gax", "publish");
       CountDownLatch allAttemptsDone = new CountDownLatch(1);
       RetryingFuture<String> future =
-          executor.createFuture(
-              () -> {
-                AgentSpan attempt = startSpan("gax", "attempt");
-                try {
-                  return "ok";
-                } finally {
-                  attempt.finish();
-                  allAttemptsDone.countDown();
-                }
-              });
+          executor.createFuture(() -> {
+            AgentSpan attempt = startSpan("gax", "attempt");
+            try {
+              return "ok";
+            } finally {
+              attempt.finish();
+              allAttemptsDone.countDown();
+            }
+          });
 
       try (ContextScope scope = activateSpan(parent)) {
         future.setAttemptFuture(executor.submit(future));
@@ -104,19 +103,18 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
       AgentSpan parent = startSpan("gax", "publish");
       CountDownLatch allAttemptsDone = new CountDownLatch(3);
       RetryingFuture<String> future =
-          executor.createFuture(
-              () -> {
-                AgentSpan attempt = startSpan("gax", "attempt");
-                try {
-                  if (count.incrementAndGet() < 3) {
-                    throw new RuntimeException("transient");
-                  }
-                  return "ok";
-                } finally {
-                  attempt.finish();
-                  allAttemptsDone.countDown();
-                }
-              });
+          executor.createFuture(() -> {
+            AgentSpan attempt = startSpan("gax", "attempt");
+            try {
+              if (count.incrementAndGet() < 3) {
+                throw new RuntimeException("transient");
+              }
+              return "ok";
+            } finally {
+              attempt.finish();
+              allAttemptsDone.countDown();
+            }
+          });
 
       try (ContextScope scope = activateSpan(parent)) {
         future.setAttemptFuture(executor.submit(future));
@@ -145,16 +143,15 @@ class GaxRetryContinuationTest extends AbstractInstrumentationTest {
       AgentSpan parent = startSpan("gax", "publish");
       CountDownLatch allAttemptsDone = new CountDownLatch(3);
       RetryingFuture<String> future =
-          executor.createFuture(
-              () -> {
-                AgentSpan attempt = startSpan("gax", "attempt");
-                try {
-                  throw new RuntimeException("always fails");
-                } finally {
-                  attempt.finish();
-                  allAttemptsDone.countDown();
-                }
-              });
+          executor.createFuture(() -> {
+            AgentSpan attempt = startSpan("gax", "attempt");
+            try {
+              throw new RuntimeException("always fails");
+            } finally {
+              attempt.finish();
+              allAttemptsDone.countDown();
+            }
+          });
 
       try (ContextScope scope = activateSpan(parent)) {
         future.setAttemptFuture(executor.submit(future));

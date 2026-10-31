@@ -127,22 +127,21 @@ public final class ScaReachabilitySystem {
       String vulnerableClass, Stream<StackTraceElement> stream) {
     boolean[] pastVulnerableClass = {false};
     return stream
-        .filter(
-            frame -> {
-              String cls = frame.getClassName();
-              if (!pastVulnerableClass[0]) {
-                if (cls.equals(vulnerableClass)) {
-                  pastVulnerableClass[0] = true;
-                }
-                return false;
-              }
-              // Skip remaining frames from the vulnerable class itself
-              if (cls.equals(vulnerableClass)) {
-                return false;
-              }
-              // Skip intermediate library frames so we report client code, not a wrapper library
-              return ScaStackExclusionTrie.apply(cls) < 1;
-            })
+        .filter(frame -> {
+          String cls = frame.getClassName();
+          if (!pastVulnerableClass[0]) {
+            if (cls.equals(vulnerableClass)) {
+              pastVulnerableClass[0] = true;
+            }
+            return false;
+          }
+          // Skip remaining frames from the vulnerable class itself
+          if (cls.equals(vulnerableClass)) {
+            return false;
+          }
+          // Skip intermediate library frames so we report client code, not a wrapper library
+          return ScaStackExclusionTrie.apply(cls) < 1;
+        })
         .findFirst()
         .orElse(null);
   }

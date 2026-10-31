@@ -25,12 +25,11 @@ class ProcessSupervisorTest {
 
     ProcessSupervisor processSupervisor = new ProcessSupervisor("test", processBuilder);
 
-    conditions.eventually(
-        () -> {
-          Process process = processSupervisor.getCurrentProcess();
-          assertNotNull(process);
-          assertTrue(process.isAlive());
-        });
+    conditions.eventually(() -> {
+      Process process = processSupervisor.getCurrentProcess();
+      assertNotNull(process);
+      assertTrue(process.isAlive());
+    });
 
     // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit
     // code
@@ -44,12 +43,11 @@ class ProcessSupervisorTest {
     processSupervisor.close();
 
     assertNotNull(oldProcess);
-    conditions.eventually(
-        () -> {
-          assertFalse(oldProcess.isAlive());
-          Process process = processSupervisor.getCurrentProcess();
-          assertTrue(process == null || !process.isAlive());
-        });
+    conditions.eventually(() -> {
+      assertFalse(oldProcess.isAlive());
+      Process process = processSupervisor.getCurrentProcess();
+      assertTrue(process == null || !process.isAlive());
+    });
   }
 
   @Test
@@ -59,12 +57,11 @@ class ProcessSupervisorTest {
 
     ProcessSupervisor processSupervisor = new ProcessSupervisor("test", processBuilder);
 
-    conditions.eventually(
-        () -> {
-          Process process = processSupervisor.getCurrentProcess();
-          assertNotNull(process);
-          assertTrue(process.isAlive());
-        });
+    conditions.eventually(() -> {
+      Process process = processSupervisor.getCurrentProcess();
+      assertNotNull(process);
+      assertTrue(process.isAlive());
+    });
 
     // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit
     // code
@@ -73,14 +70,13 @@ class ProcessSupervisorTest {
     firstProcess.destroyForcibly();
 
     assertNotNull(firstProcess);
-    conditions.eventually(
-        () -> {
-          assertFalse(firstProcess.isAlive());
-          Process process = processSupervisor.getCurrentProcess();
-          assertNotNull(process);
-          assertNotEquals(firstProcess, process);
-          assertTrue(process.isAlive());
-        });
+    conditions.eventually(() -> {
+      assertFalse(firstProcess.isAlive());
+      Process process = processSupervisor.getCurrentProcess();
+      assertNotNull(process);
+      assertNotEquals(firstProcess, process);
+      assertTrue(process.isAlive());
+    });
 
     // code coverage: give the supervisor thread a reasonable chance to start waiting for the exit
     // code
@@ -89,11 +85,10 @@ class ProcessSupervisorTest {
     processSupervisor.close();
 
     assertNotNull(secondProcess);
-    conditions.eventually(
-        () -> {
-          assertFalse(secondProcess.isAlive());
-          Process process = processSupervisor.getCurrentProcess();
-          assertTrue(process == null || !process.isAlive());
-        });
+    conditions.eventually(() -> {
+      assertFalse(secondProcess.isAlive());
+      Process process = processSupervisor.getCurrentProcess();
+      assertTrue(process == null || !process.isAlive());
+    });
   }
 }
