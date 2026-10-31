@@ -45,3 +45,20 @@ All three injected phases currently violate the model. In each case the healthy
 listener misses the failed phase and replay reports no change, so delivery is
 never retried. The `remove` and `commit` failures are distinct additions to the
 previously known `accept` failure.
+
+## Telemetry retry ownership
+
+`TelemetryServiceStateMachineTest` generates event additions and successful or
+failed sends. It extracts event identifiers from the real serialized request
+body and compares them with an independent queued/retry-buffered/delivered/drop
+model.
+
+The current minimal counterexample is:
+
+```text
+SEND_FAILURE -> ADD -> SEND_SUCCESS
+```
+
+The first empty failed request creates an empty retry buffer. The next send
+retries an empty heartbeat instead of taking the newly queued event, then
+returns `false` even though that event remains queued.
