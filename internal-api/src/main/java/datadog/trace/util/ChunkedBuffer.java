@@ -13,8 +13,8 @@ import java.util.List;
  * collector: G1 treats anything over half a region as humongous (1 MB regions on heaps up to about
  * 2 GB), Shenandoah anything over a region, and ZGC moves anything over 256 KiB off its small
  * pages. Humongous objects sit in old gen, are never compacted, and push the collector toward
- * concurrent cycles. Each chunk here is an array of {@link #CHUNK_SIZE} bytes, a whole object of at
- * most 256 KiB for any array header layout, which is regular-sized on all of them.
+ * concurrent cycles. Each chunk here is an array of at most {@link #CHUNK_SIZE} bytes, a whole
+ * object of at most 256 KiB for any array header layout, which is regular-sized on all of them.
  *
  * <p><b>Messages, marks and rewinding.</b> Callers write a message, then call {@link #mark()} to
  * complete it. {@link #rewind()} drops everything written since the last mark, so a message that
@@ -36,6 +36,10 @@ import java.util.List;
  * so the buffer holds exactly as much as a single array of the same capacity would. The last chunk
  * is only as long as the remaining capacity, so a small buffer is a single small chunk.
  *
+ * <p><b>Small payloads stay small.</b> Chunks start at {@link #DEFAULT_FIRST_CHUNK_SIZE} and double
+ * up to {@link #CHUNK_SIZE}, so a buffer whose payloads are usually a few KB holds a few KB rather
+ * than a whole chunk. A large payload reaches full-size chunks after about 250 KB.
+ *
  * <p><b>Retention.</b> Chunks are allocated on first use. {@link #reset()} keeps the chunks that
  * held completed data plus half of any surplus kept from the previous reset, so after a burst the
  * extra chunks drain over a few resets instead of all at once. Payloads that vary in size don't
@@ -54,10 +58,17 @@ public class ChunkedBuffer {
    */
   public static final int CHUNK_SIZE = 256 * 1024 - 32;
 
+  /** The size of the first chunk unless another is given; later chunks double. */
+  public static final int DEFAULT_FIRST_CHUNK_SIZE = 4 * 1024;
+
   /** Where writes go once the buffer has failed; reused from the start whenever it fills. */
   private static final int SCRATCH_SIZE = 64;
 
+  /** The smallest first chunk: large enough that any primitive fits in a fresh chunk. */
+  private static final int MIN_FIRST_CHUNK_SIZE = 64;
+
   private final int maxBytes;
+  private final int firstChunkSize;
   private final int maxChunks;
   private final byte[][] chunks;
   private final ByteBuffer[] views;
@@ -88,9 +99,18 @@ public class ChunkedBuffer {
    * @param maxBytes the most data the buffer may hold
    */
   public ChunkedBuffer(int maxBytes) {
+    this(maxBytes, DEFAULT_FIRST_CHUNK_SIZE);
+  }
+
+  /**
+   * @param maxBytes the most data the buffer may hold
+   * @param firstChunkSize the size of the first chunk; each later chunk doubles, up to {@link
+   *     #CHUNK_SIZE}
+   */
+  public ChunkedBuffer(int maxBytes, int firstChunkSize) {
     this.maxBytes = Math.max(0, maxBytes);
-    // each chunk may leave up to 7 bytes unused, so allow for one more chunk than whole chunks
-    this.maxChunks = this.maxBytes == 0 ? 0 : this.maxBytes / (CHUNK_SIZE - 7) + 1;
+    this.firstChunkSize = Math.max(MIN_FIRST_CHUNK_SIZE, Math.min(CHUNK_SIZE, firstChunkSize));
+    this.maxChunks = chunksNeeded();
     this.chunks = new byte[maxChunks][];
     this.views = new ByteBuffer[maxChunks];
     this.fills = new int[maxChunks];
@@ -306,7 +326,7 @@ public class ChunkedBuffer {
       fail();
       return 0;
     }
-    int length = Math.min(CHUNK_SIZE, remaining);
+    int length = Math.min(chunkSize(next), remaining);
     if (next == allocatedChunks) {
       ++allocatedChunks;
       allocate(next, length);
@@ -318,6 +338,26 @@ public class ChunkedBuffer {
     limits[next] = Math.min(chunks[next].length, remaining);
     moveTo(next);
     return 0;
+  }
+
+  /** The full size of the chunk at {@code index}: doubling from the first chunk, up to the max. */
+  private int chunkSize(int index) {
+    long size = (long) firstChunkSize << Math.min(index, 31);
+    return (int) Math.min(CHUNK_SIZE, size);
+  }
+
+  /** Enough chunks to hold {@code maxBytes} even if each leaves up to 7 bytes unused. */
+  private int chunksNeeded() {
+    if (maxBytes == 0) {
+      return 0;
+    }
+    long covered = 0;
+    int count = 0;
+    while (covered < maxBytes) {
+      covered += chunkSize(count) - 7;
+      ++count;
+    }
+    return count + 1;
   }
 
   private void allocate(int index, int length) {
