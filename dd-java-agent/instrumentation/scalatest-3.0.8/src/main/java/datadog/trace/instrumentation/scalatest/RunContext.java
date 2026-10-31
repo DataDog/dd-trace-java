@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.scalatest;
 
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.NoAutoRetry;
+import datadog.trace.api.civisibility.PreventFailureSuppression;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
@@ -81,6 +83,17 @@ public class RunContext {
     return tagsByTest.getOrDefault(test, Collections.emptyList());
   }
 
+  /** Exclusions are the only new traits exposed by this integration. */
+  public Collection<String> exclusionTags(TestIdentifier test) {
+    Collection<String> exclusions = new ArrayList<>();
+    for (String tag : tags(test)) {
+      if (NoAutoRetry.TAG.equals(tag) || PreventFailureSuppression.TAG.equals(tag)) {
+        exclusions.add(tag);
+      }
+    }
+    return exclusions;
+  }
+
   public void populateTags(
       String suiteId,
       Map<String, Set<String>> tags,
@@ -116,7 +129,7 @@ public class RunContext {
     String testName = testNameAndSkipStatus._1();
     TestIdentifier test = new TestIdentifier(suiteId, testName, null);
 
-    SkipReason skipReason = eventHandler.skipReason(test);
+    SkipReason skipReason = eventHandler.skipReason(test, TestSourceData.UNKNOWN, tags(test));
     if (skipReason == null || skipReason == SkipReason.ITR && itrUnskippable(test)) {
       return testNameAndSkipStatus;
     }
@@ -138,7 +151,7 @@ public class RunContext {
   }
 
   public boolean skip(TestIdentifier test, Map<String, Set<String>> tags) {
-    SkipReason skipReason = eventHandler.skipReason(test);
+    SkipReason skipReason = eventHandler.skipReason(test, TestSourceData.UNKNOWN, tags(test));
     if (skipReason == null) {
       return false;
     }
