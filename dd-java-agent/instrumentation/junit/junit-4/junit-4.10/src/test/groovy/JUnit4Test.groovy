@@ -1,3 +1,6 @@
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES
+
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
@@ -14,6 +17,65 @@ import org.junit.runner.JUnitCore
 class JUnit4Test extends CiVisibilityInstrumentationTest {
 
   def runner = new JUnitCore()
+
+  def "test automation exclusions preserve a blocking failure and execute once"() {
+    given:
+    TestAutomationExcluded.executions = 0
+    def id = new TestFQN("org.example.TestAutomationExcluded", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcluded], false)
+
+    then:
+    TestAutomationExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_failure" }
+    testSpan != null
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+  }
+
+  def "test automation exclusions with bracketed parameter labels"() {
+    given:
+    TestAutomationExcludedBracketedParameters.excludedExecutions = 0
+    TestAutomationExcludedBracketedParameters.controlExecutions = 0
+    injectSysConfig(CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, "false")
+    // Java ATR config counts all executions, including the original attempt.
+    injectSysConfig(CIVISIBILITY_FLAKY_RETRY_COUNT, "3")
+    givenFlakyRetryEnabled(true)
+
+    when:
+    runTests([TestAutomationExcludedBracketedParameters], false)
+
+    then:
+    [excluded: TestAutomationExcludedBracketedParameters.excludedExecutions,
+      control: TestAutomationExcludedBracketedParameters.controlExecutions] == [excluded: 2, control: 6]
+    def testSpans = TEST_WRITER.toList().flatten()
+    def excludedSpans = testSpans.findAll { it.getTag("test.name")?.startsWith("excluded_failure") }
+    def controlSpans = testSpans.findAll { it.getTag("test.name")?.startsWith("control_failure") }
+    excludedSpans.size() == 2
+    controlSpans.size() == 6
+    excludedSpans.every { it.getTag("test.test_management.no_auto_retry") == true }
+    excludedSpans.every { it.getTag("test.is_retry") == null }
+    excludedSpans.every { it.getTag("test.source.method") == "excluded_failure()V" }
+    excludedSpans.collect { [it.getTag("test.name"), it.getTag("test.parameters")] }.toSet() == [
+      ["excluded_failure[", '{"metadata":{"test_name":"excluded_failure[[value]]"}}'],
+      ["excluded_failure", '{"metadata":{"test_name":"excluded_failure[line\\nvalue]"}}']
+    ].toSet()
+    controlSpans.every { it.getTag("test.test_management.no_auto_retry") == null }
+    controlSpans.count { it.getTag("test.is_retry") == true } == 4
+    controlSpans.groupBy { it.getTag("test.parameters") }.values().every { it.size() == 3 }
+  }
 
   def "test #testcaseName"() {
     runTests(tests, success)

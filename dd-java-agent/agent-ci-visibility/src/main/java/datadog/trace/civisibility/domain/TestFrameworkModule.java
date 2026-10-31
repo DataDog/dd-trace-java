@@ -45,6 +45,9 @@ public interface TestFrameworkModule {
   @Nullable
   SkipReason skipReason(TestIdentifier test);
 
+  @Nullable
+  SkipReason skipReason(TestIdentifier test, TestSourceData source, Collection<String> tags);
+
   @Nonnull
   TestExecutionPolicy executionPolicy(
       TestIdentifier test, TestSourceData testSource, Collection<String> testTags);
