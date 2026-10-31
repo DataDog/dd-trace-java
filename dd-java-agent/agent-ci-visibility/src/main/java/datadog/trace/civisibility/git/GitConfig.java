@@ -2,8 +2,10 @@ package datadog.trace.civisibility.git;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,7 +32,9 @@ public class GitConfig {
     //   url = https://some-host/user/repository.git
     // 	 fetch = +refs/heads/*:refs/remotes/origin/*
 
-    try (final BufferedReader br = new BufferedReader(new FileReader(path))) {
+    try (final BufferedReader br =
+        new BufferedReader(
+            new InputStreamReader(new FileInputStream(path), StandardCharsets.UTF_8))) {
       String line;
       String section = null;
       while ((line = br.readLine()) != null) {

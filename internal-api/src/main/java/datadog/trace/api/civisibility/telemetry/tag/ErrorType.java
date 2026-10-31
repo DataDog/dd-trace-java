@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.telemetry.tag;
 
 import datadog.trace.api.civisibility.telemetry.TagValue;
+import java.util.Locale;
 
 /** The type of HTTP request error */
 public enum ErrorType implements TagValue {
@@ -12,7 +13,7 @@ public enum ErrorType implements TagValue {
   private final String s;
 
   ErrorType() {
-    s = "error_type:" + name().toLowerCase();
+    s = "error_type:" + name().toLowerCase(Locale.ROOT);
   }
 
   @Override

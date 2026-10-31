@@ -4,6 +4,7 @@ import com.datadog.profiling.controller.ProfilerSettingsSupport;
 import com.datadog.profiling.ddprof.DatadogProfiler;
 import datadog.common.version.VersionInfo;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Locale;
 
 public class DatadogProfilerSettings extends ProfilerSettingsSupport {
 
@@ -42,7 +43,7 @@ public class DatadogProfilerSettings extends ProfilerSettingsSupport {
     datadogProfiler.recordSetting(
         PROFILER_ACTIVATION, profilerActivationSetting.enablement.getAlias());
     datadogProfiler.recordSetting(
-        SSI_MECHANISM, profilerActivationSetting.ssiMechanism.name().toLowerCase());
+        SSI_MECHANISM, profilerActivationSetting.ssiMechanism.name().toLowerCase(Locale.ROOT));
   }
 
   @Override

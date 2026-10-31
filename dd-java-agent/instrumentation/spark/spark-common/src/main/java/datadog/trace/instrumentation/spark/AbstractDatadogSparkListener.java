@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -33,6 +34,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -593,7 +595,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       jobSpan.setTag(DDTags.ERROR_TYPE, "Spark Job Failed");
 
       // Only propagate the error to the application if it is not a cancellation
-      if (errorMessage != null && !errorMessage.toLowerCase().contains("cancelled")) {
+      if (errorMessage != null && !errorMessage.toLowerCase(Locale.ROOT).contains("cancelled")) {
         lastJobFailed = true;
         lastJobFailedMessage = errorMessage;
         lastJobFailedStackTrace = errorStackTrace;
@@ -826,7 +828,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         ExceptionFailure exceptionFailure = (ExceptionFailure) reason;
 
         taskSpan.setErrorMessage(
-            String.format("%s: %s", exceptionFailure.className(), exceptionFailure.description()));
+            Strings.format("%s: %s", exceptionFailure.className(), exceptionFailure.description()));
         taskSpan.setTag(DDTags.ERROR_STACK, exceptionFailure.fullStackTrace());
       } else {
         taskSpan.setErrorMessage(reason.toErrorString());
@@ -1520,7 +1522,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     // check if this is a kafka source
-    if (progress.description().toLowerCase().startsWith("kafka")) {
+    if (progress.description().toLowerCase(Locale.ROOT).startsWith("kafka")) {
       try {
         // parse offsets from endOffsets json, reported in a format:
         // "topic" -> ["partition":value]

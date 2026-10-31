@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.util.Strings;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class InstrumenterMetrics {
@@ -205,9 +206,9 @@ public final class InstrumenterMetrics {
   private static void summarize(StringBuilder buf, String prefix, AtomicLong stat) {
     long value = stat.get();
     buf.append(prefix)
-        .append(String.format("%-12d", value >>> COUNT_SHIFT))
+        .append(Strings.format("%-12d", value >>> COUNT_SHIFT))
         .append(' ')
-        .append(String.format("%.1f", (value & NANOS_MASK) / 1_000_000.0))
+        .append(Strings.format("%.1f", (value & NANOS_MASK) / 1_000_000.0))
         .append(" ms\n");
   }
 }

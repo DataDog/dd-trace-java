@@ -36,12 +36,14 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.util.RandomUtils;
 import datadog.trace.util.Strings;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.instrument.ClassFileTransformer;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -54,6 +56,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -553,7 +556,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   private synchronized void writeToInstrumentationLog(String classFilePath) {
-    try (FileWriter writer = new FileWriter("/tmp/debugger/instrumentation.log", true)) {
+    try (OutputStreamWriter writer =
+        new OutputStreamWriter(
+            new FileOutputStream("/tmp/debugger/instrumentation.log", true),
+            StandardCharsets.UTF_8)) {
       writer.write(classFilePath);
       writer.write("\n");
     } catch (Exception ex) {
@@ -670,7 +676,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
         analyzer.analyze(classNode.name, method);
       } catch (AnalyzerException e) {
         printWriter.printf(
-            "Error analyzing method '%s.%s%s':%n", classNode.name, method.name, method.desc);
+            Locale.ROOT,
+            "Error analyzing method '%s.%s%s':%n",
+            classNode.name,
+            method.name,
+            method.desc);
         e.printStackTrace(printWriter);
       }
     }
@@ -759,7 +769,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (methodName != null) {
       String signature = definition.getWhere().getSignature();
       signature = signature == null ? "" : signature;
-      String msg = String.format(CANNOT_FIND_METHOD, className, methodName, signature);
+      String msg = Strings.format(CANNOT_FIND_METHOD, className, methodName, signature);
       reportErrorForAllProbes(singletonList(definition), msg);
       return;
     }
@@ -769,7 +779,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   private void reportInstrumentationFails(
       List<ProbeDefinition> definitions, String className, String errorMsg) {
-    String msg = String.format(INSTRUMENTATION_FAILS, className, errorMsg);
+    String msg = Strings.format(INSTRUMENTATION_FAILS, className, errorMsg);
     reportErrorForAllProbes(definitions, msg);
   }
 

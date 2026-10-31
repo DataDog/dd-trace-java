@@ -7,11 +7,13 @@ import datadog.environment.SystemProperties;
 import datadog.logging.IOLogger;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.Strings;
 import datadog.trace.util.TempLocationManager;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -88,7 +90,8 @@ public class JfrCliHelper {
 
         asyncRedirect.get();
 
-        stdout = lineSeparatorRegex.split(out.toString());
+        // The subprocess writes its output in the platform encoding.
+        stdout = lineSeparatorRegex.split(out.toString(Charset.defaultCharset().name()));
       } finally {
         process.destroy();
       }
@@ -132,7 +135,7 @@ public class JfrCliHelper {
           .forEach(
               event -> {
                 ioLogger.error(
-                    String.format(
+                    Strings.format(
                         "Event: %s, size = %d, count = %d",
                         event.getType(), event.getSize(), event.getCount()));
               });

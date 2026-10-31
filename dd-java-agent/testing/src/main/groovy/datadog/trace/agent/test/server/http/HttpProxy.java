@@ -11,6 +11,7 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -93,9 +94,10 @@ public final class HttpProxy implements Closeable {
     public void run() {
       try {
         BufferedReader clientToProxyIn =
-            new BufferedReader(new InputStreamReader(clientToProxy.getInputStream()));
+            new BufferedReader(
+                new InputStreamReader(clientToProxy.getInputStream(), StandardCharsets.ISO_8859_1));
         OutputStreamWriter clientToProxyOut =
-            new OutputStreamWriter(clientToProxy.getOutputStream());
+            new OutputStreamWriter(clientToProxy.getOutputStream(), StandardCharsets.ISO_8859_1);
 
         String requestString = clientToProxyIn.readLine();
         System.out.println("Request Received " + requestString);

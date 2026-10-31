@@ -4,7 +4,6 @@ import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
 import static com.datadog.debugger.probe.LogProbe.CoordinatedSamplingState.Status.DROP;
 import static com.datadog.debugger.probe.LogProbe.CoordinatedSamplingState.Status.EMIT;
 import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.RATE_LIMIT;
-import static java.lang.String.format;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
@@ -47,6 +46,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
@@ -1173,7 +1173,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       TracerAPI tracer = AgentTracer.get();
       AgentSpan span = tracer != null ? tracer.activeSpan() : null;
       if (span != null) {
-        span.getLocalRootSpan().setTag(format("_dd.ld.probe_id.%s", id), budgetLevel.get());
+        span.getLocalRootSpan().setTag(Strings.format("_dd.ld.probe_id.%s", id), budgetLevel.get());
       }
     }
   }

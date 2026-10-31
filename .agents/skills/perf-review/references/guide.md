@@ -128,7 +128,18 @@ every call. Fix: `static final Pattern`.
 
 **`String.format` / format-string parsing.** Re-parses and allocates per call. Fix: direct
 concatenation, or pre-compute the result. Also watch for locale-dependent formatting crossing the
-wire — a correctness issue on top of the perf one.
+wire - a correctness issue on top of the perf one.
+
+**Explicit locales and charsets.**
+
+- Overloads that use an implicit locale or charset are forbidden.
+- Use:
+  - `Strings.format(...)` for machine-readable formatting where `internal-api` is available.
+  - `Locale.ROOT` for case conversion and direct JDK formatting.
+  - The protocol's charset, usually `StandardCharsets.UTF_8`, for byte conversions.
+  - An explicit JVM default or a narrowly scoped `@SuppressForbidden`, with a comment explaining
+    why the default is intentional.
+- `Strings.format(...)` retains `String.format`'s parsing and allocation costs.
 
 **`Config.get()` per call.** Walks a config-resolution chain; not a free read. Fix: hoist to a
 `static final` field at class initialization. This is the single most recurring DBM finding —

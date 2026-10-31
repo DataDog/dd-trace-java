@@ -39,6 +39,7 @@ import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -195,7 +196,7 @@ public class ValueScript implements DebuggerScript<Value<?>> {
       @Override
       public Void visit(ComparisonOperator operator) {
         try {
-          jsonWriter.name(operator.name().toLowerCase());
+          jsonWriter.name(operator.name().toLowerCase(Locale.ROOT));
         } catch (IOException e) {
           throw new RuntimeException(e);
         }

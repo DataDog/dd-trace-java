@@ -1,6 +1,7 @@
 package datadog.trace.api.intake;
 
 import datadog.trace.api.Config;
+import datadog.trace.util.Strings;
 import java.util.function.Function;
 
 public enum Intake {
@@ -53,10 +54,10 @@ public enum Intake {
   public String getAgentlessUrl(Config config) {
     String custom = customUrl.apply(config);
     if (custom != null && !custom.isEmpty()) {
-      return String.format("%s/api/%s/", custom, version);
+      return Strings.format("%s/api/%s/", custom, version);
     } else {
       String site = config.getSite();
-      return String.format("https://%s.%s/api/%s/", urlPrefix, site, version);
+      return Strings.format("https://%s.%s/api/%s/", urlPrefix, site, version);
     }
   }
 }

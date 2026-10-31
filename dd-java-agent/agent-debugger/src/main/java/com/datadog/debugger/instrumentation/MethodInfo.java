@@ -61,7 +61,7 @@ public class MethodInfo {
 
   @Override
   public String toString() {
-    return String.format(
+    return Strings.format(
         "MethodInfo{classNode=%s, methodNode=%s}", classNode.name, methodNode.desc);
   }
 }

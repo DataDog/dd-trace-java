@@ -13,6 +13,7 @@ import datadog.trace.context.TraceScope;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -241,7 +242,9 @@ public abstract class ProfilerSettingsSupport {
           // we are expecting just a single line output from `getenforce`, so we can avoid draining
           // stdout/stderr asynchronously
           try (BufferedReader reader =
-              new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+              // The native getenforce command uses the platform encoding.
+              new BufferedReader(
+                  new InputStreamReader(process.getInputStream(), Charset.defaultCharset()))) {
             String line = reader.readLine();
 
             if (line != null) {

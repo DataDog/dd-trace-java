@@ -1,7 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.Types.REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE;
-import static java.lang.String.format;
 import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getObjectType;
 
@@ -15,6 +14,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -65,10 +65,10 @@ public class ASMHelper {
     File output;
     int count = 0;
     do {
-      output = new File(format("build/%s-%d-%s.txt", method, count++, suffix));
+      output = new File(Strings.format("build/%s-%d-%s.txt", method, count++, suffix));
     } while (output.exists());
     output.getParentFile().mkdirs();
-    try (PrintWriter writer = new PrintWriter(output)) {
+    try (PrintWriter writer = new PrintWriter(output, StandardCharsets.UTF_8.name())) {
       writer.println(content);
       String absolutePath = output.getAbsolutePath();
       absolutePath = absolutePath.substring(0, absolutePath.lastIndexOf('.'));
@@ -91,9 +91,9 @@ public class ASMHelper {
     classNode.accept(new TraceClassVisitor(null, new Textifier(), new PrintWriter(writer)));
     List<String> strings = Arrays.asList(writer.toString().split("\n"));
     for (int i = 0; i < strings.size(); i++) {
-      if (strings.get(i).matches(format(".*(private|public).* %s\\(.*", method))) {
+      if (strings.get(i).matches(Strings.format(".*(private|public).* %s\\(.*", method))) {
         while (!strings.get(i).equals(""))
-          joiner.add(String.format("[%3d] %s", i, strings.get(i++)));
+          joiner.add(Strings.format("[%3d] %s", i, strings.get(i++)));
       }
     }
     return joiner.toString();
@@ -392,10 +392,10 @@ public class ASMHelper {
   public static String toString(AbstractInsnNode node) {
     String opcode = node.getOpcode() >= 0 ? Printer.OPCODES[node.getOpcode()] : node.toString();
     if (node instanceof LineNumberNode) {
-      return String.format("LineNumber: %s", ((LineNumberNode) node).line);
+      return Strings.format("LineNumber: %s", ((LineNumberNode) node).line);
     } else if (node instanceof MethodInsnNode) {
       MethodInsnNode method = (MethodInsnNode) node;
-      return String.format("%s: [%s] %s", opcode, method.name, method.desc);
+      return Strings.format("%s: [%s] %s", opcode, method.name, method.desc);
     } else {
       return opcode;
     }

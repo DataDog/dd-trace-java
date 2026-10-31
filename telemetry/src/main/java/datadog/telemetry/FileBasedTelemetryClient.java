@@ -1,6 +1,7 @@
 package datadog.telemetry;
 
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -76,7 +77,7 @@ public class FileBasedTelemetryClient extends TelemetryClient {
   private void writeFileAtomically(byte[] data) throws IOException {
     long seq = sequence.getAndIncrement();
     String pid = PidHelper.getPid();
-    String filename = String.format("telemetry-%020d-%s.json", seq, pid);
+    String filename = Strings.format("telemetry-%020d-%s.json", seq, pid);
     File target = new File(outputDir, filename);
     File tmp = new File(outputDir, filename + ".tmp");
 

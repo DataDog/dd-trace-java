@@ -2,6 +2,7 @@ package datadog.trace.test.util;
 
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.test.util.ThreadUtils.ThrowingRunnable;
+import java.util.Locale;
 
 /**
  * A small Java port of Spock's {@code spock.util.concurrent.PollingConditions}. It repeatedly
@@ -112,8 +113,10 @@ public class PollingConditions {
     }
     throw new AssertionError(
         String.format(
+            Locale.ROOT,
             "Condition not satisfied after %1.2f seconds and %d attempts",
-            elapsed / 1000d, attempts),
+            elapsed / 1000d,
+            attempts),
         lastFailure);
   }
 
