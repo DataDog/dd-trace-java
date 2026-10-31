@@ -1,0 +1,10 @@
+/opt/java/openjdk/bin/java
+-Xms512m
+-Xmx512m
+-XX:+UseG1GC
+-Dbench.https.cert=rsa
+-DPORT=18080
+-DHTTPS_PORT=18443
+-cp
+<repo>/dd-java-agent/benchmark-crypto-provider-app/build/app/lib/*:<repo>/dd-java-agent/benchmark-crypto-provider-app/build/accp/AmazonCorrettoCryptoProvider-2.5.0-linux-aarch_64.jar
+com.example.cryptobench.CryptoBenchApplication

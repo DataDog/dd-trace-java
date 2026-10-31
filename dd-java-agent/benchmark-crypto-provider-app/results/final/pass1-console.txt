@@ -1,0 +1,154 @@
+== starting fake trace agent on 18126
+== [noagent] startup x5
+  noagent    startup discarded run: 789.1 ms
+  noagent    startup run 1: 802.6 ms
+  noagent    startup run 2: 806.7 ms
+  noagent    startup run 3: 813.3 ms
+  noagent    startup run 4: 821.4 ms
+  noagent    startup run 5: 789.0 ms
+== [noagent] verify + load: warmup 15s + 30s per endpoint, 8 connections
+  noagent      verify nocrypto      field0=0;field1=31;field2=62;field3=93;field4=124;field5=...
+  noagent      verify jwt           valid {"sub":"bench-user","iss":"https://issuer.example",...
+  noagent      verify jwt-tampered  invalid
+  noagent      verify aesgcm-n7     4112 bd78211b22a822f78975ca35b56ae63e
+  noagent      verify aesgcm-n42    4112 fe3d5d488acafa0f25486eec0d976df5
+  noagent      verify tls13         ok
+  noagent      verify tls12         ok
+  noagent      provider Cipher.AES/GCM/NoPadding = SunJCE
+  noagent      provider KeyAgreement.ECDH = SunEC
+  noagent      provider KeyAgreement.XDH = SunEC
+  noagent      provider Mac.HmacSHA256 = SunJCE
+  noagent      provider MessageDigest.SHA-256 = SUN
+  noagent      provider Signature.SHA256withRSA = SunRsaSign
+  noagent      provider jwtKeyClass = sun.security.rsa.RSAPublicKeyImpl
+  noagent      provider position1 = SUN
+  noagent      provider providerCount = 12
+  noagent      nocrypto       78305 req/s  p50     94.4 us  p99    266.1 us  cpu    19.0 us/req  errors 0
+  noagent      jwt            49654 req/s  p50    121.0 us  p99   1157.7 us  cpu    44.0 us/req  errors 0
+  noagent      aesgcm         67095 req/s  p50    108.8 us  p99    527.4 us  cpu    23.2 us/req  errors 0
+  noagent      tls             2311 req/s  p50   3287.4 us  p99   6990.6 us  cpu   875.9 us/req  errors 0
+== [agent] startup x5
+  agent      startup discarded run: 1483.6 ms
+  agent      startup run 1: 1443.2 ms
+  agent      startup run 2: 1465.4 ms
+  agent      startup run 3: 1463.9 ms
+  agent      startup run 4: 1477.0 ms
+  agent      startup run 5: 1450.4 ms
+== [agent] verify + load: warmup 15s + 30s per endpoint, 8 connections
+  agent        verify nocrypto      field0=0;field1=31;field2=62;field3=93;field4=124;field5=...
+  agent        verify jwt           valid {"sub":"bench-user","iss":"https://issuer.example",...
+  agent        verify jwt-tampered  invalid
+  agent        verify aesgcm-n7     4112 bd78211b22a822f78975ca35b56ae63e
+  agent        verify aesgcm-n42    4112 fe3d5d488acafa0f25486eec0d976df5
+  agent        verify tls13         ok
+  agent        verify tls12         ok
+  agent        provider Cipher.AES/GCM/NoPadding = SunJCE
+  agent        provider KeyAgreement.ECDH = SunEC
+  agent        provider KeyAgreement.XDH = SunEC
+  agent        provider Mac.HmacSHA256 = SunJCE
+  agent        provider MessageDigest.SHA-256 = SUN
+  agent        provider Signature.SHA256withRSA = SunRsaSign
+  agent        provider jwtKeyClass = sun.security.rsa.RSAPublicKeyImpl
+  agent        provider position1 = SUN
+  agent        provider providerCount = 12
+  agent        nocrypto       65688 req/s  p50    107.6 us  p99    620.1 us  cpu    25.7 us/req  errors 0
+  agent        jwt            45463 req/s  p50    128.9 us  p99   1466.8 us  cpu    51.2 us/req  errors 0
+  agent        aesgcm         64268 req/s  p50     92.5 us  p99    701.6 us  cpu    28.3 us/req  errors 0
+  agent        tls             2226 req/s  p50   3432.3 us  p99   7095.8 us  cpu   895.6 us/req  errors 0
+  fake agent has received 1548 trace payloads so far
+== [agent-accp] startup x5
+  agent-accp startup discarded run: 1379.6 ms
+  agent-accp startup run 1: 1435.9 ms
+  agent-accp startup run 2: 1460.7 ms
+  agent-accp startup run 3: 1433.5 ms
+  agent-accp startup run 4: 1403.1 ms
+  agent-accp startup run 5: 1400.9 ms
+== [agent-accp] verify + load: warmup 15s + 30s per endpoint, 8 connections
+  agent-accp   verify nocrypto      field0=0;field1=31;field2=62;field3=93;field4=124;field5=...
+  agent-accp   verify jwt           valid {"sub":"bench-user","iss":"https://issuer.example",...
+  agent-accp   verify jwt-tampered  invalid
+  agent-accp   verify aesgcm-n7     4112 bd78211b22a822f78975ca35b56ae63e
+  agent-accp   verify aesgcm-n42    4112 fe3d5d488acafa0f25486eec0d976df5
+  agent-accp   verify tls13         ok
+  agent-accp   verify tls12         ok
+  agent-accp   provider Cipher.AES/GCM/NoPadding = AmazonCorrettoCryptoProvider
+  agent-accp   provider KeyAgreement.ECDH = AmazonCorrettoCryptoProvider
+  agent-accp   provider KeyAgreement.XDH = SunEC
+  agent-accp   provider Mac.HmacSHA256 = AmazonCorrettoCryptoProvider
+  agent-accp   provider MessageDigest.SHA-256 = AmazonCorrettoCryptoProvider
+  agent-accp   provider Signature.SHA256withRSA = AmazonCorrettoCryptoProvider
+  agent-accp   provider jwtKeyClass = com.amazon.corretto.crypto.provider.EvpRsaPublicKey
+  agent-accp   provider position1 = AmazonCorrettoCryptoProvider
+  agent-accp   provider providerCount = 13
+  agent-accp   nocrypto       65582 req/s  p50    107.3 us  p99    622.3 us  cpu    25.9 us/req  errors 0
+  agent-accp   jwt            52250 req/s  p50    110.8 us  p99   1141.8 us  cpu    42.2 us/req  errors 0
+  agent-accp   aesgcm         62733 req/s  p50     99.2 us  p99    676.1 us  cpu    28.5 us/req  errors 0
+  agent-accp   tls             2270 req/s  p50   3356.2 us  p99   7080.8 us  cpu   873.5 us/req  errors 0
+  fake agent has received 3141 trace payloads so far
+== done: <repo>/dd-java-agent/benchmark-crypto-provider-app/results/final/pass1/summary.md
+# Crypto provider benchmark
+
+- date: 2026-10-31T01:05:02Z
+- host: Linux 6.8.0-100-generic aarch64
+- cpus: 4
+- java: openjdk version 21.0.13 2026-10-20 LTS
+- accp: AmazonCorrettoCryptoProvider-2.5.0-linux-aarch_64.jar
+- httpsCert: rsa
+- agentJar: <repo>/dd-java-agent/build/libs/dd-java-agent-1.68.0-SNAPSHOT.jar
+- agentCommit: 9353e01423
+- startupRuns: 5
+- warmupS: 15
+- durationS: 30
+- connections: 8
+- heap: 512m
+
+## Startup to first successful request (ms)
+
+| config | median | min | max | runs |
+|---|---:|---:|---:|---:|
+| noagent | 807 | 789 | 821 | 5 |
+| agent | 1464 | 1443 | 1477 | 5 |
+| agent-accp | 1433 | 1401 | 1461 | 5 |
+
+## Load (relative columns vs `noagent`)
+
+| endpoint | config | req/s | req/s vs base | p50 us | p99 us | CPU us/req | CPU/req vs base | GC ms | errors |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| nocrypto | noagent | 78305 | - | 94.4 | 266.1 | 19.03 | - | 57 | 0 |
+| nocrypto | agent | 65688 | -16.1% | 107.6 | 620.1 | 25.75 | +35.3% | 143 | 0 |
+| nocrypto | agent-accp | 65582 | -16.2% | 107.3 | 622.3 | 25.94 | +36.3% | 151 | 0 |
+| jwt | noagent | 49654 | - | 121.0 | 1157.7 | 44.02 | - | 62 | 0 |
+| jwt | agent | 45463 | -8.4% | 128.9 | 1466.8 | 51.19 | +16.3% | 113 | 0 |
+| jwt | agent-accp | 52250 | +5.2% | 110.8 | 1141.8 | 42.16 | -4.2% | 110 | 0 |
+| aesgcm | noagent | 67095 | - | 108.8 | 527.4 | 23.24 | - | 85 | 0 |
+| aesgcm | agent | 64268 | -4.2% | 92.5 | 701.6 | 28.31 | +21.8% | 203 | 0 |
+| aesgcm | agent-accp | 62733 | -6.5% | 99.2 | 676.1 | 28.53 | +22.8% | 187 | 0 |
+| tls | noagent | 2311 | - | 3287.4 | 6990.6 | 875.94 | - | 40 | 0 |
+| tls | agent | 2226 | -3.7% | 3432.3 | 7095.8 | 895.56 | +2.2% | 44 | 0 |
+| tls | agent-accp | 2270 | -1.8% | 3356.2 | 7080.8 | 873.55 | -0.3% | 65 | 0 |
+
+## Response equivalence (SHA-256 of each deterministic response)
+
+| check | identical | noagent | agent | agent-accp | body |
+|---|---|---|---|---|---|
+| nocrypto | yes | c0d69bd32d04 | c0d69bd32d04 | c0d69bd32d04 | `field0=0;field1=31;field2=62;field3=93;field4=124;field5=...` |
+| jwt | yes | 6ac94d01b36d | 6ac94d01b36d | 6ac94d01b36d | `valid {"sub":"bench-user","iss":"https://issuer.example",...` |
+| jwt-tampered | yes | f1234d75178d | f1234d75178d | f1234d75178d | `invalid` |
+| aesgcm-n7 | yes | ffa2a5a04cf3 | ffa2a5a04cf3 | ffa2a5a04cf3 | `4112 bd78211b22a822f78975ca35b56ae63e` |
+| aesgcm-n42 | yes | 693a1c79e2d1 | 693a1c79e2d1 | 693a1c79e2d1 | `4112 fe3d5d488acafa0f25486eec0d976df5` |
+| tls13 | yes | 2689367b205c | 2689367b205c | 2689367b205c | `ok` |
+| tls12 | yes | 2689367b205c | 2689367b205c | 2689367b205c | `ok` |
+
+## Which provider each algorithm resolves to (checked right after the app first answers)
+
+| lookup | noagent | agent | agent-accp |
+|---|---|---|---|
+| Cipher.AES/GCM/NoPadding | SunJCE | SunJCE | AmazonCorrettoCryptoProvider |
+| KeyAgreement.ECDH | SunEC | SunEC | AmazonCorrettoCryptoProvider |
+| KeyAgreement.XDH | SunEC | SunEC | SunEC |
+| Mac.HmacSHA256 | SunJCE | SunJCE | AmazonCorrettoCryptoProvider |
+| MessageDigest.SHA-256 | SUN | SUN | AmazonCorrettoCryptoProvider |
+| Signature.SHA256withRSA | SunRsaSign | SunRsaSign | AmazonCorrettoCryptoProvider |
+| jwtKeyClass | sun.security.rsa.RSAPublicKeyImpl | sun.security.rsa.RSAPublicKeyImpl | com.amazon.corretto.crypto.provider.EvpRsaPublicKey |
+| position1 | SUN | SUN | AmazonCorrettoCryptoProvider |
+| providerCount | 12 | 12 | 13 |

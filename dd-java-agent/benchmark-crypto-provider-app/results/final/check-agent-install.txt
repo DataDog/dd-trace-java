@@ -1,0 +1,7 @@
+flag-off               yes  position1=SUN                            <no installer log>
+flag-default           yes  position1=SUN                            <no installer log>
+flag-on                yes  position1=AmazonCorrettoCryptoProvider   Experimental crypto provider: installed AmazonCorrettoCryptoProvider 2.5.0 (AWS-LC v1.47.0) at position 1 in 205 ms
+flag-on-env-var        yes  position1=AmazonCorrettoCryptoProvider   Experimental crypto provider: installed AmazonCorrettoCryptoProvider 2.5.0 (AWS-LC v1.47.0) at position 1 in 241 ms
+no-accp-jar            yes  position1=SUN                            Experimental crypto provider: not installed (NOT_ON_CLASSPATH) after 0 ms
+custom-security-props  yes  position1=SUN                            Experimental crypto provider: not installed (SKIPPED_CUSTOM_SECURITY_PROPERTIES) after 0 ms
+bc-fips-approved-only  yes  position1=SUN                            Experimental crypto provider: not installed (SKIPPED_FIPS) after 0 ms

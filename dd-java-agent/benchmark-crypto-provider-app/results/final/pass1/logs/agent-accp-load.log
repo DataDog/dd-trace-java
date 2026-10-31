@@ -1,0 +1,4 @@
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[dd.trace 2026-10-31 01:02:02:987 +0000] [http-nio-18080-exec-3] WARN datadog.trace.agent.common.writer.RemoteWriter - Dropped a kept trace due to a buffer overflow: [2 spans]. Traces are being produced faster than they can be sent to the agent. (Will not log warnings for 1 minute)
+[dd.trace 2026-10-31 01:03:02:313 +0000] [http-nio-18080-exec-11] WARN datadog.trace.agent.common.writer.RemoteWriter - Dropped a kept trace due to a buffer overflow: [2 spans]. Traces are being produced faster than they can be sent to the agent. (Will not log warnings for 1 minute)
+[dd.trace 2026-10-31 01:04:01:776 +0000] [http-nio-18080-exec-8] WARN datadog.trace.agent.common.writer.RemoteWriter - Dropped a kept trace due to a buffer overflow: [2 spans]. Traces are being produced faster than they can be sent to the agent. (Will not log warnings for 1 minute)

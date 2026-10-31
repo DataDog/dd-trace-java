@@ -1,0 +1,1097 @@
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.aesGcmEncrypt16k
+# Parameters: (provider = jdk)
+
+# Run progress: 0.00% complete, ETA 00:14:24
+# Fork: 1 of 2
+# Warmup Iteration   1: 5.302 us/op
+# Warmup Iteration   2: 4.392 us/op
+# Warmup Iteration   3: 4.374 us/op
+# Warmup Iteration   4: 4.382 us/op
+Iteration   1: 4.370 us/op
+Iteration   2: 4.364 us/op
+Iteration   3: 4.342 us/op
+Iteration   4: 4.341 us/op
+Iteration   5: 4.368 us/op
+
+# Run progress: 2.08% complete, ETA 00:14:18
+# Fork: 2 of 2
+# Warmup Iteration   1: 5.179 us/op
+# Warmup Iteration   2: 4.381 us/op
+# Warmup Iteration   3: 4.371 us/op
+# Warmup Iteration   4: 4.433 us/op
+Iteration   1: 4.410 us/op
+Iteration   2: 4.401 us/op
+Iteration   3: 4.356 us/op
+Iteration   4: 4.431 us/op
+Iteration   5: 4.426 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.aesGcmEncrypt16k":
+  4.381 ±(99.9%) 0.051 us/op [Average]
+  (min, avg, max) = (4.341, 4.381, 4.431), stdev = 0.034
+  CI (99.9%): [4.330, 4.432] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.aesGcmEncrypt16k
+# Parameters: (provider = accp)
+
+# Run progress: 4.17% complete, ETA 00:14:00
+# Fork: 1 of 2
+# Warmup Iteration   1: 3.312 us/op
+# Warmup Iteration   2: 3.039 us/op
+# Warmup Iteration   3: 3.035 us/op
+# Warmup Iteration   4: 3.012 us/op
+Iteration   1: 3.002 us/op
+Iteration   2: 3.015 us/op
+Iteration   3: 3.007 us/op
+Iteration   4: 2.999 us/op
+Iteration   5: 2.990 us/op
+
+# Run progress: 6.25% complete, ETA 00:13:43
+# Fork: 2 of 2
+# Warmup Iteration   1: 3.168 us/op
+# Warmup Iteration   2: 3.007 us/op
+# Warmup Iteration   3: 3.003 us/op
+# Warmup Iteration   4: 3.009 us/op
+Iteration   1: 2.991 us/op
+Iteration   2: 2.992 us/op
+Iteration   3: 3.000 us/op
+Iteration   4: 2.990 us/op
+Iteration   5: 2.985 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.aesGcmEncrypt16k":
+  2.997 ±(99.9%) 0.014 us/op [Average]
+  (min, avg, max) = (2.985, 2.997, 3.015), stdev = 0.009
+  CI (99.9%): [2.983, 3.011] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.aesGcmEncrypt1k
+# Parameters: (provider = jdk)
+
+# Run progress: 8.33% complete, ETA 00:13:24
+# Fork: 1 of 2
+# Warmup Iteration   1: 1.244 us/op
+# Warmup Iteration   2: 1.094 us/op
+# Warmup Iteration   3: 1.108 us/op
+# Warmup Iteration   4: 1.109 us/op
+Iteration   1: 1.109 us/op
+Iteration   2: 1.100 us/op
+Iteration   3: 1.099 us/op
+Iteration   4: 1.111 us/op
+Iteration   5: 1.097 us/op
+
+# Run progress: 10.42% complete, ETA 00:13:06
+# Fork: 2 of 2
+# Warmup Iteration   1: 1.259 us/op
+# Warmup Iteration   2: 1.132 us/op
+# Warmup Iteration   3: 1.104 us/op
+# Warmup Iteration   4: 1.102 us/op
+Iteration   1: 1.103 us/op
+Iteration   2: 1.104 us/op
+Iteration   3: 1.095 us/op
+Iteration   4: 1.092 us/op
+Iteration   5: 1.104 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.aesGcmEncrypt1k":
+  1.101 ±(99.9%) 0.009 us/op [Average]
+  (min, avg, max) = (1.092, 1.101, 1.111), stdev = 0.006
+  CI (99.9%): [1.092, 1.111] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.aesGcmEncrypt1k
+# Parameters: (provider = accp)
+
+# Run progress: 12.50% complete, ETA 00:12:47
+# Fork: 1 of 2
+# Warmup Iteration   1: 0.841 us/op
+# Warmup Iteration   2: 0.769 us/op
+# Warmup Iteration   3: 0.769 us/op
+# Warmup Iteration   4: 0.767 us/op
+Iteration   1: 0.776 us/op
+Iteration   2: 0.777 us/op
+Iteration   3: 0.767 us/op
+Iteration   4: 0.771 us/op
+Iteration   5: 0.766 us/op
+
+# Run progress: 14.58% complete, ETA 00:12:29
+# Fork: 2 of 2
+# Warmup Iteration   1: 0.877 us/op
+# Warmup Iteration   2: 0.804 us/op
+# Warmup Iteration   3: 0.792 us/op
+# Warmup Iteration   4: 0.800 us/op
+Iteration   1: 0.801 us/op
+Iteration   2: 0.802 us/op
+Iteration   3: 0.806 us/op
+Iteration   4: 0.803 us/op
+Iteration   5: 0.804 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.aesGcmEncrypt1k":
+  0.787 ±(99.9%) 0.026 us/op [Average]
+  (min, avg, max) = (0.766, 0.787, 0.806), stdev = 0.017
+  CI (99.9%): [0.762, 0.813] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.es256Sign
+# Parameters: (provider = jdk)
+
+# Run progress: 16.67% complete, ETA 00:12:11
+# Fork: 1 of 2
+# Warmup Iteration   1: 82.446 us/op
+# Warmup Iteration   2: 80.795 us/op
+# Warmup Iteration   3: 78.439 us/op
+# Warmup Iteration   4: 79.004 us/op
+Iteration   1: 80.325 us/op
+Iteration   2: 79.241 us/op
+Iteration   3: 78.772 us/op
+Iteration   4: 78.653 us/op
+Iteration   5: 78.348 us/op
+
+# Run progress: 18.75% complete, ETA 00:11:52
+# Fork: 2 of 2
+# Warmup Iteration   1: 82.790 us/op
+# Warmup Iteration   2: 80.486 us/op
+# Warmup Iteration   3: 78.623 us/op
+# Warmup Iteration   4: 77.954 us/op
+Iteration   1: 77.795 us/op
+Iteration   2: 77.871 us/op
+Iteration   3: 77.804 us/op
+Iteration   4: 78.746 us/op
+Iteration   5: 78.743 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.es256Sign":
+  78.630 ±(99.9%) 1.163 us/op [Average]
+  (min, avg, max) = (77.795, 78.630, 80.325), stdev = 0.769
+  CI (99.9%): [77.466, 79.793] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.es256Sign
+# Parameters: (provider = accp)
+
+# Run progress: 20.83% complete, ETA 00:11:34
+# Fork: 1 of 2
+# Warmup Iteration   1: 10.031 us/op
+# Warmup Iteration   2: 9.953 us/op
+# Warmup Iteration   3: 9.904 us/op
+# Warmup Iteration   4: 9.794 us/op
+Iteration   1: 9.753 us/op
+Iteration   2: 9.722 us/op
+Iteration   3: 9.735 us/op
+Iteration   4: 9.714 us/op
+Iteration   5: 10.011 us/op
+
+# Run progress: 22.92% complete, ETA 00:11:16
+# Fork: 2 of 2
+# Warmup Iteration   1: 10.088 us/op
+# Warmup Iteration   2: 9.914 us/op
+# Warmup Iteration   3: 9.916 us/op
+# Warmup Iteration   4: 9.773 us/op
+Iteration   1: 9.729 us/op
+Iteration   2: 9.718 us/op
+Iteration   3: 9.880 us/op
+Iteration   4: 9.814 us/op
+Iteration   5: 9.786 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.es256Sign":
+  9.786 ±(99.9%) 0.144 us/op [Average]
+  (min, avg, max) = (9.714, 9.786, 10.011), stdev = 0.095
+  CI (99.9%): [9.643, 9.930] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.es256Verify
+# Parameters: (provider = jdk)
+
+# Run progress: 25.00% complete, ETA 00:10:58
+# Fork: 1 of 2
+# Warmup Iteration   1: 264.979 us/op
+# Warmup Iteration   2: 261.686 us/op
+# Warmup Iteration   3: 257.342 us/op
+# Warmup Iteration   4: 254.199 us/op
+Iteration   1: 252.185 us/op
+Iteration   2: 251.931 us/op
+Iteration   3: 252.373 us/op
+Iteration   4: 251.161 us/op
+Iteration   5: 251.781 us/op
+
+# Run progress: 27.08% complete, ETA 00:10:39
+# Fork: 2 of 2
+# Warmup Iteration   1: 262.755 us/op
+# Warmup Iteration   2: 258.601 us/op
+# Warmup Iteration   3: 258.291 us/op
+# Warmup Iteration   4: 254.197 us/op
+Iteration   1: 252.744 us/op
+Iteration   2: 252.248 us/op
+Iteration   3: 251.646 us/op
+Iteration   4: 252.086 us/op
+Iteration   5: 251.331 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.es256Verify":
+  251.949 ±(99.9%) 0.730 us/op [Average]
+  (min, avg, max) = (251.161, 251.949, 252.744), stdev = 0.483
+  CI (99.9%): [251.219, 252.679] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.es256Verify
+# Parameters: (provider = accp)
+
+# Run progress: 29.17% complete, ETA 00:10:21
+# Fork: 1 of 2
+# Warmup Iteration   1: 27.343 us/op
+# Warmup Iteration   2: 27.310 us/op
+# Warmup Iteration   3: 27.538 us/op
+# Warmup Iteration   4: 27.518 us/op
+Iteration   1: 27.385 us/op
+Iteration   2: 27.405 us/op
+Iteration   3: 27.228 us/op
+Iteration   4: 27.092 us/op
+Iteration   5: 27.008 us/op
+
+# Run progress: 31.25% complete, ETA 00:10:03
+# Fork: 2 of 2
+# Warmup Iteration   1: 28.396 us/op
+# Warmup Iteration   2: 28.279 us/op
+# Warmup Iteration   3: 28.146 us/op
+# Warmup Iteration   4: 27.988 us/op
+Iteration   1: 27.923 us/op
+Iteration   2: 27.497 us/op
+Iteration   3: 27.413 us/op
+Iteration   4: 27.179 us/op
+Iteration   5: 27.057 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.es256Verify":
+  27.319 ±(99.9%) 0.410 us/op [Average]
+  (min, avg, max) = (27.008, 27.319, 27.923), stdev = 0.271
+  CI (99.9%): [26.909, 27.729] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.hmacSha256_1k
+# Parameters: (provider = jdk)
+
+# Run progress: 33.33% complete, ETA 00:09:45
+# Fork: 1 of 2
+# Warmup Iteration   1: 0.621 us/op
+# Warmup Iteration   2: 0.576 us/op
+# Warmup Iteration   3: 0.572 us/op
+# Warmup Iteration   4: 0.576 us/op
+Iteration   1: 0.576 us/op
+Iteration   2: 0.575 us/op
+Iteration   3: 0.572 us/op
+Iteration   4: 0.573 us/op
+Iteration   5: 0.571 us/op
+
+# Run progress: 35.42% complete, ETA 00:09:26
+# Fork: 2 of 2
+# Warmup Iteration   1: 0.608 us/op
+# Warmup Iteration   2: 0.573 us/op
+# Warmup Iteration   3: 0.568 us/op
+# Warmup Iteration   4: 0.570 us/op
+Iteration   1: 0.575 us/op
+Iteration   2: 0.574 us/op
+Iteration   3: 0.571 us/op
+Iteration   4: 0.571 us/op
+Iteration   5: 0.568 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.hmacSha256_1k":
+  0.573 ±(99.9%) 0.004 us/op [Average]
+  (min, avg, max) = (0.568, 0.573, 0.576), stdev = 0.002
+  CI (99.9%): [0.569, 0.576] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.hmacSha256_1k
+# Parameters: (provider = accp)
+
+# Run progress: 37.50% complete, ETA 00:09:08
+# Fork: 1 of 2
+# Warmup Iteration   1: 0.676 us/op
+# Warmup Iteration   2: 0.628 us/op
+# Warmup Iteration   3: 0.633 us/op
+# Warmup Iteration   4: 0.644 us/op
+Iteration   1: 0.643 us/op
+Iteration   2: 0.638 us/op
+Iteration   3: 0.635 us/op
+Iteration   4: 0.634 us/op
+Iteration   5: 0.631 us/op
+
+# Run progress: 39.58% complete, ETA 00:08:50
+# Fork: 2 of 2
+# Warmup Iteration   1: 0.675 us/op
+# Warmup Iteration   2: 0.629 us/op
+# Warmup Iteration   3: 0.622 us/op
+# Warmup Iteration   4: 0.619 us/op
+Iteration   1: 0.622 us/op
+Iteration   2: 0.623 us/op
+Iteration   3: 0.630 us/op
+Iteration   4: 0.625 us/op
+Iteration   5: 0.622 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.hmacSha256_1k":
+  0.630 ±(99.9%) 0.011 us/op [Average]
+  (min, avg, max) = (0.622, 0.630, 0.643), stdev = 0.007
+  CI (99.9%): [0.619, 0.641] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.rs256Sign
+# Parameters: (provider = jdk)
+
+# Run progress: 41.67% complete, ETA 00:08:31
+# Fork: 1 of 2
+# Warmup Iteration   1: 611.379 us/op
+# Warmup Iteration   2: 591.293 us/op
+# Warmup Iteration   3: 590.581 us/op
+# Warmup Iteration   4: 587.320 us/op
+Iteration   1: 585.983 us/op
+Iteration   2: 581.364 us/op
+Iteration   3: 579.223 us/op
+Iteration   4: 586.398 us/op
+Iteration   5: 585.618 us/op
+
+# Run progress: 43.75% complete, ETA 00:08:13
+# Fork: 2 of 2
+# Warmup Iteration   1: 610.241 us/op
+# Warmup Iteration   2: 591.366 us/op
+# Warmup Iteration   3: 589.526 us/op
+# Warmup Iteration   4: 591.870 us/op
+Iteration   1: 587.159 us/op
+Iteration   2: 583.271 us/op
+Iteration   3: 587.138 us/op
+Iteration   4: 585.002 us/op
+Iteration   5: 586.611 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.rs256Sign":
+  584.777 ±(99.9%) 4.039 us/op [Average]
+  (min, avg, max) = (579.223, 584.777, 587.159), stdev = 2.671
+  CI (99.9%): [580.738, 588.815] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.rs256Sign
+# Parameters: (provider = accp)
+
+# Run progress: 45.83% complete, ETA 00:07:55
+# Fork: 1 of 2
+# Warmup Iteration   1: 556.252 us/op
+# Warmup Iteration   2: 553.579 us/op
+# Warmup Iteration   3: 552.934 us/op
+# Warmup Iteration   4: 550.264 us/op
+Iteration   1: 551.475 us/op
+Iteration   2: 551.026 us/op
+Iteration   3: 547.895 us/op
+Iteration   4: 549.258 us/op
+Iteration   5: 548.601 us/op
+
+# Run progress: 47.92% complete, ETA 00:07:37
+# Fork: 2 of 2
+# Warmup Iteration   1: 556.998 us/op
+# Warmup Iteration   2: 555.962 us/op
+# Warmup Iteration   3: 551.486 us/op
+# Warmup Iteration   4: 552.876 us/op
+Iteration   1: 551.209 us/op
+Iteration   2: 549.923 us/op
+Iteration   3: 549.730 us/op
+Iteration   4: 548.157 us/op
+Iteration   5: 549.571 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.rs256Sign":
+  549.685 ±(99.9%) 1.905 us/op [Average]
+  (min, avg, max) = (547.895, 549.685, 551.475), stdev = 1.260
+  CI (99.9%): [547.780, 551.590] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.rs256Verify
+# Parameters: (provider = jdk)
+
+# Run progress: 50.00% complete, ETA 00:07:18
+# Fork: 1 of 2
+# Warmup Iteration   1: 25.010 us/op
+# Warmup Iteration   2: 23.635 us/op
+# Warmup Iteration   3: 23.285 us/op
+# Warmup Iteration   4: 23.116 us/op
+Iteration   1: 23.181 us/op
+Iteration   2: 23.130 us/op
+Iteration   3: 22.998 us/op
+Iteration   4: 23.030 us/op
+Iteration   5: 23.640 us/op
+
+# Run progress: 52.08% complete, ETA 00:07:00
+# Fork: 2 of 2
+# Warmup Iteration   1: 25.114 us/op
+# Warmup Iteration   2: 23.645 us/op
+# Warmup Iteration   3: 23.257 us/op
+# Warmup Iteration   4: 23.272 us/op
+Iteration   1: 23.162 us/op
+Iteration   2: 23.597 us/op
+Iteration   3: 23.200 us/op
+Iteration   4: 23.061 us/op
+Iteration   5: 23.083 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.rs256Verify":
+  23.208 ±(99.9%) 0.342 us/op [Average]
+  (min, avg, max) = (22.998, 23.208, 23.640), stdev = 0.226
+  CI (99.9%): [22.866, 23.550] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.rs256Verify
+# Parameters: (provider = accp)
+
+# Run progress: 54.17% complete, ETA 00:06:42
+# Fork: 1 of 2
+# Warmup Iteration   1: 14.159 us/op
+# Warmup Iteration   2: 14.208 us/op
+# Warmup Iteration   3: 14.218 us/op
+# Warmup Iteration   4: 14.288 us/op
+Iteration   1: 14.269 us/op
+Iteration   2: 14.019 us/op
+Iteration   3: 14.040 us/op
+Iteration   4: 14.038 us/op
+Iteration   5: 13.959 us/op
+
+# Run progress: 56.25% complete, ETA 00:06:23
+# Fork: 2 of 2
+# Warmup Iteration   1: 14.196 us/op
+# Warmup Iteration   2: 14.190 us/op
+# Warmup Iteration   3: 14.133 us/op
+# Warmup Iteration   4: 14.260 us/op
+Iteration   1: 14.277 us/op
+Iteration   2: 14.113 us/op
+Iteration   3: 14.004 us/op
+Iteration   4: 13.980 us/op
+Iteration   5: 14.105 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.rs256Verify":
+  14.080 ±(99.9%) 0.170 us/op [Average]
+  (min, avg, max) = (13.959, 14.080, 14.277), stdev = 0.113
+  CI (99.9%): [13.910, 14.251] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.sha256_1k
+# Parameters: (provider = jdk)
+
+# Run progress: 58.33% complete, ETA 00:06:05
+# Fork: 1 of 2
+# Warmup Iteration   1: 0.366 us/op
+# Warmup Iteration   2: 0.351 us/op
+# Warmup Iteration   3: 0.380 us/op
+# Warmup Iteration   4: 0.383 us/op
+Iteration   1: 0.360 us/op
+Iteration   2: 0.346 us/op
+Iteration   3: 0.351 us/op
+Iteration   4: 0.342 us/op
+Iteration   5: 0.344 us/op
+
+# Run progress: 60.42% complete, ETA 00:05:47
+# Fork: 2 of 2
+# Warmup Iteration   1: 0.373 us/op
+# Warmup Iteration   2: 0.342 us/op
+# Warmup Iteration   3: 0.344 us/op
+# Warmup Iteration   4: 0.341 us/op
+Iteration   1: 0.344 us/op
+Iteration   2: 0.349 us/op
+Iteration   3: 0.345 us/op
+Iteration   4: 0.347 us/op
+Iteration   5: 0.342 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.sha256_1k":
+  0.347 ±(99.9%) 0.008 us/op [Average]
+  (min, avg, max) = (0.342, 0.347, 0.360), stdev = 0.006
+  CI (99.9%): [0.339, 0.355] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.sha256_1k
+# Parameters: (provider = accp)
+
+# Run progress: 62.50% complete, ETA 00:05:29
+# Fork: 1 of 2
+# Warmup Iteration   1: 0.466 us/op
+# Warmup Iteration   2: 0.438 us/op
+# Warmup Iteration   3: 0.435 us/op
+# Warmup Iteration   4: 0.436 us/op
+Iteration   1: 0.432 us/op
+Iteration   2: 0.435 us/op
+Iteration   3: 0.441 us/op
+Iteration   4: 0.440 us/op
+Iteration   5: 0.443 us/op
+
+# Run progress: 64.58% complete, ETA 00:05:10
+# Fork: 2 of 2
+# Warmup Iteration   1: 0.466 us/op
+# Warmup Iteration   2: 0.436 us/op
+# Warmup Iteration   3: 0.443 us/op
+# Warmup Iteration   4: 0.437 us/op
+Iteration   1: 0.445 us/op
+Iteration   2: 0.461 us/op
+Iteration   3: 0.462 us/op
+Iteration   4: 0.452 us/op
+Iteration   5: 0.442 us/op
+
+
+Result "com.example.cryptobench.jmh.CryptoPrimitivesBenchmark.sha256_1k":
+  0.445 ±(99.9%) 0.015 us/op [Average]
+  (min, avg, max) = (0.432, 0.445, 0.462), stdev = 0.010
+  CI (99.9%): [0.430, 0.461] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake
+# Parameters: (cert = rsa, group = default, protocol = TLSv1.3, provider = jdk)
+
+# Run progress: 66.67% complete, ETA 00:04:52
+# Fork: 1 of 2
+# Warmup Iteration   1: 1335.670 us/op
+# Warmup Iteration   2: 1060.202 us/op
+# Warmup Iteration   3: 1029.277 us/op
+# Warmup Iteration   4: 1025.634 us/op
+Iteration   1: 1020.778 us/op
+Iteration   2: 1016.520 us/op
+Iteration   3: 1017.696 us/op
+Iteration   4: 1017.219 us/op
+Iteration   5: 1028.160 us/op
+
+# Run progress: 68.75% complete, ETA 00:04:34
+# Fork: 2 of 2
+# Warmup Iteration   1: 1343.764 us/op
+# Warmup Iteration   2: 1058.815 us/op
+# Warmup Iteration   3: 1040.905 us/op
+# Warmup Iteration   4: 1033.830 us/op
+Iteration   1: 1024.843 us/op
+Iteration   2: 1023.318 us/op
+Iteration   3: 1017.998 us/op
+Iteration   4: 1023.642 us/op
+Iteration   5: 1017.659 us/op
+
+
+Result "com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake":
+  1020.783 ±(99.9%) 6.035 us/op [Average]
+  (min, avg, max) = (1016.520, 1020.783, 1028.160), stdev = 3.992
+  CI (99.9%): [1014.748, 1026.819] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake
+# Parameters: (cert = rsa, group = default, protocol = TLSv1.3, provider = accp)
+
+# Run progress: 70.83% complete, ETA 00:04:15
+# Fork: 1 of 2
+# Warmup Iteration   1: 1166.522 us/op
+# Warmup Iteration   2: 969.185 us/op
+# Warmup Iteration   3: 947.735 us/op
+# Warmup Iteration   4: 938.851 us/op
+Iteration   1: 942.653 us/op
+Iteration   2: 943.225 us/op
+Iteration   3: 931.220 us/op
+Iteration   4: 942.442 us/op
+Iteration   5: 945.398 us/op
+
+# Run progress: 72.92% complete, ETA 00:03:57
+# Fork: 2 of 2
+# Warmup Iteration   1: 1175.487 us/op
+# Warmup Iteration   2: 973.058 us/op
+# Warmup Iteration   3: 951.352 us/op
+# Warmup Iteration   4: 941.845 us/op
+Iteration   1: 940.033 us/op
+Iteration   2: 945.909 us/op
+Iteration   3: 930.420 us/op
+Iteration   4: 934.987 us/op
+Iteration   5: 927.940 us/op
+
+
+Result "com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake":
+  938.423 ±(99.9%) 10.104 us/op [Average]
+  (min, avg, max) = (927.940, 938.423, 945.909), stdev = 6.683
+  CI (99.9%): [928.318, 948.527] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake
+# Parameters: (cert = rsa, group = secp256r1, protocol = TLSv1.3, provider = jdk)
+
+# Run progress: 75.00% complete, ETA 00:03:39
+# Fork: 1 of 2
+# Warmup Iteration   1: 1866.559 us/op
+# Warmup Iteration   2: 1578.789 us/op
+# Warmup Iteration   3: 1540.460 us/op
+# Warmup Iteration   4: 1539.626 us/op
+Iteration   1: 1524.775 us/op
+Iteration   2: 1521.187 us/op
+Iteration   3: 1516.899 us/op
+Iteration   4: 1509.403 us/op
+Iteration   5: 1518.009 us/op
+
+# Run progress: 77.08% complete, ETA 00:03:21
+# Fork: 2 of 2
+# Warmup Iteration   1: 1911.315 us/op
+# Warmup Iteration   2: 1570.782 us/op
+# Warmup Iteration   3: 1532.619 us/op
+# Warmup Iteration   4: 1537.140 us/op
+Iteration   1: 1551.142 us/op
+Iteration   2: 1544.632 us/op
+Iteration   3: 1525.476 us/op
+Iteration   4: 1528.534 us/op
+Iteration   5: 1518.146 us/op
+
+
+Result "com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake":
+  1525.820 ±(99.9%) 19.480 us/op [Average]
+  (min, avg, max) = (1509.403, 1525.820, 1551.142), stdev = 12.885
+  CI (99.9%): [1506.340, 1545.300] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake
+# Parameters: (cert = rsa, group = secp256r1, protocol = TLSv1.3, provider = accp)
+
+# Run progress: 79.17% complete, ETA 00:03:02
+# Fork: 1 of 2
+# Warmup Iteration   1: 911.459 us/op
+# Warmup Iteration   2: 764.482 us/op
+# Warmup Iteration   3: 752.000 us/op
+# Warmup Iteration   4: 741.988 us/op
+Iteration   1: 745.589 us/op
+Iteration   2: 742.724 us/op
+Iteration   3: 736.103 us/op
+Iteration   4: 733.391 us/op
+Iteration   5: 733.675 us/op
+
+# Run progress: 81.25% complete, ETA 00:02:44
+# Fork: 2 of 2
+# Warmup Iteration   1: 902.226 us/op
+# Warmup Iteration   2: 756.709 us/op
+# Warmup Iteration   3: 739.222 us/op
+# Warmup Iteration   4: 740.802 us/op
+Iteration   1: 744.562 us/op
+Iteration   2: 739.898 us/op
+Iteration   3: 743.301 us/op
+Iteration   4: 732.370 us/op
+Iteration   5: 735.814 us/op
+
+
+Result "com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake":
+  738.743 ±(99.9%) 7.629 us/op [Average]
+  (min, avg, max) = (732.370, 738.743, 745.589), stdev = 5.046
+  CI (99.9%): [731.114, 746.372] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake
+# Parameters: (cert = ec, group = default, protocol = TLSv1.3, provider = jdk)
+
+# Run progress: 83.33% complete, ETA 00:02:26
+# Fork: 1 of 2
+# Warmup Iteration   1: 1020.270 us/op
+# Warmup Iteration   2: 761.192 us/op
+# Warmup Iteration   3: 755.148 us/op
+# Warmup Iteration   4: 742.217 us/op
+Iteration   1: 744.175 us/op
+Iteration   2: 755.598 us/op
+Iteration   3: 747.948 us/op
+Iteration   4: 753.822 us/op
+Iteration   5: 743.490 us/op
+
+# Run progress: 85.42% complete, ETA 00:02:08
+# Fork: 2 of 2
+# Warmup Iteration   1: 1010.173 us/op
+# Warmup Iteration   2: 761.801 us/op
+# Warmup Iteration   3: 746.700 us/op
+# Warmup Iteration   4: 750.671 us/op
+Iteration   1: 753.938 us/op
+Iteration   2: 751.700 us/op
+Iteration   3: 751.306 us/op
+Iteration   4: 744.362 us/op
+Iteration   5: 746.941 us/op
+
+
+Result "com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake":
+  749.328 ±(99.9%) 6.821 us/op [Average]
+  (min, avg, max) = (743.490, 749.328, 755.598), stdev = 4.512
+  CI (99.9%): [742.507, 756.149] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake
+# Parameters: (cert = ec, group = default, protocol = TLSv1.3, provider = accp)
+
+# Run progress: 87.50% complete, ETA 00:01:49
+# Fork: 1 of 2
+# Warmup Iteration   1: 521.914 us/op
+# Warmup Iteration   2: 408.095 us/op
+# Warmup Iteration   3: 406.000 us/op
+# Warmup Iteration   4: 399.106 us/op
+Iteration   1: 397.951 us/op
+Iteration   2: 394.167 us/op
+Iteration   3: 396.747 us/op
+Iteration   4: 402.076 us/op
+Iteration   5: 399.817 us/op
+
+# Run progress: 89.58% complete, ETA 00:01:31
+# Fork: 2 of 2
+# Warmup Iteration   1: 521.330 us/op
+# Warmup Iteration   2: 406.950 us/op
+# Warmup Iteration   3: 402.718 us/op
+# Warmup Iteration   4: 400.735 us/op
+Iteration   1: 395.929 us/op
+Iteration   2: 396.934 us/op
+Iteration   3: 394.713 us/op
+Iteration   4: 394.037 us/op
+Iteration   5: 401.696 us/op
+
+
+Result "com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake":
+  397.407 ±(99.9%) 4.458 us/op [Average]
+  (min, avg, max) = (394.037, 397.407, 402.076), stdev = 2.949
+  CI (99.9%): [392.949, 401.865] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake
+# Parameters: (cert = ec, group = secp256r1, protocol = TLSv1.3, provider = jdk)
+
+# Run progress: 91.67% complete, ETA 00:01:13
+# Fork: 1 of 2
+# Warmup Iteration   1: 1552.897 us/op
+# Warmup Iteration   2: 1285.511 us/op
+# Warmup Iteration   3: 1252.016 us/op
+# Warmup Iteration   4: 1253.167 us/op
+Iteration   1: 1257.032 us/op
+Iteration   2: 1246.320 us/op
+Iteration   3: 1254.200 us/op
+Iteration   4: 1261.926 us/op
+Iteration   5: 1255.493 us/op
+
+# Run progress: 93.75% complete, ETA 00:00:54
+# Fork: 2 of 2
+# Warmup Iteration   1: 1559.467 us/op
+# Warmup Iteration   2: 1284.474 us/op
+# Warmup Iteration   3: 1257.064 us/op
+# Warmup Iteration   4: 1254.625 us/op
+Iteration   1: 1236.428 us/op
+Iteration   2: 1257.840 us/op
+Iteration   3: 1249.171 us/op
+Iteration   4: 1241.199 us/op
+Iteration   5: 1244.777 us/op
+
+
+Result "com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake":
+  1250.439 ±(99.9%) 12.367 us/op [Average]
+  (min, avg, max) = (1236.428, 1250.439, 1261.926), stdev = 8.180
+  CI (99.9%): [1238.072, 1262.805] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.13, OpenJDK 64-Bit Server VM, 21.0.13+9-LTS
+# VM invoker: /opt/java/openjdk/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 4 iterations, 2 s each
+# Measurement: 5 iterations, 2 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake
+# Parameters: (cert = ec, group = secp256r1, protocol = TLSv1.3, provider = accp)
+
+# Run progress: 95.83% complete, ETA 00:00:36
+# Fork: 1 of 2
+# Warmup Iteration   1: 267.420 us/op
+# Warmup Iteration   2: 211.369 us/op
+# Warmup Iteration   3: 203.043 us/op
+# Warmup Iteration   4: 205.553 us/op
+Iteration   1: 203.446 us/op
+Iteration   2: 205.150 us/op
+Iteration   3: 207.858 us/op
+Iteration   4: 204.158 us/op
+Iteration   5: 204.222 us/op
+
+# Run progress: 97.92% complete, ETA 00:00:18
+# Fork: 2 of 2
+# Warmup Iteration   1: 270.875 us/op
+# Warmup Iteration   2: 209.025 us/op
+# Warmup Iteration   3: 205.898 us/op
+# Warmup Iteration   4: 205.056 us/op
+Iteration   1: 203.672 us/op
+Iteration   2: 204.204 us/op
+Iteration   3: 203.427 us/op
+Iteration   4: 203.837 us/op
+Iteration   5: 204.578 us/op
+
+
+Result "com.example.cryptobench.jmh.TlsHandshakeBenchmark.handshake":
+  204.455 ±(99.9%) 1.975 us/op [Average]
+  (min, avg, max) = (203.427, 204.455, 207.858), stdev = 1.306
+  CI (99.9%): [202.481, 206.430] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:14:37
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                   (cert)    (group)  (protocol)  (provider)  Mode  Cnt     Score    Error  Units
+CryptoPrimitivesBenchmark.aesGcmEncrypt16k     N/A        N/A         N/A         jdk  avgt   10     4.381 ±  0.051  us/op
+CryptoPrimitivesBenchmark.aesGcmEncrypt16k     N/A        N/A         N/A        accp  avgt   10     2.997 ±  0.014  us/op
+CryptoPrimitivesBenchmark.aesGcmEncrypt1k      N/A        N/A         N/A         jdk  avgt   10     1.101 ±  0.009  us/op
+CryptoPrimitivesBenchmark.aesGcmEncrypt1k      N/A        N/A         N/A        accp  avgt   10     0.787 ±  0.026  us/op
+CryptoPrimitivesBenchmark.es256Sign            N/A        N/A         N/A         jdk  avgt   10    78.630 ±  1.163  us/op
+CryptoPrimitivesBenchmark.es256Sign            N/A        N/A         N/A        accp  avgt   10     9.786 ±  0.144  us/op
+CryptoPrimitivesBenchmark.es256Verify          N/A        N/A         N/A         jdk  avgt   10   251.949 ±  0.730  us/op
+CryptoPrimitivesBenchmark.es256Verify          N/A        N/A         N/A        accp  avgt   10    27.319 ±  0.410  us/op
+CryptoPrimitivesBenchmark.hmacSha256_1k        N/A        N/A         N/A         jdk  avgt   10     0.573 ±  0.004  us/op
+CryptoPrimitivesBenchmark.hmacSha256_1k        N/A        N/A         N/A        accp  avgt   10     0.630 ±  0.011  us/op
+CryptoPrimitivesBenchmark.rs256Sign            N/A        N/A         N/A         jdk  avgt   10   584.777 ±  4.039  us/op
+CryptoPrimitivesBenchmark.rs256Sign            N/A        N/A         N/A        accp  avgt   10   549.685 ±  1.905  us/op
+CryptoPrimitivesBenchmark.rs256Verify          N/A        N/A         N/A         jdk  avgt   10    23.208 ±  0.342  us/op
+CryptoPrimitivesBenchmark.rs256Verify          N/A        N/A         N/A        accp  avgt   10    14.080 ±  0.170  us/op
+CryptoPrimitivesBenchmark.sha256_1k            N/A        N/A         N/A         jdk  avgt   10     0.347 ±  0.008  us/op
+CryptoPrimitivesBenchmark.sha256_1k            N/A        N/A         N/A        accp  avgt   10     0.445 ±  0.015  us/op
+TlsHandshakeBenchmark.handshake                rsa    default     TLSv1.3         jdk  avgt   10  1020.783 ±  6.035  us/op
+TlsHandshakeBenchmark.handshake                rsa    default     TLSv1.3        accp  avgt   10   938.423 ± 10.104  us/op
+TlsHandshakeBenchmark.handshake                rsa  secp256r1     TLSv1.3         jdk  avgt   10  1525.820 ± 19.480  us/op
+TlsHandshakeBenchmark.handshake                rsa  secp256r1     TLSv1.3        accp  avgt   10   738.743 ±  7.629  us/op
+TlsHandshakeBenchmark.handshake                 ec    default     TLSv1.3         jdk  avgt   10   749.328 ±  6.821  us/op
+TlsHandshakeBenchmark.handshake                 ec    default     TLSv1.3        accp  avgt   10   397.407 ±  4.458  us/op
+TlsHandshakeBenchmark.handshake                 ec  secp256r1     TLSv1.3         jdk  avgt   10  1250.439 ± 12.367  us/op
+TlsHandshakeBenchmark.handshake                 ec  secp256r1     TLSv1.3        accp  avgt   10   204.455 ±  1.975  us/op
+
+Benchmark result is saved to <repo>/dd-java-agent/benchmark-crypto-provider-app/results/jmh-20261031-004054/jmh-result.json

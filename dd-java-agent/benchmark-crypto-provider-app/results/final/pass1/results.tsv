@@ -1,0 +1,75 @@
+startup	noagent	1	802.630
+startup	noagent	2	806.704
+startup	noagent	3	813.321
+startup	noagent	4	821.419
+startup	noagent	5	789.008
+verify	noagent	nocrypto	c0d69bd32d04c1742c2c320ce95e7ffb649af66e02c2e3828a521888d4822392	field0=0;field1=31;field2=62;field3=93;field4=124;field5=...
+verify	noagent	jwt	6ac94d01b36dcb7fb483af2d92e69e8e4d0eec317057c1a5abf7dfdd235ed521	valid {"sub":"bench-user","iss":"https://issuer.example",...
+verify	noagent	jwt-tampered	f1234d75178d892a133a410355a5a990cf75d2f33eba25d575943d4df632f3a4	invalid
+verify	noagent	aesgcm-n7	ffa2a5a04cf36ee8e734b87e3287c777c19e310c92dac47380d3e7b541dfa466	4112 bd78211b22a822f78975ca35b56ae63e
+verify	noagent	aesgcm-n42	693a1c79e2d16eacb4d913cf784076a01724c034a804429ea22cd3fd37172755	4112 fe3d5d488acafa0f25486eec0d976df5
+verify	noagent	tls13	2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df	ok
+verify	noagent	tls12	2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df	ok
+provider	noagent	Cipher.AES/GCM/NoPadding	SunJCE
+provider	noagent	KeyAgreement.ECDH	SunEC
+provider	noagent	KeyAgreement.XDH	SunEC
+provider	noagent	Mac.HmacSHA256	SunJCE
+provider	noagent	MessageDigest.SHA-256	SUN
+provider	noagent	Signature.SHA256withRSA	SunRsaSign
+provider	noagent	jwtKeyClass	sun.security.rsa.RSAPublicKeyImpl
+provider	noagent	position1	SUN
+provider	noagent	providerCount	12
+load	noagent	nocrypto	2349213	0	30.001	78304.570	94.448	126.380	266.100	8413.064	44710.000	19.032	92	57
+load	noagent	jwt	1489658	0	30.001	49653.821	121.015	242.955	1157.680	10544.293	65570.000	44.017	101	62
+load	noagent	aesgcm	2012898	0	30.001	67094.792	108.764	156.408	527.445	8870.832	46780.000	23.240	136	85
+load	noagent	tls	69343	0	30.003	2311.179	3287.416	5014.993	6990.640	13089.541	60740.000	875.936	63	40
+startup	agent	1	1443.190
+startup	agent	2	1465.398
+startup	agent	3	1463.904
+startup	agent	4	1477.045
+startup	agent	5	1450.444
+verify	agent	nocrypto	c0d69bd32d04c1742c2c320ce95e7ffb649af66e02c2e3828a521888d4822392	field0=0;field1=31;field2=62;field3=93;field4=124;field5=...
+verify	agent	jwt	6ac94d01b36dcb7fb483af2d92e69e8e4d0eec317057c1a5abf7dfdd235ed521	valid {"sub":"bench-user","iss":"https://issuer.example",...
+verify	agent	jwt-tampered	f1234d75178d892a133a410355a5a990cf75d2f33eba25d575943d4df632f3a4	invalid
+verify	agent	aesgcm-n7	ffa2a5a04cf36ee8e734b87e3287c777c19e310c92dac47380d3e7b541dfa466	4112 bd78211b22a822f78975ca35b56ae63e
+verify	agent	aesgcm-n42	693a1c79e2d16eacb4d913cf784076a01724c034a804429ea22cd3fd37172755	4112 fe3d5d488acafa0f25486eec0d976df5
+verify	agent	tls13	2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df	ok
+verify	agent	tls12	2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df	ok
+provider	agent	Cipher.AES/GCM/NoPadding	SunJCE
+provider	agent	KeyAgreement.ECDH	SunEC
+provider	agent	KeyAgreement.XDH	SunEC
+provider	agent	Mac.HmacSHA256	SunJCE
+provider	agent	MessageDigest.SHA-256	SUN
+provider	agent	Signature.SHA256withRSA	SunRsaSign
+provider	agent	jwtKeyClass	sun.security.rsa.RSAPublicKeyImpl
+provider	agent	position1	SUN
+provider	agent	providerCount	12
+load	agent	nocrypto	1970878	0	30.003	65688.394	107.595	159.822	620.078	15886.910	50740.000	25.745	116	143
+load	agent	jwt	1363937	0	30.001	45463.321	128.874	262.881	1466.753	11925.793	69820.000	51.190	123	113
+load	agent	aesgcm	1928182	0	30.002	64268.485	92.547	186.110	701.630	8547.207	54580.000	28.306	169	203
+load	agent	tls	66796	0	30.002	2226.406	3432.251	5164.187	7095.811	12165.088	59820.000	895.563	62	44
+startup	agent-accp	1	1435.920
+startup	agent-accp	2	1460.690
+startup	agent-accp	3	1433.469
+startup	agent-accp	4	1403.104
+startup	agent-accp	5	1400.925
+verify	agent-accp	nocrypto	c0d69bd32d04c1742c2c320ce95e7ffb649af66e02c2e3828a521888d4822392	field0=0;field1=31;field2=62;field3=93;field4=124;field5=...
+verify	agent-accp	jwt	6ac94d01b36dcb7fb483af2d92e69e8e4d0eec317057c1a5abf7dfdd235ed521	valid {"sub":"bench-user","iss":"https://issuer.example",...
+verify	agent-accp	jwt-tampered	f1234d75178d892a133a410355a5a990cf75d2f33eba25d575943d4df632f3a4	invalid
+verify	agent-accp	aesgcm-n7	ffa2a5a04cf36ee8e734b87e3287c777c19e310c92dac47380d3e7b541dfa466	4112 bd78211b22a822f78975ca35b56ae63e
+verify	agent-accp	aesgcm-n42	693a1c79e2d16eacb4d913cf784076a01724c034a804429ea22cd3fd37172755	4112 fe3d5d488acafa0f25486eec0d976df5
+verify	agent-accp	tls13	2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df	ok
+verify	agent-accp	tls12	2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df	ok
+provider	agent-accp	Cipher.AES/GCM/NoPadding	AmazonCorrettoCryptoProvider
+provider	agent-accp	KeyAgreement.ECDH	AmazonCorrettoCryptoProvider
+provider	agent-accp	KeyAgreement.XDH	SunEC
+provider	agent-accp	Mac.HmacSHA256	AmazonCorrettoCryptoProvider
+provider	agent-accp	MessageDigest.SHA-256	AmazonCorrettoCryptoProvider
+provider	agent-accp	Signature.SHA256withRSA	AmazonCorrettoCryptoProvider
+provider	agent-accp	jwtKeyClass	com.amazon.corretto.crypto.provider.EvpRsaPublicKey
+provider	agent-accp	position1	AmazonCorrettoCryptoProvider
+provider	agent-accp	providerCount	13
+load	agent-accp	nocrypto	1967916	0	30.007	65581.587	107.268	160.400	622.275	19345.327	51050.000	25.941	118	151
+load	agent-accp	jwt	1567643	0	30.003	52249.937	110.800	232.153	1141.796	12157.979	66090.000	42.159	115	110
+load	agent-accp	aesgcm	1882126	0	30.002	62733.035	99.186	187.608	676.114	8782.389	53700.000	28.532	156	187
+load	agent-accp	tls	68113	0	30.004	2270.110	3356.218	5086.741	7080.758	11661.208	59500.000	873.548	54	65

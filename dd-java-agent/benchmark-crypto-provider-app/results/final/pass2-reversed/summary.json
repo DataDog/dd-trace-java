@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "date": "2026-10-31T01:14:38Z",
+    "host": "Linux 6.8.0-100-generic aarch64",
+    "cpus": "4",
+    "java": "openjdk version 21.0.13 2026-10-20 LTS",
+    "accp": "AmazonCorrettoCryptoProvider-2.5.0-linux-aarch_64.jar",
+    "httpsCert": "rsa",
+    "agentJar": "<repo>/dd-java-agent/build/libs/dd-java-agent-1.68.0-SNAPSHOT.jar",
+    "agentCommit": "9353e01423",
+    "startupRuns": "5",
+    "warmupS": "15",
+    "durationS": "30",
+    "connections": "8",
+    "heap": "512m"
+  },
+  "configs": {
+    "agent-accp": {
+      "startupMs": {"median": 1402.539, "runs": [1394.626, 1431.128, 1456.291, 1402.539, 1384.658]},
+      "endpoints": {
+        "nocrypto": {"requests": 1951920, "errors": 0, "seconds": 30.006, "rps": 65051.383, "p50Us": 108.238, "p90Us": 163.622, "p99Us": 610.334, "maxUs": 17406.398, "cpuMs": 51020.000, "cpuUsPerReq": 26.138, "gcCount": 121, "gcMs": 151},
+        "jwt": {"requests": 1535751, "errors": 0, "seconds": 30.001, "rps": 51189.926, "p50Us": 112.705, "p90Us": 236.504, "p99Us": 1169.908, "maxUs": 9270.897, "cpuMs": 66110.000, "cpuUsPerReq": 43.047, "gcCount": 116, "gcMs": 113},
+        "aesgcm": {"requests": 1836901, "errors": 0, "seconds": 30.001, "rps": 61228.317, "p50Us": 100.952, "p90Us": 191.781, "p99Us": 711.313, "maxUs": 10577.933, "cpuMs": 54110.000, "cpuUsPerReq": 29.457, "gcCount": 156, "gcMs": 190},
+        "tls": {"requests": 68413, "errors": 0, "seconds": 30.002, "rps": 2280.257, "p50Us": 3340.243, "p90Us": 5046.080, "p99Us": 6966.120, "maxUs": 10970.386, "cpuMs": 59690.000, "cpuUsPerReq": 872.495, "gcCount": 56, "gcMs": 66}
+      }
+    },
+    "agent": {
+      "startupMs": {"median": 1480.135, "runs": [1480.135, 1438.701, 1454.581, 1540.284, 1526.099]},
+      "endpoints": {
+        "nocrypto": {"requests": 1973234, "errors": 0, "seconds": 30.004, "rps": 65766.134, "p50Us": 107.233, "p90Us": 161.305, "p99Us": 602.206, "maxUs": 17826.464, "cpuMs": 51050.000, "cpuUsPerReq": 25.871, "gcCount": 117, "gcMs": 136},
+        "jwt": {"requests": 1361551, "errors": 0, "seconds": 30.001, "rps": 45383.723, "p50Us": 129.610, "p90Us": 262.334, "p99Us": 1473.383, "maxUs": 10480.841, "cpuMs": 70230.000, "cpuUsPerReq": 51.581, "gcCount": 123, "gcMs": 114},
+        "aesgcm": {"requests": 1880634, "errors": 0, "seconds": 30.002, "rps": 62683.438, "p50Us": 95.950, "p90Us": 189.587, "p99Us": 724.106, "maxUs": 9088.962, "cpuMs": 54790.000, "cpuUsPerReq": 29.134, "gcCount": 166, "gcMs": 194},
+        "tls": {"requests": 66978, "errors": 0, "seconds": 30.004, "rps": 2232.268, "p50Us": 3415.483, "p90Us": 5170.578, "p99Us": 7155.403, "maxUs": 12819.789, "cpuMs": 60160.000, "cpuUsPerReq": 898.205, "gcCount": 62, "gcMs": 45}
+      }
+    },
+    "noagent": {
+      "startupMs": {"median": 794.419, "runs": [791.776, 794.419, 806.625, 812.388, 779.49]},
+      "endpoints": {
+        "nocrypto": {"requests": 2341486, "errors": 0, "seconds": 30.001, "rps": 78047.320, "p50Us": 94.245, "p90Us": 126.881, "p99Us": 265.109, "maxUs": 9138.100, "cpuMs": 44370.000, "cpuUsPerReq": 18.950, "gcCount": 92, "gcMs": 57},
+        "jwt": {"requests": 1499019, "errors": 0, "seconds": 30.001, "rps": 49965.899, "p50Us": 120.583, "p90Us": 235.828, "p99Us": 1160.108, "maxUs": 12021.212, "cpuMs": 66020.000, "cpuUsPerReq": 44.042, "gcCount": 101, "gcMs": 62},
+        "aesgcm": {"requests": 2034661, "errors": 0, "seconds": 30.001, "rps": 67820.057, "p50Us": 107.771, "p90Us": 157.150, "p99Us": 505.663, "maxUs": 8077.916, "cpuMs": 47220.000, "cpuUsPerReq": 23.208, "gcCount": 138, "gcMs": 86},
+        "tls": {"requests": 68984, "errors": 0, "seconds": 30.002, "rps": 2299.298, "p50Us": 3302.430, "p90Us": 5045.682, "p99Us": 7003.611, "maxUs": 13322.291, "cpuMs": 60550.000, "cpuUsPerReq": 877.740, "gcCount": 63, "gcMs": 39}
+      }
+    }
+  }
+}

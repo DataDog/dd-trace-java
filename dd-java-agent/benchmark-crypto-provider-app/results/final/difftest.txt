@@ -1,0 +1,64 @@
+== openjdk version "21.0.13" 2026-10-20 LTS, Linux aarch64, ACCP AmazonCorrettoCryptoProvider-2.5.0-linux-aarch_64.jar
+[36m╷[0m
+[36m├─[0m [36mJUnit Jupiter[0m [32m✔[0m
+[36m│  ├─[0m [36mTlsInteropTest[0m [32m✔[0m
+[36m│  │  ├─[0m [36mjdkServerAccpClient(String, String, String)[0m [32m✔[0m
+[36m│  │  │  ├─[0m [34mjdk server, accp client: TLSv1.3 rsa default[0m [32m✔[0m
+[36m│  │  │  ├─[0m [34mjdk server, accp client: TLSv1.3 rsa secp256r1[0m [32m✔[0m
+[36m│  │  │  ├─[0m [34mjdk server, accp client: TLSv1.3 ec default[0m [32m✔[0m
+[36m│  │  │  ├─[0m [34mjdk server, accp client: TLSv1.3 ec secp256r1[0m [32m✔[0m
+[36m│  │  │  ├─[0m [34mjdk server, accp client: TLSv1.2 rsa default[0m [32m✔[0m
+[36m│  │  │  ├─[0m [34mjdk server, accp client: TLSv1.2 rsa secp256r1[0m [32m✔[0m
+[36m│  │  │  ├─[0m [34mjdk server, accp client: TLSv1.2 ec default[0m [32m✔[0m
+[36m│  │  │  └─[0m [34mjdk server, accp client: TLSv1.2 ec secp256r1[0m [32m✔[0m
+[36m│  │  └─[0m [36maccpServerJdkClient(String, String, String)[0m [32m✔[0m
+[36m│  │     ├─[0m [34maccp server, jdk client: TLSv1.3 rsa default[0m [32m✔[0m
+[36m│  │     ├─[0m [34maccp server, jdk client: TLSv1.3 rsa secp256r1[0m [32m✔[0m
+[36m│  │     ├─[0m [34maccp server, jdk client: TLSv1.3 ec default[0m [32m✔[0m
+[36m│  │     ├─[0m [34maccp server, jdk client: TLSv1.3 ec secp256r1[0m [32m✔[0m
+[36m│  │     ├─[0m [34maccp server, jdk client: TLSv1.2 rsa default[0m [32m✔[0m
+[36m│  │     ├─[0m [34maccp server, jdk client: TLSv1.2 rsa secp256r1[0m [32m✔[0m
+[36m│  │     ├─[0m [34maccp server, jdk client: TLSv1.2 ec default[0m [32m✔[0m
+[36m│  │     └─[0m [34maccp server, jdk client: TLSv1.2 ec secp256r1[0m [32m✔[0m
+[36m│  └─[0m [36mJcaDifferentialTest[0m [32m✔[0m
+[36m│     ├─[0m [36maesGcmIsIdenticalAndCrossDecrypts(int)[0m [32m✔[0m
+[36m│     │  ├─[0m [34m[1] 128[0m [32m✔[0m
+[36m│     │  └─[0m [34m[2] 256[0m [32m✔[0m
+[36m│     ├─[0m [36mrsa2048SignaturesAreIdenticalAndCrossVerify(String)[0m [32m✔[0m
+[36m│     │  ├─[0m [34m[1] SHA256withRSA[0m [32m✔[0m
+[36m│     │  └─[0m [34m[2] SHA512withRSA[0m [32m✔[0m
+[36m│     ├─[0m [36maesCbcIsIdenticalAndCrossDecrypts(String)[0m [32m✔[0m
+[36m│     │  ├─[0m [34m[1] AES/CBC/PKCS5Padding[0m [32m✔[0m
+[36m│     │  └─[0m [34m[2] AES/CBC/NoPadding[0m [32m✔[0m
+[36m│     ├─[0m [34mecdhP256AgreementIsIdentical()[0m [32m✔[0m
+[36m│     ├─[0m [36mdigestsAreIdentical(String)[0m [32m✔[0m
+[36m│     │  ├─[0m [34m[1] SHA-256[0m [32m✔[0m
+[36m│     │  ├─[0m [34m[2] SHA-512[0m [32m✔[0m
+[36m│     │  ├─[0m [34m[3] SHA-384[0m [32m✔[0m
+[36m│     │  └─[0m [34m[4] SHA-1[0m [32m✔[0m
+[36m│     ├─[0m [36mecdsaP256CrossVerifiesBothWays(String)[0m [32m✔[0m
+[36m│     │  ├─[0m [34m[1] SHA256withECDSA[0m [32m✔[0m
+[36m│     │  ├─[0m [34m[2] SHA256withECDSAinP1363Format[0m [32m✔[0m
+[36m│     │  └─[0m [34m[3] SHA384withECDSA[0m [32m✔[0m
+[36m│     └─[0m [36mhmacsAreIdentical(String)[0m [32m✔[0m
+[36m│        ├─[0m [34m[1] HmacSHA256[0m [32m✔[0m
+[36m│        ├─[0m [34m[2] HmacSHA512[0m [32m✔[0m
+[36m│        ├─[0m [34m[3] HmacSHA384[0m [32m✔[0m
+[36m│        └─[0m [34m[4] HmacSHA1[0m [32m✔[0m
+[36m├─[0m [36mJUnit Vintage[0m [32m✔[0m
+[36m└─[0m [36mJUnit Platform Suite[0m [32m✔[0m
+
+Test run finished after 4586 ms
+[        13 containers found      ]
+[         0 containers skipped    ]
+[        13 containers started    ]
+[         0 containers aborted    ]
+[        13 containers successful ]
+[         0 containers failed     ]
+[        34 tests found           ]
+[         0 tests skipped         ]
+[        34 tests started         ]
+[         0 tests aborted         ]
+[        34 tests successful      ]
+[         0 tests failed          ]
+
