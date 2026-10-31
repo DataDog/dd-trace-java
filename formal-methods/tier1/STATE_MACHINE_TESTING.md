@@ -5,10 +5,11 @@ generated command sequences against the Java implementation. A small reference
 model records every trace accepted before a flush. The implementation must have
 serialized the same set when the flush is acknowledged.
 
-`TraceProcessingWorkerStateMachineTest` generates publish prefixes in increasing
-length and lexicographic order. For each prefix it deliberately queues the flush
-marker before starting the serializer. This removes timing from the schedule and
-makes the first mismatch the shortest reproducible counterexample.
+`TraceProcessingWorkerStateMachineTest` generates command sequences in increasing
+length and lexicographic order. For each sequence it deliberately queues flush
+markers before starting the serializer. This removes timing from the schedule.
+It explores the full bound, groups failures by causal signature, and retains the
+first (therefore shortest) schedule for each distinct problem.
 
 The current minimal counterexample is:
 
@@ -25,4 +26,22 @@ Future state machines should preserve three properties:
 
 1. generated schedules are deterministic and bounded;
 2. the oracle is an independent reference model, not internal queue state;
-3. failures report a replayable, minimal command sequence.
+3. failures report a replayable, minimal command sequence without stopping
+   exploration after a previously known defect.
+
+The saturation state machine is independent of flush ordering. It fills the
+primary and secondary lanes without starting consumers and checks that every
+rejected publish is reported as an explicit lane-specific terminal drop.
+
+## Remote-config listener fan-out
+
+`ProductStateListenerStateMachineTest` injects a failure into each listener
+phase (`accept`, `remove`, and `commit`) ahead of a healthy listener. It then
+replays the same remote-config state. The reference model requires the healthy
+listener to observe the complete phase and requires incomplete delivery to
+remain retryable.
+
+All three injected phases currently violate the model. In each case the healthy
+listener misses the failed phase and replay reports no change, so delivery is
+never retried. The `remove` and `commit` failures are distinct additions to the
+previously known `accept` failure.

@@ -10,9 +10,11 @@ alive.
 | Pending traces | A late child retains a writer after flush | `FlushDrainOwnership` | Known violation | `PendingTraceBufferTest.flushDrainClearsEnqueuedStateBeforeWriting` |
 | Buffer commands | A waiting command remains owned or acknowledged | `FlushDumpMarker` | Known violation | `PendingTraceBufferTest.flushDrainDoesNotConsumeTracerDumpMarker` |
 | Writer pipeline | Flush covers accepted upstream sampling work | `SpanSamplingFlush` | Known violation | `TraceProcessingWorkerTest.flushWaitsForInFlightSingleSpanSampling` |
-| Writer pipeline | Flush covers accepted secondary-queue work | Generated reference model | Known violation | `TraceProcessingWorkerStateMachineTest.generatedCommandSequencesRespectFlushBarrier` |
+| Writer pipeline | Flush covers accepted secondary-queue work | Generated reference model | Known violation | `TraceProcessingWorkerStateMachineTest.generatedCommandSequencesRespectFlushBarriers` |
 | Context | Continuations finalize once and only when quiescent | `ContinuationLifecycle` | Passes bounded model | Existing context lifecycle tests |
 | Remote config | Cached targets were distributed to every healthy listener | `ListenerDistribution` | Known violation | `ProductStateSpecification.listenerFailureDoesNotPreventLaterListenersFromReceivingConfiguration` |
+| Remote config | Removal reaches every healthy listener and remains retryable | Generated listener state machine | Known violation | `ProductStateListenerStateMachineTest.generatedListenerFailuresRemainRetryableForHealthyListeners` |
+| Remote config | Commit reaches every healthy listener and remains retryable | Generated listener state machine | Known violation | `ProductStateListenerStateMachineTest.generatedListenerFailuresRemainRetryableForHealthyListeners` |
 | Telemetry | Accepted events remain queued, retry-buffered, delivered, or policy-dropped | `TelemetryRetryOwnership` | Passes bounded model | Existing `TelemetryServiceTest` retry tests |
 | Data streams | `close()` cannot return with its worker alive | `DataStreamsClose` | Known violation | `DefaultDataStreamsMonitoringTest.closeStopsWorkerWhenInboxIsFull` |
 
