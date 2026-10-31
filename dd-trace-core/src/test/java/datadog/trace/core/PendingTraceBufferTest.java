@@ -301,11 +301,10 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
               parentLatch.countDown();
               return null;
             })
-        .doAnswer(
-            invocation -> {
-              childLatch.countDown();
-              return null;
-            })
+        .doAnswer(invocation -> {
+          childLatch.countDown();
+          return null;
+        })
         .when(tracer)
         .write(any());
 

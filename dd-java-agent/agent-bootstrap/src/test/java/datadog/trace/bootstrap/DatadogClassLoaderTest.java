@@ -91,11 +91,10 @@ class DatadogClassLoaderTest {
     List<Future<Void>> futures = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
       futures.add(
-          executorService.submit(
-              () -> {
-                ddLoader.loadClass("a.A");
-                return null;
-              }));
+          executorService.submit(() -> {
+            ddLoader.loadClass("a.A");
+            return null;
+          }));
     }
     for (Future<Void> future : futures) {
       try {

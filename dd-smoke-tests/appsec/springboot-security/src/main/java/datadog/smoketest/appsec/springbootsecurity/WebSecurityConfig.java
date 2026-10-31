@@ -27,14 +27,13 @@ public class WebSecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http.authorizeRequests(
-            (requests) ->
-                requests
-                    .antMatchers("/", "/signup", "/register")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
-        .formLogin((form) -> form.loginPage("/login").permitAll())
+    http.authorizeRequests(requests ->
+            requests
+                .antMatchers("/", "/signup", "/register")
+                .permitAll()
+                .anyRequest()
+                .authenticated())
+        .formLogin(form -> form.loginPage("/login").permitAll())
         .logout(LogoutConfigurer::permitAll);
 
     return http.build();

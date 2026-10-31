@@ -29,12 +29,11 @@ public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<Strea
       BiConsumer<AgentSpan, List<T>> decorate) {
     return future
         .thenApply(r -> wrap(r, span, decorate))
-        .whenComplete(
-            (_r, err) -> {
-              if (err != null) {
-                DECORATE.finishSpan(span, err);
-              }
-            });
+        .whenComplete((_r, err) -> {
+          if (err != null) {
+            DECORATE.finishSpan(span, err);
+          }
+        });
   }
 
   private final HttpResponseFor<StreamResponse<T>> delegate;

@@ -25,11 +25,10 @@ class TestEventsHandlerImplTest {
   void doesNotCreateSessionWhenUnused() {
     AtomicInteger creations = new AtomicInteger();
     TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return mock(TestFrameworkSession.class);
-            });
+        handler(() -> {
+          creations.incrementAndGet();
+          return mock(TestFrameworkSession.class);
+        });
 
     handler.close();
 
@@ -45,11 +44,10 @@ class TestEventsHandlerImplTest {
     when(module.skipReason(test)).thenReturn(SkipReason.ITR);
     AtomicInteger creations = new AtomicInteger();
     TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return session;
-            });
+        handler(() -> {
+          creations.incrementAndGet();
+          return session;
+        });
 
     assertSame(SkipReason.ITR, handler.skipReason(test));
     assertSame(SkipReason.ITR, handler.skipReason(test));

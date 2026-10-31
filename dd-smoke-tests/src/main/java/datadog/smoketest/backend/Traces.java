@@ -50,14 +50,12 @@ public final class Traces {
    */
   public void waitForTraceCount(int count, double timeoutSeconds) {
     new PollingConditions(timeoutSeconds)
-        .eventually(
-            () -> {
-              int actual = getTraces().size();
-              if (actual < count) {
-                throw new AssertionError(
-                    "Expected at least " + count + " trace(s) but got " + actual);
-              }
-            });
+        .eventually(() -> {
+          int actual = getTraces().size();
+          if (actual < count) {
+            throw new AssertionError("Expected at least " + count + " trace(s) but got " + actual);
+          }
+        });
   }
 
   /**

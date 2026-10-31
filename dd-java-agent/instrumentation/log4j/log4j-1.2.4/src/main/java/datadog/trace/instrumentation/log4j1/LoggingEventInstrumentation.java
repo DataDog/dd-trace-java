@@ -129,7 +129,7 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.This LoggingEvent event,
-        @Advice.Enter() boolean injectionRequired,
+        @Advice.Enter boolean injectionRequired,
         @Advice.FieldValue(value = "mdcCopy") Hashtable mdc) {
       if (!injectionRequired) {
         return;

@@ -84,27 +84,26 @@ public class OverheadContext {
       return;
     }
     // If the budget is consumed, we need to merge the requestMap into the globalMap
-    endpoints.forEach(
-        endpoint -> {
-          AtomicIntegerArray countMap = requestMap.get(endpoint);
-          // should not happen, but just in case
-          if (countMap == null) {
-            globalMap.remove(endpoint);
-            return;
-          }
-          // Iterate over the vulnerabilities and update the globalMap
-          int numberOfVulnerabilities = VulnerabilityTypes.STRINGS.length;
-          for (int i = 0; i < numberOfVulnerabilities; i++) {
-            int counter = countMap.get(i);
-            if (counter > 0) {
-              AtomicIntegerArray globalCountMap =
-                  globalMap.computeIfAbsent(
-                      endpoint, value -> new AtomicIntegerArray(numberOfVulnerabilities));
+    endpoints.forEach(endpoint -> {
+      AtomicIntegerArray countMap = requestMap.get(endpoint);
+      // should not happen, but just in case
+      if (countMap == null) {
+        globalMap.remove(endpoint);
+        return;
+      }
+      // Iterate over the vulnerabilities and update the globalMap
+      int numberOfVulnerabilities = VulnerabilityTypes.STRINGS.length;
+      for (int i = 0; i < numberOfVulnerabilities; i++) {
+        int counter = countMap.get(i);
+        if (counter > 0) {
+          AtomicIntegerArray globalCountMap =
+              globalMap.computeIfAbsent(
+                  endpoint, value -> new AtomicIntegerArray(numberOfVulnerabilities));
 
-              globalCountMap.accumulateAndGet(i, counter, Math::max);
-            }
-          }
-        });
+          globalCountMap.accumulateAndGet(i, counter, Math::max);
+        }
+      }
+    });
   }
 
   public boolean isGlobal() {

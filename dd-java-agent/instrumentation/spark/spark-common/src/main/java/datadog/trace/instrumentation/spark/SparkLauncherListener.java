@@ -60,18 +60,17 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
       shutdownHookRegistered = true;
       Runtime.getRuntime()
           .addShutdownHook(
-              new Thread(
-                  () -> {
-                    synchronized (SparkLauncherListener.class) {
-                      AgentSpan s = launcherSpan;
-                      if (s != null) {
-                        log.info("Finishing spark.launcher span from shutdown hook");
-                        setTimingMetrics(s);
-                        s.finish();
-                        launcherSpan = null;
-                      }
-                    }
-                  }));
+              new Thread(() -> {
+                synchronized (SparkLauncherListener.class) {
+                  AgentSpan s = launcherSpan;
+                  if (s != null) {
+                    log.info("Finishing spark.launcher span from shutdown hook");
+                    setTimingMetrics(s);
+                    s.finish();
+                    launcherSpan = null;
+                  }
+                }
+              }));
     }
   }
 

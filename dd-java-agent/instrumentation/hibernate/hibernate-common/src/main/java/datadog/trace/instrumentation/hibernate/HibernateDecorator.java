@@ -15,15 +15,14 @@ public class HibernateDecorator extends OrmClientDecorator {
   public static final HibernateDecorator DECORATOR = new HibernateDecorator();
 
   private static final ClassValue<String> ENTITY_NAMES =
-      GenericClassValue.of(
-          type -> {
-            for (Annotation annotation : type.getDeclaredAnnotations()) {
-              if ("javax.persistence.Entity".equals(annotation.annotationType().getName())) {
-                return type.getName();
-              }
-            }
-            return null;
-          });
+      GenericClassValue.of(type -> {
+        for (Annotation annotation : type.getDeclaredAnnotations()) {
+          if ("javax.persistence.Entity".equals(annotation.annotationType().getName())) {
+            return type.getName();
+          }
+        }
+        return null;
+      });
 
   @Override
   protected String service() {

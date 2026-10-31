@@ -115,16 +115,15 @@ public final class AgentJarIndex {
             .map(resourcesDir::relativize)
             .sorted()
             .filter(entry -> entry.getNameCount() >= 2)
-            .forEach(
-                entry -> {
-                  String prefix = entry.getName(0) + "/";
-                  int prefixId = prefixIdFor(prefix);
-                  String entryKey = computeEntryKey(entry.subpath(1, entry.getNameCount()));
-                  if (null != entryKey && seen.add(prefixId + "\0" + entryKey)) {
-                    collectedEntryKeys.add(entryKey);
-                    collectedPrefixIds.add(prefixId);
-                  }
-                });
+            .forEach(entry -> {
+              String prefix = entry.getName(0) + "/";
+              int prefixId = prefixIdFor(prefix);
+              String entryKey = computeEntryKey(entry.subpath(1, entry.getNameCount()));
+              if (null != entryKey && seen.add(prefixId + "\0" + entryKey)) {
+                collectedEntryKeys.add(entryKey);
+                collectedPrefixIds.add(prefixId);
+              }
+            });
       }
 
       for (int i = 0; i < collectedEntryKeys.size(); i++) {

@@ -49,13 +49,12 @@ class ClassDefiningTest {
     int[] capturedOffset = new int[1];
     int[] capturedLength = new int[1];
 
-    ClassDefining.observe(
-        (l, b, o, len) -> {
-          capturedLoader[0] = l;
-          capturedBytecode[0] = b;
-          capturedOffset[0] = o;
-          capturedLength[0] = len;
-        });
+    ClassDefining.observe((l, b, o, len) -> {
+      capturedLoader[0] = l;
+      capturedBytecode[0] = b;
+      capturedOffset[0] = o;
+      capturedLength[0] = len;
+    });
 
     ClassDefining.begin(loader, bytecode, 1, 3);
 

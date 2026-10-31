@@ -97,18 +97,17 @@ class IastMetricCollectorTest {
     List<Future<?>> futures = new ArrayList<>(times);
     for (int i = 0; i < times; i++) {
       futures.add(
-          executor.submit(
-              () -> {
-                IastMetric metric = metrics[random.nextInt(metrics.length)];
-                latch.await();
-                if (metric.getTag() == null) {
-                  IastMetricCollector.add(metric, value);
-                } else {
-                  byte tag = (byte) random.nextInt(metric.getTag().values.length);
-                  IastMetricCollector.add(metric, tag, value);
-                }
-                return null;
-              }));
+          executor.submit(() -> {
+            IastMetric metric = metrics[random.nextInt(metrics.length)];
+            latch.await();
+            if (metric.getTag() == null) {
+              IastMetricCollector.add(metric, value);
+            } else {
+              byte tag = (byte) random.nextInt(metric.getTag().values.length);
+              IastMetricCollector.add(metric, tag, value);
+            }
+            return null;
+          }));
     }
     latch.countDown();
     for (Future<?> future : futures) {

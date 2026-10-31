@@ -31,21 +31,19 @@ class ScopeDiagnosticsAdmissionTest {
     Object scope = new Object();
     DDTraceId trace = DDTraceId.from(1);
     FutureTask<Void> callbacks =
-        new FutureTask<>(
-            () -> {
-              ScopeDiagnostics.recordCapture(window, continuation, trace, 2, "op", (byte) 0);
-              ScopeDiagnostics.recordActivate(
-                  window, continuation, trace, 2, "op", (byte) 0, System.nanoTime());
-              ScopeDiagnostics.recordScopeOpen(
-                  window, scope, trace, 2, "op", (byte) 0, continuation);
-              ScopeDiagnostics.recordDeferredScopeCleanup(window, scope);
-              ScopeDiagnostics.recordScopeCloseWrongThread(window, scope);
-              ScopeDiagnostics.recordScopeClose(window, scope);
-              ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
-              ScopeDiagnostics.recordRootWritten(window, trace);
-              ScopeDiagnostics.recordActivateFailed(window, continuation);
-              return null;
-            });
+        new FutureTask<>(() -> {
+          ScopeDiagnostics.recordCapture(window, continuation, trace, 2, "op", (byte) 0);
+          ScopeDiagnostics.recordActivate(
+              window, continuation, trace, 2, "op", (byte) 0, System.nanoTime());
+          ScopeDiagnostics.recordScopeOpen(window, scope, trace, 2, "op", (byte) 0, continuation);
+          ScopeDiagnostics.recordDeferredScopeCleanup(window, scope);
+          ScopeDiagnostics.recordScopeCloseWrongThread(window, scope);
+          ScopeDiagnostics.recordScopeClose(window, scope);
+          ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
+          ScopeDiagnostics.recordRootWritten(window, trace);
+          ScopeDiagnostics.recordActivateFailed(window, continuation);
+          return null;
+        });
     Thread carrier = new Thread(callbacks, "diagnostic-carrier");
     carrier.setDaemon(true);
     ScopeDiagnostics.INSTANCE.lifecycleLock.lock();
@@ -83,11 +81,10 @@ class ScopeDiagnosticsAdmissionTest {
     ContextContinuation continuation = Context.root().capture();
     ScopeDiagnostics.recordCapture(window, continuation, DDTraceId.from(1), 2, "op", (byte) 0);
     FutureTask<Void> waiting =
-        new FutureTask<>(
-            () -> {
-              ScopeDiagnostics.awaitQuiescence(30_000);
-              return null;
-            });
+        new FutureTask<>(() -> {
+          ScopeDiagnostics.awaitQuiescence(30_000);
+          return null;
+        });
     Thread waiter = new Thread(waiting, "diagnostic-quiescence");
     waiter.setDaemon(true);
     waiter.start();
@@ -111,11 +108,10 @@ class ScopeDiagnosticsAdmissionTest {
     Object scope = new Object();
     ScopeDiagnostics.recordScopeOpen(window, scope, DDTraceId.from(1), 2, "op", (byte) 0, null);
     FutureTask<Void> stopping =
-        new FutureTask<>(
-            () -> {
-              ScopeDiagnostics.stopAfterQuiescence(30_000);
-              return null;
-            });
+        new FutureTask<>(() -> {
+          ScopeDiagnostics.stopAfterQuiescence(30_000);
+          return null;
+        });
     Thread stopper = new Thread(stopping, "diagnostic-quiescent-stop");
     stopper.setDaemon(true);
     stopper.start();
@@ -189,11 +185,10 @@ class ScopeDiagnosticsAdmissionTest {
     DiagnosticEventBuffer.Event reservation = ((DiagnosticEventBuffer) window).reserve();
     ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
     FutureTask<Void> stopping =
-        new FutureTask<>(
-            () -> {
-              ScopeDiagnostics.stop();
-              return null;
-            });
+        new FutureTask<>(() -> {
+          ScopeDiagnostics.stop();
+          return null;
+        });
     Thread stopper = new Thread(stopping, "diagnostic-stop");
     stopper.setDaemon(true);
     stopper.start();

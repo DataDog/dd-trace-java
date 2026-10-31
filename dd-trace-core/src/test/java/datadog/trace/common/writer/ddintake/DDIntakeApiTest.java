@@ -66,22 +66,19 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
     String apiVersion = "v2";
     String path = buildIntakePath(trackType, apiVersion);
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              if (!"application/msgpack"
-                                  .equals(api.getRequest().getContentType())) {
-                                api.getResponse()
-                                    .status(400)
-                                    .send("wrong type: " + api.getRequest().getContentType());
-                              } else {
-                                api.getResponse().status(200).send();
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.post(
+                    path,
+                    api -> {
+                      if (!"application/msgpack".equals(api.getRequest().getContentType())) {
+                        api.getResponse()
+                            .status(400)
+                            .send("wrong type: " + api.getRequest().getContentType());
+                      } else {
+                        api.getResponse().status(200).send();
+                      }
+                    })));
     DDIntakeApi client = createIntakeApi(intake.getAddress().toString(), trackType);
     Payload payload = prepareTraces(trackType, Collections.emptyList());
 
@@ -103,20 +100,18 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
     int[] retry = {1};
     JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              if (retry[0] < 5) {
-                                api.getResponse().status(503).send();
-                                retry[0]++;
-                              } else {
-                                api.getResponse().status(200).send();
-                              }
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.post(
+                    path,
+                    api -> {
+                      if (retry[0] < 5) {
+                        api.getResponse().status(503).send();
+                        retry[0]++;
+                      } else {
+                        api.getResponse().status(200).send();
+                      }
+                    })));
     DDIntakeApi client = createIntakeApi(intake.getAddress().toString(), trackType);
     Payload payload = prepareTraces(trackType, Collections.emptyList());
 
@@ -138,23 +133,18 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
     String path = buildIntakePath(trackType, apiVersion);
     int[] retry = {0};
     try (JavaTestHttpServer intake =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            path,
-                            api -> {
-                              if (retry[0] < 1) {
-                                api.getResponse()
-                                    .status(429)
-                                    .addHeader("x-ratelimit-reset", "0")
-                                    .send();
-                                retry[0]++;
-                              } else {
-                                api.getResponse().status(200).send();
-                              }
-                            })))) {
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.post(
+                    path,
+                    api -> {
+                      if (retry[0] < 1) {
+                        api.getResponse().status(429).addHeader("x-ratelimit-reset", "0").send();
+                        retry[0]++;
+                      } else {
+                        api.getResponse().status(200).send();
+                      }
+                    })))) {
 
       DDIntakeApi client = createIntakeApi(intake.getAddress().toString(), trackType);
       Payload payload = prepareTraces(trackType, Collections.emptyList());

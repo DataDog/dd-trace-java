@@ -50,12 +50,11 @@ public class ScriptInitializerSecurityTest {
       stream
           .sorted(Comparator.reverseOrder())
           .map(Path::toFile)
-          .forEach(
-              f -> {
-                // Restore write permission before delete to handle read-only test artefacts
-                f.setWritable(true, false);
-                f.delete();
-              });
+          .forEach(f -> {
+            // Restore write permission before delete to handle read-only test artefacts
+            f.setWritable(true, false);
+            f.delete();
+          });
     }
   }
 

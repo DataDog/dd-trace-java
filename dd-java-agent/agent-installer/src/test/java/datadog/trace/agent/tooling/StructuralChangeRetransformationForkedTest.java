@@ -131,11 +131,10 @@ class StructuralChangeRetransformationForkedTest {
 
     @Override
     public void typeAdvice(TypeTransformer transformer) {
-      transformer.applyAdvice(
-          (builder, typeDescription, classLoader, module, protectionDomain) -> {
-            transformations.incrementAndGet();
-            return builder.visit(new AddStructuralMarkerVisitor());
-          });
+      transformer.applyAdvice((builder, typeDescription, classLoader, module, protectionDomain) -> {
+        transformations.incrementAndGet();
+        return builder.visit(new AddStructuralMarkerVisitor());
+      });
     }
 
     @Override

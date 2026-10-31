@@ -411,12 +411,11 @@ class JFRBasedProfilingIntegrationTest {
 
   private Pair<Instant, Instant> getRangeStartAndEnd(final IItemCollection events) {
     return events.getUnfilteredTimeRanges().stream()
-        .map(
-            range -> {
-              final Instant convertedStart = convertFromQuantity(range.getStart());
-              final Instant convertedEnd = convertFromQuantity(range.getEnd());
-              return Pair.of(convertedStart, convertedEnd);
-            })
+        .map(range -> {
+          final Instant convertedStart = convertFromQuantity(range.getStart());
+          final Instant convertedEnd = convertFromQuantity(range.getEnd());
+          return Pair.of(convertedStart, convertedEnd);
+        })
         .reduce(
             Pair.of(null, null),
             (send, newSend) -> {
@@ -965,13 +964,12 @@ class JFRBasedProfilingIntegrationTest {
   private static boolean logHasErrors(final Path logFilePath) throws IOException {
     final boolean[] logHasErrors = new boolean[] {false};
     Files.lines(logFilePath)
-        .forEach(
-            it -> {
-              if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
-                System.out.println(it);
-                logHasErrors[0] = true;
-              }
-            });
+        .forEach(it -> {
+          if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
+            System.out.println(it);
+            logHasErrors[0] = true;
+          }
+        });
     if (logHasErrors[0]) {
       System.out.println(
           "Test application log is containing errors. See full run logs in " + logFilePath);

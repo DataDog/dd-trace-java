@@ -58,14 +58,13 @@ class HttpServerResponseEndHandlerInstrumentationTest extends AbstractInstrument
         .createHttpServer(new HttpServerOptions().setHttp2ClearTextEnabled(true))
         .requestHandler(router)
         .listen(port)
-        .andThen(
-            result -> {
-              if (result.failed()) {
-                throw new RuntimeException("Failed to start Vert.x server", result.cause());
-              }
-              server = result.result();
-              ready.countDown();
-            });
+        .andThen(result -> {
+          if (result.failed()) {
+            throw new RuntimeException("Failed to start Vert.x server", result.cause());
+          }
+          server = result.result();
+          ready.countDown();
+        });
     if (!ready.await(10, TimeUnit.SECONDS)) {
       throw new IllegalStateException("Vert.x server did not start in time");
     }
@@ -132,9 +131,8 @@ class HttpServerResponseEndHandlerInstrumentationTest extends AbstractInstrument
   private Future<Map.Entry<Integer, String>> collectResponse(HttpClientResponse response) {
     return response
         .body()
-        .map(
-            body ->
-                new SimpleEntry<>(response.statusCode(), body.toString(StandardCharsets.UTF_8)));
+        .map(body ->
+            new SimpleEntry<>(response.statusCode(), body.toString(StandardCharsets.UTF_8)));
   }
 
   private static boolean hasVertx51Http1Response() {

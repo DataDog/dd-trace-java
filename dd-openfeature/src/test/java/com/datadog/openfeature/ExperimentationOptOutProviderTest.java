@@ -190,14 +190,13 @@ class ExperimentationOptOutProviderTest {
           provider.shutdown();
         }
       } finally {
-        previousProperties.forEach(
-            (key, value) -> {
-              if (value == null) {
-                System.clearProperty(key);
-              } else {
-                System.setProperty(key, value);
-              }
-            });
+        previousProperties.forEach((key, value) -> {
+          if (value == null) {
+            System.clearProperty(key);
+          } else {
+            System.setProperty(key, value);
+          }
+        });
       }
     }
   }

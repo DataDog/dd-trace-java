@@ -49,11 +49,10 @@ public class DDJavaSpecification {
 
   static Set<Thread> getDDThreads() {
     return Thread.getAllStackTraces().keySet().stream()
-        .filter(
-            t ->
-                t.getName().startsWith("dd-")
-                    && !t.getName().equals("dd-task-scheduler")
-                    && !t.getName().equals("dd-cassandra-session-executor"))
+        .filter(t ->
+            t.getName().startsWith("dd-")
+                && !t.getName().equals("dd-task-scheduler")
+                && !t.getName().equals("dd-cassandra-session-executor"))
         .collect(Collectors.toSet());
   }
 

@@ -40,10 +40,8 @@ public class ScriptInitializerTest {
   @Test
   void testCrashUploaderSanity() {
     assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(null, null));
-    assertDoesNotThrow(
-        () ->
-            CrashUploaderScriptInitializer.initialize(
-                tempDir.resolve("dummy.sh").toString(), null));
+    assertDoesNotThrow(() ->
+        CrashUploaderScriptInitializer.initialize(tempDir.resolve("dummy.sh").toString(), null));
     assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(null, "hs_err.log"));
   }
 

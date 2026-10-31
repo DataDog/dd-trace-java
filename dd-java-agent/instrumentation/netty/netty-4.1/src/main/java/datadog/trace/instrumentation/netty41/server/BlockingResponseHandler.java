@@ -175,13 +175,12 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
 
     writeContext
         .writeAndFlush(pendingBlockResponse.toResponse())
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              }
-              writeContext.channel().close();
-            });
+        .addListener(fut -> {
+          if (!fut.isSuccess()) {
+            log.warn("Write of blocking response failed", fut.cause());
+          }
+          writeContext.channel().close();
+        });
   }
 
   private static class PendingBlockResponse {

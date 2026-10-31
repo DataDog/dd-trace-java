@@ -562,20 +562,19 @@ class AdaptiveSamplerTest {
       means[i] = new Mean();
       final Mean mean = means[i];
       threads[i] =
-          new Thread(
-              () -> {
-                try {
-                  for (int w = 0; w < WINDOWS; w++) {
-                    startBarrier.await(10, TimeUnit.SECONDS);
-                    WindowSamplingResult samplingResult =
-                        generateWindowEventsAndSample(windowEventsSupplier, sampler, mean);
-                    allSamples.addAndGet(samplingResult.samples);
-                    receivedEvents.addAndGet(samplingResult.events);
-                    endBarrier.await(10, TimeUnit.SECONDS);
-                  }
-                } catch (Throwable ignored) {
-                }
-              });
+          new Thread(() -> {
+            try {
+              for (int w = 0; w < WINDOWS; w++) {
+                startBarrier.await(10, TimeUnit.SECONDS);
+                WindowSamplingResult samplingResult =
+                    generateWindowEventsAndSample(windowEventsSupplier, sampler, mean);
+                allSamples.addAndGet(samplingResult.samples);
+                receivedEvents.addAndGet(samplingResult.events);
+                endBarrier.await(10, TimeUnit.SECONDS);
+              }
+            } catch (Throwable ignored) {
+            }
+          });
       threads[i].start();
     }
     for (final Thread t : threads) {

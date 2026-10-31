@@ -40,13 +40,12 @@ public final class AdviceAppliesOnScanner {
     // collect the advices
     final Set<String> adviceClassNames = new HashSet<>();
     ((Instrumenter.HasMethodAdvice) instrumenter)
-        .methodAdvice(
-            (matcher, adviceClass, additionalClasses) -> {
-              adviceClassNames.add(adviceClass);
-              if (additionalClasses != null) {
-                adviceClassNames.addAll(asList(additionalClasses));
-              }
-            });
+        .methodAdvice((matcher, adviceClass, additionalClasses) -> {
+          adviceClassNames.add(adviceClass);
+          if (additionalClasses != null) {
+            adviceClassNames.addAll(asList(additionalClasses));
+          }
+        });
     for (String adviceClassName : adviceClassNames) {
       // process each advice
       new ClassReader(adviceClassName)

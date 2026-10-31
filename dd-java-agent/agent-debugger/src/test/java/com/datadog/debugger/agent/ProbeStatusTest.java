@@ -55,10 +55,9 @@ class ProbeStatusTest {
 
   @Test
   void builderReceivedNullSafe() {
-    assertDoesNotThrow(
-        () -> {
-          builder.receivedMessage(null);
-        });
+    assertDoesNotThrow(() -> {
+      builder.receivedMessage(null);
+    });
   }
 
   @Test

@@ -359,11 +359,10 @@ public final class CrashUploader {
       return null;
     }
     return Arrays.stream(matcher.group().split(System.lineSeparator()))
-        .filter(
-            s ->
-                !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
-                    && !s.equals(
-                        "# There is insufficient memory for the Java Runtime Environment to continue."))
+        .filter(s ->
+            !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
+                && !s.equals(
+                    "# There is insufficient memory for the Java Runtime Environment to continue."))
         .map(s -> s.replaceFirst("^#\\s*", "").trim())
         .collect(Collectors.joining("\n"))
         .trim();

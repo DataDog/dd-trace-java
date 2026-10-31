@@ -50,14 +50,13 @@ public class PluginApplication {
       if (result.isSuccess()) {
         Extension.EXTENSIONS.stream()
             .filter(ext -> ext.appliesTo(spec))
-            .forEach(
-                ext -> {
-                  try {
-                    ext.apply(configuration, result);
-                  } catch (final Throwable e) {
-                    result.addError(e, ErrorCode.EXTENSION_ERROR, ext.getClass());
-                  }
-                });
+            .forEach(ext -> {
+              try {
+                ext.apply(configuration, result);
+              } catch (final Throwable e) {
+                result.addError(e, ErrorCode.EXTENSION_ERROR, ext.getClass());
+              }
+            });
       }
       return result;
     };

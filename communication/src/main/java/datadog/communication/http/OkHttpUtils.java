@@ -156,12 +156,11 @@ public final class OkHttpUtils {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
     try {
-      builder.eventListenerFactory(
-          call -> {
-            Request request = call.request();
-            CustomListener listener = request.tag(CustomListener.class);
-            return listener != null ? listener : EventListener.NONE;
-          });
+      builder.eventListenerFactory(call -> {
+        Request request = call.request();
+        CustomListener listener = request.tag(CustomListener.class);
+        return listener != null ? listener : EventListener.NONE;
+      });
     } catch (NoSuchMethodError e) {
       // A workaround for OKHTTP instrumentation tests
       // where the version of OKHTTP conflicts with the one used in this module.
@@ -213,17 +212,12 @@ public final class OkHttpUtils {
     if (proxyHost != null) {
       builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort)));
       if (proxyUsername != null) {
-        builder.proxyAuthenticator(
-            (route, response) -> {
-              final String credential =
-                  Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
+        builder.proxyAuthenticator((route, response) -> {
+          final String credential =
+              Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
 
-              return response
-                  .request()
-                  .newBuilder()
-                  .header("Proxy-Authorization", credential)
-                  .build();
-            });
+          return response.request().newBuilder().header("Proxy-Authorization", credential).build();
+        });
       }
     }
 

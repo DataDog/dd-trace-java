@@ -58,18 +58,17 @@ public class MainApp {
       // add jvm shutdown hook
       Runtime.getRuntime()
           .addShutdownHook(
-              new Thread(
-                  () -> {
-                    try {
-                      System.out.println("Shutting down the application...");
+              new Thread(() -> {
+                try {
+                  System.out.println("Shutting down the application...");
 
-                      httpServer.shutdownNow();
+                  httpServer.shutdownNow();
 
-                      System.out.println("Done, exit.");
-                    } catch (Exception e) {
-                      Logger.getLogger(MainApp.class.getName()).log(Level.SEVERE, null, e);
-                    }
-                  }));
+                  System.out.println("Done, exit.");
+                } catch (Exception e) {
+                  Logger.getLogger(MainApp.class.getName()).log(Level.SEVERE, null, e);
+                }
+              }));
 
       System.out.println("Application started.");
       System.out.println("Stop the application using CTRL+C");

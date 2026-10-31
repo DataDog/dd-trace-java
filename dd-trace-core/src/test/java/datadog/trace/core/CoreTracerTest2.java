@@ -198,7 +198,7 @@ public final class CoreTracerTest2 {
   @Test
   public void interceptEmptyList() {
     DDSpan span = (DDSpan) TRACER.startSpan("foo", "foo");
-    TraceInterceptors interceptors = interceptors((list) -> SpanList.of(span));
+    TraceInterceptors interceptors = interceptors(list -> SpanList.of(span));
 
     SpanList list = new SpanList(0); // not using EMPTY deliberately
     List<DDSpan> interceptedList = CoreTracer.interceptCompleteTrace(interceptors, list);
@@ -207,7 +207,7 @@ public final class CoreTracerTest2 {
 
   @Test
   public void interceptUnchanged() {
-    TraceInterceptors interceptors = interceptors((list) -> list, (list) -> list);
+    TraceInterceptors interceptors = interceptors(list -> list, list -> list);
 
     DDSpan span = (DDSpan) TRACER.startSpan("foo", "foo");
     SpanList list = SpanList.of(span);
@@ -219,7 +219,7 @@ public final class CoreTracerTest2 {
   public void interceptNewList() {
     DDSpan substituteSpan = (DDSpan) TRACER.startSpan("sub", "sub");
     SpanList substituteList = SpanList.of(substituteSpan);
-    TraceInterceptors interceptors = interceptors((list) -> list, (list) -> substituteList);
+    TraceInterceptors interceptors = interceptors(list -> list, list -> substituteList);
 
     DDSpan span = (DDSpan) TRACER.startSpan("foo", "foo");
     SpanList list = SpanList.of(span);
@@ -235,8 +235,8 @@ public final class CoreTracerTest2 {
     DDSpan substituteSpan = (DDSpan) TRACER.startSpan("sub", "sub");
     TraceInterceptors interceptors =
         interceptors(
-            (list) -> list,
-            (list) -> {
+            list -> list,
+            list -> {
               List erasedList = (List) list;
               erasedList.clear();
               erasedList.add(substituteSpan);

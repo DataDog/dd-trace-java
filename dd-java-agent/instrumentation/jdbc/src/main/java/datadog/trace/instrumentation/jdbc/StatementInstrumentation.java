@@ -72,7 +72,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
-        @Advice.AllArguments() Object[] args,
+        @Advice.AllArguments Object[] args,
         @Advice.This final Statement statement) {
       // TODO consider matching known non-wrapper implementations to avoid this check
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);

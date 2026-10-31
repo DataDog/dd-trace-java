@@ -841,14 +841,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     final SharedCommunicationObjects sco = sharedCommunicationObjects;
     // asynchronously create these aggregator/export components to avoid triggering
     // expensive classloading during the tracer initialisation.
-    sharedCommunicationObjects.whenReady(
-        () ->
-            AgentTaskScheduler.get()
-                .execute(
-                    () -> {
-                      startMetricsAggregation(config, sco);
-                      maybeStartLogsExport(config);
-                    }));
+    sharedCommunicationObjects.whenReady(() ->
+        AgentTaskScheduler.get()
+            .execute(() -> {
+              startMetricsAggregation(config, sco);
+              maybeStartLogsExport(config);
+            }));
 
     if (dataStreamsMonitoring == null) {
       // Avoid DSM in bazel hermetic mode
@@ -2274,7 +2272,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (serviceName == null) {
         final Pair<String, CharSequence> serviceNameAndSource =
             traceConfig.getPreferredServiceNameAndSource();
-        ;
         if (serviceNameAndSource != null && serviceNameAndSource.hasLeft()) {
           serviceName = serviceNameAndSource.getLeft();
           serviceNameSource = serviceNameAndSource.getRight();

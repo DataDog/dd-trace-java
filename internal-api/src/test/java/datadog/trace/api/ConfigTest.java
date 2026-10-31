@@ -1682,10 +1682,9 @@ class ConfigTest {
     System.setProperty(PREFIX + REQUEST_HEADER_TAGS, "rqh1");
     System.setProperty(PREFIX + RESPONSE_HEADER_TAGS, "rsh1");
     Map<String, String> responseHeaderTags = new HashMap<>();
-    map.forEach(
-        (key, value) ->
-            responseHeaderTags.put(
-                key, value.replace("http.request.headers", "http.response.headers")));
+    map.forEach((key, value) ->
+        responseHeaderTags.put(
+            key, value.replace("http.request.headers", "http.response.headers")));
     responseHeaderTags.put("rsh1", "http.response.headers.rsh1");
     Properties props = new Properties();
     props.setProperty(HEADER_TAGS, mapString);

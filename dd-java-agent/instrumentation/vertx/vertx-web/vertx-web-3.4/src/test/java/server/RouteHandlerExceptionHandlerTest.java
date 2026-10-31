@@ -48,17 +48,16 @@ class RouteHandlerExceptionHandlerTest extends AbstractInstrumentationTest {
     Router router = Router.router(vertx);
     router
         .route("/fail")
-        .handler(
-            ctx -> {
-              ResponseExceptionFiringHelper.fireException(
-                  ctx.response(), new IOException("simulated response I/O failure"));
-              try {
-                ctx.response().setStatusCode(500).end("error");
-              } catch (IllegalStateException ignore) {
-                // handleException may have left the response in a state where end() is rejected;
-                // the span is already finished by our registered exception handler.
-              }
-            });
+        .handler(ctx -> {
+          ResponseExceptionFiringHelper.fireException(
+              ctx.response(), new IOException("simulated response I/O failure"));
+          try {
+            ctx.response().setStatusCode(500).end("error");
+          } catch (IllegalStateException ignore) {
+            // handleException may have left the response in a state where end() is rejected;
+            // the span is already finished by our registered exception handler.
+          }
+        });
 
     CountDownLatch ready = new CountDownLatch(1);
     server =

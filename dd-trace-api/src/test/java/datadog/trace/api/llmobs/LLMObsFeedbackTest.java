@@ -462,11 +462,10 @@ class LLMObsFeedbackTest {
 
   @Test
   void testDefaultNoOpFeedbackProcessorBehavior() {
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.submitFeedback(validBuilder().build());
-          LLMObs.submitFeedback(null);
-        });
+    assertDoesNotThrow(() -> {
+      LLMObs.submitFeedback(validBuilder().build());
+      LLMObs.submitFeedback(null);
+    });
   }
 
   @Test

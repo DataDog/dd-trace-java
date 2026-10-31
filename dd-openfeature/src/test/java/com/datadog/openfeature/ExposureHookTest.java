@@ -248,10 +248,9 @@ class ExposureHookTest {
     start(true, configuration(Boolean.TRUE, null));
     OpenFeatureAPI.getInstance()
         .addHooks(
-            new ExposureHook(
-                evaluation -> {
-                  throw new IllegalStateException("warehouse unavailable");
-                }));
+            new ExposureHook(evaluation -> {
+              throw new IllegalStateException("warehouse unavailable");
+            }));
 
     final FlagEvaluationDetails<Integer> details = evaluate("user-1");
 
@@ -313,29 +312,26 @@ class ExposureHookTest {
     final FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build();
 
-    assertDoesNotThrow(
-        () ->
-            new ExposureHook(
-                    evaluation -> {
-                      throw new IllegalStateException("warehouse unavailable");
-                    })
-                .finallyAfter(context, details, emptyMap()));
-    assertDoesNotThrow(
-        () ->
-            new ExposureHook(
-                    evaluation -> {
-                      throw new NoClassDefFoundError("missing class");
-                    })
-                .finallyAfter(context, details, emptyMap()));
+    assertDoesNotThrow(() ->
+        new ExposureHook(
+                evaluation -> {
+                  throw new IllegalStateException("warehouse unavailable");
+                })
+            .finallyAfter(context, details, emptyMap()));
+    assertDoesNotThrow(() ->
+        new ExposureHook(
+                evaluation -> {
+                  throw new NoClassDefFoundError("missing class");
+                })
+            .finallyAfter(context, details, emptyMap()));
   }
 
   @Test
   void keepsContainingCallbackFailuresAfterTheFirstOne() {
     final ExposureHook hook =
-        new ExposureHook(
-            evaluation -> {
-              throw new IllegalStateException("warehouse unavailable");
-            });
+        new ExposureHook(evaluation -> {
+          throw new IllegalStateException("warehouse unavailable");
+        });
     final FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build();
 

@@ -342,21 +342,20 @@ public abstract class BaseIntegrationTest {
     AtomicBoolean installed = new AtomicBoolean();
     AtomicBoolean emitting = new AtomicBoolean();
     AtomicBoolean result = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getProbeId().equals(probeId)) {
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-              received.set(true);
-            }
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
-              installed.set(true);
-            }
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.EMITTING) {
-              emitting.set(true);
-            }
-            result.set(received.get() && installed.get() && emitting.get());
-          }
-        });
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getProbeId().equals(probeId)) {
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+          received.set(true);
+        }
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+          installed.set(true);
+        }
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.EMITTING) {
+          emitting.set(true);
+        }
+        result.set(received.get() && installed.get() && emitting.get());
+      }
+    });
     return result;
   }
 
@@ -605,12 +604,11 @@ public abstract class BaseIntegrationTest {
       try (Stream<String> lines = Files.lines(logFilePath)) {
         long errorLines =
             lines
-                .filter(
-                    it ->
-                        it.contains(" ERROR ")
-                            || it.contains("ASSERTION FAILED")
-                            || it.contains("Error:")
-                            || checker.apply(it))
+                .filter(it ->
+                    it.contains(" ERROR ")
+                        || it.contains("ASSERTION FAILED")
+                        || it.contains("Error:")
+                        || checker.apply(it))
                 .peek(System.out::println)
                 .count();
         boolean hasErrors = errorLines > 0;

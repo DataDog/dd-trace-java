@@ -203,13 +203,11 @@ public class ProcessTags {
       synchronized (Lazy.TAGS) {
         final Stream<UTF8BytesString> tagStream =
             TAGS.entrySet().stream()
-                .map(
-                    entry ->
-                        UTF8BytesString.create(
-                            entry.getKey()
-                                + ":"
-                                + TraceUtils.normalizeTagValue(
-                                    entry.getValue().replace(':', '_'))));
+                .map(entry ->
+                    UTF8BytesString.create(
+                        entry.getKey()
+                            + ":"
+                            + TraceUtils.normalizeTagValue(entry.getValue().replace(':', '_'))));
         utf8ListForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
         stringListForm =
             Collections.unmodifiableList(

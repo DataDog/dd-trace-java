@@ -41,18 +41,17 @@ class KnuthSamplingRateCacheTest {
     for (int t = 0; t < THREADS; ++t) {
       int offset = t;
       threads[t] =
-          new Thread(
-              () -> {
-                awaitQuietly(start);
-                for (int i = 0; i < DECISIONS_PER_THREAD && mismatch.get() == null; ++i) {
-                  double rate = RATES[(i + offset) % RATES.length];
-                  String expected = PTagsFactory.PTags.formatKnuthSamplingRate(rate);
-                  String actual = knuthSamplingRate(rate);
-                  if (!expected.equals(actual)) {
-                    mismatch.compareAndSet(null, "rate " + rate + " got _dd.p.ksr=" + actual);
-                  }
-                }
-              });
+          new Thread(() -> {
+            awaitQuietly(start);
+            for (int i = 0; i < DECISIONS_PER_THREAD && mismatch.get() == null; ++i) {
+              double rate = RATES[(i + offset) % RATES.length];
+              String expected = PTagsFactory.PTags.formatKnuthSamplingRate(rate);
+              String actual = knuthSamplingRate(rate);
+              if (!expected.equals(actual)) {
+                mismatch.compareAndSet(null, "rate " + rate + " got _dd.p.ksr=" + actual);
+              }
+            }
+          });
       threads[t].start();
     }
     start.countDown();

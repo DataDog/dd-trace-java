@@ -126,14 +126,13 @@ public class WithConfigExtension
     // Method-level @WithConfig annotations (supports composed/meta-annotations)
     context
         .getTestMethod()
-        .ifPresent(
-            method -> {
-              List<WithConfig> methodConfigs =
-                  AnnotationSupport.findRepeatableAnnotations(method, WithConfig.class);
-              for (WithConfig cfg : methodConfigs) {
-                applyConfig(cfg);
-              }
-            });
+        .ifPresent(method -> {
+          List<WithConfig> methodConfigs =
+              AnnotationSupport.findRepeatableAnnotations(method, WithConfig.class);
+          for (WithConfig cfg : methodConfigs) {
+            applyConfig(cfg);
+          }
+        });
   }
 
   private static void applyConfig(WithConfig cfg) {

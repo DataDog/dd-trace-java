@@ -60,7 +60,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", map),
         TagMap.Entry.ANY,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(map, entry),
@@ -81,7 +81,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", "bar"),
         TagMap.Entry.OBJECT,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue("bar", entry),
@@ -108,7 +108,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newObjectEntry("foo", "bar"),
         TagMap.Entry.OBJECT,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue("bar", entry),
@@ -124,7 +124,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", "bar"),
         TagMap.Entry.ANY,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue("bar", entry),
@@ -140,7 +140,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.BOOLEAN,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -157,7 +157,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.BOOLEAN,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -174,7 +174,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newBooleanEntry("foo", Boolean.valueOf(value)),
         TagMap.Entry.BOOLEAN,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -191,7 +191,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Boolean.valueOf(value)),
         TagMap.Entry.ANY,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -209,7 +209,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.INT,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -225,7 +225,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newIntEntry("foo", value),
         TagMap.Entry.INT,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -241,7 +241,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newIntEntry("foo", Integer.valueOf(value)),
         TagMap.Entry.INT,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -257,7 +257,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newIntEntry("foo", Short.valueOf(value)),
         TagMap.Entry.INT,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -273,7 +273,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newIntEntry("foo", Byte.valueOf(value)),
         TagMap.Entry.INT,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -289,7 +289,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Integer.valueOf(value)),
         TagMap.Entry.ANY,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -321,7 +321,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.LONG,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -351,7 +351,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newLongEntry("foo", value),
         TagMap.Entry.LONG,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -381,7 +381,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newLongEntry("foo", Long.valueOf(value)),
         TagMap.Entry.LONG,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -411,7 +411,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Long.valueOf(value)),
         TagMap.Entry.ANY,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -427,7 +427,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.FLOAT,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -442,7 +442,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newFloatEntry("foo", value),
         TagMap.Entry.FLOAT,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -457,7 +457,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newFloatEntry("foo", Float.valueOf(value)),
         TagMap.Entry.FLOAT,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -472,7 +472,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Float.valueOf(value)),
         TagMap.Entry.ANY,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -488,7 +488,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.DOUBLE,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -503,7 +503,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newDoubleEntry("foo", value),
         TagMap.Entry.DOUBLE,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -519,7 +519,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newDoubleEntry("foo", Double.valueOf(value)),
         TagMap.Entry.DOUBLE,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -535,7 +535,7 @@ public class TagMapEntryTest {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Double.valueOf(value)),
         TagMap.Entry.ANY,
-        (entry) ->
+        entry ->
             multiCheck(
                 checkKey("foo", entry),
                 checkValue(value, entry),
@@ -567,7 +567,7 @@ public class TagMapEntryTest {
       Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checkSupplier) {
 
     Function<Entry, Check> combinedCheckSupplier =
-        (entry) -> {
+        entry -> {
           return multiCheck(
               checkSupplier.apply(entry),
               checkSame(entry, entry.entry()),
@@ -606,12 +606,11 @@ public class TagMapEntryTest {
       // Different shuffle for each thread
       Check shuffledChecks = checks.shuffle();
 
-      callables.add(
-          () -> {
-            shuffledChecks.check();
+      callables.add(() -> {
+        shuffledChecks.check();
 
-            return null;
-          });
+        return null;
+      });
     }
 
     List<Future<Void>> futures;

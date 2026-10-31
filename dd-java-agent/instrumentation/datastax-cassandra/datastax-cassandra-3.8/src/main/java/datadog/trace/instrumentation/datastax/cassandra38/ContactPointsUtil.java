@@ -16,11 +16,10 @@ public class ContactPointsUtil {
       endPoints ->
           endPoints.stream()
               .map(EndPoint::resolve)
-              .map(
-                  inetSocketAddress ->
-                      inetSocketAddress.getPort() > 0
-                          ? inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort()
-                          : inetSocketAddress.getHostString())
+              .map(inetSocketAddress ->
+                  inetSocketAddress.getPort() > 0
+                      ? inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort()
+                      : inetSocketAddress.getHostString())
               .distinct() // avoid duplicates
               .collect(Collectors.joining(","));
 

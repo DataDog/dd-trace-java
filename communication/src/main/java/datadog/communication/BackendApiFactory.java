@@ -275,14 +275,13 @@ public class BackendApiFactory {
       builder.retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false);
     }
     if (!requestHeaders.isEmpty()) {
-      builder.addInterceptor(
-          chain -> {
-            final Request.Builder requestBuilder = chain.request().newBuilder();
-            for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
-              requestBuilder.header(header.getKey(), header.getValue());
-            }
-            return chain.proceed(requestBuilder.build());
-          });
+      builder.addInterceptor(chain -> {
+        final Request.Builder requestBuilder = chain.request().newBuilder();
+        for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
+          requestBuilder.header(header.getKey(), header.getValue());
+        }
+        return chain.proceed(requestBuilder.build());
+      });
     }
     return builder.build();
   }

@@ -112,22 +112,21 @@ class ConcurrentHashtableD1Test {
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
       workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(
-                    "shared",
-                    k -> {
-                      createCount.incrementAndGet();
-                      return new StringEntry(k, 1);
-                    });
-              });
+          new Thread(() -> {
+            ready.countDown();
+            try {
+              go.await();
+            } catch (InterruptedException ex) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            table.tryGetOrCreateOrNull(
+                "shared",
+                k -> {
+                  createCount.incrementAndGet();
+                  return new StringEntry(k, 1);
+                });
+          });
       workers[i].start();
     }
     ready.await();
@@ -174,17 +173,16 @@ class ConcurrentHashtableD1Test {
     for (int i = 0; i < threads; i++) {
       final String key = keys[i];
       workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(key, k -> new StringEntry(k, 1));
-              });
+          new Thread(() -> {
+            ready.countDown();
+            try {
+              go.await();
+            } catch (InterruptedException ex) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            table.tryGetOrCreateOrNull(key, k -> new StringEntry(k, 1));
+          });
       workers[i].start();
     }
     ready.await();
@@ -299,11 +297,10 @@ class ConcurrentHashtableD1Test {
 
     Set<String> drained = new HashSet<>();
     int[] sum = {0};
-    table.drain(
-        e -> {
-          drained.add(e.key());
-          sum[0] += e.value;
-        });
+    table.drain(e -> {
+      drained.add(e.key());
+      sum[0] += e.value;
+    });
 
     assertEquals(new HashSet<>(Arrays.asList("a", "b", "c")), drained);
     assertEquals(6, sum[0]);
@@ -361,16 +358,15 @@ class ConcurrentHashtableD1Test {
     AtomicBoolean stop = new AtomicBoolean(false);
     AtomicInteger missed = new AtomicInteger();
     Thread reader =
-        new Thread(
-            () -> {
-              while (!stop.get()) {
-                for (int i = 1; i < n; i++) {
-                  if (table.get(keys[i]) == null) {
-                    missed.incrementAndGet();
-                  }
-                }
+        new Thread(() -> {
+          while (!stop.get()) {
+            for (int i = 1; i < n; i++) {
+              if (table.get(keys[i]) == null) {
+                missed.incrementAndGet();
               }
-            });
+            }
+          }
+        });
     reader.start();
     for (int r = 0; r < 100_000; r++) {
       table.remove(churn);

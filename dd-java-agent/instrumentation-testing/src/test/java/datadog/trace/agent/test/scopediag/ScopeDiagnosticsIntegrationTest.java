@@ -356,15 +356,14 @@ class ScopeDiagnosticsIntegrationTest {
     CountDownLatch scopeOpened = new CountDownLatch(1);
     CountDownLatch closeScope = new CountDownLatch(1);
     Thread worker =
-        new Thread(
-            () -> {
-              try (ContextScope ignored = continuation.resume()) {
-                scopeOpened.countDown();
-                closeScope.await();
-              } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-              }
-            });
+        new Thread(() -> {
+          try (ContextScope ignored = continuation.resume()) {
+            scopeOpened.countDown();
+            closeScope.await();
+          } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+          }
+        });
     worker.start();
 
     assertTrue(scopeOpened.await(5, TimeUnit.SECONDS));

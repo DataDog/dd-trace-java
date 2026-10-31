@@ -174,12 +174,11 @@ public final class InstrumenterState {
 
   public static String summary() {
     StringBuilder summary = new StringBuilder();
-    classLoaderStates.visit(
-        (loader, state) -> {
-          summary.append(loader != null ? loader.getClass().getName() : "<bootstrap>");
-          summarizeState(summary, state);
-          summary.append("\n\n");
-        });
+    classLoaderStates.visit((loader, state) -> {
+      summary.append(loader != null ? loader.getClass().getName() : "<bootstrap>");
+      summarizeState(summary, state);
+      summary.append("\n\n");
+    });
     return summary.toString();
   }
 
