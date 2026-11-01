@@ -1,0 +1,9 @@
+dependencies {
+  testImplementation platform(libs.junit.bom)
+  testImplementation libs.tabletest
+  testImplementation libs.bundles.test.logging
+
+  testRuntimeOnly libs.bundles.junit5
+  testRuntimeOnly libs.bundles.junit.platform
+  testRuntimeOnly libs.mokito.core
+}
