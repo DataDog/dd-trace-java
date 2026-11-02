@@ -199,6 +199,11 @@ public class W3CPTagsCodec extends PTagsCodec {
       } else {
         TagKey tagKey = TagKey.from(Encoding.W3C, value, tagPos, tagKeyEndsAt);
         if (tagKey != null) {
+          if (!result.keepsDatadogTags() && !hasValidatedValues(tagKey)) {
+            // Its value is never read, and it can't be invalid, so it changes nothing
+            tagPos = nextTagPos;
+            continue;
+          }
           TagValue tagValue = tagValue(Encoding.W3C, tagKey, value, tagValuePos, tagValueEndsAt);
           if (!tagKey.equals(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
             if (!validateTagValue(tagKey, tagValue)) {
@@ -1027,6 +1032,12 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   /** What a parse of a tracestate header turns into, at each of its outcomes. */
   private interface Result<R> {
+    /**
+     * Whether the {@code dd} member's tags are kept. If not, they're only checked for validity,
+     * which decides between {@link #parsed} and {@link #withoutDatadogTags}.
+     */
+    boolean keepsDatadogTags();
+
     /** The header is malformed, so nothing from it is kept. */
     R rejected();
 
@@ -1066,6 +1077,11 @@ public class W3CPTagsCodec extends PTagsCodec {
 
     PTagsResult(PTagsFactory tagsFactory) {
       this.tagsFactory = tagsFactory;
+    }
+
+    @Override
+    public boolean keepsDatadogTags() {
+      return true;
     }
 
     @Override
@@ -1137,6 +1153,11 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   private static final Result<W3CTracestate> MERGE_RESULT =
       new Result<W3CTracestate>() {
+        @Override
+        public boolean keepsDatadogTags() {
+          return false;
+        }
+
         @Override
         public W3CTracestate rejected() {
           return W3CTracestate.NONE;
