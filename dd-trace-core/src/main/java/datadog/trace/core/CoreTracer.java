@@ -2170,7 +2170,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         requestContextDataAppSec = null;
         requestContextDataIast = null;
         ciVisibilityContextData = null;
-        propagationTags = tracer.propagationTagsFactory.empty();
+        // Trace-level propagation state lives on the local root; a child's own instance is only
+        // created on demand (see DDSpanContext#ownPropagationTags)
+        propagationTags = null;
       } else {
         long endToEndStartTime;
 

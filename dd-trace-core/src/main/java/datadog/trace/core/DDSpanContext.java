@@ -25,6 +25,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -48,6 +49,7 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -169,7 +171,17 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
 
   private final boolean disableSamplingMechanismValidation;
 
-  private final PropagationTags propagationTags;
+  /**
+   * This span's own propagation tags. Local child spans leave this null until something writes to
+   * it, since trace-level state is read from the local root. Access via {@link
+   * #ownPropagationTags()}.
+   */
+  private volatile PropagationTags propagationTags;
+
+  private static final AtomicReferenceFieldUpdater<DDSpanContext, PropagationTags>
+      PROPAGATION_TAGS =
+          AtomicReferenceFieldUpdater.newUpdater(
+              DDSpanContext.class, PropagationTags.class, "propagationTags");
 
   private volatile PathwayContext pathwayContext;
 
@@ -425,11 +437,10 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
 
     this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
-    this.propagationTags =
-        propagationTags != null
-            ? propagationTags
-            : traceCollector.getTracer().getPropagationTagsFactory().empty();
-    this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
+    if (propagationTags != null) {
+      propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
+      this.propagationTags = propagationTags;
+    }
     this.injectBaggageAsTags = injectBaggageAsTags;
     this.injectLinksAsTags = injectLinksAsTags;
     if (origin != null) {
@@ -438,7 +449,31 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
-    setTag(PARENT_ID, this.propagationTags.getLastParentId());
+    if (propagationTags != null) {
+      setTag(PARENT_ID, propagationTags.getLastParentId());
+    }
+  }
+
+  /** Returns this span's own propagation tags, creating an empty instance on first use. */
+  private PropagationTags ownPropagationTags() {
+    PropagationTags tags = propagationTags;
+    if (tags != null) {
+      return tags;
+    }
+    PropagationTags created = newEmptyPropagationTags();
+    return PROPAGATION_TAGS.compareAndSet(this, null, created) ? created : propagationTags;
+  }
+
+  @VisibleForTesting
+  boolean hasOwnPropagationTags() {
+    return propagationTags != null;
+  }
+
+  /** An empty instance equivalent to what a span without its own propagation tags would hold. */
+  private PropagationTags newEmptyPropagationTags() {
+    PropagationTags tags = traceCollector.getTracer().getPropagationTagsFactory().empty();
+    tags.updateTraceIdHighOrderBits(traceId.toHighOrderLong());
+    return tags;
   }
 
   @Override
@@ -678,15 +713,15 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   }
 
   private void forceKeepThisSpan(byte samplingMechanism) {
-    propagationTags.forceKeep(samplingMechanism);
+    ownPropagationTags().forceKeep(samplingMechanism);
   }
 
   public void addPropagatedTraceSource(final int value) {
-    propagationTags.addTraceSource(value);
+    ownPropagationTags().addTraceSource(value);
   }
 
   public void updateDebugPropagation(String value) {
-    propagationTags.updateDebugPropagation(value);
+    ownPropagationTags().updateDebugPropagation(value);
   }
 
   /**
@@ -717,8 +752,9 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     if (!validateSamplingPriority(newPriority, newMechanism)) {
       return false;
     }
+    PropagationTags tags = ownPropagationTags();
     boolean updated =
-        propagationTags.tryUpdateTraceSamplingPriority(
+        tags.tryUpdateTraceSamplingPriority(
             newPriority,
             newMechanism,
             SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism));
@@ -726,7 +762,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
       if (log.isDebugEnabled()) {
         log.debug(
             "samplingPriority locked at priority: {}. Refusing to set to priority: {} mechanism: {}",
-            propagationTags.getSamplingPriority(),
+            tags.getSamplingPriority(),
             newPriority,
             newMechanism);
       }
@@ -745,13 +781,15 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     if (!spanContext.validateSamplingPriority(newPriority, newMechanism)) {
       return false;
     }
-    return spanContext.propagationTags.tryUpdateProbabilitySamplingDecision(
-        newPriority,
-        newMechanism,
-        sampleRate,
-        rateLimiterRejected,
-        traceIdLowOrderBits,
-        SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism));
+    return spanContext
+        .ownPropagationTags()
+        .tryUpdateProbabilitySamplingDecision(
+            newPriority,
+            newMechanism,
+            sampleRate,
+            rateLimiterRejected,
+            traceIdLowOrderBits,
+            SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism));
   }
 
   private boolean validateSamplingPriority(final int newPriority, final int newMechanism) {
@@ -782,7 +820,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
 
   @Override
   public int getSamplingPriority() {
-    return getRootSpanContextOrThis().propagationTags.getSamplingPriority();
+    return getRootSpanContextOrThis().ownPropagationTags().getSamplingPriority();
   }
 
   public void setSpanSamplingPriority(double rate, int limit) {
@@ -814,7 +852,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
       return rootSpan.spanContext().lockSamplingPriority();
     }
 
-    return propagationTags.getSamplingPriority() != PrioritySampling.UNSET;
+    return ownPropagationTags().getSamplingPriority() != PrioritySampling.UNSET;
   }
 
   public CharSequence getOrigin() {
@@ -954,7 +992,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   public void setOrigin(final CharSequence origin) {
     DDSpanContext context = getRootSpanContextOrThis();
     context.origin = origin;
-    context.propagationTags.updateTraceOrigin(origin);
+    context.ownPropagationTags().updateTraceOrigin(origin);
   }
 
   public void setMetric(final CharSequence key, final Number value) {
@@ -1506,7 +1544,9 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     if ((options & ROOT_PROPAGATION_TAGS) != 0) {
       serializedPropagationTags = getPropagationTags();
     } else if ((options & OWN_PROPAGATION_TAGS) != 0) {
-      serializedPropagationTags = this.propagationTags;
+      PropagationTags own = propagationTags;
+      // Don't retain an instance just to serialize it
+      serializedPropagationTags = own != null ? own : newEmptyPropagationTags();
     } else {
       serializedPropagationTags = null;
     }
@@ -1731,7 +1771,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   }
 
   public PropagationTags getPropagationTags() {
-    return getRootSpanContextOrThis().propagationTags;
+    return getRootSpanContextOrThis().ownPropagationTags();
   }
 
   @Override
