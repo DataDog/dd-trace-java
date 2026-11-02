@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.api.config.TraceInstrumentationConfig
@@ -277,6 +278,35 @@ class AkkaHttpServerInstrumentationSyncV1ForkedTest extends AkkaHttpServerInstru
 }
 
 class AkkaHttpServerInstrumentationSyncOtelSemanticsForkedTest extends AkkaHttpServerInstrumentationSyncV0ForkedTest implements TestingOtelHttpSemantics {
+}
+
+class AkkaHttpRouteOtelSemanticsForkedTest extends WithHttpServer<AkkaHttpTestWebServer> implements TestingGenericHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
+  @Override
+  HttpServer server() {
+    new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandle())
+  }
+
+  def "matched paths produce stable server routes"() {
+    when:
+    def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
+    assert response.code() == 200
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def serverSpan = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'akka-http-server' }
+    serverSpan != null
+    serverSpan.getTag('http.route') == route
+    serverSpan.resourceName.toString() == "GET $route"
+
+    where:
+    path                  | route
+    '/success'            | '/success'
+    '/query?some=value'   | '/query'
+    '/injected-id/ping/1' | '/injected-id/ping/{param}'
+    '/injected-id/ping/2' | '/injected-id/ping/{param}'
+    '/injected-id/fing/3' | '/injected-id/fing/{param}'
+  }
 }
 
 class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentationTest {
