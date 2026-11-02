@@ -59,10 +59,4 @@ final class InheritedSamplingState extends SamplingState {
     throw new UnsupportedOperationException(
         "the ot member is held by the trace; read it through its propagation tags");
   }
-
-  @Override
-  public CharSequence getOtelTraceStateForWrite() {
-    throw new UnsupportedOperationException(
-        "the ot member is held by the trace; read it through its propagation tags");
-  }
 }
