@@ -1799,14 +1799,19 @@ When Gradle builds fail or behave unexpectedly, several tools and techniques can
 > [!TIP]
 > In general following the [Gradle best practices](https://docs.gradle.org/current/userguide/best_practices.html) is safe bet to avoid isses.
 
-### S3 Build Cache in GitLab CI
+### S3 Build Cache
 
-`S3_BUILD_CACHE_PREFIX` overrides the full prefix; Gradle appends the task cache key.
-Defaults are `v1/<architecture>/<os>/` for non-tag builds (including master) and
-`v1/release/<CI_PIPELINE_ID>/<architecture>/<os>/` for tags. Include the pipeline ID
-in release overrides to preserve isolation.
+Gradle's build cache reuses task outputs when their inputs match. S3 shares those outputs
+across CI jobs and pipelines. Cacheable tasks must declare all inputs that affect their outputs.
+Otherwise, Gradle may reuse stale outputs when an untracked input changes.
 
-`validate_build` compares build artifacts against an uncached rebuild.
+| Pipeline | Default prefix |
+| --- | --- |
+| Non-tag (including PR, nightly, and master) | `v1/<architecture>/<os>/` |
+| Release tag | `v1/release/<CI_PIPELINE_ID>/<architecture>/<os>/` |
+
+`S3_BUILD_CACHE_PREFIX` overrides the entire prefix; Gradle appends the task cache key.
+Include the pipeline ID in release overrides to preserve isolation.
 
 ### Forcing Fresh CI Task Execution
 

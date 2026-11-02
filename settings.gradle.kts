@@ -57,8 +57,25 @@ if (isCI.isPresent) {
       directory = File(rootDir, "workspace/build-cache")
     }
     if (isGitLabCI.isPresent) {
-      val cachePrefix = providers.environmentVariable("S3_BUILD_CACHE_PREFIX").orNull?.trim()?.trim('/')
-      require(!cachePrefix.isNullOrBlank()) {
+      val cachePrefix = providers.environmentVariable("S3_BUILD_CACHE_PREFIX").orNull?.trim()?.trim('/') ?: run {
+        val osName = providers.systemProperty("os.name").get()
+        val os = if (osName == "Mac OS X") "darwin" else osName.lowercase()
+        val arch = when (val archName = providers.systemProperty("os.arch").get()) {
+          "amd64" -> "x86_64"
+          "aarch64", "arm64" -> if (os == "darwin") "arm64" else "aarch64"
+          else -> archName
+        }
+        if (providers.environmentVariable("CI_COMMIT_TAG").orNull.isNullOrBlank()) {
+          "v1/$arch/$os"
+        } else {
+          val pipelineId = providers.environmentVariable("CI_PIPELINE_ID").orNull
+          require(!pipelineId.isNullOrBlank()) {
+            "CI_PIPELINE_ID must be set for release cache isolation"
+          }
+          "v1/release/$pipelineId/$arch/$os"
+        }
+      }
+      require(cachePrefix.isNotBlank()) {
         "S3_BUILD_CACHE_PREFIX must be set to a non-empty path in GitLab CI"
       }
       remote<com.github.burrunan.s3cache.AwsS3BuildCache> {

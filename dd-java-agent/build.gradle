@@ -309,8 +309,8 @@ def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
 }
 includeShadowJar(traceShadowJar, 'trace', includedJarFileTree)
 
-[sharedShadowJar, traceShadowJar].each { shadowJarTask ->
-  shadowJarTask.configure {
+['sharedShadowJar', 'traceShadowJar'].each { taskName ->
+  tasks.named(taskName, ShadowJar).configure {
     // Track packaged bytes, including version files ignored by classpath normalization.
     inputs.files(includedDependencies)
       .withPropertyName('packagedDependencies')
