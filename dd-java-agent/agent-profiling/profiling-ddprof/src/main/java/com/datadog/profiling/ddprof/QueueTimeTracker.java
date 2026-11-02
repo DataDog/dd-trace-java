@@ -4,7 +4,6 @@ import datadog.trace.api.profiling.QueueTiming;
 import java.lang.ref.WeakReference;
 
 public class QueueTimeTracker implements QueueTiming {
-
   private final DatadogProfiler profiler;
   private final Thread origin;
   private final long startTicks;

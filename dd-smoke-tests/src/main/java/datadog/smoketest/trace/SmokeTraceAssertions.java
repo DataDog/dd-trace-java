@@ -4,7 +4,6 @@ import static java.lang.Long.MAX_VALUE;
 import static java.lang.Math.min;
 import static java.util.function.UnaryOperator.identity;
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
-
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import java.util.ArrayList;
@@ -35,28 +34,35 @@ public final class SmokeTraceAssertions {
   /*
    * Trace comparators.
    */
-  /** Trace comparator to sort by start time. */
+  /**
+   * Trace comparator to sort by start time.
+   */
   public static final Comparator<DecodedTrace> TRACE_START_TIME_COMPARATOR =
       Comparator.comparingLong(SmokeTraceAssertions::earliestStart);
-
   /*
    * Trace assertion options.
    */
-  /** Default trace assert options. */
+  /**
+   * Default trace assert options.
+   */
   public static final UnaryOperator<Options> DEFAULT_OPTIONS = identity();
-
-  /** Ignores additional traces. If there are more traces than expected, do not fail. */
+  /**
+   * Ignores additional traces. If there are more traces than expected, do not fail.
+   */
   public static final UnaryOperator<Options> IGNORE_ADDITIONAL_TRACES =
       Options::ignoreAdditionalTraces;
-
-  /** Allows matchers to match any distinct trace rather than the one at its position. */
+  /**
+   * Allows matchers to match any distinct trace rather than the one at its position.
+   */
   public static final UnaryOperator<Options> UNORDERED = Options::unorder;
-
-  /** Sorts traces by start time. */
+  /**
+   * Sorts traces by start time.
+   */
   public static final UnaryOperator<Options> SORT_BY_START_TIME =
       options -> options.sort(TRACE_START_TIME_COMPARATOR);
 
-  private SmokeTraceAssertions() {}
+  private SmokeTraceAssertions() {
+  }
 
   /**
    * Checks the structure of a trace collection.
@@ -76,25 +82,28 @@ public final class SmokeTraceAssertions {
    * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
    */
   public static void assertTraces(
-      List<DecodedTrace> traces, UnaryOperator<Options> options, TraceMatcher... matchers) {
+      List<DecodedTrace> traces,
+      UnaryOperator<Options> options,
+      TraceMatcher... matchers
+  ) {
     Options opts = options.apply(new Options());
     // Check trace count first
     int traceCount = traces.size();
     if (opts.ignoreAdditionalTraces) {
       if (traceCount < matchers.length) {
         assertionFailure()
-            .message("Not enough of traces")
-            .expected(matchers.length)
-            .actual(traceCount)
-            .buildAndThrow();
+          .message("Not enough of traces")
+          .expected(matchers.length)
+          .actual(traceCount)
+          .buildAndThrow();
       }
     } else {
       if (traceCount != matchers.length) {
         assertionFailure()
-            .message("Invalid number of traces")
-            .expected(matchers.length)
-            .actual(traceCount)
-            .buildAndThrow();
+          .message("Invalid number of traces")
+          .expected(matchers.length)
+          .actual(traceCount)
+          .buildAndThrow();
       }
     }
     // Apply sorter

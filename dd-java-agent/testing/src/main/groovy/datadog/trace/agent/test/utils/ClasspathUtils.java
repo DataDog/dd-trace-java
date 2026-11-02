@@ -1,7 +1,6 @@
 package datadog.trace.agent.test.utils;
 
 import static datadog.trace.util.Strings.getResourceName;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
@@ -17,7 +16,6 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 public class ClasspathUtils {
-
   public static byte[] convertToByteArray(final InputStream resource) throws IOException {
     final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
     int bytesRead;
@@ -53,9 +51,10 @@ public class ClasspathUtils {
     tmpJar.deleteOnExit();
 
     final Manifest manifest = new Manifest();
-    try (final JarOutputStream target =
-        new JarOutputStream(
-            new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())), manifest)) {
+    try (final JarOutputStream target = new JarOutputStream(
+        new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())),
+        manifest
+    )) {
       for (final String resourceName : resourceNames) {
         try (InputStream is = loader.getResourceAsStream(resourceName)) {
           if (is != null) {
@@ -83,9 +82,10 @@ public class ClasspathUtils {
     tmpJar.deleteOnExit();
 
     final Manifest manifest = new Manifest();
-    final JarOutputStream target =
-        new JarOutputStream(
-            new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())), manifest);
+    final JarOutputStream target = new JarOutputStream(
+        new BufferedOutputStream(Files.newOutputStream(tmpJar.toPath())),
+        manifest
+    );
     for (final Class<?> clazz : classes) {
       addToJar(getResourceName(clazz.getName()), convertToByteArray(clazz), target);
     }
@@ -95,8 +95,10 @@ public class ClasspathUtils {
   }
 
   private static void addToJar(
-      final String resourceName, final byte[] bytes, final JarOutputStream jarOutputStream)
-      throws IOException {
+      final String resourceName,
+      final byte[] bytes,
+      final JarOutputStream jarOutputStream
+  ) throws IOException {
     final JarEntry entry = new JarEntry(resourceName);
     jarOutputStream.putNextEntry(entry);
     jarOutputStream.write(bytes, 0, bytes.length);

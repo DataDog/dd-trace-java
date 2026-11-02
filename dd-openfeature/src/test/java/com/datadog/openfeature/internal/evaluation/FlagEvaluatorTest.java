@@ -15,7 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
@@ -34,7 +33,6 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class FlagEvaluatorTest {
-
   @AfterEach
   void tearDown() {
     FlagEvaluator.WARNED_FEATURE_DESTINATIONS.clear();
@@ -53,7 +51,8 @@ class FlagEvaluatorTest {
       final boolean doLog,
       final Integer serialId,
       final boolean hasDoLog,
-      final boolean hasSerialId) {
+      final boolean hasSerialId
+  ) {
     final Map<String, Object> metadata =
         evaluate(new FlagEvaluator(enrichment, notExposed()), doLog, serialId, null);
 
@@ -69,12 +68,10 @@ class FlagEvaluatorTest {
   void stampsWhetherTheExposureWasAlreadyRecorded() {
     final List<String> lookups = new ArrayList<>();
     final FlagEvaluator evaluator =
-        new FlagEvaluator(
-            false,
-            (flag, subject, allocation, variant, serialId) -> {
-              lookups.add(flag + "/" + subject + "/" + allocation + "/" + variant + "/" + serialId);
-              return "user-2".equals(subject);
-            });
+        new FlagEvaluator(false, (flag, subject, allocation, variant, serialId) -> {
+      lookups.add(flag + "/" + subject + "/" + allocation + "/" + variant + "/" + serialId);
+      return "user-2".equals(subject);
+    });
 
     assertEquals(Boolean.FALSE, evaluate(evaluator, "user-1").get(EXPOSURE_CACHE_HIT));
     assertEquals(Boolean.TRUE, evaluate(evaluator, "user-2").get(EXPOSURE_CACHE_HIT));
@@ -84,27 +81,26 @@ class FlagEvaluatorTest {
   @Test
   void doesNotLookUpExposuresForAnAllocationThatDoesNotLogThem() {
     final FlagEvaluator evaluator =
-        new FlagEvaluator(
-            true,
-            (flag, subject, allocation, variant, serialId) -> {
-              throw new AssertionError("no exposure lookup expected");
-            });
+        new FlagEvaluator(true, (flag, subject, allocation, variant, serialId) -> {
+      throw new AssertionError("no exposure lookup expected");
+    });
 
     assertFalse(evaluate(evaluator, false, 7, null).containsKey(EXPOSURE_CACHE_HIT));
   }
 
   @Test
   void routesEachFeatureToTheDestinationsItLists() {
-    final Map<String, Object> metadata =
-        evaluate(
-            new FlagEvaluator(false, notExposed()),
-            false,
-            null,
-            asList(
-                new Feature("holdout.key", "q4-global", singletonList("HOOK")),
-                new Feature("bandit.arm", "a", singletonList("EXPOSURE")),
-                new Feature("holdout.weight", 1, asList("HOOK", "EVALUATION")),
-                new Feature("holdout.enabled", true, singletonList("EXPOSURE"))));
+    final Map<String, Object> metadata = evaluate(
+        new FlagEvaluator(false, notExposed()),
+        false,
+        null,
+        asList(
+            new Feature("holdout.key", "q4-global", singletonList("HOOK")),
+            new Feature("bandit.arm", "a", singletonList("EXPOSURE")),
+            new Feature("holdout.weight", 1, asList("HOOK", "EVALUATION")),
+            new Feature("holdout.enabled", true, singletonList("EXPOSURE"))
+        )
+    );
 
     assertEquals("q4-global", metadata.get(FEATURE_PREFIX + "holdout.key"));
     assertEquals("a", metadata.get(EXPOSURE_FEATURE_PREFIX + "bandit.arm"));
@@ -116,30 +112,31 @@ class FlagEvaluatorTest {
 
   @Test
   void marksEvaluationFeaturesOnlyWhenTheSplitHasSome() {
-    final Map<String, Object> metadata =
-        evaluate(
-            new FlagEvaluator(false, notExposed()),
-            false,
-            null,
-            singletonList(new Feature("holdout.key", "q4-global", singletonList("HOOK"))));
+    final Map<String, Object> metadata = evaluate(
+        new FlagEvaluator(false, notExposed()),
+        false,
+        null,
+        singletonList(new Feature("holdout.key", "q4-global", singletonList("HOOK")))
+    );
 
     assertFalse(metadata.containsKey(HAS_EVALUATION_FEATURES));
   }
 
   @Test
   void keepsTheFirstFeatureOfARepeatedKeyAndSkipsIncompleteOnes() {
-    final Map<String, Object> metadata =
-        evaluate(
-            new FlagEvaluator(false, notExposed()),
-            false,
+    final Map<String, Object> metadata = evaluate(
+        new FlagEvaluator(false, notExposed()),
+        false,
+        null,
+        asList(
             null,
-            asList(
-                null,
-                new Feature(null, "x", singletonList("HOOK")),
-                new Feature("no.destination", "x", null),
-                new Feature("holdout.key", "q4-global", singletonList("HOOK")),
-                new Feature("holdout.key", "q1-global", asList("HOOK", "EXPOSURE")),
-                new Feature("unsupported", singletonList("x"), singletonList("HOOK"))));
+            new Feature(null, "x", singletonList("HOOK")),
+            new Feature("no.destination", "x", null),
+            new Feature("holdout.key", "q4-global", singletonList("HOOK")),
+            new Feature("holdout.key", "q1-global", asList("HOOK", "EXPOSURE")),
+            new Feature("unsupported", singletonList("x"), singletonList("HOOK"))
+        )
+    );
 
     assertEquals("q4-global", metadata.get(FEATURE_PREFIX + "holdout.key"));
     assertFalse(metadata.containsKey(EXPOSURE_FEATURE_PREFIX + "holdout.key"));
@@ -150,16 +147,15 @@ class FlagEvaluatorTest {
   @Test
   void warnsOnceForEachUnknownDestination() {
     final FlagEvaluator evaluator = new FlagEvaluator(false, notExposed());
-    final List<Feature> features =
-        asList(
-            new Feature("holdout.key", "q4-global", asList("HOOK", "NEW_A")),
-            new Feature("other", "x", asList("NEW_A", "NEW_B", "EXPOSURE")));
+    final List<Feature> features = asList(
+        new Feature("holdout.key", "q4-global", asList("HOOK", "NEW_A")),
+        new Feature("other", "x", asList("NEW_A", "NEW_B", "EXPOSURE"))
+    );
 
     evaluate(evaluator, true, 7, features);
     final Map<String, Object> metadata = evaluate(evaluator, true, 7, features);
 
-    assertEquals(
-        new HashSet<>(asList("NEW_A", "NEW_B")), FlagEvaluator.WARNED_FEATURE_DESTINATIONS);
+    assertEquals(new HashSet<>(asList("NEW_A", "NEW_B")), FlagEvaluator.WARNED_FEATURE_DESTINATIONS);
     assertEquals("q4-global", metadata.get(FEATURE_PREFIX + "holdout.key"));
     assertEquals("x", metadata.get(EXPOSURE_FEATURE_PREFIX + "other"));
   }
@@ -170,16 +166,17 @@ class FlagEvaluatorTest {
       FlagEvaluator.WARNED_FEATURE_DESTINATIONS.add("OLD_" + i);
     }
 
-    final Map<String, Object> metadata =
-        evaluate(
-            new FlagEvaluator(false, notExposed()),
-            true,
-            7,
-            singletonList(new Feature("holdout.key", "q4-global", asList("HOOK", "NEW_A"))));
+    final Map<String, Object> metadata = evaluate(
+        new FlagEvaluator(false, notExposed()),
+        true,
+        7,
+        singletonList(new Feature("holdout.key", "q4-global", asList("HOOK", "NEW_A")))
+    );
 
     assertEquals(
         FlagEvaluator.MAX_WARNED_FEATURE_DESTINATIONS,
-        FlagEvaluator.WARNED_FEATURE_DESTINATIONS.size());
+        FlagEvaluator.WARNED_FEATURE_DESTINATIONS.size()
+    );
     assertFalse(FlagEvaluator.WARNED_FEATURE_DESTINATIONS.contains("NEW_A"));
     assertEquals("q4-global", metadata.get(FEATURE_PREFIX + "holdout.key"));
   }
@@ -202,7 +199,9 @@ class FlagEvaluatorTest {
   }
 
   private static Map<String, Object> evaluate(
-      final FlagEvaluator evaluator, final String targetingKey) {
+      final FlagEvaluator evaluator,
+      final String targetingKey
+  ) {
     return evaluate(evaluator, true, 7, null, targetingKey);
   }
 
@@ -210,7 +209,8 @@ class FlagEvaluatorTest {
       final FlagEvaluator evaluator,
       final boolean doLog,
       final Integer serialId,
-      final List<Feature> features) {
+      final List<Feature> features
+  ) {
     return evaluate(evaluator, doLog, serialId, features, "user-1");
   }
 
@@ -219,7 +219,8 @@ class FlagEvaluatorTest {
       final boolean doLog,
       final Integer serialId,
       final List<Feature> features,
-      final String targetingKey) {
+      final String targetingKey
+  ) {
     final Map<String, Variant> variations = new HashMap<>();
     variations.put("on", new Variant("on", 1));
     final Split split = new Split(emptyList(), "on", emptyMap(), serialId, features);
@@ -227,15 +228,18 @@ class FlagEvaluatorTest {
         new Allocation("allocation", null, null, null, singletonList(split), doLog);
     final Map<String, Flag> flags = new HashMap<>();
     flags.put(
-        "flag", new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation)));
+        "flag",
+        new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation))
+    );
     return evaluator
-        .evaluate(
-            new ServerConfiguration("", "", false, null, flags),
-            Integer.class,
-            "flag",
-            0,
-            new MutableContext(targetingKey))
-        .getFlagMetadata()
-        .asUnmodifiableMap();
+      .evaluate(
+          new ServerConfiguration("", "", false, null, flags),
+          Integer.class,
+          "flag",
+          0,
+          new MutableContext(targetingKey)
+      )
+      .getFlagMetadata()
+      .asUnmodifiableMap();
   }
 }

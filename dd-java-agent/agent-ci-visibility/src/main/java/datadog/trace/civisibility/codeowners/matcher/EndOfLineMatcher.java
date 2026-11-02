@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.codeowners.matcher;
 
 public class EndOfLineMatcher implements Matcher {
-
   public static final Matcher INSTANCE = new EndOfLineMatcher();
 
   @Override

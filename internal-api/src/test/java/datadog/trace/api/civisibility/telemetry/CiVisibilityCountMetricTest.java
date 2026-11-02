@@ -2,7 +2,6 @@ package datadog.trace.api.civisibility.telemetry;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,7 +13,6 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class CiVisibilityCountMetricTest {
-
   /**
    * This test enumerates every possible combination of tags for every metric (including omitting
    * tags), and for every combination it verifies the following:
@@ -35,29 +33,22 @@ class CiVisibilityCountMetricTest {
         int index = metric.getIndex(tags);
         TagValue[] existingTags = indices.put(index, tags);
         // verify that every metric+tags combination maps to a unique index
-        assertNull(
-            existingTags,
-            () ->
-                "Index "
-                    + index
-                    + " maps both to "
-                    + getTagsDescription(tags)
-                    + " and to "
-                    + getTagsDescription(existingTags));
+        assertNull(existingTags, () -> "Index "
+            + index
+            + " maps both to "
+            + getTagsDescription(tags)
+            + " and to "
+            + getTagsDescription(existingTags));
 
         TagValue[] tagValues = metric.getTagValues(index);
         // verify that getting tag values by index returns the exact same value that were used for
         // index calculation
-        assertArrayEquals(
-            tags,
-            tagValues,
-            () ->
-                "Original tags "
-                    + getTagsDescription(tags)
-                    + " are not equal to tags calculated from index "
-                    + index
-                    + ": "
-                    + getTagsDescription(tagValues));
+        assertArrayEquals(tags, tagValues, () -> "Original tags "
+            + getTagsDescription(tags)
+            + " are not equal to tags calculated from index "
+            + index
+            + ": "
+            + getTagsDescription(tagValues));
       }
     }
   }
@@ -72,7 +63,8 @@ class CiVisibilityCountMetricTest {
       Class<? extends TagValue>[] sets,
       Collection<TagValue[]> tuples,
       Deque<TagValue> currentTuple,
-      int offset) {
+      int offset
+  ) {
     if (offset == sets.length) {
       int idx = 0;
       TagValue[] tuple = new TagValue[currentTuple.size()];
@@ -82,7 +74,6 @@ class CiVisibilityCountMetricTest {
       tuples.add(tuple);
       return;
     }
-
     // a branch where we omit current tag
     cartesianProductBacktrack(sets, tuples, currentTuple, offset + 1);
 
@@ -95,9 +86,10 @@ class CiVisibilityCountMetricTest {
 
   private static String getTagsDescription(TagValue[] tags) {
     return "["
-        + Arrays.stream(tags)
-            .map(tag -> tag.getDeclaringClass().getSimpleName() + "(" + tag + ")")
-            .collect(Collectors.joining(","))
+        + Arrays
+          .stream(tags)
+          .map(tag -> tag.getDeclaringClass().getSimpleName() + "(" + tag + ")")
+          .collect(Collectors.joining(","))
         + "]";
   }
 }

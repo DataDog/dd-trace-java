@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.crashtracking.ConfigManager.readConfig;
-
 import datadog.crashtracking.ConfigManager;
 import datadog.crashtracking.CrashUploader;
 import datadog.crashtracking.OOMENotifier;
@@ -31,9 +30,10 @@ import java.util.jar.JarFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** CLI methods, used when running the agent as a sample application with -jar. */
+/**
+ * CLI methods, used when running the agent as a sample application with -jar.
+ */
 public final class AgentCLI {
-
   private static final Logger log = LoggerFactory.getLogger(AgentCLI.class);
 
   static {
@@ -41,7 +41,9 @@ public final class AgentCLI {
     HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
   }
 
-  /** Prints all known integrations in alphabetical order. */
+  /**
+   * Prints all known integrations in alphabetical order.
+   */
   @SuppressForbidden
   public static void printIntegrationNames() {
     Set<String> names = new TreeSet<>();
@@ -73,7 +75,9 @@ public final class AgentCLI {
         span.finish();
       }
       if (count < 0) {
-        System.out.print("... completed " + numTraces + (numTraces < 2 ? " trace\r" : " traces\r"));
+        System.out.print("... completed "
+            + numTraces
+            + (numTraces < 2 ? " trace\r" : " traces\r"));
       } else {
         System.out.print("... completed " + numTraces + "/" + count + " traces\r");
       }
@@ -130,24 +134,24 @@ public final class AgentCLI {
 
   @SuppressForbidden
   public static void scanDependencies(final String[] args) throws Exception {
-    Class depClass =
-        Class.forName(
-            "datadog.telemetry.dependency.DependencyService",
-            true,
-            AgentCLI.class.getClassLoader());
+    Class depClass = Class.forName(
+        "datadog.telemetry.dependency.DependencyService",
+        true,
+        AgentCLI.class.getClassLoader()
+    );
     Object depService = depClass.getConstructor().newInstance();
     Method addUrlMethod = depService.getClass().getMethod("addURL", URL.class);
     Method resolveOne = depService.getClass().getMethod("resolveOneDependency");
 
     Consumer<File> invoker =
         (file) -> {
-          try {
-            addUrlMethod.invoke(depService, file.toURI().toURL());
-            resolveOne.invoke(depService);
-          } catch (Exception e) {
-            log.error("Error invoking dependencies service", e);
-          }
-        };
+      try {
+        addUrlMethod.invoke(depService, file.toURI().toURL());
+        resolveOne.invoke(depService);
+      } catch (Exception e) {
+        log.error("Error invoking dependencies service", e);
+      }
+    };
     File origin = new File(args[0]);
     if (origin.isFile()) {
       recursiveDependencySearch(invoker, origin);
@@ -179,32 +183,31 @@ public final class AgentCLI {
     try (JarFile jar = new JarFile(file)) {
       log.debug("Finding entries in file: {}", file.getName());
 
-      jar.stream()
-          .forEach(
-              e -> {
-                if (e.getName().endsWith(".jar") || e.getName().endsWith(".war")) {
-                  try {
-                    log.debug("Jar entry found in file: {} entry: {}", file.getName(), e.getName());
-                    File temp = File.createTempFile("internal", ".jar");
-                    try (InputStream is = jar.getInputStream(e);
-                        OutputStream out = new FileOutputStream(temp)) {
-                      int read;
-                      while ((read = is.read()) != -1) {
-                        out.write(read);
-                      }
-                    }
-                    log.debug("Adding new jar: {}", temp.getAbsolutePath());
-                    recursiveDependencySearch(invoker, temp);
-                    if (!temp.delete()) {
-                      log.error("Error deleting temp file: {}", temp.getAbsolutePath());
-                    }
-                  } catch (Exception ex) {
-                    log.error("Error unzipping file", ex);
-                  }
-                } else {
-                  log.debug("Entry: {} ignored in file: {}", e.getName(), file.getAbsolutePath());
-                }
-              });
+      jar.stream().forEach(e -> {
+        if (e.getName().endsWith(".jar") || e.getName().endsWith(".war")) {
+          try {
+            log.debug("Jar entry found in file: {} entry: {}", file.getName(), e.getName());
+            File temp = File.createTempFile("internal", ".jar");
+            try (InputStream is = jar.getInputStream(e);
+                OutputStream out = new FileOutputStream(temp)
+            ) {
+              int read;
+              while ((read = is.read()) != -1) {
+                out.write(read);
+              }
+            }
+            log.debug("Adding new jar: {}", temp.getAbsolutePath());
+            recursiveDependencySearch(invoker, temp);
+            if (!temp.delete()) {
+              log.error("Error deleting temp file: {}", temp.getAbsolutePath());
+            }
+          } catch (Exception ex) {
+            log.error("Error unzipping file", ex);
+          }
+        } else {
+          log.debug("Entry: {} ignored in file: {}", e.getName(), file.getAbsolutePath());
+        }
+      });
     }
   }
 }

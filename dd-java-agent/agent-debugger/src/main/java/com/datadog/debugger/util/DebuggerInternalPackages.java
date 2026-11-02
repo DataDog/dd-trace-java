@@ -1,17 +1,19 @@
 package com.datadog.debugger.util;
 
-/** Identifies class files belonging to the debugger's own internal packages. */
+/**
+ * Identifies class files belonging to the debugger's own internal packages.
+ */
 public class DebuggerInternalPackages {
   private static final String[] SKIPPED_PACKAGES = {
-    "com/datadog/debugger/agent/",
-    "com/datadog/debugger/codeorigin/",
-    "com/datadog/debugger/exception/",
-    "com/datadog/debugger/instrumentation/",
-    "com/datadog/debugger/probe/",
-    "com/datadog/debugger/sink/",
-    "com/datadog/debugger/symbol/",
-    "com/datadog/debugger/uploader/",
-    "com/datadog/debugger/util/"
+      "com/datadog/debugger/agent/",
+      "com/datadog/debugger/codeorigin/",
+      "com/datadog/debugger/exception/",
+      "com/datadog/debugger/instrumentation/",
+      "com/datadog/debugger/probe/",
+      "com/datadog/debugger/sink/",
+      "com/datadog/debugger/symbol/",
+      "com/datadog/debugger/uploader/",
+      "com/datadog/debugger/util/"
   };
 
   /**

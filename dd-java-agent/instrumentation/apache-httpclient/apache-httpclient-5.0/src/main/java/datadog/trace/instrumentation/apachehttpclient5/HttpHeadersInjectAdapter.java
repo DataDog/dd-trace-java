@@ -6,7 +6,6 @@ import org.apache.hc.core5.http.HttpRequest;
 
 @ParametersAreNonnullByDefault
 public class HttpHeadersInjectAdapter implements CarrierSetter<HttpRequest> {
-
   public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
 
   @Override

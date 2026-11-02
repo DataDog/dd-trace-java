@@ -19,7 +19,8 @@ import javax.management.MBeanServerPermission;
 public class CustomSecurityManager extends SecurityManager {
   public static final boolean DEBUG = true;
 
-  protected CustomSecurityManager() {}
+  protected CustomSecurityManager() {
+  }
 
   @Override
   public final void checkPermission(Permission perm) {
@@ -49,7 +50,9 @@ public class CustomSecurityManager extends SecurityManager {
     }
 
     if (!allow) {
-      if (DEBUG) System.err.println("Blocked: " + perm);
+      if (DEBUG) {
+        System.err.println("Blocked: " + perm);
+      }
 
       block(perm);
     }
@@ -64,44 +67,32 @@ public class CustomSecurityManager extends SecurityManager {
       case "modifyThread":
       case "modifyThreadGroup":
         return checkRuntimeThreadAccess(perm, ctx, name);
-
       case "accessDeclaredMembers":
       case "getProtectionDomain":
         return checkRuntimeClassAccess(perm, ctx, name);
-
       case "getClassLoader":
         return checkRuntimeClassLoaderAccess(perm, ctx, name);
-
       case "createClassLoader":
       case "setContextClassLoader":
         return checkRuntimeClassLoaderModification(perm, ctx, name);
-
       case "accessUserInformation":
         return checkRuntimeUserAccess(perm, ctx);
-
       case "shutdownHooks":
         return checkRuntimeShutdownHooks(perm, ctx);
-
       case "fileSystemProvider":
       case "readFileDescriptor":
       case "writeFileDescriptor":
         return checkRuntimeFileSystemAccess(perm, ctx, name);
-
       case "accessSystemModules":
         return checkRuntimeSystemModuleAccess(perm, ctx);
-
       case "jdk.internal.perf.Perf.getPerf":
         return checkRuntimePerfAccess(perm, ctx);
-
       case "sun.management.spi.PlatformMBeanProvider.subclass":
         return checkRuntimeMBeanProviderAccess(perm, ctx);
-
       case "manageProcess":
         return checkRuntimeManageProcess(perm, ctx);
-
       case "enableContextClassLoaderOverride":
         return checkRuntimeContextClassLoader(perm, ctx);
-
       case "setIO":
         return checkRuntimeSetIO(perm, ctx);
     }
@@ -127,8 +118,7 @@ public class CustomSecurityManager extends SecurityManager {
     return defaultCheckRuntimeSystemExit(perm, ctx, exitCode);
   }
 
-  protected boolean defaultCheckRuntimeSystemExit(
-      RuntimePermission perm, Object ctx, int exitCode) {
+  protected boolean defaultCheckRuntimeSystemExit(RuntimePermission perm, Object ctx, int exitCode) {
     return false;
   }
 
@@ -137,7 +127,10 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected final boolean defaultCheckRuntimeThreadAccess(
-      RuntimePermission perm, Object ctx, String name) {
+      RuntimePermission perm,
+      Object ctx,
+      String name
+  ) {
     return true;
   }
 
@@ -149,29 +142,36 @@ public class CustomSecurityManager extends SecurityManager {
     return true;
   }
 
-  protected boolean checkRuntimeEnvironmentAccess(
-      RuntimePermission perm, Object ctx, String envVar) {
+  protected boolean checkRuntimeEnvironmentAccess(RuntimePermission perm, Object ctx, String envVar) {
     return defaultCheckRuntimeEnvironmentAccess(perm, ctx, envVar);
   }
 
   protected final boolean defaultCheckRuntimeEnvironmentAccess(
-      RuntimePermission perm, Object ctx, String envVar) {
+      RuntimePermission perm,
+      Object ctx,
+      String envVar
+  ) {
     switch (envVar) {
       case "HOSTNAME":
         return true;
-
       default:
         return false;
     }
   }
 
   protected boolean checkRuntimePackageAccess(
-      RuntimePermission perm, Object ctx, String packageName) {
+      RuntimePermission perm,
+      Object ctx,
+      String packageName
+  ) {
     return defaultCheckRuntimeThreadAccess(perm, ctx, packageName);
   }
 
   protected final boolean defaultCheckRuntimePackageAccess(
-      RuntimePermission perm, Object ctx, String packageName) {
+      RuntimePermission perm,
+      Object ctx,
+      String packageName
+  ) {
     return isBuiltinPackage(packageName);
   }
 
@@ -210,13 +210,15 @@ public class CustomSecurityManager extends SecurityManager {
     return packageName.startsWith("apple.");
   }
 
-  protected boolean checkRuntimeLoadLibrary(
-      RuntimePermission perm, Object ctx, String libraryName) {
+  protected boolean checkRuntimeLoadLibrary(RuntimePermission perm, Object ctx, String libraryName) {
     return defaultCheckRuntimeLoadLibrary(perm, ctx, libraryName);
   }
 
   protected boolean defaultCheckRuntimeLoadLibrary(
-      RuntimePermission perm, Object ctx, String libraryName) {
+      RuntimePermission perm,
+      Object ctx,
+      String libraryName
+  ) {
     return isBuiltinLibrary(libraryName);
   }
 
@@ -229,7 +231,6 @@ public class CustomSecurityManager extends SecurityManager {
       case "net":
       case "extnet":
         return true;
-
       default:
         return false;
     }
@@ -240,27 +241,42 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected final boolean defaultCheckRuntimeClassAccess(
-      RuntimePermission perm, Object ctx, String permName) {
+      RuntimePermission perm,
+      Object ctx,
+      String permName
+  ) {
     return true;
   }
 
   protected boolean checkRuntimeClassLoaderAccess(
-      RuntimePermission perm, Object ctx, String permName) {
+      RuntimePermission perm,
+      Object ctx,
+      String permName
+  ) {
     return defaultCheckRuntimeClassLoaderAccess(perm, ctx, permName);
   }
 
   protected final boolean defaultCheckRuntimeClassLoaderAccess(
-      RuntimePermission perm, Object ctx, String permName) {
+      RuntimePermission perm,
+      Object ctx,
+      String permName
+  ) {
     return true;
   }
 
   protected boolean checkRuntimeClassLoaderModification(
-      RuntimePermission perm, Object ctx, String permName) {
+      RuntimePermission perm,
+      Object ctx,
+      String permName
+  ) {
     return checkRuntimeClassLoaderModification(perm, ctx, permName);
   }
 
   protected final boolean defaultCheckRuntimeClassLoaderModification(
-      RuntimePermission perm, Object ctx, String permName) {
+      RuntimePermission perm,
+      Object ctx,
+      String permName
+  ) {
     return false;
   }
 
@@ -276,8 +292,7 @@ public class CustomSecurityManager extends SecurityManager {
     return defaultCheckRuntimeSystemModuleAccess(perm, ctx);
   }
 
-  protected final boolean defaultCheckRuntimeSystemModuleAccess(
-      RuntimePermission perm, Object ctx) {
+  protected final boolean defaultCheckRuntimeSystemModuleAccess(RuntimePermission perm, Object ctx) {
     return false;
   }
 
@@ -293,8 +308,7 @@ public class CustomSecurityManager extends SecurityManager {
     return defaultCheckRuntimeContextClassLoader(perm, ctx);
   }
 
-  protected final boolean defaultCheckRuntimeContextClassLoader(
-      RuntimePermission perm, Object ctx) {
+  protected final boolean defaultCheckRuntimeContextClassLoader(RuntimePermission perm, Object ctx) {
     return false;
   }
 
@@ -306,23 +320,31 @@ public class CustomSecurityManager extends SecurityManager {
     return true;
   }
 
-  protected boolean checkOtherRuntimePermission(
-      RuntimePermission perm, Object ctx, String permName) {
+  protected boolean checkOtherRuntimePermission(RuntimePermission perm, Object ctx, String permName) {
     return defaultOtherRuntimePermission(perm, ctx, permName);
   }
 
   protected final boolean defaultOtherRuntimePermission(
-      RuntimePermission perm, Object ctx, String permName) {
+      RuntimePermission perm,
+      Object ctx,
+      String permName
+  ) {
     return false;
   }
 
   protected boolean checkRuntimeFileSystemAccess(
-      RuntimePermission perm, Object ctx, String permission) {
+      RuntimePermission perm,
+      Object ctx,
+      String permission
+  ) {
     return defaultCheckRuntimeFileSystemAccess(perm, ctx, permission);
   }
 
   protected boolean defaultCheckRuntimeFileSystemAccess(
-      RuntimePermission perm, Object ctx, String permission) {
+      RuntimePermission perm,
+      Object ctx,
+      String permission
+  ) {
     return false;
   }
 
@@ -330,13 +352,10 @@ public class CustomSecurityManager extends SecurityManager {
     switch (perm.getActions()) {
       case "read":
         return checkFileReadPermission(perm, ctx, perm.getName());
-
       case "write":
         return checkFileWritePermission(perm, ctx, perm.getName());
-
       case "execute":
         return checkFileExecutePermission(perm, ctx, perm.getName());
-
       default:
         return false;
     }
@@ -347,7 +366,10 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected final boolean defaultCheckFileReadPermission(
-      FilePermission perm, Object ctx, String filePath) {
+      FilePermission perm,
+      Object ctx,
+      String filePath
+  ) {
     return isJarFile(filePath)
         || isClassFile(filePath)
         || isLibraryFile(filePath)
@@ -367,7 +389,10 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected final boolean defaultCheckFileWritePermission(
-      FilePermission perm, Object ctx, String filePath) {
+      FilePermission perm,
+      Object ctx,
+      String filePath
+  ) {
     return false;
   }
 
@@ -376,7 +401,10 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected final boolean defaultCheckFileExecutePermission(
-      FilePermission perm, Object ctx, String filePath) {
+      FilePermission perm,
+      Object ctx,
+      String filePath
+  ) {
     return false;
   }
 
@@ -433,7 +461,9 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   final boolean defaultCheckNetPermission(NetPermission perm, Object ctx) {
-    if (isBuiltinNetPermission(perm)) return true;
+    if (isBuiltinNetPermission(perm)) {
+      return true;
+    }
 
     return false;
   }
@@ -443,7 +473,6 @@ public class CustomSecurityManager extends SecurityManager {
       case "specifyStreamHandler":
       case "getProxySelector":
         return true;
-
       default:
         return false;
     }
@@ -458,7 +487,10 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected final boolean defaultCheckReflectPermission(
-      ReflectPermission perm, Object ctx, String permName) {
+      ReflectPermission perm,
+      Object ctx,
+      String permName
+  ) {
     switch (permName) {
       case "suppressAccessChecks":
         return false;
@@ -482,22 +514,34 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected boolean checkSecurityGetPermission(
-      SecurityPermission perm, Object ctx, String propertyName) {
+      SecurityPermission perm,
+      Object ctx,
+      String propertyName
+  ) {
     return defaultCheckSecurityGetPermission(perm, ctx, propertyName);
   }
 
   protected boolean defaultCheckSecurityGetPermission(
-      SecurityPermission perm, Object ctx, String propertyName) {
+      SecurityPermission perm,
+      Object ctx,
+      String propertyName
+  ) {
     return true;
   }
 
   protected boolean checkSecurityPutPermission(
-      SecurityPermission perm, Object ctx, String propertyName) {
+      SecurityPermission perm,
+      Object ctx,
+      String propertyName
+  ) {
     return defaultCheckSecurityPutPermission(perm, ctx, propertyName);
   }
 
   protected final boolean defaultCheckSecurityPutPermission(
-      SecurityPermission perm, Object ctx, String propertyName) {
+      SecurityPermission perm,
+      Object ctx,
+      String propertyName
+  ) {
     return true;
   }
 
@@ -505,10 +549,8 @@ public class CustomSecurityManager extends SecurityManager {
     switch (perm.getActions()) {
       case "read":
         return checkPropertyReadPermission(perm, ctx, perm.getName());
-
       case "write":
         return checkPropertyWritePermission(perm, ctx, perm.getName());
-
       case "read,write":
         if (perm.getName().equals("*")) {
           return true;
@@ -516,19 +558,24 @@ public class CustomSecurityManager extends SecurityManager {
           return checkPropertyReadPermission(perm, ctx, perm.getName())
               && checkPropertyWritePermission(perm, ctx, perm.getName());
         }
-
       default:
         return false;
     }
   }
 
   protected boolean checkPropertyReadPermission(
-      PropertyPermission perm, Object ctx, String property) {
+      PropertyPermission perm,
+      Object ctx,
+      String property
+  ) {
     return defaultCheckPropertyReadPermission(perm, ctx, property);
   }
 
   protected final boolean defaultCheckPropertyReadPermission(
-      PropertyPermission perm, Object ctx, String property) {
+      PropertyPermission perm,
+      Object ctx,
+      String property
+  ) {
     return isBuiltinProperty(property);
   }
 
@@ -536,7 +583,10 @@ public class CustomSecurityManager extends SecurityManager {
    * Minimal set of properties needed to keep JVM from crashing itself
    */
   protected final boolean minimalCheckPropertyReadPermission(
-      PropertyPermission perm, Object ctx, String property) {
+      PropertyPermission perm,
+      Object ctx,
+      String property
+  ) {
     switch (property) {
       case "sun.boot.class.path":
       case "sun.reflect.noInflation":
@@ -585,17 +635,22 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected boolean checkPropertyWritePermission(
-      PropertyPermission perm, Object ctx, String property) {
+      PropertyPermission perm,
+      Object ctx,
+      String property
+  ) {
     return defaultCheckPropertyWritePermission(perm, ctx, property);
   }
 
   protected boolean defaultCheckPropertyWritePermission(
-      PropertyPermission perm, Object ctx, String property) {
+      PropertyPermission perm,
+      Object ctx,
+      String property
+  ) {
     switch (property) {
       case "apple.awt.application.name":
         // JDK21 triggers this write -- even for non-AWT / non-GUI apps???
         return true;
-
       default:
         return isUserLocaleProperty(property);
     }
@@ -671,7 +726,6 @@ public class CustomSecurityManager extends SecurityManager {
     switch (propertyName) {
       case "impl.prefix":
         return true;
-
       default:
         return false;
     }
@@ -684,7 +738,6 @@ public class CustomSecurityManager extends SecurityManager {
       case "socksProxyHost":
       case "http.nonProxyHosts":
         return true;
-
       default:
         return false;
     }
@@ -694,8 +747,7 @@ public class CustomSecurityManager extends SecurityManager {
     return defaultCheckRuntimeMBeanProviderAccess(perm, ctx);
   }
 
-  protected final boolean defaultCheckRuntimeMBeanProviderAccess(
-      RuntimePermission perm, Object ctx) {
+  protected final boolean defaultCheckRuntimeMBeanProviderAccess(RuntimePermission perm, Object ctx) {
     return false;
   }
 
@@ -711,7 +763,6 @@ public class CustomSecurityManager extends SecurityManager {
     switch (perm.getActions()) {
       case "resolve":
         return checkSocketResolve(perm, ctx, perm.getName());
-
       case "connect,resolve":
         {
           String name = perm.getName();
@@ -720,9 +771,9 @@ public class CustomSecurityManager extends SecurityManager {
           String host = name.substring(0, colonPos);
           int port = Integer.parseInt(name.substring(colonPos + 1));
 
-          return checkSocketResolve(perm, ctx, host) && checkSocketConnect(perm, ctx, host, port);
+          return checkSocketResolve(perm, ctx, host)
+              && checkSocketConnect(perm, ctx, host, port);
         }
-
       default:
         return false;
     }
@@ -732,8 +783,7 @@ public class CustomSecurityManager extends SecurityManager {
     return defaultCheckSocketResolve(perm, ctx, host);
   }
 
-  protected final boolean defaultCheckSocketResolve(
-      SocketPermission perm, Object ctx, String host) {
+  protected final boolean defaultCheckSocketResolve(SocketPermission perm, Object ctx, String host) {
     return true;
   }
 
@@ -742,7 +792,11 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected final boolean defaultCheckSocketConnect(
-      SocketPermission perm, Object ctx, String host, int port) {
+      SocketPermission perm,
+      Object ctx,
+      String host,
+      int port
+  ) {
     return true;
   }
 

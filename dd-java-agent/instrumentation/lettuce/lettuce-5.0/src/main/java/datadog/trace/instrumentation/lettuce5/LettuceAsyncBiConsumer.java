@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.lettuce5;
 
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CancellationException;
 import java.util.function.BiConsumer;
@@ -16,8 +15,8 @@ import java.util.function.BiConsumer;
  *     standpoint after the span is closed
  */
 public class LettuceAsyncBiConsumer<T extends Object, U extends Throwable>
-    implements BiConsumer<T, Throwable> {
-
+    implements BiConsumer<T, Throwable>
+{
   private final AgentSpan span;
 
   public LettuceAsyncBiConsumer(final AgentSpan span) {

@@ -6,7 +6,9 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
 import java.util.List;
 
-/** Reports the histogram of values since the last reset. */
+/**
+ * Reports the histogram of values since the last reset.
+ */
 final class OtelHistogramSketch extends OtelAggregator {
   private final HistogramWithSum histogram;
 
@@ -48,7 +50,9 @@ final class OtelHistogramSketch extends OtelAggregator {
     return new OtlpHistogramPoint(count, binBoundaries, binCounts, sum, min, max);
   }
 
-  /** Truncate IEEE-754 floating-point value to 10 bits precision. */
+  /**
+   * Truncate IEEE-754 floating-point value to 10 bits precision.
+   */
   private static double fixedPrecision(long value) {
     long bits = Double.doubleToRawLongBits(value);
     // the mask include 1 bit sign 11 bits exponent (0xfff)

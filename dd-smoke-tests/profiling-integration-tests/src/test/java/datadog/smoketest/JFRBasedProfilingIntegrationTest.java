@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
-
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -90,34 +89,27 @@ class JFRBasedProfilingIntegrationTest {
   private static final String BOGUS_API_KEY = "bogus";
   private static final int PROFILING_START_DELAY_SECONDS = 1;
   private static final int PROFILING_UPLOAD_PERIOD_SECONDS = 5;
-
   private static final int PROFILING_UPLOAD_TIMEOUT_SECONDS = 1;
-  private static final boolean ENDPOINT_COLLECTION_ENABLED = true; // default
+  // default
+  private static final boolean ENDPOINT_COLLECTION_ENABLED = true;
   // Set the request timeout value to the sum of the initial delay and the upload period
   // multiplied by a safety margin
   private static final int SAFETY_MARGIN = 3;
   private static final int REQUEST_WAIT_TIMEOUT =
       (PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS) * SAFETY_MARGIN;
-
-  private static final Path LOG_FILE_BASE =
-      Paths.get(
-          buildDirectory(),
-          "reports",
-          "testProcess." + JFRBasedProfilingIntegrationTest.class.getName());
-
+  private static final Path LOG_FILE_BASE = Paths.get(
+      buildDirectory(),
+      "reports",
+      "testProcess." + JFRBasedProfilingIntegrationTest.class.getName()
+  );
   public static final IAttribute<IQuantity> LOCAL_ROOT_SPAN_ID =
       attr("localRootSpanId", "localRootSpanId", "localRootSpanId", NUMBER);
   public static final IAttribute<IQuantity> SPAN_ID = attr("spanId", "spanId", "spanId", NUMBER);
-
   public static final IAttribute<String> FOO = attr("foo", "", "", PLAIN_TEXT);
   public static final IAttribute<String> BAR = attr("bar", "", "", PLAIN_TEXT);
-
-  public static final IAttribute<String> OPERATION =
-      attr("_dd.trace.operation", "", "", PLAIN_TEXT);
-
+  public static final IAttribute<String> OPERATION = attr("_dd.trace.operation", "", "", PLAIN_TEXT);
   private MockWebServer profilingServer;
   private MockWebServer tracingServer;
-
   private Process targetProcess = null;
   private Path logFilePath = null;
 
@@ -130,13 +122,12 @@ class JFRBasedProfilingIntegrationTest {
   void setup(final TestInfo testInfo) throws Exception {
     tracingServer = new MockWebServer();
     profilingServer = new MockWebServer();
-    tracingServer.setDispatcher(
-        new Dispatcher() {
-          @Override
-          public MockResponse dispatch(final RecordedRequest request) throws InterruptedException {
-            return new MockResponse().setResponseCode(200);
-          }
-        });
+    tracingServer.setDispatcher(new Dispatcher() {
+      @Override
+      public MockResponse dispatch(final RecordedRequest request) throws InterruptedException {
+        return new MockResponse().setResponseCode(200);
+      }
+    });
     tracingServer.start();
     profilingServer.start();
 
@@ -166,40 +157,49 @@ class JFRBasedProfilingIntegrationTest {
         Arguments.of(1, "on", "jfr"),
         Arguments.of(1, "on", "ddprof"),
         Arguments.of(1, "lz4", "jfr"),
-        Arguments.of(1, "lz4", "ddprof"));
+        Arguments.of(1, "lz4", "ddprof")
+    );
   }
 
   @ParameterizedTest(name = "Continuous recording [jmx delay: {0}, compression: {1}, mode: {2}]")
   @MethodSource("testArguments")
   public void testContinuousRecording_with_params(
-      int jmxDelay, String compression, String mode, final TestInfo testInfo) throws Exception {
+      int jmxDelay,
+      String compression,
+      String mode,
+      final TestInfo testInfo
+  ) throws Exception {
     Assumptions.assumeTrue("jfr".equals(mode) || OperatingSystem.isLinux());
     // Do not test compressions for Oracle JDK 8 - it will always be GZIP
     Assumptions.assumeTrue(!JavaVirtualMachine.isOracleJDK8() || "on".equals(mode));
     testWithRetry(
-        () ->
-            testContinuousRecording(
-                jmxDelay, ENDPOINT_COLLECTION_ENABLED, "ddprof".equals(mode), compression),
+        () -> testContinuousRecording(
+            jmxDelay,
+            ENDPOINT_COLLECTION_ENABLED,
+            "ddprof".equals(mode),
+            compression
+        ),
         testInfo,
-        5);
+        5
+    );
   }
 
   private void testContinuousRecording(
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final String withCompression)
-      throws Exception {
+      final String withCompression
+  ) throws Exception {
     final ObjectMapper mapper = new ObjectMapper();
     try {
-      targetProcess =
-          createDefaultProcessBuilder(
-                  jmxFetchDelay,
-                  endpointCollectionEnabled,
-                  asyncProfilerEnabled,
-                  withCompression,
-                  logFilePath)
-              .start();
+      targetProcess = createDefaultProcessBuilder(
+          jmxFetchDelay,
+          endpointCollectionEnabled,
+          asyncProfilerEnabled,
+          withCompression,
+          logFilePath
+      )
+        .start();
 
       Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
 
@@ -208,9 +208,10 @@ class JFRBasedProfilingIntegrationTest {
       assertNotNull(firstRequest);
       assertEquals(profilingServer.getPort(), firstRequest.getRequestUrl().url().getPort());
 
-      final List<FileItem> firstRequestMultiPartItems =
-          FileUpload.parse(
-              firstRequest.getBody().readByteArray(), firstRequest.getHeader("Content-Type"));
+      final List<FileItem> firstRequestMultiPartItems = FileUpload.parse(
+          firstRequest.getBody().readByteArray(),
+          firstRequest.getHeader("Content-Type")
+      );
 
       FileItem rawEvent = firstRequestMultiPartItems.get(0);
       assertEquals("event", rawEvent.getFieldName());
@@ -221,7 +222,6 @@ class JFRBasedProfilingIntegrationTest {
       assertEquals("main", rawJfr.getFieldName());
       assertEquals("main.jfr", rawJfr.getName());
       assertEquals("application/octet-stream", rawJfr.getContentType());
-
       // Event checks
       JsonNode event = mapper.readTree(rawEvent.getString());
 
@@ -237,14 +237,19 @@ class JFRBasedProfilingIntegrationTest {
       long delta = duration - TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS);
       assertTrue(
           duration > TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS - 4),
-          delta + "ms outside tolerance of upload period");
+          delta + "ms outside tolerance of upload period"
+      );
       assertTrue(
           duration < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 4),
-          delta + "ms outside tolerance of upload period");
+          delta + "ms outside tolerance of upload period"
+      );
 
       final Map<String, String> requestTags =
-          ProfilingTestUtils.parseTags(
-              Arrays.asList(event.get("tags_profiler").asText().split(",")));
+          ProfilingTestUtils.parseTags(Arrays.asList(event
+        .get("tags_profiler")
+        .asText()
+        .split(","))
+      );
       assertEquals("smoke-test-java-app", requestTags.get("service"));
       assertEquals("jvm", requestTags.get("language"));
       assertNotNull(requestTags.get("runtime-id"));
@@ -260,20 +265,19 @@ class JFRBasedProfilingIntegrationTest {
       // ProfilingSystem.SnapshotRecording.snapshot()
       final Instant firstRangeStart = rangeStartAndEnd.getLeft().plus(ONE_NANO);
       final Instant firstRangeEnd = rangeStartAndEnd.getRight();
-      assertTrue(
-          firstStartTime.compareTo(firstRangeStart) <= 0,
-          () ->
-              "First range start "
-                  + firstRangeStart
-                  + " is before first start time "
-                  + firstStartTime);
+      assertTrue(firstStartTime.compareTo(firstRangeStart) <= 0, () -> "First range start "
+          + firstRangeStart
+          + " is before first start time "
+          + firstStartTime);
 
       final RecordedRequest nextRequest = retrieveRequest();
       assertNotNull(nextRequest);
 
       final List<FileItem> secondRequestMultiPartItems =
           FileUpload.parse(
-              nextRequest.getBody().readByteArray(), nextRequest.getHeader("Content-Type"));
+              nextRequest.getBody().readByteArray(),
+              nextRequest.getHeader("Content-Type")
+      );
 
       rawEvent = secondRequestMultiPartItems.get(0);
       assertEquals("event", rawEvent.getFieldName());
@@ -284,7 +288,6 @@ class JFRBasedProfilingIntegrationTest {
       assertEquals("main", rawJfr.getFieldName());
       assertEquals("main.jfr", rawJfr.getName());
       assertEquals("application/octet-stream", rawJfr.getContentType());
-
       // Event checks
       event = mapper.readTree(rawEvent.getString());
 
@@ -296,9 +299,11 @@ class JFRBasedProfilingIntegrationTest {
       final long period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli();
       final long upperLimit = TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS) * 2;
 
-      assertTrue(
-          period > 0 && period <= upperLimit,
-          () -> "Upload period = " + period + "ms, expected (0, " + upperLimit + "]ms");
+      assertTrue(period > 0 && period <= upperLimit, () -> "Upload period = "
+          + period
+          + "ms, expected (0, "
+          + upperLimit
+          + "]ms");
 
       eventStream = new ByteArrayInputStream(rawJfr.get());
       eventStream = decompressStream(withCompression, eventStream);
@@ -315,20 +320,14 @@ class JFRBasedProfilingIntegrationTest {
       // so we can't check these invariants =(
       if (!System.getProperty("java.vendor").contains("Oracle")
           || !System.getProperty("java.version").contains("1.8")) {
-        assertTrue(
-            secondStartTime.compareTo(secondRangeStart) <= 0,
-            () ->
-                "Second range start "
-                    + secondRangeStart
-                    + " is before second start time "
-                    + secondStartTime);
-        assertTrue(
-            firstEndTime.isBefore(secondRangeStart),
-            () ->
-                "Second range start "
-                    + secondRangeStart
-                    + " is before or equal to first end time "
-                    + firstEndTime);
+        assertTrue(secondStartTime.compareTo(secondRangeStart) <= 0, () -> "Second range start "
+            + secondRangeStart
+            + " is before second start time "
+            + secondStartTime);
+        assertTrue(firstEndTime.isBefore(secondRangeStart), () -> "Second range start "
+            + secondRangeStart
+            + " is before or equal to first end time "
+            + firstEndTime);
       }
       // Only non-Oracle JDK 8+ JVMs support custom DD events
       if (!System.getProperty("java.vendor").contains("Oracle")
@@ -375,13 +374,13 @@ class JFRBasedProfilingIntegrationTest {
     // if we emit any of these events during the test they mustn't have corrupted context
     for (String eventName :
         new String[] {
-          "datadog.ExecutionSample",
-          "datadog.MethodSample",
-          "datadog.ObjectAllocationInNewTLAB",
-          "datadog.ObjectAllocationOutsideTLAB",
-          "datadog.HeapLiveObject",
-          "datadog.JavaMonitorEnter"
-        }) {
+        "datadog.ExecutionSample",
+        "datadog.MethodSample",
+        "datadog.ObjectAllocationInNewTLAB",
+        "datadog.ObjectAllocationOutsideTLAB",
+        "datadog.HeapLiveObject",
+        "datadog.JavaMonitorEnter"
+    }) {
       for (IItemIterable event : events.apply(ItemFilters.type(eventName))) {
         IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
             LOCAL_ROOT_SPAN_ID.getAccessor(event.getType());
@@ -410,86 +409,81 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   private Pair<Instant, Instant> getRangeStartAndEnd(final IItemCollection events) {
-    return events.getUnfilteredTimeRanges().stream()
-        .map(
-            range -> {
-              final Instant convertedStart = convertFromQuantity(range.getStart());
-              final Instant convertedEnd = convertFromQuantity(range.getEnd());
-              return Pair.of(convertedStart, convertedEnd);
-            })
-        .reduce(
-            Pair.of(null, null),
-            (send, newSend) -> {
-              Instant start = send.getLeft();
-              Instant end = send.getRight();
-              final Instant newStart = newSend.getLeft();
-              final Instant newEnd = newSend.getRight();
-              start =
-                  null == start
-                      ? newStart
-                      : null == newStart ? start : newStart.isBefore(start) ? newStart : start;
-              end =
-                  null == end ? newEnd : null == newEnd ? end : newEnd.isAfter(end) ? newEnd : end;
-              return Pair.of(start, end);
-            });
+    return events
+      .getUnfilteredTimeRanges()
+      .stream()
+      .map(range -> {
+        final Instant convertedStart = convertFromQuantity(range.getStart());
+        final Instant convertedEnd = convertFromQuantity(range.getEnd());
+        return Pair.of(convertedStart, convertedEnd);
+      })
+      .reduce(Pair.of(null, null), (send, newSend) -> {
+        Instant start = send.getLeft();
+        Instant end = send.getRight();
+        final Instant newStart = newSend.getLeft();
+        final Instant newEnd = newSend.getRight();
+        start = null == start
+            ? newStart
+            : null == newStart ? start : newStart.isBefore(start) ? newStart : start;
+        end = null == end ? newEnd : null == newEnd ? end : newEnd.isAfter(end) ? newEnd : end;
+        return Pair.of(start, end);
+      });
   }
 
   @Test
   @DisplayName("Test bogus API key")
   void testBogusApiKey(final TestInfo testInfo) throws Exception {
-    testWithRetry(
-        () -> {
-          final int exitDelay =
-              PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 2 + 1;
+    testWithRetry(() -> {
+      final int exitDelay = PROFILING_START_DELAY_SECONDS
+          + PROFILING_UPLOAD_PERIOD_SECONDS * 2
+          + 1;
 
-          try {
-            targetProcess =
-                createProcessBuilder(
-                        BOGUS_API_KEY,
-                        0,
-                        PROFILING_START_DELAY_SECONDS,
-                        PROFILING_UPLOAD_PERIOD_SECONDS,
-                        ENDPOINT_COLLECTION_ENABLED,
-                        true,
-                        "off",
-                        exitDelay,
-                        logFilePath)
-                    .start();
-
-            /* API key of an incorrect format will cause profiling to get disabled.
+      try {
+        targetProcess = createProcessBuilder(
+            BOGUS_API_KEY,
+            0,
+            PROFILING_START_DELAY_SECONDS,
+            PROFILING_UPLOAD_PERIOD_SECONDS,
+            ENDPOINT_COLLECTION_ENABLED,
+            true,
+            "off",
+            exitDelay,
+            logFilePath
+        )
+          .start();
+        /* API key of an incorrect format will cause profiling to get disabled.
               This means no upload requests will be made. We are going to check the log file for
               the presence of a specific message. For this we need to wait for a particular message indicating
               that the profiling system is initializing and then assert for the presence of the expected message
               caused by the API key format error.
             */
-            final long ts = System.nanoTime();
-            while (!checkLogLines(
-                logFilePath, line -> line.contains("Initializing profiler context integration"))) {
-              Thread.sleep(500);
-              // Wait at most 30 seconds
-              if (System.nanoTime() - ts > 30_000_000_000L) {
-                throw new TimeoutException();
-              }
-            }
-
-            /* An API key with incorrect format will cause profiling to get disabled and the
+        final long ts = System.nanoTime();
+        while (!checkLogLines(logFilePath, line -> line.contains(
+            "Initializing profiler context integration"
+        ))) {
+          Thread.sleep(500);
+          // Wait at most 30 seconds
+          if (System.nanoTime() - ts > 30_000_000_000L) {
+            throw new TimeoutException();
+          }
+        }
+        /* An API key with incorrect format will cause profiling to get disabled and the
               following message would be logged.
               The test asserts for the presence of the message.
             */
-            assertTrue(
-                checkLogLines(
-                    logFilePath,
-                    it -> it.contains("Profiling: API key doesn't match expected format")));
-            assertFalse(logHasErrors(logFilePath));
-          } finally {
-            if (targetProcess != null) {
-              targetProcess.destroyForcibly();
-              targetProcess = null;
-            }
-          }
-        },
-        testInfo,
-        3);
+        assertTrue(
+            checkLogLines(logFilePath, it -> it.contains(
+                "Profiling: API key doesn't match expected format"
+            ))
+        );
+        assertFalse(logHasErrors(logFilePath));
+      } finally {
+        if (targetProcess != null) {
+          targetProcess.destroyForcibly();
+          targetProcess = null;
+        }
+      }
+    }, testInfo, 3);
   }
 
   @Test
@@ -502,117 +496,112 @@ class JFRBasedProfilingIntegrationTest {
     //       We will need to investigate the root cause, but now we need to unblock the master
     // builds
     Assumptions.assumeFalse(JavaVirtualMachine.isOracleJDK8());
-    testWithRetry(
-        () -> {
-          try {
-            targetProcess =
-                createProcessBuilder(
-                        profilingServer.getPort(),
-                        tracingServer.getPort(),
-                        VALID_API_KEY,
-                        0,
-                        PROFILING_START_DELAY_SECONDS,
-                        PROFILING_UPLOAD_PERIOD_SECONDS,
-                        false,
-                        true,
-                        "on",
-                        0,
-                        logFilePath,
-                        false)
-                    .start();
+    testWithRetry(() -> {
+      try {
+        targetProcess = createProcessBuilder(
+            profilingServer.getPort(),
+            tracingServer.getPort(),
+            VALID_API_KEY,
+            0,
+            PROFILING_START_DELAY_SECONDS,
+            PROFILING_UPLOAD_PERIOD_SECONDS,
+            false,
+            true,
+            "on",
+            0,
+            logFilePath,
+            false
+        )
+          .start();
 
-            Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
+        Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
 
-            final RecordedRequest request = retrieveRequest();
-            assertNotNull(request);
+        final RecordedRequest request = retrieveRequest();
+        assertNotNull(request);
 
-            final List<FileItem> items =
-                FileUpload.parse(
-                    request.getBody().readByteArray(), request.getHeader("Content-Type"));
+        final List<FileItem> items =
+            FileUpload.parse(request.getBody().readByteArray(), request.getHeader("Content-Type"));
 
-            FileItem rawJfr = items.get(1);
-            assertEquals("main.jfr", rawJfr.getName());
+        FileItem rawJfr = items.get(1);
+        assertEquals("main.jfr", rawJfr.getName());
 
-            assertFalse(logHasErrors(logFilePath));
-            InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
-            eventStream = decompressStream("on", eventStream);
-            IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
-            assertTrue(events.hasItems());
+        assertFalse(logHasErrors(logFilePath));
+        InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
+        eventStream = decompressStream("on", eventStream);
+        IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
+        assertTrue(events.hasItems());
 
-            IItemCollection wallclockSamples =
-                events.apply(ItemFilters.type("datadog.MethodSample"));
-            assertTrue(
-                wallclockSamples.hasItems(), "Expected wallclock samples when tracing is disabled");
-
-            // Verify span context is not present
-            for (IItemIterable event : wallclockSamples) {
-              IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
-                  LOCAL_ROOT_SPAN_ID.getAccessor(event.getType());
-              IMemberAccessor<IQuantity, IItem> spanIdAccessor =
-                  SPAN_ID.getAccessor(event.getType());
-              for (IItem sample : event) {
-                assertEquals(
-                    0,
-                    rootSpanIdAccessor.getMember(sample).longValue(),
-                    "rootSpanId should be 0 when tracing is disabled");
-                assertEquals(
-                    0,
-                    spanIdAccessor.getMember(sample).longValue(),
-                    "spanId should be 0 when tracing is disabled");
-              }
-            }
-          } finally {
-            if (targetProcess != null) {
-              targetProcess.destroyForcibly();
-            }
-            targetProcess = null;
+        IItemCollection wallclockSamples = events.apply(ItemFilters.type("datadog.MethodSample"));
+        assertTrue(
+            wallclockSamples.hasItems(),
+            "Expected wallclock samples when tracing is disabled"
+        );
+        // Verify span context is not present
+        for (IItemIterable event : wallclockSamples) {
+          IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
+              LOCAL_ROOT_SPAN_ID.getAccessor(event.getType());
+          IMemberAccessor<IQuantity, IItem> spanIdAccessor = SPAN_ID.getAccessor(event.getType());
+          for (IItem sample : event) {
+            assertEquals(
+                0,
+                rootSpanIdAccessor.getMember(sample).longValue(),
+                "rootSpanId should be 0 when tracing is disabled"
+            );
+            assertEquals(
+                0,
+                spanIdAccessor.getMember(sample).longValue(),
+                "spanId should be 0 when tracing is disabled"
+            );
           }
-        },
-        testInfo,
-        3);
+        }
+      } finally {
+        if (targetProcess != null) {
+          targetProcess.destroyForcibly();
+        }
+        targetProcess = null;
+      }
+    }, testInfo, 3);
   }
 
   @Test
   @DisplayName("Test shutdown")
   @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   void testShutdown(final TestInfo testInfo) throws Exception {
-    testWithRetry(
-        () -> {
-          final int duration =
-              PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 4 + 1;
-          try {
-            targetProcess =
-                createProcessBuilder(
-                        VALID_API_KEY,
-                        0,
-                        PROFILING_START_DELAY_SECONDS,
-                        PROFILING_UPLOAD_PERIOD_SECONDS,
-                        ENDPOINT_COLLECTION_ENABLED,
-                        true,
-                        "off",
-                        duration,
-                        logFilePath)
-                    .start();
+    testWithRetry(() -> {
+      final int duration = PROFILING_START_DELAY_SECONDS
+          + PROFILING_UPLOAD_PERIOD_SECONDS * 4
+          + 1;
+      try {
+        targetProcess = createProcessBuilder(
+            VALID_API_KEY,
+            0,
+            PROFILING_START_DELAY_SECONDS,
+            PROFILING_UPLOAD_PERIOD_SECONDS,
+            ENDPOINT_COLLECTION_ENABLED,
+            true,
+            "off",
+            duration,
+            logFilePath
+        )
+          .start();
 
-            final RecordedRequest request = retrieveRequest();
-            assertNotNull(request);
-            assertFalse(logHasErrors(logFilePath));
-            assertTrue(request.getBodySize() > 0);
-
-            // Wait for the app exit with some extra time to accommodate profile upload on shutdown.
-            // The expectation is that agent doesn't prevent app from exiting.
-            assertTrue(
-                targetProcess.waitFor(
-                    duration + PROFILING_UPLOAD_TIMEOUT_SECONDS + 1, TimeUnit.SECONDS));
-          } finally {
-            if (targetProcess != null) {
-              targetProcess.destroyForcibly();
-            }
-            targetProcess = null;
-          }
-        },
-        testInfo,
-        3);
+        final RecordedRequest request = retrieveRequest();
+        assertNotNull(request);
+        assertFalse(logHasErrors(logFilePath));
+        assertTrue(request.getBodySize() > 0);
+        // Wait for the app exit with some extra time to accommodate profile upload on shutdown.
+        // The expectation is that agent doesn't prevent app from exiting.
+        assertTrue(targetProcess.waitFor(
+            duration + PROFILING_UPLOAD_TIMEOUT_SECONDS + 1,
+            TimeUnit.SECONDS
+        ));
+      } finally {
+        if (targetProcess != null) {
+          targetProcess.destroyForcibly();
+        }
+        targetProcess = null;
+      }
+    }, testInfo, 3);
   }
 
   private void testWithRetry(final TestBody test, final TestInfo testInfo, final int retries)
@@ -639,7 +628,8 @@ class JFRBasedProfilingIntegrationTest {
     if (lastThrowable != null) {
       throw new RuntimeException(
           "Failed '" + testInfo.getDisplayName() + "' after " + retries + " retries.",
-          lastThrowable);
+          lastThrowable
+      );
     }
   }
 
@@ -654,18 +644,21 @@ class JFRBasedProfilingIntegrationTest {
     final long dur = System.nanoTime() - ts;
     log.info(
         "Profiling request retrieved in {} seconds",
-        TimeUnit.SECONDS.convert(dur, TimeUnit.NANOSECONDS));
+        TimeUnit.SECONDS.convert(dur, TimeUnit.NANOSECONDS)
+    );
     return request;
   }
 
   private void assertRecordingEvents(
       final IItemCollection events,
       final boolean expectEndpointEvents,
-      final boolean asyncProfilerEnabled) {
+      final boolean asyncProfilerEnabled
+  ) {
     // Process events should not be collected
     assertFalse(
         events.apply(ItemFilters.type("jdk.SystemProcess")).hasItems(),
-        "jdk.SystemProcess events should not be collected");
+        "jdk.SystemProcess events should not be collected"
+    );
 
     if (expectEndpointEvents) {
       // Check endpoint events
@@ -700,7 +693,8 @@ class JFRBasedProfilingIntegrationTest {
       verifyDatadogEventsNotCorrupt(events);
       assertEquals(
           JavaVirtualMachine.isJavaVersionAtLeast(11),
-          events.apply(ItemFilters.type("datadog.ObjectSample")).hasItems());
+          events.apply(ItemFilters.type("datadog.ObjectSample")).hasItems()
+      );
       // Check live heap events
       // ddprof is active — jdk.OldObjectSample should NOT be present since ddprof takes over
       // TODO ddprof (async) profiler seems to be having some issues with stack depth limit and
@@ -721,29 +715,27 @@ class JFRBasedProfilingIntegrationTest {
       if (isOldObjectSampleAvailable()) {
         assertTrue(
             events.apply(ItemFilters.type("jdk.OldObjectSample")).hasItems(),
-            "Expected jdk.OldObjectSample events on JFR-only mode with supported JVM");
+            "Expected jdk.OldObjectSample events on JFR-only mode with supported JVM"
+        );
       }
     }
-
     // check exception events
     assertTrue(events.apply(ItemFilters.type("datadog.ExceptionSample")).hasItems());
     assertTrue(events.apply(ItemFilters.type("datadog.ExceptionCount")).hasItems());
-
     // check deadlock events
     assertTrue(events.apply(ItemFilters.type("datadog.Deadlock")).hasItems());
     assertTrue(events.apply(ItemFilters.type("datadog.DeadlockedThread")).hasItems());
-
     // check available processor events
     final IItemCollection availableProcessorsEvents =
         events.apply(ItemFilters.type("datadog.AvailableProcessorCores"));
     assertTrue(availableProcessorsEvents.hasItems());
     final IAttribute<IQuantity> cpuCountAttr =
         attr("availableProcessorCores", "availableProcessorCores", NUMBER);
-    final long val =
-        ((IQuantity)
-                availableProcessorsEvents.getAggregate(
-                    Aggregators.min("datadog.AvailableProcessorCores", cpuCountAttr)))
-            .longValue();
+    final long val = ((IQuantity) availableProcessorsEvents.getAggregate(Aggregators.min(
+        "datadog.AvailableProcessorCores",
+        cpuCountAttr
+    )))
+      .longValue();
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
 
     assertTrue(events.apply(ItemFilters.type("datadog.ProfilerSetting")).hasItems());
@@ -751,27 +743,25 @@ class JFRBasedProfilingIntegrationTest {
     //    assertTrue(events.apply(ItemFilters.type("datadog.QueueTime")).hasItems());
   }
 
-  private static void verifyStackDepthSetting(
-      IItemCollection events, boolean asyncProfilerEnabled) {
-    assertTrue(
-        events
-            .apply(
-                ItemFilters.and(
-                    ItemFilters.type("datadog.ProfilerSetting"),
-                    ItemFilters.equals(
-                        JdkAttributes.REC_SETTING_NAME,
-                        (asyncProfilerEnabled ? "ddprof" : "JFR") + " Stack Depth"),
-                    ItemFilters.equals(
-                        JdkAttributes.REC_SETTING_VALUE, String.valueOf(STACK_DEPTH_LIMIT))))
-            .hasItems());
+  private static void verifyStackDepthSetting(IItemCollection events, boolean asyncProfilerEnabled) {
+    assertTrue(events
+      .apply(ItemFilters.and(
+          ItemFilters.type("datadog.ProfilerSetting"),
+          ItemFilters.equals(
+              JdkAttributes.REC_SETTING_NAME,
+              (asyncProfilerEnabled ? "ddprof" : "JFR") + " Stack Depth"
+          ),
+          ItemFilters.equals(JdkAttributes.REC_SETTING_VALUE, String.valueOf(STACK_DEPTH_LIMIT))
+      ))
+      .hasItems()
+    );
   }
 
   private static boolean hasAuxiliaryDdprof(IItemCollection events) {
-    events =
-        events.apply(
-            ItemFilters.and(
-                ItemFilters.type("datadog.ProfilerSetting"),
-                ItemFilters.equals(JdkAttributes.REC_SETTING_NAME, "Auxiliary Profiler")));
+    events = events.apply(ItemFilters.and(
+        ItemFilters.type("datadog.ProfilerSetting"),
+        ItemFilters.equals(JdkAttributes.REC_SETTING_NAME, "Auxiliary Profiler")
+    ));
     if (!events.hasItems()) {
       return false;
     }
@@ -789,7 +779,11 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   private static void processExecutionSamples(
-      IItemCollection events, Set<Long> rootSpanIds, Set<String> operations, Set<String> values) {
+      IItemCollection events,
+      Set<Long> rootSpanIds,
+      Set<String> operations,
+      Set<String> values
+  ) {
     IItemCollection executionSamples = events.apply(ItemFilters.type("datadog.ExecutionSample"));
     for (IItemIterable executionSampleEvents : executionSamples) {
       IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
@@ -816,7 +810,10 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   private static <T> T getParameter(
-      final String name, final Class<T> type, final Multimap<String, Object> parameters) {
+      final String name,
+      final Class<T> type,
+      final Multimap<String, Object> parameters
+  ) {
     final List<?> vals = (List<?>) parameters.get(name);
     return (T) vals.get(0);
   }
@@ -826,7 +823,8 @@ class JFRBasedProfilingIntegrationTest {
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
       final String withCompression,
-      final Path logFilePath) {
+      final Path logFilePath
+  ) {
     return createProcessBuilder(
         VALID_API_KEY,
         jmxFetchDelay,
@@ -836,7 +834,8 @@ class JFRBasedProfilingIntegrationTest {
         asyncProfilerEnabled,
         withCompression,
         0,
-        logFilePath);
+        logFilePath
+    );
   }
 
   private ProcessBuilder createProcessBuilder(
@@ -848,7 +847,8 @@ class JFRBasedProfilingIntegrationTest {
       final boolean asyncProfilerEnabled,
       final String withCompression,
       final int exitDelay,
-      final Path logFilePath) {
+      final Path logFilePath
+  ) {
     return createProcessBuilder(
         profilingServer.getPort(),
         tracingServer.getPort(),
@@ -861,7 +861,8 @@ class JFRBasedProfilingIntegrationTest {
         withCompression,
         exitDelay,
         logFilePath,
-        true);
+        true
+    );
   }
 
   private static ProcessBuilder createProcessBuilder(
@@ -877,12 +878,13 @@ class JFRBasedProfilingIntegrationTest {
       final int exitDelay,
       final Path logFilePath,
       final boolean tracingEnabled,
-      final String... extraProperties) {
+      final String... extraProperties
+  ) {
     final String templateOverride =
         JFRBasedProfilingIntegrationTest.class
-            .getClassLoader()
-            .getResource("overrides.jfp")
-            .getFile();
+      .getClassLoader()
+      .getResource("overrides.jfp")
+      .getFile();
 
     final List<String> command = new java.util.ArrayList<>();
     command.add(javaPath());
@@ -924,8 +926,10 @@ class JFRBasedProfilingIntegrationTest {
     command.add("-XX:+IgnoreUnrecognizedVMOptions");
     command.add("-XX:+UnlockCommercialFeatures");
     command.add("-XX:+FlightRecorder");
-    command.add(
-        "-Ddd." + ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE + "=" + templateOverride);
+    command.add("-Ddd."
+        + ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE
+        + "="
+        + templateOverride);
     command.add("-Ddd.jmxfetch.start-delay=" + jmxFetchDelaySecs);
     command.add("-jar");
     command.add(profilingShadowJar());
@@ -964,17 +968,16 @@ class JFRBasedProfilingIntegrationTest {
 
   private static boolean logHasErrors(final Path logFilePath) throws IOException {
     final boolean[] logHasErrors = new boolean[] {false};
-    Files.lines(logFilePath)
-        .forEach(
-            it -> {
-              if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
-                System.out.println(it);
-                logHasErrors[0] = true;
-              }
-            });
+    Files.lines(logFilePath).forEach(it -> {
+      if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
+        System.out.println(it);
+        logHasErrors[0] = true;
+      }
+    });
     if (logHasErrors[0]) {
       System.out.println(
-          "Test application log is containing errors. See full run logs in " + logFilePath);
+          "Test application log is containing errors. See full run logs in " + logFilePath
+      );
     }
     return logHasErrors[0];
   }
@@ -990,96 +993,92 @@ class JFRBasedProfilingIntegrationTest {
     // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable
     Assumptions.assumeFalse(JavaVirtualMachine.isOracleJDK8());
 
-    testWithRetry(
-        () -> {
-          try {
-            targetProcess =
-                createProcessBuilder(
-                        profilingServer.getPort(),
-                        tracingServer.getPort(),
-                        VALID_API_KEY,
-                        0,
-                        PROFILING_START_DELAY_SECONDS,
-                        PROFILING_UPLOAD_PERIOD_SECONDS,
-                        ENDPOINT_COLLECTION_ENABLED,
-                        true,
-                        "on",
-                        0,
-                        logFilePath,
-                        true,
-                        "-Ddd.profiling.scrub.enabled=true")
-                    .start();
+    testWithRetry(() -> {
+      try {
+        targetProcess = createProcessBuilder(
+            profilingServer.getPort(),
+            tracingServer.getPort(),
+            VALID_API_KEY,
+            0,
+            PROFILING_START_DELAY_SECONDS,
+            PROFILING_UPLOAD_PERIOD_SECONDS,
+            ENDPOINT_COLLECTION_ENABLED,
+            true,
+            "on",
+            0,
+            logFilePath,
+            true,
+            "-Ddd.profiling.scrub.enabled=true"
+        )
+          .start();
 
-            final RecordedRequest request = retrieveRequest();
-            assertNotNull(request);
+        final RecordedRequest request = retrieveRequest();
+        assertNotNull(request);
 
-            final List<FileItem> items =
-                FileUpload.parse(
-                    request.getBody().readByteArray(), request.getHeader("Content-Type"));
+        final List<FileItem> items =
+            FileUpload.parse(request.getBody().readByteArray(), request.getHeader("Content-Type"));
 
-            FileItem rawJfr =
-                items.stream()
-                    .filter(i -> "main.jfr".equals(i.getName()))
-                    .findFirst()
-                    .orElseThrow(() -> new AssertionError("main.jfr not found in upload"));
+        FileItem rawJfr = items
+          .stream()
+          .filter(i -> "main.jfr".equals(i.getName()))
+          .findFirst()
+          .orElseThrow(() -> new AssertionError("main.jfr not found in upload"));
 
-            assertFalse(logHasErrors(logFilePath));
-            InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
-            eventStream = decompressStream("on", eventStream);
-            IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
-            assertTrue(events.hasItems());
-
-            // Verify that system properties are scrubbed
-            IItemCollection systemPropertyEvents =
-                events.apply(ItemFilters.type(JdkTypeIDs.SYSTEM_PROPERTIES));
-            assertTrue(
-                systemPropertyEvents.hasItems(),
-                "Expected jdk.InitialSystemProperty events in recording");
-            {
-              IAttribute<String> valueAttr = attr("value", "value", "value", PLAIN_TEXT);
-              for (IItemIterable event : systemPropertyEvents) {
-                IMemberAccessor<String, IItem> valueAccessor =
-                    valueAttr.getAccessor(event.getType());
-                for (IItem item : event) {
-                  String value = valueAccessor.getMember(item);
-                  if (value != null && !value.isEmpty()) {
-                    // Scrubbed values should contain only 'x' characters
-                    assertTrue(
-                        value.chars().allMatch(c -> c == 'x'),
-                        "System property value should be scrubbed: " + value);
-                  }
-                }
+        assertFalse(logHasErrors(logFilePath));
+        InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
+        eventStream = decompressStream("on", eventStream);
+        IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
+        assertTrue(events.hasItems());
+        // Verify that system properties are scrubbed
+        IItemCollection systemPropertyEvents =
+            events.apply(ItemFilters.type(JdkTypeIDs.SYSTEM_PROPERTIES));
+        assertTrue(
+            systemPropertyEvents.hasItems(),
+            "Expected jdk.InitialSystemProperty events in recording"
+        );
+        {
+          IAttribute<String> valueAttr = attr("value", "value", "value", PLAIN_TEXT);
+          for (IItemIterable event : systemPropertyEvents) {
+            IMemberAccessor<String, IItem> valueAccessor = valueAttr.getAccessor(event.getType());
+            for (IItem item : event) {
+              String value = valueAccessor.getMember(item);
+              if (value != null && !value.isEmpty()) {
+                // Scrubbed values should contain only 'x' characters
+                assertTrue(
+                    value.chars().allMatch(c -> c == 'x'),
+                    "System property value should be scrubbed: " + value
+                );
               }
             }
-
-            // Verify that JVM arguments are scrubbed
-            IItemCollection jvmInfoEvents = events.apply(ItemFilters.type("jdk.JVMInformation"));
-            assertTrue(jvmInfoEvents.hasItems(), "Expected jdk.JVMInformation events in recording");
-            {
-              IAttribute<String> jvmArgsAttr =
-                  attr("jvmArguments", "jvmArguments", "jvmArguments", PLAIN_TEXT);
-              for (IItemIterable event : jvmInfoEvents) {
-                IMemberAccessor<String, IItem> jvmArgsAccessor =
-                    jvmArgsAttr.getAccessor(event.getType());
-                for (IItem item : event) {
-                  String jvmArgs = jvmArgsAccessor.getMember(item);
-                  if (jvmArgs != null && !jvmArgs.isEmpty()) {
-                    // Scrubbed values should contain only 'x' characters
-                    assertTrue(
-                        jvmArgs.chars().allMatch(c -> c == 'x'),
-                        "JVM arguments should be scrubbed: " + jvmArgs);
-                  }
-                }
-              }
-            }
-          } finally {
-            if (targetProcess != null) {
-              targetProcess.destroyForcibly();
-            }
-            targetProcess = null;
           }
-        },
-        testInfo,
-        3);
+        }
+        // Verify that JVM arguments are scrubbed
+        IItemCollection jvmInfoEvents = events.apply(ItemFilters.type("jdk.JVMInformation"));
+        assertTrue(jvmInfoEvents.hasItems(), "Expected jdk.JVMInformation events in recording");
+        {
+          IAttribute<String> jvmArgsAttr =
+              attr("jvmArguments", "jvmArguments", "jvmArguments", PLAIN_TEXT);
+          for (IItemIterable event : jvmInfoEvents) {
+            IMemberAccessor<String, IItem> jvmArgsAccessor =
+                jvmArgsAttr.getAccessor(event.getType());
+            for (IItem item : event) {
+              String jvmArgs = jvmArgsAccessor.getMember(item);
+              if (jvmArgs != null && !jvmArgs.isEmpty()) {
+                // Scrubbed values should contain only 'x' characters
+                assertTrue(
+                    jvmArgs.chars().allMatch(c -> c == 'x'),
+                    "JVM arguments should be scrubbed: " + jvmArgs
+                );
+              }
+            }
+          }
+        }
+      } finally {
+        if (targetProcess != null) {
+          targetProcess.destroyForcibly();
+        }
+        targetProcess = null;
+      }
+    }, testInfo, 3);
   }
 }

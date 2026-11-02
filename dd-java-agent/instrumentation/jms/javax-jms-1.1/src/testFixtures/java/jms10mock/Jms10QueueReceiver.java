@@ -7,7 +7,9 @@ import javax.jms.MessageListener;
 import javax.jms.Queue;
 import javax.jms.QueueReceiver;
 
-/** Wraps a real {@link MessageConsumer} but simulates a JMS 1.0 provider. */
+/**
+ * Wraps a real {@link MessageConsumer} but simulates a JMS 1.0 provider.
+ */
 public class Jms10QueueReceiver implements QueueReceiver {
   private final MessageConsumer delegate;
   private final Queue queue;

@@ -7,7 +7,6 @@ import static datadog.nativeloader.TestPlatformSpec.MAC;
 import static datadog.nativeloader.TestPlatformSpec.MUSL;
 import static datadog.nativeloader.TestPlatformSpec.WINDOWS;
 import static datadog.nativeloader.TestPlatformSpec.X86_64;
-
 import org.junit.jupiter.api.Test;
 
 public class NestedDirLibraryResolverTest {
@@ -18,7 +17,8 @@ public class NestedDirLibraryResolverTest {
         "linux/x86_64/libc/libtest.so",
         "linux/x86_64/libtest.so",
         "linux/libtest.so",
-        "libtest.so");
+        "libtest.so"
+    );
   }
 
   @Test
@@ -28,7 +28,8 @@ public class NestedDirLibraryResolverTest {
         "linux/x86_64/musl/libtest.so",
         "linux/x86_64/libtest.so",
         "linux/libtest.so",
-        "libtest.so");
+        "libtest.so"
+    );
   }
 
   @Test
@@ -37,7 +38,8 @@ public class NestedDirLibraryResolverTest {
         TestPlatformSpec.of(MAC, X86_64),
         "macos/x86_64/libtest.dylib",
         "macos/libtest.dylib",
-        "libtest.dylib");
+        "libtest.dylib"
+    );
   }
 
   @Test
@@ -46,7 +48,8 @@ public class NestedDirLibraryResolverTest {
         TestPlatformSpec.of(MAC, AARCH64),
         "macos/aarch64/libtest.dylib",
         "macos/libtest.dylib",
-        "libtest.dylib");
+        "libtest.dylib"
+    );
   }
 
   @Test
@@ -59,6 +62,7 @@ public class NestedDirLibraryResolverTest {
         NestedDirLibraryResolver.INSTANCE,
         platformSpec,
         CapturingPathLocator.WITH_OMIT_COMP_FALLBACK,
-        expectedPaths);
+        expectedPaths
+    );
   }
 }

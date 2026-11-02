@@ -4,16 +4,15 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.Objects;
 
-/** Shares type information using a single cache across multiple classloaders. */
+/**
+ * Shares type information using a single cache across multiple classloaders.
+ */
 public final class TypeInfoCache<T> {
   public static final URL UNKNOWN_CLASS_FILE = null;
-
   // limit allowed capacities as descriptions are not small
   private static final int MAX_CAPACITY = 1 << 16;
   private static final int MIN_CAPACITY = 1 << 4;
-
   private static final int MAX_HASH_ATTEMPTS = 5;
-
   private final boolean namesAreUnique;
   private final SharedTypeInfo<T>[] sharedTypeInfo;
   private final int slotMask;
@@ -82,7 +81,8 @@ public final class TypeInfoCache<T> {
         sharedTypeInfo[slot] = newValue;
         return oldValue;
       } else if (i == MAX_HASH_ATTEMPTS) {
-        sharedTypeInfo[leastUsedSlot] = newValue; // overwrite least-recently used
+        // overwrite least-recently used
+        sharedTypeInfo[leastUsedSlot] = newValue;
         return null;
       } else if (oldValue.lastUsed < leastUsedTime) {
         leastUsedTime = oldValue.lastUsed;
@@ -93,7 +93,9 @@ public final class TypeInfoCache<T> {
     }
   }
 
-  /** Clears all type information from the shared cache. */
+  /**
+   * Clears all type information from the shared cache.
+   */
   public void clear() {
     Arrays.fill(sharedTypeInfo, null);
   }
@@ -102,11 +104,12 @@ public final class TypeInfoCache<T> {
     return Integer.reverseBytes(oldHash * 0x9e3775cd) * 0x9e3775cd;
   }
 
-  /** Wraps type information with the name of the class it originated from. */
+  /**
+   * Wraps type information with the name of the class it originated from.
+   */
   public static class SharedTypeInfo<T> {
     final String className;
     private final T typeInfo;
-
     long lastUsed = System.currentTimeMillis();
 
     SharedTypeInfo(String className, T typeInfo) {
@@ -127,7 +130,9 @@ public final class TypeInfoCache<T> {
     }
   }
 
-  /** Includes the classloader and class file resource it originated from. */
+  /**
+   * Includes the classloader and class file resource it originated from.
+   */
   static final class DisambiguatingTypeInfo<T> extends SharedTypeInfo<T> {
     private final int classLoaderId;
     private final URL classFile;
@@ -149,7 +154,9 @@ public final class TypeInfoCache<T> {
           && sameClassFile(this.classFile, classFile);
     }
 
-    /** Matches class file resources without triggering network lookups. */
+    /**
+     * Matches class file resources without triggering network lookups.
+     */
     private static boolean sameClassFile(URL lhs, URL rhs) {
       return Objects.equals(lhs.getFile(), rhs.getFile())
           && Objects.equals(lhs.getRef(), rhs.getRef())

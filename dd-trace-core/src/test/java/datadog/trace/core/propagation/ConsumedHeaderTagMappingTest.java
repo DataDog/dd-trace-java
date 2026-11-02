@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.TraceConfig;
@@ -68,42 +67,57 @@ class ConsumedHeaderTagMappingTest extends DDJavaSpecification {
                 "Datadog",
                 DatadogHttpCodec::newExtractor,
                 headers(DatadogHttpCodec.TRACE_ID_KEY, "1", DatadogHttpCodec.SPAN_ID_KEY, "2"),
-                true)),
+                true
+            )
+        ),
         arguments(
             new Style(
                 "B3Multi",
                 B3HttpCodec::newMultiExtractor,
                 headers(B3HttpCodec.TRACE_ID_KEY, "1", B3HttpCodec.SPAN_ID_KEY, "2"),
-                true)),
+                true
+            )
+        ),
         arguments(
             new Style(
                 "B3Single",
                 B3HttpCodec::newSingleExtractor,
                 headers(B3HttpCodec.B3_KEY, "1-2-1"),
-                true)),
+                true
+            )
+        ),
         arguments(
             new Style(
                 "W3C",
                 W3CHttpCodec::newExtractor,
                 headers(
                     W3CHttpCodec.TRACE_PARENT_KEY,
-                    "00-00000000000000000000000000000001-0000000000000002-01"),
-                true)),
+                    "00-00000000000000000000000000000001-0000000000000002-01"
+                ),
+                true
+            )
+        ),
         arguments(
             new Style(
                 "Haystack",
                 HaystackHttpCodec::newExtractor,
                 headers(HaystackHttpCodec.TRACE_ID_KEY, "1", HaystackHttpCodec.SPAN_ID_KEY, "2"),
-                true)),
+                true
+            )
+        ),
         arguments(
             new Style(
                 "XRay",
                 XRayHttpCodec::newExtractor,
                 headers(
                     XRayHttpCodec.X_AMZN_TRACE_ID,
-                    "Root=1-00000000-000000000000000000000001;Parent=0000000000000002"),
-                true)),
-        arguments(new Style("None", NoneCodec::newExtractor, emptyMap(), false)));
+                    "Root=1-00000000-000000000000000000000001;Parent=0000000000000002"
+                ),
+                true
+            )
+        ),
+        arguments(new Style("None", NoneCodec::newExtractor, emptyMap(), false))
+    );
   }
 
   /**
@@ -112,14 +126,18 @@ class ConsumedHeaderTagMappingTest extends DDJavaSpecification {
    */
   private static Map<String, String> consumedHeaderValues() {
     Map<String, String> values = new LinkedHashMap<>();
-    values.put(HttpCodec.USER_AGENT_KEY, "test-agent"); // handledUserAgent
-    values.put(HttpCodec.X_FORWARDED_PROTO_KEY, "https"); // handledXForwarding
+    // handledUserAgent
+    values.put(HttpCodec.USER_AGENT_KEY, "test-agent");
+    // handledXForwarding
+    values.put(HttpCodec.X_FORWARDED_PROTO_KEY, "https");
     values.put(HttpCodec.X_FORWARDED_HOST_KEY, "example.com");
     values.put(HttpCodec.X_FORWARDED_FOR_KEY, "1.1.1.1");
     values.put(HttpCodec.X_FORWARDED_PORT_KEY, "8443");
-    values.put(HttpCodec.FORWARDED_KEY, "for=2.2.2.2"); // handledForwarding
+    // handledForwarding
+    values.put(HttpCodec.FORWARDED_KEY, "for=2.2.2.2");
     values.put(HttpCodec.FORWARDED_FOR_KEY, "3.3.3.3");
-    values.put(HttpCodec.X_CLUSTER_CLIENT_IP_KEY, "4.4.4.4"); // handledIpHeaders
+    // handledIpHeaders
+    values.put(HttpCodec.X_CLUSTER_CLIENT_IP_KEY, "4.4.4.4");
     values.put(HttpCodec.X_REAL_IP_KEY, "5.5.5.5");
     values.put(HttpCodec.X_CLIENT_IP_KEY, "6.6.6.6");
     values.put(HttpCodec.TRUE_CLIENT_IP_KEY, "7.7.7.7");
@@ -139,7 +157,9 @@ class ConsumedHeaderTagMappingTest extends DDJavaSpecification {
     Map<String, String> consumed = consumedHeaderValues();
 
     Map<String, String> headerTags = new HashMap<>();
-    consumed.keySet().forEach(header -> headerTags.put(header, tagFor(header)));
+    consumed
+      .keySet()
+      .forEach(header -> headerTags.put(header, tagFor(header)));
     this.extractor = buildExtractorWithHeaderTags(style.factory, headerTags);
 
     Map<String, String> requestHeaders = new HashMap<>(style.minimalTraceHeaders);
@@ -149,13 +169,11 @@ class ConsumedHeaderTagMappingTest extends DDJavaSpecification {
 
     assertNotNull(context);
     // The header tag mapped onto each consumed header must be honoured (APMS-20654).
-    consumed.forEach(
-        (header, value) ->
-            assertEquals(
-                value,
-                context.getTags().getString(tagFor(header)),
-                "header tag mapped onto '" + header + "' should be honoured"));
-
+    consumed.forEach((header, value) -> assertEquals(
+        value,
+        context.getTags().getString(tagFor(header)),
+        "header tag mapped onto '" + header + "' should be honoured"
+    ));
     // The semantic capture of each header must be preserved.
     assertEquals("test-agent", context.getUserAgent());
     assertEquals("https", context.getXForwardedProto());
@@ -171,7 +189,6 @@ class ConsumedHeaderTagMappingTest extends DDJavaSpecification {
     assertEquals("8.8.8.8", context.getFastlyClientIp());
     assertEquals("9.9.9.9", context.getCfConnectingIp());
     assertEquals("2001:db8::1", context.getCfConnectingIpv6());
-
     // The trace context must still be extracted (styles that carry one).
     if (style.buildsExtractedContext) {
       ExtractedContext extracted = assertInstanceOf(ExtractedContext.class, context);
@@ -188,9 +205,10 @@ class ConsumedHeaderTagMappingTest extends DDJavaSpecification {
   void honoursHeaderTagMappedOntoCustomIpHeader(Style style) {
     // The extractor must be built after @WithConfig is applied: ContextInterpreter reads the
     // custom client-IP header name in its constructor.
-    this.extractor =
-        buildExtractorWithHeaderTags(
-            style.factory, singletonHeaderTag("my-header", "tag.my-header"));
+    this.extractor = buildExtractorWithHeaderTags(
+        style.factory,
+        singletonHeaderTag("my-header", "tag.my-header")
+    );
 
     Map<String, String> requestHeaders = new HashMap<>(style.minimalTraceHeaders);
     requestHeaders.put("my-header", "8.8.8.8");
@@ -210,13 +228,16 @@ class ConsumedHeaderTagMappingTest extends DDJavaSpecification {
 
   static HttpCodec.Extractor buildExtractorWithHeaderTags(
       BiFunction<Config, Supplier<TraceConfig>, HttpCodec.Extractor> factory,
-      Map<String, String> headerTags) {
+      Map<String, String> headerTags
+  ) {
     DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
         DynamicConfig.create().setHeaderTags(headerTags).apply();
     return factory.apply(Config.get(), dynamicConfig::captureTraceConfig);
   }
 
-  /** A propagation style under test: its extractor factory and minimal valid trace headers. */
+  /**
+   * A propagation style under test: its extractor factory and minimal valid trace headers.
+   */
   static final class Style {
     final String name;
     final BiFunction<Config, Supplier<TraceConfig>, HttpCodec.Extractor> factory;
@@ -227,7 +248,8 @@ class ConsumedHeaderTagMappingTest extends DDJavaSpecification {
         String name,
         BiFunction<Config, Supplier<TraceConfig>, HttpCodec.Extractor> factory,
         Map<String, String> minimalTraceHeaders,
-        boolean buildsExtractedContext) {
+        boolean buildsExtractedContext
+    ) {
       this.name = name;
       this.factory = factory;
       this.minimalTraceHeaders = minimalTraceHeaders;

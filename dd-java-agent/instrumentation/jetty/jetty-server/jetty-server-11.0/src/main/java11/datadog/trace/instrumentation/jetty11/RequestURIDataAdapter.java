@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import jakarta.servlet.http.HttpServletRequest;
 
 final class RequestURIDataAdapter extends URIRawDataAdapter {
-
   private final HttpServletRequest request;
 
   RequestURIDataAdapter(HttpServletRequest request) {

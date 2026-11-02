@@ -1,13 +1,11 @@
 package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverter;
 
 // public so TableTest can use the type converter declared below
 public class ProductTraceSourceTest {
-
   @TableTest({
     "scenario    | init  | newProduct | expected",
     "unset + ASM | UNSET | ASM        | ASM     ",
@@ -71,7 +69,9 @@ public class ProductTraceSourceTest {
     assertEquals(expected, result);
   }
 
-  /** Resolves {@link ProductTraceSource} constant names, or decodes plain numbers. */
+  /**
+   * Resolves {@link ProductTraceSource} constant names, or decodes plain numbers.
+   */
   @TypeConverter
   public static int toProduct(String value) {
     switch (value) {

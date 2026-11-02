@@ -13,7 +13,6 @@ import java.util.Properties;
  */
 public final class SLCompatFactory extends LoggerHelperFactory {
   static final long START_TIME = System.currentTimeMillis();
-
   // DQH - ExceptionLogger isn't visible to this class, so hard-coding instead
   static final String EXCEPTION_LOGGER_NAME = "datadog.trace.bootstrap.ExceptionLogger";
   LoggerHelper cachedExceptionLoggerHelper;
@@ -61,14 +60,14 @@ public final class SLCompatFactory extends LoggerHelperFactory {
     if (EXCEPTION_LOGGER_NAME.equals(name)) {
       // DQH - This is ugly.  The exception propagation protection that handles
       // unexpected exceptions in instrumentation always calls LoggerFactory.getLogger.
-
       // getLogger is actually a factory method that always creates a new instance,
       // which can cause this method to become extremely hot -- leading to significant
       // amount of allocation and garbage collection.
-
       // To guard against that scenario, cache the ExceptionLogger LoggerHelper instance
       LoggerHelper helper = cachedExceptionLoggerHelper;
-      if (helper != null) return helper;
+      if (helper != null) {
+        return helper;
+      }
 
       helper = createLoggerHelperForName(name);
       cachedExceptionLoggerHelper = helper;

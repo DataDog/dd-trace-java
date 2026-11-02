@@ -12,17 +12,17 @@ import java.io.IOException;
 import java.util.Enumeration;
 
 public class DummyHttpServlet extends HttpServlet {
-
-  DummyHttpServlet() {}
+  DummyHttpServlet() {
+  }
 
   private void callPublicServiceMethod(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
+      throws ServletException,
+      IOException {
     service((ServletRequest) req, (ServletResponse) resp);
   }
 
   @Override
-  public void service(ServletRequest req, ServletResponse res)
-      throws ServletException, IOException {
+  public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
     // do nothing
   }
 

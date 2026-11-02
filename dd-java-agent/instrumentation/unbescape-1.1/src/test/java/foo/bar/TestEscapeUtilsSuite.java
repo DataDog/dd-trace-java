@@ -4,7 +4,6 @@ import org.unbescape.html.HtmlEscape;
 import org.unbescape.javascript.JavaScriptEscape;
 
 public class TestEscapeUtilsSuite {
-
   public static String escapeHtml4Xml(String input) {
     return HtmlEscape.escapeHtml4Xml(input);
   }

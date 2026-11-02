@@ -1,7 +1,6 @@
 package com.datadog.openfeature.internal;
 
 import static com.datadog.openfeature.internal.config.Settings.CONFIGURATION_SOURCE_REMOTE_CONFIG;
-
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
@@ -36,24 +35,26 @@ import org.slf4j.LoggerFactory;
  */
 public final class FeatureFlagsRuntime {
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagsRuntime.class);
-
   private static final Object SHARED_LOCK = new Object();
   private static FeatureFlagsRuntime shared;
   private static int references;
-
   private final ConfigurationService source;
   private final ExposureDeduplicationCache exposureCache = new ExposureDeduplicationCache();
-  @Nullable private final ExposurePipeline exposures;
-  @Nullable private final FlagEvaluationPipeline evaluations;
+  @Nullable
+  private final ExposurePipeline exposures;
+  @Nullable
+  private final FlagEvaluationPipeline evaluations;
   private final List<Consumer<ServerConfiguration>> listeners = new CopyOnWriteArrayList<>();
   private volatile ServerConfiguration configuration;
   private final AtomicBoolean stopped = new AtomicBoolean();
-  @Nullable private volatile AutoCloseable shutdownRegistration;
+  @Nullable
+  private volatile AutoCloseable shutdownRegistration;
 
   FeatureFlagsRuntime(
       final ConfigurationService source,
       @Nullable final ExposurePipeline exposures,
-      @Nullable final FlagEvaluationPipeline evaluations) {
+      @Nullable final FlagEvaluationPipeline evaluations
+  ) {
     this.source = source;
     this.exposures = exposures;
     this.evaluations = evaluations;
@@ -81,7 +82,9 @@ public final class FeatureFlagsRuntime {
     }
   }
 
-  /** Releases the shared runtime, stopping it on last release. */
+  /**
+   * Releases the shared runtime, stopping it on last release.
+   */
   public static void release() {
     final FeatureFlagsRuntime stopped;
     synchronized (SHARED_LOCK) {
@@ -121,51 +124,57 @@ public final class FeatureFlagsRuntime {
       source = new CdnConfigurationSource(settings, services);
       final EventTransport proxy = bridge.eventProxy();
       final EventTransport direct = DirectIntakeTransport.create(settings);
-      transport =
-          proxy == null ? direct : direct == null ? proxy : new FallbackTransport(proxy, direct);
+      transport = proxy == null
+          ? direct
+          : direct == null ? proxy : new FallbackTransport(proxy, direct);
     }
     if (transport == null) {
       LOGGER.warn(
-          "Feature Flags event delivery is disabled: set DD_API_KEY or attach the Datadog Java agent");
+          "Feature Flags event delivery is disabled: set DD_API_KEY or attach the Datadog Java agent"
+      );
       return new FeatureFlagsRuntime(source, null, null);
     }
     final Map<String, String> context = eventContext(settings);
-    final ExposurePipeline exposures =
-        settings.isExposuresDatadogLoggingEnabled()
-            ? new ExposurePipeline(
-                ExposurePipeline.DEFAULT_CAPACITY,
-                ExposurePipeline.DEFAULT_FLUSH_INTERVAL_IN_SECONDS,
-                TimeUnit.SECONDS,
-                transport,
-                context,
-                services)
-            : null;
-    final FlagEvaluationPipeline evaluations =
-        settings.isEvaluationCountsEnabled()
-            ? new FlagEvaluationPipeline(
-                FlagEvaluationPipeline.DEFAULT_CAPACITY,
-                FlagEvaluationPipeline.FLUSH_INTERVAL_SECONDS,
-                TimeUnit.SECONDS,
-                transport,
-                context,
-                services)
-            : null;
+    final ExposurePipeline exposures = settings.isExposuresDatadogLoggingEnabled()
+        ? new ExposurePipeline(
+            ExposurePipeline.DEFAULT_CAPACITY,
+            ExposurePipeline.DEFAULT_FLUSH_INTERVAL_IN_SECONDS,
+            TimeUnit.SECONDS,
+            transport,
+            context,
+            services
+    )
+        : null;
+    final FlagEvaluationPipeline evaluations = settings.isEvaluationCountsEnabled()
+        ? new FlagEvaluationPipeline(
+            FlagEvaluationPipeline.DEFAULT_CAPACITY,
+            FlagEvaluationPipeline.FLUSH_INTERVAL_SECONDS,
+            TimeUnit.SECONDS,
+            transport,
+            context,
+            services
+    )
+        : null;
     LOGGER.debug(
         "Feature Flags event delivery: transport={}, exposures={}, evaluationCounts={}",
         transport.getClass().getSimpleName(),
         exposures != null ? "enabled" : "disabled",
-        evaluations != null ? "enabled" : "disabled");
+        evaluations != null ? "enabled" : "disabled"
+    );
     return new FeatureFlagsRuntime(source, exposures, evaluations);
   }
 
-  /** Signals an unavailable RC connector before any runtime resources have been started. */
+  /**
+   * Signals an unavailable RC connector before any runtime resources have been started.
+   */
   public static final class RemoteConfigurationUnavailableException extends IllegalStateException {
     private RemoteConfigurationUnavailableException(@Nullable final LinkageError cause) {
       super(
           "Feature Flags Remote Configuration requires a compatible Datadog Java agent with"
-              + " Remote Configuration enabled; attach a compatible agent or configure"
-              + " DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless for CDN delivery",
-          cause);
+          + " Remote Configuration enabled; attach a compatible agent or configure"
+          + " DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless for CDN delivery",
+          cause
+      );
     }
   }
 
@@ -178,7 +187,10 @@ public final class FeatureFlagsRuntime {
   }
 
   private static void putIfNotNull(
-      final Map<String, String> map, final String key, @Nullable final String value) {
+      final Map<String, String> map,
+      final String key,
+      @Nullable final String value
+  ) {
     if (value != null) {
       map.put(key, value);
     }
@@ -288,7 +300,8 @@ public final class FeatureFlagsRuntime {
           configuration.flags == null ? "missing" : configuration.flags.size(),
           configuration.invalidFlags == null ? 0 : configuration.invalidFlags.size(),
           configuration.environment == null ? null : configuration.environment.name,
-          configuration.createdAt);
+          configuration.createdAt
+      );
     }
   }
 

@@ -5,7 +5,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.regex.Pattern.compile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.test.util.Flaky;
 import java.io.File;
 import java.util.ArrayList;
@@ -17,19 +16,20 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 @Flaky(
     value = "Race condition with IBM. Check APMAPI-1194",
-    conditionMethod = "datadog.environment.JavaVirtualMachine#isIbm")
+    conditionMethod = "datadog.environment.JavaVirtualMachine#isIbm"
+)
 class CustomSystemLoaderSmokeTest {
   @RegisterExtension
-  static final SmokeCliApp app =
-      SmokeCliApp.named("custom-systemloader")
-          .jar(System.getProperty("datadog.smoketest.systemloader.shadowJar.path"))
-          .jvmArgs("-Djava.system.class.loader=datadog.smoketest.systemloader.TestLoader")
-          .workingDirectory(new File(System.getProperty("datadog.smoketest.builddir")))
-          .debugLogs()
-          .backend(testAgent())
-          // The app may exit before sending telemetry.
-          .skipTelemetryCheck()
-          .build();
+  static final SmokeCliApp app = SmokeCliApp
+    .named("custom-systemloader")
+    .jar(System.getProperty("datadog.smoketest.systemloader.shadowJar.path"))
+    .jvmArgs("-Djava.system.class.loader=datadog.smoketest.systemloader.TestLoader")
+    .workingDirectory(new File(System.getProperty("datadog.smoketest.builddir")))
+    .debugLogs()
+    .backend(testAgent())
+    // The app may exit before sending telemetry.
+    .skipTelemetryCheck()
+    .build();
 
   @Test
   @DisplayName("resource types loaded by custom system class-loader are transformed")
@@ -37,18 +37,17 @@ class CustomSystemLoaderSmokeTest {
     app.assertCompletesWithValue(30, SECONDS, 0);
 
     List<String> logLines = new ArrayList<>();
-    assertTrue(
-        app.waitForLogLine(
-            line -> {
-              logLines.add(line);
-              return "FIN".equals(line);
-            }));
+    assertTrue(app.waitForLogLine(line -> {
+      logLines.add(line);
+      return "FIN".equals(line);
+    }));
     Predicate<String> loadedResource =
         compile("Loading sample.app.Resource[$]Test[1-3] from TestLoader").asPredicate();
-    Predicate<String> transformedResource =
-        compile(
-                "Transformed.*class=sample.app.Resource[$]Test[1-3].*classloader=datadog.smoketest.systemloader.TestLoader")
-            .asPredicate();
+    Predicate<String> transformedResource = compile(
+        "Transformed.*class=sample.app.Resource[$]Test[1-3].*classloader=datadog.smoketest."
+        + "systemloader.TestLoader"
+    )
+      .asPredicate();
     assertEquals(3, logLines.stream().filter(loadedResource).count());
     assertEquals(3, logLines.stream().filter(transformedResource).count());
   }

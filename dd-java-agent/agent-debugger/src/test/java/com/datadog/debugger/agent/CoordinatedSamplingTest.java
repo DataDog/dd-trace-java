@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.expressions.BooleanExpression;
@@ -65,11 +64,12 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
       BooleanExpression cond3,
       int numSamples,
       int expectedSnapshots,
-      ProbeId... probeIds)
-      throws IOException, URISyntaxException {
-    TestSnapshotListener listener =
-        doCoordinatedSamplingTest(
-            () -> coordinatedSamplingWithCondition(cond1, cond2, cond3), numSamples);
+      ProbeId... probeIds
+  ) throws IOException, URISyntaxException {
+    TestSnapshotListener listener = doCoordinatedSamplingTest(
+        () -> coordinatedSamplingWithCondition(cond1, cond2, cond3),
+        numSamples
+    );
     assertSnapshots(listener, expectedSnapshots, probeIds);
   }
 
@@ -82,7 +82,8 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
         arguments(FALSE, FALSE, TRUE, 1, 1, new ProbeId[] {PROBE_ID3}),
         arguments(FALSE, TRUE, TRUE, 1, 2, new ProbeId[] {PROBE_ID3, PROBE_ID2}),
         arguments(FALSE, TRUE, FALSE, 1, 1, new ProbeId[] {PROBE_ID2}),
-        arguments(TRUE, TRUE, TRUE, 0, 0, new ProbeId[] {}));
+        arguments(TRUE, TRUE, TRUE, 0, 0, new ProbeId[] {})
+    );
   }
 
   @Test
@@ -117,11 +118,12 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
       BooleanExpression cond3,
       int numSamples,
       int expectedSnapshots,
-      ProbeId... probeIds)
-      throws IOException, URISyntaxException {
-    TestSnapshotListener listener =
-        doCoordinatedSamplingTest(
-            () -> coordinatedSamplingLineWithCondition(cond1, cond2, cond3), numSamples);
+      ProbeId... probeIds
+  ) throws IOException, URISyntaxException {
+    TestSnapshotListener listener = doCoordinatedSamplingTest(
+        () -> coordinatedSamplingLineWithCondition(cond1, cond2, cond3),
+        numSamples
+    );
     assertSnapshots(listener, expectedSnapshots, probeIds);
   }
 
@@ -131,11 +133,18 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
         arguments(TRUE, FALSE, FALSE, 1, 1, new ProbeId[] {LINE_PROBE_ID1}),
         arguments(TRUE, TRUE, FALSE, 1, 2, new ProbeId[] {LINE_PROBE_ID1, LINE_PROBE_ID2}),
         arguments(
-            TRUE, TRUE, TRUE, 1, 3, new ProbeId[] {LINE_PROBE_ID1, LINE_PROBE_ID2, LINE_PROBE_ID3}),
+            TRUE,
+            TRUE,
+            TRUE,
+            1,
+            3,
+            new ProbeId[] {LINE_PROBE_ID1, LINE_PROBE_ID2, LINE_PROBE_ID3}
+        ),
         arguments(FALSE, FALSE, TRUE, 1, 1, new ProbeId[] {LINE_PROBE_ID3}),
         arguments(FALSE, TRUE, TRUE, 1, 2, new ProbeId[] {LINE_PROBE_ID2, LINE_PROBE_ID3}),
         arguments(FALSE, TRUE, FALSE, 1, 1, new ProbeId[] {LINE_PROBE_ID2}),
-        arguments(TRUE, TRUE, TRUE, 0, 0, new ProbeId[] {}));
+        arguments(TRUE, TRUE, TRUE, 0, 0, new ProbeId[] {})
+    );
   }
 
   @Test
@@ -179,18 +188,16 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
       CoreTracer tracer = CoreTracer.builder().build();
       TracerInstaller.forceInstallGlobalTracer(tracer);
       final String className = "com.datadog.debugger.CapturedSnapshot21";
-      LogProbe logProbe2 =
-          createProbeBuilder(PROBE_ID2)
-              .where(className, "process2")
-              .template("arg={arg}", parseTemplate("arg={arg}"))
-              .captureSnapshot(false)
-              .build();
-      LogProbe logProbe3 =
-          createProbeBuilder(PROBE_ID3)
-              .where(className, "process3")
-              .template("arg={arg}", parseTemplate("arg={arg}"))
-              .captureSnapshot(false)
-              .build();
+      LogProbe logProbe2 = createProbeBuilder(PROBE_ID2)
+        .where(className, "process2")
+        .template("arg={arg}", parseTemplate("arg={arg}"))
+        .captureSnapshot(false)
+        .build();
+      LogProbe logProbe3 = createProbeBuilder(PROBE_ID3)
+        .where(className, "process3")
+        .template("arg={arg}", parseTemplate("arg={arg}"))
+        .captureSnapshot(false)
+        .build();
       LogProbe snapshotProbe = createMethodProbeAtExit(PROBE_ID1, className, "process1", null);
       TestSnapshotListener listener = installProbes(snapshotProbe, logProbe2, logProbe3);
       Class<?> testClass = compileAndLoadClass(className);
@@ -198,12 +205,14 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
       Reflect.onClass(testClass).call("main", "1").get();
 
       assertEquals(2, listener.snapshots.size());
-      assertTrue(
-          listener.snapshots.stream()
-              .anyMatch(snapshot -> snapshot.getProbe().getId().equals(PROBE_ID1.getId())));
-      assertTrue(
-          listener.snapshots.stream()
-              .anyMatch(snapshot -> !snapshot.getProbe().getId().equals(PROBE_ID1.getId())));
+      assertTrue(listener.snapshots
+        .stream()
+        .anyMatch(snapshot -> snapshot.getProbe().getId().equals(PROBE_ID1.getId()))
+      );
+      assertTrue(listener.snapshots
+        .stream()
+        .anyMatch(snapshot -> !snapshot.getProbe().getId().equals(PROBE_ID1.getId()))
+      );
       assertEquals(3, probeSampler.getCallCount());
     } finally {
       ProbeRateLimiter.setSamplerSupplier(null);
@@ -240,23 +249,22 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
   }
 
   private TestSnapshotListener coordinatedSamplingWithCondition(
-      BooleanExpression cond1, BooleanExpression cond2, BooleanExpression cond3)
-      throws IOException, URISyntaxException {
+      BooleanExpression cond1,
+      BooleanExpression cond2,
+      BooleanExpression cond3
+  ) throws IOException, URISyntaxException {
     CoreTracer tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
-    LogProbe probe1 =
-        createProbeBuilder(PROBE_ID1, CLASS_NAME, "process1", null)
-            .when(new ProbeCondition(DSL.when(cond1), ""))
-            .build();
-    LogProbe probe2 =
-        createProbeBuilder(PROBE_ID2, CLASS_NAME, "process2", null)
-            .when(new ProbeCondition(DSL.when(cond2), ""))
-            .build();
-    LogProbe probe3 =
-        createProbeBuilder(PROBE_ID3, CLASS_NAME, "process3", null)
-            .when(new ProbeCondition(DSL.when(cond3), ""))
-            .build();
+    LogProbe probe1 = createProbeBuilder(PROBE_ID1, CLASS_NAME, "process1", null)
+      .when(new ProbeCondition(DSL.when(cond1), ""))
+      .build();
+    LogProbe probe2 = createProbeBuilder(PROBE_ID2, CLASS_NAME, "process2", null)
+      .when(new ProbeCondition(DSL.when(cond2), ""))
+      .build();
+    LogProbe probe3 = createProbeBuilder(PROBE_ID3, CLASS_NAME, "process3", null)
+      .when(new ProbeCondition(DSL.when(cond3), ""))
+      .build();
     TestSnapshotListener listener = installProbes(probe1, probe2, probe3);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.onClass(testClass).call("main", "1").get();
@@ -264,26 +272,25 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
   }
 
   private TestSnapshotListener coordinatedSamplingLineWithCondition(
-      BooleanExpression cond1, BooleanExpression cond2, BooleanExpression cond3)
-      throws IOException, URISyntaxException {
+      BooleanExpression cond1,
+      BooleanExpression cond2,
+      BooleanExpression cond3
+  ) throws IOException, URISyntaxException {
     CoreTracer tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
-    LogProbe probe1 =
-        createProbeBuilder(LINE_PROBE_ID1, CLASS_NAME, line)
-            .when(new ProbeCondition(DSL.when(cond1), ""))
-            .build();
+    LogProbe probe1 = createProbeBuilder(LINE_PROBE_ID1, CLASS_NAME, line)
+      .when(new ProbeCondition(DSL.when(cond1), ""))
+      .build();
     line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
-    LogProbe probe2 =
-        createProbeBuilder(LINE_PROBE_ID2, CLASS_NAME, line)
-            .when(new ProbeCondition(DSL.when(cond2), ""))
-            .build();
+    LogProbe probe2 = createProbeBuilder(LINE_PROBE_ID2, CLASS_NAME, line)
+      .when(new ProbeCondition(DSL.when(cond2), ""))
+      .build();
     line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID3);
-    LogProbe probe3 =
-        createProbeBuilder(LINE_PROBE_ID3, CLASS_NAME, line)
-            .when(new ProbeCondition(DSL.when(cond3), ""))
-            .build();
+    LogProbe probe3 = createProbeBuilder(LINE_PROBE_ID3, CLASS_NAME, line)
+      .when(new ProbeCondition(DSL.when(cond3), ""))
+      .build();
     TestSnapshotListener listener = installProbes(probe1, probe2, probe3);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.onClass(testClass).call("main", "1").get();
@@ -316,28 +323,26 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
   }
 
   private TestSnapshotListener coordinatedSamplingLogTemplate()
-      throws IOException, URISyntaxException {
+      throws IOException,
+      URISyntaxException {
     CoreTracer tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot21";
-    LogProbe probe1 =
-        createProbeBuilder(PROBE_ID1)
-            .where(CLASS_NAME, "process1")
-            .template("arg={arg}", parseTemplate("arg={arg}"))
-            .captureSnapshot(false)
-            .build();
-    LogProbe probe2 =
-        createProbeBuilder(PROBE_ID2)
-            .where(CLASS_NAME, "process2")
-            .template("arg={arg}", parseTemplate("arg={arg}"))
-            .captureSnapshot(false)
-            .build();
-    LogProbe probe3 =
-        createProbeBuilder(PROBE_ID3)
-            .where(CLASS_NAME, "process3")
-            .template("arg={arg}", parseTemplate("arg={arg}"))
-            .captureSnapshot(false)
-            .build();
+    LogProbe probe1 = createProbeBuilder(PROBE_ID1)
+      .where(CLASS_NAME, "process1")
+      .template("arg={arg}", parseTemplate("arg={arg}"))
+      .captureSnapshot(false)
+      .build();
+    LogProbe probe2 = createProbeBuilder(PROBE_ID2)
+      .where(CLASS_NAME, "process2")
+      .template("arg={arg}", parseTemplate("arg={arg}"))
+      .captureSnapshot(false)
+      .build();
+    LogProbe probe3 = createProbeBuilder(PROBE_ID3)
+      .where(CLASS_NAME, "process3")
+      .template("arg={arg}", parseTemplate("arg={arg}"))
+      .captureSnapshot(false)
+      .build();
     TestSnapshotListener listener = installProbes(probe1, probe2, probe3);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.onClass(testClass).call("main", "1").get();
@@ -345,7 +350,8 @@ public class CoordinatedSamplingTest extends CapturingTestBase {
   }
 
   private TestSnapshotListener doCoordinatedSamplingTest(TestListenerMethod testRun, int numSamples)
-      throws IOException, URISyntaxException {
+      throws IOException,
+      URISyntaxException {
     MockSampler probeSampler = new MockSampler(numSamples);
     ProbeRateLimiter.setSamplerSupplier(rate -> probeSampler);
     try {

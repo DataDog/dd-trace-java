@@ -4,7 +4,6 @@ import static datadog.trace.api.KnownTags.COMPONENT_ID;
 import static datadog.trace.api.KnownTags.DD_PEER_SERVICE_SOURCE_ID;
 import static datadog.trace.api.KnownTags.PEER_SERVICE_ID;
 import static datadog.trace.api.KnownTags.SPAN_KIND_ID;
-
 import datadog.trace.api.TagStore;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -18,7 +17,6 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
   private static final Map<Object, String[]> SPECIFIC_PRECURSORS_BY_COMPONENT =
       initPrecursorsByComponent();
   private static final String[] DEFAULT_PRECURSORS = {Tags.DB_INSTANCE, Tags.PEER_HOSTNAME};
-
   private final Map<String, String> overridesByComponent;
 
   private static Map<Object, String[]> initPrecursorsByComponent() {
@@ -30,18 +28,21 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     ret.put(
         "couchbase-client",
         new String[] {
-          InstrumentationTags.COUCHBASE_SEED_NODES, "net.peer.name", Tags.PEER_HOSTNAME
-        });
+        InstrumentationTags.COUCHBASE_SEED_NODES,
+        "net.peer.name",
+        Tags.PEER_HOSTNAME
+        }
+    );
 
     ret.put(
         "java-cassandra",
-        new String[] {InstrumentationTags.CASSANDRA_CONTACT_POINTS, Tags.PEER_HOSTNAME});
+        new String[] {InstrumentationTags.CASSANDRA_CONTACT_POINTS, Tags.PEER_HOSTNAME}
+    );
     // rpc
     final String[] rpcPrecursors = {Tags.RPC_SERVICE, Tags.PEER_HOSTNAME};
     ret.put("grpc-client", rpcPrecursors);
     ret.put("armeria-grpc-client", rpcPrecursors);
     ret.put("rmi-client", rpcPrecursors);
-
     // for aws sdk we calculate eagerly to avoid doing too much complex lookups
     // this will avoid calculating defaults
     ret.put("java-aws-sdk", new String[] {});
@@ -75,8 +76,7 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     resolveBy(unsafeTags, DEFAULT_PRECURSORS);
   }
 
-  private boolean resolveBy(
-      @Nonnull final TagStore unsafeTags, @Nullable final String[] precursors) {
+  private boolean resolveBy(@Nonnull final TagStore unsafeTags, @Nullable final String[] precursors) {
     if (precursors == null) {
       return false;
     }

@@ -2,9 +2,12 @@ package datadog.trace.agent.test.scopediag;
 
 import net.bytebuddy.asm.Advice;
 
-/** Test-only advice for {@code ContinuableScope}. */
+/**
+ * Test-only advice for {@code ContinuableScope}.
+ */
 public final class ContinuableScopeAdvice {
-  private ContinuableScopeAdvice() {}
+  private ContinuableScopeAdvice() {
+  }
 
   public static final class OnProperClose {
     @Advice.OnMethodExit(suppress = Throwable.class)

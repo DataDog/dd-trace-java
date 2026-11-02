@@ -5,19 +5,25 @@ import datadog.crashtracking.parsers.HotspotCrashLogParser;
 import datadog.crashtracking.parsers.J9JavacoreParser;
 
 public final class CrashLogParser {
-
-  /** J9 javacore files start with section markers like "0SECTION" */
+  /**
+   * J9 javacore files start with section markers like "0SECTION"
+   */
   private static final String J9_SECTION_MARKER = "0SECTION";
-
-  /** J9 javacore TITLE section identifier */
+  /**
+   * J9 javacore TITLE section identifier
+   */
   private static final String J9_TITLE_MARKER = "TITLE";
 
-  /** Parse a HotSpot crash log (hs_err_pidXXX.log format). */
+  /**
+   * Parse a HotSpot crash log (hs_err_pidXXX.log format).
+   */
   public static CrashLog fromHotspotCrashLog(String uuid, String logText) {
     return new HotspotCrashLogParser().parse(uuid, logText);
   }
 
-  /** Parse a J9/OpenJ9 javacore dump file. */
+  /**
+   * Parse a J9/OpenJ9 javacore dump file.
+   */
   public static CrashLog fromJ9Javacore(String uuid, String javacoreContent) {
     return new J9JavacoreParser().parse(uuid, javacoreContent);
   }
@@ -39,7 +45,9 @@ public final class CrashLogParser {
     return new HotspotCrashLogParser().parse(uuid, content);
   }
 
-  /** Check if the content appears to be a J9 javacore file. */
+  /**
+   * Check if the content appears to be a J9 javacore file.
+   */
   static boolean isJ9Javacore(String content) {
     if (content == null || content.isEmpty()) {
       return false;

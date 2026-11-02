@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.advice.AdviceScanResult.ClassInfo;
@@ -42,7 +41,8 @@ class AdviceScannerTest {
     assertEquals(registrationsBefore + 1, ScanModule.adviceRegistrations);
     assertEquals(
         Arrays.asList(AdviceRoot.class.getName(), AdditionalAdvice.class.getName()),
-        result.getAdviceRoots());
+        result.getAdviceRoots()
+    );
     ClassInfo root = result.getClassInfo(AdviceRoot.class.getName());
     assertTrue(root.isScanned());
     assertTrue(hasUsage(root, UsageKind.FIELD, "field"));
@@ -53,26 +53,26 @@ class AdviceScannerTest {
     Usage invokeDynamic = firstUsage(root, UsageKind.INVOKEDYNAMIC);
     assertNotNull(invokeDynamic);
     assertFalse(invokeDynamic.getHandles().isEmpty());
-    List<Usage> typeUsages =
-        root.getUsages().stream()
-            .filter(
-                use ->
-                    use.getKind() == UsageKind.TYPE
-                        && use.getOwner().equals(Dependency.class.getName()))
-            .collect(toList());
+    List<Usage> typeUsages = root
+      .getUsages()
+      .stream()
+      .filter(use -> use.getKind() == UsageKind.TYPE
+          && use.getOwner().equals(Dependency.class.getName()))
+      .collect(toList());
     assertEquals(
         Arrays.asList(Opcodes.NEW, Opcodes.ANEWARRAY, Opcodes.MULTIANEWARRAY, Opcodes.LDC),
-        typeUsages.stream().map(Usage::getOpcode).collect(toList()));
+        typeUsages.stream().map(Usage::getOpcode).collect(toList())
+    );
     assertEquals(
         Arrays.asList(null, null, Type.getDescriptor(Dependency[][].class), null),
-        typeUsages.stream().map(Usage::getDescriptor).collect(toList()));
-    assertTrue(
-        typeUsages.stream()
-            .allMatch(
-                use ->
-                    use.getSource().getClassName().equals(AdviceRoot.class.getName())
-                        && use.getSource().getSourceFile().equals("AdviceScanningFixtures.java")
-                        && use.getSource().getLine() > 0));
+        typeUsages.stream().map(Usage::getDescriptor).collect(toList())
+    );
+    assertTrue(typeUsages
+      .stream()
+      .allMatch(use -> use.getSource().getClassName().equals(AdviceRoot.class.getName())
+          && use.getSource().getSourceFile().equals("AdviceScanningFixtures.java")
+          && use.getSource().getLine() > 0)
+    );
 
     assertFalse(result.getClassInfo(ClassReader.class.getName()).isScanned());
     assertFalse(result.getClassInfo(String.class.getName()).isScanned());
@@ -90,17 +90,20 @@ class AdviceScannerTest {
     assertTrue(result.getClassInfo(enclosingHelper).isReachableFromAdvice());
     for (Class<?> nested :
         new Class<?>[] {
-          Dependency.class, AdviceScanningHelper.localClass(), AdviceScanningHelper.anonymousClass()
-        }) {
+        Dependency.class,
+        AdviceScanningHelper.localClass(),
+        AdviceScanningHelper.anonymousClass()
+    }) {
       assertTrue(result.getClassInfo(nested.getName()).isReachableFromAdvice());
-      assertTrue(
-          result
-              .getClassInfo(nested.getName())
-              .getRequiredDependencies()
-              .contains(enclosingHelper));
+      assertTrue(result
+        .getClassInfo(nested.getName())
+        .getRequiredDependencies()
+        .contains(enclosingHelper)
+      );
     }
-    assertFalse(
-        result.getClassInfo(AdviceScanningFixtures.class.getName()).isReachableFromAdvice());
+    assertFalse(result
+      .getClassInfo(AdviceScanningFixtures.class.getName())
+      .isReachableFromAdvice());
   }
 
   @Test
@@ -126,10 +129,15 @@ class AdviceScannerTest {
             "multidimensional.Only",
             "field.Only",
             "fieldHandle.Only",
-            "catch.Only")) {
+            "catch.Only"
+    )) {
       assertNotNull(result.getClassInfo(dependency), dependency);
     }
-    assertFalse(result.getClasses().keySet().stream().anyMatch(name -> name.startsWith("[")));
+    assertFalse(result
+      .getClasses()
+      .keySet()
+      .stream()
+      .anyMatch(name -> name.startsWith("[")));
     assertFalse(result.getClasses().containsKey("int"));
   }
 
@@ -159,14 +167,13 @@ class AdviceScannerTest {
   @Test
   void usesProvidedClassLoader() {
     List<String> resources = new ArrayList<>();
-    ClassLoader loader =
-        new ClassLoader(getClass().getClassLoader()) {
-          @Override
-          public InputStream getResourceAsStream(String name) {
-            resources.add(name);
-            return super.getResourceAsStream(name);
-          }
-        };
+    ClassLoader loader = new ClassLoader(getClass().getClassLoader()) {
+      @Override
+      public InputStream getResourceAsStream(String name) {
+        resources.add(name);
+        return super.getResourceAsStream(name);
+      }
+    };
 
     AdviceScanResult result = AdviceScanner.scan(new ScanModule(), loader);
 
@@ -181,15 +188,15 @@ class AdviceScannerTest {
 
     assertTrue(result.getClassInfo(AdviceSuperclass.class.getName()).isScanned());
     assertFalse(result.getClassInfo(AdviceSuperclass.class.getName()).isReachableFromAdvice());
-    assertTrue(
-        root.getUsages().stream()
-            .anyMatch(
-                usage ->
-                    usage.getKind() == UsageKind.METHOD
-                        && usage.getOpcode() == Opcodes.INVOKESPECIAL
-                        && usage.getOwner().equals(AdviceSuperclass.class.getName())
-                        && usage.getName().equals("<init>")
-                        && usage.getDescriptor().equals("(Ljava/lang/String;)V")));
+    assertTrue(root
+      .getUsages()
+      .stream()
+      .anyMatch(usage -> usage.getKind() == UsageKind.METHOD
+          && usage.getOpcode() == Opcodes.INVOKESPECIAL
+          && usage.getOwner().equals(AdviceSuperclass.class.getName())
+          && usage.getName().equals("<init>")
+          && usage.getDescriptor().equals("(Ljava/lang/String;)V"))
+    );
   }
 
   @Test
@@ -198,26 +205,26 @@ class AdviceScannerTest {
 
     assertThrows(UnsupportedOperationException.class, () -> result.getClasses().clear());
     assertThrows(UnsupportedOperationException.class, () -> result.getAdviceRoots().clear());
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> result.getClassInfo(AdviceRoot.class.getName()).getUsages().clear());
+    assertThrows(UnsupportedOperationException.class, () -> result
+      .getClassInfo(AdviceRoot.class.getName())
+      .getUsages()
+      .clear());
   }
 
   @Test
   void skipsMissingTransitiveInstrumentationClasses() {
     ClassFileLocator delegate = ClassFileLocator.ForClassLoader.of(getClass().getClassLoader());
-    ClassFileLocator locator =
-        new ClassFileLocator() {
-          @Override
-          public Resolution locate(String name) throws IOException {
-            return ExternalHelper.class.getName().equals(name)
-                ? new Resolution.Illegal(name)
-                : delegate.locate(name);
-          }
+    ClassFileLocator locator = new ClassFileLocator() {
+      @Override
+      public Resolution locate(String name) throws IOException {
+        return ExternalHelper.class.getName().equals(name)
+            ? new Resolution.Illegal(name)
+            : delegate.locate(name);
+      }
 
-          @Override
-          public void close() {}
-        };
+      @Override
+      public void close() {}
+    };
     AdviceScanResult result = AdviceScanner.scan(new ScanModule(), locator);
 
     ClassInfo root = result.getClassInfo(AdviceRoot.class.getName());
@@ -231,21 +238,22 @@ class AdviceScannerTest {
   @Test
   void failsWhenModuleOutputHelperIsMissing() {
     ClassFileLocator delegate = ClassFileLocator.ForClassLoader.of(getClass().getClassLoader());
-    ClassFileLocator locator =
-        new ClassFileLocator() {
-          @Override
-          public Resolution locate(String name) throws IOException {
-            return Dependency.class.getName().equals(name)
-                ? new Resolution.Illegal(name)
-                : delegate.locate(name);
-          }
+    ClassFileLocator locator = new ClassFileLocator() {
+      @Override
+      public Resolution locate(String name) throws IOException {
+        return Dependency.class.getName().equals(name)
+            ? new Resolution.Illegal(name)
+            : delegate.locate(name);
+      }
 
-          @Override
-          public void close() {}
-        };
+      @Override
+      public void close() {}
+    };
     IllegalStateException error =
-        assertThrows(
-            IllegalStateException.class, () -> AdviceScanner.scan(new ScanModule(), locator));
+        assertThrows(IllegalStateException.class, () -> AdviceScanner.scan(
+        new ScanModule(),
+        locator
+    ));
 
     assertTrue(error.getMessage().endsWith("helper class from module output is missing"));
   }
@@ -264,22 +272,31 @@ class AdviceScannerTest {
     }
 
     IllegalStateException error =
-        assertThrows(
-            IllegalStateException.class, () -> AdviceScanner.scan(new MissingAdviceModule()));
+        assertThrows(IllegalStateException.class, () -> AdviceScanner.scan(
+        new MissingAdviceModule()
+    ));
     assertEquals(
         "Advice scan failed for module "
-            + MissingAdviceModule.class.getName()
-            + ", advice missing.Advice, class missing.Advice: advice class is missing",
-        error.getMessage());
+        + MissingAdviceModule.class.getName()
+        + ", advice missing.Advice, class missing.Advice: advice class is missing",
+        error.getMessage()
+    );
   }
 
   private static boolean hasUsage(ClassInfo info, UsageKind kind, String name) {
-    return info.getUsages().stream()
-        .anyMatch(use -> use.getKind() == kind && (name == null || name.equals(use.getName())));
+    return info
+      .getUsages()
+      .stream()
+      .anyMatch(use -> use.getKind() == kind && (name == null || name.equals(use.getName())));
   }
 
   private static Usage firstUsage(ClassInfo info, UsageKind kind) {
-    return info.getUsages().stream().filter(use -> use.getKind() == kind).findFirst().orElse(null);
+    return info
+      .getUsages()
+      .stream()
+      .filter(use -> use.getKind() == kind)
+      .findFirst()
+      .orElse(null);
   }
 
   private static AdviceScanResult scanGeneratedAdvice(String sourceFile) {
@@ -297,7 +314,8 @@ class AdviceScannerTest {
 
     return AdviceScanner.scan(
         new GeneratedAdviceModule(),
-        ClassFileLocator.Simple.of(adviceClass, generatedAdvice(adviceClass, sourceFile)));
+        ClassFileLocator.Simple.of(adviceClass, generatedAdvice(adviceClass, sourceFile))
+    );
   }
 
   private static byte[] generatedAdvice(String className, String sourceFile) {
@@ -308,7 +326,8 @@ class AdviceScannerTest {
         className.replace('.', '/'),
         null,
         "java/lang/Object",
-        new String[] {"declared/Contract"});
+        new String[] {"declared/Contract"}
+    );
     if (sourceFile != null) {
       writer.visitSource(sourceFile, null);
     }
@@ -328,17 +347,33 @@ class AdviceScannerTest {
         "apply",
         "()Lcallsite/Only;",
         new Handle(
-            Opcodes.H_INVOKESTATIC, "bootstrap/Owner", "bootstrap", "(Lbootstrap/Only;)V", false),
+            Opcodes.H_INVOKESTATIC,
+            "bootstrap/Owner",
+            "bootstrap",
+            "(Lbootstrap/Only;)V",
+            false
+        ),
         Type.getMethodType("()LbootstrapArgument/Only;"),
-        new Handle(Opcodes.H_INVOKESTATIC, "handle/Owner", "apply", "(Lhandle/Only;)V", false));
+        new Handle(Opcodes.H_INVOKESTATIC, "handle/Owner", "apply", "(Lhandle/Only;)V", false)
+    );
     method.visitInsn(Opcodes.POP);
     method.visitInsn(Opcodes.ACONST_NULL);
     method.visitMethodInsn(
-        Opcodes.INVOKEVIRTUAL, "[Larray/Only;", "clone", "()Ljava/lang/Object;", false);
+        Opcodes.INVOKEVIRTUAL,
+        "[Larray/Only;",
+        "clone",
+        "()Ljava/lang/Object;",
+        false
+    );
     method.visitInsn(Opcodes.POP);
     method.visitInsn(Opcodes.ACONST_NULL);
     method.visitMethodInsn(
-        Opcodes.INVOKEVIRTUAL, "[[Lmultidimensional/Only;", "clone", "()Ljava/lang/Object;", false);
+        Opcodes.INVOKEVIRTUAL,
+        "[[Lmultidimensional/Only;",
+        "clone",
+        "()Ljava/lang/Object;",
+        false
+    );
     method.visitInsn(Opcodes.POP);
     method.visitInsn(Opcodes.ACONST_NULL);
     method.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "[I", "clone", "()Ljava/lang/Object;", false);
@@ -346,8 +381,8 @@ class AdviceScannerTest {
     method.visitFieldInsn(Opcodes.GETSTATIC, "field/Owner", "value", "[[Lfield/Only;");
     method.visitInsn(Opcodes.POP);
     method.visitLdcInsn(
-        new Handle(
-            Opcodes.H_GETSTATIC, "fieldHandle/Owner", "value", "[[LfieldHandle/Only;", false));
+        new Handle(Opcodes.H_GETSTATIC, "fieldHandle/Owner", "value", "[[LfieldHandle/Only;", false)
+    );
     method.visitInsn(Opcodes.POP);
     method.visitLabel(end);
     method.visitJumpInsn(Opcodes.GOTO, done);

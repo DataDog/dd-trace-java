@@ -1,7 +1,6 @@
 package com.datadog.openfeature.internal.flagevaluation;
 
 import static com.datadog.openfeature.internal.EventPipeline.awaitThread;
-
 import com.datadog.openfeature.internal.EventPipeline;
 import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
@@ -42,12 +41,10 @@ import org.slf4j.LoggerFactory;
  * observable rather than silent.
  */
 public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeline {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationPipeline.class);
-
-  public static final int DEFAULT_CAPACITY = 1 << 12; // 4096 elements, per cross-SDK RFC
+  // 4096 elements, per cross-SDK RFC
+  public static final int DEFAULT_CAPACITY = 1 << 12;
   public static final int FLUSH_INTERVAL_SECONDS = 10;
-
   static final int FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES = 5 * 1024 * 1024;
   static final String FLAG_EVALUATION_DROPPED_METRIC = "flagevaluation.rows.dropped";
   static final String FLAG_EVALUATION_DEGRADED_METRIC = "flagevaluation.rows.degraded";
@@ -61,7 +58,6 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
   static final String DEGRADED_REASON_PAYLOAD_LIMIT = "payload_limit";
   private static final String FLAG_EVALUATION_ROUTE = "flagevaluation";
   private final RuntimeServices services;
-
   private final EventQueue<FlagEvalEvent> queue;
   private final FlagEvaluationSerializingHandler serializer;
   private final Thread serializerThread;
@@ -77,7 +73,6 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
    * tried to enqueue (backpressure). Incremented on the hook thread, surfaced on flush.
    */
   private final AtomicLong droppedQueueOverflow = new AtomicLong(0);
-
   /**
    * Per-reason-tag counters for evaluations whose context was truncated by copyPrunedContext. Keyed
    * by the sorted comma-separated reason string (e.g. "max_key_length,max_value_length").
@@ -92,24 +87,27 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
       final TimeUnit timeUnit,
       final EventTransport transport,
       final Map<String, String> context,
-      final RuntimeServices services) {
+      final RuntimeServices services
+  ) {
     this.services = services;
     this.queue = new EventQueue<>(capacity);
-    this.serializer =
-        new FlagEvaluationSerializingHandler(
-            transport,
-            queue,
-            flushInterval,
-            timeUnit,
-            context,
-            droppedQueueOverflow,
-            contextTruncatedCounts,
-            FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES,
-            services);
+    this.serializer = new FlagEvaluationSerializingHandler(
+        transport,
+        queue,
+        flushInterval,
+        timeUnit,
+        context,
+        droppedQueueOverflow,
+        contextTruncatedCounts,
+        FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES,
+        services
+    );
     this.serializerThread = services.newThread("evaluations", serializer);
   }
 
-  /** Starts the background serializing thread. */
+  /**
+   * Starts the background serializing thread.
+   */
   public void start() {
     synchronized (lifecycleLock) {
       if (closed.get()) {
@@ -119,7 +117,9 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
     }
   }
 
-  /** Test seam: current full-tier bucket count in the worker's aggregator. */
+  /**
+   * Test seam: current full-tier bucket count in the worker's aggregator.
+   */
   int aggregatorFullTierSizeForTest() {
     return serializer.aggregator.fullTierSize();
   }
@@ -205,19 +205,25 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
 
   @Override
   public void countContextTruncated(final String reason) {
-    contextTruncatedCounts.computeIfAbsent(reason, k -> new AtomicLong(0)).incrementAndGet();
+    contextTruncatedCounts
+      .computeIfAbsent(reason, k -> new AtomicLong(0))
+      .incrementAndGet();
   }
 
   private void countClosedDrop() {
     countMetric(FLAG_EVALUATION_DROPPED_METRIC, 1, DROP_REASON_CLOSED);
   }
 
-  /** Returns the count of events dropped due to queue-overflow backpressure (observable). */
+  /**
+   * Returns the count of events dropped due to queue-overflow backpressure (observable).
+   */
   long droppedQueueOverflow() {
     return droppedQueueOverflow.get();
   }
 
-  /** Test seam: returns one queued event without starting the worker. */
+  /**
+   * Test seam: returns one queued event without starting the worker.
+   */
   FlagEvalEvent pollQueuedEventForTest() {
     return queue.poll();
   }
@@ -226,13 +232,14 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
     return serializerThread.isAlive();
   }
 
-  /** Test seam: flushes serializer state without starting the worker. */
+  /**
+   * Test seam: flushes serializer state without starting the worker.
+   */
   void flushForTest() {
     serializer.flush();
   }
 
   // ---- Serializing handler (background thread logic) ----
-
   static class FlagEvaluationSerializingHandler implements Runnable {
     private final RuntimeServices services;
 
@@ -242,19 +249,17 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
 
     private final EventQueue<FlagEvalEvent> queue;
     private final long ticksRequiredToFlush;
-
     @SuppressFBWarnings(
         value = "AT_NONATOMIC_64BIT_PRIMITIVE",
-        justification = "the field is confined to the single serializer thread")
+        justification = "the field is confined to the single serializer thread"
+    )
     private long lastTicks;
-
     private final EventTransport transport;
     final Map<String, String> context;
     private final AtomicLong droppedQueueOverflow;
     private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts;
     private final int payloadSizeLimitBytes;
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-
     // Shutdown coordination: set by close(), drives a final drain+flush before the worker exits.
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
     private final CountDownLatch finalFlushDone = new CountDownLatch(1);
@@ -268,7 +273,8 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         final AtomicLong droppedQueueOverflow,
         final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final int payloadSizeLimitBytes,
-        final RuntimeServices services) {
+        final RuntimeServices services
+    ) {
       this.services = services;
       this.queue = queue;
       this.transport = transport;
@@ -281,7 +287,9 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
       LOGGER.debug("starting flag evaluation serializer");
     }
 
-    /** Signals the worker to drain the queue and perform a final flush before exiting. */
+    /**
+     * Signals the worker to drain the queue and perform a final flush before exiting.
+     */
     void requestShutdown() {
       shutdownRequested.set(true);
     }
@@ -333,8 +341,9 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
     }
 
     // ---- Aggregation logic ----
-
-    /** Routes an event into the full tier or degraded tier, or drops and counts on overflow. */
+    /**
+     * Routes an event into the full tier or degraded tier, or drops and counts on overflow.
+     */
     void aggregateEvent(final FlagEvalEvent event) {
       try {
         aggregator.aggregate(event);
@@ -344,7 +353,6 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
     }
 
     // ---- Flush logic ----
-
     void flushIfNecessary() {
       if (shouldFlush()) {
         flush();
@@ -359,18 +367,19 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
       if (qDrops > 0) {
         LOGGER.warn(
             "flag evaluation queue full - dropped {} evaluation(s) under backpressure"
-                + " (best-effort telemetry)",
-            qDrops);
+            + " (best-effort telemetry)",
+            qDrops
+        );
       }
       final long dgDrops = aggregator.droppedDegradedOverflow.getAndSet(0);
       countMetric(FLAG_EVALUATION_DROPPED_METRIC, dgDrops, DROP_REASON_DEGRADED_CAP);
       if (dgDrops > 0) {
         LOGGER.warn(
             "degraded aggregation tier full - dropped {} evaluation(s); raise degraded cap"
-                + " (best-effort telemetry)",
-            dgDrops);
+            + " (best-effort telemetry)",
+            dgDrops
+        );
       }
-
       // Drain per-reason context-truncation counters and emit one metric per unique reason tag.
       for (final Map.Entry<String, AtomicLong> entry : contextTruncatedCounts.entrySet()) {
         final long count = entry.getValue().getAndSet(0);
@@ -386,7 +395,8 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         countMetric(
             FLAG_EVALUATION_DEGRADED_METRIC,
             aggregator.degradedEvaluationCount(),
-            DEGRADED_REASON_CARDINALITY_CAP);
+            DEGRADED_REASON_CARDINALITY_CAP
+        );
         final List<FlagEvaluationPayloads.FlagEvaluationEvent> events = buildEventList();
         if (events.isEmpty()) {
           return;
@@ -396,26 +406,30 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         countMetric(
             FLAG_EVALUATION_DROPPED_METRIC,
             payloads.droppedPayloadLimit,
-            DROP_REASON_PAYLOAD_LIMIT);
+            DROP_REASON_PAYLOAD_LIMIT
+        );
         countMetric(
             FLAG_EVALUATION_DEGRADED_METRIC,
             payloads.degradedPayloadLimit,
-            DEGRADED_REASON_PAYLOAD_LIMIT);
+            DEGRADED_REASON_PAYLOAD_LIMIT
+        );
         if (payloads.bodies.size() > 1) {
           countMetric(FLAG_EVALUATION_SPLITS_METRIC, payloads.bodies.size() - 1, null);
         }
         if (payloads.droppedPayloadLimit > 0) {
           LOGGER.warn(
-              "flag evaluation payload too large - dropped {} evaluation(s)"
-                  + " (best-effort telemetry)",
-              payloads.droppedPayloadLimit);
+              "flag evaluation payload too large - dropped {} evaluation(s)" + " (best-effort telemetry)",
+              payloads.droppedPayloadLimit
+          );
         }
         for (final byte[] payload : payloads.bodies) {
           transport.post(FLAG_EVALUATION_ROUTE, payload);
         }
         if (!payloads.bodies.isEmpty()) {
           LOGGER.debug(
-              "Feature Flags flag evaluation flush delivered: payloads={}", payloads.bodies.size());
+              "Feature Flags flag evaluation flush delivered: payloads={}",
+              payloads.bodies.size()
+          );
         }
       } catch (Exception e) {
         LOGGER.error("Could not submit flag evaluations", e);
@@ -436,14 +450,20 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
       final List<FlagEvaluationPayloads.FlagEvaluationEvent> events =
           new ArrayList<>(aggregator.bucketCount());
       for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.fullBuckets()) {
-        events.add(
-            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                bucket, true, bucket.observeFullEvaluationData, flushTimeMs));
+        events.add(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+            bucket,
+            true,
+            bucket.observeFullEvaluationData,
+            flushTimeMs
+        ));
       }
       for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.degradedBuckets()) {
-        events.add(
-            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                bucket, false, bucket.observeFullEvaluationData, flushTimeMs));
+        events.add(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+            bucket,
+            false,
+            bucket.observeFullEvaluationData,
+            flushTimeMs
+        ));
       }
       return events;
     }
@@ -463,17 +483,16 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
   }
 
   // ---- Test-seam inner class (package-private) ----
-
   /**
    * Test-accessible handler that exposes {@link #drainAndAggregate()} and {@link #flush()} without
    * starting a real background thread.
    */
   static class SerializingHandlerForTest extends FlagEvaluationSerializingHandler {
-
     SerializingHandlerForTest(
         final EventTransport transport,
         final Map<String, String> context,
-        final RuntimeServices services) {
+        final RuntimeServices services
+    ) {
       this(transport, context, FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES, services);
     }
 
@@ -481,27 +500,34 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         final EventTransport transport,
         final Map<String, String> context,
         final int payloadSizeLimitBytes,
-        final RuntimeServices services) {
+        final RuntimeServices services
+    ) {
       super(
           transport,
           new EventQueue<>(DEFAULT_CAPACITY),
-          Long.MAX_VALUE, // effectively never auto-flush
+          // effectively never auto-flush
+          Long.MAX_VALUE,
           TimeUnit.NANOSECONDS,
           context,
           new AtomicLong(0),
           new ConcurrentHashMap<>(),
           payloadSizeLimitBytes,
-          services);
+          services
+      );
     }
 
     private final List<FlagEvalEvent> staged = new ArrayList<>();
 
-    /** Adds an event to the staged list (simulates hook enqueue). */
+    /**
+     * Adds an event to the staged list (simulates hook enqueue).
+     */
     void add(final FlagEvalEvent event) {
       staged.add(event);
     }
 
-    /** Aggregates all staged events and returns the current aggregation state. */
+    /**
+     * Aggregates all staged events and returns the current aggregation state.
+     */
     FlagEvaluationAggregator.AggregatedState drainAndAggregate() {
       for (final FlagEvalEvent e : staged) {
         aggregateEvent(e);
@@ -510,7 +536,9 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
       return aggregator.snapshot();
     }
 
-    /** Simulates filling the full tier to GLOBAL_CAP by injecting synthetic distinct buckets. */
+    /**
+     * Simulates filling the full tier to GLOBAL_CAP by injecting synthetic distinct buckets.
+     */
     void simulateFullTierAtCap() {
       aggregator.simulateFullTierAtCap();
     }
@@ -531,9 +559,9 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         final String variant,
         final String allocationKey,
         final String errorMessage,
-        final long evalTimeMs) {
-      aggregator.addDegradedBucketForTest(
-          flagKey, variant, allocationKey, errorMessage, evalTimeMs);
+        final long evalTimeMs
+    ) {
+      aggregator.addDegradedBucketForTest(flagKey, variant, allocationKey, errorMessage, evalTimeMs);
     }
 
     void clearAggregationForTest() {

@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.openfeature.Provider.Options;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
@@ -41,7 +40,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ExposureLoggingHookTest {
-
   private ExposureTestEvaluator evaluator;
   private List<ExposureEvent> dispatched;
   private Client client;
@@ -65,10 +63,13 @@ class ExposureLoggingHookTest {
   void sendsExposuresWhenWrappedInAMultiProvider() throws Exception {
     final ExposureTestEvaluator wrapped =
         new ExposureTestEvaluator(configuration("on", Boolean.TRUE), true);
-    OpenFeatureAPI.getInstance()
-        .setProviderAndWait(
-            new MultiProvider(
-                singletonList(new Provider(new Options().initTimeout(10, SECONDS), wrapped))));
+    OpenFeatureAPI
+      .getInstance()
+      .setProviderAndWait(
+          new MultiProvider(
+              singletonList(new Provider(new Options().initTimeout(10, SECONDS), wrapped))
+          )
+      );
 
     evaluate("user-1");
     evaluate("user-1");
@@ -111,16 +112,16 @@ class ExposureLoggingHookTest {
 
   @Test
   void aFailedEvaluationSendsNothingAndLeavesTheSubjectUnexposed() {
-    final Hook<Integer> failingAfterHook =
-        new Hook<Integer>() {
-          @Override
-          public void after(
-              final HookContext<Integer> ctx,
-              final FlagEvaluationDetails<Integer> details,
-              final Map<String, Object> hints) {
-            throw new IllegalStateException("application validation failed");
-          }
-        };
+    final Hook<Integer> failingAfterHook = new Hook<Integer>() {
+      @Override
+      public void after(
+          final HookContext<Integer> ctx,
+          final FlagEvaluationDetails<Integer> details,
+          final Map<String, Object> hints
+      ) {
+        throw new IllegalStateException("application validation failed");
+      }
+    };
     OpenFeatureAPI.getInstance().addHooks(failingAfterHook);
 
     final FlagEvaluationDetails<Integer> failed = evaluate("user-1");
@@ -167,29 +168,43 @@ class ExposureLoggingHookTest {
     hook.finallyAfter(withContext, null, emptyMap());
     hook.finallyAfter(withContext, details("variant", null), emptyMap());
     hook.finallyAfter(
-        withContext, details("variant", exposureMetadata(false, false, "a")), emptyMap());
+        withContext,
+        details("variant", exposureMetadata(false, false, "a")),
+        emptyMap()
+    );
     hook.finallyAfter(
-        withContext, details("variant", exposureMetadata(true, true, "a")), emptyMap());
+        withContext,
+        details("variant", exposureMetadata(true, true, "a")),
+        emptyMap()
+    );
     hook.finallyAfter(
-        withContext, details("variant", exposureMetadata(true, false, null)), emptyMap());
+        withContext,
+        details("variant", exposureMetadata(true, false, null)),
+        emptyMap()
+    );
     hook.finallyAfter(withContext, details(null, exposureMetadata(true, false, "a")), emptyMap());
     hook.finallyAfter(null, details("variant", exposureMetadata(true, false, "a")), emptyMap());
     hook.finallyAfter(
         withContext,
-        FlagEvaluationDetails.<Object>builder()
-            .flagKey("flag")
-            .value(1)
-            .variant("variant")
-            .errorCode(ErrorCode.GENERAL)
-            .flagMetadata(exposureMetadata(true, false, "a"))
-            .build(),
-        emptyMap());
+        FlagEvaluationDetails
+          .<Object>builder()
+          .flagKey("flag")
+          .value(1)
+          .variant("variant")
+          .errorCode(ErrorCode.GENERAL)
+          .flagMetadata(exposureMetadata(true, false, "a"))
+          .build(),
+        emptyMap()
+    );
 
     assertTrue(target.sentToDatadog.isEmpty());
     assertEquals(0, target.cache.size());
 
     hook.finallyAfter(
-        withContext, details("variant", exposureMetadata(true, false, "a")), emptyMap());
+        withContext,
+        details("variant", exposureMetadata(true, false, "a")),
+        emptyMap()
+    );
 
     assertEquals(1, target.sentToDatadog.size());
     assertEquals(1, target.cache.size());
@@ -203,14 +218,16 @@ class ExposureLoggingHookTest {
     final ExposureLoggingHook<Object> withoutRuntime =
         new ExposureLoggingHook<>(() -> uninitialized);
 
-    assertDoesNotThrow(
-        () ->
-            withoutEvaluator.finallyAfter(
-                hookContext(), details("on", exposureMetadata(true, false, "a")), emptyMap()));
-    assertDoesNotThrow(
-        () ->
-            withoutRuntime.finallyAfter(
-                hookContext(), details("on", exposureMetadata(true, false, "a")), emptyMap()));
+    assertDoesNotThrow(() -> withoutEvaluator.finallyAfter(
+        hookContext(),
+        details("on", exposureMetadata(true, false, "a")),
+        emptyMap()
+    ));
+    assertDoesNotThrow(() -> withoutRuntime.finallyAfter(
+        hookContext(),
+        details("on", exposureMetadata(true, false, "a")),
+        emptyMap()
+    ));
   }
 
   @Test
@@ -218,13 +235,13 @@ class ExposureLoggingHookTest {
     final ExposureTestEvaluator target =
         new ExposureTestEvaluator(configuration("on", Boolean.TRUE), true);
     final ExposureLoggingHook<Object> hook = new ExposureLoggingHook<>(() -> target);
-    final ImmutableMetadata metadata =
-        ImmutableMetadata.builder()
-            .addBoolean(DO_LOG, true)
-            .addBoolean(EXPOSURE_CACHE_HIT, false)
-            .addString(ALLOCATION_KEY, "a")
-            .addInteger(SPLIT_SERIAL_ID, 42)
-            .build();
+    final ImmutableMetadata metadata = ImmutableMetadata
+      .builder()
+      .addBoolean(DO_LOG, true)
+      .addBoolean(EXPOSURE_CACHE_HIT, false)
+      .addString(ALLOCATION_KEY, "a")
+      .addInteger(SPLIT_SERIAL_ID, 42)
+      .build();
 
     hook.finallyAfter(hookContext(), details("on", metadata), emptyMap());
 
@@ -236,22 +253,24 @@ class ExposureLoggingHookTest {
   void containsFailuresOfTheEvaluator() {
     final ExposureTestEvaluator failing =
         new ExposureTestEvaluator(configuration("on", Boolean.TRUE), true) {
-          @Override
-          void recordExposure(final ExposureEvent event) {
-            throw new IllegalStateException("queue failure");
-          }
-        };
+      @Override
+      void recordExposure(final ExposureEvent event) {
+        throw new IllegalStateException("queue failure");
+      }
+    };
     final ExposureLoggingHook<Object> hook = new ExposureLoggingHook<>(() -> failing);
     final HookContext<Object> context = hookContext();
 
-    assertDoesNotThrow(
-        () ->
-            hook.finallyAfter(
-                context, details("on", exposureMetadata(true, false, "a")), emptyMap()));
-    assertDoesNotThrow(
-        () ->
-            hook.finallyAfter(
-                context, details("off", exposureMetadata(true, false, "a")), emptyMap()));
+    assertDoesNotThrow(() -> hook.finallyAfter(
+        context,
+        details("on", exposureMetadata(true, false, "a")),
+        emptyMap()
+    ));
+    assertDoesNotThrow(() -> hook.finallyAfter(
+        context,
+        details("off", exposureMetadata(true, false, "a")),
+        emptyMap()
+    ));
   }
 
   private static Object cacheHit(final FlagEvaluationDetails<Integer> details) {
@@ -259,16 +278,19 @@ class ExposureLoggingHookTest {
   }
 
   private static HookContext<Object> hookContext() {
-    return HookContext.<Object>builder()
-        .flagKey("flag")
-        .type(FlagValueType.INTEGER)
-        .defaultValue(0)
-        .ctx(new MutableContext("user-1"))
-        .build();
+    return HookContext
+      .<Object>builder()
+      .flagKey("flag")
+      .type(FlagValueType.INTEGER)
+      .defaultValue(0)
+      .ctx(new MutableContext("user-1"))
+      .build();
   }
 
   private static FlagEvaluationDetails<Object> details(
-      final String variant, final ImmutableMetadata metadata) {
+      final String variant,
+      final ImmutableMetadata metadata
+  ) {
     final FlagEvaluationDetails.FlagEvaluationDetailsBuilder<Object> builder =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).variant(variant);
     if (metadata != null) {
@@ -278,11 +300,15 @@ class ExposureLoggingHookTest {
   }
 
   private static ImmutableMetadata exposureMetadata(
-      final boolean doLog, final boolean cacheHit, final String allocationKey) {
+      final boolean doLog,
+      final boolean cacheHit,
+      final String allocationKey
+  ) {
     final ImmutableMetadata.ImmutableMetadataBuilder builder =
-        ImmutableMetadata.builder()
-            .addBoolean(DO_LOG, doLog)
-            .addBoolean(EXPOSURE_CACHE_HIT, cacheHit);
+        ImmutableMetadata
+      .builder()
+      .addBoolean(DO_LOG, doLog)
+      .addBoolean(EXPOSURE_CACHE_HIT, cacheHit);
     if (allocationKey != null) {
       builder.addString(ALLOCATION_KEY, allocationKey);
     }
@@ -302,7 +328,9 @@ class ExposureLoggingHookTest {
         new Allocation("allocation", null, null, null, singletonList(split), doLog);
     final Map<String, Flag> flags = new HashMap<>();
     flags.put(
-        "flag", new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation)));
+        "flag",
+        new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation))
+    );
     return new ServerConfiguration("", "", false, null, flags);
   }
 }

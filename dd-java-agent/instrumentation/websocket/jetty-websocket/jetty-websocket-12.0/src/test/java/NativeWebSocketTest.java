@@ -39,7 +39,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanLinkMatcher;
 import datadog.trace.agent.test.assertions.SpanMatcher;
@@ -93,7 +92,11 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     "client fragmented stream failure | CLIENT   | binary  | true       | true "
   })
   void streamingMessagesHaveReceiveSpan(
-      Behavior behavior, String msgType, boolean fragmented, boolean fail) throws Exception {
+      Behavior behavior,
+      String msgType,
+      boolean fragmented,
+      boolean fail
+  ) throws Exception {
     ExecutorService executor = newSingleThreadExecutor();
     try {
       WebSocketComponents components =
@@ -110,20 +113,25 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
         deliver(frameHandler, new Frame(opcode(msgType), "hello world"));
       }
       // Queue behind Jetty's handler to check cleanup on the dispatch thread as well.
-      executor.submit(() -> assertNull(activeSpan())).get(5, SECONDS);
+      executor
+        .submit(() -> assertNull(activeSpan()))
+        .get(5, SECONDS);
 
       assertEquals(singletonList("hello world"), endpoint.messages);
       assertEquals(1, endpoint.messageSpans.size());
       assertNotNull(endpoint.messageSpans.get(0));
-      assertEquals("websocket.receive", endpoint.messageSpans.get(0).getOperationName().toString());
+      assertEquals("websocket.receive", endpoint.messageSpans
+        .get(0)
+        .getOperationName()
+        .toString());
       assertNull(activeSpan());
-      TagsMatcher[] errorTags =
-          fail
-              ? new TagsMatcher[] {error(IllegalStateException.class, "handler failed")}
-              : new TagsMatcher[0];
+      TagsMatcher[] errorTags = fail
+          ? new TagsMatcher[] {error(IllegalStateException.class, "handler failed")}
+          : new TagsMatcher[0];
       assertTraces(
           trace(handshakeSpan()),
-          trace(receiveSpan(handshake(), msgType, 0, 1, errorTags).error(fail)));
+          trace(receiveSpan(handshake(), msgType, 0, 1, errorTags).error(fail))
+      );
       assertSame(endpoint.messageSpans.get(0), writer.get(1).get(0));
     } finally {
       executor.shutdownNow();
@@ -146,8 +154,7 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     "boxed partial text   | boxedPartial | text   ",
     "boxed partial binary | boxedPartial | binary "
   })
-  void nativeJettyAdvices(NativeEndpoints.EndpointEvents endpoint, String msgType)
-      throws Exception {
+  void nativeJettyAdvices(NativeEndpoints.EndpointEvents endpoint, String msgType) throws Exception {
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     Callback.Completable messageCallback = new Callback.Completable();
     Callback.Completable closeCallback = new Callback.Completable();
@@ -169,7 +176,8 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     assertTraces(
         trace(handshakeSpan()),
         trace(receiveSpan(handshake, msgType, 11, 1)),
-        trace(closeSpan(handshake)));
+        trace(closeSpan(handshake))
+    );
   }
 
   @TableTest({
@@ -186,7 +194,10 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     "client POJO partial binary | CLIENT   | pojoPartial  | binary "
   })
   void fragmentedMessagesShareSpan(
-      Behavior behavior, NativeEndpoints.EndpointEvents endpoint, String msgType) throws Exception {
+      Behavior behavior,
+      NativeEndpoints.EndpointEvents endpoint,
+      String msgType
+  ) throws Exception {
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler, behavior, true);
     byte opcode = opcode(msgType);
@@ -210,7 +221,8 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     assertTraces(
         trace(handshakeSpan()),
         trace(receiveSpan(handshake, msgType, 11, 2)),
-        trace(receiveSpan(handshake, msgType, 5, 1)));
+        trace(receiveSpan(handshake, msgType, 5, 1))
+    );
   }
 
   @TableTest({
@@ -223,8 +235,11 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     "client partial text | CLIENT   | partial  | text    | false"
   })
   void messageHandlerFailureMarksSpanAndClosesScope(
-      Behavior behavior, NativeEndpoints.EndpointEvents endpoint, String msgType, boolean last)
-      throws Exception {
+      Behavior behavior,
+      NativeEndpoints.EndpointEvents endpoint,
+      String msgType,
+      boolean last
+  ) throws Exception {
     endpoint.failMessages = true;
     Frame frame = new Frame(opcode(msgType), "hello").setFin(last);
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
@@ -238,14 +253,16 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     assertNotNull(endpoint.messageSpans.get(0));
     assertTraces(
         trace(handshakeSpan()),
-        trace(
-            receiveSpan(
-                    handshake(),
-                    msgType,
-                    5,
-                    1,
-                    error(IllegalStateException.class, "handler failed"))
-                .error()));
+        trace(receiveSpan(
+            handshake(),
+            msgType,
+            5,
+            1,
+            error(IllegalStateException.class, "handler failed")
+        )
+          .error()
+        )
+    );
     assertInstanceOf(String.class, writer.get(1).get(0).getTag("error.stack"));
   }
 
@@ -256,10 +273,10 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
 
-    ExecutionException error =
-        assertThrows(
-            ExecutionException.class,
-            () -> deliver(frameHandler, CloseStatus.toFrame(CloseStatus.NORMAL, "bye")));
+    ExecutionException error = assertThrows(ExecutionException.class, () -> deliver(
+        frameHandler,
+        CloseStatus.toFrame(CloseStatus.NORMAL, "bye")
+    ));
 
     assertNotNull(error.getCause());
     assertNull(activeSpan());
@@ -267,12 +284,13 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     assertEquals("bye", endpoint.closeReason);
     assertTraces(
         trace(handshakeSpan()),
-        trace(
-            span()
-                .operationName(compile(quote("websocket.close")))
-                .resourceName(compile(quote("websocket /test/param")))
-                .type(DDSpanTypes.WEBSOCKET)
-                .error()));
+        trace(span()
+          .operationName(compile(quote("websocket.close")))
+          .resourceName(compile(quote("websocket /test/param")))
+          .type(DDSpanTypes.WEBSOCKET)
+          .error()
+        )
+    );
     DDSpan failedSpan = writer.get(1).get(0);
     assertEquals(IllegalStateException.class.getName(), failedSpan.getTag("error.type"));
     assertEquals("handler failed", failedSpan.getTag("error.message"));
@@ -311,10 +329,10 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
 
-    ExecutionException error =
-        assertThrows(
-            ExecutionException.class,
-            () -> deliver(frameHandler, new Frame(OpCode.BINARY, "hello").setFin(last)));
+    ExecutionException error = assertThrows(ExecutionException.class, () -> deliver(
+        frameHandler,
+        new Frame(OpCode.BINARY, "hello").setFin(last)
+    ));
 
     assertEquals("callback failed", error.getCause().getMessage());
     assertNull(activeSpan());
@@ -330,8 +348,7 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     "client success | CLIENT   | false",
     "client failure | CLIENT   | true "
   })
-  void deferredBinaryCallbackCompletesReceiveSpan(Behavior behavior, boolean fail)
-      throws Exception {
+  void deferredBinaryCallbackCompletesReceiveSpan(Behavior behavior, boolean fail) throws Exception {
     NativeEndpoints.FullListener endpoint = new NativeEndpoints.FullListener();
     endpoint.deferCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
@@ -345,16 +362,14 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     assertEquals(1, writer.size());
     assertNull(activeSpan());
 
-    CompletableFuture<Void> completion =
-        CompletableFuture.runAsync(
-            () -> {
-              if (fail) {
-                endpoint.pendingCallback.fail(new IllegalStateException("callback failed"));
-              } else {
-                endpoint.pendingCallback.succeed();
-              }
-              assertNull(activeSpan());
-            });
+    CompletableFuture<Void> completion = CompletableFuture.runAsync(() -> {
+      if (fail) {
+        endpoint.pendingCallback.fail(new IllegalStateException("callback failed"));
+      } else {
+        endpoint.pendingCallback.succeed();
+      }
+      assertNull(activeSpan());
+    });
     completion.get(5, SECONDS);
 
     assertTrue(callback.isDone());
@@ -373,14 +388,14 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     "client POJO binary | pojoFull | binary "
   })
   void clientReceivesLinkToHandshakeInsteadOfApplicationRoot(
-      NativeEndpoints.EndpointEvents endpoint, String msgType) throws Exception {
+      NativeEndpoints.EndpointEvents endpoint,
+      String msgType
+  ) throws Exception {
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
-    runUnderTrace(
-        "application",
-        () -> {
-          openFrameHandler(frameHandler, Behavior.CLIENT, true);
-          return null;
-        });
+    runUnderTrace("application", () -> {
+      openFrameHandler(frameHandler, Behavior.CLIENT, true);
+      return null;
+    });
     assertNull(activeSpan());
 
     deliver(frameHandler, new Frame(opcode(msgType), "hello"));
@@ -389,17 +404,20 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     assertNotNull(endpoint.messageSpans.get(0));
     assertNull(activeSpan());
     writer.waitForTraces(2);
-    DDSpan handshake =
-        writer.get(0).stream()
-            .filter(s -> "parent".contentEquals(s.getOperationName()))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("Missing handshake span"));
+    DDSpan handshake = writer
+      .get(0)
+      .stream()
+      .filter(s -> "parent".contentEquals(s.getOperationName()))
+      .findFirst()
+      .orElseThrow(() -> new AssertionError("Missing handshake span"));
     assertTraces(
         trace(
             SORT_BY_START_TIME,
             span().operationName("application").root(),
-            span().operationName("parent").childOfPrevious()),
-        trace(receiveSpan(handshake, msgType, 5, 1)));
+            span().operationName("parent").childOfPrevious()
+        ),
+        trace(receiveSpan(handshake, msgType, 5, 1))
+    );
   }
 
   @TableTest({
@@ -410,7 +428,9 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     "partial reverse | partial  | true   "
   })
   void pendingBinaryMessagesHaveIndependentSpans(
-      NativeEndpoints.EndpointEvents endpoint, boolean reverse) throws Exception {
+      NativeEndpoints.EndpointEvents endpoint,
+      boolean reverse
+  ) throws Exception {
     endpoint.deferCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
@@ -520,29 +540,28 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     "partial non-final failure | partial  | false | true "
   })
   void terminationWaitsForActiveTextHandler(
-      NativeEndpoints.EndpointEvents endpoint, boolean last, boolean fail) throws Exception {
+      NativeEndpoints.EndpointEvents endpoint,
+      boolean last,
+      boolean fail
+  ) throws Exception {
     CompletableFuture<DDSpan> handlerEntered = new CompletableFuture<>();
     CompletableFuture<Void> releaseHandler = new CompletableFuture<>();
-    endpoint.onMessage =
-        () -> {
-          handlerEntered.complete((DDSpan) activeSpan());
-          assertDoesNotThrow(() -> releaseHandler.get(5, SECONDS), "Text handler was not released");
-          if (fail) {
-            throw new IllegalStateException("handler failed after close");
-          }
-        };
+    endpoint.onMessage = () -> {
+      handlerEntered.complete((DDSpan) activeSpan());
+      assertDoesNotThrow(() -> releaseHandler.get(5, SECONDS), "Text handler was not released");
+      if (fail) {
+        throw new IllegalStateException("handler failed after close");
+      }
+    };
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
     Callback.Completable message = new Callback.Completable();
     ExecutorService executor = newSingleThreadExecutor();
     try {
-      CompletableFuture<Void> handling =
-          CompletableFuture.runAsync(
-              () -> {
-                frameHandler.onFrame(new Frame(OpCode.TEXT, "hello").setFin(last), message);
-                assertNull(activeSpan());
-              },
-              executor);
+      CompletableFuture<Void> handling = CompletableFuture.runAsync(() -> {
+        frameHandler.onFrame(new Frame(OpCode.TEXT, "hello").setFin(last), message);
+        assertNull(activeSpan());
+      }, executor);
       DDSpan receive = handlerEntered.get(5, SECONDS);
       assertNotNull(receive);
 
@@ -560,22 +579,25 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
       } else {
         message.get(5, SECONDS);
       }
-      assertAll(
-          () -> assertFalse(finishedDuringHandler, "Receive span finished before handler exit"),
-          () -> assertTrue(receive.isFinished(), "Receive span unfinished after handler exit"),
-          () -> assertEquals(fail, receive.isError()),
-          () ->
-              assertEquals(
-                  fail ? "handler failed after close" : null, receive.getTag("error.message")));
+      assertAll(() -> assertFalse(
+          finishedDuringHandler,
+          "Receive span finished before handler exit"
+      ), () -> assertTrue(receive.isFinished(), "Receive span unfinished after handler exit"), () -> assertEquals(
+          fail,
+          receive.isError()
+      ), () -> assertEquals(
+          fail ? "handler failed after close" : null,
+          receive.getTag("error.message")
+      ));
       DDSpan handshake = handshake();
-      TagsMatcher[] errorTags =
-          fail
-              ? new TagsMatcher[] {error(IllegalStateException.class, "handler failed after close")}
-              : new TagsMatcher[0];
+      TagsMatcher[] errorTags = fail
+          ? new TagsMatcher[] {error(IllegalStateException.class, "handler failed after close")}
+          : new TagsMatcher[0];
       assertTraces(
           trace(handshakeSpan()),
           trace(receiveSpan(handshake, "text", 5, 1, errorTags).error(fail)),
-          trace(closeSpan(handshake)));
+          trace(closeSpan(handshake))
+      );
       assertSame(receive, writer.get(2).get(0));
     } finally {
       releaseHandler.complete(null);
@@ -596,11 +618,12 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     "binary closed no handler        | binary  | false      | false       "
   })
   void terminationFinishesFragmentedReceiveSpan(
-      String msgType, boolean closeFrame, boolean closeHandler) throws Exception {
+      String msgType,
+      boolean closeFrame,
+      boolean closeHandler
+  ) throws Exception {
     NativeEndpoints.EndpointEvents endpoint =
-        closeHandler
-            ? new NativeEndpoints.PartialListener()
-            : new NativeEndpoints.NoCloseEndpoint();
+        closeHandler ? new NativeEndpoints.PartialListener() : new NativeEndpoints.NoCloseEndpoint();
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
     deliver(frameHandler, new Frame(opcode(msgType), "hello").setFin(false));
@@ -620,7 +643,8 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
       assertTraces(
           trace(handshakeSpan()),
           trace(receiveSpan(handshake, msgType, 5, 1)),
-          trace(closeSpan(handshake)));
+          trace(closeSpan(handshake))
+      );
     } else {
       assertTraces(trace(handshakeSpan()), trace(receiveSpan(handshake, msgType, 5, 1)));
     }
@@ -667,8 +691,11 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     "partial closed failure            | partial  | false | false      | true "
   })
   void terminationWaitsForPendingBinaryCallbacks(
-      NativeEndpoints.EndpointEvents endpoint, boolean last, boolean closeFrame, boolean fail)
-      throws Exception {
+      NativeEndpoints.EndpointEvents endpoint,
+      boolean last,
+      boolean closeFrame,
+      boolean fail
+  ) throws Exception {
     endpoint.deferCallback = true;
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
     openFrameHandler(frameHandler);
@@ -702,10 +729,9 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     }
     assertTrue(message.isDone());
     assertEquals(fail, message.isCompletedExceptionally());
-    TagsMatcher[] errorTags =
-        fail
-            ? new TagsMatcher[] {error(IllegalStateException.class, "callback failed after close")}
-            : new TagsMatcher[0];
+    TagsMatcher[] errorTags = fail
+        ? new TagsMatcher[] {error(IllegalStateException.class, "callback failed after close")}
+        : new TagsMatcher[0];
     SpanMatcher expected = receiveSpan(handshake, "binary", 5, 1, errorTags).error(fail);
     assertTraces(trace(handshakeSpan()), trace(expected), trace(closeSpan(handshake)));
     assertSame(endpoint.messageSpans.get(1), writer.get(2).get(0));
@@ -718,7 +744,8 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
         trace(handshakeSpan()),
         trace(receiveSpan(handshake, "binary", 8, 1)),
         trace(expected),
-        trace(closeSpan(handshake)));
+        trace(closeSpan(handshake))
+    );
     assertSame(endpoint.messageSpans.get(0), writer.get(3).get(0));
     assertNull(activeSpan());
   }
@@ -742,8 +769,10 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
   }
 
   private static void openFrameHandler(
-      JettyWebSocketFrameHandler frameHandler, Behavior connectionBehavior, boolean traced)
-      throws Exception {
+      JettyWebSocketFrameHandler frameHandler,
+      Behavior connectionBehavior,
+      boolean traced
+  ) throws Exception {
     openFrameHandler(frameHandler, connectionBehavior, traced, null);
   }
 
@@ -751,38 +780,34 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
       JettyWebSocketFrameHandler frameHandler,
       Behavior connectionBehavior,
       boolean traced,
-      WebSocketComponents components)
-      throws Exception {
-    CoreSession session =
-        new CoreSession.Empty() {
-          @Override
-          public Behavior getBehavior() {
-            return connectionBehavior;
-          }
+      WebSocketComponents components
+  ) throws Exception {
+    CoreSession session = new CoreSession.Empty() {
+      @Override
+      public Behavior getBehavior() {
+        return connectionBehavior;
+      }
 
-          @Override
-          public WebSocketComponents getWebSocketComponents() {
-            return components;
-          }
-        };
+      @Override
+      public WebSocketComponents getWebSocketComponents() {
+        return components;
+      }
+    };
     Callback.Completable openCallback = new Callback.Completable();
     if (traced) {
-      runUnderTrace(
-          "parent",
-          () -> {
-            activeSpan().setTag(HTTP_URL, URL);
-            frameHandler.onOpen(session, openCallback);
-            openCallback.get(5, SECONDS);
-            return null;
-          });
+      runUnderTrace("parent", () -> {
+        activeSpan().setTag(HTTP_URL, URL);
+        frameHandler.onOpen(session, openCallback);
+        openCallback.get(5, SECONDS);
+        return null;
+      });
     } else {
       frameHandler.onOpen(session, openCallback);
       openCallback.get(5, SECONDS);
     }
   }
 
-  private static void deliver(JettyWebSocketFrameHandler frameHandler, Frame frame)
-      throws Exception {
+  private static void deliver(JettyWebSocketFrameHandler frameHandler, Frame frame) throws Exception {
     Callback.Completable callback = new Callback.Completable();
     frameHandler.onFrame(frame, callback);
     callback.get(5, SECONDS);
@@ -795,14 +820,19 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
 
   private static SpanMatcher handshakeSpan() {
     return span()
-        .root()
-        .operationName(compile(quote("parent")))
-        .resourceName(compile(quote("/test/param")))
-        .tags(defaultTags(), tag(HTTP_URL, is(URL)));
+      .root()
+      .operationName(compile(quote("parent")))
+      .resourceName(compile(quote("/test/param")))
+      .tags(defaultTags(), tag(HTTP_URL, is(URL)));
   }
 
   private static SpanMatcher receiveSpan(
-      DDSpan handshake, String msgType, long length, long frames, TagsMatcher... extraTags) {
+      DDSpan handshake,
+      String msgType,
+      long length,
+      long frames,
+      TagsMatcher... extraTags
+  ) {
     List<TagsMatcher> tags = new ArrayList<>(asList(extraTags));
     tags.add(tag(WEBSOCKET_MESSAGE_TYPE, matches(quote(msgType))));
     tags.add(tag(WEBSOCKET_MESSAGE_LENGTH, is(length)));
@@ -820,11 +850,15 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
         tag(WEBSOCKET_MESSAGE_LENGTH, isNull()),
         tag(WEBSOCKET_MESSAGE_FRAMES, isNull()),
         tag(WEBSOCKET_CLOSE_CODE, is(1000)),
-        tag(WEBSOCKET_CLOSE_REASON, is("bye")));
+        tag(WEBSOCKET_CLOSE_REASON, is("bye"))
+    );
   }
 
   private static SpanMatcher websocketSpan(
-      DDSpan handshake, String operation, TagsMatcher... extraTags) {
+      DDSpan handshake,
+      String operation,
+      TagsMatcher... extraTags
+  ) {
     List<TagsMatcher> tags = new ArrayList<>(asList(extraTags));
     tags.add(defaultTags());
     tags.add(tag("span.kind", is("consumer")));
@@ -835,17 +869,18 @@ public class NativeWebSocketTest extends AbstractInstrumentationTest {
     tags.add(tag(DECISION_MAKER_RESOURCE, matches(quote(handshake.getResourceName().toString()))));
     byte flags =
         handshake.getSamplingPriority() > 0
-            ? AgentSpanLink.SAMPLED_FLAG
-            : AgentSpanLink.DEFAULT_FLAGS;
+        ? AgentSpanLink.SAMPLED_FLAG
+        : AgentSpanLink.DEFAULT_FLAGS;
     return span()
-        .root()
-        .operationName(compile(quote(operation)))
-        .resourceName(compile(quote("websocket /test/param")))
-        .type(DDSpanTypes.WEBSOCKET)
-        .links(
-            SpanLinkMatcher.to(handshake)
-                .traceFlags(flags)
-                .attributes(SpanAttributes.builder().put("dd.kind", "executed_from").build()))
-        .tags(tags.toArray(new TagsMatcher[0]));
+      .root()
+      .operationName(compile(quote(operation)))
+      .resourceName(compile(quote("websocket /test/param")))
+      .type(DDSpanTypes.WEBSOCKET)
+      .links(SpanLinkMatcher
+        .to(handshake)
+        .traceFlags(flags)
+        .attributes(SpanAttributes.builder().put("dd.kind", "executed_from").build())
+      )
+      .tags(tags.toArray(new TagsMatcher[0]));
   }
 }

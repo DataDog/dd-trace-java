@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -11,8 +10,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class Dbcp2ManagedConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public Dbcp2ManagedConnectionInstrumentation() {
     super("jdbc", "dbcp2");
   }
@@ -25,8 +25,8 @@ public final class Dbcp2ManagedConnectionInstrumentation extends InstrumenterMod
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.apache.commons.dbcp2.managed.ManagedConnection", // standalone
-      "org.apache.tomcat.dbcp.dbcp2.managed.ManagedConnection" // bundled with Tomcat
+        "org.apache.commons.dbcp2.managed.ManagedConnection", // standalone
+        "org.apache.tomcat.dbcp.dbcp2.managed.ManagedConnection" // bundled with Tomcat
     };
   }
 
@@ -34,7 +34,8 @@ public final class Dbcp2ManagedConnectionInstrumentation extends InstrumenterMod
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("updateTransactionStatus"),
-        Dbcp2ManagedConnectionInstrumentation.class.getName() + "$UpdateTransactionStatusAdvice");
+        Dbcp2ManagedConnectionInstrumentation.class.getName() + "$UpdateTransactionStatusAdvice"
+    );
   }
 
   public static class UpdateTransactionStatusAdvice {

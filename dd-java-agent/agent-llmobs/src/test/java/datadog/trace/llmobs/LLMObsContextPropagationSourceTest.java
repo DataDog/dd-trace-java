@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
@@ -31,7 +30,6 @@ import org.junit.jupiter.api.Test;
  * auto-instrumentation does must carry the LLMObs context.
  */
 class LLMObsContextPropagationSourceTest {
-
   private static final String TRACE_ID_TAG = "_dd.p.llmobs_trace_id";
   private static final String ML_APP_TAG = "_dd.p.llmobs_ml_app";
   private static final String SESSION_ID_TAG = "_dd.p.llmobs_sid";
@@ -40,7 +38,6 @@ class LLMObsContextPropagationSourceTest {
   private static final String PARENT_ID_TAG = "_dd.p.llmobs_parent_id";
   private static final String SAMPLE_RATE_TAG = "_dd.p.llmobs_sr";
   private static final String SAMPLING_DECISION_TAG = "_dd.p.llmobs_sd";
-
   private static CoreTracer tracer;
 
   @BeforeAll
@@ -68,14 +65,18 @@ class LLMObsContextPropagationSourceTest {
     return AgentTracer.activateSpan(root);
   }
 
-  /** What an auto-instrumented client does: inject the active span into an outbound carrier. */
+  /**
+   * What an auto-instrumented client does: inject the active span into an outbound carrier.
+   */
   private static Map<String, String> autoInject(AgentSpan span) {
     Map<String, String> carrier = new HashMap<>();
     Propagators.defaultPropagator().inject(span, carrier, Map::put);
     return carrier;
   }
 
-  /** An outbound carrier as a producer with an active agent span would have injected it. */
+  /**
+   * An outbound carrier as a producer with an active agent span would have injected it.
+   */
   private static Map<String, String> producerCarrier(String mlApp, String sessionId) {
     try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan producer = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "dispatcher", mlApp, sessionId);
@@ -96,11 +97,13 @@ class LLMObsContextPropagationSourceTest {
     return values == null ? null : values.parentId;
   }
 
-  /** Activates an extracted carrier the way a message handler or request filter does. */
+  /**
+   * Activates an extracted carrier the way a message handler or request filter does.
+   */
   private static AgentSpan extractSpan(Map<String, String> carrier) {
-    Context extracted =
-        Propagators.defaultPropagator()
-            .extract(Context.root(), carrier, (c, visitor) -> c.forEach(visitor));
+    Context extracted = Propagators
+      .defaultPropagator()
+      .extract(Context.root(), carrier, (c, visitor) -> c.forEach(visitor));
     AgentSpan span = AgentSpan.fromContext(extracted);
     assertNotNull(span, "expected trace context to be extracted");
     return span;
@@ -113,7 +116,11 @@ class LLMObsContextPropagationSourceTest {
    */
   private static ContextScope startLocalChildScope(AgentSpan parent) {
     AgentSpan local =
-        AgentTracer.get().buildSpan("apm", "sqs.consume").asChildOf(parent.spanContext()).start();
+        AgentTracer
+      .get()
+      .buildSpan("apm", "sqs.consume")
+      .asChildOf(parent.spanContext())
+      .start();
     return AgentTracer.activateSpan(local);
   }
 
@@ -135,13 +142,13 @@ class LLMObsContextPropagationSourceTest {
     assertNotNull(tags, "expected x-datadog-tags to be injected");
     assertTrue(tags.contains(ML_APP_TAG + "=my-ml-app"), () -> "ml_app missing from " + tags);
     assertTrue(tags.contains(SESSION_ID_TAG + "=sess-1"), () -> "session_id missing from " + tags);
-    assertTrue(
-        tags.contains(PAGENT_SPAN_ID_TAG + "=" + agentSpanId),
-        () -> "pagent_span_id missing from " + tags);
-    assertTrue(
-        tags.contains(PAGENT_NAME_TAG + "=planner"), () -> "pagent_name missing from " + tags);
-    assertTrue(
-        tags.contains(PARENT_ID_TAG + "=" + agentSpanId), () -> "parent_id missing from " + tags);
+    assertTrue(tags.contains(PAGENT_SPAN_ID_TAG + "=" + agentSpanId), () ->
+        "pagent_span_id missing from "
+        + tags);
+    assertTrue(tags.contains(PAGENT_NAME_TAG + "=planner"), () -> "pagent_name missing from "
+        + tags);
+    assertTrue(tags.contains(PARENT_ID_TAG + "=" + agentSpanId), () -> "parent_id missing from "
+        + tags);
   }
 
   @Test
@@ -152,8 +159,8 @@ class LLMObsContextPropagationSourceTest {
     }
 
     String tags = carrier.get("x-datadog-tags");
-    assertTrue(
-        tags == null || !tags.contains("_dd.p.llmobs_"), () -> "unexpected LLMObs tags in " + tags);
+    assertTrue(tags == null || !tags.contains("_dd.p.llmobs_"), () -> "unexpected LLMObs tags in "
+        + tags);
   }
 
   /**
@@ -177,11 +184,12 @@ class LLMObsContextPropagationSourceTest {
 
     assertTrue(
         duringScope.get("x-datadog-tags").contains(SESSION_ID_TAG),
-        "precondition: the first injection should have written the LLMObs tags");
+        "precondition: the first injection should have written the LLMObs tags"
+    );
     String tags = afterScope.get("x-datadog-tags");
-    assertTrue(
-        tags == null || !tags.contains("_dd.p.llmobs_"),
-        () -> "stale LLMObs tags leaked into a later injection: " + tags);
+    assertTrue(tags == null || !tags.contains("_dd.p.llmobs_"), () ->
+        "stale LLMObs tags leaked into a later injection: "
+        + tags);
   }
 
   /**
@@ -209,10 +217,9 @@ class LLMObsContextPropagationSourceTest {
       }
     }
 
-    assertTrue(
-        messageAttributes.get("x-datadog-tags").contains(ML_APP_TAG + "=checkout"),
-        () -> "precondition: ml_app should be on the wire: " + messageAttributes);
-
+    assertTrue(messageAttributes.get("x-datadog-tags").contains(ML_APP_TAG + "=checkout"), () ->
+        "precondition: ml_app should be on the wire: "
+        + messageAttributes);
     // Worker side: a fresh context, as a message handler would have.
     AgentSpan consumeSpan = extractSpan(messageAttributes);
     try (ContextScope consumeScope = AgentTracer.get().activateSpan(consumeSpan)) {
@@ -262,9 +269,9 @@ class LLMObsContextPropagationSourceTest {
 
     assertEquals(apmTraceId, llmObsTraceId, "an LLMObs trace root should seed from its APM trace");
     String wire = new BigInteger(llmObsTraceId, 16).toString();
-    assertTrue(
-        carrier.get("x-datadog-tags").contains(TRACE_ID_TAG + "=" + wire),
-        () -> "llmobs trace id missing from " + carrier.get("x-datadog-tags"));
+    assertTrue(carrier.get("x-datadog-tags").contains(TRACE_ID_TAG + "=" + wire), () ->
+        "llmobs trace id missing from "
+        + carrier.get("x-datadog-tags"));
   }
 
   /**
@@ -280,10 +287,12 @@ class LLMObsContextPropagationSourceTest {
     inbound.put(
         "x-datadog-tags",
         inbound
-            .get("x-datadog-tags")
-            .replaceAll(
-                "_dd\\.p\\.llmobs_trace_id=[0-9]+",
-                TRACE_ID_TAG + "=" + new BigInteger(upstreamTraceId, 16)));
+          .get("x-datadog-tags")
+          .replaceAll(
+              "_dd\\.p\\.llmobs_trace_id=[0-9]+",
+              TRACE_ID_TAG + "=" + new BigInteger(upstreamTraceId, 16)
+          )
+    );
 
     try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
       DDLLMObsSpan worker = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
@@ -293,8 +302,8 @@ class LLMObsContextPropagationSourceTest {
         assertNotEquals(
             upstreamTraceId,
             worker.getTraceId().toHexString(),
-            "precondition: the local APM trace id should differ from the adopted LLMObs one");
-
+            "precondition: the local APM trace id should differ from the adopted LLMObs one"
+        );
         // Descendants keep the adopted id rather than falling back to the local APM trace.
         DDLLMObsSpan child = newSpan(Tags.LLMOBS_LLM_SPAN_KIND, "generate", null, null);
         try {
@@ -320,15 +329,14 @@ class LLMObsContextPropagationSourceTest {
   @Test
   void forwardsExtractedContextWhenNoLlmObsSpanIsActive() {
     Map<String, String> inbound = producerCarrier("checkout", "sess-42");
-    assertTrue(
-        inbound.get("x-datadog-tags").contains(SESSION_ID_TAG + "=sess-42"),
-        () -> "precondition: session_id should be on the wire: " + inbound);
+    assertTrue(inbound.get("x-datadog-tags").contains(SESSION_ID_TAG + "=sess-42"), () ->
+        "precondition: session_id should be on the wire: "
+        + inbound);
 
     Map<String, String> outbound;
     try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
       // No LLMObs span here at all: this hop only relays the call.
       outbound = autoInject(AgentSpan.fromScope(consumeScope));
-
       // Still inside the same hop, after that injection has already reset the staged tags: an
       // LLMObs span opened now must still see what arrived on the wire.
       DDLLMObsSpan workerTool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
@@ -345,8 +353,10 @@ class LLMObsContextPropagationSourceTest {
     assertNotNull(tags, "expected x-datadog-tags to be injected");
     for (String tag :
         new String[] {
-          ML_APP_TAG + "=checkout", SESSION_ID_TAG + "=sess-42", PAGENT_NAME_TAG + "=dispatcher"
-        }) {
+        ML_APP_TAG + "=checkout",
+        SESSION_ID_TAG + "=sess-42",
+        PAGENT_NAME_TAG + "=dispatcher"
+    }) {
       assertTrue(tags.contains(tag), () -> tag + " dropped by the pass-through hop: " + tags);
     }
     assertTrue(tags.contains(TRACE_ID_TAG + "="), () -> "llmobs trace id dropped: " + tags);
@@ -354,16 +364,17 @@ class LLMObsContextPropagationSourceTest {
     assertTrue(tags.contains(PAGENT_SPAN_ID_TAG + "="), () -> "pagent_span_id dropped: " + tags);
   }
 
-  /** A span that samples locally also publishes the verdict it reached onto the wire. */
+  /**
+   * A span that samples locally also publishes the verdict it reached onto the wire.
+   */
   @Test
   void writesTheSamplingVerdictOnInjection() {
     Map<String, String> carrier = producerCarrier("checkout", null);
 
     String wire = carrier.get("x-datadog-tags");
     assertTrue(wire.contains(SAMPLE_RATE_TAG + "=1"), () -> "sample rate missing from " + wire);
-    assertTrue(
-        wire.contains(SAMPLING_DECISION_TAG + "=1"),
-        () -> "sampling decision missing from " + wire);
+    assertTrue(wire.contains(SAMPLING_DECISION_TAG + "=1"), () -> "sampling decision missing from "
+        + wire);
   }
 
   /**
@@ -379,9 +390,10 @@ class LLMObsContextPropagationSourceTest {
     inbound.put(
         "x-datadog-tags",
         inbound
-            .get("x-datadog-tags")
-            .replace(SAMPLE_RATE_TAG + "=1", SAMPLE_RATE_TAG + "=0.1")
-            .replace(SAMPLING_DECISION_TAG + "=1", SAMPLING_DECISION_TAG + "=0"));
+          .get("x-datadog-tags")
+          .replace(SAMPLE_RATE_TAG + "=1", SAMPLE_RATE_TAG + "=0.1")
+          .replace(SAMPLING_DECISION_TAG + "=1", SAMPLING_DECISION_TAG + "=0")
+    );
 
     try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
       DDLLMObsSpan consumer = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
@@ -409,9 +421,10 @@ class LLMObsContextPropagationSourceTest {
     inbound.put(
         "x-datadog-tags",
         inbound
-            .get("x-datadog-tags")
-            .replaceAll("(^|,)_dd\\.p\\.llmobs_s[rd]=[^,]*", "")
-            .replaceAll("^,", ""));
+          .get("x-datadog-tags")
+          .replaceAll("(^|,)_dd\\.p\\.llmobs_s[rd]=[^,]*", "")
+          .replaceAll("^,", "")
+    );
 
     try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
       DDLLMObsSpan consumer = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
@@ -436,7 +449,9 @@ class LLMObsContextPropagationSourceTest {
       DDLLMObsSpan workerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "worker-agent", null, null);
       try {
         assertEquals(
-            String.valueOf(workerAgent.getSpanId()), LLMObsContext.currentParentAgentSpanId());
+            String.valueOf(workerAgent.getSpanId()),
+            LLMObsContext.currentParentAgentSpanId()
+        );
         assertEquals("worker-agent", LLMObsContext.currentParentAgentName());
         assertEquals("sess-42", LLMObsContext.currentSessionId());
         assertEquals("checkout", LLMObsContext.currentMlApp());
@@ -472,7 +487,9 @@ class LLMObsContextPropagationSourceTest {
     }
   }
 
-  /** An explicit empty session id counts as unset, so the propagated one still applies. */
+  /**
+   * An explicit empty session id counts as unset, so the propagated one still applies.
+   */
   @Test
   void emptyExplicitSessionIdInheritsThePropagatedOne() {
     Map<String, String> inbound = producerCarrier("checkout", "sess-42");
@@ -507,13 +524,15 @@ class LLMObsContextPropagationSourceTest {
     inbound.put(
         "x-datadog-tags",
         inbound
-            .get("x-datadog-tags")
-            .replaceAll("_dd\\.p\\.llmobs_parent_id=[0-9]+", PARENT_ID_TAG + "=undefined")
-            .replaceAll(
-                "_dd\\.p\\.llmobs_trace_id=[0-9]+",
-                TRACE_ID_TAG + "=" + new BigInteger(upstreamTraceId, 16))
-            .replace(SAMPLE_RATE_TAG + "=1", SAMPLE_RATE_TAG + "=0.1")
-            .replace(SAMPLING_DECISION_TAG + "=1", SAMPLING_DECISION_TAG + "=0"));
+          .get("x-datadog-tags")
+          .replaceAll("_dd\\.p\\.llmobs_parent_id=[0-9]+", PARENT_ID_TAG + "=undefined")
+          .replaceAll(
+              "_dd\\.p\\.llmobs_trace_id=[0-9]+",
+              TRACE_ID_TAG + "=" + new BigInteger(upstreamTraceId, 16)
+          )
+          .replace(SAMPLE_RATE_TAG + "=1", SAMPLE_RATE_TAG + "=0.1")
+          .replace(SAMPLING_DECISION_TAG + "=1", SAMPLING_DECISION_TAG + "=0")
+    );
     AgentSpan consumeSpan = extractSpan(inbound);
     assertEquals("undefined", propagatedParentId(consumeSpan), "precondition");
 
@@ -527,7 +546,9 @@ class LLMObsContextPropagationSourceTest {
         assertNull(LLMObsContext.currentParentAgentName());
         // Rolled locally at this service's rate of 1.0, not the upstream "0" at 0.1.
         assertEquals(
-            LLMObsContext.SAMPLING_DECISION_SAMPLED, LLMObsContext.currentSamplingDecision());
+            LLMObsContext.SAMPLING_DECISION_SAMPLED,
+            LLMObsContext.currentSamplingDecision()
+        );
         assertEquals("1", LLMObsContext.currentSampleRate());
       } finally {
         worker.finish();
@@ -545,7 +566,6 @@ class LLMObsContextPropagationSourceTest {
       } finally {
         dispatcher.finish();
       }
-
       // A second LLMObs span on the same trace, with no LLMObs parent of its own. The finished
       // span's context is not upstream context and must not be read as such.
       DDLLMObsSpan peer = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "unrelated", "billing", null);

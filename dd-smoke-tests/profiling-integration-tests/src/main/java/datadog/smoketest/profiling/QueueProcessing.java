@@ -13,30 +13,26 @@ final class QueueProcessing {
 
   QueueProcessing(int queueCapacity, int workers, long meanServiceTimeNs) {
     workQueue = new ArrayBlockingQueue<>(queueCapacity);
-    executor =
-        Executors.newFixedThreadPool(
-            workers,
-            r -> {
-              Thread t = new Thread(r, "Worker");
-              t.setDaemon(true);
-              return t;
-            });
+    executor = Executors.newFixedThreadPool(workers, r -> {
+      Thread t = new Thread(r, "Worker");
+      t.setDaemon(true);
+      return t;
+    });
     for (int i = 0; i < workers; i++) {
-      executor.submit(
-          () -> {
-            ExponentialDistribution distribution = new ExponentialDistribution(meanServiceTimeNs);
-            while (!Thread.currentThread().isInterrupted()) {
-              try {
-                Consumer<Long> item = workQueue.take();
-                long sample = (long) distribution.sample();
-                System.out.println("=== service time: " + sample + "ns");
-                item.accept(sample);
-                System.out.println("=== submitted");
-              } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-              }
-            }
-          });
+      executor.submit(() -> {
+        ExponentialDistribution distribution = new ExponentialDistribution(meanServiceTimeNs);
+        while (!Thread.currentThread().isInterrupted()) {
+          try {
+            Consumer<Long> item = workQueue.take();
+            long sample = (long) distribution.sample();
+            System.out.println("=== service time: " + sample + "ns");
+            item.accept(sample);
+            System.out.println("=== submitted");
+          } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+          }
+        }
+      });
     }
   }
 

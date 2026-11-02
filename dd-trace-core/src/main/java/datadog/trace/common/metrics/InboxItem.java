@@ -2,7 +2,8 @@ package datadog.trace.common.metrics;
 
 import java.util.concurrent.CompletableFuture;
 
-interface InboxItem {}
+interface InboxItem {
+}
 
 /**
  * Inbox-routed control message. Each subclass exposes a process-wide {@code static final} singleton
@@ -31,14 +32,19 @@ abstract class SignalItem implements InboxItem {
   }
 
   static final class StopSignal extends SignalItem {
-    /** Fire-and-forget singleton. See class-level note on {@link SignalItem}. */
+    /**
+     * Fire-and-forget singleton. See class-level note on {@link SignalItem}.
+     */
     static final StopSignal STOP = new StopSignal();
 
-    private StopSignal() {}
+    private StopSignal() {
+    }
   }
 
   static final class ReportSignal extends SignalItem {
-    /** Fire-and-forget singleton; {@code forceReport()} allocates fresh instances. */
+    /**
+     * Fire-and-forget singleton; {@code forceReport()} allocates fresh instances.
+     */
     static final ReportSignal REPORT = new ReportSignal();
   }
 
@@ -48,9 +54,12 @@ abstract class SignalItem implements InboxItem {
    * AggregateTable} and {@code inbox.clear()} single-writer.
    */
   static final class ClearSignal extends SignalItem {
-    /** Fire-and-forget singleton. See class-level note on {@link SignalItem}. */
+    /**
+     * Fire-and-forget singleton. See class-level note on {@link SignalItem}.
+     */
     static final ClearSignal CLEAR = new ClearSignal();
 
-    private ClearSignal() {}
+    private ClearSignal() {
+    }
   }
 }

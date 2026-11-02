@@ -3,7 +3,6 @@ package com.datadog.featureflag;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.Test;
  * "ZAgUAg=="} anchors byte-for-byte cross-SDK parity.
  */
 class SpanEnrichmentAccumulatorTest {
-
   // Test-only decode oracle for the ULEB128 delta-varint codec — the production code only encodes.
   private static SortedSet<Integer> decodeDeltaVarint(final String encoded) {
     final SortedSet<Integer> result = new TreeSet<>();
@@ -58,7 +56,10 @@ class SpanEnrichmentAccumulatorTest {
     final SortedSet<Integer> withDup = new TreeSet<>(ids);
     withDup.add(100);
     assertEquals(
-        encoded, ULeb128Encoder.encodeDeltaVarint(withDup), "duplicates do not change bytes");
+        encoded,
+        ULeb128Encoder.encodeDeltaVarint(withDup),
+        "duplicates do not change bytes"
+    );
   }
 
   @Test
@@ -68,7 +69,8 @@ class SpanEnrichmentAccumulatorTest {
     acc.addSerialId(108);
     acc.addSerialId(128);
     acc.addSerialId(130);
-    acc.addSerialId(100); // dedupe
+    // dedupe
+    acc.addSerialId(100);
     assertTrue(acc.hasData());
     assertEquals("ZAgUAg==", acc.toSpanTags().get(SpanEnrichmentAccumulator.TAG_FLAGS_ENC));
   }
@@ -82,7 +84,8 @@ class SpanEnrichmentAccumulatorTest {
     assertEquals(
         SpanEnrichmentAccumulator.MAX_SERIAL_IDS,
         acc.serialIdsView().size(),
-        "serial ids must be capped at 200");
+        "serial ids must be capped at 200"
+    );
   }
 
   @Test
@@ -92,14 +95,13 @@ class SpanEnrichmentAccumulatorTest {
     for (int i = 0; i < 25; i++) {
       acc.addSubject("subjectX", i);
     }
-    final SortedSet<Integer> decoded =
-        decodeDeltaVarint(
-            acc.toSpanTags()
-                .get(SpanEnrichmentAccumulator.TAG_SUBJECTS_ENC)
-                .replaceAll("^\\{\"[a-f0-9]+\":\"", "")
-                .replaceAll("\"\\}$", ""));
+    final SortedSet<Integer> decoded = decodeDeltaVarint(acc
+      .toSpanTags()
+      .get(SpanEnrichmentAccumulator.TAG_SUBJECTS_ENC)
+      .replaceAll("^\\{\"[a-f0-9]+\":\"", "")
+      .replaceAll("\"\\}$", "")
+    );
     assertEquals(SpanEnrichmentAccumulator.MAX_EXPERIMENTS_PER_SUBJECT, decoded.size());
-
     // subject cap: 10 max distinct subjects
     final SpanEnrichmentAccumulator acc2 = new SpanEnrichmentAccumulator();
     for (int i = 0; i < 15; i++) {
@@ -113,7 +115,8 @@ class SpanEnrichmentAccumulatorTest {
     // native object -> JSON, not toString
     assertEquals(
         "{\"a\":\"b\"}",
-        SpanEnrichmentAccumulator.stringifyDefault(Collections.singletonMap("a", "b")));
+        SpanEnrichmentAccumulator.stringifyDefault(Collections.singletonMap("a", "b"))
+    );
     // scalar string -> as-is
     assertEquals("hello", SpanEnrichmentAccumulator.stringifyDefault("hello"));
     // null -> "null"
@@ -121,8 +124,8 @@ class SpanEnrichmentAccumulatorTest {
     // native list -> JSON array
     assertEquals(
         "[\"a\",2,true]",
-        SpanEnrichmentAccumulator.stringifyDefault(java.util.Arrays.asList("a", 2, true)));
-
+        SpanEnrichmentAccumulator.stringifyDefault(java.util.Arrays.asList("a", 2, true))
+    );
     // 64-char truncation
     final StringBuilder longValue = new StringBuilder();
     for (int i = 0; i < 100; i++) {
@@ -134,7 +137,6 @@ class SpanEnrichmentAccumulatorTest {
     final String expectedValue =
         longValue.substring(0, SpanEnrichmentAccumulator.MAX_DEFAULT_VALUE_LENGTH);
     assertEquals("{\"flag\":\"" + expectedValue + "\"}", tag);
-
     // first-wins
     acc.addDefault("flag", "second");
     assertEquals(1, acc.defaultCount());
@@ -149,14 +151,17 @@ class SpanEnrichmentAccumulatorTest {
     // '/').
     assertEquals(
         "{\"h\":\"a\\/b\"}",
-        SpanEnrichmentAccumulator.toJsonObject(Collections.singletonMap("h", "a/b")));
+        SpanEnrichmentAccumulator.toJsonObject(Collections.singletonMap("h", "a/b"))
+    );
     assertEquals(
         "{\"k\":\"caf\\u00E9\"}",
-        SpanEnrichmentAccumulator.toJsonObject(Collections.singletonMap("k", "café")));
+        SpanEnrichmentAccumulator.toJsonObject(Collections.singletonMap("k", "café"))
+    );
     // nested structured runtime default goes through the same writer
     assertEquals(
         "{\"a\":\"x\\/y\"}",
-        SpanEnrichmentAccumulator.stringifyDefault(Collections.singletonMap("a", "x/y")));
+        SpanEnrichmentAccumulator.stringifyDefault(Collections.singletonMap("a", "x/y"))
+    );
   }
 
   @Test
@@ -183,8 +188,10 @@ class SpanEnrichmentAccumulatorTest {
     for (int i = 0; i < SpanEnrichmentAccumulator.MAX_SERIAL_IDS; i++) {
       acc.addSerialId(i);
     }
-    acc.addSerialId(0); // already present + at cap → no-op, not dropped as "new"
-    acc.addSerialId(9999); // new + at cap → dropped
+    // already present + at cap → no-op, not dropped as "new"
+    acc.addSerialId(0);
+    // new + at cap → dropped
+    acc.addSerialId(9999);
     assertEquals(SpanEnrichmentAccumulator.MAX_SERIAL_IDS, acc.serialIdsView().size());
     assertTrue(acc.serialIdsView().contains(0));
     assertFalse(acc.serialIdsView().contains(9999));
@@ -193,13 +200,16 @@ class SpanEnrichmentAccumulatorTest {
   @Test
   void subjectNullKeyIgnoredAndPerSubjectDedupeAtCap() {
     final SpanEnrichmentAccumulator acc = new SpanEnrichmentAccumulator();
-    acc.addSubject(null, 1); // null targeting key → ignored
+    // null targeting key → ignored
+    acc.addSubject(null, 1);
     assertEquals(0, acc.subjectCount());
     for (int i = 0; i < SpanEnrichmentAccumulator.MAX_EXPERIMENTS_PER_SUBJECT; i++) {
       acc.addSubject("s", i);
     }
-    acc.addSubject("s", 0); // existing subject, at exp cap, id present → no-op
-    acc.addSubject("s", 9999); // existing subject, at exp cap, id new → dropped
+    // existing subject, at exp cap, id present → no-op
+    acc.addSubject("s", 0);
+    // existing subject, at exp cap, id new → dropped
+    acc.addSubject("s", 9999);
     assertEquals(1, acc.subjectCount());
   }
 
@@ -207,17 +217,22 @@ class SpanEnrichmentAccumulatorTest {
   void stringifyDefaultCoversAllNativeShapes() {
     // list containing Double, Long, Short, Byte, null, and a nested Map — exercises every
     // writeJsonValue branch (Number/double, Integer|Long|Short|Byte/long, null, Map, Iterable).
-    final Object nested =
-        java.util.Arrays.asList(
-            1.5d, 3L, (short) 7, (byte) 2, null, Collections.singletonMap("k", "v"));
+    final Object nested = java.util.Arrays.asList(
+        1.5d,
+        3L,
+        (short) 7,
+        (byte) 2,
+        null,
+        Collections.singletonMap("k", "v")
+    );
     assertEquals(
-        "[1.5,3,7,2,null,{\"k\":\"v\"}]", SpanEnrichmentAccumulator.stringifyDefault(nested));
-
+        "[1.5,3,7,2,null,{\"k\":\"v\"}]",
+        SpanEnrichmentAccumulator.stringifyDefault(nested)
+    );
     // Java array routes through isArray → serialized via its (non-JSON) string form, but must not
     // throw; assert it produced a quoted string.
     final String arr = SpanEnrichmentAccumulator.stringifyDefault(new int[] {1, 2});
     assertTrue(arr.startsWith("\"") && arr.endsWith("\""));
-
     // Character scalar (CharSequence/Character branch).
     assertEquals("x", SpanEnrichmentAccumulator.stringifyDefault('x'));
   }
@@ -230,7 +245,8 @@ class SpanEnrichmentAccumulatorTest {
     for (int i = 0; i < 63; i++) {
       sb.append('a');
     }
-    sb.append("😀"); // 😀 (high + low surrogate)
+    // 😀 (high + low surrogate)
+    sb.append("😀");
     final SpanEnrichmentAccumulator acc = new SpanEnrichmentAccumulator();
     acc.addDefault("flag", sb.toString());
     final String tag = acc.toSpanTags().get(SpanEnrichmentAccumulator.TAG_RUNTIME_DEFAULTS);

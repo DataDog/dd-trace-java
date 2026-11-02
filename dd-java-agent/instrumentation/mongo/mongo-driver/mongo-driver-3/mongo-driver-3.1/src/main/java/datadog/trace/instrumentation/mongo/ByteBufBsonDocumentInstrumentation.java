@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import com.mongodb.MongoClientOptions;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -20,9 +19,9 @@ import org.bson.ByteBuf;
 @AutoService(InstrumenterModule.class)
 public class ByteBufBsonDocumentInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.WithTypeStructure,
+    Instrumenter.HasMethodAdvice
+{
   public ByteBufBsonDocumentInstrumentation() {
     super("mongo");
   }
@@ -55,7 +54,9 @@ public class ByteBufBsonDocumentInstrumentation extends InstrumenterModule.Traci
   public static final class ExposeBuffer {
     @Advice.OnMethodExit
     public static void exposeBuffer(
-        @Advice.This BsonDocument doc, @Advice.FieldValue("byteBuf") ByteBuf byteBuf) {
+        @Advice.This BsonDocument doc,
+        @Advice.FieldValue("byteBuf") ByteBuf byteBuf
+    ) {
       InstrumentationContext.get(BsonDocument.class, ByteBuf.class).put(doc, byteBuf);
     }
 

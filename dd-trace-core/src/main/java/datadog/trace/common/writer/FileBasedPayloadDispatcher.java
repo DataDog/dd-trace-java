@@ -5,7 +5,6 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH;
 import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static datadog.trace.util.Strings.truncate;
-
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -53,19 +52,19 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: unify serialization with msgpack mappers via a format-agnostic abstraction
  */
 public class FileBasedPayloadDispatcher implements PayloadDispatcher {
-
   private static final Logger log = LoggerFactory.getLogger(FileBasedPayloadDispatcher.class);
-
-  private static final Collection<String> TOP_LEVEL_TAGS =
-      Arrays.asList(
-          Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID, Tags.ITR_CORRELATION_ID);
-
-  /** Tag prefixes excluded from file-based payloads to avoid Bazel cache invalidation. */
+  private static final Collection<String> TOP_LEVEL_TAGS = Arrays.asList(
+      Tags.TEST_SESSION_ID,
+      Tags.TEST_MODULE_ID,
+      Tags.TEST_SUITE_ID,
+      Tags.ITR_CORRELATION_ID
+  );
+  /**
+   * Tag prefixes excluded from file-based payloads to avoid Bazel cache invalidation.
+   */
   private static final String[] EXCLUDED_TAG_PREFIXES = {"ci.", "git.", "runtime.", "os."};
-
   private static final Set<String> EXCLUDED_TAGS =
       new HashSet<>(Arrays.asList("runtime-id", "pr.number"));
-
   private final File outputDir;
   private final String filePrefix;
   private final TrackType trackType;
@@ -159,8 +158,9 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
         doc.beginObject();
         doc.name("env").value(wellKnownTags.getEnv().toString());
         doc.name("language").value(wellKnownTags.getLanguage().toString());
-        doc.name("test_is_user_provided_service")
-            .value(wellKnownTags.getIsUserProvidedService().toString());
+        doc
+          .name("test_is_user_provided_service")
+          .value(wellKnownTags.getIsUserProvidedService().toString());
         doc.endObject();
         doc.endObject();
         doc.name("events");
@@ -239,7 +239,6 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     w.name("version").value(version);
     w.name("content");
     w.beginObject();
-
     // trace/span/parent ids are unsigned 64-bit integers; emit as raw JSON numbers
     // (value(long) would reinterpret ids >= 2^63 as negative signed longs).
     if (traceId != null) {
@@ -272,9 +271,10 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     w.name("error").value(span.getError());
 
     span.processTagsAndBaggage(new JsonMetaWriter(w), OWN_PROPAGATION_TAGS);
-
-    w.endObject(); // content
-    w.endObject(); // event
+    // content
+    w.endObject();
+    // event
+    w.endObject();
     return w.toString();
   }
 
@@ -347,7 +347,9 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     }
   }
 
-  /** Writes span meta/metrics as JSON, filtering out CI/Git/OS/Runtime tags. */
+  /**
+   * Writes span meta/metrics as JSON, filtering out CI/Git/OS/Runtime tags.
+   */
   private static final class JsonMetaWriter implements MetadataConsumer {
     private final JsonWriter w;
 
@@ -391,10 +393,11 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
         }
       }
       if (metadata.getHttpStatusCode() != UNSET_STATUS) {
-        w.name(Tags.HTTP_STATUS)
-            .value(
-                truncate(
-                    metadata.getHttpStatusCodeString().toString(), MAX_META_STRING_VALUE_LENGTH));
+        w
+          .name(Tags.HTTP_STATUS)
+          .value(
+              truncate(metadata.getHttpStatusCodeString().toString(), MAX_META_STRING_VALUE_LENGTH)
+          );
       }
       for (Map.Entry<String, Object> entry : tags.entrySet()) {
         Object value = entry.getValue();

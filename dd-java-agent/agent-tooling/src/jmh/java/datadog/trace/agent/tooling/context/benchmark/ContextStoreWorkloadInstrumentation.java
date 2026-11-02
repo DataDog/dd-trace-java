@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.context.benchmark;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
@@ -13,11 +12,14 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Declares 16 context stores and exposes them through {@code WorkloadKey.store(int)}. */
+/**
+ * Declares 16 context stores and exposes them through {@code WorkloadKey.store(int)}.
+ */
 public final class ContextStoreWorkloadInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   static final int STORE_COUNT = 16;
-
   private static final String KEY_TYPE = "context.benchmark.workload.WorkloadKey";
   private static final String STORE_KEY_TYPE = "context.benchmark.workload.StoreKeys$S";
   private static final String CONTEXT_TYPE =
@@ -62,7 +64,9 @@ public final class ContextStoreWorkloadInstrumentation extends InstrumenterModul
   public static final class StoreAdvice {
     @Advice.OnMethodExit
     public static void exit(
-        @Advice.Argument(0) int storeIndex, @Advice.Return(readOnly = false) Object store) {
+        @Advice.Argument(0) int storeIndex,
+        @Advice.Return(readOnly = false) Object store
+    ) {
       switch (storeIndex) {
         case 0:
           store = InstrumentationContext.get(STORE_KEY_TYPE + "0", CONTEXT_TYPE);

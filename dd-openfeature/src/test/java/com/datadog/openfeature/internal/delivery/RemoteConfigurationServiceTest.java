@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import java.io.IOException;
@@ -38,10 +37,11 @@ class RemoteConfigurationServiceTest {
     final RemoteConfigurationService service = new RemoteConfigurationService(source);
     service.start(received::add);
 
-    final IllegalArgumentException rejection =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> source.listener.accept("{\"flags\":[]}".getBytes(UTF_8)));
+    final IllegalArgumentException rejection = assertThrows(IllegalArgumentException.class, () -> source.listener.accept((
+        "{"
+        + "\"flags\":[]}")
+      .getBytes(UTF_8)
+    ));
 
     assertTrue(rejection.getCause() instanceof IOException);
     assertTrue(rejection.getMessage().startsWith("Malformed flag configuration: "));

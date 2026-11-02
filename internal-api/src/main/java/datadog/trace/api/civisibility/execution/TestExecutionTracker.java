@@ -16,7 +16,6 @@ import javax.annotation.Nullable;
  * @see TestExecutionPolicy
  */
 public interface TestExecutionTracker {
-
   /**
    * Records the result of a test execution and returns the outcome.
    *

@@ -2,15 +2,16 @@ package com.datadog.openfeature;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
-
 import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Reads the split features that the evaluator copies into the flag metadata. */
+/**
+ * Reads the split features that the evaluator copies into the flag metadata.
+ */
 final class SplitFeatureMetadata {
-
-  private SplitFeatureMetadata() {}
+  private SplitFeatureMetadata() {
+  }
 
   /**
    * Reads the features stored in the metadata under a prefix.
@@ -20,7 +21,9 @@ final class SplitFeatureMetadata {
    * @return the unmodifiable features keyed without the prefix, empty if none.
    */
   static Map<String, Object> featuresWithPrefix(
-      final ImmutableMetadata metadata, final String prefix) {
+      final ImmutableMetadata metadata,
+      final String prefix
+  ) {
     if (metadata == null) {
       return emptyMap();
     }

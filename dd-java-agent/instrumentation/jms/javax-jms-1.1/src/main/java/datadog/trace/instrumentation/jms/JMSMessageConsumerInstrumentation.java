@@ -23,7 +23,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
@@ -44,7 +43,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public final class JMSMessageConsumerInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private final String namespace;
 
   public JMSMessageConsumerInstrumentation(String namespace) {
@@ -65,28 +66,31 @@ public final class JMSMessageConsumerInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("receive").and(takesArguments(0).or(takesArguments(1))).and(isPublic()),
-        JMSMessageConsumerInstrumentation.class.getName() + "$ConsumerAdvice");
+        JMSMessageConsumerInstrumentation.class.getName() + "$ConsumerAdvice"
+    );
     transformer.applyAdvice(
         named("receiveNoWait").and(takesArguments(0)).and(isPublic()),
-        JMSMessageConsumerInstrumentation.class.getName() + "$ConsumerAdvice");
+        JMSMessageConsumerInstrumentation.class.getName() + "$ConsumerAdvice"
+    );
     transformer.applyAdvice(
         named("close").and(takesArguments(0)).and(isPublic()),
-        JMSMessageConsumerInstrumentation.class.getName() + "$Close");
+        JMSMessageConsumerInstrumentation.class.getName() + "$Close"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("setMessageListener"))
-            .and(takesArgument(0, hasInterface(named(namespace + ".jms.MessageListener")))),
-        getClass().getName() + "$DecorateMessageListener");
+          .and(named("setMessageListener"))
+          .and(takesArgument(0, hasInterface(named(namespace + ".jms.MessageListener")))),
+        getClass().getName() + "$DecorateMessageListener"
+    );
   }
 
   public static class ConsumerAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static MessageConsumerState beforeReceive(@Advice.This final MessageConsumer consumer) {
       MessageConsumerState consumerState =
-          InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
-              .get(consumer);
-
+          InstrumentationContext
+        .get(MessageConsumer.class, MessageConsumerState.class)
+        .get(consumer);
       // ignore consumers who aren't bound to a tracked session via consumerState
       if (null == consumerState) {
         return null;
@@ -105,7 +109,6 @@ public final class JMSMessageConsumerInstrumentation
       if (finishSpan) {
         consumerState.finishTimeInQueueSpan(false);
       }
-
       // don't create spans for nested receive calls, even if different consumers are involved
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageConsumer.class);
       if (callDepth > 0) {
@@ -120,13 +123,12 @@ public final class JMSMessageConsumerInstrumentation
         @Advice.Enter final MessageConsumerState consumerState,
         @Advice.This final MessageConsumer consumer,
         @Advice.Return final Message message,
-        @Advice.Thrown final Throwable throwable) {
-
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (consumerState == null) {
         // either we're not tracking the consumer or this is a nested receive
         return;
       }
-
       // outermost receive call - make sure we reset call-depth before returning
       CallDepthThreadLocalMap.reset(MessageConsumer.class);
 
@@ -147,13 +149,18 @@ public final class JMSMessageConsumerInstrumentation
         long batchId = GETTER.extractMessageBatchId(message);
         AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
         if (null == timeInQueue) {
-          timeInQueue =
-              startSpan("jms", JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
+          timeInQueue = startSpan(
+              "jms",
+              JMS_DELIVER,
+              propagatedContext,
+              MILLISECONDS.toMicros(startMillis)
+          );
           BROKER_DECORATE.afterStart(timeInQueue);
           BROKER_DECORATE.onTimeInQueue(
               timeInQueue,
               consumerState.getBrokerResourceName(),
-              consumerState.getBrokerServiceName());
+              consumerState.getBrokerServiceName()
+          );
           consumerState.setTimeInQueueSpan(batchId, timeInQueue);
         }
         span = startSpan("jms", JMS_CONSUME, timeInQueue.spanContext());
@@ -164,7 +171,8 @@ public final class JMSMessageConsumerInstrumentation
 
       if (Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
+        if ("ibmmq".equals(tech)) {
+          // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags =
               create(tech, INBOUND, consumerState.getConsumerBaseResourceName().toString());
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
@@ -175,7 +183,8 @@ public final class JMSMessageConsumerInstrumentation
       CONSUMER_DECORATE.onError(span, throwable);
 
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        activateNext(span); // scope is left open until next message or it times out
+        // scope is left open until next message or it times out
+        activateNext(span);
       } else {
         final AgentSpan previousSpan = spanFromContext(span.swap());
         if (previousSpan != null) {
@@ -202,8 +211,9 @@ public final class JMSMessageConsumerInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeClose(@Advice.This final MessageConsumer consumer) {
       MessageConsumerState consumerState =
-          InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
-              .get(consumer);
+          InstrumentationContext
+        .get(MessageConsumer.class, MessageConsumerState.class)
+        .get(consumer);
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
@@ -226,17 +236,18 @@ public final class JMSMessageConsumerInstrumentation
     @Advice.OnMethodEnter
     public static void setMessageListener(
         @Advice.This MessageConsumer messageConsumer,
-        @Advice.Argument(value = 0, readOnly = false) MessageListener listener) {
+        @Advice.Argument(value = 0, readOnly = false) MessageListener listener
+    ) {
       if (null != listener && !(listener instanceof DatadogMessageListener)) {
-        MessageConsumerState consumerState =
-            InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
-                .get(messageConsumer);
+        MessageConsumerState consumerState = InstrumentationContext
+          .get(MessageConsumer.class, MessageConsumerState.class)
+          .get(messageConsumer);
         if (null != consumerState) {
-          listener =
-              new DatadogMessageListener(
-                  InstrumentationContext.get(Message.class, SessionState.class),
-                  consumerState,
-                  listener);
+          listener = new DatadogMessageListener(
+              InstrumentationContext.get(Message.class, SessionState.class),
+              consumerState,
+              listener
+          );
         }
       }
     }

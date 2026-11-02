@@ -25,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.api.DDSpanTypes;
@@ -85,14 +84,12 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     Connection connection = new Connection(true, Behavior.CLIENT);
     RecordingCallback callback = new RecordingCallback();
 
-    runUnderTrace(
-        "application",
-        () -> {
-          AgentSpan application = activeSpan();
-          connection.send(binary, partial, "hello", true, callback);
-          assertSame(application, activeSpan());
-          return null;
-        });
+    runUnderTrace("application", () -> {
+      AgentSpan application = activeSpan();
+      connection.send(binary, partial, "hello", true, callback);
+      assertSame(application, activeSpan());
+      return null;
+    });
     connection.callbacks.get(0).succeeded();
     callback.get(5, SECONDS);
 
@@ -105,7 +102,9 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().operationName("application").root(),
-            sendSpan(connection, binary, 5, 1).childOfPrevious()));
+            sendSpan(connection, binary, 5, 1).childOfPrevious()
+        )
+    );
   }
 
   @TableTest({
@@ -115,12 +114,10 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
   })
   void clientPartialSendKeepsParentUntilLastFragment(boolean binary) throws Exception {
     Connection connection = new Connection(true, Behavior.CLIENT);
-    runUnderTrace(
-        "application",
-        () -> {
-          connection.send(binary, true, "hello ", false, null);
-          return null;
-        });
+    runUnderTrace("application", () -> {
+      connection.send(binary, true, "hello ", false, null);
+      return null;
+    });
     assertNull(activeSpan());
     connection.send(binary, true, "world", true, null);
     connection.callbacks.get(1).succeeded();
@@ -134,7 +131,9 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().operationName("application").root(),
-            sendSpan(connection, binary, 11, 2).childOfPrevious()));
+            sendSpan(connection, binary, 11, 2).childOfPrevious()
+        )
+    );
   }
 
   @TableTest({
@@ -150,14 +149,12 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     connection.send(binary, true, "hello ", false, null);
     connection.callbacks.get(0).succeeded();
 
-    runUnderTrace(
-        "application",
-        () -> {
-          AgentSpan parent = activeSpan();
-          connection.send(binary, true, "world", true, callback);
-          assertSame(parent, activeSpan());
-          return null;
-        });
+    runUnderTrace("application", () -> {
+      AgentSpan parent = activeSpan();
+      connection.send(binary, true, "world", true, callback);
+      assertSame(parent, activeSpan());
+      return null;
+    });
     connection.callbacks.get(1).succeeded();
     callback.get(5, SECONDS);
 
@@ -166,12 +163,10 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     assertSame(connection.spans.get(0), callback.span);
     assertNull(activeSpan());
 
-    runUnderTrace(
-        "next",
-        () -> {
-          connection.send(binary, true, "again", true, null);
-          return null;
-        });
+    runUnderTrace("next", () -> {
+      connection.send(binary, true, "again", true, null);
+      return null;
+    });
     connection.callbacks.get(2).succeeded();
     assertTraces(
         trace(handshakeSpan()),
@@ -180,7 +175,9 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().operationName("next").root(),
-            sendSpan(connection, binary, 5, 1).childOfPrevious()));
+            sendSpan(connection, binary, 5, 1).childOfPrevious()
+        )
+    );
   }
 
   @TableTest({
@@ -193,7 +190,10 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     "partial binary | true   | true    | false      "
   })
   void serverSendsWithoutParentFinishOnCallback(
-      boolean binary, boolean partial, boolean synchronous) throws Exception {
+      boolean binary,
+      boolean partial,
+      boolean synchronous
+  ) throws Exception {
     Connection connection = new Connection(true);
     connection.synchronous = synchronous;
     RecordingCallback callback = new RecordingCallback();
@@ -235,38 +235,37 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     assertTraces(
         trace(handshakeSpan()),
         trace(sendSpan(connection, binary, 11, 2).root()),
-        trace(sendSpan(connection, binary, 5, 1).root()));
+        trace(sendSpan(connection, binary, 5, 1).root())
+    );
   }
 
   @Test
   void sendUsesApplicationParentAndRestoresCallbackContext() throws Exception {
     Connection connection = new Connection(true);
     RecordingCallback callback = new RecordingCallback();
-    runUnderTrace(
-        "application",
-        () -> {
-          AgentSpan parent = activeSpan();
-          connection.send(false, false, "hello", true, callback);
-          assertSame(parent, activeSpan());
-          assertEquals(parent.getSpanId(), ((DDSpan) connection.spans.get(0)).getParentId());
-          return null;
-        });
-    runUnderTrace(
-        "completion",
-        () -> {
-          AgentSpan parent = activeSpan();
-          connection.callbacks.get(0).succeeded();
-          assertSame(parent, activeSpan());
-          return null;
-        });
+    runUnderTrace("application", () -> {
+      AgentSpan parent = activeSpan();
+      connection.send(false, false, "hello", true, callback);
+      assertSame(parent, activeSpan());
+      assertEquals(parent.getSpanId(), ((DDSpan) connection.spans.get(0)).getParentId());
+      return null;
+    });
+    runUnderTrace("completion", () -> {
+      AgentSpan parent = activeSpan();
+      connection.callbacks.get(0).succeeded();
+      assertSame(parent, activeSpan());
+      return null;
+    });
     assertSame(connection.spans.get(0), callback.span);
     assertTraces(
         trace(handshakeSpan()),
         trace(
             SORT_BY_START_TIME,
             span().operationName("application").root(),
-            sendSpan(connection, false, 5, 1).childOfPrevious()),
-        trace(span().operationName("completion").root()));
+            sendSpan(connection, false, 5, 1).childOfPrevious()
+        ),
+        trace(span().operationName("completion").root())
+    );
   }
 
   @TableTest({
@@ -287,18 +286,24 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     } else {
       assertSame(
           connection.failure,
-          assertThrows(
-              IllegalStateException.class,
-              () -> connection.send(false, partial, "hello", !partial, callback)));
+          assertThrows(IllegalStateException.class, () -> connection.send(
+              false,
+              partial,
+              "hello",
+              !partial,
+              callback
+          ))
+      );
     }
     assertNull(activeSpan());
     assertTraces(
         trace(handshakeSpan()),
-        trace(
-            span()
-                .operationName(compile(quote("websocket.send")))
-                .type(DDSpanTypes.WEBSOCKET)
-                .error()));
+        trace(span()
+          .operationName(compile(quote("websocket.send")))
+          .type(DDSpanTypes.WEBSOCKET)
+          .error()
+        )
+    );
     assertEquals("send failed", connection.spans.get(0).getTag("error.message"));
     // A late callback must not finish the span again.
     connection.callbacks.get(0).succeeded();
@@ -323,42 +328,40 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     assertNull(activeSpan());
     assertTraces(
         trace(handshakeSpan()),
-        trace(
-            span()
-                .operationName(compile(quote("websocket.send")))
-                .type(DDSpanTypes.WEBSOCKET)
-                .error()),
-        trace(sendSpan(connection, false, 5, 1).root()));
+        trace(span()
+          .operationName(compile(quote("websocket.send")))
+          .type(DDSpanTypes.WEBSOCKET)
+          .error()
+        ),
+        trace(sendSpan(connection, false, 5, 1).root())
+    );
   }
 
   @Test
   void callbackFailureClosesScopeAndFinishesSpan() throws Exception {
     Connection connection = new Connection(true);
-    connection.send(
-        false,
-        false,
-        "hello",
-        true,
-        new org.eclipse.jetty.websocket.api.Callback() {
-          @Override
-          public void succeed() {
-            throw connection.failure;
-          }
+    connection.send(false, false, "hello", true, new org.eclipse.jetty.websocket.api.Callback() {
+      @Override
+      public void succeed() {
+        throw connection.failure;
+      }
 
-          @Override
-          public void fail(Throwable failure) {}
-        });
+      @Override
+      public void fail(Throwable failure) {}
+    });
     assertSame(
         connection.failure,
-        assertThrows(IllegalStateException.class, () -> connection.callbacks.get(0).succeeded()));
+        assertThrows(IllegalStateException.class, () -> connection.callbacks.get(0).succeeded())
+    );
     assertNull(activeSpan());
     assertTraces(
         trace(handshakeSpan()),
-        trace(
-            span()
-                .operationName(compile(quote("websocket.send")))
-                .type(DDSpanTypes.WEBSOCKET)
-                .error()));
+        trace(span()
+          .operationName(compile(quote("websocket.send")))
+          .type(DDSpanTypes.WEBSOCKET)
+          .error()
+        )
+    );
   }
 
   @Test
@@ -376,7 +379,8 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     assertTraces(
         trace(handshakeSpan()),
         trace(sendSpan(connection, false, 5, 1).root()),
-        trace(sendSpan(connection, false, 5, 1).root()));
+        trace(sendSpan(connection, false, 5, 1).root())
+    );
     connection.callbacks.forEach(Callback::succeeded);
     assertEquals(3, writer.size());
     assertNull(activeSpan());
@@ -398,12 +402,11 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
 
     assertInstanceOf(ProtocolException.class, rejected.failure);
     assertNotSame(unfinished, rejected.span);
-    SpanMatcher failedSend =
-        span()
-            .operationName(compile(quote("websocket.send")))
-            .type(DDSpanTypes.WEBSOCKET)
-            .root()
-            .error();
+    SpanMatcher failedSend = span()
+      .operationName(compile(quote("websocket.send")))
+      .type(DDSpanTypes.WEBSOCKET)
+      .root()
+      .error();
     assertTraces(trace(handshakeSpan()), trace(failedSend));
 
     Callback.Completable closed = new Callback.Completable();
@@ -413,7 +416,8 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     assertTraces(
         trace(handshakeSpan()),
         trace(sendSpan(connection, binary, 5, 1).root()),
-        trace(failedSend));
+        trace(failedSend)
+    );
     assertNull(activeSpan());
   }
 
@@ -443,13 +447,12 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     }
     assertSame(connection.spans.get(0), callback.span);
     assertNull(activeSpan());
-    SpanMatcher expected =
-        failed
-            ? span()
-                .operationName(compile(quote("websocket.send")))
-                .type(DDSpanTypes.WEBSOCKET)
-                .error()
-            : sendSpan(connection, false, 5, 1);
+    SpanMatcher expected = failed
+        ? span()
+      .operationName(compile(quote("websocket.send")))
+      .type(DDSpanTypes.WEBSOCKET)
+      .error()
+        : sendSpan(connection, false, 5, 1);
     assertTraces(trace(handshakeSpan()), trace(expected.root()));
     connection.callbacks.get(0).succeeded();
     assertEquals(2, writer.size());
@@ -458,16 +461,20 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
   @Test
   void partialTextPreservesNullCallbackFailure() throws Exception {
     Connection connection = new Connection(true);
-    assertThrows(
-        NullPointerException.class, () -> connection.session.sendPartialText("hello", true, null));
+    assertThrows(NullPointerException.class, () -> connection.session.sendPartialText(
+        "hello",
+        true,
+        null
+    ));
     assertNull(activeSpan());
     assertTraces(
         trace(handshakeSpan()),
-        trace(
-            span()
-                .operationName(compile(quote("websocket.send")))
-                .type(DDSpanTypes.WEBSOCKET)
-                .error()));
+        trace(span()
+          .operationName(compile(quote("websocket.send")))
+          .type(DDSpanTypes.WEBSOCKET)
+          .error()
+        )
+    );
   }
 
   @Test
@@ -498,31 +505,33 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
     return span().root().operationName("handshake");
   }
 
-  private static SpanMatcher sendSpan(
-      Connection connection, boolean binary, long size, long frames) {
+  private static SpanMatcher sendSpan(Connection connection, boolean binary, long size, long frames) {
     return span()
-        .operationName(compile(quote("websocket.send")))
-        .resourceName(compile(quote("websocket /send")))
-        .type(DDSpanTypes.WEBSOCKET)
-        .error(false)
-        .links(
-            to(connection.handshake)
-                .traceFlags(
-                    connection.handshake.getSamplingPriority() > 0
-                        ? AgentSpanLink.SAMPLED_FLAG
-                        : AgentSpanLink.DEFAULT_FLAGS)
-                .attributes(SpanAttributes.builder().put("dd.kind", "resuming").build()))
-        .tags(
-            defaultTags(),
-            tag("component", matches("websocket")),
-            tag("span.kind", is("producer")),
-            tag(WEBSOCKET_MESSAGE_TYPE, matches(binary ? "binary" : "text")),
-            tag(WEBSOCKET_MESSAGE_LENGTH, is(size)),
-            tag(WEBSOCKET_MESSAGE_FRAMES, is(frames)));
+      .operationName(compile(quote("websocket.send")))
+      .resourceName(compile(quote("websocket /send")))
+      .type(DDSpanTypes.WEBSOCKET)
+      .error(false)
+      .links(to(connection.handshake)
+        .traceFlags(
+            connection.handshake.getSamplingPriority() > 0
+            ? AgentSpanLink.SAMPLED_FLAG
+            : AgentSpanLink.DEFAULT_FLAGS
+        )
+        .attributes(SpanAttributes.builder().put("dd.kind", "resuming").build())
+      )
+      .tags(
+          defaultTags(),
+          tag("component", matches("websocket")),
+          tag("span.kind", is("producer")),
+          tag(WEBSOCKET_MESSAGE_TYPE, matches(binary ? "binary" : "text")),
+          tag(WEBSOCKET_MESSAGE_LENGTH, is(size)),
+          tag(WEBSOCKET_MESSAGE_FRAMES, is(frames))
+      );
   }
 
   private static class RecordingCallback
-      extends org.eclipse.jetty.websocket.api.Callback.Completable {
+      extends org.eclipse.jetty.websocket.api.Callback.Completable
+  {
     AgentSpan span;
     Throwable failure;
 
@@ -559,21 +568,20 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
       this.behavior = behavior;
       ServerFrameHandlerFactory factory =
           new ServerFrameHandlerFactory(mock(WebSocketContainer.class), new WebSocketComponents());
-      handler = factory.newJettyFrameHandler(new Session.Listener.AutoDemanding() {});
+      handler = factory.newJettyFrameHandler(new Session.Listener.AutoDemanding() {
+      });
       UpgradeRequest request = mock(UpgradeRequest.class);
       when(request.getRequestURI()).thenReturn(URI.create("ws://inmemory/send"));
       handler.setUpgradeRequest(request);
       Callback.Completable opened = new Callback.Completable();
       if (traced) {
-        runUnderTrace(
-            "handshake",
-            () -> {
-              handshake = (DDSpan) activeSpan();
-              handshake.setResourceName("/send");
-              handshake.setTag(HTTP_URL, "ws://inmemory/send");
-              handler.onOpen(this, opened);
-              return null;
-            });
+        runUnderTrace("handshake", () -> {
+          handshake = (DDSpan) activeSpan();
+          handshake.setResourceName("/send");
+          handshake.setTag(HTTP_URL, "ws://inmemory/send");
+          handler.onOpen(this, opened);
+          return null;
+        });
       } else {
         handler.onOpen(this, opened);
       }
@@ -607,7 +615,8 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
         boolean partial,
         String text,
         boolean last,
-        org.eclipse.jetty.websocket.api.Callback callback) {
+        org.eclipse.jetty.websocket.api.Callback callback
+    ) {
       if (binary) {
         ByteBuffer payload = UTF_8.encode(text);
         if (partial) {
@@ -620,7 +629,8 @@ class NativeWebSocketSendTest extends AbstractInstrumentationTest {
         session.sendPartialText(
             text,
             last,
-            callback == null ? org.eclipse.jetty.websocket.api.Callback.NOOP : callback);
+            callback == null ? org.eclipse.jetty.websocket.api.Callback.NOOP : callback
+        );
       } else {
         session.sendText(text, callback);
       }

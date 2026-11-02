@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
-
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
@@ -26,13 +25,15 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 
 @AppliesOn(CONTEXT_TRACKING)
 public class ProducerContextPropagationAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onEnter(
       @Advice.FieldValue("metadata") Metadata metadata,
-      @Advice.Argument(value = 0, readOnly = false) ProducerRecord record) {
+      @Advice.Argument(value = 0, readOnly = false) ProducerRecord record
+  ) {
     AgentSpan span = activeSpan();
-    if (span == null) return;
+    if (span == null) {
+      return;
+    }
     MetadataState metadataState =
         InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
     String clusterId = metadataState != null ? metadataState.clusterId : null;
@@ -43,15 +44,14 @@ public class ProducerContextPropagationAdvice {
       setter = TextMapInjectAdapter.SETTER;
     }
     // With DSM off the DSM propagator injects nothing, so skip building its tags and context.
-    DataStreamsTags tags =
-        traceConfig().isDataStreamsEnabled()
-            ? create("kafka", OUTBOUND, record.topic(), null, clusterId)
-            : null;
+    DataStreamsTags tags = traceConfig().isDataStreamsEnabled()
+        ? create("kafka", OUTBOUND, record.topic(), null, clusterId)
+        : null;
     try {
       defaultPropagator().inject(span, record.headers(), setter);
       if (tags != null
           && (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
-              || STREAMING_CONTEXT.isSinkTopic(record.topic()))) {
+          || STREAMING_CONTEXT.isSinkTopic(record.topic()))) {
         // inject the context in the headers, but delay sending the stats until we know the
         // message size.
         // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
@@ -61,19 +61,19 @@ public class ProducerContextPropagationAdvice {
       }
     } catch (final IllegalStateException e) {
       // headers must be read-only from reused record. try again with new one.
-      record =
-          new ProducerRecord<>(
-              record.topic(),
-              record.partition(),
-              record.timestamp(),
-              record.key(),
-              record.value(),
-              record.headers());
+      record = new ProducerRecord<>(
+          record.topic(),
+          record.partition(),
+          record.timestamp(),
+          record.key(),
+          record.value(),
+          record.headers()
+      );
 
       defaultPropagator().inject(span, record.headers(), setter);
       if (tags != null
           && (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
-              || STREAMING_CONTEXT.isSinkTopic(record.topic()))) {
+          || STREAMING_CONTEXT.isSinkTopic(record.topic()))) {
         Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
         DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
         dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);

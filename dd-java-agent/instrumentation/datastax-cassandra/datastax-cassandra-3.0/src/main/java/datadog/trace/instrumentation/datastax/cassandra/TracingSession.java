@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDe
 import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.JAVA_CASSANDRA;
 import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.OPERATION_NAME;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_CASSANDRA_ASYNC_SESSION;
-
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.CloseFuture;
 import com.datastax.driver.core.Cluster;
@@ -51,7 +50,6 @@ public class TracingSession implements Session {
 
   private static final ExecutorService EXECUTOR_SERVICE =
       Executors.newCachedThreadPool(new AgentThreadFactory(TRACE_CASSANDRA_ASYNC_SESSION));
-
   private final Session session;
   private final String contactPoints;
 
@@ -73,7 +71,10 @@ public class TracingSession implements Session {
   @Override
   public ListenableFuture<Session> initAsync() {
     return Futures.transform(
-        session.initAsync(), new SessionTransfomer(contactPoints), directExecutor());
+        session.initAsync(),
+        new SessionTransfomer(contactPoints),
+        directExecutor()
+    );
   }
 
   @Override

@@ -6,7 +6,6 @@ import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import org.junit.jupiter.api.Test;
@@ -18,7 +17,6 @@ import org.junit.jupiter.params.provider.ValueSource;
  * it numerically never pays for a string it will not send.
  */
 class MetadataTest {
-
   @ParameterizedTest
   @ValueSource(ints = {200, 201, 404, 500, 599})
   void rendersTheStatusOnlyWhenAsked(int status) {
@@ -36,7 +34,8 @@ class MetadataTest {
     assertNull(
         metadata.getHttpStatusCodeString(),
         "an absent status must not render as \"0\": the string protocols write the key only when"
-            + " the span carries a status");
+        + " the span carries a status"
+    );
   }
 
   @Test
@@ -66,6 +65,7 @@ class MetadataTest {
         null,
         null,
         emptyList(),
-        emptyList());
+        emptyList()
+    );
   }
 }

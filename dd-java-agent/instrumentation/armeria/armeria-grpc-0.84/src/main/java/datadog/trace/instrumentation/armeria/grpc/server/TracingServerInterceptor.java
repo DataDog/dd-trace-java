@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecora
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.GRPC_MESSAGE;
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.GRPC_SERVER;
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.SERVER_PATHWAY_EDGE_TAGS;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
@@ -49,11 +48,11 @@ public class TracingServerInterceptor implements ServerInterceptor {
       key -> Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
   private static final DDCache<String, Metadata.Key<String>> KEY_CACHE =
       DDCaches.newFixedSizeCache(64);
-
   public static final TracingServerInterceptor INSTANCE = new TracingServerInterceptor();
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredInboundMethods();
 
-  private TracingServerInterceptor() {}
+  private TracingServerInterceptor() {
+  }
 
   protected static AgentTracer.TracerAPI tracer() {
     return AgentTracer.get();
@@ -63,7 +62,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
   public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
       final ServerCall<ReqT, RespT> call,
       final Metadata headers,
-      final ServerCallHandler<ReqT, RespT> next) {
+      final ServerCallHandler<ReqT, RespT> next
+  ) {
     if (IGNORED_METHODS.contains(call.getMethodDescriptor().getFullMethodName())) {
       return next.startCall(call, headers);
     }
@@ -76,9 +76,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
     final AgentSpan span =
         startSpan(DECORATE.instrumentationNames()[0], GRPC_SERVER, spanContext).setMeasured(true);
 
-    AgentTracer.get()
-        .getDataStreamsMonitoring()
-        .setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
+    AgentTracer
+      .get()
+      .getDataStreamsMonitoring()
+      .setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
 
     RequestContext reqContext = span.getRequestContext();
     if (reqContext != null) {
@@ -106,13 +107,13 @@ public class TracingServerInterceptor implements ServerInterceptor {
       }
       throw e;
     }
-
     // This ensures the server implementation can see the span in scope
     return new TracingServerCallListener<>(span, result);
   }
 
   static final class TracingServerCall<ReqT, RespT>
-      extends ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT> {
+      extends ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>
+  {
     final AgentSpan span;
 
     TracingServerCall(final AgentSpan span, final ServerCall<ReqT, RespT> delegate) {
@@ -139,7 +140,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
   }
 
   public static final class TracingServerCallListener<ReqT>
-      extends ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT> {
+      extends ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>
+  {
     private final AgentSpan span;
 
     TracingServerCallListener(final AgentSpan span, final ServerCall.Listener<ReqT> delegate) {
@@ -149,9 +151,12 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     @Override
     public void onMessage(final ReqT message) {
-      final AgentSpan msgSpan =
-          startSpan(DECORATE.instrumentationNames()[0], GRPC_MESSAGE, this.span.spanContext())
-              .setTag("message.type", message.getClass().getName());
+      final AgentSpan msgSpan = startSpan(
+          DECORATE.instrumentationNames()[0],
+          GRPC_MESSAGE,
+          this.span.spanContext()
+      )
+        .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(msgSpan);
       try (ContextScope scope = activateSpan(msgSpan)) {
         callIGCallbackGrpcMessage(msgSpan, message);
@@ -245,9 +250,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
   }
 
   // IG helpers follow
-
   private static AgentSpanContext callIGCallbackRequestStarted(
-      AgentTracer.TracerAPI cbp, AgentSpanContext context) {
+      AgentTracer.TracerAPI cbp,
+      AgentSpanContext context
+  ) {
     Supplier<Flow<Object>> startedCbAppSec =
         cbp.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
     Supplier<Flow<Object>> startedCbIast =
@@ -279,7 +285,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
   }
 
   private static <ReqT, RespT> void callIGCallbackClientAddress(
-      CallbackProvider cbp, RequestContext ctx, ServerCall<ReqT, RespT> call) {
+      CallbackProvider cbp,
+      RequestContext ctx,
+      ServerCall<ReqT, RespT> call
+  ) {
     SocketAddress socketAddress = call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
     TriFunction<RequestContext, String, Integer, Flow<Void>> cb =
         cbp.getCallback(EVENTS.requestClientSocketAddress());
@@ -292,7 +301,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
   }
 
   private static void callIGCallbackHeaders(
-      CallbackProvider cbp, RequestContext reqCtx, Metadata metadata) {
+      CallbackProvider cbp,
+      RequestContext reqCtx,
+      Metadata metadata
+  ) {
     TriConsumer<RequestContext, String, String> headerCb = cbp.getCallback(EVENTS.requestHeader());
     Function<RequestContext, Flow<Void>> headerEndCb = cbp.getCallback(EVENTS.requestHeaderDone());
     if (headerCb == null || headerEndCb == null) {
@@ -326,7 +338,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
   }
 
   private static <ReqT, RespT> void callIGCallbackGrpcServerMethod(
-      CallbackProvider cbp, RequestContext ctx, MethodDescriptor<ReqT, RespT> methodDescriptor) {
+      CallbackProvider cbp,
+      RequestContext ctx,
+      MethodDescriptor<ReqT, RespT> methodDescriptor
+  ) {
     String method = methodDescriptor.getFullMethodName();
     BiFunction<RequestContext, String, Flow<Void>> cb = cbp.getCallback(EVENTS.grpcServerMethod());
     if (method == null || cb == null) {

@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.DECORATE;
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.JAKARTA_RS_CONTROLLER;
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.JAKARTA_RS_REQUEST_ABORT;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -29,14 +28,10 @@ import net.bytebuddy.asm.Advice;
 public class DefaultRequestContextInstrumentation extends AbstractRequestContextInstrumentation {
   public static class ContainerRequestContextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope createGenericSpan(
-        @Advice.This final ContainerRequestContext context) {
-
+    public static ContextScope createGenericSpan(@Advice.This final ContainerRequestContext context) {
       if (context.getProperty(JakartaRsAnnotationsDecorator.ABORT_HANDLED) == null) {
         final AgentSpan parent = activeSpan();
-        final AgentSpan span =
-            startSpan(JAKARTA_RS_CONTROLLER.toString(), JAKARTA_RS_REQUEST_ABORT);
-
+        final AgentSpan span = startSpan(JAKARTA_RS_CONTROLLER.toString(), JAKARTA_RS_REQUEST_ABORT);
         // Save spans so a more specific instrumentation can run later
         context.setProperty(JakartaRsAnnotationsDecorator.ABORT_PARENT, parent);
         context.setProperty(JakartaRsAnnotationsDecorator.ABORT_SPAN, span);
@@ -64,7 +59,9 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

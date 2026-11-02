@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.java.lang.jdk22;
 
 import static datadog.trace.bootstrap.instrumentation.ffm.FFMNativeMethodDecorator.wrap;
 import static datadog.trace.bootstrap.instrumentation.ffm.NativeLibraryHelper.reverseResolveLibraryAndSymbol;
-
 import datadog.trace.api.Pair;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
@@ -12,7 +11,8 @@ public class DownCallWrapAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onExit(
       @Advice.Argument(0) final MemorySegment memorySegment,
-      @Advice.Return(readOnly = false) MethodHandle handle) {
+      @Advice.Return(readOnly = false) MethodHandle handle
+  ) {
     if (memorySegment == null) {
       return;
     }

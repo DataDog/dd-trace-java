@@ -2,7 +2,6 @@ package com.datadog.openfeature;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationUnavailableException;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
@@ -31,12 +30,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The Datadog OpenFeature provider. */
+/**
+ * The Datadog OpenFeature provider.
+ */
 public class Provider extends EventProvider implements Metadata {
-
   private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
-
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
@@ -53,7 +52,9 @@ public class Provider extends EventProvider implements Metadata {
   // once so gate-off evaluation allocates nothing on this hot path.
   private final List<Hook> providerHooks;
 
-  /** Creates a provider waiting up to 30 seconds for the initial flag configuration. */
+  /**
+   * Creates a provider waiting up to 30 seconds for the initial flag configuration.
+   */
   public Provider() {
     this(DEFAULT_OPTIONS, null);
   }
@@ -78,15 +79,15 @@ public class Provider extends EventProvider implements Metadata {
   Provider(
       final Options options,
       final Evaluator evaluator,
-      final Boolean spanEnrichmentEnabledOverride) {
+      final Boolean spanEnrichmentEnabledOverride
+  ) {
     this.options = options;
     this.evaluator = evaluator;
     this.bridge = AgentBridges.detect();
     this.settings = Settings.load(this.bridge);
-    this.experimentationOptOutMode =
-        this.settings.isEnabled()
-            ? ExperimentationOptOut.resolve(options.experimentationOptOutMode, this.settings)
-            : ExperimentationOptOutMode.DISABLED;
+    this.experimentationOptOutMode = this.settings.isEnabled()
+        ? ExperimentationOptOut.resolve(options.experimentationOptOutMode, this.settings)
+        : ExperimentationOptOutMode.DISABLED;
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
     try {
@@ -98,16 +99,14 @@ public class Provider extends EventProvider implements Metadata {
     }
     this.flagEvalMetrics = metrics;
     this.flagEvalMetricsHook = hook;
-
     // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
     // per-evaluation overhead.
-    final boolean spanEnrichmentEnabled =
-        spanEnrichmentEnabledOverride != null
-            ? spanEnrichmentEnabledOverride
-            : this.settings.isSpanEnrichmentEnabled();
-    this.spanEnrichmentHook =
-        spanEnrichmentEnabled ? new SpanEnrichmentHook(this.bridge.spanEnricher()) : null;
-
+    final boolean spanEnrichmentEnabled = spanEnrichmentEnabledOverride != null
+        ? spanEnrichmentEnabledOverride
+        : this.settings.isSpanEnrichmentEnabled();
+    this.spanEnrichmentHook = spanEnrichmentEnabled
+        ? new SpanEnrichmentHook(this.bridge.spanEnricher())
+        : null;
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
     final List<Hook> hooks = new ArrayList<>(5);
@@ -134,18 +133,19 @@ public class Provider extends EventProvider implements Metadata {
         // DD_TRACE_DEBUG cannot raise the application's logger levels, so name the second gate.
         log.warn(
             "DD_TRACE_DEBUG is enabled, but DEBUG is disabled for {} in the application's logging"
-                + " configuration; evaluation debug diagnostics are off. Enable DEBUG for that"
-                + " category before constructing the Provider.",
-            DebugLoggingHook.class.getName());
+            + " configuration; evaluation debug diagnostics are off. Enable DEBUG for that"
+            + " category before constructing the Provider.",
+            DebugLoggingHook.class.getName()
+        );
       }
     }
     // Exposure hook: always registered last, and independent of evaluation telemetry opt-out; no-op
     // when the evaluator is not a Datadog one or is
     // not initialized.
     hooks.add(new ExposureLoggingHook<>(this::datadogEvaluator));
-    this.providerHooks =
-        hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
-
+    this.providerHooks = hooks.isEmpty()
+        ? Collections.emptyList()
+        : Collections.unmodifiableList(hooks);
     // Announce the span-enrichment state at startup (matches the reference implementation).
     // "enabled" only when the gate is on (the capture hook was constructed), otherwise "disabled".
     if (spanEnrichmentHook != null) {
@@ -156,7 +156,8 @@ public class Provider extends EventProvider implements Metadata {
     log.info(
         "{} experimentation opt-out mode: {}",
         METADATA,
-        this.experimentationOptOutMode.name().toLowerCase(Locale.ROOT));
+        this.experimentationOptOutMode.name().toLowerCase(Locale.ROOT)
+    );
   }
 
   @Override
@@ -165,7 +166,8 @@ public class Provider extends EventProvider implements Metadata {
     debug(
         "Feature Flagging provider initializing: timeout={} {}",
         options.getTimeout(),
-        options.getUnit());
+        options.getUnit()
+    );
     try {
       evaluator = buildEvaluator();
       if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
@@ -176,13 +178,15 @@ public class Provider extends EventProvider implements Metadata {
         markInitializationError();
         debug("Feature Flagging provider initialization timed out waiting for configuration");
         throw new ProviderNotReadyError(
-            "Provider timed-out while waiting for initial configuration");
+            "Provider timed-out while waiting for initial configuration"
+        );
       }
       if (!evaluator.hasConfiguration() || !markSuccessfulInitializationReady()) {
         markInitializationError();
         debug("Feature Flagging provider initialization timed out waiting for configuration");
         throw new ProviderNotReadyError(
-            "Provider timed-out while waiting for initial configuration");
+            "Provider timed-out while waiting for initial configuration"
+        );
       }
       debug("Feature Flagging provider ready");
     } catch (final RemoteConfigurationUnavailableException e) {
@@ -201,7 +205,9 @@ public class Provider extends EventProvider implements Metadata {
       // Only the type: the message of a configuration error can echo a URL with credentials.
       debug("Feature Flagging provider initialization failed: {}", e.getClass().getName());
       throw new FatalError(
-          "Failed to initialize Datadog Feature Flags provider: " + e.getMessage(), e);
+          "Failed to initialize Datadog Feature Flags provider: " + e.getMessage(),
+          e
+      );
     }
   }
 
@@ -226,19 +232,21 @@ public class Provider extends EventProvider implements Metadata {
     final InitializationState state = initializationState.get();
     if (state == InitializationState.INITIALIZING) {
       initializationState.compareAndSet(
-          InitializationState.INITIALIZING, InitializationState.INITIAL_CONFIG_RECEIVED);
+          InitializationState.INITIALIZING,
+          InitializationState.INITIAL_CONFIG_RECEIVED
+      );
       return;
     }
     if (state == InitializationState.INITIAL_CONFIG_RECEIVED) {
       return;
     }
     if (state == InitializationState.ERROR
-        && initializationState.compareAndSet(
-            InitializationState.ERROR, InitializationState.READY)) {
+        && initializationState.compareAndSet(InitializationState.ERROR, InitializationState.READY)) {
       debug("Feature Flagging provider recovered: configuration received after an error");
       emit(
           ProviderEvent.PROVIDER_READY,
-          ProviderEventDetails.builder().message("Provider ready").build());
+          ProviderEventDetails.builder().message("Provider ready").build()
+      );
       return;
     }
     if (initializationState.get() != InitializationState.READY) {
@@ -247,12 +255,15 @@ public class Provider extends EventProvider implements Metadata {
     debug("Feature Flagging provider configuration changed");
     emit(
         ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
-        ProviderEventDetails.builder().message("New configuration received").build());
+        ProviderEventDetails.builder().message("New configuration received").build()
+    );
   }
 
   private void onConfigurationUnavailable() {
     if (initializationState.compareAndSet(
-        InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.ERROR)) {
+        InitializationState.INITIAL_CONFIG_RECEIVED,
+        InitializationState.ERROR
+    )) {
       return;
     }
     if (!initializationState.compareAndSet(InitializationState.READY, InitializationState.ERROR)) {
@@ -261,22 +272,28 @@ public class Provider extends EventProvider implements Metadata {
     debug("Feature Flagging provider configuration unavailable; evaluations return defaults");
     emit(
         ProviderEvent.PROVIDER_ERROR,
-        ProviderEventDetails.builder()
-            .message("Configuration unavailable")
-            .errorCode(ErrorCode.PROVIDER_NOT_READY)
-            .build());
+        ProviderEventDetails
+          .builder()
+          .message("Configuration unavailable")
+          .errorCode(ErrorCode.PROVIDER_NOT_READY)
+          .build()
+    );
   }
 
   private boolean markInitialConfigReceivedReady() {
     return initializationState.get() == InitializationState.READY
         || initializationState.compareAndSet(
-            InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.READY);
+            InitializationState.INITIAL_CONFIG_RECEIVED,
+            InitializationState.READY
+        );
   }
 
   private boolean markSuccessfulInitializationReady() {
     return markInitialConfigReceivedReady()
         || initializationState.compareAndSet(
-            InitializationState.INITIALIZING, InitializationState.READY);
+            InitializationState.INITIALIZING,
+            InitializationState.READY
+        );
   }
 
   private void markInitializationError() {
@@ -294,7 +311,11 @@ public class Provider extends EventProvider implements Metadata {
       return evaluator;
     }
     return new DDEvaluator(
-        this::onConfigurationChange, this.bridge, this.settings, this.experimentationOptOutMode);
+        this::onConfigurationChange,
+        this.bridge,
+        this.settings,
+        this.experimentationOptOutMode
+    );
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {
@@ -346,31 +367,46 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public ProviderEvaluation<Boolean> getBooleanEvaluation(
-      final String key, final Boolean defaultValue, final EvaluationContext ctx) {
+      final String key,
+      final Boolean defaultValue,
+      final EvaluationContext ctx
+  ) {
     return evaluator.evaluate(Boolean.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<String> getStringEvaluation(
-      final String key, final String defaultValue, final EvaluationContext ctx) {
+      final String key,
+      final String defaultValue,
+      final EvaluationContext ctx
+  ) {
     return evaluator.evaluate(String.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<Integer> getIntegerEvaluation(
-      final String key, final Integer defaultValue, final EvaluationContext ctx) {
+      final String key,
+      final Integer defaultValue,
+      final EvaluationContext ctx
+  ) {
     return evaluator.evaluate(Integer.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<Double> getDoubleEvaluation(
-      final String key, final Double defaultValue, final EvaluationContext ctx) {
+      final String key,
+      final Double defaultValue,
+      final EvaluationContext ctx
+  ) {
     return evaluator.evaluate(Double.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<Value> getObjectEvaluation(
-      final String key, final Value defaultValue, final EvaluationContext ctx) {
+      final String key,
+      final Value defaultValue,
+      final EvaluationContext ctx
+  ) {
     return evaluator.evaluate(Value.class, key, defaultValue, ctx);
   }
 
@@ -383,9 +419,10 @@ public class Provider extends EventProvider implements Metadata {
     FALLBACK
   }
 
-  /** The provider options. */
+  /**
+   * The provider options.
+   */
   public static class Options {
-
     private long timeout = 30;
     private TimeUnit unit = SECONDS;
     private Boolean evaluationTelemetryOptOutParameterEnabled;

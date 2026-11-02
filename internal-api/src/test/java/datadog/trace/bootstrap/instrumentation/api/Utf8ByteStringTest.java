@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import java.nio.ByteBuffer;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -15,7 +14,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 class Utf8ByteStringTest {
-
   @TableTest({
     "scenario        | str          ",
     "null            |              ",
@@ -66,8 +64,22 @@ class Utf8ByteStringTest {
         arguments(
             "alongerstring",
             new byte[] {
-              0x61, 0x6c, 0x6f, 0x6e, 0x67, 0x65, 0x72, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67
-            }));
+            0x61,
+            0x6c,
+            0x6f,
+            0x6e,
+            0x67,
+            0x65,
+            0x72,
+            0x73,
+            0x74,
+            0x72,
+            0x69,
+            0x6e,
+            0x67
+            }
+        )
+    );
   }
 
   @ParameterizedTest(name = "[{index}] {0}")
@@ -86,7 +98,8 @@ class Utf8ByteStringTest {
     }
     assertEquals(
         chars.subSequence(1, chars.length()).toString(),
-        utf8String.subSequence(1, chars.length()).toString());
+        utf8String.subSequence(1, chars.length()).toString()
+    );
   }
 
   static Stream<Arguments> behaveLikeAProperCharSequenceArguments() {
@@ -95,7 +108,8 @@ class Utf8ByteStringTest {
         arguments("String", "foo"),
         arguments("StringBuffer", new StringBuffer("bar")),
         arguments("long StringBuffer", new StringBuffer("someotherlongstring")),
-        arguments("UTF8BytesString", UTF8BytesString.create("utf8string")));
+        arguments("UTF8BytesString", UTF8BytesString.create("utf8string"))
+    );
   }
 
   private static void assertWrapped(String str, byte[] bytes, UTF8BytesString utf8String) {

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
@@ -15,7 +14,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import org.junit.jupiter.api.Test;
 
 class DurableOrchestrationStateTest {
-
   @Test
   void activatesRemoteParentAndRestoresPreviousContext() {
     AgentSpanContext spanContext = mock(AgentSpanContext.class);

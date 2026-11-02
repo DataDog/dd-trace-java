@@ -5,7 +5,6 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.RemoteResponseListener;
@@ -19,7 +18,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.tabletest.junit.TableTest;
 
 class ParentBasedAlwaysOnSamplerTest {
-
   private final ListWriter writer = new ListWriter();
   private CoreTracer tracer;
 
@@ -92,11 +90,19 @@ class ParentBasedAlwaysOnSamplerTest {
     ParentBasedAlwaysOnSampler sampler = new ParentBasedAlwaysOnSampler();
     CoreTracer tracer = buildTracer(sampler);
 
-    ExtractedContext extractedContext =
-        new ExtractedContext(
-            DDTraceId.ONE, 2, parentPriority, null, PropagationTags.factory().empty(), DATADOG);
+    ExtractedContext extractedContext = new ExtractedContext(
+        DDTraceId.ONE,
+        2,
+        parentPriority,
+        null,
+        PropagationTags.factory().empty(),
+        DATADOG
+    );
 
-    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(extractedContext).start();
+    DDSpan span = (DDSpan) tracer
+      .buildSpan("datadog", "child")
+      .asChildOf(extractedContext)
+      .start();
     try {
       assertEquals(parentPriority, span.getSamplingPriority());
     } finally {

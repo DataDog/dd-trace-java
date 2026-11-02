@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.ibm.wsspi.bytebuffer.WsByteBuffer;
 import datadog.trace.instrumentation.liberty.appsec.LibertyBlockingHelper.WsByteBufferImpl;
 import java.nio.ByteBuffer;
@@ -16,7 +15,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class WsByteBufferImplTest {
-
   private static final byte[] DATA = {1, 2, 3, 4, 5, 6, 7, 8};
 
   private static WsByteBufferImpl newBuffer() {
@@ -133,11 +131,14 @@ class WsByteBufferImplTest {
         arg("putShort(int,short)", b -> b.putShort(0, (short) 1)),
         arg("putString(String)", b -> b.putString("a")),
         arg("clear()", WsByteBuffer::clear),
-        arg("duplicate()", WsByteBuffer::duplicate));
+        arg("duplicate()", WsByteBuffer::duplicate)
+    );
   }
 
   private static org.junit.jupiter.params.provider.Arguments arg(
-      String name, java.util.function.Consumer<WsByteBuffer> action) {
+      String name,
+      java.util.function.Consumer<WsByteBuffer> action
+  ) {
     return org.junit.jupiter.params.provider.Arguments.of(name, action);
   }
 

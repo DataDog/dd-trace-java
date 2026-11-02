@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTR
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.StreamingBuffer;
@@ -25,25 +24,22 @@ import java.util.List;
  * <p>Embedded message sizes are precomputed to avoid the need for temporary buffers.
  */
 public final class OtlpCommonProto {
-  private OtlpCommonProto() {}
+  private OtlpCommonProto() {
+  }
 
   // wire types supported in protobuf v3
   public static final int VARINT_WIRE_TYPE = 0;
   public static final int I64_WIRE_TYPE = 1;
   public static final int LEN_WIRE_TYPE = 2;
   public static final int I32_WIRE_TYPE = 5;
-
   // use same cache approach for attribute keys as TraceMapperV0_4
-  private static final SimpleUtf8Cache KEY_CACHE =
-      Config.get().getTagNameUtf8CacheSize() > 0
-          ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
-          : null;
-
+  private static final SimpleUtf8Cache KEY_CACHE = Config.get().getTagNameUtf8CacheSize() > 0
+      ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
+      : null;
   // use same cache approach for attribute values as TraceMapperV0_4
-  private static final GenerationalUtf8Cache VALUE_CACHE =
-      Config.get().getTagValueUtf8CacheSize() > 0
-          ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
-          : null;
+  private static final GenerationalUtf8Cache VALUE_CACHE = Config.get().getTagValueUtf8CacheSize() > 0
+      ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
+      : null;
 
   public static void recalibrateCaches() {
     if (VALUE_CACHE != null) {
@@ -84,7 +80,8 @@ public final class OtlpCommonProto {
   }
 
   public static void writeI32(StreamingBuffer buf, int value) {
-    buf.putInt(Integer.reverseBytes(value)); // convert to little-endian
+    // convert to little-endian
+    buf.putInt(Integer.reverseBytes(value));
   }
 
   public static void writeI32(StreamingBuffer buf, float value) {
@@ -92,7 +89,8 @@ public final class OtlpCommonProto {
   }
 
   public static void writeI64(StreamingBuffer buf, long value) {
-    buf.putLong(Long.reverseBytes(value)); // convert to little-endian
+    // convert to little-endian
+    buf.putLong(Long.reverseBytes(value));
   }
 
   public static void writeI64(StreamingBuffer buf, double value) {
@@ -124,8 +122,7 @@ public final class OtlpCommonProto {
     writeVarInt(buf, fieldNum << 3 | wireType);
   }
 
-  public static void writeInstrumentationScope(
-      StreamingBuffer buf, OtelInstrumentationScope scope) {
+  public static void writeInstrumentationScope(StreamingBuffer buf, OtelInstrumentationScope scope) {
     byte[] nameUtf8 = scope.getName().getUtf8Bytes();
     int scopeSize = 1 + sizeVarInt(nameUtf8.length) + nameUtf8.length;
     byte[] versionUtf8 = null;
@@ -180,8 +177,7 @@ public final class OtlpCommonProto {
     }
   }
 
-  public static void writeAttribute(
-      StreamingBuffer buf, UTF8BytesString key, UTF8BytesString value) {
+  public static void writeAttribute(StreamingBuffer buf, UTF8BytesString key, UTF8BytesString value) {
     writeStringAttribute(buf, key.getUtf8Bytes(), value.getUtf8Bytes());
   }
 
@@ -255,7 +251,10 @@ public final class OtlpCommonProto {
   }
 
   private static void writeStringArrayAttribute(
-      StreamingBuffer buf, byte[] keyUtf8, List<String> strings) {
+      StreamingBuffer buf,
+      byte[] keyUtf8,
+      List<String> strings
+  ) {
     byte[][] valueUtf8s = new byte[strings.size()][];
     for (int i = 0; i < valueUtf8s.length; i++) {
       valueUtf8s[i] = valueUtf8(strings.get(i));
@@ -287,7 +286,10 @@ public final class OtlpCommonProto {
   }
 
   private static void writeBooleanArrayAttribute(
-      StreamingBuffer buf, byte[] keyUtf8, List<Boolean> values) {
+      StreamingBuffer buf,
+      byte[] keyUtf8,
+      List<Boolean> values
+  ) {
     int arraySize = 4 * values.size();
     int valueSize = 1 + sizeVarInt(arraySize) + arraySize;
     int keyValueSize =
@@ -309,10 +311,14 @@ public final class OtlpCommonProto {
   }
 
   private static void writeLongArrayAttribute(
-      StreamingBuffer buf, byte[] keyUtf8, List<? extends Number> values) {
+      StreamingBuffer buf,
+      byte[] keyUtf8,
+      List<? extends Number> values
+  ) {
     long[] longValues = new long[values.size()];
     for (int i = 0; i < longValues.length; i++) {
-      longValues[i] = values.get(i).longValue(); // avoid repeated unboxing later
+      // avoid repeated unboxing later
+      longValues[i] = values.get(i).longValue();
     }
     int arraySize = 0;
     for (long longValue : longValues) {
@@ -340,7 +346,10 @@ public final class OtlpCommonProto {
   }
 
   private static void writeDoubleArrayAttribute(
-      StreamingBuffer buf, byte[] keyUtf8, List<? extends Number> values) {
+      StreamingBuffer buf,
+      byte[] keyUtf8,
+      List<? extends Number> values
+  ) {
     int arraySize = 11 * values.size();
     int valueSize = 1 + sizeVarInt(arraySize) + arraySize;
     int keyValueSize =

@@ -12,9 +12,9 @@ public class HandlerStreaming implements RequestStreamHandler {
   @Override
   public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
       throws IOException {
-    PrintWriter writer =
-        new PrintWriter(
-            new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8)));
+    PrintWriter writer = new PrintWriter(
+        new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8))
+    );
     writer.write("Hello World!");
     writer.close();
   }

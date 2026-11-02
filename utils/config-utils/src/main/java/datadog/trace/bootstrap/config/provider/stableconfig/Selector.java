@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.config.provider.stableconfig;
 
 import static datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException.throwStableConfigMappingException;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +26,8 @@ public final class Selector {
     if (!(originObj instanceof String)) {
       throwStableConfigMappingException(
           "'origin' must be a string, but got: " + originObj.getClass().getSimpleName() + ": ",
-          originObj);
+          originObj
+      );
     }
     String origin = (String) originObj;
 
@@ -38,7 +38,8 @@ public final class Selector {
     if (matchesObj != null && !(matchesObj instanceof List)) {
       throwStableConfigMappingException(
           "'matches' must be a list, but got: " + matchesObj.getClass().getSimpleName() + ": ",
-          matchesObj);
+          matchesObj
+      );
     }
     List<String> rawMatches = (List<String>) matchesObj;
     List<String> matches =
@@ -51,7 +52,8 @@ public final class Selector {
     if (!(operatorObj instanceof String)) {
       throwStableConfigMappingException(
           "'operator' must be a string, but got: " + operatorObj.getClass().getSimpleName() + ": ",
-          operatorObj);
+          operatorObj
+      );
     }
     String operator = (String) operatorObj;
 

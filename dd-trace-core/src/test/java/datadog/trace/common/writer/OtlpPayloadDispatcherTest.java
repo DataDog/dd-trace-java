@@ -11,7 +11,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.core.CoreSpan;
@@ -33,8 +32,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class OtlpPayloadDispatcherTest {
-  @Mock OtlpSender sender;
-
+  @Mock
+  OtlpSender sender;
   TestCollector collector = new TestCollector();
 
   @BeforeEach
@@ -52,7 +51,6 @@ class OtlpPayloadDispatcherTest {
     dispatcher.addTrace(trace);
     assertEquals(collector.spansToExport, trace);
     dispatcher.flush();
-
     // expect two spans to be exported
     ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
     verify(sender).send(captor.capture());
@@ -91,7 +89,6 @@ class OtlpPayloadDispatcherTest {
     dispatcher.addTrace(Arrays.asList(drop1, keep, drop2));
     assertEquals(collector.spansToExport, singletonList(keep));
     dispatcher.flush();
-
     // expect only one span to be exported
     ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
     verify(sender).send(captor.capture());
@@ -114,7 +111,6 @@ class OtlpPayloadDispatcherTest {
     collector.fakeSizeInBytes = Integer.MAX_VALUE;
 
     dispatcher.addTrace(singletonList(sampledSpan()));
-
     // no explicit dispatcher.flush() call
     ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
     verify(sender).send(captor.capture());
@@ -124,7 +120,8 @@ class OtlpPayloadDispatcherTest {
   @Test
   void belowFlushThresholdDoesNotTriggerProactiveFlush() {
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-    collector.fakeSizeInBytes = (5 << 20) - 1; // one byte under FLUSH_THRESHOLD_BYTES
+    // one byte under FLUSH_THRESHOLD_BYTES
+    collector.fakeSizeInBytes = (5 << 20) - 1;
 
     dispatcher.addTrace(singletonList(sampledSpan()));
 
@@ -134,7 +131,8 @@ class OtlpPayloadDispatcherTest {
   @Test
   void atFlushThresholdTriggersProactiveFlush() {
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-    collector.fakeSizeInBytes = 5 << 20; // exactly FLUSH_THRESHOLD_BYTES
+    // exactly FLUSH_THRESHOLD_BYTES
+    collector.fakeSizeInBytes = 5 << 20;
 
     dispatcher.addTrace(singletonList(sampledSpan()));
 
@@ -253,13 +251,13 @@ class OtlpPayloadDispatcherTest {
     return span;
   }
 
-  /** Test collector that creates payloads whose size equals the number of exported spans. */
+  /**
+   * Test collector that creates payloads whose size equals the number of exported spans.
+   */
   private static class TestCollector extends OtlpTraceCollector {
     final List<CoreSpan<?>> spansToExport = new ArrayList<>();
-
     // lets tests drive the proactive-flush threshold independently of spansToExport
     int fakeSizeInBytes;
-
     // lets tests simulate a collectTraces() failure, e.g. a buffer overflow on the held-back span
     boolean throwOnCollect;
 

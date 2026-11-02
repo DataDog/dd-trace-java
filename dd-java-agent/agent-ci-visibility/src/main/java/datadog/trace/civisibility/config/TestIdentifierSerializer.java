@@ -5,7 +5,6 @@ import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 
 public abstract class TestIdentifierSerializer {
-
   public static void serialize(Serializer serializer, TestIdentifier testIdentifier) {
     TestFQNSerializer.serialize(serializer, testIdentifier.toFQN());
     serializer.write(testIdentifier.getParameters());

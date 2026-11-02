@@ -5,7 +5,6 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
 import static java.util.stream.Collectors.toList;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -37,7 +36,8 @@ public final class Rule {
     if (!(selectorsObj instanceof List)) {
       throwStableConfigMappingException(
           "'selectors' must be a list, but got: " + selectorsObj.getClass().getSimpleName() + ": ",
-          selectorsObj);
+          selectorsObj
+      );
     }
 
     Object configObj = map.get("configuration");
@@ -47,26 +47,25 @@ public final class Rule {
     if (!(configObj instanceof Map)) {
       throwStableConfigMappingException(
           "'configuration' must be a map, but got: " + configObj.getClass().getSimpleName() + ": ",
-          configObj);
+          configObj
+      );
     }
 
     List<Selector> selectors =
         ((List<?>) selectorsObj)
-            .stream()
-                .filter(Objects::nonNull)
-                .map(
-                    s -> {
-                      if (!(s instanceof Map)) {
-                        throwStableConfigMappingException(
-                            "Each selector must be a map, but got: "
-                                + s.getClass().getSimpleName()
-                                + ": ",
-                            s);
-                      }
+      .stream()
+      .filter(Objects::nonNull)
+      .map(s -> {
+        if (!(s instanceof Map)) {
+          throwStableConfigMappingException(
+              "Each selector must be a map, but got: " + s.getClass().getSimpleName() + ": ",
+              s
+          );
+        }
 
-                      return Selector.from((Map<?, ?>) s);
-                    })
-                .collect(toList());
+        return Selector.from((Map<?, ?>) s);
+      })
+      .collect(toList());
 
     return new Rule(unmodifiableList(selectors), (Map<String, Object>) configObj);
   }

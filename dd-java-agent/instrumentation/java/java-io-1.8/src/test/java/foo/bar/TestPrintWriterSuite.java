@@ -4,7 +4,6 @@ import java.io.PrintWriter;
 import java.util.Locale;
 
 public class TestPrintWriterSuite {
-
   PrintWriter pw;
 
   public TestPrintWriterSuite(final PrintWriter pw) {

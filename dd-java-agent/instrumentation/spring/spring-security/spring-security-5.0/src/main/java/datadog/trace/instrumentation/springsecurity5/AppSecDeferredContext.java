@@ -6,9 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContext;
 
 public class AppSecDeferredContext implements Supplier<SecurityContext> {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(AppSecDeferredContext.class);
-
   private final Supplier<SecurityContext> delegate;
 
   public AppSecDeferredContext(final Supplier<SecurityContext> delegate) {

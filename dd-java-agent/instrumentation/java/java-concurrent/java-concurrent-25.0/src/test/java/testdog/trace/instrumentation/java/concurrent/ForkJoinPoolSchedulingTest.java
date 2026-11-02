@@ -17,7 +17,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.scopediag.ContinuationRecord;
@@ -43,7 +42,6 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
     COMPLETE,
     QUIETLY_COMPLETE,
     COMPLETE_EXCEPTIONALLY;
-
     void complete(ForkJoinTask<?> task) {
       switch (this) {
         case COMPLETE:
@@ -89,24 +87,19 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
         AgentSpan parent = startSpan("test", "parent");
         ForkJoinTask<?> task;
         try (ContextScope ignored = current().with(parent).attach()) {
-          task =
-              (ForkJoinTask<?>)
-                  pool.schedule(
-                      () -> {
-                        started.countDown();
-                        try {
-                          if (release.await(10, SECONDS)) {
-                            observed.set(AgentSpan.current());
-                            startSpan("test", "child").finish();
-                          }
-                        } catch (InterruptedException e) {
-                          Thread.currentThread().interrupt();
-                        } finally {
-                          finished.countDown();
-                        }
-                      },
-                      0,
-                      MILLISECONDS);
+          task = (ForkJoinTask<?>) pool.schedule(() -> {
+            started.countDown();
+            try {
+              if (release.await(10, SECONDS)) {
+                observed.set(AgentSpan.current());
+                startSpan("test", "child").finish();
+              }
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } finally {
+              finished.countDown();
+            }
+          }, 0, MILLISECONDS);
         } finally {
           parent.finish();
         }
@@ -119,7 +112,9 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
             trace(
                 SORT_BY_START_TIME,
                 span().root().operationName("parent"),
-                span().childOfPrevious().operationName("child")));
+                span().childOfPrevious().operationName("child")
+            )
+        );
       } finally {
         release.countDown();
         pool.shutdownNow();
@@ -133,15 +128,14 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
     try (ForkJoinPool pool = new ForkJoinPool(1)) {
       try {
         CountDownLatch started = new CountDownLatch(1);
-        pool.execute(
-            () -> {
-              started.countDown();
-              try {
-                assertTrue(release.await(10, SECONDS));
-              } catch (InterruptedException e) {
-                throw new AssertionError(e);
-              }
-            });
+        pool.execute(() -> {
+          started.countDown();
+          try {
+            assertTrue(release.await(10, SECONDS));
+          } catch (InterruptedException e) {
+            throw new AssertionError(e);
+          }
+        });
         assertTrue(started.await(10, SECONDS));
         AgentSpan parent = startSpan("test", "parent");
         ApplicationTask task = new ApplicationTask();
@@ -164,7 +158,9 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
   public static final class ApplicationTask extends ForkJoinTask<Object> {
     private Object result;
 
-    /** Shares the name of a package-private JDK method without overriding it. */
+    /**
+     * Shares the name of a package-private JDK method without overriding it.
+     */
     public int trySetCancelled() {
       return APP_VALUE;
     }
@@ -194,19 +190,15 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
       Object expectedParent = parent;
       ScheduledFuture<?> future;
       try (ContextScope ignored = current().with(parent).attach()) {
-        future =
-            pool.schedule(
-                () -> {
-                  try {
-                    assertTrue(release.await(10, SECONDS));
-                  } catch (InterruptedException e) {
-                    throw new AssertionError(e);
-                  }
-                  assertSame(expectedParent, AgentSpan.current());
-                  startSpan("test", "child").finish();
-                },
-                1,
-                MILLISECONDS);
+        future = pool.schedule(() -> {
+          try {
+            assertTrue(release.await(10, SECONDS));
+          } catch (InterruptedException e) {
+            throw new AssertionError(e);
+          }
+          assertSame(expectedParent, AgentSpan.current());
+          startSpan("test", "child").finish();
+        }, 1, MILLISECONDS);
       } finally {
         parent.finish();
         release.countDown();
@@ -216,8 +208,12 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
           trace(
               SORT_BY_START_TIME,
               span().root().operationName("parent"),
-              span().childOfPrevious().operationName("child")));
-      pool.submit(() -> assertNull(AgentSpan.current())).get(10, SECONDS);
+              span().childOfPrevious().operationName("child")
+          )
+      );
+      pool
+        .submit(() -> assertNull(AgentSpan.current()))
+        .get(10, SECONDS);
     }
   }
 
@@ -227,16 +223,10 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
       AgentSpan parent = startSpan("test", "parent");
       Object expectedParent = parent;
       try (ContextScope ignored = current().with(parent).attach()) {
-        assertEquals(
-            42,
-            pool.schedule(
-                    () -> {
-                      assertSame(expectedParent, AgentSpan.current());
-                      return 42;
-                    },
-                    0,
-                    MILLISECONDS)
-                .get(10, SECONDS));
+        assertEquals(42, pool.schedule(() -> {
+          assertSame(expectedParent, AgentSpan.current());
+          return 42;
+        }, 0, MILLISECONDS).get(10, SECONDS));
       } finally {
         parent.finish();
       }
@@ -251,14 +241,10 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
       Object expectedParent = parent;
       IllegalStateException failure = new IllegalStateException("task failure");
       try (ContextScope ignored = current().with(parent).attach()) {
-        ScheduledFuture<?> future =
-            pool.schedule(
-                () -> {
-                  assertSame(expectedParent, AgentSpan.current());
-                  throw failure;
-                },
-                1,
-                MILLISECONDS);
+        ScheduledFuture<?> future = pool.schedule(() -> {
+          assertSame(expectedParent, AgentSpan.current());
+          throw failure;
+        }, 1, MILLISECONDS);
         Throwable cause =
             assertThrows(ExecutionException.class, () -> future.get(10, SECONDS)).getCause();
         // ForkJoinTask may reconstruct the exception when reporting it on another thread.
@@ -267,7 +253,9 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
         parent.finish();
       }
       assertTraces(trace(span().root().operationName("parent")));
-      pool.submit(() -> assertNull(AgentSpan.current())).get(10, SECONDS);
+      pool
+        .submit(() -> assertNull(AgentSpan.current()))
+        .get(10, SECONDS);
     }
   }
 
@@ -321,11 +309,10 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
     try (ForkJoinPool pool = new ForkJoinPool(1)) {
       AgentSpan parent = startSpan("test", "parent");
       CountDownLatch ran = new CountDownLatch(2);
-      Runnable task =
-          () -> {
-            assertNull(AgentSpan.current());
-            ran.countDown();
-          };
+      Runnable task = () -> {
+        assertNull(AgentSpan.current());
+        ran.countDown();
+      };
       ScheduledFuture<?> fixedRate;
       ScheduledFuture<?> fixedDelay;
       try (ContextScope ignored = current().with(parent).attach()) {
@@ -352,7 +339,9 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
         boolean enabled = isAsyncPropagationEnabled();
         setAsyncPropagationEnabled(false);
         try {
-          pool.schedule(() -> assertNull(AgentSpan.current()), 0, MILLISECONDS).get(10, SECONDS);
+          pool
+            .schedule(() -> assertNull(AgentSpan.current()), 0, MILLISECONDS)
+            .get(10, SECONDS);
         } finally {
           setAsyncPropagationEnabled(enabled);
         }
@@ -369,17 +358,12 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
       AgentSpan parent = startSpan("test", "parent");
       Object expectedParent = parent;
       try (ContextScope ignored = current().with(parent).attach()) {
-        assertEquals(
-            42,
-            pool.submitWithTimeout(
-                    () -> {
-                      assertSame(expectedParent, AgentSpan.current());
-                      return 42;
-                    },
-                    1,
-                    DAYS,
-                    null)
-                .get(10, SECONDS));
+        assertEquals(42, pool
+          .submitWithTimeout(() -> {
+            assertSame(expectedParent, AgentSpan.current());
+            return 42;
+          }, 1, DAYS, null)
+          .get(10, SECONDS));
       } finally {
         parent.finish();
       }
@@ -394,15 +378,12 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
     Object expectedParent = parent;
     Thread virtualThread;
     try (ContextScope ignored = current().with(parent).attach()) {
-      virtualThread =
-          Thread.ofVirtual()
-              .start(
-                  () -> {
-                    try (ContextScope ignoredScope = activateSpan((AgentSpan) expectedParent)) {
-                      readyToPark.countDown();
-                      LockSupport.parkNanos(DAYS.toNanos(1));
-                    }
-                  });
+      virtualThread = Thread.ofVirtual().start(() -> {
+        try (ContextScope ignoredScope = activateSpan((AgentSpan) expectedParent)) {
+          readyToPark.countDown();
+          LockSupport.parkNanos(DAYS.toNanos(1));
+        }
+      });
     }
 
     try {
@@ -411,10 +392,11 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
 
       ScopeDiagnosticsReport report = ScopeDiagnostics.report();
       assertFalse(
-          report.records().stream()
-              .anyMatch(ForkJoinPoolSchedulingTest::capturedByVirtualThreadTimer),
-          "JDK virtual-thread timeout tasks do not consume request context:\n"
-              + report.renderTimeline());
+          report.records().stream().anyMatch(
+              ForkJoinPoolSchedulingTest::capturedByVirtualThreadTimer
+          ),
+          "JDK virtual-thread timeout tasks do not consume request context:\n" + report.renderTimeline()
+      );
     } finally {
       LockSupport.unpark(virtualThread);
       virtualThread.join(10_000);

@@ -17,7 +17,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class CodeownersImpl implements Codeowners {
-
   private final List<Section> sections;
 
   private CodeownersImpl(List<Section> sections) {

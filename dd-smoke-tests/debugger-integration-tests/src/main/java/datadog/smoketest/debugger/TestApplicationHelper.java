@@ -16,7 +16,8 @@ import java.util.stream.Stream;
 public class TestApplicationHelper {
   // instrumentation is done by main thread
   private static final String INSTRUMENTATION_DONE_MAIN_THREAD =
-      "[main] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
+      "[main] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode "
+      + "for class: %s";
   private static final String INSTRUMENTATION_DONE_NO_THREAD =
       "] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
   private static final String THREAD_MAIN = "main";
@@ -26,7 +27,8 @@ public class TestApplicationHelper {
   private static final String[] THREAD_NAMES =
       new String[] {THREAD_MAIN, THREAD_REMOTE_CONFIG, THREAD_SCHEDULER, THREAD_STARTUP};
   private static final String RENTRANSFORMATION_CLASS =
-      "[dd-remote-config] DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transforming class: %s";
+      "[dd-remote-config] DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-"
+      + "transforming class: %s";
   private static final String RETRANSFORMATION_DONE =
       "com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done";
   private static final String EXCEPTION_FINGERPRINT_ADDED =
@@ -39,16 +41,16 @@ public class TestApplicationHelper {
   public static void waitForTransformerInstalled(String logFileName) throws IOException {
     waitForSpecificLogLine(
         Paths.get(logFileName),
-        line ->
-            line.contains(
-                "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - New transformer installed"),
-        () -> {},
+        line -> line.contains(
+            "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - New transformer installed"
+        ),
+          () -> {},
         Duration.ofMillis(SLEEP_MS),
-        Duration.ofSeconds(TIMEOUT_S));
+        Duration.ofSeconds(TIMEOUT_S)
+    );
   }
 
-  public static void waitForInstrumentation(String logFileName, String className)
-      throws IOException {
+  public static void waitForInstrumentation(String logFileName, String className) throws IOException {
     waitForInstrumentation(logFileName, className, null);
   }
 
@@ -58,48 +60,57 @@ public class TestApplicationHelper {
   }
 
   public static String waitForInstrumentation(
-      String logFileName, String className, String fromLine, Duration timeout) throws IOException {
+      String logFileName,
+      String className,
+      String fromLine,
+      Duration timeout
+  ) throws IOException {
     AtomicBoolean generatingByteCode = new AtomicBoolean();
     return waitForSpecificLogLine(
         Paths.get(logFileName),
         fromLine != null ? line -> line.contains(fromLine) : null,
-        line -> {
-          // when instrumentation is done by main thread, we are good to go
-          if (line.contains(String.format(INSTRUMENTATION_DONE_MAIN_THREAD, className))) {
-            return true;
-          }
-          if (!generatingByteCode.get()) {
-            // instrumentation is done by background thread, need to wait for end of
-            // re-transformation
-            if (line.contains(String.format(INSTRUMENTATION_DONE_NO_THREAD, className))) {
-              generatingByteCode.set(true);
+          line -> {
+            // when instrumentation is done by main thread, we are good to go
+            if (line.contains(String.format(INSTRUMENTATION_DONE_MAIN_THREAD, className))) {
+              return true;
             }
-          } else {
-            return line.contains(RETRANSFORMATION_DONE);
-          }
-          return false;
-        },
-        () -> {},
+            if (!generatingByteCode.get()) {
+              // instrumentation is done by background thread, need to wait for end of
+              // re-transformation
+              if (line.contains(String.format(INSTRUMENTATION_DONE_NO_THREAD, className))) {
+                generatingByteCode.set(true);
+              }
+            } else {
+              return line.contains(RETRANSFORMATION_DONE);
+            }
+            return false;
+          },
+          () -> {},
         Duration.ofMillis(SLEEP_MS),
-        timeout);
+        timeout
+    );
   }
 
   public static String waitForReTransformation(
-      String logFileName, String className, String fromLine) throws IOException {
+      String logFileName,
+      String className,
+      String fromLine
+  ) throws IOException {
     AtomicBoolean retransforming = new AtomicBoolean();
     return waitForSpecificLogLine(
         Paths.get(logFileName),
         line -> line.contains(fromLine),
-        line -> {
-          if (!retransforming.get()) {
-            retransforming.set(line.contains(String.format(RENTRANSFORMATION_CLASS, className)));
-            return false;
-          }
-          return line.contains(RETRANSFORMATION_DONE);
-        },
-        () -> {},
+          line -> {
+            if (!retransforming.get()) {
+              retransforming.set(line.contains(String.format(RENTRANSFORMATION_CLASS, className)));
+              return false;
+            }
+            return line.contains(RETRANSFORMATION_DONE);
+          },
+          () -> {},
         Duration.ofMillis(SLEEP_MS),
-        Duration.ofSeconds(TIMEOUT_S));
+        Duration.ofSeconds(TIMEOUT_S)
+    );
   }
 
   public static String waitForExceptionFingerprint(String logFileName) throws IOException {
@@ -112,9 +123,10 @@ public class TestApplicationHelper {
         Paths.get(logFileName),
         fromLine != null ? line -> line.contains(fromLine) : null,
         line -> line.contains(specificLine),
-        () -> {},
+          () -> {},
         Duration.ofMillis(SLEEP_MS),
-        Duration.ofSeconds(TIMEOUT_S));
+        Duration.ofSeconds(TIMEOUT_S)
+    );
   }
 
   public static void waitForUpload(String logFileName, int expectedUploads) throws IOException {
@@ -127,16 +139,17 @@ public class TestApplicationHelper {
     AtomicInteger uploadCount = new AtomicInteger(0);
     waitForSpecificLogLine(
         Paths.get(logFileName),
-        line -> {
-          if (UPLOAD_DONE_PATTERN.matcher(line).find()) {
-            int currentUploads = uploadCount.incrementAndGet();
-            return currentUploads == expectedUploads;
-          }
-          return false;
-        },
+          line -> {
+            if (UPLOAD_DONE_PATTERN.matcher(line).find()) {
+              int currentUploads = uploadCount.incrementAndGet();
+              return currentUploads == expectedUploads;
+            }
+            return false;
+          },
         () -> uploadCount.set(0),
         Duration.ofMillis(SLEEP_MS),
-        Duration.ofSeconds(TIMEOUT_S));
+        Duration.ofSeconds(TIMEOUT_S)
+    );
   }
 
   private static String waitForSpecificLogLine(
@@ -144,8 +157,8 @@ public class TestApplicationHelper {
       Predicate<String> lineMatcher,
       Runnable init,
       Duration sleep,
-      Duration timeout)
-      throws IOException {
+      Duration timeout
+  ) throws IOException {
     return waitForSpecificLogLine(logFilePath, null, lineMatcher, init, sleep, timeout);
   }
 
@@ -155,8 +168,8 @@ public class TestApplicationHelper {
       Predicate<String> lineMatcher,
       Runnable init,
       Duration sleep,
-      Duration timeout)
-      throws IOException {
+      Duration timeout
+  ) throws IOException {
     AtomicBoolean result = new AtomicBoolean();
     AtomicReference<String> matchedLine = new AtomicReference<>();
     long total = sleep.toNanos() == 0 ? 0 : timeout.toNanos() / sleep.toNanos();
@@ -167,15 +180,14 @@ public class TestApplicationHelper {
       init.run();
       AtomicBoolean fromLineMatched = new AtomicBoolean(fromLineMatcher == null);
       try (Stream<String> lines = Files.lines(logFilePath)) {
-        lines.forEach(
-            line -> {
-              if (!fromLineMatched.get()) {
-                fromLineMatched.set(fromLineMatcher.test(line));
-              } else if (lineMatcher.test(line)) {
-                matchedLine.set(line);
-                result.set(true);
-              }
-            });
+        lines.forEach(line -> {
+          if (!fromLineMatched.get()) {
+            fromLineMatched.set(fromLineMatcher.test(line));
+          } else if (lineMatcher.test(line)) {
+            matchedLine.set(line);
+            result.set(true);
+          }
+        });
       }
       LockSupport.parkNanos(sleep.toNanos());
       i++;

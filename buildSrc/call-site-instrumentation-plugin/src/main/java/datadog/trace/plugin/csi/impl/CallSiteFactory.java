@@ -8,15 +8,17 @@ import java.io.File;
 import javax.annotation.Nonnull;
 
 public abstract class CallSiteFactory {
-
-  private CallSiteFactory() {}
+  private CallSiteFactory() {
+  }
 
   public static AdviceGenerator adviceGenerator(final File targetFolder) {
     return adviceGenerator(targetFolder, typeResolver());
   }
 
   public static AdviceGenerator adviceGenerator(
-      @Nonnull final File targetFolder, @Nonnull final TypeResolver typeResolver) {
+      @Nonnull final File targetFolder,
+      @Nonnull final TypeResolver typeResolver
+  ) {
     return new AdviceGeneratorImpl(targetFolder, pointcutParser(), typeResolver);
   }
 

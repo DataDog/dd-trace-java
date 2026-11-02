@@ -16,7 +16,6 @@ import javax.annotation.Nullable;
  * because nothing is stored: the values are returned to the caller and serialized immediately.
  */
 public final class LLMObsContextPropagationSource implements LLMObsPropagationSource {
-
   @Override
   @Nullable
   public LLMObsPropagationValues valuesFor(AgentSpanContext spanContext) {
@@ -32,14 +31,16 @@ public final class LLMObsContextPropagationSource implements LLMObsPropagationSo
       return null;
     }
     return new LLMObsPropagationValues(
-        // Stored as hex in-process and in the span payload, carried as decimal on the wire.
-        LLMObsTraceId.toWire(LLMObsContext.currentTraceId()),
+        LLMObsTraceId
+          // Stored as hex in-process and in the span payload, carried as decimal on the wire.
+          .toWire(LLMObsContext.currentTraceId()),
         LLMObsContext.currentMlApp(),
         LLMObsContext.currentSessionId(),
         LLMObsContext.currentParentAgentSpanId(),
         LLMObsContext.currentParentAgentName(),
         String.valueOf(llmObsContext.getSpanId()),
         LLMObsContext.currentSampleRate(),
-        LLMObsContext.currentSamplingDecision());
+        LLMObsContext.currentSamplingDecision()
+    );
   }
 }

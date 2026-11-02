@@ -5,7 +5,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 
-/** Test ForkJoinPool using the external client API. */
+/**
+ * Test ForkJoinPool using the external client API.
+ */
 public class DemoForkJoinPoolExternalClient implements FibonacciCalculator {
   private final ForkJoinPool forkJoinPool;
 

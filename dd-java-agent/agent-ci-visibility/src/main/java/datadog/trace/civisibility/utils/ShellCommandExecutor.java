@@ -20,11 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ShellCommandExecutor {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ShellCommandExecutor.class);
-
   private static final int NORMAL_TERMINATION_TIMEOUT_MILLIS = 3000;
-
   private final File executionFolder;
   private final long timeoutMillis;
   private final Map<String, String> environment;
@@ -34,7 +31,10 @@ public class ShellCommandExecutor {
   }
 
   public ShellCommandExecutor(
-      File executionFolder, long timeoutMillis, Map<String, String> environment) {
+      File executionFolder,
+      long timeoutMillis,
+      Map<String, String> environment
+  ) {
     this.executionFolder = executionFolder;
     this.timeoutMillis = timeoutMillis;
     this.environment = environment;
@@ -53,7 +53,9 @@ public class ShellCommandExecutor {
    *     finish
    */
   public <T> T executeCommand(OutputParser<T> outputParser, String... command)
-      throws IOException, InterruptedException, TimeoutException {
+      throws IOException,
+      InterruptedException,
+      TimeoutException {
     return executeCommand(outputParser, null, false, command);
   }
 
@@ -71,7 +73,9 @@ public class ShellCommandExecutor {
    *     finish
    */
   public <T> T executeCommand(OutputParser<T> outputParser, byte[] input, String... command)
-      throws IOException, InterruptedException, TimeoutException {
+      throws IOException,
+      InterruptedException,
+      TimeoutException {
     return executeCommand(outputParser, input, false, command);
   }
 
@@ -88,15 +92,19 @@ public class ShellCommandExecutor {
    *     finish
    */
   public <T> T executeCommandReadingError(OutputParser<T> errorParser, String... command)
-      throws IOException, InterruptedException, TimeoutException {
+      throws IOException,
+      InterruptedException,
+      TimeoutException {
     return executeCommand(errorParser, null, true, command);
   }
 
   private <T> T executeCommand(
-      OutputParser<T> outputParser, byte[] input, boolean readFromError, String... command)
-      throws IOException, TimeoutException, InterruptedException {
+      OutputParser<T> outputParser,
+      byte[] input,
+      boolean readFromError,
+      String... command
+  ) throws IOException, TimeoutException, InterruptedException {
     Process p = null;
-
     // mute tracing to prevent process instrumentation from creating a span for the forked process
     try (TraceScope scope = AgentTracer.get().muteTracing()) {
       ProcessBuilder processBuilder = new ProcessBuilder(command);
@@ -109,21 +117,21 @@ public class ShellCommandExecutor {
       p = processBuilder.start();
 
       StreamConsumer inputStreamConsumer = new StreamConsumer(p.getInputStream());
-      Thread inputStreamThread =
-          AgentThreadFactory.newAgentThread(
-              AgentThread.CI_SHELL_COMMAND,
-              "-input-stream-consumer-" + command[0],
-              inputStreamConsumer,
-              true);
+      Thread inputStreamThread = AgentThreadFactory.newAgentThread(
+          AgentThread.CI_SHELL_COMMAND,
+          "-input-stream-consumer-" + command[0],
+          inputStreamConsumer,
+          true
+      );
       inputStreamThread.start();
 
       StreamConsumer errorStreamConsumer = new StreamConsumer(p.getErrorStream());
-      Thread errorStreamThread =
-          AgentThreadFactory.newAgentThread(
-              AgentThread.CI_SHELL_COMMAND,
-              "-error-stream-consumer-" + command[0],
-              errorStreamConsumer,
-              true);
+      Thread errorStreamThread = AgentThreadFactory.newAgentThread(
+          AgentThread.CI_SHELL_COMMAND,
+          "-error-stream-consumer-" + command[0],
+          errorStreamConsumer,
+          true
+      );
       errorStreamThread.start();
 
       if (input != null) {
@@ -137,11 +145,12 @@ public class ShellCommandExecutor {
           throw new ShellCommandFailedException(
               exitValue,
               "Command '"
-                  + String.join(" ", command)
-                  + "' failed with exit code "
-                  + exitValue
-                  + ": "
-                  + IOUtils.readFully(errorStreamConsumer.read(), Charset.defaultCharset()));
+              + String.join(" ", command)
+              + "' failed with exit code "
+              + exitValue
+              + ": "
+              + IOUtils.readFully(errorStreamConsumer.read(), Charset.defaultCharset())
+          );
         }
 
         if (outputParser != OutputParser.IGNORE) {
@@ -155,18 +164,18 @@ public class ShellCommandExecutor {
         } else {
           return null;
         }
-
       } else {
         terminate(p);
         throw new TimeoutException(
             "Timeout while waiting for '"
-                + String.join(" ", command)
-                + "'; in "
-                + executionFolder
-                + "\n StdOut: \n"
-                + IOUtils.readFully(inputStreamConsumer.read(), Charset.defaultCharset())
-                + "\n StdErr: \n "
-                + IOUtils.readFully(errorStreamConsumer.read(), Charset.defaultCharset()));
+            + String.join(" ", command)
+            + "'; in "
+            + executionFolder
+            + "\n StdOut: \n"
+            + IOUtils.readFully(inputStreamConsumer.read(), Charset.defaultCharset())
+            + "\n StdErr: \n "
+            + IOUtils.readFully(errorStreamConsumer.read(), Charset.defaultCharset())
+        );
       }
     } catch (InterruptedException e) {
       terminate(p);
@@ -238,7 +247,6 @@ public class ShellCommandExecutor {
     if (e instanceof ShellCommandFailedException) {
       ShellCommandFailedException scfe = (ShellCommandFailedException) e;
       return ExitCode.from(scfe.getExitCode());
-
     } else {
       String m = e.getMessage();
       if (m != null && m.toLowerCase().contains("no such file or directory")) {

@@ -9,16 +9,14 @@ import javax.annotation.Nullable;
  * <p><b>Warning</b> case insensitive only works for characters in the range [A-Za-z]
  */
 public class HttpHeaderMap<T> {
-
   private static final int DEFAULT_BUCKETS = 1 << 4;
 
   private static final class Entry<T> {
-
     private final String key;
-
-    @Nullable private T value;
-
-    @Nullable private Entry<T> next;
+    @Nullable
+    private T value;
+    @Nullable
+    private Entry<T> next;
 
     private Entry(final String key, @Nullable final T value) {
       this.key = key;
@@ -118,7 +116,9 @@ public class HttpHeaderMap<T> {
     return hash % bucketCount;
   }
 
-  /** Case insensitive hash */
+  /**
+   * Case insensitive hash
+   */
   private static int hash(final String name) {
     int h = 0;
     for (int i = 0; i < name.length(); i++) {
@@ -134,7 +134,9 @@ public class HttpHeaderMap<T> {
     }
   }
 
-  /** Case insensitive equals * */
+  /**
+   * Case insensitive equals *
+   */
   private static boolean equals(final String name1, final String name2) {
     if (name1.length() != name2.length()) {
       return false;
@@ -149,11 +151,14 @@ public class HttpHeaderMap<T> {
     return true;
   }
 
-  /** It works for our subset of headers */
+  /**
+   * It works for our subset of headers
+   */
   private static char lowerCase(final String string, final int index) {
     final char c = string.charAt(index);
     if (c >= 'A' && c <= 'Z') {
-      return (char) (c + 32); // 'a' - 'A'
+      // 'a' - 'A'
+      return (char) (c + 32);
     }
     return c;
   }

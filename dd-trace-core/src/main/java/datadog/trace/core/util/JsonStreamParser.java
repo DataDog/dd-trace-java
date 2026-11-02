@@ -15,7 +15,6 @@ import okio.Okio;
  * iteration.
  */
 public class JsonStreamParser {
-
   public interface Visitor {
     /**
      * @return - true to visit the path, false to skip it
@@ -96,13 +95,10 @@ public class JsonStreamParser {
 
   private static void tryToParse(JsonReader reader, Visitor visitor, PathCursor pathCursor)
       throws IOException {
-
     while (visitor.keepParsing(pathCursor)) {
-
       switch (reader.peek()) {
         case END_DOCUMENT:
           return;
-
         case BEGIN_ARRAY:
           if (visitor.visitCompound(pathCursor)) {
             reader.beginArray();
@@ -112,7 +108,6 @@ public class JsonStreamParser {
             pathCursor.advance();
           }
           break;
-
         case BEGIN_OBJECT:
           if (visitor.visitCompound(pathCursor)) {
             reader.beginObject();
@@ -121,23 +116,19 @@ public class JsonStreamParser {
             pathCursor.advance();
           }
           break;
-
         case NAME:
           String key = reader.nextName();
           pathCursor.push(key);
           break;
-
         case END_ARRAY:
           reader.endArray();
           pathCursor.pop();
           pathCursor.advance();
           break;
-
         case END_OBJECT:
           reader.endObject();
           pathCursor.advance();
           break;
-
         case BOOLEAN:
           if (visitor.visitPrimitive(pathCursor)) {
             visitor.booleanValue(pathCursor, reader.nextBoolean());
@@ -146,7 +137,6 @@ public class JsonStreamParser {
           }
           pathCursor.advance();
           break;
-
         case STRING:
           if (!visitor.visitPrimitive(pathCursor)) {
             reader.skipValue();
@@ -158,7 +148,6 @@ public class JsonStreamParser {
           }
           pathCursor.advance();
           break;
-
         case NUMBER:
           if (!visitor.visitPrimitive(pathCursor)) {
             reader.skipValue();
@@ -172,7 +161,6 @@ public class JsonStreamParser {
           }
           pathCursor.advance();
           break;
-
         case NULL:
           if (visitor.visitPrimitive(pathCursor)) {
             reader.nextNull();

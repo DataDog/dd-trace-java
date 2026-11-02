@@ -7,10 +7,10 @@ import net.bytebuddy.asm.Advice;
 import reactor.core.publisher.Mono;
 
 public class LettuceMonoCreationAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static RedisCommand extractCommandName(
-      @Advice.Argument(0) final Supplier<RedisCommand> supplier) {
+      @Advice.Argument(0) final Supplier<RedisCommand> supplier
+  ) {
     return supplier.get();
   }
 

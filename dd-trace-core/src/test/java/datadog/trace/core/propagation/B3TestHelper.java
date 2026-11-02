@@ -7,8 +7,8 @@ import datadog.trace.api.DDTraceId;
  * tests.
  */
 public final class B3TestHelper {
-
-  private B3TestHelper() {}
+  private B3TestHelper() {
+  }
 
   static String traceIdOrPadded(DDTraceId id, boolean padding) {
     if (id.toHighOrderLong() == 0) {

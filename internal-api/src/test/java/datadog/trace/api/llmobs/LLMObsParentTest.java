@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.llmobs.LLMObsParent.Source;
@@ -17,13 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class LLMObsParentTest {
-
   private static final DDTraceId TRACE = DDTraceId.from(1234);
   private static final DDTraceId OTHER_TRACE = DDTraceId.from(5678);
-
-  /** 0x6ab41f6e00000000fea4f6b7295bd5e9, as the propagation tag carries it. */
+  /**
+   * 0x6ab41f6e00000000fea4f6b7295bd5e9, as the propagation tag carries it.
+   */
   private static final String WIRE_TRACE_ID = "141833418457532941290148377431948121577";
-
   private static final String STORED_TRACE_ID = "6ab41f6e00000000fea4f6b7295bd5e9";
 
   @Test
@@ -44,17 +42,17 @@ class LLMObsParentTest {
   @Test
   void sameTraceInProcessContextWinsOverPropagatedValues() {
     AgentSpanContext active = spanContext(TRACE, 42);
-    try (ContextScope ignored =
-        LLMObsContext.attach(
-            active,
-            "local-trace",
-            "local-app",
-            "local-session",
-            "v1",
-            "0.5",
-            LLMObsContext.SAMPLING_DECISION_SAMPLED,
-            "7",
-            "local-agent")) {
+    try (ContextScope ignored = LLMObsContext.attach(
+        active,
+        "local-trace",
+        "local-app",
+        "local-session",
+        "v1",
+        "0.5",
+        LLMObsContext.SAMPLING_DECISION_SAMPLED,
+        "7",
+        "local-agent"
+    )) {
       LLMObsParent parent = LLMObsParent.resolve(span(TRACE, propagated()));
 
       assertEquals(Source.IN_PROCESS, parent.source);
@@ -78,22 +76,24 @@ class LLMObsParentTest {
    */
   @Test
   void inProcessValuesPassThroughUnpaired() {
-    try (ContextScope ignored =
-        LLMObsContext.attach(
-            spanContext(TRACE, 42),
-            null,
-            null,
-            null,
-            null,
-            null,
-            LLMObsContext.SAMPLING_DECISION_SAMPLED,
-            null,
-            "orphan-name")) {
+    try (ContextScope ignored = LLMObsContext.attach(
+        spanContext(TRACE, 42),
+        null,
+        null,
+        null,
+        null,
+        null,
+        LLMObsContext.SAMPLING_DECISION_SAMPLED,
+        null,
+        "orphan-name"
+    )) {
       LLMObsParent parent = LLMObsParent.resolve(span(TRACE, null));
 
       assertEquals(Source.IN_PROCESS, parent.source);
       assertFalse(
-          parent.isRoot(), "a parent without a full verdict is not a root and must not roll");
+          parent.isRoot(),
+          "a parent without a full verdict is not a root and must not roll"
+      );
       assertNull(parent.sampleRate);
       assertEquals(LLMObsContext.SAMPLING_DECISION_SAMPLED, parent.samplingDecision);
       assertNull(parent.parentAgentSpanId);
@@ -133,17 +133,17 @@ class LLMObsParentTest {
   @Test
   void staleContextWithNothingPropagatedIsARootThatReportsTheIgnoredContext() {
     AgentSpanContext stale = spanContext(OTHER_TRACE, 99);
-    try (ContextScope ignored =
-        LLMObsContext.attach(
-            stale,
-            null,
-            "stale-app",
-            "stale-session",
-            "stale-v",
-            "0.25",
-            LLMObsContext.SAMPLING_DECISION_DROPPED,
-            "8",
-            "stale-agent")) {
+    try (ContextScope ignored = LLMObsContext.attach(
+        stale,
+        null,
+        "stale-app",
+        "stale-session",
+        "stale-v",
+        "0.25",
+        LLMObsContext.SAMPLING_DECISION_DROPPED,
+        "8",
+        "stale-agent"
+    )) {
       LLMObsParent parent = LLMObsParent.resolve(span(TRACE, null));
 
       assertTrue(parent.isRoot());
@@ -181,12 +181,21 @@ class LLMObsParentTest {
    */
   @Test
   void propagatedContextWithoutAVerdictIsNotARoot() {
-    LLMObsParent parent =
-        LLMObsParent.resolve(
-            span(
-                TRACE,
-                new LLMObsPropagationValues(
-                    WIRE_TRACE_ID, "upstream-app", null, null, null, "555", null, null)));
+    LLMObsParent parent = LLMObsParent.resolve(
+        span(
+            TRACE,
+            new LLMObsPropagationValues(
+                WIRE_TRACE_ID,
+                "upstream-app",
+                null,
+                null,
+                null,
+                "555",
+                null,
+                null
+            )
+        )
+    );
 
     assertEquals(Source.PROPAGATED, parent.source);
     assertFalse(parent.isRoot());
@@ -215,19 +224,21 @@ class LLMObsParentTest {
   }
 
   private static void assertPropagatedContextIsIgnored(String parentId) {
-    LLMObsParent parent =
-        LLMObsParent.resolve(
-            span(
-                TRACE,
-                new LLMObsPropagationValues(
-                    WIRE_TRACE_ID,
-                    "upstream-app",
-                    "upstream-session",
-                    "555",
-                    "planner-agent",
-                    parentId,
-                    "0.25",
-                    LLMObsContext.SAMPLING_DECISION_DROPPED)));
+    LLMObsParent parent = LLMObsParent.resolve(
+        span(
+            TRACE,
+            new LLMObsPropagationValues(
+                WIRE_TRACE_ID,
+                "upstream-app",
+                "upstream-session",
+                "555",
+                "planner-agent",
+                parentId,
+                "0.25",
+                LLMObsContext.SAMPLING_DECISION_DROPPED
+            )
+        )
+    );
 
     assertEquals(Source.NONE, parent.source);
     assertTrue(parent.isRoot());
@@ -243,11 +254,9 @@ class LLMObsParentTest {
 
   @Test
   void propagatedRateWithoutADecisionIsDropped() {
-    LLMObsParent parent =
-        LLMObsParent.resolve(
-            span(
-                TRACE,
-                new LLMObsPropagationValues(null, null, null, null, null, "1", "0.5", null)));
+    LLMObsParent parent = LLMObsParent.resolve(
+        span(TRACE, new LLMObsPropagationValues(null, null, null, null, null, "1", "0.5", null))
+    );
 
     assertNull(parent.sampleRate);
     assertNull(parent.samplingDecision);
@@ -255,19 +264,21 @@ class LLMObsParentTest {
 
   @Test
   void propagatedDecisionWithoutARateIsDropped() {
-    LLMObsParent parent =
-        LLMObsParent.resolve(
-            span(
-                TRACE,
-                new LLMObsPropagationValues(
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    "1",
-                    null,
-                    LLMObsContext.SAMPLING_DECISION_SAMPLED)));
+    LLMObsParent parent = LLMObsParent.resolve(
+        span(
+            TRACE,
+            new LLMObsPropagationValues(
+                null,
+                null,
+                null,
+                null,
+                null,
+                "1",
+                null,
+                LLMObsContext.SAMPLING_DECISION_SAMPLED
+            )
+        )
+    );
 
     assertNull(parent.sampleRate);
     assertNull(parent.samplingDecision);
@@ -275,12 +286,12 @@ class LLMObsParentTest {
 
   @Test
   void propagatedAgentNameWithoutAnIdIsDropped() {
-    LLMObsParent parent =
-        LLMObsParent.resolve(
-            span(
-                TRACE,
-                new LLMObsPropagationValues(
-                    null, null, null, null, "planner-agent", "1", null, null)));
+    LLMObsParent parent = LLMObsParent.resolve(
+        span(
+            TRACE,
+            new LLMObsPropagationValues(null, null, null, null, "planner-agent", "1", null, null)
+        )
+    );
 
     assertNull(parent.parentAgentSpanId);
     assertNull(parent.parentAgentName);
@@ -295,7 +306,8 @@ class LLMObsParentTest {
         "planner-agent",
         "12571653173807582101",
         "0.25",
-        LLMObsContext.SAMPLING_DECISION_DROPPED);
+        LLMObsContext.SAMPLING_DECISION_DROPPED
+    );
   }
 
   private static AgentSpanContext spanContext(DDTraceId traceId, long spanId) {

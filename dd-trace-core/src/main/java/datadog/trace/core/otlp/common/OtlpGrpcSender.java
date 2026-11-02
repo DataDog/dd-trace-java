@@ -2,7 +2,6 @@ package datadog.trace.core.otlp.common;
 
 import static datadog.communication.http.OkHttpUtils.buildHttp2Client;
 import static datadog.communication.http.OkHttpUtils.isPlainHttp;
-
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.config.OtlpConfig.Compression;
@@ -15,19 +14,17 @@ import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Sends chunks of OTLP data over GRPC. */
+/**
+ * Sends chunks of OTLP data over GRPC.
+ */
 public final class OtlpGrpcSender implements OtlpSender {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtlpGrpcSender.class);
   private static final RatelimitedLogger RATELIMITED_LOGGER =
       new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
-
-  private final HttpRetryPolicy.Factory retryPolicy =
-      new HttpRetryPolicy.Factory(5, 100, 2.0, true);
-
+  private final HttpRetryPolicy.Factory retryPolicy = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
   private final HttpUrl url;
   private final Map<String, String> headers;
   private final boolean gzip;
-
   private final OkHttpClient client;
 
   public OtlpGrpcSender(
@@ -35,15 +32,16 @@ public final class OtlpGrpcSender implements OtlpSender {
       String signalPath,
       Map<String, String> headers,
       int timeoutMillis,
-      Compression compression) {
-
+      Compression compression
+  ) {
     String unixDomainSocketPath;
     if (endpoint.startsWith("unix://")) {
       unixDomainSocketPath = endpoint.substring(7);
       this.url = HttpUrl.get("http://localhost:4317" + signalPath);
     } else {
       unixDomainSocketPath = null;
-      this.url = HttpUrl.get(endpoint + signalPath); // GRPC endpoint does not include signal path
+      // GRPC endpoint does not include signal path
+      this.url = HttpUrl.get(endpoint + signalPath);
     }
 
     this.headers = headers;
@@ -72,7 +70,6 @@ public final class OtlpGrpcSender implements OtlpSender {
     if (gzip) {
       requestBuilder.header("grpc-encoding", "gzip");
     }
-
     // add configured headers to the request
     headers.forEach(requestBuilder::addHeader);
 

@@ -17,7 +17,9 @@ import datadog.trace.api.TagMap;
  * deliberately out — grown when the work that needs each arrives, not pre-slotted.
  */
 public final class SpanPrototype {
-  /** The empty prototype — for spans created without a decorator-provided prototype. */
+  /**
+   * The empty prototype — for spans created without a decorator-provided prototype.
+   */
   public static final SpanPrototype NONE = builder().build();
 
   public static Builder builder() {
@@ -28,7 +30,8 @@ public final class SpanPrototype {
   private final CharSequence operationName;
   private final CharSequence spanType;
   private final CharSequence integrationName;
-  private final TagMap tags; // frozen
+  // frozen
+  private final TagMap tags;
 
   private SpanPrototype(final Builder builder) {
     this.instrumentationName = builder.instrumentationName;
@@ -59,7 +62,9 @@ public final class SpanPrototype {
     return integrationName;
   }
 
-  /** The frozen constant tags — the internal seed applied at span construction. */
+  /**
+   * The frozen constant tags — the internal seed applied at span construction.
+   */
   public TagMap tags() {
     return tags;
   }
@@ -72,7 +77,8 @@ public final class SpanPrototype {
     // Internal accumulator — never exposed; authors compose via the typed methods below.
     private final TagMap tags = TagMap.create();
 
-    private Builder() {}
+    private Builder() {
+    }
 
     /**
      * Inherit a base prototype's identity and constant tags (e.g. a SpanType base). Subsequent
@@ -118,7 +124,9 @@ public final class SpanPrototype {
       return this;
     }
 
-    /** Sets {@code span.kind}. */
+    /**
+     * Sets {@code span.kind}.
+     */
     public Builder initKind(final CharSequence kind) {
       return initTag(Tags.SPAN_KIND, kind);
     }

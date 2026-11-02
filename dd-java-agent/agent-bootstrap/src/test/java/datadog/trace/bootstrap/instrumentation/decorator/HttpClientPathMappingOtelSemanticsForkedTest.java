@@ -5,7 +5,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOU
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.HTTP_CLIENT_CONFIG_PATTERN_MATCH;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.MANUAL_INSTRUMENTATION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpDecoratorsOtelSemanticsForkedTest.ClientRequest;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpDecoratorsOtelSemanticsForkedTest.TestClientDecorator;
@@ -22,7 +21,8 @@ import org.tabletest.junit.TableTest;
 @WithConfig(key = TRACE_OTEL_SEMANTICS_ENABLED, value = "true")
 @WithConfig(
     key = TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING,
-    value = "/orders/*:/orders/{id},/raw/*:*")
+    value = "/orders/*:/orders/{id},/raw/*:*"
+)
 class HttpClientPathMappingOtelSemanticsForkedTest {
   private CoreTracer tracer;
 
@@ -47,7 +47,11 @@ class HttpClientPathMappingOtelSemanticsForkedTest {
     "Keep original path        | GET    | /raw/123    | GET /raw/123      | GET            "
   })
   void explicitPathMappingsOverrideOtelClientNames(
-      String method, String path, String expectedResource, String expectedMethod) {
+      String method,
+      String path,
+      String expectedResource,
+      String expectedMethod
+  ) {
     DDSpan span = (DDSpan) tracer.startSpan("test", "http.request");
     TestClientDecorator decorator = new TestClientDecorator();
 
@@ -67,7 +71,9 @@ class HttpClientPathMappingOtelSemanticsForkedTest {
 
     decorator.afterStart(span);
     decorator.onRequest(
-        span, new ClientRequest("GET", URI.create("https://example.com/orders/123")));
+        span,
+        new ClientRequest("GET", URI.create("https://example.com/orders/123"))
+    );
     span.finish();
 
     assertEquals("GET /orders/{id}", span.getResourceName().toString());
@@ -82,7 +88,9 @@ class HttpClientPathMappingOtelSemanticsForkedTest {
 
     decorator.afterStart(span);
     decorator.onRequest(
-        span, new ClientRequest("GET", URI.create("https://example.com/orders/123")));
+        span,
+        new ClientRequest("GET", URI.create("https://example.com/orders/123"))
+    );
     span.finish();
 
     assertEquals("custom operation", span.getResourceName().toString());

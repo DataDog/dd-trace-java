@@ -16,7 +16,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
@@ -33,7 +32,9 @@ import java.util.Arrays;
 import net.bytebuddy.asm.Advice;
 
 public final class ClientCallImplInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "com.linecorp.armeria.internal.client.grpc.ArmeriaClientCall";
@@ -43,46 +44,60 @@ public final class ClientCallImplInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArgument(4, named("io.grpc.MethodDescriptor"))),
-        getClass().getName() + "$CaptureCallPos4");
+        getClass().getName() + "$CaptureCallPos4"
+    );
     // from 1.32.3
     transformer.applyAdvice(
         isConstructor().and(takesArgument(2, named("io.grpc.MethodDescriptor"))),
-        getClass().getName() + "$CaptureCallPos2");
+        getClass().getName() + "$CaptureCallPos2"
+    );
     transformer.applyAdvices(
         named("start").and(isMethod()),
         getClass().getName() + "$Start",
-        getClass().getName() + "$StartContextPropagationAdvice");
+        getClass().getName() + "$StartContextPropagationAdvice"
+    );
     transformer.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
     transformer.applyAdvice(
         named("request")
-            .and(isMethod())
-            .and(takesArguments(int.class))
-            .or(isMethod().and(named("halfClose").and(takesArguments(0)))),
-        getClass().getName() + "$ActivateSpan");
+          .and(isMethod())
+          .and(takesArguments(int.class))
+          .or(isMethod().and(named("halfClose").and(takesArguments(0)))),
+        getClass().getName() + "$ActivateSpan"
+    );
     transformer.applyAdvice(
-        named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
+        named("sendMessage").and(isMethod()),
+        getClass().getName() + "$SendMessage"
+    );
     transformer.applyAdvice(
-        // matches the method signature for versions until 1.40 excluded
-        named("close").and(isMethod().and(takesArguments(2))),
-        getClass().getName() + "$CloseObserver");
-    transformer.applyAdvice(
-        // matches the signature after v1.40
         named("close")
-            .and(isMethod())
-            .and(takesArguments(3))
-            .and(takesArgument(2, named("java.lang.Throwable"))),
-        getClass().getName() + "$CloseObserverWithCause");
-    if (InstrumenterConfig.get()
-        .isIntegrationEnabled(Arrays.asList("armeria-grpc-message", "grpc-message"), false)) {
+          // matches the method signature for versions until 1.40 excluded
+          .and(isMethod().and(takesArguments(2))),
+        getClass().getName() + "$CloseObserver"
+    );
+    transformer.applyAdvice(
+        named("close")
+          .and(isMethod())
+          .and(takesArguments(3))
+          // matches the signature after v1.40
+          .and(takesArgument(2, named("java.lang.Throwable"))),
+        getClass().getName() + "$CloseObserverWithCause"
+    );
+    if (InstrumenterConfig
+      .get()
+      .isIntegrationEnabled(Arrays.asList("armeria-grpc-message", "grpc-message"), false)) {
       transformer.applyAdvice(
-          named("onNext").or(named("messageRead")), getClass().getName() + "$ReceiveMessages");
+          named("onNext").or(named("messageRead")),
+          getClass().getName() + "$ReceiveMessages"
+      );
     }
   }
 
   public static final class CaptureCallPos4 {
     @Advice.OnMethodExit
     public static void capture(
-        @Advice.This ClientCall<?, ?> call, @Advice.Argument(4) MethodDescriptor<?, ?> method) {
+        @Advice.This ClientCall<?, ?> call,
+        @Advice.Argument(4) MethodDescriptor<?, ?> method
+    ) {
       AgentSpan span = DECORATE.startCall(method);
       if (null != span) {
         InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
@@ -93,7 +108,9 @@ public final class ClientCallImplInstrumentation
   public static final class CaptureCallPos2 {
     @Advice.OnMethodExit
     public static void capture(
-        @Advice.This ClientCall<?, ?> call, @Advice.Argument(2) MethodDescriptor<?, ?> method) {
+        @Advice.This ClientCall<?, ?> call,
+        @Advice.Argument(2) MethodDescriptor<?, ?> method
+    ) {
       AgentSpan span = DECORATE.startCall(method);
       if (null != span) {
         InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
@@ -107,7 +124,8 @@ public final class ClientCallImplInstrumentation
         @Advice.This ClientCall<?, ?> call,
         @Advice.Argument(0) ClientCall.Listener<T> responseListener,
         @Advice.Argument(1) Metadata headers,
-        @Advice.Local("$$ddSpan") AgentSpan span) {
+        @Advice.Local("$$ddSpan") AgentSpan span
+    ) {
       if (null != responseListener && null != headers) {
         span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
         if (null != span) {
@@ -121,8 +139,8 @@ public final class ClientCallImplInstrumentation
     public static void after(
         @Advice.Enter ContextScope scope,
         @Advice.Thrown Throwable error,
-        @Advice.Local("$$ddSpan") AgentSpan span)
-        throws Throwable {
+        @Advice.Local("$$ddSpan") AgentSpan span
+    ) throws Throwable {
       if (null != error && null != span) {
         DECORATE.onError(span, error);
         DECORATE.beforeFinish(span);
@@ -185,7 +203,9 @@ public final class ClientCallImplInstrumentation
   public static final class Cancel {
     @Advice.OnMethodEnter
     public static void before(
-        @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Throwable cause) {
+        @Advice.This ClientCall<?, ?> call,
+        @Advice.Argument(1) Throwable cause
+    ) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
         if (cause instanceof StatusRuntimeException) {
@@ -210,7 +230,9 @@ public final class ClientCallImplInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void closeObserver(
-        @Advice.Enter ContextScope scope, @Advice.Argument(0) Status status) {
+        @Advice.Enter ContextScope scope,
+        @Advice.Argument(0) Status status
+    ) {
       if (null != scope) {
         AgentSpan span = spanFromScope(scope);
         DECORATE.onClose(span, status);
@@ -240,7 +262,8 @@ public final class ClientCallImplInstrumentation
         @Advice.This ClientCall<?, ?> call,
         @Advice.Enter ContextScope scope,
         @Advice.Argument(0) Status status,
-        @Advice.FieldValue("closed") boolean closed) {
+        @Advice.FieldValue("closed") boolean closed
+    ) {
       if (null != scope) {
         AgentSpan span = null;
         if (closed) {
@@ -262,9 +285,8 @@ public final class ClientCallImplInstrumentation
     public static ContextScope before() {
       AgentSpan clientSpan = activeSpan();
       if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
-        AgentSpan messageSpan =
-            startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
-                .setTag("message.type", clientSpan.getTag("response.type"));
+        AgentSpan messageSpan = startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
+          .setTag("message.type", clientSpan.getTag("response.type"));
         DECORATE.afterStart(messageSpan);
         return activateSpan(messageSpan);
       }

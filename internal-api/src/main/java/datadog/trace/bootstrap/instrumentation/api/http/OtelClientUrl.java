@@ -8,11 +8,14 @@ import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import java.net.URI;
 
-/** Extracts the OpenTelemetry URL tags from an HTTP client URI. */
+/**
+ * Extracts the OpenTelemetry URL tags from an HTTP client URI.
+ */
 public final class OtelClientUrl implements TagExtractor<URI> {
   public static final OtelClientUrl INSTANCE = new OtelClientUrl();
 
-  private OtelClientUrl() {}
+  private OtelClientUrl() {
+  }
 
   @Override
   public void extract(URI uri, AgentSpan span) {

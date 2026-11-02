@@ -5,7 +5,6 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
-
 import java.util.HashMap;
 import java.util.Map;
 

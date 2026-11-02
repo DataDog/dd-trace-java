@@ -6,7 +6,6 @@ import static datadog.trace.core.otlp.metrics.OtlpStatsHistogramBuckets.bucketIn
 import static datadog.trace.core.otlp.metrics.OtlpStatsHistogramBuckets.toHistogramPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.metrics.api.Histogram;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
@@ -24,9 +23,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * DDSketch onto the fixed OTLP explicit-bounds histogram layout (in seconds).
  */
 class OtlpStatsHistogramBucketsTest {
-
   private static final double NANOS_PER_SECOND = 1_000_000_000d;
-
   // Tolerance for double assertions on exactly-computed values (e.g. sum from sumNanos, integer
   // counts). DDSketch-derived values like min/max use looser tolerances inline, since the sketch
   // only preserves values to within its relative accuracy.
@@ -38,10 +35,10 @@ class OtlpStatsHistogramBucketsTest {
   }
 
   // ── bucketIndex ──────────────────────────────────────────────────────────
-
   static Stream<Arguments> boundsWithIndex() {
-    return IntStream.range(0, BOUNDS_SECONDS.length)
-        .mapToObj(i -> Arguments.of(i, BOUNDS_SECONDS[i]));
+    return IntStream
+      .range(0, BOUNDS_SECONDS.length)
+      .mapToObj(i -> Arguments.of(i, BOUNDS_SECONDS[i]));
   }
 
   @ParameterizedTest(name = "value exactly on BOUNDS_SECONDS[{0}]={1} returns index {0}")
@@ -70,7 +67,6 @@ class OtlpStatsHistogramBucketsTest {
   }
 
   // ── EXPLICIT_BOUNDS layout ────────────────────────────────────────────────
-
   @Test
   void explicitBoundsHas17EntriesEndingInInfinity() {
     assertEquals(17, EXPLICIT_BOUNDS.size());
@@ -78,42 +74,35 @@ class OtlpStatsHistogramBucketsTest {
   }
 
   // ── toHistogramPoint ──────────────────────────────────────────────────────
-
   @Test
   void toHistogramPointSummary() {
     Histogram h = Histogram.newHistogram();
     // 1ns and 1ms are below the smallest bound (0.002s) and must land in bucket 0; 100ms → bucket
     // 6, 3s → bucket 13.
     long[] samplesNanos = {
-      1L,
-      (long) (0.001 * NANOS_PER_SECOND),
-      (long) (0.1 * NANOS_PER_SECOND),
-      (long) (3.0 * NANOS_PER_SECOND)
+        1L,
+        (long) (0.001 * NANOS_PER_SECOND),
+        (long) (0.1 * NANOS_PER_SECOND),
+        (long) (3.0 * NANOS_PER_SECOND)
     };
     for (long s : samplesNanos) {
       h.accept(s);
     }
-
     // Use a sumNanos that deliberately differs from the sketch's implied sum to prove the
     // returned sum comes from the ARGUMENT, not the sketch.
     long sumNanos = 42L * (long) NANOS_PER_SECOND;
     OtlpHistogramPoint point = toHistogramPoint(h, sumNanos);
-
     // 17 bucket counts (the EXPLICIT_BOUNDS layout itself is covered by its own test).
     assertEquals(17, point.bucketCounts.size());
-
     // total count == number of samples.
     assertEquals(samplesNanos.length, (long) point.count);
-
     // max is the 3s sample (CollapsingLowestDenseStore collapses the LOWEST bins, so the top is
     // preserved accurately). The exact 1ns min is NOT recoverable: over this wide value range the
     // lowest bins collapse, so getMinValue reports the collapsed bin (sub-2ms here), not 1ns. The
     // tiny sample isn't lost though — that's proven by the count and bucket-0 assertions below.
     // DDSketch is relative-accuracy, so min/max use loose tolerances.
-    assertTrue(
-        point.min > 0 && point.min <= BOUNDS_SECONDS[0], "min collapses into bucket 0 range");
+    assertTrue(point.min > 0 && point.min <= BOUNDS_SECONDS[0], "min collapses into bucket 0 range");
     assertEquals(3.0, point.max, 1e-2);
-
     // sum equals the sumNanos ARGUMENT converted to seconds, not the sketch sum.
     assertEquals(42.0, point.sum, EPS);
 

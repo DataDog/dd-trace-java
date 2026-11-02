@@ -6,7 +6,6 @@ public enum LogMessageLevel {
   ERROR,
   WARN,
   DEBUG;
-
   @Nullable
   public static LogMessageLevel fromString(String value) {
     switch (value) {

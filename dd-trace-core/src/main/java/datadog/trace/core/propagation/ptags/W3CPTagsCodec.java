@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.api.internal.util.LongStringUtils.toHexStringPadded;
-
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -21,17 +20,18 @@ import org.slf4j.LoggerFactory;
 public class W3CPTagsCodec extends PTagsCodec {
   private static final RatelimitedLogger log =
       new RatelimitedLogger(LoggerFactory.getLogger(W3CPTagsCodec.class), 5, TimeUnit.MINUTES);
-
   private static final int MAX_HEADER_SIZE = 256;
   private static final String DATADOG_MEMBER_KEY = "dd=";
   private static final String OTEL_MEMBER_KEY = "ot=";
-  private static final int EMPTY_SIZE = DATADOG_MEMBER_KEY.length(); // 3
+  // 3
+  private static final int EMPTY_SIZE = DATADOG_MEMBER_KEY.length();
   private static final char MEMBER_SEPARATOR = ',';
   private static final char ELEMENT_SEPARATOR = ';';
   private static final char KEY_VALUE_SEPARATOR = ':';
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
-  @VisibleForTesting public static final int MAX_MEMBER_COUNT = 32;
+  @VisibleForTesting
+  public static final int MAX_MEMBER_COUNT = 32;
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
@@ -45,12 +45,14 @@ public class W3CPTagsCodec extends PTagsCodec {
     if (firstMemberStart == len) {
       return tagsFactory.empty();
     }
-
     // Validate the whole tracestate and figure out where the dd member key and value are located
     int memberStart = firstMemberStart;
-    int ddMemberStart = -1; // dd member start position (inclusive)
-    int ddMemberValueStart = -1; // dd member value start position (inclusive)
-    int ddMemberValueEnd = -1; // dd member value end position including OWS (exclusive)
+    // dd member start position (inclusive)
+    int ddMemberStart = -1;
+    // dd member value start position (inclusive)
+    int ddMemberValueStart = -1;
+    // dd member value end position including OWS (exclusive)
+    int ddMemberValueEnd = -1;
     int memberIndex = 0;
     int ddMemberIndex = -1;
     int otelMemberStart = -1;
@@ -77,13 +79,14 @@ public class W3CPTagsCodec extends PTagsCodec {
       boolean datadogMember =
           ddMemberIndex == -1 && value.startsWith(DATADOG_MEMBER_KEY, memberStart);
       boolean otelMember =
-          !datadogMember && otelMemberStart == -1 && value.startsWith(OTEL_MEMBER_KEY, memberStart);
+          !datadogMember
+          && otelMemberStart == -1
+          && value.startsWith(OTEL_MEMBER_KEY, memberStart);
       if (datadogMember) {
         ddMemberStart = memberStart;
         ddMemberValueStart = memberValueStart;
         ddMemberIndex = memberIndex;
         ddMemberValueEnd = memberValueEnd;
-
       } else if (otelMember) {
         otelMemberStart = memberStart;
         otelMemberValueStart = memberValueStart;
@@ -101,10 +104,10 @@ public class W3CPTagsCodec extends PTagsCodec {
     OtelTraceState otelTraceState = null;
     if (otelMemberStart != -1) {
       int valueEnd = stripTrailingOWC(value, otelMemberValueStart, otelMemberValueEnd);
-      otelTraceState =
-          OtelTraceState.parse(
-              SubSequence.of(value, otelMemberValueStart, valueEnd),
-              memberContributionSize(value, firstMemberStart, otelMemberStart, otelMemberValueEnd));
+      otelTraceState = OtelTraceState.parse(
+          SubSequence.of(value, otelMemberValueStart, valueEnd),
+          memberContributionSize(value, firstMemberStart, otelMemberStart, otelMemberValueEnd)
+      );
     }
 
     if (ddMemberIndex == -1) {
@@ -135,32 +138,34 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (tagPos >= ddMemberValueEnd) {
         break;
       }
-      int tagKeyEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value,
-              tagPos,
-              ddMemberValueEnd,
-              KEY_VALUE_SEPARATOR,
-              false,
-              W3CPTagsCodec::isAllowedKeyChar);
+      int tagKeyEndsAt = validateCharsUntilSeparatorOrEnd(
+          value,
+          tagPos,
+          ddMemberValueEnd,
+          KEY_VALUE_SEPARATOR,
+          false,
+          W3CPTagsCodec::isAllowedKeyChar
+      );
       if (tagKeyEndsAt < 0 || tagKeyEndsAt >= ddMemberValueEnd) {
         int nextTagPos = skipMalformedElement(value, tagPos, ddMemberValueEnd);
-        maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
+        // still relay malformed elements
+        maxUnknownSize += (nextTagPos - tagPos);
         tagPos = nextTagPos;
         continue;
       }
       int tagValuePos = tagKeyEndsAt + 1;
-      int tagValueEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value,
-              tagValuePos,
-              ddMemberValueEnd,
-              ELEMENT_SEPARATOR,
-              true,
-              W3CPTagsCodec::isAllowedValueChar);
+      int tagValueEndsAt = validateCharsUntilSeparatorOrEnd(
+          value,
+          tagValuePos,
+          ddMemberValueEnd,
+          ELEMENT_SEPARATOR,
+          true,
+          W3CPTagsCodec::isAllowedValueChar
+      );
       if (tagValueEndsAt < 0) {
         int nextTagPos = skipMalformedElement(value, tagValuePos, ddMemberValueEnd);
-        maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
+        // still relay malformed elements
+        maxUnknownSize += (nextTagPos - tagPos);
         tagPos = nextTagPos;
         continue;
       }
@@ -185,7 +190,8 @@ public class W3CPTagsCodec extends PTagsCodec {
               log.warn(
                   "Invalid datadog tags header value: '{}' invalid tag value at {}",
                   value,
-                  tagValuePos);
+                  tagValuePos
+              );
               if (tagKey.equals(TRACE_ID_TAG)) {
                 return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
               }
@@ -195,7 +201,8 @@ public class W3CPTagsCodec extends PTagsCodec {
                   firstMemberStart,
                   ddMemberStart,
                   ddMemberValueEnd,
-                  otelTraceState);
+                  otelTraceState
+              );
             }
             if (tagKey.equals(DECISION_MAKER_TAG)) {
               decisionMakerTagValue = tagValue;
@@ -233,7 +240,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         } else {
           // Not a propagating tag and not a known tag
           if (maxUnknownSize != 0) {
-            maxUnknownSize++; // delimiter
+            // delimiter
+            maxUnknownSize++;
           }
           maxUnknownSize += (tagValueEndsAt - tagPos);
         }
@@ -263,8 +271,10 @@ public class W3CPTagsCodec extends PTagsCodec {
             llmObsParentAgentNameTagValue,
             llmObsParentIdTagValue,
             llmObsSampleRateTagValue,
-            llmObsSamplingDecisionTagValue),
-        otelTraceState);
+            llmObsSamplingDecisionTagValue
+        ),
+        otelTraceState
+    );
   }
 
   @Override
@@ -272,10 +282,14 @@ public class W3CPTagsCodec extends PTagsCodec {
   @SuppressFBWarnings(
       value = "ES_COMPARING_STRINGS_WITH_EQ",
       justification =
-          "Identity determines whether the sampling state retains this PTags instance's raw "
-              + "tracestate, allowing its parsed size metadata to be reused.")
+      "Identity determines whether the sampling state retains this PTags instance's raw "
+      + "tracestate, allowing its parsed size metadata to be reused."
+  )
   protected int estimateHeaderSize(
-      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
+      PTags pTags,
+      CharSequence lastParentIdOverride,
+      SamplingState samplingState
+  ) {
     int size = EMPTY_SIZE + 1;
     size += pTags.getXDatadogTagsSize(samplingState);
     if (pTags.getOrigin() != null) {
@@ -319,7 +333,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       StringBuilder sb,
       PTags ptags,
       CharSequence lastParentIdOverride,
-      SamplingState samplingState) {
+      SamplingState samplingState
+  ) {
     sb.append(DATADOG_MEMBER_KEY);
     // Append sampling priority (s)
     if (samplingState.getSamplingPriority() != PrioritySampling.UNSET) {
@@ -450,7 +465,12 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private int appendTag(
-      StringBuilder sb, TagElement key, TagElement value, Encoding encoding, int size) {
+      StringBuilder sb,
+      TagElement key,
+      TagElement value,
+      Encoding encoding,
+      int size
+  ) {
     if (size >= MAX_HEADER_SIZE) {
       return size;
     }
@@ -475,7 +495,13 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static int validateCharsUntilSeparatorOrEnd(
-      String s, int start, int end, char separator, boolean allowOWC, IntPredicate isValid) {
+      String s,
+      int start,
+      int end,
+      char separator,
+      boolean allowOWC,
+      IntPredicate isValid
+  ) {
     if (start >= end) {
       return -1;
     }
@@ -496,7 +522,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (pos < end) {
         c = s.charAt(pos);
         if (c == separator) {
-          break; // trailing separator allowed; caller resumes parsing from here
+          // trailing separator allowed; caller resumes parsing from here
+          break;
         }
       }
     } while (pos < end);
@@ -767,7 +794,10 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   private static int skipMalformedElement(String value, int start, int end) {
     log.warn(
-        "Invalid datadog tags header value: '{}' dropping malformed element at {}", value, start);
+        "Invalid datadog tags header value: '{}' dropping malformed element at {}",
+        value,
+        start
+    );
     int pos = start;
     while (pos < end) {
       char c = value.charAt(pos++);
@@ -798,7 +828,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       return size;
     }
     String original = w3CPTags.tracestate;
-    int elementStart = w3CPTags.ddMemberStart + EMPTY_SIZE; // skip over 'dd='
+    // skip over 'dd='
+    int elementStart = w3CPTags.ddMemberStart + EMPTY_SIZE;
     int okSize = size;
     while (elementStart < w3CPTags.ddMemberValueEnd && size < MAX_HEADER_SIZE) {
       elementStart = skipEmptyElements(original, elementStart, w3CPTags.ddMemberValueEnd);
@@ -838,7 +869,10 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static boolean appendOtelAndVendorMembers(
-      StringBuilder sb, SamplingState samplingState, boolean hasDatadogMember) {
+      StringBuilder sb,
+      SamplingState samplingState,
+      boolean hasDatadogMember
+  ) {
     String original = samplingState.getTracestate();
     CharSequence otelTraceState = samplingState.getOtelTraceState();
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
@@ -869,8 +903,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     return memberAppended;
   }
 
-  public static boolean isUnchangedInheritedOtelMember(
-      String original, CharSequence otelTraceState) {
+  public static boolean isUnchangedInheritedOtelMember(String original, CharSequence otelTraceState) {
     if (original == null || otelTraceState == null) {
       return false;
     }
@@ -932,9 +965,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         if (memberEnd < 0) {
           memberEnd = original.length();
         }
-        boolean managed =
-            original.startsWith(DATADOG_MEMBER_KEY, memberStart)
-                || original.startsWith(OTEL_MEMBER_KEY, memberStart);
+        boolean managed = original.startsWith(DATADOG_MEMBER_KEY, memberStart)
+            || original.startsWith(OTEL_MEMBER_KEY, memberStart);
         if (!managed) {
           int end = stripTrailingOWC(original, memberStart, memberEnd);
           appendMember(result, original, memberStart, end);
@@ -992,23 +1024,33 @@ public class W3CPTagsCodec extends PTagsCodec {
     int valueEnd = stripTrailingOWC(tracestate, otelMemberValueStart, otelMemberValueEnd);
     return OtelTraceState.parse(
         SubSequence.of(tracestate, otelMemberValueStart, valueEnd),
-        memberContributionSize(tracestate, firstMemberStart, otelMemberStart, otelMemberValueEnd));
+        memberContributionSize(tracestate, firstMemberStart, otelMemberStart, otelMemberValueEnd)
+    );
   }
 
   private static int memberContributionSize(
-      String tracestate, int firstMemberStart, int memberStart, int memberEnd) {
+      String tracestate,
+      int firstMemberStart,
+      int memberStart,
+      int memberEnd
+  ) {
     int memberSize = memberEnd - memberStart;
     boolean isOnlyMember = memberStart == firstMemberStart && memberEnd == tracestate.length();
     return isOnlyMember ? memberSize : memberSize + 1;
   }
 
-  /** Creates tags that preserve unmanaged W3C tracestate members without sampling state. */
+  /**
+   * Creates tags that preserve unmanaged W3C tracestate members without sampling state.
+   */
   static W3CPTags empty(PTagsFactory factory, String original) {
     return empty(factory, original, null);
   }
 
   private static W3CPTags empty(
-      PTagsFactory factory, String original, OtelTraceState otelTraceState) {
+      PTagsFactory factory,
+      String original,
+      OtelTraceState otelTraceState
+  ) {
     return empty(factory, original, 0, -1, -1, otelTraceState);
   }
 
@@ -1018,7 +1060,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       int firstMemberStart,
       int ddMemberStart,
       int ddMemberValueEnd,
-      OtelTraceState otelTraceState) {
+      OtelTraceState otelTraceState
+  ) {
     return new W3CPTags(
         factory,
         null,
@@ -1035,25 +1078,25 @@ public class W3CPTagsCodec extends PTagsCodec {
         null,
         null,
         LLMObsTagValues.EMPTY,
-        otelTraceState);
+        otelTraceState
+    );
   }
 
   private static class W3CPTags extends PTags {
-    /** The index of the first tracestate list-member position in {@link #tracestate}. */
+    /**
+     * The index of the first tracestate list-member position in {@link #tracestate}.
+     */
     private final int firstMemberStart;
-
     /**
      * The index of the Datadog tracestate list-member (dd=) position in {@link #tracestate}, {@code
      * -1 if Datadog list-member not found}.
      */
     private final int ddMemberStart;
-
     /**
      * The index of the end Datadog tracestate list-member (dd=) in {@link #tracestate}, {@code -1
      * if Datadog list-member not found}.
      */
     private final int ddMemberValueEnd;
-
     private final int maxUnknownSize;
 
     public W3CPTags(
@@ -1072,7 +1115,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         CharSequence lastParentId,
         TagValue orgPropagationMarkerTagValue,
         LLMObsTagValues llmObsTagValues,
-        OtelTraceState otelTraceState) {
+        OtelTraceState otelTraceState
+    ) {
       super(
           factory,
           tagPairs,
@@ -1085,7 +1129,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           orgPropagationMarkerTagValue,
           llmObsTagValues,
           original,
-          otelTraceState);
+          otelTraceState
+      );
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;
       this.ddMemberValueEnd = ddMemberValueEnd;
@@ -1097,8 +1142,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       long currentHighOrderBits = getTraceIdHighOrderBits();
       // If defined from parsing but different from expected value, mark as decoding error
       if (currentHighOrderBits != 0 && currentHighOrderBits != highOrderBits) {
-        this.error =
-            PROPAGATION_ERROR_INCONSISTENT_TID + toHexStringPadded(currentHighOrderBits, 16);
+        this.error = PROPAGATION_ERROR_INCONSISTENT_TID
+            + toHexStringPadded(currentHighOrderBits, 16);
       }
       super.updateTraceIdHighOrderBits(highOrderBits);
     }

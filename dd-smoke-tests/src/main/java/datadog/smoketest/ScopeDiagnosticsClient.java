@@ -2,7 +2,6 @@ package datadog.smoketest;
 
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
-
 import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,7 +13,9 @@ import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
 
-/** Controls scope recording in one smoke application's companion agent. */
+/**
+ * Controls scope recording in one smoke application's companion agent.
+ */
 public final class ScopeDiagnosticsClient {
   private static final String AGENT_PROPERTY = "datadog.smoketest.scopeDiagnostics.agent.path";
   private final Path directory;
@@ -23,23 +24,25 @@ public final class ScopeDiagnosticsClient {
   private final long timeoutMillis;
   private long sequence;
   private boolean active;
-
-  /** A terminal report is enforced once, even if validation fails. */
+  /**
+   * A terminal report is enforced once, even if validation fails.
+   */
   private boolean completionConsumed;
 
-  public ScopeDiagnosticsClient(Path reportsDirectory, String name, boolean cli)
-      throws IOException {
+  public ScopeDiagnosticsClient(Path reportsDirectory, String name, boolean cli) throws IOException {
     this(reportsDirectory, name, cli, "");
   }
 
-  /** Excludes named checks from enforcement, keeping their events in the report. */
+  /**
+   * Excludes named checks from enforcement, keeping their events in the report.
+   */
   public ScopeDiagnosticsClient(
       Path reportsDirectory,
       String name,
       boolean cli,
       String reason,
-      ScopeDiagnosticsCheck... disabledChecks)
-      throws IOException {
+      ScopeDiagnosticsCheck... disabledChecks
+  ) throws IOException {
     this(reportsDirectory, name, cli, configuredAgent(), 30_000, reason, disabledChecks);
   }
 
@@ -50,8 +53,8 @@ public final class ScopeDiagnosticsClient {
       Path agent,
       long timeoutMillis,
       String reason,
-      ScopeDiagnosticsCheck... disabledChecks)
-      throws IOException {
+      ScopeDiagnosticsCheck... disabledChecks
+  ) throws IOException {
     if (disabledChecks.length > 0 && (reason == null || reason.trim().isEmpty())) {
       throw new IllegalArgumentException("Disabling scope diagnostic checks requires a reason");
     }
@@ -75,11 +78,12 @@ public final class ScopeDiagnosticsClient {
     this.cli = cli;
     this.timeoutMillis = timeoutMillis;
     Files.createDirectories(reportsDirectory);
-    this.directory =
-        Files.createTempDirectory(
-                reportsDirectory,
-                "scope-diagnostics-" + name.replaceAll("[^a-zA-Z0-9._-]", "_") + "-")
-            .toAbsolutePath();
+    this.directory = Files
+      .createTempDirectory(
+          reportsDirectory,
+          "scope-diagnostics-" + name.replaceAll("[^a-zA-Z0-9._-]", "_") + "-"
+      )
+      .toAbsolutePath();
     Properties config = new Properties();
     config.setProperty("quiescenceMillis", Long.toString(quiescenceMillis));
     config.setProperty("mode", cli ? "cli" : "server");
@@ -127,7 +131,9 @@ public final class ScopeDiagnosticsClient {
     }
   }
 
-  /** Checks CLI shutdown output, or completes a server window before process destruction. */
+  /**
+   * Checks CLI shutdown output, or completes a server window before process destruction.
+   */
   public void verifyCompleted(Process process) {
     if (completionConsumed) {
       return;
@@ -167,7 +173,9 @@ public final class ScopeDiagnosticsClient {
     return await(file, process, false);
   }
 
-  /** Returns null only when the process exited without publishing the optional response. */
+  /**
+   * Returns null only when the process exited without publishing the optional response.
+   */
   private Properties await(String file, Process process, boolean allowMissingOnExit) {
     long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
     for (; ; ) {
@@ -226,7 +234,8 @@ public final class ScopeDiagnosticsClient {
     }
     if (!"ok".equals(status)) {
       throw failure(
-          response.getProperty("detail", status) + "\n" + response.getProperty("timeline", ""));
+          response.getProperty("detail", status) + "\n" + response.getProperty("timeline", "")
+      );
     }
   }
 

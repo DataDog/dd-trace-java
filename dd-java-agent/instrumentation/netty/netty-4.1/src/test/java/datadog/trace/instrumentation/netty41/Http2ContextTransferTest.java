@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.context.Context;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
@@ -39,9 +38,9 @@ class Http2ContextTransferTest {
     Channel channel = mock(Channel.class);
     when(channel.parent()).thenReturn(parent);
     when(channel.hasAttr(CONTEXT_ATTRIBUTE_KEY))
-        .thenAnswer(ignored -> attributes.hasAttr(CONTEXT_ATTRIBUTE_KEY));
+      .thenAnswer(ignored -> attributes.hasAttr(CONTEXT_ATTRIBUTE_KEY));
     when(channel.attr(CONTEXT_ATTRIBUTE_KEY))
-        .thenAnswer(ignored -> attributes.attr(CONTEXT_ATTRIBUTE_KEY));
+      .thenAnswer(ignored -> attributes.attr(CONTEXT_ATTRIBUTE_KEY));
     return channel;
   }
 }

@@ -23,7 +23,8 @@ public final class ConfigurationsJsonAdapter {
         (String) json.get("runtime.vendor"),
         (String) json.get("runtime.architecture"),
         (String) json.get("test.bundle"),
-        (Map<String, String>) json.get("custom"));
+        (Map<String, String>) json.get("custom")
+    );
   }
 
   @ToJson

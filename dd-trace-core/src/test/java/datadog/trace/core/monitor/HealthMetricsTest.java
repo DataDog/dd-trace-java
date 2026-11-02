@@ -5,7 +5,6 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.RemoteApi;
@@ -28,8 +27,8 @@ import org.tabletest.junit.TableTest;
 
 @ExtendWith(MockitoExtension.class)
 class HealthMetricsTest {
-
-  @Mock StatsDClient statsD;
+  @Mock
+  StatsDClient statsD;
 
   @Test
   void testOnShutdown() {
@@ -61,22 +60,30 @@ class HealthMetricsTest {
     List<DDSpan> twoSpanTrace = Arrays.<DDSpan>asList(null, null);
     return Stream.of(
         arguments(
-            "empty trace user_drop", emptyTrace, (int) PrioritySampling.USER_DROP, "user_drop"),
+            "empty trace user_drop",
+            emptyTrace,
+            (int) PrioritySampling.USER_DROP,
+            "user_drop"
+        ),
         arguments(
             "two span trace user_drop",
             twoSpanTrace,
             (int) PrioritySampling.USER_DROP,
-            "user_drop"),
+            "user_drop"
+        ),
         arguments(
             "empty trace sampler_keep",
             emptyTrace,
             (int) PrioritySampling.SAMPLER_KEEP,
-            "sampler_keep"),
+            "sampler_keep"
+        ),
         arguments(
             "two span trace sampler_keep",
             twoSpanTrace,
             (int) PrioritySampling.SAMPLER_KEEP,
-            "sampler_keep"));
+            "sampler_keep"
+        )
+    );
   }
 
   @TableTest({
@@ -198,8 +205,10 @@ class HealthMetricsTest {
       verify(statsD).count("api.errors.total", 1L);
     }
     if (response.status().isPresent()) {
-      verify(statsD)
-          .incrementCounter("api.responses.total", "status:" + response.status().getAsInt());
+      verify(statsD).incrementCounter(
+          "api.responses.total",
+          "status:" + response.status().getAsInt()
+      );
     }
     verifyNoMoreInteractions(statsD);
   }
@@ -208,15 +217,18 @@ class HealthMetricsTest {
     return Stream.of(
         arguments(
             "success with status",
-            RemoteApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100))),
+            RemoteApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100))
+        ),
         arguments(
             "failed with status",
-            RemoteApi.Response.failed(ThreadLocalRandom.current().nextInt(1, 100))),
+            RemoteApi.Response.failed(ThreadLocalRandom.current().nextInt(1, 100))
+        ),
         arguments(
             "success with status and exception",
-            RemoteApi.Response.success(
-                ThreadLocalRandom.current().nextInt(1, 100), new Throwable())),
-        arguments("failed with exception", RemoteApi.Response.failed(new Throwable())));
+            RemoteApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100), new Throwable())
+        ),
+        arguments("failed with exception", RemoteApi.Response.failed(new Throwable()))
+    );
   }
 
   static Stream<Arguments> testOnFailedSendArguments() {
@@ -500,8 +512,7 @@ class HealthMetricsTest {
     }
 
     @Override
-    public void serviceCheck(
-        String serviceCheckName, String status, String message, String... tags) {
+    public void serviceCheck(String serviceCheckName, String status, String message, String... tags) {
       try {
         delegate.serviceCheck(serviceCheckName, status, message, tags);
       } finally {

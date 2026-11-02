@@ -19,7 +19,9 @@ import java.util.Set;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 
-/** Converts neutral advice uses into the existing member-level muzzle reference model. */
+/**
+ * Converts neutral advice uses into the existing member-level muzzle reference model.
+ */
 public final class ReferenceCreator {
   private static final Set<String> OBJECT_METHODS = new HashSet<>();
 
@@ -100,21 +102,23 @@ public final class ReferenceCreator {
     String sourceInternal = internalName(source);
     String ownerInternal = internalName(shadedOwner);
     int fieldFlags = computeMinimumFieldAccess(sourceInternal, ownerInternal);
-    fieldFlags |=
-        usage.getOpcode() == Opcodes.GETSTATIC || usage.getOpcode() == Opcodes.PUTSTATIC
-            ? Reference.EXPECTS_STATIC
-            : Reference.EXPECTS_NON_STATIC;
+    fieldFlags |= usage.getOpcode() == Opcodes.GETSTATIC
+        || usage.getOpcode() == Opcodes.PUTSTATIC
+        ? Reference.EXPECTS_STATIC
+        : Reference.EXPECTS_NON_STATIC;
     merge(
         owner,
         new Reference.Builder(ownerInternal)
-            .withSource(source, usage.getSource().getLine())
-            .withFlag(computeMinimumClassAccess(sourceInternal, ownerInternal))
-            .withField(
-                new String[] {source + ":" + usage.getSource().getLine()},
-                fieldFlags,
-                usage.getName(),
-                shadeTypeDescriptor(usage.getDescriptor()))
-            .build());
+          .withSource(source, usage.getSource().getLine())
+          .withFlag(computeMinimumClassAccess(sourceInternal, ownerInternal))
+          .withField(
+              new String[] {source + ":" + usage.getSource().getLine()},
+              fieldFlags,
+              usage.getName(),
+              shadeTypeDescriptor(usage.getDescriptor())
+          )
+          .build()
+    );
     addDescriptorType(Type.getType(usage.getDescriptor()), usage.getSource());
   }
 
@@ -139,27 +143,27 @@ public final class ReferenceCreator {
     String sourceInternal = internalName(source);
     String ownerInternal = internalName(shadedOwner);
     int methodFlags = computeMinimumMethodAccess(sourceInternal, ownerInternal);
-    methodFlags |=
-        usage.getOpcode() == Opcodes.INVOKESTATIC
-            ? Reference.EXPECTS_STATIC
-            : Reference.EXPECTS_NON_STATIC;
+    methodFlags |= usage.getOpcode() == Opcodes.INVOKESTATIC
+        ? Reference.EXPECTS_STATIC
+        : Reference.EXPECTS_NON_STATIC;
     Type methodType = Type.getMethodType(descriptor);
     merge(
         owner,
         new Reference.Builder(ownerInternal)
-            .withSource(source, usage.getSource().getLine())
-            .withFlag(
-                usage.isInterfaceOwner()
-                    ? Reference.EXPECTS_INTERFACE
-                    : Reference.EXPECTS_NON_INTERFACE)
-            .withFlag(computeMinimumClassAccess(sourceInternal, ownerInternal))
-            .withMethod(
-                new String[] {source + ":" + usage.getSource().getLine()},
-                methodFlags,
-                usage.getName(),
-                methodType.getReturnType(),
-                methodType.getArgumentTypes())
-            .build());
+          .withSource(source, usage.getSource().getLine())
+          .withFlag(
+              usage.isInterfaceOwner() ? Reference.EXPECTS_INTERFACE : Reference.EXPECTS_NON_INTERFACE
+          )
+          .withFlag(computeMinimumClassAccess(sourceInternal, ownerInternal))
+          .withMethod(
+              new String[] {source + ":" + usage.getSource().getLine()},
+              methodFlags,
+              usage.getName(),
+              methodType.getReturnType(),
+              methodType.getArgumentTypes()
+          )
+          .build()
+    );
   }
 
   private void addInvokeDynamicReferences(List<HandleUse> handles, SourceLocation source) {
@@ -175,9 +179,10 @@ public final class ReferenceCreator {
       merge(
           className,
           new Reference.Builder(classInternal)
-              .withSource(shadedSource, source.getLine())
-              .withFlag(computeMinimumClassAccess(sourceInternal, classInternal))
-              .build());
+            .withSource(shadedSource, source.getLine())
+            .withFlag(computeMinimumClassAccess(sourceInternal, classInternal))
+            .build()
+      );
     }
   }
 
@@ -191,7 +196,10 @@ public final class ReferenceCreator {
   }
 
   private void addTypeReference(
-      String className, SourceLocation source, boolean implementedInterface) {
+      String className,
+      SourceLocation source,
+      boolean implementedInterface
+  ) {
     String shadedClass = shade(className);
     if (ignoreReference(shadedClass)) {
       return;
@@ -199,16 +207,16 @@ public final class ReferenceCreator {
     String shadedSource = shade(source.getClassName());
     String sourceInternal = internalName(shadedSource);
     String classInternal = internalName(shadedClass);
-    int flags =
-        implementedInterface
-            ? Reference.EXPECTS_PUBLIC
-            : computeMinimumClassAccess(sourceInternal, classInternal);
+    int flags = implementedInterface
+        ? Reference.EXPECTS_PUBLIC
+        : computeMinimumClassAccess(sourceInternal, classInternal);
     merge(
         className,
         new Reference.Builder(classInternal)
-            .withSource(shadedSource, source.getLine())
-            .withFlag(flags)
-            .build());
+          .withSource(shadedSource, source.getLine())
+          .withFlag(flags)
+          .build()
+    );
   }
 
   private void merge(String unshadedClassName, Reference reference) {
@@ -232,7 +240,9 @@ public final class ReferenceCreator {
     return shader == null ? descriptor : shader.shadeMethodDescriptor(descriptor);
   }
 
-  /** Returns the minimum access required for {@code from} to access class {@code to}. */
+  /**
+   * Returns the minimum access required for {@code from} to access class {@code to}.
+   */
   private static int computeMinimumClassAccess(String from, String to) {
     if (from.equalsIgnoreCase(to)) {
       return 0;
@@ -243,7 +253,9 @@ public final class ReferenceCreator {
     }
   }
 
-  /** Returns the minimum access required for {@code from} to access a field on {@code to}. */
+  /**
+   * Returns the minimum access required for {@code from} to access a field on {@code to}.
+   */
   private static int computeMinimumFieldAccess(String from, String to) {
     if (from.equalsIgnoreCase(to)) {
       return 0;
@@ -255,7 +267,9 @@ public final class ReferenceCreator {
     }
   }
 
-  /** Returns the minimum access required for {@code from} to access a method on {@code to}. */
+  /**
+   * Returns the minimum access required for {@code from} to access a method on {@code to}.
+   */
   private static int computeMinimumMethodAccess(String from, String to) {
     if (from.equalsIgnoreCase(to)) {
       return 0;
@@ -270,7 +284,9 @@ public final class ReferenceCreator {
     return fromLength == toLength && from.regionMatches(0, to, 0, fromLength + 1);
   }
 
-  /** Returns whether this class is always available and does not require a muzzle check. */
+  /**
+   * Returns whether this class is always available and does not require a muzzle check.
+   */
   private static boolean ignoreReference(String name) {
     String dottedName = name.replace('/', '.');
     // Drop any array prefix so the component type can be checked.

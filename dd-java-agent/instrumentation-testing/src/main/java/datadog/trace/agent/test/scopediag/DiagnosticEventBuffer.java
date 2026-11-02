@@ -10,15 +10,14 @@ import java.util.concurrent.locks.LockSupport;
 final class DiagnosticEventBuffer {
   private static final Runnable NOOP = () -> {};
   private static final Event CLOSED = new Event();
-
   private Event consumed = new Event();
   // A successful CAS reserves FIFO order before stack capture; the volatile next/action writes
   // publish the link and payload separately. Only the consumer touches consumed and draining.
   private final AtomicReference<Event> tail = new AtomicReference<>(consumed);
-
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification = "Only consumer methods access this field, while holding the lifecycle lock")
+      justification = "Only consumer methods access this field, while holding the lifecycle lock"
+  )
   private boolean draining;
 
   Event reserve() {
@@ -34,7 +33,9 @@ final class DiagnosticEventBuffer {
     return event;
   }
 
-  /** Stops admission atomically; all successful reservations remain available to the consumer. */
+  /**
+   * Stops admission atomically; all successful reservations remain available to the consumer.
+   */
   void close() {
     Event previous = tail.getAndSet(CLOSED);
     if (previous != CLOSED) {
@@ -42,7 +43,9 @@ final class DiagnosticEventBuffer {
     }
   }
 
-  /** Closes only if no producer reserved an event since the last drain. */
+  /**
+   * Closes only if no producer reserved an event since the last drain.
+   */
   boolean closeIfEmpty() {
     if (!tail.compareAndSet(consumed, CLOSED)) {
       return false;
@@ -60,7 +63,9 @@ final class DiagnosticEventBuffer {
     return !draining && consumed.next == event;
   }
 
-  /** Drains one finite prefix; opportunistic consumers never wait for a producer. */
+  /**
+   * Drains one finite prefix; opportunistic consumers never wait for a producer.
+   */
   void drain(boolean timed, long deadline, boolean waitForPublication) {
     if (draining) {
       return;

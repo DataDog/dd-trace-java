@@ -3,7 +3,9 @@ package datadog.trace.api.civisibility.telemetry.tag;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import javax.annotation.Nonnull;
 
-/** The exit code of a shell command execution */
+/**
+ * The exit code of a shell command execution
+ */
 public enum ExitCode implements TagValue {
   CODE_MINUS_1("-1"),
   CODE_1("1"),
@@ -13,7 +15,6 @@ public enum ExitCode implements TagValue {
   CODE_129("129"),
   EXECUTABLE_MISSING("missing"),
   CODE_UNKNOWN("unknown");
-
   private final String s;
 
   ExitCode(String code) {

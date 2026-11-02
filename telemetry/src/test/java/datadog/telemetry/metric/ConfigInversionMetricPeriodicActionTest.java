@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.Metric;
 import datadog.trace.api.telemetry.ConfigInversionMetricCollectorImpl;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class ConfigInversionMetricPeriodicActionTest {
-
   private final TelemetryService telemetryService = mock(TelemetryService.class);
   private final ConfigInversionMetricPeriodicAction action =
       new ConfigInversionMetricPeriodicAction();

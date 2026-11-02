@@ -10,7 +10,6 @@ import static datadog.crashtracking.Initializer.restrictScriptToOwnerOnly;
 import static datadog.crashtracking.Initializer.stripGroupAndWorldBits;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Locale.ROOT;
-
 import datadog.environment.SystemProperties;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.PidHelper;
@@ -28,7 +27,8 @@ import java.nio.charset.StandardCharsets;
 public final class CrashUploaderScriptInitializer {
   private static final String SETUP_FAILURE_MESSAGE = "Crash tracking will not work properly.";
 
-  private CrashUploaderScriptInitializer() {}
+  private CrashUploaderScriptInitializer() {
+  }
 
   @VisibleForTesting
   static boolean initialize(String onErrorVal, String onErrorFile) {
@@ -39,11 +39,16 @@ public final class CrashUploaderScriptInitializer {
   static boolean initialize(String onErrorVal, String onErrorFile, String javacorePath) {
     if (onErrorVal == null || onErrorVal.isEmpty()) {
       LOG.debug(
-          SEND_TELEMETRY, "'-XX:OnError' argument was not provided. Crash tracking is disabled.");
+          SEND_TELEMETRY,
+          "'-XX:OnError' argument was not provided. Crash tracking is disabled."
+      );
       return false;
     }
     if (onErrorFile == null || onErrorFile.isEmpty()) {
-      onErrorFile = SystemProperties.get("user.dir") + "/hs_err_pid" + PidHelper.getPid() + ".log";
+      onErrorFile = SystemProperties.get("user.dir")
+          + "/hs_err_pid"
+          + PidHelper.getPid()
+          + ".log";
       LOG.debug("No -XX:ErrorFile value, defaulting to {}", onErrorFile);
     } else {
       onErrorFile = Strings.replace(onErrorFile, "%p", PidHelper.getPid());
@@ -56,8 +61,10 @@ public final class CrashUploaderScriptInitializer {
     }
 
     File scriptFile = new File(onErrorVal.replace(" %p", ""));
-    boolean isDDCrashUploader =
-        scriptFile.getName().toLowerCase(ROOT).contains("dd_crash_uploader");
+    boolean isDDCrashUploader = scriptFile
+      .getName()
+      .toLowerCase(ROOT)
+      .contains("dd_crash_uploader");
     if (isDDCrashUploader && !copyCrashUploaderScript(scriptFile, onErrorFile, agentJar)) {
       return false;
     }
@@ -71,22 +78,27 @@ public final class CrashUploaderScriptInitializer {
   }
 
   private static boolean copyCrashUploaderScript(
-      File scriptFile, String onErrorFile, String agentJar) {
+      File scriptFile,
+      String onErrorFile,
+      String agentJar
+  ) {
     File scriptDirectory = scriptFile.getParentFile();
     if (!scriptDirectory.exists()) {
       if (!scriptDirectory.mkdirs()) {
         LOG.warn(
             SEND_TELEMETRY,
             "Failed to create writable crash tracking script folder {}. " + SETUP_FAILURE_MESSAGE,
-            scriptDirectory);
+            scriptDirectory
+        );
         return false;
       }
       if (!restrictDirectoryToOwnerOnly(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
             "Unable to restrict crash tracking script folder {} to owner-only permissions. "
-                + SETUP_FAILURE_MESSAGE,
-            scriptDirectory);
+            + SETUP_FAILURE_MESSAGE,
+            scriptDirectory
+        );
         return false;
       }
     } else {
@@ -94,8 +106,9 @@ public final class CrashUploaderScriptInitializer {
         LOG.warn(
             SEND_TELEMETRY,
             "Untrusted crash tracking script folder {} (wrong owner or group/world-writable). "
-                + SETUP_FAILURE_MESSAGE,
-            scriptDirectory);
+            + SETUP_FAILURE_MESSAGE,
+            scriptDirectory
+        );
         return false;
       }
       // owned by us but possibly left over from an older, less restrictive version: strip any
@@ -105,8 +118,9 @@ public final class CrashUploaderScriptInitializer {
         LOG.warn(
             SEND_TELEMETRY,
             "Unable to strip group/world permissions from crash tracking script folder {}. "
-                + SETUP_FAILURE_MESSAGE,
-            scriptDirectory);
+            + SETUP_FAILURE_MESSAGE,
+            scriptDirectory
+        );
         return false;
       }
     }
@@ -121,21 +135,24 @@ public final class CrashUploaderScriptInitializer {
       LOG.warn(
           SEND_TELEMETRY,
           "Untrusted or unprotectable crash uploader script {} (wrong owner, group/world-writable,"
-              + " or unable to restrict permissions). "
-              + SETUP_FAILURE_MESSAGE,
-          scriptFile);
+          + " or unable to restrict permissions). "
+          + SETUP_FAILURE_MESSAGE,
+          scriptFile
+      );
       return false;
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
           "Failed to copy crash tracking script {}. " + SETUP_FAILURE_MESSAGE,
-          scriptFile);
+          scriptFile
+      );
       return false;
     }
     return true;
   }
 
-  static class UntrustedScriptException extends IOException {}
+  static class UntrustedScriptException extends IOException {
+  }
 
   /**
    * Writes the crash uploader script if it does not already exist. A freshly written script is
@@ -148,14 +165,17 @@ public final class CrashUploaderScriptInitializer {
    * can return {@code false}.
    */
   private static void writeCrashUploaderScript(
-      InputStream template, File scriptFile, String execClass, String crashFile)
-      throws IOException {
+      InputStream template,
+      File scriptFile,
+      String execClass,
+      String crashFile
+  ) throws IOException {
     if (!scriptFile.exists()) {
       try (BufferedReader br = new BufferedReader(new InputStreamReader(template));
-          BufferedWriter bw =
-              new BufferedWriter(
-                  new OutputStreamWriter(
-                      new FileOutputStream(scriptFile), StandardCharsets.UTF_8))) {
+          BufferedWriter bw = new BufferedWriter(
+              new OutputStreamWriter(new FileOutputStream(scriptFile), StandardCharsets.UTF_8)
+      )
+      ) {
         String line;
         while ((line = br.readLine()) != null) {
           bw.write(template(line, execClass, crashFile));

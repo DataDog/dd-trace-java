@@ -22,7 +22,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.datadog.openfeature.Provider.Options;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
@@ -51,7 +50,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class ExposureHookTest {
-
   private final List<ExposureHook.Evaluation> evaluations = new ArrayList<>();
   private ExposureTestEvaluator evaluator;
   private Client client;
@@ -91,17 +89,16 @@ class ExposureHookTest {
   @Test
   void aFailedEvaluationIsNotAnExposure() throws Exception {
     start(true, configuration(Boolean.TRUE, null));
-    OpenFeatureAPI.getInstance()
-        .addHooks(
-            new Hook<Object>() {
-              @Override
-              public void after(
-                  final HookContext<Object> ctx,
-                  final FlagEvaluationDetails<Object> details,
-                  final Map<String, Object> hints) {
-                throw new IllegalStateException("application validation failed");
-              }
-            });
+    OpenFeatureAPI.getInstance().addHooks(new Hook<Object>() {
+      @Override
+      public void after(
+          final HookContext<Object> ctx,
+          final FlagEvaluationDetails<Object> details,
+          final Map<String, Object> hints
+      ) {
+        throw new IllegalStateException("application validation failed");
+      }
+    });
 
     final FlagEvaluationDetails<Integer> details = evaluate("user-1");
 
@@ -139,9 +136,13 @@ class ExposureHookTest {
                 new Feature(
                     "holdout.should_include_in_holdout_analysis",
                     true,
-                    asList("HOOK", "SOME_FUTURE_DESTINATION")),
+                    asList("HOOK", "SOME_FUTURE_DESTINATION")
+                ),
                 new Feature("bandit.policy_id", "p2", asList("EXPOSURE", "EVALUATION")),
-                new Feature("unknown.only", "x", singletonList("SOME_FUTURE_DESTINATION")))));
+                new Feature("unknown.only", "x", singletonList("SOME_FUTURE_DESTINATION"))
+            )
+        )
+    );
 
     final FlagEvaluationDetails<Integer> details = evaluate("user-1");
 
@@ -149,17 +150,20 @@ class ExposureHookTest {
     assertEquals(4, features.size());
     assertFalse(
         features.containsKey("bandit.policy_id"),
-        "a feature without HOOK is not delivered to hooks");
+        "a feature without HOOK is not delivered to hooks"
+    );
     assertFalse(
         features.containsKey("unknown.only"),
-        "a feature with only unknown destinations goes nowhere");
+        "a feature with only unknown destinations goes nowhere"
+    );
     assertEquals("q4-global", features.get("holdout.key"));
     assertEquals("status_quo", features.get("holdout.assignment_group"));
     assertEquals(0.5, features.get("holdout.weight"));
     assertEquals(true, features.get("holdout.should_include_in_holdout_analysis"));
     assertEquals(
         "q4-global",
-        details.getFlagMetadata().asUnmodifiableMap().get(FEATURE_PREFIX + "holdout.key"));
+        details.getFlagMetadata().asUnmodifiableMap().get(FEATURE_PREFIX + "holdout.key")
+    );
     assertThrows(UnsupportedOperationException.class, () -> features.put("other", "value"));
   }
 
@@ -173,26 +177,32 @@ class ExposureHookTest {
                 new Feature("holdout.key", "q4-global", singletonList("HOOK")),
                 new Feature("bandit.arm", "a", singletonList("EXPOSURE")),
                 new Feature("experiment.tag", "pricing", singletonList("EVALUATION")),
-                new Feature("bandit.policy_id", "p2", asList("EXPOSURE", "EVALUATION")))));
+                new Feature("bandit.policy_id", "p2", asList("EXPOSURE", "EVALUATION"))
+            )
+        )
+    );
 
     final FlagEvaluationDetails<Integer> details = evaluate("user-1");
 
     final ImmutableMetadata metadata = details.getFlagMetadata();
     assertEquals(
         singletonMap("holdout.key", "q4-global"),
-        SplitFeatureMetadata.featuresWithPrefix(metadata, FEATURE_PREFIX));
+        SplitFeatureMetadata.featuresWithPrefix(metadata, FEATURE_PREFIX)
+    );
     final Map<String, Object> exposureFeatures = new HashMap<>();
     exposureFeatures.put("bandit.arm", "a");
     exposureFeatures.put("bandit.policy_id", "p2");
     assertEquals(
         exposureFeatures,
-        SplitFeatureMetadata.featuresWithPrefix(metadata, EXPOSURE_FEATURE_PREFIX));
+        SplitFeatureMetadata.featuresWithPrefix(metadata, EXPOSURE_FEATURE_PREFIX)
+    );
     final Map<String, Object> evaluationFeatures = new HashMap<>();
     evaluationFeatures.put("experiment.tag", "pricing");
     evaluationFeatures.put("bandit.policy_id", "p2");
     assertEquals(
         evaluationFeatures,
-        SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX));
+        SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX)
+    );
     assertEquals(singletonMap("holdout.key", "q4-global"), this.evaluations.get(0).getFeatures());
     assertEquals(exposureFeatures, this.evaluator.sentToDatadog.get(0).features);
   }
@@ -205,15 +215,20 @@ class ExposureHookTest {
             Boolean.TRUE,
             asList(
                 new Feature("holdout.key", "q4-global", singletonList("HOOK")),
-                new Feature("holdout.key", "q1-global", asList("HOOK", "EXPOSURE")))));
+                new Feature("holdout.key", "q1-global", asList("HOOK", "EXPOSURE"))
+            )
+        )
+    );
 
     final FlagEvaluationDetails<Integer> details = evaluate("user-1");
 
     assertEquals(singletonMap("holdout.key", "q4-global"), this.evaluations.get(0).getFeatures());
     assertTrue(
-        SplitFeatureMetadata.featuresWithPrefix(details.getFlagMetadata(), EXPOSURE_FEATURE_PREFIX)
-            .isEmpty(),
-        "the repeated feature's EXPOSURE destination is ignored with it");
+        SplitFeatureMetadata
+          .featuresWithPrefix(details.getFlagMetadata(), EXPOSURE_FEATURE_PREFIX)
+          .isEmpty(),
+        "the repeated feature's EXPOSURE destination is ignored with it"
+    );
     assertNull(this.evaluator.sentToDatadog.get(0).features);
   }
 
@@ -224,7 +239,9 @@ class ExposureHookTest {
         true,
         configuration(
             Boolean.FALSE,
-            singletonList(new Feature("bandit.policy_id", "p2", singletonList("EVALUATION")))));
+            singletonList(new Feature("bandit.policy_id", "p2", singletonList("EVALUATION")))
+        )
+    );
     final FlagEvaluationWriter writer = capturingWriter(captured);
     OpenFeatureAPI.getInstance().addHooks(new FlagEvalLoggingHook<>(() -> writer));
 
@@ -246,12 +263,9 @@ class ExposureHookTest {
   @Test
   void aFailingCallbackDoesNotAffectTheEvaluation() throws Exception {
     start(true, configuration(Boolean.TRUE, null));
-    OpenFeatureAPI.getInstance()
-        .addHooks(
-            new ExposureHook(
-                evaluation -> {
-                  throw new IllegalStateException("warehouse unavailable");
-                }));
+    OpenFeatureAPI.getInstance().addHooks(new ExposureHook(evaluation -> {
+      throw new IllegalStateException("warehouse unavailable");
+    }));
 
     final FlagEvaluationDetails<Integer> details = evaluate("user-1");
 
@@ -271,22 +285,24 @@ class ExposureHookTest {
     assertTrue(evaluation("on", exposureMetadata("allocation", true, true)).isCacheHit());
     assertFalse(
         evaluation("on", exposureMetadata("allocation", false, true)).isCacheHit(),
-        "an evaluation that is not an exposure is never a cache hit");
+        "an evaluation that is not an exposure is never a cache hit"
+    );
     assertFalse(evaluation("on", exposureMetadata("allocation", true, true)).shouldSend());
   }
 
   @Test
   void anEvaluationWithAnErrorIsNotAnExposure() {
-    final ExposureHook.Evaluation evaluation =
-        new ExposureHook.Evaluation(
-            new MutableContext("user-1"),
-            FlagEvaluationDetails.<Object>builder()
-                .flagKey("flag")
-                .value(0)
-                .variant("on")
-                .errorCode(ErrorCode.GENERAL)
-                .flagMetadata(exposureMetadata("allocation", true, false))
-                .build());
+    final ExposureHook.Evaluation evaluation = new ExposureHook.Evaluation(
+        new MutableContext("user-1"),
+        FlagEvaluationDetails
+          .<Object>builder()
+          .flagKey("flag")
+          .value(0)
+          .variant("on")
+          .errorCode(ErrorCode.GENERAL)
+          .flagMetadata(exposureMetadata("allocation", true, false))
+          .build()
+    );
 
     assertFalse(evaluation.isExposure());
     assertFalse(evaluation.shouldSend());
@@ -295,13 +311,14 @@ class ExposureHookTest {
   @Test
   void featuresIgnoreOtherMetadataAndAreEmptyWithoutMetadata() {
     assertTrue(evaluation("on", null).getFeatures().isEmpty());
-    final ExposureHook.Evaluation evaluation =
-        evaluation(
-            "on",
-            ImmutableMetadata.builder()
-                .addString(ALLOCATION_KEY, "allocation")
-                .addString(FEATURE_PREFIX + "holdout.key", "q4-global")
-                .build());
+    final ExposureHook.Evaluation evaluation = evaluation(
+        "on",
+        ImmutableMetadata
+          .builder()
+          .addString(ALLOCATION_KEY, "allocation")
+          .addString(FEATURE_PREFIX + "holdout.key", "q4-global")
+          .build()
+    );
 
     assertEquals(1, evaluation.getFeatures().size());
     assertEquals("q4-global", evaluation.getFeatures().get("holdout.key"));
@@ -313,29 +330,21 @@ class ExposureHookTest {
     final FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build();
 
-    assertDoesNotThrow(
-        () ->
-            new ExposureHook(
-                    evaluation -> {
-                      throw new IllegalStateException("warehouse unavailable");
-                    })
-                .finallyAfter(context, details, emptyMap()));
-    assertDoesNotThrow(
-        () ->
-            new ExposureHook(
-                    evaluation -> {
-                      throw new NoClassDefFoundError("missing class");
-                    })
-                .finallyAfter(context, details, emptyMap()));
+    assertDoesNotThrow(() -> new ExposureHook(evaluation -> {
+      throw new IllegalStateException("warehouse unavailable");
+    })
+      .finallyAfter(context, details, emptyMap()));
+    assertDoesNotThrow(() -> new ExposureHook(evaluation -> {
+      throw new NoClassDefFoundError("missing class");
+    })
+      .finallyAfter(context, details, emptyMap()));
   }
 
   @Test
   void keepsContainingCallbackFailuresAfterTheFirstOne() {
-    final ExposureHook hook =
-        new ExposureHook(
-            evaluation -> {
-              throw new IllegalStateException("warehouse unavailable");
-            });
+    final ExposureHook hook = new ExposureHook(evaluation -> {
+      throw new IllegalStateException("warehouse unavailable");
+    });
     final FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build();
 
@@ -370,16 +379,19 @@ class ExposureHookTest {
   }
 
   private static HookContext<Object> hookContext() {
-    return HookContext.<Object>builder()
-        .flagKey("flag")
-        .type(FlagValueType.INTEGER)
-        .defaultValue(0)
-        .ctx(new MutableContext("user-1"))
-        .build();
+    return HookContext
+      .<Object>builder()
+      .flagKey("flag")
+      .type(FlagValueType.INTEGER)
+      .defaultValue(0)
+      .ctx(new MutableContext("user-1"))
+      .build();
   }
 
   private static ExposureHook.Evaluation evaluation(
-      final String variant, final ImmutableMetadata metadata) {
+      final String variant,
+      final ImmutableMetadata metadata
+  ) {
     final FlagEvaluationDetails.FlagEvaluationDetailsBuilder<Object> builder =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).variant(variant);
     if (metadata != null) {
@@ -389,11 +401,15 @@ class ExposureHookTest {
   }
 
   private static ImmutableMetadata exposureMetadata(
-      final String allocationKey, final boolean doLog, final boolean cacheHit) {
+      final String allocationKey,
+      final boolean doLog,
+      final boolean cacheHit
+  ) {
     final ImmutableMetadata.ImmutableMetadataBuilder builder =
-        ImmutableMetadata.builder()
-            .addBoolean(DO_LOG, doLog)
-            .addBoolean(EXPOSURE_CACHE_HIT, cacheHit);
+        ImmutableMetadata
+      .builder()
+      .addBoolean(DO_LOG, doLog)
+      .addBoolean(EXPOSURE_CACHE_HIT, cacheHit);
     if (allocationKey != null) {
       builder.addString(ALLOCATION_KEY, allocationKey);
     }
@@ -413,7 +429,9 @@ class ExposureHookTest {
   }
 
   private static ServerConfiguration configuration(
-      final Boolean doLog, final List<Feature> features) {
+      final Boolean doLog,
+      final List<Feature> features
+  ) {
     final Map<String, Variant> variations = new HashMap<>();
     variations.put("on", new Variant("on", 1));
     final Split split = new Split(emptyList(), "on", emptyMap(), 7, features);
@@ -421,20 +439,19 @@ class ExposureHookTest {
         new Allocation("allocation", null, null, null, singletonList(split), doLog);
     final Map<String, Flag> flags = new HashMap<>();
     flags.put(
-        "flag", new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation)));
+        "flag",
+        new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation))
+    );
     return new ServerConfiguration("", "", false, null, flags);
   }
 
   private static FlagEvaluationWriter capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
     final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
     when(writer.hasCapacityForEnqueue()).thenReturn(true);
-    doAnswer(
-            invocation -> {
-              ref.set(invocation.getArgument(0));
-              return null;
-            })
-        .when(writer)
-        .enqueue(any());
+    doAnswer(invocation -> {
+      ref.set(invocation.getArgument(0));
+      return null;
+    }).when(writer).enqueue(any());
     return writer;
   }
 }

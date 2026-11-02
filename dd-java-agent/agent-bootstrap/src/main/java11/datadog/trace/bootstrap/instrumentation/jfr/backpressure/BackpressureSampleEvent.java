@@ -14,13 +14,10 @@ import jdk.jfr.Name;
 public class BackpressureSampleEvent extends Event implements ContextualEvent {
   @Label("Policy")
   private final Class<?> policy;
-
   @Label("Task")
   private final Class<?> task;
-
   @Label("Local Root Span Id")
   private long localRootSpanId;
-
   @Label("Span Id")
   private long spanId;
 

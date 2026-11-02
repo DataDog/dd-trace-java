@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class AsyncService {
-
   @Async("taskExecutor")
   public void performAsyncTask(String id) {
     try {

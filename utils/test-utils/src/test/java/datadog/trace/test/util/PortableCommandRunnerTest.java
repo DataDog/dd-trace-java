@@ -4,7 +4,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -41,36 +40,39 @@ class PortableCommandRunnerTest {
     long start = System.nanoTime();
 
     PortableCommandRunner.execute(
-        new String[] {"sleep", "50"}, emptyInput(), new ByteArrayOutputStream());
+        new String[] {"sleep", "50"},
+        emptyInput(),
+        new ByteArrayOutputStream()
+    );
 
     assertTrue((System.nanoTime() - start) / 1_000_000 >= 40, "sleep returned immediately");
   }
 
   @Test
   void rejectsMissingCommand() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            PortableCommandRunner.execute(
-                new String[0], emptyInput(), new ByteArrayOutputStream()));
+    assertThrows(IllegalArgumentException.class, () -> PortableCommandRunner.execute(
+        new String[0],
+        emptyInput(),
+        new ByteArrayOutputStream()
+    ));
   }
 
   @Test
   void rejectsUnknownCommand() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            PortableCommandRunner.execute(
-                new String[] {"rm"}, emptyInput(), new ByteArrayOutputStream()));
+    assertThrows(IllegalArgumentException.class, () -> PortableCommandRunner.execute(
+        new String[] {"rm"},
+        emptyInput(),
+        new ByteArrayOutputStream()
+    ));
   }
 
   @Test
   void rejectsMissingArgument() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            PortableCommandRunner.execute(
-                new String[] {"echo"}, emptyInput(), new ByteArrayOutputStream()));
+    assertThrows(IllegalArgumentException.class, () -> PortableCommandRunner.execute(
+        new String[] {"echo"},
+        emptyInput(),
+        new ByteArrayOutputStream()
+    ));
   }
 
   private static InputStream emptyInput() {

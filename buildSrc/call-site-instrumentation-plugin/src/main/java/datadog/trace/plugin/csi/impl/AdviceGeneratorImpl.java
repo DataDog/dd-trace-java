@@ -16,7 +16,6 @@ import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_RESOLVER;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.deleteFile;
 import static datadog.trace.plugin.csi.util.JavaParserUtils.getPrimaryType;
 import static datadog.trace.plugin.csi.util.JavaParserUtils.intLiteral;
-
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -69,20 +68,22 @@ import org.objectweb.asm.Type;
  */
 @SuppressWarnings("OptionalGetWithoutIsPresent")
 public class AdviceGeneratorImpl implements AdviceGenerator {
-
   private final File targetFolder;
   private final AdvicePointcutParser pointcutParser;
   private final TypeResolver typeResolver;
 
   public AdviceGeneratorImpl(
-      @Nonnull final File targetFolder, @Nonnull final AdvicePointcutParser pointcutParser) {
+      @Nonnull final File targetFolder,
+      @Nonnull final AdvicePointcutParser pointcutParser
+  ) {
     this(targetFolder, pointcutParser, typeResolver());
   }
 
   public AdviceGeneratorImpl(
       @Nonnull final File targetFolder,
       @Nonnull final AdvicePointcutParser pointcutParser,
-      @Nonnull final TypeResolver typeResolver) {
+      @Nonnull final TypeResolver typeResolver
+  ) {
     this.targetFolder = targetFolder;
     this.pointcutParser = pointcutParser;
     this.typeResolver = typeResolver;
@@ -103,12 +104,11 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
         final ClassOrInterfaceDeclaration mainType = getPrimaryType(javaClass);
         final BlockStmt acceptBody = new BlockStmt();
         mainType
-            .addMethod("accept", PUBLIC)
-            .setType(void.class)
-            .setBody(acceptBody)
-            .addAnnotation(Override.class.getName())
-            .setParameters(
-                new NodeList<>(new Parameter().setName("container").setType("Container")));
+          .addMethod("accept", PUBLIC)
+          .setType(void.class)
+          .setBody(acceptBody)
+          .addAnnotation(Override.class.getName())
+          .setParameters(new NodeList<>(new Parameter().setName("container").setType("Container")));
         if (spec.getEnabled() != null) {
           addEnabledCheck(mainType, spec.getEnabled());
         }
@@ -136,7 +136,10 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
   }
 
   private static CompilationUnit buildJavaClass(
-      final CallSiteSpecification spec, final Type type, final File javaFile) {
+      final CallSiteSpecification spec,
+      final Type type,
+      final File javaFile
+  ) {
     final CompilationUnit javaClass = new CompilationUnit();
     javaClass.setStorage(javaFile.toPath());
     final String packageName = getPackageName(spec.getClazz());
@@ -153,7 +156,10 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
   }
 
   private static ClassOrInterfaceDeclaration callSitesType(
-      final CompilationUnit javaClass, final CallSiteSpecification callSite, final Type advice) {
+      final CompilationUnit javaClass,
+      final CallSiteSpecification callSite,
+      final Type advice
+  ) {
     final ClassOrInterfaceDeclaration type = new ClassOrInterfaceDeclaration();
     type.setModifier(PUBLIC, true);
     type.setName(getClassName(advice));
@@ -169,7 +175,9 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
   }
 
   private static void addAutoServiceAnnotation(
-      final ClassOrInterfaceDeclaration javaClass, final CallSiteSpecification callSite) {
+      final ClassOrInterfaceDeclaration javaClass,
+      final CallSiteSpecification callSite
+  ) {
     final NormalAnnotationExpr autoService = new NormalAnnotationExpr();
     autoService.setName(AUTO_SERVICE_FQDN);
     final Type[] spiTypes = callSite.getSpi();
@@ -182,7 +190,9 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
   }
 
   private void addAdviceLambda(
-      @Nonnull final AdviceSpecification spec, @Nonnull final BlockStmt body) {
+      @Nonnull final AdviceSpecification spec,
+      @Nonnull final BlockStmt body
+  ) {
     final MethodType pointCut = spec.getPointcut();
     final BlockStmt adviceBody = new BlockStmt();
     final Expression advice;
@@ -206,38 +216,38 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       type = "AROUND";
       writeAdviceMethodCall(spec, adviceBody);
     }
-    body.addStatement(
-        new MethodCallExpr()
-            .setScope(new NameExpr("container"))
-            .setName("addAdvice")
-            .setArguments(
-                new NodeList<>(
-                    new FieldAccessExpr()
-                        .setScope(
-                            new TypeExpr(new ClassOrInterfaceType().setName(ADVICE_TYPE_CLASS)))
-                        .setName(type),
-                    new StringLiteralExpr(pointCut.getOwner().getInternalName()),
-                    new StringLiteralExpr(pointCut.getMethodName()),
-                    new StringLiteralExpr(pointCut.getMethodType().getDescriptor()),
-                    advice)));
+    body.addStatement(new MethodCallExpr()
+      .setScope(new NameExpr("container"))
+      .setName("addAdvice")
+      .setArguments(
+          new NodeList<>(
+              new FieldAccessExpr()
+                .setScope(new TypeExpr(new ClassOrInterfaceType().setName(ADVICE_TYPE_CLASS)))
+                .setName(type),
+              new StringLiteralExpr(pointCut.getOwner().getInternalName()),
+              new StringLiteralExpr(pointCut.getMethodName()),
+              new StringLiteralExpr(pointCut.getMethodType().getDescriptor()),
+              advice
+          )
+      )
+    );
   }
 
   private static void addHelpersInvocation(final Type[] helpers, final BlockStmt body) {
     if (helpers != null && helpers.length > 0) {
-      final List<Expression> helperTypes =
-          Arrays.stream(helpers)
-              .map(type -> new StringLiteralExpr(type.getClassName()))
-              .collect(Collectors.toList());
-      body.addStatement(
-          new MethodCallExpr()
-              .setScope(new NameExpr("container"))
-              .setName("addHelpers")
-              .setArguments(new NodeList<>(helperTypes)));
+      final List<Expression> helperTypes = Arrays
+        .stream(helpers)
+        .map(type -> new StringLiteralExpr(type.getClassName()))
+        .collect(Collectors.toList());
+      body.addStatement(new MethodCallExpr()
+        .setScope(new NameExpr("container"))
+        .setName("addHelpers")
+        .setArguments(new NodeList<>(helperTypes))
+      );
     }
   }
 
-  private static void addEnabledCheck(
-      final ClassOrInterfaceDeclaration type, final Enabled enabled) {
+  private static void addEnabledCheck(final ClassOrInterfaceDeclaration type, final Enabled enabled) {
     type.addImplementedType(HAS_ENABLED_PROPERTY_CLASS);
 
     final MethodType method = enabled.getMethod();
@@ -246,38 +256,35 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
     final List<Expression> parameters =
         enabled.getArguments().stream().map(StringLiteralExpr::new).collect(Collectors.toList());
 
-    final Expression enabledCheckExpression =
-        new MethodCallExpr()
-            .setScope(new NameExpr(ownerPackage + "." + ownerClassName))
-            .setName(method.getMethodName())
-            .setArguments(new NodeList<>(parameters));
+    final Expression enabledCheckExpression = new MethodCallExpr()
+      .setScope(new NameExpr(ownerPackage + "." + ownerClassName))
+      .setName(method.getMethodName())
+      .setArguments(new NodeList<>(parameters));
 
-    type.addMethod("isEnabled", PUBLIC)
-        .setType(boolean.class)
-        .addAnnotation(Override.class)
-        .setBody(
-            new BlockStmt().addStatement(new ReturnStmt().setExpression(enabledCheckExpression)));
+    type
+      .addMethod("isEnabled", PUBLIC)
+      .setType(boolean.class)
+      .addAnnotation(Override.class)
+      .setBody(new BlockStmt().addStatement(new ReturnStmt().setExpression(enabledCheckExpression)));
   }
 
   private static void writeStackOperations(final AdviceSpecification advice, final BlockStmt body) {
     final boolean instanceMethod = !advice.isStaticPointcut();
     final AllArgsSpecification allArgsSpec = advice.findAllArguments();
     if (allArgsSpec == null && advice.isPositionalArguments()) {
-      final List<Expression> parameterIndicesValues =
-          advice
-              .getArguments()
-              .map(argSpec -> intLiteral(argSpec.getIndex()))
-              .collect(Collectors.toList());
-      final VariableDeclarator parameterIndices =
-          new VariableDeclarator()
-              .setName("parameterIndices")
-              .setType(new ArrayType(new PrimitiveType(PrimitiveType.Primitive.INT)))
-              .setInitializer(
-                  new ArrayCreationExpr()
-                      .setElementType(int.class)
-                      .setInitializer(
-                          new ArrayInitializerExpr()
-                              .setValues(new NodeList<>(parameterIndicesValues))));
+      final List<Expression> parameterIndicesValues = advice
+        .getArguments()
+        .map(argSpec -> intLiteral(argSpec.getIndex()))
+        .collect(Collectors.toList());
+      final VariableDeclarator parameterIndices = new VariableDeclarator()
+        .setName("parameterIndices")
+        .setType(new ArrayType(new PrimitiveType(PrimitiveType.Primitive.INT)))
+        .setInitializer(new ArrayCreationExpr()
+          .setElementType(int.class)
+          .setInitializer(new ArrayInitializerExpr()
+            .setValues(new NodeList<>(parameterIndicesValues))
+          )
+        );
       body.addStatement(new VariableDeclarationExpr().addVariable(parameterIndices));
       final MethodCallExpr dupMethod = new MethodCallExpr().setScope(new NameExpr("handler"));
       if (advice.includeThis()) {
@@ -310,97 +317,98 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
           mode = "APPEND_ARRAY";
         }
       }
-      dupMethod.addArgument(
-          new FieldAccessExpr()
-              .setScope(new TypeExpr(new ClassOrInterfaceType().setName(STACK_DUP_MODE_CLASS)))
-              .setName(mode));
+      dupMethod.addArgument(new FieldAccessExpr()
+        .setScope(new TypeExpr(new ClassOrInterfaceType().setName(STACK_DUP_MODE_CLASS)))
+        .setName(mode)
+      );
       body.addStatement(dupMethod);
     }
   }
 
-  private static void writeAdviceMethodCall(
-      final AdviceSpecification advice, final BlockStmt body) {
+  private static void writeAdviceMethodCall(final AdviceSpecification advice, final BlockStmt body) {
     final MethodType method = advice.getAdvice();
     if (advice instanceof AroundSpecification && advice.isInvokeDynamic()) {
-      final Expression newHandle =
-          new ObjectCreationExpr()
-              .setType("Handle")
-              .addArgument(opCode("H_INVOKESTATIC"))
-              .addArgument(new StringLiteralExpr(method.getOwner().getInternalName()))
-              .addArgument(new StringLiteralExpr(method.getMethodName()))
-              .addArgument(new StringLiteralExpr(method.getMethodType().getDescriptor()))
-              .addArgument(new BooleanLiteralExpr(false));
-      final MethodCallExpr invokeDynamic =
-          new MethodCallExpr()
-              .setScope(new NameExpr("handler"))
-              .setName("invokeDynamic")
-              .addArgument(new NameExpr("name"))
-              .addArgument(new NameExpr("descriptor"))
-              .addArgument(newHandle)
-              .addArgument(new NameExpr("bootstrapMethodArguments"));
+      final Expression newHandle = new ObjectCreationExpr()
+        .setType("Handle")
+        .addArgument(opCode("H_INVOKESTATIC"))
+        .addArgument(new StringLiteralExpr(method.getOwner().getInternalName()))
+        .addArgument(new StringLiteralExpr(method.getMethodName()))
+        .addArgument(new StringLiteralExpr(method.getMethodType().getDescriptor()))
+        .addArgument(new BooleanLiteralExpr(false));
+      final MethodCallExpr invokeDynamic = new MethodCallExpr()
+        .setScope(new NameExpr("handler"))
+        .setName("invokeDynamic")
+        .addArgument(new NameExpr("name"))
+        .addArgument(new NameExpr("descriptor"))
+        .addArgument(newHandle)
+        .addArgument(new NameExpr("bootstrapMethodArguments"));
       body.addStatement(invokeDynamic);
     } else {
       if (advice.isInvokeDynamic() && advice.findInvokeDynamicConstants() != null) {
         // we should add the boostrap method constants before the method call
-        final MethodCallExpr loadConstantArray =
-            new MethodCallExpr()
-                .setScope(new NameExpr("handler"))
-                .setName("loadConstantArray")
-                .addArgument(new NameExpr("bootstrapMethodArguments"));
+        final MethodCallExpr loadConstantArray = new MethodCallExpr()
+          .setScope(new NameExpr("handler"))
+          .setName("loadConstantArray")
+          .addArgument(new NameExpr("bootstrapMethodArguments"));
         body.addStatement(loadConstantArray);
       }
-      final MethodCallExpr invokeStatic =
-          new MethodCallExpr()
-              .setScope(new NameExpr("handler"))
-              .setName("advice")
-              .addArgument(new StringLiteralExpr(method.getOwner().getInternalName()))
-              .addArgument(new StringLiteralExpr(method.getMethodName()))
-              .addArgument(new StringLiteralExpr(method.getMethodType().getDescriptor()));
+      final MethodCallExpr invokeStatic = new MethodCallExpr()
+        .setScope(new NameExpr("handler"))
+        .setName("advice")
+        .addArgument(new StringLiteralExpr(method.getOwner().getInternalName()))
+        .addArgument(new StringLiteralExpr(method.getMethodName()))
+        .addArgument(new StringLiteralExpr(method.getMethodType().getDescriptor()));
       body.addStatement(invokeStatic);
     }
     if (requiresCast(advice)) {
       final MethodType pointcut = advice.getPointcut();
       final Type expectedReturn =
-          pointcut.isConstructor() ? pointcut.getOwner() : pointcut.getMethodType().getReturnType();
+          pointcut.isConstructor() ? pointcut.getOwner() : pointcut
+        .getMethodType()
+        .getReturnType();
       if (!expectedReturn.equals(method.getMethodType().getReturnType())) {
-        body.addStatement(
-            new MethodCallExpr()
-                .setScope(new NameExpr("handler"))
-                .setName("instruction")
-                .addArgument(opCode("CHECKCAST"))
-                .addArgument(new StringLiteralExpr(expectedReturn.getInternalName())));
+        body.addStatement(new MethodCallExpr()
+          .setScope(new NameExpr("handler"))
+          .setName("instruction")
+          .addArgument(opCode("CHECKCAST"))
+          .addArgument(new StringLiteralExpr(expectedReturn.getInternalName()))
+        );
       }
     }
   }
 
   private static boolean requiresCast(final AdviceSpecification advice) {
     if (advice instanceof AroundSpecification) {
-      return true; // around always replaces the original method call
+      // around always replaces the original method call
+      return true;
     }
     if (advice instanceof AfterSpecification) {
-      return !advice.isInvokeDynamic(); // dynamic invokes original method call returns CallSite
+      // dynamic invokes original method call returns CallSite
+      return !advice.isInvokeDynamic();
     }
     return false;
   }
 
   private static void writeOriginalMethodCall(
-      final AdviceSpecification advice, final BlockStmt body) {
+      final AdviceSpecification advice,
+      final BlockStmt body
+  ) {
     final MethodCallExpr invoke = new MethodCallExpr().setScope(new NameExpr("handler"));
     if (advice.isInvokeDynamic()) {
       invoke
-          .setName("invokeDynamic")
-          .addArgument(new NameExpr("name"))
-          .addArgument(new NameExpr("descriptor"))
-          .addArgument(new NameExpr("bootstrapMethodHandle"))
-          .addArgument(new NameExpr("bootstrapMethodArguments"));
+        .setName("invokeDynamic")
+        .addArgument(new NameExpr("name"))
+        .addArgument(new NameExpr("descriptor"))
+        .addArgument(new NameExpr("bootstrapMethodHandle"))
+        .addArgument(new NameExpr("bootstrapMethodArguments"));
     } else {
       invoke
-          .setName("method")
-          .addArgument(new NameExpr("opcode"))
-          .addArgument(new NameExpr("owner"))
-          .addArgument(new NameExpr("name"))
-          .addArgument(new NameExpr("descriptor"))
-          .addArgument(new NameExpr("isInterface"));
+        .setName("method")
+        .addArgument(new NameExpr("opcode"))
+        .addArgument(new NameExpr("owner"))
+        .addArgument(new NameExpr("name"))
+        .addArgument(new NameExpr("descriptor"))
+        .addArgument(new NameExpr("isInterface"));
     }
     body.addStatement(invoke);
   }
@@ -413,8 +421,10 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
             new Parameter().setName("owner").setType(String.class),
             new Parameter().setName("name").setType(String.class),
             new Parameter().setName("descriptor").setType(String.class),
-            new Parameter().setName("isInterface").setType(boolean.class)),
-        body);
+            new Parameter().setName("isInterface").setType(boolean.class)
+        ),
+        body
+    );
   }
 
   private static Expression invokeDynamicAdviceSignature(final BlockStmt body) {
@@ -424,21 +434,24 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
             new Parameter().setName("name").setType(String.class),
             new Parameter().setName("descriptor").setType(String.class),
             new Parameter().setName("bootstrapMethodHandle").setType(HANDLE_FQDN),
-            new Parameter()
-                .setVarArgs(true)
-                .setType(Object.class)
-                .setName("bootstrapMethodArguments")),
-        body);
+            new Parameter().setVarArgs(true).setType(Object.class).setName(
+                "bootstrapMethodArguments"
+            )
+        ),
+        body
+    );
   }
 
   private static Expression opCode(final String opCode) {
     return new FieldAccessExpr()
-        .setScope(new TypeExpr(new ClassOrInterfaceType().setName("Opcodes")))
-        .setName(opCode);
+      .setScope(new TypeExpr(new ClassOrInterfaceType().setName("Opcodes")))
+      .setName(opCode);
   }
 
   private static void handleThrowable(
-      @Nonnull final ValidationContext container, @Nonnull final Throwable t) {
+      @Nonnull final ValidationContext container,
+      @Nonnull final Throwable t
+  ) {
     if (t instanceof HasErrors) {
       ((HasErrors) t).getErrors().forEach(container::addError);
     } else {

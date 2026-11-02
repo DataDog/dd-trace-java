@@ -20,9 +20,10 @@ final class HttpServerExchangeURIDataAdapter extends URIRawDataAdapter {
   @SuppressFBWarnings(
       value = "DCN_NULLPOINTER_EXCEPTION",
       justification =
-          "getHostName() NPEs inside Undertow itself, not on a null we could check beforehand"
-              + " (e.g. no Host header and a connection whose local address isn't an"
-              + " InetSocketAddress, such as AJP or a Unix domain socket transport)")
+      "getHostName() NPEs inside Undertow itself, not on a null we could check beforehand"
+      + " (e.g. no Host header and a connection whose local address isn't an"
+      + " InetSocketAddress, such as AJP or a Unix domain socket transport)"
+  )
   public String host() {
     try {
       return httpServerExchange.getHostName();
@@ -35,9 +36,10 @@ final class HttpServerExchangeURIDataAdapter extends URIRawDataAdapter {
   @SuppressFBWarnings(
       value = "DCN_NULLPOINTER_EXCEPTION",
       justification =
-          "getHostPort() NPEs inside Undertow itself, not on a null we could check beforehand"
-              + " (e.g. no Host header and a connection whose local address isn't an"
-              + " InetSocketAddress, such as AJP or a Unix domain socket transport)")
+      "getHostPort() NPEs inside Undertow itself, not on a null we could check beforehand"
+      + " (e.g. no Host header and a connection whose local address isn't an"
+      + " InetSocketAddress, such as AJP or a Unix domain socket transport)"
+  )
   public int port() {
     try {
       return httpServerExchange.getHostPort();

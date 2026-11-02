@@ -24,7 +24,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
@@ -68,14 +67,17 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class DDEvaluatorTest {
-
   private static DDEvaluator newEvaluator(final Runnable configCallback) {
     return new DDEvaluator(configCallback, AgentBridge.NONE, TestSettings.of());
   }
 
-  /** Creates an evaluator whose runtime polls a local CDN that has no configuration. */
+  /**
+   * Creates an evaluator whose runtime polls a local CDN that has no configuration.
+   */
   private static DDEvaluator newInitializableEvaluator(
-      final Runnable configCallback, final LocalHttpServer cdn) {
+      final Runnable configCallback,
+      final LocalHttpServer cdn
+  ) {
     return new DDEvaluator(
         configCallback,
         AgentBridge.NONE,
@@ -83,54 +85,51 @@ public class DDEvaluatorTest {
             "feature.flags.configuration.source.agentless.base.url",
             cdn.uri("/").toString(),
             "flagging.evaluation.counts.enabled",
-            "false"));
+            "false"
+        )
+    );
   }
 
   private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
 
   private static Arguments[] valueMappingTestCases() {
     return new Arguments[] {
-      // String mappings
-      Arguments.of(String.class, "hello", "hello"),
-      Arguments.of(String.class, 123, "123"),
-      Arguments.of(String.class, true, "true"),
-      Arguments.of(String.class, 3.14, "3.14"),
-      Arguments.of(String.class, null, null),
-
-      // Boolean mappings
-      Arguments.of(Boolean.class, true, true),
-      Arguments.of(Boolean.class, false, false),
-      Arguments.of(Boolean.class, "true", true),
-      Arguments.of(Boolean.class, "false", false),
-      Arguments.of(Boolean.class, "TRUE", true),
-      Arguments.of(Boolean.class, "FALSE", false),
-      Arguments.of(Boolean.class, 1, true),
-      Arguments.of(Boolean.class, 0, false),
-      Arguments.of(Boolean.class, null, null),
-
-      // Integer mappings
-      Arguments.of(Integer.class, 42, 42),
-      Arguments.of(Integer.class, "42", 42),
-      Arguments.of(Integer.class, 3.14, 3),
-      Arguments.of(Integer.class, "3.14", 3),
-      Arguments.of(Integer.class, null, null),
-
-      // Double mappings
-      Arguments.of(Double.class, 3.14, 3.14),
-      Arguments.of(Double.class, "3.14", 3.14),
-      Arguments.of(Double.class, 42, 42.0),
-      Arguments.of(Double.class, "42", 42.0),
-      Arguments.of(Double.class, null, null),
-
-      // Value mappings (OpenFeature Value objects)
-      Arguments.of(Value.class, "hello", Value.objectToValue("hello")),
-      Arguments.of(Value.class, 42, Value.objectToValue(42)),
-      Arguments.of(Value.class, 3.14, Value.objectToValue(3.14)),
-      Arguments.of(Value.class, true, Value.objectToValue(true)),
-      Arguments.of(Value.class, null, null),
-
-      // Unsupported
-      Arguments.of(Long.class, 42L, IllegalArgumentException.class),
+        // String mappings
+        Arguments.of(String.class, "hello", "hello"),
+        Arguments.of(String.class, 123, "123"),
+        Arguments.of(String.class, true, "true"),
+        Arguments.of(String.class, 3.14, "3.14"),
+        Arguments.of(String.class, null, null),
+        // Boolean mappings
+        Arguments.of(Boolean.class, true, true),
+        Arguments.of(Boolean.class, false, false),
+        Arguments.of(Boolean.class, "true", true),
+        Arguments.of(Boolean.class, "false", false),
+        Arguments.of(Boolean.class, "TRUE", true),
+        Arguments.of(Boolean.class, "FALSE", false),
+        Arguments.of(Boolean.class, 1, true),
+        Arguments.of(Boolean.class, 0, false),
+        Arguments.of(Boolean.class, null, null),
+        // Integer mappings
+        Arguments.of(Integer.class, 42, 42),
+        Arguments.of(Integer.class, "42", 42),
+        Arguments.of(Integer.class, 3.14, 3),
+        Arguments.of(Integer.class, "3.14", 3),
+        Arguments.of(Integer.class, null, null),
+        // Double mappings
+        Arguments.of(Double.class, 3.14, 3.14),
+        Arguments.of(Double.class, "3.14", 3.14),
+        Arguments.of(Double.class, 42, 42.0),
+        Arguments.of(Double.class, "42", 42.0),
+        Arguments.of(Double.class, null, null),
+        // Value mappings (OpenFeature Value objects)
+        Arguments.of(Value.class, "hello", Value.objectToValue("hello")),
+        Arguments.of(Value.class, 42, Value.objectToValue(42)),
+        Arguments.of(Value.class, 3.14, Value.objectToValue(3.14)),
+        Arguments.of(Value.class, true, Value.objectToValue(true)),
+        Arguments.of(Value.class, null, null),
+        // Unsupported
+        Arguments.of(Long.class, 42L, IllegalArgumentException.class)
     };
   }
 
@@ -163,7 +162,9 @@ public class DDEvaluatorTest {
       evaluator.accept(null);
       try {
         assertThat(
-            evaluator.initialize(10, MILLISECONDS, mock(EvaluationContext.class)), equalTo(false));
+            evaluator.initialize(10, MILLISECONDS, mock(EvaluationContext.class)),
+            equalTo(false)
+        );
         verify(configCallback, times(0)).run();
       } finally {
         evaluator.shutdown();
@@ -198,15 +199,12 @@ public class DDEvaluatorTest {
     final AtomicReference<Consumer<byte[]>> configurationListener = new AtomicReference<>();
     final AutoCloseable subscription = mock(AutoCloseable.class);
     final AgentBridge bridge = mock(AgentBridge.class);
-    when(bridge.remoteConfiguration())
-        .thenReturn(
-            listener -> {
-              configurationListener.set(listener);
-              subscribed.countDown();
-              return subscription;
-            });
-    final Settings settings =
-        TestSettings.of("feature.flags.configuration.source", "remote_config");
+    when(bridge.remoteConfiguration()).thenReturn(listener -> {
+      configurationListener.set(listener);
+      subscribed.countDown();
+      return subscription;
+    });
+    final Settings settings = TestSettings.of("feature.flags.configuration.source", "remote_config");
     final DDEvaluator evaluator = new DDEvaluator(() -> {}, bridge, settings);
     final DDEvaluator other = new DDEvaluator(() -> {}, bridge, settings);
     final ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -226,8 +224,8 @@ public class DDEvaluatorTest {
       verify(subscription, never()).close();
 
       configurationListener
-          .get()
-          .accept("{\"environment\":{\"name\":\"Test\"},\"flags\":{}}".getBytes(UTF_8));
+        .get()
+        .accept("{\"environment\":{\"name\":\"Test\"},\"flags\":{}}".getBytes(UTF_8));
       assertFalse(evaluator.hasConfiguration());
       assertTrue(other.hasConfiguration());
 
@@ -281,18 +279,19 @@ public class DDEvaluatorTest {
     variations.put("on", new Variant("on", 1));
     // The selected shard is above Integer.MAX_VALUE, so this test proves that evaluation uses
     // unsigned 32-bit semantics.
-    final Shard shard =
-        new Shard(
-            "salt",
-            singletonList(new ShardRange(3_699_531_192L, 3_699_531_193L)),
-            MAX_UNSIGNED_INT);
+    final Shard shard = new Shard(
+        "salt",
+        singletonList(new ShardRange(3_699_531_192L, 3_699_531_193L)),
+        MAX_UNSIGNED_INT
+    );
     final Split split = new Split(singletonList(shard), "on", emptyMap(), null);
     final Allocation allocation =
         new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
     final Map<String, Flag> flags = new HashMap<>();
     flags.put(
         "target",
-        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation))
+    );
     final DDEvaluator evaluator = newEvaluator(mock(Runnable.class));
     evaluator.accept(new ServerConfiguration("", "", false, null, flags));
 
@@ -312,9 +311,7 @@ public class DDEvaluatorTest {
   // hooks can honour it. These tests exercise each stamp site with both consent values (on/off) so
   // a mutation to any stamp — deleting the line, hardcoding the value — flips at least one
   // assertion.
-
   // -- success path: resolveVariant (variant metadata builder) --
-
   @Test
   public void observeFullEvaluationDataStampedTrueOnResolvedVariant() {
     final ProviderEvaluation<?> details = evaluateMatchingFlag(true);
@@ -337,7 +334,6 @@ public class DDEvaluatorTest {
   }
 
   // -- DISABLED path: flag.enabled=false --
-
   @Test
   public void observeFullEvaluationDataStampedTrueOnDisabledFlag() {
     final ProviderEvaluation<?> details = evaluateDisabledFlag(true);
@@ -355,7 +351,6 @@ public class DDEvaluatorTest {
   }
 
   // -- DEFAULT path: no allocation matches --
-
   @Test
   public void observeFullEvaluationDataStampedTrueOnDefault() {
     // Allocation exists but has empty splits, so the loop finishes without returning and we fall
@@ -375,7 +370,6 @@ public class DDEvaluatorTest {
   }
 
   // -- error paths: FLAG_NOT_FOUND / PROVIDER_NOT_READY (via consentMetadata in error()) --
-
   @Test
   public void observeFullEvaluationDataStampedOnFlagNotFoundError() {
     // Was previously named "…OnSuccess" but actually exercises the error() helper's stamp via
@@ -384,8 +378,7 @@ public class DDEvaluatorTest {
     evaluator.accept(new ServerConfiguration("", "", true, null, new HashMap<>()));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
-    final ProviderEvaluation<?> details =
-        evaluator.evaluate(Integer.class, "unknown-flag", 23, ctx);
+    final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "unknown-flag", 23, ctx);
 
     assertThat(details.getErrorCode(), equalTo(ErrorCode.FLAG_NOT_FOUND));
     assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(true));
@@ -412,14 +405,12 @@ public class DDEvaluatorTest {
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
     final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "target", 23, ctx);
-
     // Flags still evaluate — availability preserved despite the malformed consent field.
     assertThat(details.getReason(), equalTo("DEFAULT"));
     assertThat(details.getFlagMetadata().getBoolean(OBSERVE_FULL_EVALUATION_DATA), equalTo(false));
   }
 
   // ---- exposure events carry the split's serial id ----
-
   @Test
   public void exposureCarriesTheSplitSerialId() {
     assertEquals(Integer.valueOf(340132), exposureFor(340132).serial_id);
@@ -447,21 +438,21 @@ public class DDEvaluatorTest {
     final ExposureDeduplicationCache cache = new ExposureDeduplicationCache();
     final DDEvaluator evaluator =
         new DDEvaluator(mock(Runnable.class), AgentBridge.NONE, TestSettings.of()) {
-          @Override
-          ExposureDeduplicationCache exposureCache() {
-            return cache;
-          }
+      @Override
+      ExposureDeduplicationCache exposureCache() {
+        return cache;
+      }
 
-          @Override
-          boolean isExposureDeliveryEnabled() {
-            return true;
-          }
+      @Override
+      boolean isExposureDeliveryEnabled() {
+        return true;
+      }
 
-          @Override
-          void recordExposure(final ExposureEvent event) {
-            dispatched.add(event);
-          }
-        };
+      @Override
+      void recordExposure(final ExposureEvent event) {
+        dispatched.add(event);
+      }
+    };
     final Map<String, Variant> variations = new HashMap<>();
     variations.put("on", new Variant("on", 1));
     final Split split = new Split(emptyList(), "on", emptyMap(), serialId);
@@ -470,25 +461,27 @@ public class DDEvaluatorTest {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put(
         "target",
-        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation))
+    );
     evaluator.accept(new ServerConfiguration("", "", true, null, flags));
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("user-1");
 
     final ProviderEvaluation<Integer> evaluation =
         evaluator.evaluate(Integer.class, "target", 23, ctx);
     assertTrue(dispatched.isEmpty(), "resolving a flag must not send an exposure by itself");
-    final HookContext<Object> hookContext =
-        HookContext.<Object>builder()
-            .flagKey("target")
-            .type(FlagValueType.INTEGER)
-            .defaultValue(23)
-            .ctx(ctx)
-            .build();
+    final HookContext<Object> hookContext = HookContext
+      .<Object>builder()
+      .flagKey("target")
+      .type(FlagValueType.INTEGER)
+      .defaultValue(23)
+      .ctx(ctx)
+      .build();
     new ExposureLoggingHook<>(() -> evaluator)
-        .finallyAfter(
-            hookContext,
-            (FlagEvaluationDetails) FlagEvaluationDetails.from(evaluation, "target"),
-            emptyMap());
+      .finallyAfter(
+          hookContext,
+          (FlagEvaluationDetails) FlagEvaluationDetails.from(evaluation, "target"),
+          emptyMap()
+      );
 
     assertEquals(1, dispatched.size());
     return dispatched.get(0);
@@ -497,8 +490,7 @@ public class DDEvaluatorTest {
   // Builds a flag that reaches resolveVariant: enabled, one allocation with no rules, one split
   // with empty shards (so the shard-match branch is skipped and the split is picked immediately),
   // and a single "on" variant whose value maps to the requested Integer type.
-  private static ProviderEvaluation<?> evaluateMatchingFlag(
-      final boolean observeFullEvaluationData) {
+  private static ProviderEvaluation<?> evaluateMatchingFlag(final boolean observeFullEvaluationData) {
     final Map<String, Variant> variations = new HashMap<>();
     variations.put("on", new Variant("on", 1));
     final Split split = new Split(emptyList(), "on", emptyMap(), null);
@@ -506,28 +498,34 @@ public class DDEvaluatorTest {
         new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
     return evaluateFlag(
         new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)),
-        observeFullEvaluationData);
+        observeFullEvaluationData
+    );
   }
 
-  private static ProviderEvaluation<?> evaluateDisabledFlag(
-      final boolean observeFullEvaluationData) {
+  private static ProviderEvaluation<?> evaluateDisabledFlag(final boolean observeFullEvaluationData) {
     return evaluateFlag(
-        new Flag("target", false, ValueType.INTEGER, emptyMap(), null), observeFullEvaluationData);
+        new Flag("target", false, ValueType.INTEGER, emptyMap(), null),
+        observeFullEvaluationData
+    );
   }
 
   private static ProviderEvaluation<?> evaluateWithEmptySplits(
-      final boolean observeFullEvaluationData) {
+      final boolean observeFullEvaluationData
+  ) {
     // Enabled, allocations present, allocation active, no rules, empty splits → falls through the
     // for-loop to the DEFAULT return.
     final Allocation allocation =
         new Allocation("alloc-1", null, null, null, emptyList(), Boolean.FALSE);
     return evaluateFlag(
         new Flag("target", true, ValueType.INTEGER, emptyMap(), singletonList(allocation)),
-        observeFullEvaluationData);
+        observeFullEvaluationData
+    );
   }
 
   private static ProviderEvaluation<?> evaluateFlag(
-      final Flag flag, final boolean observeFullEvaluationData) {
+      final Flag flag,
+      final boolean observeFullEvaluationData
+  ) {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("target", flag);
     final DDEvaluator evaluator = newEvaluator(mock(Runnable.class));
@@ -538,7 +536,6 @@ public class DDEvaluatorTest {
   }
 
   // ---- error message redaction respects observeFullEvaluationData ----
-
   @Test
   public void numericConditionOnTargetingKeyDropsExceptionMessageUnderConsentOff() {
     // Rule {attribute:"id", operator:GT, value:0} + "id" not in context →
@@ -575,22 +572,26 @@ public class DDEvaluatorTest {
     final String message = details.getErrorMessage();
     assertFalse(
         message != null && message.contains("jane.doe@datadoghq.com"),
-        "consent-off errorMessage must not contain raw context values");
+        "consent-off errorMessage must not contain raw context values"
+    );
   }
 
   private static ProviderEvaluation<?> evaluateWithNumericRuleOnId(
-      final String targetingKey, final boolean observeFullEvaluationData) {
+      final String targetingKey,
+      final boolean observeFullEvaluationData
+  ) {
     final Map<String, Flag> flags = new HashMap<>();
-    final List<Rule> rules =
-        singletonList(
-            new Rule(singletonList(new ConditionConfiguration(ConditionOperator.GT, "id", 0))));
+    final List<Rule> rules = singletonList(
+        new Rule(singletonList(new ConditionConfiguration(ConditionOperator.GT, "id", 0)))
+    );
     // Split must be non-empty so the allocation is considered a match target; its contents don't
     // matter because the rule throws before a split is picked.
     final Allocation allocation =
         new Allocation("alloc", rules, null, null, emptyList(), Boolean.FALSE);
     flags.put(
         "num-rule",
-        new Flag("num-rule", true, ValueType.INTEGER, emptyMap(), singletonList(allocation)));
+        new Flag("num-rule", true, ValueType.INTEGER, emptyMap(), singletonList(allocation))
+    );
     final DDEvaluator evaluator = newEvaluator(mock(Runnable.class));
     evaluator.accept(new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
 
@@ -606,14 +607,15 @@ public class DDEvaluatorTest {
         new Allocation("allocation", emptyList(), startAt, endAt, emptyList(), true);
 
     assertThat(
-        DDEvaluator.isAllocationActive(allocation, startAt.minusNanos(1_000)), equalTo(false));
+        DDEvaluator.isAllocationActive(allocation, startAt.minusNanos(1_000)),
+        equalTo(false)
+    );
     assertThat(DDEvaluator.isAllocationActive(allocation, startAt), equalTo(true));
     assertThat(DDEvaluator.isAllocationActive(allocation, endAt), equalTo(true));
     assertThat(DDEvaluator.isAllocationActive(allocation, endAt.plusNanos(1_000)), equalTo(false));
   }
 
   // --- SemVer condition evaluation tests (ported from Go evaluator_test.go) ---
-
   private static Flag semverFlag(final ConditionOperator operator, final String comparand) {
     final ParsedSemver parsed = ParsedSemver.parse(comparand);
     final ConditionConfiguration condition =
@@ -641,45 +643,45 @@ public class DDEvaluatorTest {
 
   static Arguments[] semverConditionTestCases() {
     return new Arguments[] {
-      // Equal
-      Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3", "1.2.3", true),
-      Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.4", "1.2.3", false),
-      Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3.4.5.6", "1.2.3.4.5.6", true),
-      Arguments.of(ConditionOperator.SEMVER_GT, "1.2.3.4.5.7", "1.2.3.4.5.6", true),
-      // Not equal
-      Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.4", "1.2.3", true),
-      Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.3", "1.2.3", false),
-      // Less than
-      Arguments.of(ConditionOperator.SEMVER_LT, "1.9.9", "2.0.0", true),
-      Arguments.of(ConditionOperator.SEMVER_LT, "2.0.0", "2.0.0", false),
-      // Less than or equal
-      Arguments.of(ConditionOperator.SEMVER_LTE, "2.0.0", "2.0.0", true),
-      Arguments.of(ConditionOperator.SEMVER_LTE, "2.0.1", "2.0.0", false),
-      // Greater than
-      Arguments.of(ConditionOperator.SEMVER_GT, "1.0.1", "1.0.0", true),
-      Arguments.of(ConditionOperator.SEMVER_GT, "1.0.0", "1.0.0", false),
-      // Greater than or equal
-      Arguments.of(ConditionOperator.SEMVER_GTE, "1.0.0", "1.0.0", true),
-      Arguments.of(ConditionOperator.SEMVER_GTE, "0.9.9", "1.0.0", false),
-      // Prerelease ordering
-      Arguments.of(ConditionOperator.SEMVER_LT, "1.0.0-beta.1", "1.0.0", true),
-      Arguments.of(ConditionOperator.SEMVER_LT, "1.0.0-beta.2", "1.0.0-beta.11", true),
-      // Build metadata is ignored
-      Arguments.of(ConditionOperator.SEMVER_EQ, "4.0.0+build.42", "4.0.0", true),
-      Arguments.of(ConditionOperator.SEMVER_EQ, "4.0.0+exp.sha.5114f85", "4.0.0", true),
-      Arguments.of(ConditionOperator.SEMVER_NEQ, "4.0.0+build.42", "4.0.0", false),
-      Arguments.of(ConditionOperator.SEMVER_LT, "4.0.0+build.42", "4.0.0", false),
-      Arguments.of(ConditionOperator.SEMVER_LTE, "4.0.0+build.42", "4.0.0", true),
-      Arguments.of(ConditionOperator.SEMVER_GT, "4.0.0+build.42", "4.0.0", false),
-      Arguments.of(ConditionOperator.SEMVER_GTE, "4.0.0+build.42", "4.0.0", true),
-      Arguments.of(ConditionOperator.SEMVER_EQ, "1.0.0+linux", "1.0.0+darwin", true),
-      // Invalid attribute does not match
-      Arguments.of(ConditionOperator.SEMVER_NEQ, "not-a-version", "1.0.0", false),
-      Arguments.of(ConditionOperator.SEMVER_GTE, "1.2", "1.0.0", true),
-      Arguments.of(ConditionOperator.SEMVER_GTE, "v1.2.3", "1.0.0", false),
-      Arguments.of(ConditionOperator.SEMVER_GTE, "18446744073709551616.0.0", "1.0.0", false),
-      // Non-string attribute does not match
-      Arguments.of(ConditionOperator.SEMVER_EQ, 1.2, "1.2.0", false),
+        // Equal
+        Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3", "1.2.3", true),
+        Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.4", "1.2.3", false),
+        Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3.4.5.6", "1.2.3.4.5.6", true),
+        Arguments.of(ConditionOperator.SEMVER_GT, "1.2.3.4.5.7", "1.2.3.4.5.6", true),
+        // Not equal
+        Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.4", "1.2.3", true),
+        Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.3", "1.2.3", false),
+        // Less than
+        Arguments.of(ConditionOperator.SEMVER_LT, "1.9.9", "2.0.0", true),
+        Arguments.of(ConditionOperator.SEMVER_LT, "2.0.0", "2.0.0", false),
+        // Less than or equal
+        Arguments.of(ConditionOperator.SEMVER_LTE, "2.0.0", "2.0.0", true),
+        Arguments.of(ConditionOperator.SEMVER_LTE, "2.0.1", "2.0.0", false),
+        // Greater than
+        Arguments.of(ConditionOperator.SEMVER_GT, "1.0.1", "1.0.0", true),
+        Arguments.of(ConditionOperator.SEMVER_GT, "1.0.0", "1.0.0", false),
+        // Greater than or equal
+        Arguments.of(ConditionOperator.SEMVER_GTE, "1.0.0", "1.0.0", true),
+        Arguments.of(ConditionOperator.SEMVER_GTE, "0.9.9", "1.0.0", false),
+        // Prerelease ordering
+        Arguments.of(ConditionOperator.SEMVER_LT, "1.0.0-beta.1", "1.0.0", true),
+        Arguments.of(ConditionOperator.SEMVER_LT, "1.0.0-beta.2", "1.0.0-beta.11", true),
+        // Build metadata is ignored
+        Arguments.of(ConditionOperator.SEMVER_EQ, "4.0.0+build.42", "4.0.0", true),
+        Arguments.of(ConditionOperator.SEMVER_EQ, "4.0.0+exp.sha.5114f85", "4.0.0", true),
+        Arguments.of(ConditionOperator.SEMVER_NEQ, "4.0.0+build.42", "4.0.0", false),
+        Arguments.of(ConditionOperator.SEMVER_LT, "4.0.0+build.42", "4.0.0", false),
+        Arguments.of(ConditionOperator.SEMVER_LTE, "4.0.0+build.42", "4.0.0", true),
+        Arguments.of(ConditionOperator.SEMVER_GT, "4.0.0+build.42", "4.0.0", false),
+        Arguments.of(ConditionOperator.SEMVER_GTE, "4.0.0+build.42", "4.0.0", true),
+        Arguments.of(ConditionOperator.SEMVER_EQ, "1.0.0+linux", "1.0.0+darwin", true),
+        // Invalid attribute does not match
+        Arguments.of(ConditionOperator.SEMVER_NEQ, "not-a-version", "1.0.0", false),
+        Arguments.of(ConditionOperator.SEMVER_GTE, "1.2", "1.0.0", true),
+        Arguments.of(ConditionOperator.SEMVER_GTE, "v1.2.3", "1.0.0", false),
+        Arguments.of(ConditionOperator.SEMVER_GTE, "18446744073709551616.0.0", "1.0.0", false),
+        // Non-string attribute does not match
+        Arguments.of(ConditionOperator.SEMVER_EQ, 1.2, "1.2.0", false)
     };
   }
 
@@ -689,7 +691,8 @@ public class DDEvaluatorTest {
       final ConditionOperator operator,
       final Object attribute,
       final String comparand,
-      final boolean wantMatch) {
+      final boolean wantMatch
+  ) {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("test-flag", semverFlag(operator, comparand));
     final DDEvaluator evaluator = newEvaluator(mock(Runnable.class));
@@ -762,21 +765,22 @@ public class DDEvaluatorTest {
   private static Arguments[] flatteningTestCases() {
     final List<Arguments> arguments = new ArrayList<>();
     arguments.add(Arguments.of(emptyMap(), emptyMap()));
-    arguments.add(
-        Arguments.of(
-            mapOf("integer", 1, "double", 23D, "boolean", true, "string", "string", "null", null),
-            mapOf("integer", 1, "double", 23D, "boolean", true, "string", "string", "null", null)));
-    arguments.add(
-        Arguments.of(
-            mapOf("list", asList(1, 2, singletonList(4))),
-            mapOf("list[0]", 1, "list[1]", 2, "list[2][0]", 4)));
-    arguments.add(
-        Arguments.of(
-            mapOf("map", mapOf("key1", 1, "key2", 2, "key3", mapOf("key4", 4))),
-            mapOf("map.key1", 1, "map.key2", 2, "map.key3.key4", 4)));
-    arguments.add(
-        Arguments.of(
-            mapOf("plan", "gold", "cohort", "gold"), mapOf("plan", "gold", "cohort", "gold")));
+    arguments.add(Arguments.of(
+        mapOf("integer", 1, "double", 23D, "boolean", true, "string", "string", "null", null),
+        mapOf("integer", 1, "double", 23D, "boolean", true, "string", "string", "null", null)
+    ));
+    arguments.add(Arguments.of(
+        mapOf("list", asList(1, 2, singletonList(4))),
+        mapOf("list[0]", 1, "list[1]", 2, "list[2][0]", 4)
+    ));
+    arguments.add(Arguments.of(
+        mapOf("map", mapOf("key1", 1, "key2", 2, "key3", mapOf("key4", 4))),
+        mapOf("map.key1", 1, "map.key2", 2, "map.key3.key4", 4)
+    ));
+    arguments.add(Arguments.of(
+        mapOf("plan", "gold", "cohort", "gold"),
+        mapOf("plan", "gold", "cohort", "gold")
+    ));
     final Instant instant = Instant.parse("2026-07-10T12:34:56Z");
     arguments.add(Arguments.of(mapOf("instant", instant), mapOf("instant", instant.toString())));
     return arguments.toArray(new Arguments[0]);
@@ -785,7 +789,9 @@ public class DDEvaluatorTest {
   @MethodSource("flatteningTestCases")
   @ParameterizedTest
   public void testFlattening(
-      final Map<String, Object> attributes, final Map<String, Object> expected) {
+      final Map<String, Object> attributes,
+      final Map<String, Object> expected
+  ) {
     final EvaluationContext context =
         new MutableContext(Value.objectToValue(attributes).asStructure().asMap());
     final Map<String, Object> result = DDEvaluator.flattenContext(context);
@@ -870,9 +876,12 @@ public class DDEvaluatorTest {
     assertThat(result.attrs.containsKey("list[0]"), equalTo(true));
     assertThat(
         result.attrs.containsKey("list[" + (DDEvaluator.MAX_LIST_ELEMENTS - 1) + "]"),
-        equalTo(true));
+        equalTo(true)
+    );
     assertThat(
-        result.attrs.containsKey("list[" + DDEvaluator.MAX_LIST_ELEMENTS + "]"), equalTo(false));
+        result.attrs.containsKey("list[" + DDEvaluator.MAX_LIST_ELEMENTS + "]"),
+        equalTo(false)
+    );
     assertThat(result.truncatedReason, equalTo("max_list_elements"));
   }
 
@@ -886,7 +895,11 @@ public class DDEvaluatorTest {
 
     final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
 
-    long structKeys = result.attrs.keySet().stream().filter(k -> k.startsWith("struct.")).count();
+    long structKeys = result.attrs
+      .keySet()
+      .stream()
+      .filter(k -> k.startsWith("struct."))
+      .count();
     assertThat(structKeys, equalTo((long) DDEvaluator.MAX_STRUCTURE_PROPERTIES));
     assertThat(result.truncatedReason, equalTo("max_structure_properties"));
   }
@@ -947,31 +960,33 @@ public class DDEvaluatorTest {
     context.add(new String(longKeyChars), "dropKey");
 
     final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
-
     // Both max_key_length and max_value_length fired; sorted alphabetically, no duplicates.
     assertThat(result.truncatedReason, equalTo("max_key_length,max_value_length"));
   }
 
   private static Arguments[] typeCompatibilityTestCases() {
     return new Arguments[] {
-      Arguments.of(Boolean.class, ValueType.BOOLEAN, true),
-      Arguments.of(String.class, ValueType.BOOLEAN, false),
-      Arguments.of(String.class, ValueType.STRING, true),
-      Arguments.of(Boolean.class, ValueType.STRING, false),
-      Arguments.of(Integer.class, ValueType.INTEGER, true),
-      Arguments.of(String.class, ValueType.INTEGER, false),
-      Arguments.of(Double.class, ValueType.NUMERIC, true),
-      Arguments.of(String.class, ValueType.NUMERIC, false),
-      Arguments.of(Value.class, ValueType.JSON, true),
-      Arguments.of(String.class, ValueType.JSON, false),
-      Arguments.of(String.class, null, true),
+        Arguments.of(Boolean.class, ValueType.BOOLEAN, true),
+        Arguments.of(String.class, ValueType.BOOLEAN, false),
+        Arguments.of(String.class, ValueType.STRING, true),
+        Arguments.of(Boolean.class, ValueType.STRING, false),
+        Arguments.of(Integer.class, ValueType.INTEGER, true),
+        Arguments.of(String.class, ValueType.INTEGER, false),
+        Arguments.of(Double.class, ValueType.NUMERIC, true),
+        Arguments.of(String.class, ValueType.NUMERIC, false),
+        Arguments.of(Value.class, ValueType.JSON, true),
+        Arguments.of(String.class, ValueType.JSON, false),
+        Arguments.of(String.class, null, true)
     };
   }
 
   @ParameterizedTest
   @MethodSource("typeCompatibilityTestCases")
   public void testTypeCompatibility(
-      final Class<?> target, final ValueType variationType, final boolean expected) {
+      final Class<?> target,
+      final ValueType variationType,
+      final boolean expected
+  ) {
     assertThat(DDEvaluator.isTypeCompatible(target, variationType), equalTo(expected));
   }
 
@@ -1006,7 +1021,7 @@ public class DDEvaluatorTest {
 
     final EvaluationContext nullContext = mock(EvaluationContext.class);
     when(nullContext.keySet())
-        .thenReturn(new java.util.LinkedHashSet<>(asList("java-null", "openfeature-null")));
+      .thenReturn(new java.util.LinkedHashSet<>(asList("java-null", "openfeature-null")));
     when(nullContext.getValue("java-null")).thenReturn(null);
     when(nullContext.getValue("openfeature-null")).thenReturn(new Value());
     final Map<String, Value> snapshot = DDEvaluator.snapshotValues(nullContext);

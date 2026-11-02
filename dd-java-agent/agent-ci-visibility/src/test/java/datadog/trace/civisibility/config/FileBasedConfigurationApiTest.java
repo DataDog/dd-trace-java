@@ -3,7 +3,6 @@ package datadog.trace.civisibility.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -12,12 +11,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class FileBasedConfigurationApiTest extends AbstractConfigurationApiContractTest {
-
-  @TempDir Path tmp;
+  @TempDir
+  Path tmp;
 
   @Override
-  protected ConfigurationApi apiReturning(Endpoint endpoint, String responseBody)
-      throws IOException {
+  protected ConfigurationApi apiReturning(Endpoint endpoint, String responseBody) throws IOException {
     Path file = writeText("payload.json", responseBody);
     switch (endpoint) {
       case SETTINGS:

@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.context.ContextKey.named;
 import static java.util.Collections.unmodifiableMap;
-
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
@@ -11,11 +10,12 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** Baggage are key/value store which propagate alongside {@link Context}. */
+/**
+ * Baggage are key/value store which propagate alongside {@link Context}.
+ */
 public class Baggage implements ImplicitContextKeyed {
   private static final ContextKey<Baggage> CONTEXT_KEY = named("baggage-key");
   private final Map<String, String> items;
-
   /**
    * The <a href="https://www.w3.org/TR/baggage/">W3C Baggage header representation</a> of the
    * baggage instance, {@code null} if not in sync with the current baggage items.

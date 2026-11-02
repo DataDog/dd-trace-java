@@ -18,7 +18,6 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public final class IgniteModule extends InstrumenterModule.Tracing {
-
   public IgniteModule() {
     super("ignite");
   }
@@ -38,6 +37,7 @@ public final class IgniteModule extends InstrumenterModule.Tracing {
     return Arrays.asList(
         new IgniteInstrumentation(),
         new IgniteCacheSyncInstrumentation(),
-        new IgniteCacheAsyncInstrumentation());
+        new IgniteCacheAsyncInstrumentation()
+    );
   }
 }

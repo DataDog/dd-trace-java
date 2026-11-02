@@ -8,7 +8,6 @@ import static datadog.trace.api.datastreams.DataStreamsTags.createWithDataset;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
-
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
@@ -55,28 +54,23 @@ import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.SdkHttpResponse;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse>
-    implements CarrierSetter<SdkHttpRequest.Builder> {
+    implements CarrierSetter<SdkHttpRequest.Builder>
+{
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
-  private static final DDCache<String, CharSequence> CACHE =
-      DDCaches.newFixedSizeCache(128); // cloud services can have high cardinality
-
+  private static final DDCache<String, CharSequence> CACHE = DDCaches
+    // cloud services can have high cardinality
+    .newFixedSizeCache(128);
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
-
   // We only want tag interceptor to take priority
   private static final byte RESOURCE_NAME_PRIORITY = ResourceNamePriorities.TAG_INTERCEPTOR - 1;
-
   public static final boolean AWS_LEGACY_TRACING = Config.get().isAwsLegacyTracingEnabled();
-
   public static final boolean SQS_LEGACY_TRACING = Config.get().isSqsLegacyTracingEnabled();
-
   private static final String SQS_SERVICE_NAME =
       AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
-
   private static final String SNS_SERVICE_NAME =
       SpanNaming.instance().namingSchema().cloud().serviceForRequest("aws", "sns");
   private static final String GENERIC_SERVICE_NAME =
       SpanNaming.instance().namingSchema().cloud().serviceForRequest("aws", null);
-
   private static final Set<String> KINESIS_PUT_RECORD_OPERATION_NAMES;
 
   static {
@@ -93,10 +87,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     SNS_PUBLISH_OPERATION_NAMES.add("PublishBatch");
   }
 
-  public static final ExecutionAttribute<String> KINESIS_STREAM_ARN_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("KinesisStreamArn", () -> new ExecutionAttribute<>("KinesisStreamArn"));
-
+  public static final ExecutionAttribute<String> KINESIS_STREAM_ARN_ATTRIBUTE = InstanceStore
+    .of(ExecutionAttribute.class)
+    .getOrCreate("KinesisStreamArn", () -> new ExecutionAttribute<>("KinesisStreamArn"));
   // not static because this object would be ClassLoader specific if multiple SDK instances were
   // loaded by different loaders
   private SdkField<Instant> kinesisApproximateArrivalTimestampField = null;
@@ -107,21 +100,19 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     final String qualifiedName = awsServiceName + "." + awsOperationName;
 
-    return CACHE.computeIfAbsent(
-        qualifiedName,
-        s ->
-            SpanNaming.instance()
-                .namingSchema()
-                .cloud()
-                .operationForRequest(
-                    "aws", attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME), s));
+    return CACHE.computeIfAbsent(qualifiedName, s -> SpanNaming
+      .instance()
+      .namingSchema()
+      .cloud()
+      .operationForRequest("aws", attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME), s));
   }
 
   public void onSdkRequest(
       final Context context,
       final SdkRequest request,
       final SdkHttpRequest httpRequest,
-      final ExecutionAttributes attributes) {
+      final ExecutionAttributes attributes
+  ) {
     final AgentSpan span = fromContext(context);
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
@@ -132,75 +123,73 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         && config.isCloudPayloadTaggingEnabledFor(awsServiceName)) {
       awsPojoToTags(span, ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG, request);
     }
-
     // S3
-    request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
+    request
+      .getValueForField("Bucket", String.class)
+      .ifPresent(name -> setBucketName(span, name));
     if ("s3".equalsIgnoreCase(awsServiceName)) {
       // gate "Key" extraction to S3 — DynamoDB's Key is Map<String, AttributeValue>, would CCE
-      request.getValueForField("Key", String.class).ifPresent(key -> setObjectKey(span, key));
+      request
+        .getValueForField("Key", String.class)
+        .ifPresent(key -> setObjectKey(span, key));
       if (traceConfig().isDataStreamsEnabled()) {
         span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(httpRequest));
       }
     }
 
     request
-        .getValueForField("StorageClass", String.class)
-        .ifPresent(
-            storageClass -> span.setTag(InstrumentationTags.AWS_STORAGE_CLASS, storageClass));
-
+      .getValueForField("StorageClass", String.class)
+      .ifPresent(storageClass -> span.setTag(InstrumentationTags.AWS_STORAGE_CLASS, storageClass));
     // SQS
     request
-        .getValueForField("QueueUrl", String.class)
-        .ifPresent(
-            url -> {
-              span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
-              setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
-              String queueName = urlFileName(url);
-              if (!queueName.isEmpty()) {
-                setQueueName(span, queueName);
-              }
-            });
-    request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
-
+      .getValueForField("QueueUrl", String.class)
+      .ifPresent(url -> {
+        span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
+        setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+        String queueName = urlFileName(url);
+        if (!queueName.isEmpty()) {
+          setQueueName(span, queueName);
+        }
+      });
+    request
+      .getValueForField("QueueName", String.class)
+      .ifPresent(name -> setQueueName(span, name));
     // SNS. TargetArn may identify a mobile platform endpoint, so only TopicArn is a topic ARN.
     Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
     snsTopicArn.ifPresent(arn -> span.setTag(InstrumentationTags.AWS_TOPIC_ARN, arn));
     Optional<String> snsTargetArn =
         snsTopicArn.isPresent() ? snsTopicArn : request.getValueForField("TargetArn", String.class);
-    Optional<String> snsTopicName =
-        snsTargetArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
+    Optional<String> snsTopicName = snsTargetArn.map(arn -> arn.substring(arn.lastIndexOf(':')
+        + 1));
     snsTopicName.ifPresent(topic -> setTopicName(span, topic));
-
     // Kinesis
     request
-        .getValueForField("StreamName", String.class)
-        .ifPresent(name -> setStreamName(span, name));
+      .getValueForField("StreamName", String.class)
+      .ifPresent(name -> setStreamName(span, name));
     Optional<String> kinesisStreamArn = request.getValueForField("StreamARN", String.class);
-    kinesisStreamArn.ifPresent(
-        streamArn -> {
-          span.setTag(InstrumentationTags.AWS_STREAM_ARN, streamArn);
-          if (traceConfig().isDataStreamsEnabled()) {
-            attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
-          }
-          int streamNameStart = streamArn.indexOf(":stream/");
-          if (streamNameStart >= 0) {
-            setStreamName(span, streamArn.substring(streamNameStart + 8));
-          }
-        });
-
+    kinesisStreamArn.ifPresent(streamArn -> {
+      span.setTag(InstrumentationTags.AWS_STREAM_ARN, streamArn);
+      if (traceConfig().isDataStreamsEnabled()) {
+        attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
+      }
+      int streamNameStart = streamArn.indexOf(":stream/");
+      if (streamNameStart >= 0) {
+        setStreamName(span, streamArn.substring(streamNameStart + 8));
+      }
+    });
     // DynamoDB
-    request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
-
+    request
+      .getValueForField("TableName", String.class)
+      .ifPresent(name -> setTableName(span, name));
     // Step Functions. getValueForField matches the API model's member name verbatim, and the
     // Step Functions model declares its members in lowerCamelCase (unlike SNS "TopicArn" or
     // DynamoDB "TableName"), so "StateMachineArn" would never match here.
     request
-        .getValueForField("stateMachineArn", String.class)
-        .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_STATE_MACHINE_ARN, arn));
+      .getValueForField("stateMachineArn", String.class)
+      .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_STATE_MACHINE_ARN, arn));
     request
-        .getValueForField("executionArn", String.class)
-        .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_EXECUTION_ARN, arn));
-
+      .getValueForField("executionArn", String.class)
+      .ifPresent(arn -> span.setTag(InstrumentationTags.AWS_EXECUTION_ARN, arn));
     // Lambda. FunctionName accepts a bare name, name:qualifier, partial ARN
     // (account:function:name) or full ARN, and cross-account/cross-Region invokes require a full
     // ARN, so pass-through would fragment aws.function.name across forms. Normalize the name and
@@ -208,10 +197,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // never changes the resource name.
     if ("lambda".equalsIgnoreCase(awsServiceName)) {
       request
-          .getValueForField("FunctionName", String.class)
-          .ifPresent(name -> setFunctionIdentity(span, name));
+        .getValueForField("FunctionName", String.class)
+        .ifPresent(name -> setFunctionIdentity(span, name));
     }
-
     // DSM
     if (traceConfig().isDataStreamsEnabled()) {
       if (kinesisStreamArn.isPresent()
@@ -220,30 +208,32 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         // https://github.com/DataDog/dd-trace-py/blob/864abb6c99e1cb0449904260bac93e8232261f2a/ddtrace/contrib/botocore/patch.py#L368
         List records =
             request
-                .getValueForField("Records", List.class)
-                .orElse(Collections.singletonList(request)); // For PutRecord use request
+          .getValueForField("Records", List.class)
+          .orElse(Collections.singletonList(request)
+          // For PutRecord use request
+          );
 
         for (Object ignored : records) {
-          AgentTracer.get()
-              .getDataStreamsMonitoring()
-              .setProduceCheckpoint("kinesis", kinesisStreamArn.get());
+          AgentTracer
+            .get()
+            .getDataStreamsMonitoring()
+            .setProduceCheckpoint("kinesis", kinesisStreamArn.get());
         }
       } else if (snsTopicName.isPresent()
           && "sns".equalsIgnoreCase(awsServiceName)
           && SNS_PUBLISH_OPERATION_NAMES.contains(awsOperationName)) {
-        List entries =
-            request
-                .getValueForField("PublishBatchRequestEntries", List.class)
-                .orElse(Collections.singletonList(request));
+        List entries = request
+          .getValueForField("PublishBatchRequestEntries", List.class)
+          .orElse(Collections.singletonList(request));
 
         for (Object ignored : entries) {
-          AgentTracer.get()
-              .getDataStreamsMonitoring()
-              .setProduceCheckpoint("sns", snsTopicName.get());
+          AgentTracer.get().getDataStreamsMonitoring().setProduceCheckpoint(
+              "sns",
+              snsTopicName.get()
+          );
         }
       }
     }
-
     // Set peer.service based on Config for serverless functions
     if (Config.get().isAwsServerless()) {
       URI uri = httpRequest.getUri();
@@ -258,7 +248,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   private static void onOperation(
-      final AgentSpan span, final String awsServiceName, final String awsOperationName) {
+      final AgentSpan span,
+      final String awsServiceName,
+      final String awsOperationName
+  ) {
     String awsRequestName = awsServiceName + "." + awsOperationName;
     span.setResourceName(awsRequestName, RESOURCE_NAME_PRIORITY);
 
@@ -291,7 +284,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   private static void setPeerService(
-      @Nonnull final AgentSpan span, @Nonnull final String precursor, @Nonnull final String value) {
+      @Nonnull final AgentSpan span,
+      @Nonnull final String precursor,
+      @Nonnull final String value
+  ) {
     if (SpanNaming.instance().namingSchema().peerService().supports()) {
       span.setTag(Tags.PEER_SERVICE, value);
       span.setTag(DDTags.PEER_SERVICE_SOURCE, precursor);
@@ -350,7 +346,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, lambdaFunctionName(functionName));
   }
 
-  /** Extracts the bare function name from any accepted {@code FunctionName} form. */
+  /**
+   * Extracts the bare function name from any accepted {@code FunctionName} form.
+   */
   static String lambdaFunctionName(String functionName) {
     int valueEnd = functionName.length();
     while (valueEnd > 0 && functionName.charAt(valueEnd - 1) == ':') {
@@ -391,8 +389,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       final Context context,
       final SdkResponse response,
       final SdkHttpResponse httpResponse,
-      final ExecutionAttributes attributes) {
-
+      final ExecutionAttributes attributes
+  ) {
     final AgentSpan span = fromContext(context);
     Config config = Config.get();
     String serviceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
@@ -404,7 +402,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     if (response instanceof AwsResponse) {
       span.setTag(
           InstrumentationTags.AWS_REQUEST_ID,
-          ((AwsResponse) response).responseMetadata().requestId());
+          ((AwsResponse) response).responseMetadata().requestId()
+      );
 
       final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
       final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
@@ -415,42 +414,43 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         String streamArn = attributes.getAttribute(KINESIS_STREAM_ARN_ATTRIBUTE);
         if (null != streamArn) {
           response
-              .getValueForField("Records", List.class)
-              .ifPresent(
-                  recordsRaw -> {
+            .getValueForField("Records", List.class)
+            .ifPresent(recordsRaw -> {
+              //noinspection unchecked
+              List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
+              if (!records.isEmpty()) {
+                DataStreamsTags tags = create("kinesis", INBOUND, streamArn);
+                if (null == kinesisApproximateArrivalTimestampField) {
+                  Optional<SdkField<?>> maybeField = records
+                    .get(0)
+                    .sdkFields()
+                    .stream()
+                    .filter(f -> f.locationName().equals("ApproximateArrivalTimestamp"))
+                    .findFirst();
+                  if (maybeField.isPresent()) {
                     //noinspection unchecked
-                    List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
-                    if (!records.isEmpty()) {
-                      DataStreamsTags tags = create("kinesis", INBOUND, streamArn);
-                      if (null == kinesisApproximateArrivalTimestampField) {
-                        Optional<SdkField<?>> maybeField =
-                            records.get(0).sdkFields().stream()
-                                .filter(f -> f.locationName().equals("ApproximateArrivalTimestamp"))
-                                .findFirst();
-                        if (maybeField.isPresent()) {
-                          //noinspection unchecked
-                          kinesisApproximateArrivalTimestampField =
-                              (SdkField<Instant>) maybeField.get();
-                        } else {
-                          // shouldn't be possible
-                          return;
-                        }
-                      }
-                      for (SdkPojo record : records) {
-                        Instant arrivalTime =
-                            kinesisApproximateArrivalTimestampField.getValueOrDefault(record);
-                        AgentDataStreamsMonitoring dataStreamsMonitoring =
-                            AgentTracer.get().getDataStreamsMonitoring();
-                        PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
-                        pathwayContext.setCheckpoint(
-                            create(tags, arrivalTime.toEpochMilli(), 0),
-                            dataStreamsMonitoring::add);
-                        if (!span.spanContext().getPathwayContext().isStarted()) {
-                          span.spanContext().mergePathwayContext(pathwayContext);
-                        }
-                      }
-                    }
-                  });
+                    kinesisApproximateArrivalTimestampField = (SdkField<Instant>) maybeField.get();
+                  } else {
+                    // shouldn't be possible
+                    return;
+                  }
+                }
+                for (SdkPojo record : records) {
+                  Instant arrivalTime =
+                      kinesisApproximateArrivalTimestampField.getValueOrDefault(record);
+                  AgentDataStreamsMonitoring dataStreamsMonitoring =
+                      AgentTracer.get().getDataStreamsMonitoring();
+                  PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
+                  pathwayContext.setCheckpoint(
+                      create(tags, arrivalTime.toEpochMilli(), 0),
+                      dataStreamsMonitoring::add
+                  );
+                  if (!span.spanContext().getPathwayContext().isStarted()) {
+                    span.spanContext().mergePathwayContext(pathwayContext);
+                  }
+                }
+              }
+            });
         }
       }
 
@@ -465,9 +465,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         if (key != null && bucket != null && awsOperation != null) {
           if ("GetObject".equalsIgnoreCase(awsOperation)) {
             DataStreamsTags tags = createWithDataset("s3", INBOUND, bucket, key, bucket);
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .setCheckpoint(span, create(tags, 0, responseSize));
+            AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(
+                span,
+                create(tags, 0, responseSize)
+            );
           }
 
           if ("PutObject".equalsIgnoreCase(awsOperation)) {
@@ -478,9 +479,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             }
 
             DataStreamsTags tags = createWithDataset("s3", OUTBOUND, bucket, key, bucket);
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .setCheckpoint(span, create(tags, 0, payloadSize));
+            AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(
+                span,
+                create(tags, 0, payloadSize)
+            );
           }
         }
       }
@@ -507,7 +509,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     return request.getUri();
   }
 
-  /** Tags the HTTP status code of a service error, which has no response to read it from. */
+  /**
+   * Tags the HTTP status code of a service error, which has no response to read it from.
+   */
   public void onServiceError(final AgentSpan span, final Throwable error) {
     if (error instanceof SdkServiceException) {
       final int status = ((SdkServiceException) error).statusCode();
@@ -544,11 +548,15 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     collectPayloadTagsData(payloadTagsData, path, pojo);
     span.setTag(
         tagsPrefix,
-        new PayloadTagsData(payloadTagsData.toArray(new PayloadTagsData.PathAndValue[0])));
+        new PayloadTagsData(payloadTagsData.toArray(new PayloadTagsData.PathAndValue[0]))
+    );
   }
 
   private void collectPayloadTagsData(
-      Collection<PayloadTagsData.PathAndValue> payloadTagsData, List<Object> path, Object object) {
+      Collection<PayloadTagsData.PathAndValue> payloadTagsData,
+      List<Object> path,
+      Object object
+  ) {
     if (object instanceof SdkPojo) {
       SdkPojo pojo = (SdkPojo) object;
       for (SdkField<?> field : pojo.sdkFields()) {

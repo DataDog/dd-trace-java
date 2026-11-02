@@ -5,7 +5,6 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
-
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
@@ -28,12 +27,11 @@ import org.slf4j.LoggerFactory;
  * mark the subject as exposed.
  */
 class ExposureLoggingHook<T> implements Hook<T> {
-
   private static final Logger log = LoggerFactory.getLogger(ExposureLoggingHook.class);
-
-  /** Evaluator resolver, returning {@code null} when the provider has no Datadog evaluator. */
+  /**
+   * Evaluator resolver, returning {@code null} when the provider has no Datadog evaluator.
+   */
   private final Supplier<DDEvaluator> evaluatorSupplier;
-
   private final AtomicBoolean warned = new AtomicBoolean();
 
   ExposureLoggingHook(final Supplier<DDEvaluator> evaluatorSupplier) {
@@ -44,7 +42,8 @@ class ExposureLoggingHook<T> implements Hook<T> {
   public void finallyAfter(
       final HookContext<T> ctx,
       final FlagEvaluationDetails<T> details,
-      final Map<String, Object> hints) {
+      final Map<String, Object> hints
+  ) {
     try {
       if (details == null || details.getErrorCode() != null) {
         log.trace("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
@@ -72,7 +71,8 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final EvaluationContext context = ctx == null ? null : ctx.getCtx();
       if (allocationKey == null || variantKey == null || context == null) {
         log.trace(
-            "Feature Flagging exposure suppressed: allocation, variant, or context unavailable");
+            "Feature Flagging exposure suppressed: allocation, variant, or context unavailable"
+        );
         return;
       }
       final DDEvaluator evaluator = this.evaluatorSupplier.get();
@@ -87,19 +87,24 @@ class ExposureLoggingHook<T> implements Hook<T> {
       // The exposure is recorded even when it is not sent, so exposure hooks get the same
       // decisions whether or not exposures go to Datadog.
       if (!cache.recordIfChanged(
-          flag, context.getTargetingKey(), allocationKey, variantKey, serialId)) {
+          flag,
+          context.getTargetingKey(),
+          allocationKey,
+          variantKey,
+          serialId
+      )) {
         log.trace("Feature Flagging exposure suppressed: exposure already recorded");
       } else if (!evaluator.isExposureDeliveryEnabled()) {
         log.trace("Feature Flagging exposure suppressed: Datadog exposure delivery is disabled");
       } else {
-        evaluator.recordExposure(
-            DDEvaluator.exposureEvent(
-                flag,
-                allocationKey,
-                variantKey,
-                context,
-                serialId,
-                SplitFeatureMetadata.featuresWithPrefix(metadata, EXPOSURE_FEATURE_PREFIX)));
+        evaluator.recordExposure(DDEvaluator.exposureEvent(
+            flag,
+            allocationKey,
+            variantKey,
+            context,
+            serialId,
+            SplitFeatureMetadata.featuresWithPrefix(metadata, EXPOSURE_FEATURE_PREFIX)
+        ));
       }
     } catch (final RuntimeException | LinkageError e) {
       // Never let exposure reporting break flag evaluation.

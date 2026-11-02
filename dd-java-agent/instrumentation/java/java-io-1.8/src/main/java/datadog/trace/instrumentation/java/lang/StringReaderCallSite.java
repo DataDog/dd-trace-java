@@ -11,11 +11,11 @@ import javax.annotation.Nonnull;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class StringReaderCallSite {
-
   @CallSite.After("void java.io.StringReader.<init>(java.lang.String)")
   public static StringReader afterInit(
       @CallSite.AllArguments @Nonnull final Object[] params,
-      @CallSite.Return @Nonnull final StringReader result) {
+      @CallSite.Return @Nonnull final StringReader result
+  ) {
     final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
     if (propagationModule != null) {
       try {

@@ -15,7 +15,6 @@ import java.util.stream.Stream;
  * tested class, since classloader is the same.
  */
 public class ExceptionHistogramTestBridge {
-
   public static ExceptionHistogram create(final Config config) {
     return new ExceptionHistogram(config);
   }

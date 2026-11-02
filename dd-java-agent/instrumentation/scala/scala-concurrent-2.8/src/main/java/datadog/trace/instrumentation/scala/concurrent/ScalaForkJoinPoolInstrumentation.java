@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -16,8 +15,9 @@ import net.bytebuddy.asm.Advice;
 import scala.concurrent.forkjoin.ForkJoinTask;
 
 public final class ScalaForkJoinPoolInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "scala.concurrent.forkjoin.ForkJoinPool";
@@ -27,9 +27,10 @@ public final class ScalaForkJoinPoolInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("doSubmit", "externalPush"))
-            .and(takesArgument(0, named("scala.concurrent.forkjoin.ForkJoinTask"))),
-        getClass().getName() + "$StartTask");
+          .and(namedOneOf("doSubmit", "externalPush"))
+          .and(takesArgument(0, named("scala.concurrent.forkjoin.ForkJoinTask"))),
+        getClass().getName() + "$StartTask"
+    );
   }
 
   public static final class StartTask {
@@ -42,7 +43,9 @@ public final class ScalaForkJoinPoolInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static <T> void cleanup(
-        @Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
+        @Advice.Argument(0) ForkJoinTask<T> task,
+        @Advice.Thrown Throwable thrown
+    ) {
       if (null != thrown) {
         cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }

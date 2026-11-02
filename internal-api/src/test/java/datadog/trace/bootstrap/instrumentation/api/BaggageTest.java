@@ -5,14 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.Context;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class BaggageTest {
-
   private static final String HEADER = "key1=value1,key2=value2";
 
   @Test
@@ -48,22 +46,18 @@ class BaggageTest {
     Baggage baggage = Baggage.create(items(), HEADER);
 
     baggage.removeItem("missingKey");
-
     // header is preserved
     assertEquals(HEADER, baggage.getW3cHeader());
 
     baggage.removeItem("key2");
-
     // header is out of sync
     assertNull(baggage.getW3cHeader());
 
     baggage.setW3cHeader("key1=value1");
-
     // header is forced
     assertEquals("key1=value1", baggage.getW3cHeader());
 
     baggage.addItem("key3", "value3");
-
     // header is out of sync
     assertNull(baggage.getW3cHeader());
   }

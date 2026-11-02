@@ -17,13 +17,14 @@ import io.r2dbc.spi.ConnectionFactoryOptions;
  * access connection metadata (host, database, driver type).
  */
 public final class R2dbcTracingSupport {
-
-  private R2dbcTracingSupport() {}
+  private R2dbcTracingSupport() {
+  }
 
   public static ConnectionFactory wrapConnectionFactory(
       ConnectionFactory factory,
       ConnectionFactoryOptions options,
-      ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore) {
+      ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore
+  ) {
     // If the application itself depends on (unshaded) r2dbc-proxy and requests DRIVER="proxy"
     // (r2dbc-proxy's own URL scheme), find() already returns an r2dbc-proxy-wrapped factory —
     // wrapping it again here (with our shaded copy) would double the query listener callbacks
@@ -43,7 +44,10 @@ public final class R2dbcTracingSupport {
         new ConnectionMetadataListener(options, connectionOptionsStore);
 
     ProxyConnectionFactory.Builder builder =
-        ProxyConnectionFactory.builder(factory).listener(queryListener).listener(metadataListener);
+        ProxyConnectionFactory
+      .builder(factory)
+      .listener(queryListener)
+      .listener(metadataListener);
     ProxyConfig config = builder.getProxyConfig();
     config.setProxyFactoryFactory(new R2dbcProxyFactory(config.getProxyFactory()));
     return builder.build();
@@ -61,7 +65,8 @@ public final class R2dbcTracingSupport {
 
     ConnectionMetadataListener(
         ConnectionFactoryOptions options,
-        ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore) {
+        ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore
+    ) {
       this.options = options;
       this.connectionOptionsStore = connectionOptionsStore;
     }

@@ -14,7 +14,6 @@ import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 
 public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Object, Flow<Void>> {
-
   /**
    * This will cover:
    *
@@ -25,8 +24,9 @@ public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Obj
    * </ul>
    */
   private static final String GENERATED_MESSAGE = "com.google.protobuf.GeneratedMessage";
-
-  /** Maps map to this class that does not implement Map interface */
+  /**
+   * Maps map to this class that does not implement Map interface
+   */
   private static final String MAP_FIELD = "com.google.protobuf.MapField";
 
   @Override
@@ -37,7 +37,11 @@ public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Obj
       final byte source = SourceTypes.GRPC_BODY;
       final int tainted =
           module.taintObjectDeeply(
-              iastCtx, o, source, GrpcRequestMessageHandler::visitProtobufArtifact);
+              iastCtx,
+              o,
+              source,
+              GrpcRequestMessageHandler::visitProtobufArtifact
+      );
       if (tainted > 0) {
         IastMetricCollector.add(IastMetric.EXECUTED_SOURCE, source, tainted, iastCtx);
       }
@@ -48,12 +52,16 @@ public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Obj
   static boolean visitProtobufArtifact(@Nonnull final Class<?> kls) {
     final Class<?> superClass = kls.getSuperclass();
     if (superClass != null && superClass.getName().startsWith(GENERATED_MESSAGE)) {
-      return true; // GRPC custom messages
+      // GRPC custom messages
+      return true;
     }
     if (MAP_FIELD.equals(kls.getName())) {
-      return true; // a map that does not implement the map interface
+      // a map that does not implement the map interface
+      return true;
     }
     // nested collections are safe in GRPC
-    return kls.isArray() || Iterable.class.isAssignableFrom(kls) || Map.class.isAssignableFrom(kls);
+    return kls.isArray()
+        || Iterable.class.isAssignableFrom(kls)
+        || Map.class.isAssignableFrom(kls);
   }
 }

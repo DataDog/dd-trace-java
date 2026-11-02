@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -37,10 +36,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  * regardless of whether it managed to commit the blocking response.
  */
 class FileIORaspHelperBlockingTest {
-
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.JSON);
-
   private AgentTracer.TracerAPI originalTracer;
   private FileIORaspHelper originalHelperInstance;
   private TraceSegment traceSegment;
@@ -76,8 +73,7 @@ class FileIORaspHelperBlockingTest {
     when(blockingFlow.getAction()).thenReturn(RBA);
     CallbackProvider callbackProvider = mock(CallbackProvider.class);
     when(callbackProvider.getCallback(EVENTS.fileLoaded())).thenReturn((ctx, path) -> blockingFlow);
-    when(callbackProvider.getCallback(EVENTS.fileWritten()))
-        .thenReturn((ctx, path) -> blockingFlow);
+    when(callbackProvider.getCallback(EVENTS.fileWritten())).thenReturn((ctx, path) -> blockingFlow);
 
     AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
     when(tracer.activeSpan()).thenReturn(span);
@@ -98,28 +94,36 @@ class FileIORaspHelperBlockingTest {
     return Stream.of(
         arguments(
             "beforeFileLoaded(String)",
-            (Executable) () -> FileIORaspHelper.INSTANCE.beforeFileLoaded("f")),
+            (Executable) () -> FileIORaspHelper.INSTANCE.beforeFileLoaded("f")
+        ),
         arguments(
             "beforeFileLoaded(String, String)",
-            (Executable) () -> FileIORaspHelper.INSTANCE.beforeFileLoaded("/tmp", "f")),
+            (Executable) () -> FileIORaspHelper.INSTANCE.beforeFileLoaded("/tmp", "f")
+        ),
         arguments(
             "beforeFileLoaded(String, String[])",
-            (Executable)
-                () ->
-                    FileIORaspHelper.INSTANCE.beforeFileLoaded("/tmp", new String[] {"log", "f"})),
+            (Executable) () -> FileIORaspHelper.INSTANCE.beforeFileLoaded(
+                "/tmp",
+                new String[] {"log", "f"}
+            )
+        ),
         arguments(
             "beforeFileLoaded(File, String)",
-            (Executable) () -> FileIORaspHelper.INSTANCE.beforeFileLoaded(new File("/tmp"), "f")),
+            (Executable) () -> FileIORaspHelper.INSTANCE.beforeFileLoaded(new File("/tmp"), "f")
+        ),
         arguments(
             "beforeFileLoaded(URI)",
-            (Executable)
-                () -> FileIORaspHelper.INSTANCE.beforeFileLoaded(URI.create("file:/tmp/f"))),
+            (Executable) () -> FileIORaspHelper.INSTANCE.beforeFileLoaded(URI.create("file:/tmp/f"))
+        ),
         arguments(
             "beforeFileWritten(String)",
-            (Executable) () -> FileIORaspHelper.INSTANCE.beforeFileWritten("f")),
+            (Executable) () -> FileIORaspHelper.INSTANCE.beforeFileWritten("f")
+        ),
         arguments(
             "beforeRandomAccessFileOpened(String, String)",
-            (Executable) () -> FileIORaspHelper.INSTANCE.beforeRandomAccessFileOpened("f", "rw")));
+            (Executable) () -> FileIORaspHelper.INSTANCE.beforeRandomAccessFileOpened("f", "rw")
+        )
+    );
   }
 
   @ParameterizedTest(name = "{0}")
@@ -172,7 +176,8 @@ class FileIORaspHelperBlockingTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       calls++;
       lastSegment = segment;
       lastStatusCode = statusCode;

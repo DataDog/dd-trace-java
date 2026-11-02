@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
-
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.PropagationTags;
@@ -14,7 +13,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.IntPredicate;
 import org.slf4j.LoggerFactory;
 
-/** Captures configuration required for PropagationTags logic */
+/**
+ * Captures configuration required for PropagationTags logic
+ */
 final class DatadogPTagsCodec extends PTagsCodec {
   private static final RatelimitedLogger log =
       new RatelimitedLogger(LoggerFactory.getLogger(DatadogPTagsCodec.class), 5, TimeUnit.MINUTES);
@@ -24,11 +25,11 @@ final class DatadogPTagsCodec extends PTagsCodec {
   private static final char TAG_KEY_SEPARATOR = '=';
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
-
-  /** What a {@code _dd.p.llmobs_pagent_name=} entry costs before its value: {@code ,_dd.p.k=}. */
+  /**
+   * What a {@code _dd.p.llmobs_pagent_name=} entry costs before its value: {@code ,_dd.p.k=}.
+   */
   private static final int PAGENT_NAME_ENTRY_OVERHEAD =
       1 + Encoding.DATADOG.getPrefixLength() + LLMOBS_PAGENT_NAME_TAG.length() + 1;
-
   private final int xDatadogTagsLimit;
 
   DatadogPTagsCodec(int xDatadogTagsLimit) {
@@ -80,17 +81,23 @@ final class DatadogPTagsCodec extends PTagsCodec {
     TagValue llmObsSampleRateTagValue = null;
     TagValue llmObsSamplingDecisionTagValue = null;
     while (tagPos < len) {
-      int tagKeyEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value, tagPos, TAG_KEY_SEPARATOR, DatadogPTagsCodec::isAllowedKeyChar);
+      int tagKeyEndsAt = validateCharsUntilSeparatorOrEnd(
+          value,
+          tagPos,
+          TAG_KEY_SEPARATOR,
+          DatadogPTagsCodec::isAllowedKeyChar
+      );
       if (tagKeyEndsAt < 0 || tagKeyEndsAt == len) {
         log.warn("Invalid datadog tags header value: '{}' at {}", value, tagPos);
         return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
       }
       int tagValuePos = tagKeyEndsAt + 1;
-      int tagValueEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value, tagValuePos, TAGS_SEPARATOR, DatadogPTagsCodec::isAllowedValueChar);
+      int tagValueEndsAt = validateCharsUntilSeparatorOrEnd(
+          value,
+          tagValuePos,
+          TAGS_SEPARATOR,
+          DatadogPTagsCodec::isAllowedValueChar
+      );
       if (tagValueEndsAt < 0) {
         log.warn("Invalid datadog tags header value: '{}' at {}", value, tagKeyEndsAt);
         return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
@@ -103,7 +110,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
             log.warn(
                 "Invalid datadog tags header value: '{}' invalid tag value at {}",
                 value,
-                tagValuePos);
+                tagValuePos
+            );
             if (tagKey.equals(TRACE_ID_TAG)) {
               return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
             }
@@ -159,7 +167,9 @@ final class DatadogPTagsCodec extends PTagsCodec {
             llmObsParentAgentNameTagValue,
             llmObsParentIdTagValue,
             llmObsSampleRateTagValue,
-            llmObsSamplingDecisionTagValue));
+            llmObsSamplingDecisionTagValue
+        )
+    );
   }
 
   /**
@@ -196,7 +206,10 @@ final class DatadogPTagsCodec extends PTagsCodec {
    */
   @Override
   protected LLMObsTagValues degradeLLMObsToFit(
-      PTags ptags, LLMObsTagValues tags, SamplingState samplingState) {
+      PTags ptags,
+      LLMObsTagValues tags,
+      SamplingState samplingState
+  ) {
     if (tags.parentAgentSpanId == null) {
       // Nothing to degrade: a name is only ever written alongside an id.
       return tags;
@@ -227,7 +240,6 @@ final class DatadogPTagsCodec extends PTagsCodec {
         return idOnly;
       }
     }
-
     // Either there was no name to sacrifice, or the id alone still overflows. Drop attribution
     // rather than lose the whole header.
     return tags.withAgentAttribution(null, null);
@@ -260,10 +272,13 @@ final class DatadogPTagsCodec extends PTagsCodec {
   @Override
   protected void logHeaderDropped(int size) {
     log.warn(
-        "Dropping x-datadog-tags entirely: {} characters exceeds the {} limit, so no _dd.p.* tag is propagated on this hop. A long ml_app, session_id or agent name is the usual cause; raise {} to carry them.",
+        "Dropping x-datadog-tags entirely: {} characters exceeds the {} limit, so no _dd.p."
+        + "* tag is propagated on this hop. A long ml_app, session_id or agent name is the "
+        + "usual cause; raise {} to carry them.",
         size,
         xDatadogTagsLimit,
-        TRACE_X_DATADOG_TAGS_MAX_LENGTH);
+        TRACE_X_DATADOG_TAGS_MAX_LENGTH
+    );
   }
 
   @Override
@@ -272,7 +287,11 @@ final class DatadogPTagsCodec extends PTagsCodec {
   }
 
   private static int validateCharsUntilSeparatorOrEnd(
-      String s, int start, char separator, IntPredicate isValid) {
+      String s,
+      int start,
+      char separator,
+      IntPredicate isValid
+  ) {
     int end = s.length();
     if (start >= end) {
       return -1;
@@ -287,7 +306,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
       if (pos < end) {
         c = s.charAt(pos);
         if (c == separator) {
-          break; // trailing separator allowed; caller resumes parsing from here
+          // trailing separator allowed; caller resumes parsing from here
+          break;
         }
       }
     } while (pos < end);

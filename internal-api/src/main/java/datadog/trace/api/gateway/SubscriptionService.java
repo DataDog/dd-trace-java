@@ -1,6 +1,8 @@
 package datadog.trace.api.gateway;
 
-/** The API used by the consumers to register callbacks. */
+/**
+ * The API used by the consumers to register callbacks.
+ */
 public interface SubscriptionService {
   <C> Subscription registerCallback(EventType<C> eventType, C callback);
 
@@ -9,7 +11,8 @@ public interface SubscriptionService {
   class SubscriptionServiceNoop implements SubscriptionService {
     public static final SubscriptionService INSTANCE = new SubscriptionServiceNoop();
 
-    private SubscriptionServiceNoop() {}
+    private SubscriptionServiceNoop() {
+    }
 
     @Override
     public <C> Subscription registerCallback(EventType<C> eventType, C callback) {

@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.LogMessage;
 import datadog.trace.api.telemetry.LogCollector;
@@ -19,7 +18,6 @@ import org.mockito.ArgumentCaptor;
 
 @WithConfig(key = "instrumentation.telemetry.debug", value = "true")
 class LogPeriodicActionTest {
-
   private final LogPeriodicAction periodicAction = new LogPeriodicAction();
   private final TelemetryService telemetryService = mock(TelemetryService.class);
 
@@ -55,7 +53,8 @@ class LogPeriodicActionTest {
     assertEquals("test", logMessage.getMessage());
     assertEquals(
         MutableException.class.getCanonicalName() + "\n" + "  at datadog.MyClass.method(file:42)\n",
-        logMessage.getStackTrace());
+        logMessage.getStackTrace()
+    );
   }
 
   @Test
@@ -69,7 +68,8 @@ class LogPeriodicActionTest {
     assertEquals("test", logMessage.getMessage());
     assertEquals(
         MutableException.class.getCanonicalName() + "\n" + "  at java.MyClass.method(file:42)\n",
-        logMessage.getStackTrace());
+        logMessage.getStackTrace()
+    );
   }
 
   @Test
@@ -112,16 +112,17 @@ class LogPeriodicActionTest {
 
   @Test
   void stacktraceRedaction() {
-    Throwable throwable =
-        throwable(
-            "exception",
-            stacktrace(
-                frame(""),
-                frame("java.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("datadog.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("mycorp.MyClass")));
+    Throwable throwable = throwable(
+        "exception",
+        stacktrace(
+            frame(""),
+            frame("java.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("datadog.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("mycorp.MyClass")
+        )
+    );
 
     LogCollector.get().addLogMessage(ERROR.toString(), "test", throwable);
     periodicAction.doIteration(telemetryService);
@@ -129,36 +130,39 @@ class LogPeriodicActionTest {
     LogMessage logMessage = captureSingleLogMessage();
     assertEquals("test", logMessage.getMessage());
     assertEquals(
-        MutableException.class.getCanonicalName()
-            + "\n"
-            + "  at (redacted)\n"
-            + "  at java.MyClass.method(file:42)\n"
-            + "  at (redacted)\n"
-            + "  at datadog.MyClass.method(file:42)\n"
-            + "  at (redacted: 2 frames)\n",
-        logMessage.getStackTrace());
+            MutableException.class.getCanonicalName()
+        + "\n"
+        + "  at (redacted)\n"
+        + "  at java.MyClass.method(file:42)\n"
+        + "  at (redacted)\n"
+        + "  at datadog.MyClass.method(file:42)\n"
+        + "  at (redacted: 2 frames)\n",
+        logMessage.getStackTrace()
+    );
   }
 
   @Test
   void stacktraceWithMultipleFramesAndCommonFrames() {
-    Throwable cause =
-        throwable(
-            "exception 2",
-            stacktrace(
-                frame("java.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("datadog.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("mycorp.MyClass")));
-    Throwable throwable =
-        throwable(
-            "exception",
-            stacktrace(
-                frame(""),
-                frame("datadog.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("mycorp.MyClass")),
-            cause);
+    Throwable cause = throwable(
+        "exception 2",
+        stacktrace(
+            frame("java.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("datadog.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("mycorp.MyClass")
+        )
+    );
+    Throwable throwable = throwable(
+        "exception",
+        stacktrace(
+            frame(""),
+            frame("datadog.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("mycorp.MyClass")
+        ),
+        cause
+    );
 
     LogCollector.get().addLogMessage(ERROR.toString(), "test", throwable);
     periodicAction.doIteration(telemetryService);
@@ -166,51 +170,55 @@ class LogPeriodicActionTest {
     LogMessage logMessage = captureSingleLogMessage();
     assertEquals("test", logMessage.getMessage());
     assertEquals(
-        MutableException.class.getCanonicalName()
-            + "\n"
-            + "  at (redacted)\n"
-            + "  at datadog.MyClass.method(file:42)\n"
-            + "  at (redacted: 2 frames)\n"
-            + "Caused by: "
-            + MutableException.class.getCanonicalName()
-            + "\n"
-            + "  at java.MyClass.method(file:42)\n"
-            + "  at (redacted)\n"
-            + "  ... 3 more\n",
-        logMessage.getStackTrace());
+            MutableException.class.getCanonicalName()
+        + "\n"
+        + "  at (redacted)\n"
+        + "  at datadog.MyClass.method(file:42)\n"
+        + "  at (redacted: 2 frames)\n"
+        + "Caused by: "
+        + MutableException.class.getCanonicalName()
+        + "\n"
+        + "  at java.MyClass.method(file:42)\n"
+        + "  at (redacted)\n"
+        + "  ... 3 more\n",
+        logMessage.getStackTrace()
+    );
   }
 
   @Test
   void stacktraceWithCommonFramesOnly() {
-    Throwable innerCause =
-        throwable(
-            "exception 3",
-            stacktrace(
-                frame("java.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("datadog.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("mycorp.MyClass")));
-    Throwable cause =
-        throwable(
-            "exception 2",
-            stacktrace(
-                frame("java.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("datadog.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("mycorp.MyClass")),
-            innerCause);
-    Throwable throwable =
-        throwable(
-            "exception",
-            stacktrace(
-                frame("java.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("datadog.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("mycorp.MyClass")),
-            cause);
+    Throwable innerCause = throwable(
+        "exception 3",
+        stacktrace(
+            frame("java.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("datadog.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("mycorp.MyClass")
+        )
+    );
+    Throwable cause = throwable(
+        "exception 2",
+        stacktrace(
+            frame("java.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("datadog.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("mycorp.MyClass")
+        ),
+        innerCause
+    );
+    Throwable throwable = throwable(
+        "exception",
+        stacktrace(
+            frame("java.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("datadog.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("mycorp.MyClass")
+        ),
+        cause
+    );
 
     LogCollector.get().addLogMessage(ERROR.toString(), "test", throwable);
     periodicAction.doIteration(telemetryService);
@@ -218,43 +226,46 @@ class LogPeriodicActionTest {
     LogMessage logMessage = captureSingleLogMessage();
     assertEquals("test", logMessage.getMessage());
     assertEquals(
-        MutableException.class.getCanonicalName()
-            + "\n"
-            + "  at java.MyClass.method(file:42)\n"
-            + "  at (redacted)\n"
-            + "  at datadog.MyClass.method(file:42)\n"
-            + "  at (redacted: 2 frames)\n"
-            + "Caused by: "
-            + MutableException.class.getCanonicalName()
-            + "\n"
-            + "  ... 5 more\n"
-            + "Caused by: "
-            + MutableException.class.getCanonicalName()
-            + "\n"
-            + "  ... 5 more\n",
-        logMessage.getStackTrace());
+            MutableException.class.getCanonicalName()
+        + "\n"
+        + "  at java.MyClass.method(file:42)\n"
+        + "  at (redacted)\n"
+        + "  at datadog.MyClass.method(file:42)\n"
+        + "  at (redacted: 2 frames)\n"
+        + "Caused by: "
+        + MutableException.class.getCanonicalName()
+        + "\n"
+        + "  ... 5 more\n"
+        + "Caused by: "
+        + MutableException.class.getCanonicalName()
+        + "\n"
+        + "  ... 5 more\n",
+        logMessage.getStackTrace()
+    );
   }
 
   @Test
   void stacktraceWithoutCommonFrames() {
-    Throwable cause =
-        throwable(
-            "exception 2",
-            stacktrace(
-                frame("java.MyClass"),
-                frame("org.datadog.Test"),
-                frame("io.DataTest"),
-                frame("dd.MainClass")));
-    Throwable throwable =
-        throwable(
-            "exception",
-            stacktrace(
-                frame("java.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("datadog.MyClass"),
-                frame("mycorp.MyClass"),
-                frame("mycorp.MyClass")),
-            cause);
+    Throwable cause = throwable(
+        "exception 2",
+        stacktrace(
+            frame("java.MyClass"),
+            frame("org.datadog.Test"),
+            frame("io.DataTest"),
+            frame("dd.MainClass")
+        )
+    );
+    Throwable throwable = throwable(
+        "exception",
+        stacktrace(
+            frame("java.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("datadog.MyClass"),
+            frame("mycorp.MyClass"),
+            frame("mycorp.MyClass")
+        ),
+        cause
+    );
 
     LogCollector.get().addLogMessage(ERROR.toString(), "test", throwable);
     periodicAction.doIteration(telemetryService);
@@ -262,18 +273,19 @@ class LogPeriodicActionTest {
     LogMessage logMessage = captureSingleLogMessage();
     assertEquals("test", logMessage.getMessage());
     assertEquals(
-        MutableException.class.getCanonicalName()
-            + "\n"
-            + "  at java.MyClass.method(file:42)\n"
-            + "  at (redacted)\n"
-            + "  at datadog.MyClass.method(file:42)\n"
-            + "  at (redacted: 2 frames)\n"
-            + "Caused by: "
-            + MutableException.class.getCanonicalName()
-            + "\n"
-            + "  at java.MyClass.method(file:42)\n"
-            + "  at (redacted: 3 frames)\n",
-        logMessage.getStackTrace());
+            MutableException.class.getCanonicalName()
+        + "\n"
+        + "  at java.MyClass.method(file:42)\n"
+        + "  at (redacted)\n"
+        + "  at datadog.MyClass.method(file:42)\n"
+        + "  at (redacted: 2 frames)\n"
+        + "Caused by: "
+        + MutableException.class.getCanonicalName()
+        + "\n"
+        + "  at java.MyClass.method(file:42)\n"
+        + "  at (redacted: 3 frames)\n",
+        logMessage.getStackTrace()
+    );
   }
 
   private LogMessage captureSingleLogMessage() {
@@ -290,7 +302,10 @@ class LogPeriodicActionTest {
   }
 
   private static Throwable throwable(
-      String message, StackTraceElement[] stacktrace, Throwable cause) {
+      String message,
+      StackTraceElement[] stacktrace,
+      Throwable cause
+  ) {
     MutableException exception = new MutableException(message, cause);
     exception.setStackTrace(stacktrace);
     return exception;

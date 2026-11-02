@@ -61,7 +61,6 @@ public interface ParameterCollector {
   class ParameterCollectorImpl implements ParameterCollector {
     private static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
     private static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
-
     private final boolean inspectContent;
     private Map<String, List<String>> map;
     private List<String> filenames;

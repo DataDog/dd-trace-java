@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.core.DDSpan;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
@@ -14,7 +13,6 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class DeterministicSpanSamplerTest {
-
   @TableTest({
     "scenario                   | expected | spanId              ",
     "10428415896243638596 false | false    | 10428415896243638596",
@@ -354,9 +352,10 @@ class DeterministicSpanSamplerTest {
     assertTrue(sampler.sample(span));
   }
 
-  /** Converts unsigned decimal string cell values to signed {@code long} bit patterns. */
+  /**
+   * Converts unsigned decimal string cell values to signed {@code long} bit patterns.
+   */
   private static class UnsignedLongConverter implements ArgumentConverter {
-
     @Override
     public Object convert(Object source, ParameterContext context)
         throws ArgumentConversionException {

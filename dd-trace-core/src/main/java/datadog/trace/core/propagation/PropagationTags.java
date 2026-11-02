@@ -2,7 +2,6 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.core.propagation.ptags.W3CPTagsCodec.isUnchangedInheritedOtelMember;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
@@ -23,7 +22,6 @@ import java.util.Map;
  * </pre>
  */
 public abstract class PropagationTags {
-
   /**
    * An immutable snapshot of the trace's sampling decision. Not final only so that a fresh
    * probability decision can defer building its OpenTelemetry tracestate until it's read.
@@ -32,7 +30,6 @@ public abstract class PropagationTags {
     private static final byte OTEL_POSITION_UNKNOWN = 0;
     private static final byte OTEL_POSITION_PRESERVED = 1;
     private static final byte OTEL_POSITION_REPLACED = 2;
-
     private final int samplingPriority;
     private final String tracestate;
     private final CharSequence otelTraceState;
@@ -45,7 +42,8 @@ public abstract class PropagationTags {
         String tracestate,
         CharSequence otelTraceState,
         CharSequence decisionMaker,
-        CharSequence knuthSamplingRate) {
+        CharSequence knuthSamplingRate
+    ) {
       this.samplingPriority = samplingPriority;
       this.tracestate = tracestate;
       this.otelTraceState = otelTraceState;
@@ -61,7 +59,9 @@ public abstract class PropagationTags {
       return tracestate;
     }
 
-    /** The {@code ot} tracestate member, which a subclass may build on first read. */
+    /**
+     * The {@code ot} tracestate member, which a subclass may build on first read.
+     */
     public CharSequence getOtelTraceState() {
       return otelTraceState;
     }
@@ -84,10 +84,9 @@ public abstract class PropagationTags {
       }
       byte position = otelPosition;
       if (position == OTEL_POSITION_UNKNOWN) {
-        position =
-            isUnchangedInheritedOtelMember(tracestate, otelTraceState)
-                ? OTEL_POSITION_PRESERVED
-                : OTEL_POSITION_REPLACED;
+        position = isUnchangedInheritedOtelMember(tracestate, otelTraceState)
+            ? OTEL_POSITION_PRESERVED
+            : OTEL_POSITION_REPLACED;
         otelPosition = position;
       }
       return position == OTEL_POSITION_PRESERVED;
@@ -109,7 +108,6 @@ public abstract class PropagationTags {
   public enum HeaderType {
     DATADOG,
     W3C;
-
     private static final int numValues = HeaderType.values().length;
 
     public static int getNumValues() {
@@ -138,7 +136,10 @@ public abstract class PropagationTags {
   public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
 
   public abstract boolean tryUpdateTraceSamplingPriority(
-      int samplingPriority, int samplingMechanism, boolean allowOverride);
+      int samplingPriority,
+      int samplingMechanism,
+      boolean allowOverride
+  );
 
   public abstract boolean tryUpdateProbabilitySamplingDecision(
       int samplingPriority,
@@ -146,7 +147,8 @@ public abstract class PropagationTags {
       double sampleRate,
       boolean rateLimiterRejected,
       long traceIdLowOrderBits,
-      boolean allowOverride);
+      boolean allowOverride
+  );
 
   public abstract void forceKeep(int samplingMechanism);
 
@@ -182,7 +184,9 @@ public abstract class PropagationTags {
    */
   public abstract void updateW3CTracestate(String tracestate);
 
-  /** Updates the original W3C tracestate header from {@code source}. */
+  /**
+   * Updates the original W3C tracestate header from {@code source}.
+   */
   public void updateW3CTracestateFrom(PropagationTags source) {
     updateW3CTracestate(source.getW3CTracestate());
   }
@@ -204,7 +208,10 @@ public abstract class PropagationTags {
   public abstract String headerValue(HeaderType headerType, CharSequence lastParentIdOverride);
 
   public abstract String headerValue(
-      HeaderType headerType, CharSequence lastParentIdOverride, SamplingState samplingState);
+      HeaderType headerType,
+      CharSequence lastParentIdOverride,
+      SamplingState samplingState
+  );
 
   /**
    * Like {@link #headerValue(HeaderType, CharSequence, SamplingState)} but also writes the {@code
@@ -220,7 +227,8 @@ public abstract class PropagationTags {
       HeaderType headerType,
       CharSequence lastParentIdOverride,
       LLMObsPropagationValues llmObsValues,
-      SamplingState samplingState);
+      SamplingState samplingState
+  );
 
   /**
    * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision

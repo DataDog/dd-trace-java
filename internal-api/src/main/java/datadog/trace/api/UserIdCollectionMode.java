@@ -7,10 +7,8 @@ public enum UserIdCollectionMode {
   ANONYMIZATION("anonymization", "anon"),
   DISABLED("disabled"),
   SDK("sdk");
-
   private static final AtomicReference<UserIdCollectionMode> CURRENT_MODE =
       new AtomicReference<>(IDENTIFICATION);
-
   private final String[] values;
 
   UserIdCollectionMode(final String... values) {
@@ -18,26 +16,24 @@ public enum UserIdCollectionMode {
   }
 
   public static UserIdCollectionMode fromString(String collectionMode, String trackingMode) {
-    return CURRENT_MODE.updateAndGet(
-        current -> {
-          if (collectionMode == null && trackingMode != null) {
-            return fromTracking(trackingMode);
-          } else {
-            return fromMode(collectionMode);
-          }
-        });
+    return CURRENT_MODE.updateAndGet(current -> {
+      if (collectionMode == null && trackingMode != null) {
+        return fromTracking(trackingMode);
+      } else {
+        return fromMode(collectionMode);
+      }
+    });
   }
 
   public static UserIdCollectionMode fromRemoteConfig(final String mode) {
-    return CURRENT_MODE.updateAndGet(
-        current -> {
-          if (mode == null) {
-            // use locally configured value
-            return Config.get().getAppSecUserIdCollectionMode();
-          } else {
-            return fromMode(mode);
-          }
-        });
+    return CURRENT_MODE.updateAndGet(current -> {
+      if (mode == null) {
+        // use locally configured value
+        return Config.get().getAppSecUserIdCollectionMode();
+      } else {
+        return fromMode(mode);
+      }
+    });
   }
 
   private static UserIdCollectionMode fromMode(String mode) {

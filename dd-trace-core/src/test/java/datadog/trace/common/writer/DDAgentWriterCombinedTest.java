@@ -25,7 +25,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.common.socket.UnixDomainServerSocketFactory;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.http.OkHttpUtils;
@@ -73,13 +72,10 @@ import org.tabletest.junit.TableTest;
 
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
-
   // DDAgentWriter default buffer size (matches private DDAgentWriter.BUFFER_SIZE)
   private static final int AGENT_WRITER_BUFFER_SIZE = 1024;
-
   MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
   Phaser phaser = new Phaser();
-
   // Only used to create spans
   CoreTracer dummyTracer;
 
@@ -113,17 +109,16 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
   @Test
   void noInteractionsBecauseOfInitialFlush() {
     DDAgentApi api = Mockito.mock(DDAgentApi.class);
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .agentApi(api)
-            .traceBufferSize(8)
-            .monitoring(monitoring)
-            .flushIntervalMilliseconds(-1)
-            .build();
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .agentApi(api)
+      .traceBufferSize(8)
+      .monitoring(monitoring)
+      .flushIntervalMilliseconds(-1)
+      .build();
     writer.start();
 
     writer.flush();
-
     // then: 0 * _ (no interactions at all on mocked api)
     verifyNoMoreInteractions(api);
 
@@ -139,21 +134,21 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
   void testHappyPath(String agentVersion) {
     DDAgentApi api = mock(DDAgentApi.class);
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .featureDiscovery(discovery)
-            .agentApi(api)
-            .traceBufferSize(1024)
-            .monitoring(monitoring)
-            .flushIntervalMilliseconds(-1)
-            .build();
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .featureDiscovery(discovery)
+      .agentApi(api)
+      .traceBufferSize(1024)
+      .monitoring(monitoring)
+      .flushIntervalMilliseconds(-1)
+      .build();
     writer.start();
     DDSpan span = (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start();
     List<DDSpan> trace = Collections.singletonList(span);
 
     when(discovery.getTraceEndpoint()).thenReturn(agentVersion);
     when(api.sendSerializedTraces(argThat(payload -> payload.traceCount() == 2)))
-        .thenReturn(RemoteApi.Response.success(200));
+      .thenReturn(RemoteApi.Response.success(200));
 
     writer.write(trace);
     writer.write(trace);
@@ -180,21 +175,21 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     DDAgentApi api = mock(DDAgentApi.class);
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .featureDiscovery(discovery)
-            .agentApi(api)
-            .traceBufferSize(bufferSize)
-            .monitoring(monitoring)
-            .flushIntervalMilliseconds(-1)
-            .build();
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .featureDiscovery(discovery)
+      .agentApi(api)
+      .traceBufferSize(bufferSize)
+      .monitoring(monitoring)
+      .flushIntervalMilliseconds(-1)
+      .build();
     writer.start();
     DDSpan span = (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start();
     List<DDSpan> trace = Collections.singletonList(span);
 
     when(discovery.getTraceEndpoint()).thenReturn(agentVersion);
     when(api.sendSerializedTraces(argThat(payload -> payload.traceCount() <= traceCount)))
-        .thenReturn(RemoteApi.Response.success(200));
+      .thenReturn(RemoteApi.Response.success(200));
 
     for (int i = 1; i <= traceCount; i++) {
       writer.write(trace);
@@ -202,8 +197,9 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     writer.flush();
 
     verify(discovery, times(2)).getTraceEndpoint();
-    verify(api, times(1))
-        .sendSerializedTraces(argThat(payload -> payload.traceCount() <= traceCount));
+    verify(api, times(1)).sendSerializedTraces(
+        argThat(payload -> payload.traceCount() <= traceCount)
+    );
     verifyNoMoreInteractions(api, discovery);
 
     writer.close();
@@ -219,30 +215,26 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     DDAgentApi api = mock(DDAgentApi.class);
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .featureDiscovery(discovery)
-            .agentApi(api)
-            .healthMetrics(healthMetrics)
-            .monitoring(monitoring)
-            .flushIntervalMilliseconds(1000)
-            .build();
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .featureDiscovery(discovery)
+      .agentApi(api)
+      .healthMetrics(healthMetrics)
+      .monitoring(monitoring)
+      .flushIntervalMilliseconds(1000)
+      .build();
     writer.start();
     DDSpan span = (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start();
     List<DDSpan> trace = Collections.nCopies(10, span);
 
     when(discovery.getTraceEndpoint()).thenReturn(agentVersion);
     when(api.sendSerializedTraces(argThat(payload -> payload.traceCount() == 5)))
-        .thenReturn(RemoteApi.Response.success(200));
-
+      .thenReturn(RemoteApi.Response.success(200));
     // stub onSend to arrive at phaser
-    doAnswer(
-            invocation -> {
-              phaser.arrive();
-              return null;
-            })
-        .when(healthMetrics)
-        .onSend(anyInt(), anyInt(), any());
+    doAnswer(invocation -> {
+      phaser.arrive();
+      return null;
+    }).when(healthMetrics).onSend(anyInt(), anyInt(), any());
 
     for (int i = 1; i <= 5; i++) {
       writer.write(trace);
@@ -273,15 +265,15 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     List<DDSpan> minimalTrace = createMinimalTrace();
     DDAgentApi api = mock(DDAgentApi.class);
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .featureDiscovery(discovery)
-            .agentApi(api)
-            .traceBufferSize(AGENT_WRITER_BUFFER_SIZE)
-            .prioritization(ENSURE_TRACE)
-            .monitoring(monitoring)
-            .flushIntervalMilliseconds(-1)
-            .build();
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .featureDiscovery(discovery)
+      .agentApi(api)
+      .traceBufferSize(AGENT_WRITER_BUFFER_SIZE)
+      .prioritization(ENSURE_TRACE)
+      .monitoring(monitoring)
+      .flushIntervalMilliseconds(-1)
+      .build();
     writer.start();
 
     TraceMapper mapper =
@@ -294,10 +286,12 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     when(discovery.getTraceEndpoint()).thenReturn(agentVersion);
     when(api.sendSerializedTraces(
-            argThat(payload -> payload != null && payload.traceCount() == maxedPayloadTraceCount)))
-        .thenReturn(RemoteApi.Response.success(200));
-    when(api.sendSerializedTraces(argThat(payload -> payload != null && payload.traceCount() == 1)))
-        .thenReturn(RemoteApi.Response.success(200));
+        argThat(payload -> payload != null && payload.traceCount() == maxedPayloadTraceCount)
+    ))
+      .thenReturn(RemoteApi.Response.success(200));
+    when(api.sendSerializedTraces(argThat(payload -> payload != null
+        && payload.traceCount() == 1)))
+      .thenReturn(RemoteApi.Response.success(200));
 
     for (int i = 0; i <= maxedPayloadTraceCount; i++) {
       writer.write(minimalTrace);
@@ -306,10 +300,11 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     verify(discovery, times(2)).getTraceEndpoint();
     verify(api, times(1))
-        .sendSerializedTraces(
-            argThat(payload -> payload != null && payload.traceCount() == maxedPayloadTraceCount));
+      .sendSerializedTraces(
+          argThat(payload -> payload != null && payload.traceCount() == maxedPayloadTraceCount)
+      );
     verify(api, times(1))
-        .sendSerializedTraces(argThat(payload -> payload != null && payload.traceCount() == 1));
+      .sendSerializedTraces(argThat(payload -> payload != null && payload.traceCount() == 1));
     verifyNoMoreInteractions(api, discovery);
 
     writer.close();
@@ -320,13 +315,13 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     DDAgentApi api = mock(DDAgentApi.class);
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .featureDiscovery(discovery)
-            .agentApi(api)
-            .healthMetrics(healthMetrics)
-            .monitoring(monitoring)
-            .build();
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .featureDiscovery(discovery)
+      .agentApi(api)
+      .healthMetrics(healthMetrics)
+      .monitoring(monitoring)
+      .build();
     writer.start();
     // Clear invocations from start() (Spock only counts interactions in when: blocks)
     clearInvocations(healthMetrics, api, discovery);
@@ -334,7 +329,6 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     writer.close();
     writer.write(Collections.emptyList());
     writer.flush();
-
     // then: this will be checked during flushing
     verify(healthMetrics, times(1)).onFailedPublish(anyInt(), anyInt());
     verify(healthMetrics, times(1)).onFlush(any(Boolean.class));
@@ -354,31 +348,27 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
   void monitorHappyPath(String agentVersion) {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     List<DDSpan> minimalTrace = createMinimalTrace();
-
     // DQH -- need to set-up a dummy agent for the final send callback to work
-    try (JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h -> h.put(agentVersion, api -> api.getResponse().status(200).send())))) {
+    try (JavaTestHttpServer agent = JavaTestHttpServer.httpServer(server -> server.handlers(h -> h.put(agentVersion, api -> api
+      .getResponse()
+      .status(200)
+      .send())))) {
       HttpUrl agentUrl = HttpUrl.get(agent.getAddress());
       okhttp3.OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000);
       DDAgentFeaturesDiscovery discovery =
           new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true, false);
       DDAgentApi api = new DDAgentApi(client, agentUrl, discovery, monitoring, true);
-      DDAgentWriter writer =
-          DDAgentWriter.builder()
-              .featureDiscovery(discovery)
-              .agentApi(api)
-              .monitoring(monitoring)
-              .healthMetrics(healthMetrics)
-              .build();
-
+      DDAgentWriter writer = DDAgentWriter
+        .builder()
+        .featureDiscovery(discovery)
+        .agentApi(api)
+        .monitoring(monitoring)
+        .healthMetrics(healthMetrics)
+        .build();
       // start
       writer.start();
 
       verify(healthMetrics, times(1)).onStart((int) writer.getCapacity());
-
       // write and flush
       writer.write(minimalTrace);
       writer.flush();
@@ -387,14 +377,13 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       verify(healthMetrics, times(1)).onSerialize(anyInt());
       verify(healthMetrics, times(1)).onFlush(false);
       verify(healthMetrics, times(1))
-          .onSend(
-              anyInt(),
-              anyInt(),
-              argThat(
-                  response ->
-                      response.success()
-                          && response.status().isPresent()
-                          && response.status().getAsInt() == 200));
+        .onSend(
+            anyInt(),
+            anyInt(),
+            argThat(response -> response.success()
+            && response.status().isPresent()
+            && response.status().getAsInt() == 200)
+        );
 
       writer.close();
 
@@ -411,31 +400,27 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
   void monitorAgentReturnsError(String agentVersion) {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     List<DDSpan> minimalTrace = createMinimalTrace();
-
     // DQH -- need to set-up a dummy agent for the final send callback to work
-    try (JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h -> h.put(agentVersion, api -> api.getResponse().status(500).send())))) {
+    try (JavaTestHttpServer agent = JavaTestHttpServer.httpServer(server -> server.handlers(h -> h.put(agentVersion, api -> api
+      .getResponse()
+      .status(500)
+      .send())))) {
       HttpUrl agentUrl = HttpUrl.get(agent.getAddress());
       okhttp3.OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000);
       DDAgentFeaturesDiscovery discovery =
           new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true, false);
       DDAgentApi api = new DDAgentApi(client, agentUrl, discovery, monitoring, true);
-      DDAgentWriter writer =
-          DDAgentWriter.builder()
-              .featureDiscovery(discovery)
-              .agentApi(api)
-              .monitoring(monitoring)
-              .healthMetrics(healthMetrics)
-              .build();
-
+      DDAgentWriter writer = DDAgentWriter
+        .builder()
+        .featureDiscovery(discovery)
+        .agentApi(api)
+        .monitoring(monitoring)
+        .healthMetrics(healthMetrics)
+        .build();
       // start
       writer.start();
 
       verify(healthMetrics, times(1)).onStart((int) writer.getCapacity());
-
       // write and flush
       writer.write(minimalTrace);
       writer.flush();
@@ -444,14 +429,13 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       verify(healthMetrics, times(1)).onSerialize(anyInt());
       verify(healthMetrics, times(1)).onFlush(false);
       verify(healthMetrics, times(1))
-          .onFailedSend(
-              anyInt(),
-              anyInt(),
-              argThat(
-                  response ->
-                      !response.success()
-                          && response.status().isPresent()
-                          && response.status().getAsInt() == 500));
+        .onFailedSend(
+            anyInt(),
+            anyInt(),
+            argThat(response -> !response.success()
+            && response.status().isPresent()
+            && response.status().getAsInt() == 500)
+        );
 
       writer.close();
 
@@ -474,37 +458,32 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     AtomicReference<Thread> successfulSendThread = new AtomicReference<>();
     CountDownLatch failedSend = new CountDownLatch(1);
     CountDownLatch successfulSend = new CountDownLatch(1);
-    doAnswer(
-            invocation -> {
-              failedSendThread.set(Thread.currentThread());
-              failedSend.countDown();
-              return null;
-            })
-        .when(healthMetrics)
-        .onFailedSend(anyInt(), anyInt(), any());
-    doAnswer(
-            invocation -> {
-              successfulSendThread.set(Thread.currentThread());
-              successfulSend.countDown();
-              return null;
-            })
-        .when(healthMetrics)
-        .onSend(anyInt(), anyInt(), any());
+    doAnswer(invocation -> {
+      failedSendThread.set(Thread.currentThread());
+      failedSend.countDown();
+      return null;
+    }).when(healthMetrics).onFailedSend(anyInt(), anyInt(), any());
+    doAnswer(invocation -> {
+      successfulSendThread.set(Thread.currentThread());
+      successfulSend.countDown();
+      return null;
+    }).when(healthMetrics).onSend(anyInt(), anyInt(), any());
 
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
     when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
 
     try (MockWebServer server = new MockWebServer();
-        DDAgentWriter writer =
-            DDAgentWriter.builder()
-                .featureDiscovery(discovery)
-                .unixDomainSocket(socketPath.toString())
-                .timeoutMillis(500)
-                .monitoring(monitoring)
-                .healthMetrics(healthMetrics)
-                .flushIntervalMilliseconds(10)
-                .flushTimeout(5, TimeUnit.SECONDS)
-                .build()) {
+        DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .featureDiscovery(discovery)
+      .unixDomainSocket(socketPath.toString())
+      .timeoutMillis(500)
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics)
+      .flushIntervalMilliseconds(10)
+      .flushTimeout(5, TimeUnit.SECONDS)
+      .build()
+    ) {
       server.setServerSocketFactory(new UnixDomainServerSocketFactory(socketPath.toFile()));
       // Read the first request fully, then withhold the response to trigger a header-read timeout.
       server.enqueue(new MockResponse().setSocketPolicy(NO_RESPONSE));
@@ -514,8 +493,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       writer.start();
 
       writer.write(createMinimalTrace());
-      assertTrue(
-          failedSend.await(5, TimeUnit.SECONDS), "The periodic flush did not report failure");
+      assertTrue(failedSend.await(5, TimeUnit.SECONDS), "The periodic flush did not report failure");
 
       RecordedRequest failedRequest = server.takeRequest(5, TimeUnit.SECONDS);
       assertNotNull(failedRequest);
@@ -525,7 +503,9 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
       writer.write(createMinimalTrace());
       assertTrue(
-          successfulSend.await(5, TimeUnit.SECONDS), "The worker did not send the next payload");
+          successfulSend.await(5, TimeUnit.SECONDS),
+          "The worker did not send the next payload"
+      );
 
       RecordedRequest successfulRequest = server.takeRequest(5, TimeUnit.SECONDS);
       assertNotNull(successfulRequest);
@@ -553,25 +533,22 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     DDAgentApi api = mock(DDAgentApi.class);
     // simulating a communication failure to a server
     when(api.sendSerializedTraces(any()))
-        .thenReturn(RemoteApi.Response.failed(new IOException("comm error")));
+      .thenReturn(RemoteApi.Response.failed(new IOException("comm error")));
 
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .featureDiscovery(discovery)
-            .agentApi(api)
-            .monitoring(monitoring)
-            .healthMetrics(healthMetrics)
-            .build();
-
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .featureDiscovery(discovery)
+      .agentApi(api)
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics)
+      .build();
     // start
     writer.start();
 
     verify(healthMetrics, times(1)).onStart((int) writer.getCapacity());
-
     // write and flush
     writer.write(minimalTrace);
     writer.flush();
-
     // then: if we know there's no agent, we'll drop the traces before serialising them
     // but we also know that there's nowhere to send health metrics to
     verify(healthMetrics, times(1)).onPublish(any(), anyInt());
@@ -598,74 +575,50 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     AtomicInteger numFailedRequests = new AtomicInteger(0);
 
     Semaphore responseSemaphore = new Semaphore(1);
-
     // Need to set-up a dummy agent for the final send callback to work
     JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h ->
-                        h.put(
-                            agentVersion,
-                            api -> {
-                              responseSemaphore.acquire();
-                              try {
-                                api.getResponse().status(200).send();
-                              } finally {
-                                responseSemaphore.release();
-                              }
-                            })));
-
+        JavaTestHttpServer.httpServer(server -> server.handlers(h -> h.put(agentVersion, api -> {
+      responseSemaphore.acquire();
+      try {
+        api.getResponse().status(200).send();
+      } finally {
+        responseSemaphore.release();
+      }
+    })));
     // This test focuses just on failed publish, so not verifying every callback
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    doAnswer(
-            invocation -> {
-              numPublished.incrementAndGet();
-              return null;
-            })
-        .when(healthMetrics)
-        .onPublish(any(), anyInt());
-    doAnswer(
-            invocation -> {
-              numFailedPublish.incrementAndGet();
-              return null;
-            })
-        .when(healthMetrics)
-        .onFailedPublish(anyInt(), anyInt());
-    doAnswer(
-            invocation -> {
-              numFlushes.incrementAndGet();
-              return null;
-            })
-        .when(healthMetrics)
-        .onFlush(any(Boolean.class));
-    doAnswer(
-            invocation -> {
-              numRequests.incrementAndGet();
-              return null;
-            })
-        .when(healthMetrics)
-        .onSend(anyInt(), anyInt(), any());
-    doAnswer(
-            invocation -> {
-              numFailedRequests.incrementAndGet();
-              return null;
-            })
-        .when(healthMetrics)
-        .onFailedSend(anyInt(), anyInt(), any());
+    doAnswer(invocation -> {
+      numPublished.incrementAndGet();
+      return null;
+    }).when(healthMetrics).onPublish(any(), anyInt());
+    doAnswer(invocation -> {
+      numFailedPublish.incrementAndGet();
+      return null;
+    }).when(healthMetrics).onFailedPublish(anyInt(), anyInt());
+    doAnswer(invocation -> {
+      numFlushes.incrementAndGet();
+      return null;
+    }).when(healthMetrics).onFlush(any(Boolean.class));
+    doAnswer(invocation -> {
+      numRequests.incrementAndGet();
+      return null;
+    }).when(healthMetrics).onSend(anyInt(), anyInt(), any());
+    doAnswer(invocation -> {
+      numFailedRequests.incrementAndGet();
+      return null;
+    }).when(healthMetrics).onFailedSend(anyInt(), anyInt(), any());
 
     int bufferSize = 16;
     List<DDSpan> minimalTrace = createMinimalTrace();
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .traceAgentProtocolVersion(V0_5)
-            .traceAgentPort(agent.getAddress().getPort())
-            .monitoring(monitoring)
-            .healthMetrics(healthMetrics)
-            .traceBufferSize(bufferSize)
-            .build();
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .traceAgentProtocolVersion(V0_5)
+      .traceAgentPort(agent.getAddress().getPort())
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics)
+      .traceBufferSize(bufferSize)
+      .build();
     writer.start();
-
     // gate responses
     responseSemaphore.acquire();
 
@@ -674,12 +627,10 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       // with responseSemaphore held, the response is blocked but may still time out
       writer.write(minimalTrace);
       numWritten += 1;
-
       // sanity check coordination mechanism of test
       // release to allow response to be generated
       responseSemaphore.release();
       writer.flush();
-
       // reacquire semaphore to stall further responses
       responseSemaphore.acquire();
 
@@ -687,7 +638,6 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       assertEquals(numWritten, numPublished.get());
       assertEquals(numWritten, numPublished.get() + numFailedPublish.get());
       assertEquals(1, numFlushes.get());
-
       // when: send many traces to fill the sender queue...
       //   loop until outstanding requests > finished requests
       while (writer.traceProcessingWorker.getRemainingCapacity() > 0
@@ -698,7 +648,6 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
       assertTrue(numFailedPublish.get() > 0);
       assertEquals(numWritten, numPublished.get() + numFailedPublish.get());
-
       // with both disruptor & queue full, should reject everything
       int expectedRejects = 100;
       for (int i = 1; i <= expectedRejects; i++) {
@@ -726,55 +675,43 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     AtomicInteger numRepSent = new AtomicInteger(0);
 
     List<DDSpan> minimalTrace = createMinimalTrace();
-
     // Need to set-up a dummy agent for the final send callback to work
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h -> h.put(agentVersion, api -> api.getResponse().status(200).send())));
-
+    JavaTestHttpServer agent = JavaTestHttpServer.httpServer(server -> server.handlers(h -> h.put(agentVersion, api -> api
+      .getResponse()
+      .status(200)
+      .send())));
     // This test focuses just on failed publish, so not verifying every callback
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    doAnswer(
-            invocation -> {
-              numPublished.incrementAndGet();
-              return null;
-            })
-        .when(healthMetrics)
-        .onPublish(any(), anyInt());
-    doAnswer(
-            invocation -> {
-              numFailedPublish.incrementAndGet();
-              return null;
-            })
-        .when(healthMetrics)
-        .onFailedPublish(anyInt(), anyInt());
-    doAnswer(
-            invocation -> {
-              int repCount = invocation.getArgument(0);
-              numRepSent.addAndGet(repCount);
-              return null;
-            })
-        .when(healthMetrics)
-        .onSend(anyInt(), anyInt(), any());
+    doAnswer(invocation -> {
+      numPublished.incrementAndGet();
+      return null;
+    }).when(healthMetrics).onPublish(any(), anyInt());
+    doAnswer(invocation -> {
+      numFailedPublish.incrementAndGet();
+      return null;
+    }).when(healthMetrics).onFailedPublish(anyInt(), anyInt());
+    doAnswer(invocation -> {
+      int repCount = invocation.getArgument(0);
+      numRepSent.addAndGet(repCount);
+      return null;
+    }).when(healthMetrics).onSend(anyInt(), anyInt(), any());
 
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .traceAgentProtocolVersion(V0_5)
-            .traceAgentPort(agent.getAddress().getPort())
-            .monitoring(monitoring)
-            .healthMetrics(healthMetrics)
-            .build();
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .traceAgentProtocolVersion(V0_5)
+      .traceAgentPort(agent.getAddress().getPort())
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics)
+      .build();
     writer.start();
 
     try {
       Runnable producer =
           () -> {
-            for (int i = 1; i <= 100; i++) {
-              writer.write(minimalTrace);
-            }
-          };
+        for (int i = 1; i <= 100; i++) {
+          writer.write(minimalTrace);
+        }
+      };
 
       Thread t1 = new Thread(producer);
       t1.start();
@@ -786,7 +723,6 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       t2.join();
 
       writer.flush();
-
       // then: conditions.eventually { assert numPublished.get() == 200 && numRepSent.get() == 200 }
       int totalTraces = 100 + 100;
       long deadline = System.currentTimeMillis() + 5000;
@@ -816,38 +752,30 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     AtomicInteger numResponses = new AtomicInteger(0);
 
     List<DDSpan> minimalTrace = createMinimalTrace();
-
     // Need to set-up a dummy agent for the final send callback to work
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    h -> h.put(agentVersion, api -> api.getResponse().status(200).send())));
+    JavaTestHttpServer agent = JavaTestHttpServer.httpServer(server -> server.handlers(h -> h.put(agentVersion, api -> api
+      .getResponse()
+      .status(200)
+      .send())));
 
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    doAnswer(
-            invocation -> {
-              numTracesAccepted.incrementAndGet();
-              return null;
-            })
-        .when(healthMetrics)
-        .onPublish(any(), anyInt());
-    doAnswer(
-            invocation -> {
-              numRequests.incrementAndGet();
-              numResponses.incrementAndGet();
-              return null;
-            })
-        .when(healthMetrics)
-        .onSend(anyInt(), anyInt(), any());
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .agentHost(agent.getAddress().getHost())
-            .traceAgentProtocolVersion(V0_5)
-            .traceAgentPort(agent.getAddress().getPort())
-            .monitoring(monitoring)
-            .healthMetrics(healthMetrics)
-            .build();
+    doAnswer(invocation -> {
+      numTracesAccepted.incrementAndGet();
+      return null;
+    }).when(healthMetrics).onPublish(any(), anyInt());
+    doAnswer(invocation -> {
+      numRequests.incrementAndGet();
+      numResponses.incrementAndGet();
+      return null;
+    }).when(healthMetrics).onSend(anyInt(), anyInt(), any());
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .agentHost(agent.getAddress().getHost())
+      .traceAgentProtocolVersion(V0_5)
+      .traceAgentPort(agent.getAddress().getPort())
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics)
+      .build();
     writer.start();
 
     try {
@@ -869,29 +797,25 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     DDAgentApi api = Mockito.mock(DDAgentApi.class);
     when(api.sendSerializedTraces(any()))
-        .thenReturn(RemoteApi.Response.failed(new IOException("comm error")));
+      .thenReturn(RemoteApi.Response.failed(new IOException("comm error")));
 
     CountDownLatch latch = new CountDownLatch(2);
     StatsDClient statsd = mock(StatsDClient.class);
     TracerHealthMetrics healthMetrics = new TracerHealthMetrics(statsd, 100, TimeUnit.MILLISECONDS);
-    DDAgentWriter writer =
-        DDAgentWriter.builder()
-            .traceAgentProtocolVersion(V0_5)
-            .agentApi(api)
-            .monitoring(monitoring)
-            .healthMetrics(healthMetrics)
-            .build();
+    DDAgentWriter writer = DDAgentWriter
+      .builder()
+      .traceAgentProtocolVersion(V0_5)
+      .agentApi(api)
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics)
+      .build();
     healthMetrics.start();
     writer.start();
-
     // stub statsd.count for latch coordination - called with varargs String... tags
-    doAnswer(
-            invocation -> {
-              latch.countDown();
-              return null;
-            })
-        .when(statsd)
-        .count(anyString(), anyLong());
+    doAnswer(invocation -> {
+      latch.countDown();
+      return null;
+    }).when(statsd).count(anyString(), anyLong());
 
     writer.write(minimalTrace);
     writer.flush();
@@ -912,10 +836,11 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
    */
   static int calculateSize(List<DDSpan> trace, TraceMapper mapper, boolean firstInPayload) {
     AtomicInteger size = new AtomicInteger();
-    MsgPackWriter packer =
-        new MsgPackWriter(
-            new FlushingBuffer(
-                1024, (messageCount, buffer) -> size.set(buffer.limit() - buffer.position())));
+    MsgPackWriter packer = new MsgPackWriter(
+        new FlushingBuffer(1024, (messageCount, buffer) -> size.set(
+            buffer.limit() - buffer.position()
+        ))
+    );
     TraceMapper sizingMapper =
         mapper instanceof TraceMapperV0_5 ? new TraceMapperV0_5() : new TraceMapperV0_4();
     if (!firstInPayload) {

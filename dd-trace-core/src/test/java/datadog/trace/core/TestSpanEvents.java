@@ -1,13 +1,15 @@
 package datadog.trace.core;
 
 import static java.util.Arrays.asList;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Test data for {@link DDSpanEvent}. */
+/**
+ * Test data for {@link DDSpanEvent}.
+ */
 public final class TestSpanEvents {
-  private TestSpanEvents() {}
+  private TestSpanEvents() {
+  }
 
   /**
    * Creates attributes covering every supported value type, in a stable iteration order.

@@ -18,15 +18,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CiVisibilityMetricCollectorImpl implements CiVisibilityMetricCollector {
-
   private static final Logger log = LoggerFactory.getLogger(CiVisibilityMetricCollectorImpl.class);
-
   private static final int COUNTER_CARD_SIZE = 64;
-
   private final BlockingQueue<CiVisibilityMetricData> rawMetricsQueue;
   private final BlockingQueue<DistributionSeriesPoint> rawDistributionPointsQueue;
   private final AtomicLongArray counters;
-
   /**
    * Cards are used to avoid iterating over the entire {@link
    * CiVisibilityMetricCollectorImpl#counters} array every time {@link
@@ -43,13 +39,15 @@ public class CiVisibilityMetricCollectorImpl implements CiVisibilityMetricCollec
     this(
         new ArrayBlockingQueue<>(RAW_QUEUE_SIZE),
         new ArrayBlockingQueue<>(RAW_QUEUE_SIZE),
-        CiVisibilityCountMetric.count());
+        CiVisibilityCountMetric.count()
+    );
   }
 
   CiVisibilityMetricCollectorImpl(
       final BlockingQueue<CiVisibilityMetricData> rawMetricsQueue,
       final BlockingQueue<DistributionSeriesPoint> rawDistributionPointsQueue,
-      final int countersTotal) {
+      final int countersTotal
+  ) {
     this.rawMetricsQueue = rawMetricsQueue;
     this.rawDistributionPointsQueue = rawDistributionPointsQueue;
     this.counters = new AtomicLongArray(countersTotal);
@@ -68,7 +66,8 @@ public class CiVisibilityMetricCollectorImpl implements CiVisibilityMetricCollec
           "Discarding metric {}:{}:{} because the queue is full",
           metric,
           value,
-          Arrays.toString(tags));
+          Arrays.toString(tags)
+      );
     }
   }
 

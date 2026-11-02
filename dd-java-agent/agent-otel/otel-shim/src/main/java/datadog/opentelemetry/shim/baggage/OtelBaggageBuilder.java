@@ -18,7 +18,10 @@ public class OtelBaggageBuilder implements BaggageBuilder {
 
   @Override
   public BaggageBuilder put(
-      @Nullable String key, @Nullable String value, BaggageEntryMetadata ignore) {
+      @Nullable String key,
+      @Nullable String value,
+      BaggageEntryMetadata ignore
+  ) {
     if (key != null && value != null) {
       items.put(key, value);
     }

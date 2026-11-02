@@ -12,7 +12,8 @@ class RouteMatchesAdvice {
   static void after(
       @Advice.Return int ret,
       @Advice.Argument(0) final RoutingContext ctx,
-      @Advice.Thrown(readOnly = false) Throwable t) {
+      @Advice.Thrown(readOnly = false) Throwable t
+  ) {
     if (ret != 0 || t != null) {
       return;
     }
@@ -31,7 +32,8 @@ class RouteMatchesAdvice {
     static void after(
         @Advice.Return boolean ret,
         @Advice.Argument(0) final RoutingContext ctx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (!ret || t != null) {
         return;
       }

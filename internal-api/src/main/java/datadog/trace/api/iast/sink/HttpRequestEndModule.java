@@ -7,7 +7,6 @@ import java.net.HttpURLConnection;
 import java.util.Locale;
 
 public interface HttpRequestEndModule extends IastModule {
-
   void onRequestEnd(IastContext ctx, IGSpanInfo span);
 
   default boolean isHtmlResponse(final String value) {

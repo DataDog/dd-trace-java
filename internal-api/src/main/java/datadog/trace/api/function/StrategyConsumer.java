@@ -37,4 +37,5 @@ import java.lang.annotation.Target;
 @PerfContract
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)
-public @interface StrategyConsumer {}
+public @interface StrategyConsumer {
+}

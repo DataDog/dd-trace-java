@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.DDTraceId;
@@ -30,22 +29,26 @@ class ScopeDiagnosticsAdmissionTest {
     ContextContinuation continuation = Context.root().capture();
     Object scope = new Object();
     DDTraceId trace = DDTraceId.from(1);
-    FutureTask<Void> callbacks =
-        new FutureTask<>(
-            () -> {
-              ScopeDiagnostics.recordCapture(window, continuation, trace, 2, "op", (byte) 0);
-              ScopeDiagnostics.recordActivate(
-                  window, continuation, trace, 2, "op", (byte) 0, System.nanoTime());
-              ScopeDiagnostics.recordScopeOpen(
-                  window, scope, trace, 2, "op", (byte) 0, continuation);
-              ScopeDiagnostics.recordDeferredScopeCleanup(window, scope);
-              ScopeDiagnostics.recordScopeCloseWrongThread(window, scope);
-              ScopeDiagnostics.recordScopeClose(window, scope);
-              ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
-              ScopeDiagnostics.recordRootWritten(window, trace);
-              ScopeDiagnostics.recordActivateFailed(window, continuation);
-              return null;
-            });
+    FutureTask<Void> callbacks = new FutureTask<>(() -> {
+      ScopeDiagnostics.recordCapture(window, continuation, trace, 2, "op", (byte) 0);
+      ScopeDiagnostics.recordActivate(
+          window,
+          continuation,
+          trace,
+          2,
+          "op",
+          (byte) 0,
+          System.nanoTime()
+      );
+      ScopeDiagnostics.recordScopeOpen(window, scope, trace, 2, "op", (byte) 0, continuation);
+      ScopeDiagnostics.recordDeferredScopeCleanup(window, scope);
+      ScopeDiagnostics.recordScopeCloseWrongThread(window, scope);
+      ScopeDiagnostics.recordScopeClose(window, scope);
+      ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
+      ScopeDiagnostics.recordRootWritten(window, trace);
+      ScopeDiagnostics.recordActivateFailed(window, continuation);
+      return null;
+    });
     Thread carrier = new Thread(callbacks, "diagnostic-carrier");
     carrier.setDaemon(true);
     ScopeDiagnostics.INSTANCE.lifecycleLock.lock();
@@ -82,19 +85,17 @@ class ScopeDiagnosticsAdmissionTest {
     Object window = ScopeDiagnostics.recordingWindow();
     ContextContinuation continuation = Context.root().capture();
     ScopeDiagnostics.recordCapture(window, continuation, DDTraceId.from(1), 2, "op", (byte) 0);
-    FutureTask<Void> waiting =
-        new FutureTask<>(
-            () -> {
-              ScopeDiagnostics.awaitQuiescence(30_000);
-              return null;
-            });
+    FutureTask<Void> waiting = new FutureTask<>(() -> {
+      ScopeDiagnostics.awaitQuiescence(30_000);
+      return null;
+    });
     Thread waiter = new Thread(waiting, "diagnostic-quiescence");
     waiter.setDaemon(true);
     waiter.start();
     try {
       Object diagnostics = ScopeDiagnostics.INSTANCE;
       new PollingConditions(5)
-          .eventually(() -> assertEquals(diagnostics, LockSupport.getBlocker(waiter)));
+        .eventually(() -> assertEquals(diagnostics, LockSupport.getBlocker(waiter)));
       ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
       waiting.get(5, SECONDS);
       assertFalse(ScopeDiagnostics.report().hasIncompleteLifecycles());
@@ -110,19 +111,16 @@ class ScopeDiagnosticsAdmissionTest {
     Object window = ScopeDiagnostics.recordingWindow();
     Object scope = new Object();
     ScopeDiagnostics.recordScopeOpen(window, scope, DDTraceId.from(1), 2, "op", (byte) 0, null);
-    FutureTask<Void> stopping =
-        new FutureTask<>(
-            () -> {
-              ScopeDiagnostics.stopAfterQuiescence(30_000);
-              return null;
-            });
+    FutureTask<Void> stopping = new FutureTask<>(() -> {
+      ScopeDiagnostics.stopAfterQuiescence(30_000);
+      return null;
+    });
     Thread stopper = new Thread(stopping, "diagnostic-quiescent-stop");
     stopper.setDaemon(true);
     stopper.start();
     try {
       new PollingConditions(5)
-          .eventually(
-              () -> assertEquals(ScopeDiagnostics.INSTANCE, LockSupport.getBlocker(stopper)));
+        .eventually(() -> assertEquals(ScopeDiagnostics.INSTANCE, LockSupport.getBlocker(stopper)));
       assertFalse(stopping.isDone());
       ScopeDiagnostics.recordScopeClose(window, scope);
       stopping.get(5, SECONDS);
@@ -144,7 +142,14 @@ class ScopeDiagnosticsAdmissionTest {
     ScopeDiagnostics.stopAfterQuiescence(30_000);
     assertNull(ScopeDiagnostics.recordingWindow());
     ScopeDiagnostics.recordScopeOpen(
-        window, new Object(), DDTraceId.from(1), 2, "late", (byte) 0, null);
+        window,
+        new Object(),
+        DDTraceId.from(1),
+        2,
+        "late",
+        (byte) 0,
+        null
+    );
     assertTrue(ScopeDiagnostics.report().scopeRecords().isEmpty());
   }
 
@@ -158,7 +163,8 @@ class ScopeDiagnosticsAdmissionTest {
         2,
         "unclosed",
         (byte) 0,
-        null);
+        null
+    );
     ScopeDiagnostics.stopAfterQuiescence(0);
     assertNull(ScopeDiagnostics.recordingWindow());
     assertEquals(1, ScopeDiagnostics.report().neverClosedScopeCount());
@@ -174,7 +180,8 @@ class ScopeDiagnosticsAdmissionTest {
         DDTraceId.from(1),
         2,
         "old",
-        (byte) 0);
+        (byte) 0
+    );
     ScopeDiagnostics.reset();
     ScopeDiagnostics.startRecording();
     assertTrue(ScopeDiagnostics.report().records().isEmpty());
@@ -188,12 +195,10 @@ class ScopeDiagnosticsAdmissionTest {
     ScopeDiagnostics.recordCapture(window, continuation, DDTraceId.from(1), 2, "op", (byte) 0);
     DiagnosticEventBuffer.Event reservation = ((DiagnosticEventBuffer) window).reserve();
     ScopeDiagnostics.recordResolve(window, continuation, true, System.nanoTime(), false);
-    FutureTask<Void> stopping =
-        new FutureTask<>(
-            () -> {
-              ScopeDiagnostics.stop();
-              return null;
-            });
+    FutureTask<Void> stopping = new FutureTask<>(() -> {
+      ScopeDiagnostics.stop();
+      return null;
+    });
     Thread stopper = new Thread(stopping, "diagnostic-stop");
     stopper.setDaemon(true);
     stopper.start();
@@ -214,7 +219,13 @@ class ScopeDiagnosticsAdmissionTest {
     ScopeDiagnostics.startRecording();
     DiagnosticEventBuffer window = (DiagnosticEventBuffer) ScopeDiagnostics.recordingWindow();
     ScopeDiagnostics.recordCapture(
-        window, Context.root().capture(), DDTraceId.from(1), 2, "op", (byte) 0);
+        window,
+        Context.root().capture(),
+        DDTraceId.from(1),
+        2,
+        "op",
+        (byte) 0
+    );
     assertFalse(window.hasPending());
   }
 
@@ -244,7 +255,6 @@ class ScopeDiagnosticsAdmissionTest {
     Object window = ScopeDiagnostics.recordingWindow();
     ContextContinuation continuation = Context.root().capture();
     ScopeDiagnostics.recordCapture(window, continuation, DDTraceId.from(1), 2, "op", (byte) 0);
-
     // The tracer has resolved, but its exit advice has not reached the recorder yet.
     ScopeDiagnostics.recordActivateFailed(window, continuation);
     assertEquals(1, ScopeDiagnostics.report().records().get(0).failedActivations().size());
@@ -262,7 +272,9 @@ class ScopeDiagnosticsAdmissionTest {
   void failedActivationWithoutAnObservedContinuationIsRecorded() {
     ScopeDiagnostics.startRecording();
     ScopeDiagnostics.recordActivateFailed(
-        ScopeDiagnostics.recordingWindow(), Context.root().capture());
+        ScopeDiagnostics.recordingWindow(),
+        Context.root().capture()
+    );
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     assertEquals(1, report.records().size());
     assertEquals(1, report.activateAfterResolveCount());
@@ -282,7 +294,11 @@ class ScopeDiagnosticsAdmissionTest {
   void noopResumeRequiresCancellationEvidence(int count, int failures) {
     ScopeDiagnostics.startRecording();
     ScopeContinuationProbe.onActivate(
-        Context.root().capture(), NoopScope.INSTANCE, System.nanoTime(), count);
+        Context.root().capture(),
+        NoopScope.INSTANCE,
+        System.nanoTime(),
+        count
+    );
     assertEquals(failures, ScopeDiagnostics.report().activateAfterResolveCount());
   }
 
@@ -297,7 +313,6 @@ class ScopeDiagnosticsAdmissionTest {
     ContextContinuation continuation = Context.root().capture();
     Object scope = new Object();
     DDTraceId trace = DDTraceId.from(1);
-
     // Deliver callbacks that read their window before stop but arrive after the next start.
     ScopeDiagnostics.recordCapture(previousWindow, continuation, trace, 2, "old", (byte) 0);
     ScopeDiagnostics.recordActivate(previousWindow, continuation, trace, 2, "old", (byte) 0, 1);
@@ -305,14 +320,20 @@ class ScopeDiagnosticsAdmissionTest {
     ScopeDiagnostics.recordResolve(previousWindow, continuation, true, 2, false);
     ScopeDiagnostics.recordRootWritten(previousWindow, trace);
     ScopeDiagnostics.recordScopeOpen(
-        previousWindow, scope, trace, 2, "old", (byte) 0, continuation);
+        previousWindow,
+        scope,
+        trace,
+        2,
+        "old",
+        (byte) 0,
+        continuation
+    );
     ScopeDiagnostics.recordScopeClose(previousWindow, scope);
     ScopeDiagnostics.recordScopeCloseWrongThread(previousWindow, scope);
     ScopeDiagnostics.recordDeferredScopeCleanup(previousWindow, scope);
 
     assertTrue(ScopeDiagnostics.report().records().isEmpty());
     assertTrue(ScopeDiagnostics.report().scopeRecords().isEmpty());
-
     // Old resolution/deferred-cleanup/write events must not poison fresh records either.
     ScopeDiagnostics.recordCapture(currentWindow, continuation, trace, 2, "new", (byte) 0);
     ScopeDiagnostics.recordScopeOpen(currentWindow, scope, trace, 2, "new", (byte) 0, continuation);

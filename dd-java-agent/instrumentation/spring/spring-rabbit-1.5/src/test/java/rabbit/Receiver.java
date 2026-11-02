@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class Receiver {
-
   public final CountDownLatch latch = new CountDownLatch(1);
 
   @Trace(operationName = "receive")

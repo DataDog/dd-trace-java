@@ -10,7 +10,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.appsec.api.blocking.BlockingContentType;
@@ -47,12 +46,9 @@ import play.mvc.StatusHeader;
  * the flagged body through.
  */
 class JsonResponseBlockingAdviceTest {
-
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
-
   private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
-
   private RequestContext reqCtx;
   private TraceSegment segment;
   private AppSecContext appSecCtx;
@@ -74,9 +70,9 @@ class JsonResponseBlockingAdviceTest {
 
     BiFunction<RequestContext, Object, Flow<Void>> callback =
         (ctx, body) -> {
-          receivedBody = body;
-          return blockingFlow();
-        };
+      receivedBody = body;
+      return blockingFlow();
+    };
     CallbackProvider cbp = mock(CallbackProvider.class);
     when(cbp.getCallback(EVENTS.responseBody())).thenReturn(callback);
     AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
@@ -96,8 +92,7 @@ class JsonResponseBlockingAdviceTest {
     JsValue content = Json$.MODULE$.parse("{\"key\":\"value\"}");
 
     BlockingException ex =
-        assertThrows(
-            BlockingException.class, () -> ResultsStatusApplyAdvice.after(content, reqCtx));
+        assertThrows(BlockingException.class, () -> ResultsStatusApplyAdvice.after(content, reqCtx));
 
     assertEquals("Blocked request (for Results$Status/apply)", ex.getMessage());
     // guards the handleResponseBody(RequestContext, JsValue, String) overload: the WAF callback
@@ -122,8 +117,7 @@ class JsonResponseBlockingAdviceTest {
     JsValue content = Json$.MODULE$.parse("{\"key\":\"value\"}");
 
     BlockingException ex =
-        assertThrows(
-            BlockingException.class, () -> ResultsStatusApplyAdvice.after(content, reqCtx));
+        assertThrows(BlockingException.class, () -> ResultsStatusApplyAdvice.after(content, reqCtx));
 
     assertEquals("Blocked request (for Results$Status/apply)", ex.getMessage());
     brf.assertCommittedOnce(segment);
@@ -137,9 +131,10 @@ class JsonResponseBlockingAdviceTest {
 
     BlockingException ex;
     try {
-      ex =
-          assertThrows(
-              BlockingException.class, () -> StatusHeaderSendJsonAdvice.before(json, reqCtx));
+      ex = assertThrows(BlockingException.class, () -> StatusHeaderSendJsonAdvice.before(
+          json,
+          reqCtx
+      ));
     } finally {
       // reset the call depth incremented by before()
       CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
@@ -173,9 +168,10 @@ class JsonResponseBlockingAdviceTest {
 
     BlockingException ex;
     try {
-      ex =
-          assertThrows(
-              BlockingException.class, () -> StatusHeaderSendJsonAdvice.before(json, reqCtx));
+      ex = assertThrows(BlockingException.class, () -> StatusHeaderSendJsonAdvice.before(
+          json,
+          reqCtx
+      ));
     } finally {
       // reset the call depth incremented by before()
       CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
@@ -240,7 +236,9 @@ class JsonResponseBlockingAdviceTest {
     };
   }
 
-  /** Fake implementing only the abstract 5-arg method, so any default overload routes here. */
+  /**
+   * Fake implementing only the abstract 5-arg method, so any default overload routes here.
+   */
   private static final class RecordingBlockResponseFunction implements BlockResponseFunction {
     private final boolean commitResult;
     private int invocations;
@@ -258,7 +256,8 @@ class JsonResponseBlockingAdviceTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       invocations++;
       this.segment = segment;
       this.statusCode = statusCode;

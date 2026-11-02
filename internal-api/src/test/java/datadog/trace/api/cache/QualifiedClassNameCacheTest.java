@@ -2,7 +2,6 @@ package datadog.trace.api.cache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.api.Functions;
 import datadog.trace.api.Functions.PrefixJoin;
 import datadog.trace.api.Functions.SuffixJoin;
@@ -15,11 +14,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 class QualifiedClassNameCacheTest extends DDJavaSpecification {
-
   @ParameterizedTest(name = "{0}")
   @MethodSource("testCachedStringOperationsArguments")
   void testCachedStringOperations(
-      String scenario, Class<?> type, String prefix, Functions.Join func, String expected) {
+      String scenario,
+      Class<?> type,
+      String prefix,
+      Functions.Join func,
+      String expected
+  ) {
     QualifiedClassNameCache cache = new QualifiedClassNameCache(Class::getSimpleName, func);
 
     CharSequence qualified = cache.getQualifiedName(type, prefix);
@@ -38,13 +41,16 @@ class QualifiedClassNameCacheTest extends DDJavaSpecification {
             String.class,
             "foo",
             SuffixJoin.of(".", new Replace("oo", "")),
-            "f.String"),
+            "f.String"
+        ),
         arguments(
             "prefix join with transformer",
             String.class,
             "foo",
             PrefixJoin.of(".", new Replace("oo", "")),
-            "String.f"));
+            "String.f"
+        )
+    );
   }
 
   @TableTest({

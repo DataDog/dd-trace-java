@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.restlet;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -12,12 +11,8 @@ import org.restlet.resource.ServerResource;
 import org.restlet.util.Series;
 
 public class ResourceDecorator extends BaseDecorator {
-
-  public static final CharSequence RESTLET_CONTROLLER =
-      UTF8BytesString.create("restlet-controller");
-
+  public static final CharSequence RESTLET_CONTROLLER = UTF8BytesString.create("restlet-controller");
   public static final String RESTLET_ROUTE = "datadog.trace.instrumentation.restlet.route";
-
   public static ResourceDecorator DECORATE = new ResourceDecorator();
 
   @Override
@@ -39,14 +34,16 @@ public class ResourceDecorator extends BaseDecorator {
       final AgentSpan span,
       final AgentSpan parent,
       final ServerResource serverResource,
-      final Method method) {
+      final Method method
+  ) {
     Series<Header> headers =
-        (Series<Header>)
-            serverResource.getRequest().getAttributes().get("org.restlet.http.headers");
+        (Series<Header>) serverResource
+      .getRequest()
+      .getAttributes()
+      .get("org.restlet.http.headers");
     String route = headers.getFirstValue(RESTLET_ROUTE);
 
     span.setSpanType(InternalSpanTypes.HTTP_SERVER);
-
     // When restlet-http is the root, we want to name using the path, otherwise use
     // class.method.
     final boolean isRootScope = parent == null;

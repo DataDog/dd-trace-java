@@ -14,7 +14,6 @@ import org.junit.jupiter.api.AfterEach;
 
 public class ProbeInstrumentationTest {
   protected static final String SERVICE_NAME = "service-name";
-
   protected Instrumentation instr = ByteBuddyAgent.install();
   protected ClassFileTransformer currentTransformer;
   protected MockSink mockSink;
@@ -28,7 +27,6 @@ public class ProbeInstrumentationTest {
   }
 
   protected static class MockSink extends DebuggerSink {
-
     private final List<Snapshot> snapshots = new ArrayList<>();
 
     public MockSink(Config config, ProbeStatusSink probeStatusSink) {

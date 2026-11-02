@@ -14,8 +14,8 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
  */
 @EnabledIfSystemProperty(named = "test.dd.earlyJetty10", matches = ".+")
 class Jetty10EarlyDepV0ForkedTest extends Jetty10Test
-    implements TestingGenericHttpNamingConventions.ServerV0 {
-
+    implements TestingGenericHttpNamingConventions.ServerV0
+{
   @Override
   public int version() {
     return 0;
@@ -34,8 +34,8 @@ class Jetty10EarlyDepV0ForkedTest extends Jetty10Test
 
 @EnabledIfSystemProperty(named = "test.dd.earlyJetty10", matches = ".+")
 class Jetty10EarlyDepV1ForkedTest extends Jetty10Test
-    implements TestingGenericHttpNamingConventions.ServerV1 {
-
+    implements TestingGenericHttpNamingConventions.ServerV1
+{
   @Override
   public int version() {
     return 1;

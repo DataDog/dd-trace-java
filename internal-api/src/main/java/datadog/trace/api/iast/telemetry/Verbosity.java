@@ -5,7 +5,6 @@ public enum Verbosity {
   MANDATORY,
   INFORMATION,
   DEBUG;
-
   public boolean isEnabled(final Verbosity value) {
     return value.ordinal() <= ordinal();
   }

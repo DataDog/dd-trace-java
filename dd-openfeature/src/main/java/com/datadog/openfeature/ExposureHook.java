@@ -6,7 +6,6 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
-
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
@@ -42,9 +41,7 @@ import org.slf4j.LoggerFactory;
  * first one is logged at warn level, later ones at debug level.
  */
 public final class ExposureHook implements Hook<Object> {
-
   private static final Logger log = LoggerFactory.getLogger(ExposureHook.class);
-
   private final Consumer<Evaluation> callback;
   private final AtomicBoolean warned = new AtomicBoolean();
 
@@ -62,7 +59,8 @@ public final class ExposureHook implements Hook<Object> {
   public void finallyAfter(
       final HookContext<Object> context,
       final FlagEvaluationDetails<Object> details,
-      final Map<String, Object> hints) {
+      final Map<String, Object> hints
+  ) {
     if (details == null) {
       return;
     }
@@ -77,7 +75,9 @@ public final class ExposureHook implements Hook<Object> {
     }
   }
 
-  /** A completed evaluation and its Datadog exposure decision. */
+  /**
+   * A completed evaluation and its Datadog exposure decision.
+   */
   public static final class Evaluation {
     private final EvaluationContext context;
     private final FlagEvaluationDetails<Object> details;
@@ -147,8 +147,7 @@ public final class ExposureHook implements Hook<Object> {
      * @return the unmodifiable features, empty when the split has none.
      */
     public Map<String, Object> getFeatures() {
-      return SplitFeatureMetadata.featuresWithPrefix(
-          this.details.getFlagMetadata(), FEATURE_PREFIX);
+      return SplitFeatureMetadata.featuresWithPrefix(this.details.getFlagMetadata(), FEATURE_PREFIX);
     }
 
     private Object cacheHitStamp() {

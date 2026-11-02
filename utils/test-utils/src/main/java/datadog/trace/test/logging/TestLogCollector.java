@@ -7,11 +7,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public final class TestLogCollector {
   static final TestLogCollector INSTANCE = new TestLogCollector();
+  private final AtomicReference<LinkedBlockingDeque<CapturedLog>> logs = new AtomicReference<>(null);
 
-  private final AtomicReference<LinkedBlockingDeque<CapturedLog>> logs =
-      new AtomicReference<>(null);
-
-  private TestLogCollector() {}
+  private TestLogCollector() {
+  }
 
   /**
    * Enable the test log collector. This should be called before any test that needs the logs.
@@ -21,7 +20,9 @@ public final class TestLogCollector {
     INSTANCE._enable();
   }
 
-  /** Must be called at least once after {@link #enable()} to cleanup the test log collector. */
+  /**
+   * Must be called at least once after {@link #enable()} to cleanup the test log collector.
+   */
   public static void disable() {
     INSTANCE._disable();
   }

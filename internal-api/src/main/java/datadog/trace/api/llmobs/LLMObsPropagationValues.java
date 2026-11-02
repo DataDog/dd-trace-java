@@ -19,14 +19,22 @@ import javax.annotation.Nullable;
  * undone, so consumers read the values as the calling application wrote them.
  */
 public final class LLMObsPropagationValues {
-  @Nullable public final String traceId;
-  @Nullable public final String mlApp;
-  @Nullable public final String sessionId;
-  @Nullable public final String parentAgentSpanId;
-  @Nullable public final String parentAgentName;
-  @Nullable public final String parentId;
-  @Nullable public final String sampleRate;
-  @Nullable public final String samplingDecision;
+  @Nullable
+  public final String traceId;
+  @Nullable
+  public final String mlApp;
+  @Nullable
+  public final String sessionId;
+  @Nullable
+  public final String parentAgentSpanId;
+  @Nullable
+  public final String parentAgentName;
+  @Nullable
+  public final String parentId;
+  @Nullable
+  public final String sampleRate;
+  @Nullable
+  public final String samplingDecision;
 
   public LLMObsPropagationValues(
       @Nullable String traceId,
@@ -36,7 +44,8 @@ public final class LLMObsPropagationValues {
       @Nullable String parentAgentName,
       @Nullable String parentId,
       @Nullable String sampleRate,
-      @Nullable String samplingDecision) {
+      @Nullable String samplingDecision
+  ) {
     this.traceId = traceId;
     this.mlApp = mlApp;
     this.sessionId = sessionId;

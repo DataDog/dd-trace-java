@@ -7,10 +7,8 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 
 public class CoverageClassTransformer implements ClassFileTransformer {
-
   private static final ClassLoader AGENT_CLASSLOADER =
       CoverageClassTransformer.class.getClassLoader();
-
   private final Predicate<String> instrumentationFilter;
 
   public CoverageClassTransformer(Predicate<String> instrumentationFilter) {
@@ -23,9 +21,11 @@ public class CoverageClassTransformer implements ClassFileTransformer {
       String className,
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
-      byte[] source) {
+      byte[] source
+  ) {
     if (loader == null || loader == AGENT_CLASSLOADER) {
-      return null; // skip bootstrap and agent classes
+      // skip bootstrap and agent classes
+      return null;
     }
 
     if (!instrumentationFilter.test(className)) {
@@ -34,13 +34,16 @@ public class CoverageClassTransformer implements ClassFileTransformer {
 
     int majorVersion = ((source[6] & 0xFF) << 8) | (source[7] & 0xFF);
     if (majorVersion < 49) {
-      return null; // skip classes compiled by Java older than 1.5
+      // skip classes compiled by Java older than 1.5
+      return null;
     }
 
     ClassReader reader = new ClassReader(source);
     ClassWriter writer = new ClassWriter(reader, 0);
     reader.accept(
-        new CoverageClassVisitor(writer, instrumentationFilter), ClassReader.EXPAND_FRAMES);
+        new CoverageClassVisitor(writer, instrumentationFilter),
+        ClassReader.EXPAND_FRAMES
+    );
     return writer.toByteArray();
   }
 }

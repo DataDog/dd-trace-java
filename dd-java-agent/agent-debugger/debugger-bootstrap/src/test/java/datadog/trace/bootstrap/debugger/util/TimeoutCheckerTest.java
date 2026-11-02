@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -29,7 +28,8 @@ public class TimeoutCheckerTest {
   @Test
   public void cpuTimedOut() {
     CpuTimeoutChecker cpuTimeoutChecker = new CpuTimeoutChecker(Duration.ofMillis(1));
-    LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(10)); // not consume cpu
+    // not consume cpu
+    LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(10));
     assertFalse(cpuTimeoutChecker.isTimedOut());
     burnCpu(5_000_000);
     assertTrue(cpuTimeoutChecker.isTimedOut());
@@ -49,7 +49,6 @@ public class TimeoutCheckerTest {
     when(config.getDynamicInstrumentationTimeoutCheckerMode()).thenReturn(TimeoutChecker.CPU);
     assertInstanceOf(CpuTimeoutChecker.class, TimeoutChecker.create(config, Duration.ofMillis(50)));
     when(config.getDynamicInstrumentationTimeoutCheckerMode()).thenReturn(TimeoutChecker.WALL);
-    assertInstanceOf(
-        WallTimeoutChecker.class, TimeoutChecker.create(config, Duration.ofMillis(50)));
+    assertInstanceOf(WallTimeoutChecker.class, TimeoutChecker.create(config, Duration.ofMillis(50)));
   }
 }

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.websphere_jmx;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,8 +17,9 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private final String customBuilder;
 
   public WebsphereSecurityInstrumentation() {
@@ -38,16 +38,18 @@ public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
     return super.isEnabled()
         && "com.ibm.ws.management.PlatformMBeanServerBuilder".equals(customBuilder)
         // we must avoid loading the global Config while setting up instrumentation, so use the same
-        // underlying provider call as Config.get().isJmxFetchIntegrationEnabled("websphere", false)
-        && ConfigProvider.getInstance()
-            .isEnabled(Collections.singletonList("websphere"), "jmxfetch.", ".enabled", false);
+    // underlying provider call as Config.get().isJmxFetchIntegrationEnabled("websphere", false)
+    && ConfigProvider
+      .getInstance()
+      .isEnabled(Collections.singletonList("websphere"), "jmxfetch.", ".enabled", false);
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("isSecurityEnabled")).and(returns(boolean.class)),
-        this.getClass().getName() + "$DisableSecurityAdvice");
+        this.getClass().getName() + "$DisableSecurityAdvice"
+    );
   }
 
   public static class DisableSecurityAdvice {

@@ -5,7 +5,6 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIM
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -15,7 +14,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
-
   @FunctionalInterface
   interface Body {
     void run() throws Exception;
@@ -39,7 +37,9 @@ class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")));
+            span().childOfPrevious().operationName("soap.call")
+        )
+    );
   }
 
   @Test
@@ -50,7 +50,9 @@ class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")));
+            span().childOfPrevious().operationName("soap.call")
+        )
+    );
   }
 
   @Test
@@ -62,24 +64,24 @@ class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")));
+            span().childOfPrevious().operationName("soap.call")
+        )
+    );
   }
 
   @Test
   void unrelatedThreadIsNotInstrumented() throws Exception {
     // Same construction pattern, but a class the narrow matcher must ignore.
-    runUnderTrace(
-        "parent",
-        () -> {
-          UnrelatedWorker worker = new UnrelatedWorker();
-          worker.start();
-          worker.join();
-        });
-
+    runUnderTrace("parent", () -> {
+      UnrelatedWorker worker = new UnrelatedWorker();
+      worker.start();
+      worker.join();
+    });
     // No propagation: the worker's span starts its own trace instead of joining "parent".
     assertTraces(
         trace(span().root().operationName("parent")),
-        trace(span().root().operationName("unrelated.work")));
+        trace(span().root().operationName("unrelated.work"))
+    );
   }
 
   @Test
@@ -92,8 +94,10 @@ class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
-            span().childOfPrevious().operationName("soap.call")),
-        trace(span().root().operationName("soap.call")));
+            span().childOfPrevious().operationName("soap.call")
+        ),
+        trace(span().root().operationName("soap.call"))
+    );
   }
 
   @Test
@@ -108,7 +112,9 @@ class WsiAsyncResponseInstrumentationTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().root().operationName("outer"),
-            span().childOfPrevious().operationName("soap.call")),
-        trace(span().root().operationName("independent")));
+            span().childOfPrevious().operationName("soap.call")
+        ),
+        trace(span().root().operationName("independent"))
+    );
   }
 }

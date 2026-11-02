@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.datastax.cassandra4;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_INSTANCE;
-
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
 import com.datastax.oss.driver.api.core.cql.ColumnDefinitions;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
@@ -31,10 +30,9 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence JAVA_CASSANDRA = UTF8BytesString.create("java-cassandra");
-
   public static final CassandraClientDecorator DECORATE = new CassandraClientDecorator();
-
-  private static final int COMBINED_STATEMENT_LIMIT = 2 * 1024 * 1024; // chars
+  // chars
+  private static final int COMBINED_STATEMENT_LIMIT = 2 * 1024 * 1024;
   private static final ToIntFunction<UTF8BytesString> STATEMENT_WEIGHER = UTF8BytesString::length;
   private static final DDCache<CharSequence, UTF8BytesString> CACHED_STATEMENTS =
       DDCaches.newFixedSizeWeightedCache(512, STATEMENT_WEIGHER, COMBINED_STATEMENT_LIMIT);
@@ -101,7 +99,10 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
 
   @Override
   protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
+      @Nonnull final AgentSpan span,
+      @Nonnull final Throwable throwable,
+      byte errorPriority
+  ) {
     super.doOnError(span, throwable, errorPriority);
 
     if (throwable instanceof CoordinatorException) {

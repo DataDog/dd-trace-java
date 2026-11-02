@@ -4,7 +4,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -33,9 +32,9 @@ class MessageExtractAdapterTest {
     List<String> result = new ArrayList<>();
     AgentPropagation.KeyClassifier classifier =
         (key, value) -> {
-          result.add(key + "=" + value);
-          return true;
-        };
+      result.add(key + "=" + value);
+      return true;
+    };
     if (baseline) {
       JsonNode node = MAPPER.readTree(body).path("MessageAttributes").path("_datadog");
       String value = node.path("Value").asText();
@@ -44,7 +43,9 @@ class MessageExtractAdapterTest {
         DatadogAttributeParser.forEachProperty(classifier, value);
       } else if ("Binary".equals(type)) {
         DatadogAttributeParser.forEachProperty(
-            classifier, ByteBuffer.wrap(Base64.getDecoder().decode(value)));
+            classifier,
+            ByteBuffer.wrap(Base64.getDecoder().decode(value))
+        );
       }
     } else {
       MessageExtractAdapter.GETTER.forEachKeyInBody(body, classifier);
@@ -57,16 +58,16 @@ class MessageExtractAdapterTest {
     for (String type : new String[] {"String", "Binary"}) {
       String value =
           "Binary".equals(type)
-              ? Base64.getEncoder().encodeToString(CONTEXT.getBytes(UTF_8))
-              : CONTEXT;
+          ? Base64.getEncoder().encodeToString(CONTEXT.getBytes(UTF_8))
+          : CONTEXT;
       String attr = attribute(type, value);
       String reversed =
           "{\"Value\":" + MAPPER.writeValueAsString(value) + ",\"Type\":\"" + type + "\"}";
       for (String a : new String[] {attr, reversed}) {
         String body =
             "{\"Message\":\"ignored\",\"MessageAttributes\":{\"other\":{\"nested\":[1,2]},\"_datadog\":"
-                + a
-                + "},\"tail\":[{},true]}";
+            + a
+            + "},\"tail\":[{},true]}";
         assertEquals(extract(body, true), extract(body, false));
         assertEquals(2, extract(body, false).size());
       }
@@ -78,17 +79,20 @@ class MessageExtractAdapterTest {
     String attr = attribute("String", CONTEXT);
     String attrs = "{\"_datadog\":" + attr + "}";
     String[] bodies = {
-      "{\"MessageAttributes\":" + attrs + ",\"MessageAttributes\":{}}",
-      "{\"MessageAttributes\":{},\"MessageAttributes\":" + attrs + "}",
-      "{\"MessageAttributes\":" + attrs + ",\"MessageAttributes\":null}",
-      "{\"MessageAttributes\":{\"_datadog\":" + attr + ",\"_datadog\":null}}",
-      "{\"MessageAttributes\":{\"_datadog\":null,\"_datadog\":" + attr + "}}",
-      "{\"MessageAttributes\":{\"_datadog\":{\"Type\":\"Binary\",\"Type\":\"String\",\"Value\":false,\"Value\":"
-          + MAPPER.writeValueAsString(CONTEXT)
-          + "}}}",
-      "{\"MessageAttributes\":{" + "\"_datadog\":" + attr + ",\"other\":1}}"
+        "{\"MessageAttributes\":" + attrs + ",\"MessageAttributes\":{}}",
+        "{\"MessageAttributes\":{},\"MessageAttributes\":" + attrs + "}",
+        "{\"MessageAttributes\":" + attrs + ",\"MessageAttributes\":null}",
+        "{\"MessageAttributes\":{\"_datadog\":" + attr + ",\"_datadog\":null}}",
+        "{\"MessageAttributes\":{\"_datadog\":null,\"_datadog\":" + attr + "}}",
+
+        "{\"MessageAttributes\":{\"_datadog\":{\"Type\":\"Binary\",\"Type\":\"String\",\"Value\":false,\"Value\":"
+        + MAPPER.writeValueAsString(CONTEXT)
+        + "}}}",
+        "{\"MessageAttributes\":{" + "\"_datadog\":" + attr + ",\"other\":1}}"
     };
-    for (String body : bodies) assertEquals(extract(body, true), extract(body, false), body);
+    for (String body : bodies) {
+      assertEquals(extract(body, true), extract(body, false), body);
+    }
   }
 
   @Test
@@ -96,12 +100,18 @@ class MessageExtractAdapterTest {
     String attr = attribute("String", CONTEXT);
     for (String value : new String[] {"null", "true", "123", "1.25", "[]", "{}", "\"\""}) {
       String[] bodies = {
-        "{\"MessageAttributes\":" + value + "}",
-        "{\"MessageAttributes\":{\"_datadog\":" + value + "}}",
-        "{\"MessageAttributes\":{\"_datadog\":{\"Type\":\"String\",\"Value\":" + value + "}}}",
-        "{\"nested\":{\"MessageAttributes\":{\"_datadog\":" + attr + "}},\"other\":" + value + "}"
+          "{\"MessageAttributes\":" + value + "}",
+          "{\"MessageAttributes\":{\"_datadog\":" + value + "}}",
+          "{\"MessageAttributes\":{\"_datadog\":{\"Type\":\"String\",\"Value\":" + value + "}}}",
+          "{\"nested\":{\"MessageAttributes\":{\"_datadog\":"
+          + attr
+          + "}},\"other\":"
+          + value
+          + "}"
       };
-      for (String body : bodies) assertEquals(extract(body, true), extract(body, false), body);
+      for (String body : bodies) {
+        assertEquals(extract(body, true), extract(body, false), body);
+      }
     }
     for (String body : new String[] {"{}", "[]", "null", "42", "\"plain text\""}) {
       assertEquals(extract(body, true), extract(body, false), body);
@@ -116,15 +126,13 @@ class MessageExtractAdapterTest {
       String body = prefix + suffix;
       List<String> observed = new ArrayList<>();
       assertThrows(IOException.class, () -> extract(body, true));
-      assertThrows(
-          IOException.class,
-          () ->
-              MessageExtractAdapter.GETTER.forEachKeyInBody(
-                  body,
-                  (key, value) -> {
-                    observed.add(key);
-                    return true;
-                  }));
+      assertThrows(IOException.class, () -> MessageExtractAdapter.GETTER.forEachKeyInBody(body, (
+                                                                                                    key,
+                                                                                                    value
+                                                                                                ) -> {
+        observed.add(key);
+        return true;
+      }));
       assertTrue(observed.isEmpty());
     }
   }

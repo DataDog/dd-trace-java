@@ -7,10 +7,10 @@ import datadog.trace.util.Strings;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 
 public class StackTraceEventFrameWriter implements ValueWriter<StackTraceFrame> {
-
   @Override
   public void write(StackTraceFrame value, Writable writable, EncodingCache encodingCache) {
-    int mapSize = 1; // id always present
+    // id always present
+    int mapSize = 1;
     boolean hasText = Strings.isNotBlank(value.getText());
     boolean hasFile = Strings.isNotBlank(value.getFile());
     boolean hasLine = value.getLine() != null;

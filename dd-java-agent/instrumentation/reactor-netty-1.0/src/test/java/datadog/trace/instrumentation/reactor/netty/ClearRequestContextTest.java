@@ -13,7 +13,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -85,16 +84,14 @@ class ClearRequestContextTest {
         fixture.channel.writeInbound(new DefaultHttpResponse(HTTP_1_1, OK));
         break;
       case "error":
-        fixture
-            .channel
-            .pipeline()
-            .addLast(
-                new ChannelInboundHandlerAdapter() {
-                  @Override
-                  public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-                    // Consume the error after Netty has finished the client span.
-                  }
-                });
+        fixture.channel
+          .pipeline()
+          .addLast(new ChannelInboundHandlerAdapter() {
+            @Override
+            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+              // Consume the error after Netty has finished the client span.
+            }
+          });
         fixture.channel.pipeline().fireExceptionCaught(new IOException("request failed"));
         break;
       default:
@@ -109,7 +106,9 @@ class ClearRequestContextTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void clearsBaggageOnlyContext(boolean withNoopParent) {
-    Context baggageContext = Context.root().with(Baggage.create(singletonMap("user.id", "abc123")));
+    Context baggageContext = Context
+      .root()
+      .with(Baggage.create(singletonMap("user.id", "abc123")));
     Fixture fixture = new Fixture(baggageContext);
     if (withNoopParent) {
       fixture.channel.attr(CONTEXT_ATTRIBUTE_KEY).set(baggageContext.with(noopSpan()));
@@ -125,10 +124,9 @@ class ClearRequestContextTest {
   @Test
   void deferredCleanupPreservesNextRequestWithSameParent() {
     Fixture fixture = new Fixture();
-    fixture
-        .channel
-        .attr(CONTEXT_ATTRIBUTE_KEY)
-        .set(fixture.context.with(mock(AgentSpan.class, CALLS_REAL_METHODS)));
+    fixture.channel
+      .attr(CONTEXT_ATTRIBUTE_KEY)
+      .set(fixture.context.with(mock(AgentSpan.class, CALLS_REAL_METHODS)));
     fixture.cleanup.accept(fixture.connection);
     ChannelOperations<?, ?> nextRequest = mock(ChannelOperations.class);
     when(nextRequest.as(ChannelOperations.class)).thenReturn(nextRequest);

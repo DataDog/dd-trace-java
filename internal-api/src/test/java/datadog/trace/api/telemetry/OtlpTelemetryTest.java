@@ -2,7 +2,6 @@ package datadog.trace.api.telemetry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;

@@ -7,15 +7,11 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 public class HeaderRegexpTokenizer implements SensitiveHandler.Tokenizer {
-
-  @Nullable private Ranged current;
-
+  @Nullable
+  private Ranged current;
   private boolean checked = false;
-
   private String evidenceValue;
-
   private Pattern namePattern;
-
   private Pattern valuePattern;
 
   public HeaderRegexpTokenizer(final Evidence evidence, Pattern namePattern, Pattern valuePattern) {
@@ -45,11 +41,14 @@ public class HeaderRegexpTokenizer implements SensitiveHandler.Tokenizer {
       // Header evidence format is <headerName>: <headerValue>
       int separatorIndex = evidenceValue.indexOf(':');
       if (separatorIndex < 1) {
-        return null; // Wrong evidence format: there is no separator or <headerName>
+        // Wrong evidence format: there is no separator or <headerName>
+        return null;
       }
-      int headerValueIndex = separatorIndex + 2; // there is a white space after :
+      // there is a white space after :
+      int headerValueIndex = separatorIndex + 2;
       if (evidenceValue.length() <= headerValueIndex) {
-        return null; // Wrong evidence format: there is no <headerValue>
+        // Wrong evidence format: there is no <headerValue>
+        return null;
       }
       String name = evidenceValue.substring(0, separatorIndex);
       String value = evidenceValue.substring(headerValueIndex);

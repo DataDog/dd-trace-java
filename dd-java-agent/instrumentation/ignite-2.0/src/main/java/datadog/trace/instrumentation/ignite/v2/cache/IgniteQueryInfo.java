@@ -12,21 +12,17 @@ import java.util.Map;
 import java.util.function.Function;
 
 public final class IgniteQueryInfo {
-
   private static final DDCache<Pair<String, String>, IgniteQueryInfo> CACHED_PREPARED_STATEMENTS =
       DDCaches.newFixedSizeCache(512);
-
   private static final Function<Pair<String, String>, IgniteQueryInfo> NORMALIZE =
       // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
-      new Function<Pair<String, String>, IgniteQueryInfo>() {
-        @Override
-        public IgniteQueryInfo apply(Pair<String, String> Pair) {
-          return new IgniteQueryInfo(Pair.getLeft(), Pair.getRight());
-        }
-      };
-
+  new Function<Pair<String, String>, IgniteQueryInfo>() {
+    @Override
+    public IgniteQueryInfo apply(Pair<String, String> Pair) {
+      return new IgniteQueryInfo(Pair.getLeft(), Pair.getRight());
+    }
+  };
   private static final UTF8BytesString DEFAULT_OPERATION = UTF8BytesString.create("SELECT");
-
   private static final Map<String, UTF8BytesString> VALID_DB_OPERATIONS;
   private static final Map<String, UTF8BytesString> HEALTH_CHECK_STATEMENTS =
       Collections.singletonMap("SELECT 1", UTF8BytesString.create("SELECT 1"));
@@ -65,7 +61,8 @@ public final class IgniteQueryInfo {
             "ROLLBACK",
             "SAVEPOINT",
             "WITH",
-            "MERGE")) {
+            "MERGE"
+    )) {
       validDbOperations.put(op, UTF8BytesString.create(op));
     }
     VALID_DB_OPERATIONS = Collections.unmodifiableMap(validDbOperations);
@@ -75,20 +72,17 @@ public final class IgniteQueryInfo {
   private final UTF8BytesString sql;
 
   public IgniteQueryInfo(String sql, String type) {
-
     UTF8BytesString prospectiveOperation = VALID_DB_OPERATIONS.get(extractOperation(sql));
-    boolean fragment = prospectiveOperation == null; // SQL fragment if not valid op
+    // SQL fragment if not valid op
+    boolean fragment = prospectiveOperation == null;
     this.operation = prospectiveOperation != null ? prospectiveOperation : DEFAULT_OPERATION;
 
     if (HEALTH_CHECK_STATEMENTS.containsKey(sql.toUpperCase())) {
       // No need to mask health checks
       this.sql = HEALTH_CHECK_STATEMENTS.get(sql);
-
     } else {
-
       if (!fragment) {
         this.sql = UTF8BytesString.create(SQLNormalizer.normalize(sql));
-
       } else {
         final StringBuilder sqlBuilder = new StringBuilder();
 

@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.config.TracerConfig;
@@ -30,11 +29,9 @@ import org.junit.jupiter.api.Test;
  * Config}, so no process property or forking is needed to flip it in-test.
  */
 class BuilderTagsPrecedenceTest extends DDCoreJavaSpecification {
-
   private static final String KEY = "test.collision.tag";
   private static final String HEADER_VALUE = "from-header";
   private static final String BUILDER_VALUE = "from-builder";
-
   private CoreTracer tracer;
 
   @AfterEach
@@ -44,7 +41,9 @@ class BuilderTagsPrecedenceTest extends DDCoreJavaSpecification {
     }
   }
 
-  /** An extracted context carrying a header-derived tag ({@code coreTags}) on the given key. */
+  /**
+   * An extracted context carrying a header-derived tag ({@code coreTags}) on the given key.
+   */
   private static ExtractedContext extractedWithHeaderTag(String key, String value) {
     return new ExtractedContext(
         DDTraceId.ONE,
@@ -57,7 +56,8 @@ class BuilderTagsPrecedenceTest extends DDCoreJavaSpecification {
         null,
         PropagationTags.factory().empty(),
         null,
-        DATADOG);
+        DATADOG
+    );
   }
 
   /**
@@ -67,19 +67,19 @@ class BuilderTagsPrecedenceTest extends DDCoreJavaSpecification {
   @Test
   void headerTagOverridesBuilderTagByDefault() {
     tracer = tracerBuilder().build();
-    AgentSpan span =
-        tracer
-            .buildSpan("test", "root")
-            .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
-            .withTag(KEY, BUILDER_VALUE)
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("test", "root")
+      .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
+      .withTag(KEY, BUILDER_VALUE)
+      .start();
     try {
       Object resolved = ((DDSpan) span).getTag(KEY);
       assertEquals(
           HEADER_VALUE,
           resolved,
           "By default the historical order lets the inbound header tag override the explicit "
-              + "builder tag (the documented wart). If this fails, the default ordering changed.");
+          + "builder tag (the documented wart). If this fails, the default ordering changed."
+      );
     } finally {
       span.finish();
     }
@@ -95,19 +95,19 @@ class BuilderTagsPrecedenceTest extends DDCoreJavaSpecification {
     properties.setProperty(TracerConfig.TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED, "true");
     tracer = tracerBuilder().withProperties(properties).build();
 
-    AgentSpan span =
-        tracer
-            .buildSpan("test", "root")
-            .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
-            .withTag(KEY, BUILDER_VALUE)
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("test", "root")
+      .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
+      .withTag(KEY, BUILDER_VALUE)
+      .start();
     try {
       Object resolved = ((DDSpan) span).getTag(KEY);
       assertEquals(
           BUILDER_VALUE,
           resolved,
           "With trace.builder.tags.precedence.enabled=true, the explicit builder tag must win "
-              + "over the inbound header tag.");
+          + "over the inbound header tag."
+      );
     } finally {
       span.finish();
     }
@@ -125,21 +125,19 @@ class BuilderTagsPrecedenceTest extends DDCoreJavaSpecification {
     properties.setProperty(TracerConfig.TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED, "true");
     CoreTracer enabledTracer = tracerBuilder().withProperties(properties).build();
     try {
-      AgentSpan defaultSpan =
-          tracer
-              .buildSpan("test", "root")
-              .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
-              .withTag(KEY, BUILDER_VALUE)
-              .start();
+      AgentSpan defaultSpan = tracer
+        .buildSpan("test", "root")
+        .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
+        .withTag(KEY, BUILDER_VALUE)
+        .start();
       defaultSpan.finish();
       assertEquals(HEADER_VALUE, ((DDSpan) defaultSpan).getTag(KEY));
 
-      AgentSpan enabledSpan =
-          enabledTracer
-              .buildSpan("test", "root")
-              .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
-              .withTag(KEY, BUILDER_VALUE)
-              .start();
+      AgentSpan enabledSpan = enabledTracer
+        .buildSpan("test", "root")
+        .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
+        .withTag(KEY, BUILDER_VALUE)
+        .start();
       enabledSpan.finish();
       assertEquals(BUILDER_VALUE, ((DDSpan) enabledSpan).getTag(KEY));
     } finally {

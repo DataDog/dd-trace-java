@@ -1,7 +1,6 @@
 package datadog.metrics.impl;
 
 import static java.util.Collections.binarySearch;
-
 import com.datadoghq.sketch.ddsketch.DDSketch;
 import com.datadoghq.sketch.ddsketch.DDSketches;
 import com.datadoghq.sketch.ddsketch.Serializer;
@@ -24,7 +23,8 @@ public final class DDSketchHistograms implements Histograms.Factory {
       new LogarithmicMapping(1.015625, 1.8761281912861705);
   public static final Histograms.Factory FACTORY = new DDSketchHistograms();
 
-  private DDSketchHistograms() {}
+  private DDSketchHistograms() {
+  }
 
   @Override
   public Histogram newHistogram() {
@@ -53,12 +53,14 @@ public final class DDSketchHistograms implements Histograms.Factory {
   @Override
   public HistogramWithSum newHistogramWithSum(List<Double> binBoundaries) {
     validateBoundaries(binBoundaries);
-    DDSketch sketch =
-        new DDSketch(
-            new ExplicitBoundaries(binBoundaries),
-            () -> new CollapsingLowestDenseStore(0), // negative store not used
-            () -> new CollapsingLowestDenseStore(binBoundaries.size() + 1),
-            Double.NEGATIVE_INFINITY); // assign all negative/zero values to first bin
+    DDSketch sketch = new DDSketch(
+        new ExplicitBoundaries(binBoundaries),
+        // negative store not used
+        () -> new CollapsingLowestDenseStore(0),
+        () -> new CollapsingLowestDenseStore(binBoundaries.size() + 1),
+        // assign all negative/zero values to first bin
+        Double.NEGATIVE_INFINITY
+    );
     return new DDSketchHistogramWithSum(sketch);
   }
 
@@ -76,10 +78,8 @@ public final class DDSketchHistograms implements Histograms.Factory {
       }
       if (previousBoundary != null && previousBoundary >= boundary) {
         throw new IllegalArgumentException(
-            "Bucket boundaries must be in increasing order: "
-                + previousBoundary
-                + " >= "
-                + boundary);
+            "Bucket boundaries must be in increasing order: " + previousBoundary + " >= " + boundary
+        );
       }
       previousBoundary = boundary;
     }

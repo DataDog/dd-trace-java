@@ -2,18 +2,24 @@ package com.datadog.openfeature.internal.bridge.v1;
 
 import javax.annotation.Nullable;
 
-/** Reflects flag evaluations onto the active local root span. */
+/**
+ * Reflects flag evaluations onto the active local root span.
+ */
 public interface SpanEnricher {
-  /** The enricher discarding all evaluations. */
-  SpanEnricher NOOP =
-      new SpanEnricher() {
-        @Override
-        public void serialId(
-            final int serialId, final boolean doLog, @Nullable final String targetingKey) {}
+  /**
+   * The enricher discarding all evaluations.
+   */
+  SpanEnricher NOOP = new SpanEnricher() {
+    @Override
+    public void serialId(
+        final int serialId,
+        final boolean doLog,
+        @Nullable final String targetingKey
+    ) {}
 
-        @Override
-        public void runtimeDefault(final String flagKey, @Nullable final Object defaultValue) {}
-      };
+    @Override
+    public void runtimeDefault(final String flagKey, @Nullable final Object defaultValue) {}
+  };
 
   /**
    * Records an evaluation that resolved to a split with a serial id.

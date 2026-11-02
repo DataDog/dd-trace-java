@@ -23,8 +23,9 @@ public class OtelExtractedContext implements AgentSpanContext {
   private OtelExtractedContext(SpanContext context) {
     this.traceId = DDTraceId.fromHex(context.getTraceId());
     this.spanId = DDSpanId.fromHex(context.getSpanId());
-    this.prioritySampling =
-        context.isSampled() ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.UNSET;
+    this.prioritySampling = context.isSampled()
+        ? PrioritySampling.SAMPLER_KEEP
+        : PrioritySampling.UNSET;
   }
 
   public static AgentSpanContext extract(Context context) {
@@ -43,7 +44,8 @@ public class OtelExtractedContext implements AgentSpanContext {
         LOGGER.debug(
             "Failed to convert span context with trace id = {} and span id = {}",
             spanContext.getTraceId(),
-            spanContext.getSpanId());
+            spanContext.getSpanId()
+        );
       }
     }
     return null;

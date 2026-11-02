@@ -3,7 +3,9 @@ package datadog.trace.bootstrap.otel.metrics.data;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint;
 
-/** Always reports the latest value. */
+/**
+ * Always reports the latest value.
+ */
 final class OtelDoubleValue extends OtelAggregator {
   private volatile double value;
 

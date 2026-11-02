@@ -14,28 +14,42 @@ import javax.annotation.Nullable;
  * same tag. Prefer the id: it skips classifying the name on every call. A custom tag has no id.
  */
 public interface TagStore {
-  /** The tag's value, or null when it's absent. */
+  /**
+   * The tag's value, or null when it's absent.
+   */
   @Nullable
   Object load(String tag);
 
-  /** The tag's value as a string, or null when it's absent. */
+  /**
+   * The tag's value as a string, or null when it's absent.
+   */
   @Nullable
   String loadString(String tag);
 
-  /** The known tag's value, or null when it's absent. */
+  /**
+   * The known tag's value, or null when it's absent.
+   */
   @Nullable
   Object load(long tagId);
 
-  /** The known tag's value as a string, or null when it's absent. */
+  /**
+   * The known tag's value as a string, or null when it's absent.
+   */
   @Nullable
   String loadString(long tagId);
 
-  /** Stores the tag; a null value removes it. */
+  /**
+   * Stores the tag; a null value removes it.
+   */
   void store(String tag, @Nullable Object value);
 
-  /** Stores the known tag; a null value removes it. */
+  /**
+   * Stores the known tag; a null value removes it.
+   */
   void store(long tagId, @Nullable Object value);
 
-  /** Stores the entry's tag; a null entry is a no-op. */
+  /**
+   * Stores the entry's tag; a null entry is a no-op.
+   */
   void store(@Nullable TagMap.EntryReader entry);
 }

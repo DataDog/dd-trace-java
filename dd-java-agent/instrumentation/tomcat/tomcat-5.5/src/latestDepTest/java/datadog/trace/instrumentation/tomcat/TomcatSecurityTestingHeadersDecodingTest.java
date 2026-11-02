@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEAD
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
@@ -62,26 +61,22 @@ class TomcatSecurityTestingHeadersDecodingTest {
   }
 
   private void forbidDecoding(int index) {
-    headers
-        .getValue(index)
-        .getByteChunk()
-        .setCharset(
-            new Charset("unexpected-decoding", null) {
-              @Override
-              public boolean contains(Charset charset) {
-                return false;
-              }
+    headers.getValue(index).getByteChunk().setCharset(new Charset("unexpected-decoding", null) {
+      @Override
+      public boolean contains(Charset charset) {
+        return false;
+      }
 
-              @Override
-              public CharsetDecoder newDecoder() {
-                throw new AssertionError("Unrelated or duplicate value decoded");
-              }
+      @Override
+      public CharsetDecoder newDecoder() {
+        throw new AssertionError("Unrelated or duplicate value decoded");
+      }
 
-              @Override
-              public CharsetEncoder newEncoder() {
-                throw new AssertionError("Unexpected encoding");
-              }
-            });
+      @Override
+      public CharsetEncoder newEncoder() {
+        throw new AssertionError("Unexpected encoding");
+      }
+    });
   }
 
   private void add(String name, String value, boolean bytes) {

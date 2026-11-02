@@ -13,7 +13,6 @@ import java.util.Map;
  * MisbehavingClassLoader} for why.
  */
 final class NullResourceClassLoader extends ClassLoader {
-
   private final Map<String, byte[]> classes = new HashMap<>();
 
   @Override

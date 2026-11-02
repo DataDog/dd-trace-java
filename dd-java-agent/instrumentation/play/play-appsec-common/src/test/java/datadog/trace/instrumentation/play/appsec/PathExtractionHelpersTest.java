@@ -8,7 +8,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -26,9 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class PathExtractionHelpersTest {
-
   private static final String ORIGIN = "test.origin";
-
   private TracerAPI originalTracer;
   private CallbackProvider callbackProvider;
   private BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback;
@@ -65,9 +62,11 @@ class PathExtractionHelpersTest {
   void emptyParams_returnsNullWithoutCallingCallback() {
     RequestContext reqCtx = mock(RequestContext.class);
 
-    assertNull(
-        PathExtractionHelpers.callRequestPathParamsCallback(
-            reqCtx, Collections.emptyMap(), ORIGIN));
+    assertNull(PathExtractionHelpers.callRequestPathParamsCallback(
+        reqCtx,
+        Collections.emptyMap(),
+        ORIGIN
+    ));
 
     verify(callback, never()).apply(any(), any());
   }

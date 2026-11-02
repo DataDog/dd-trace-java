@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.graphqljava;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -26,12 +25,14 @@ import javax.annotation.Nonnull;
 
 public class GraphQLDecorator extends BaseDecorator {
   public static final GraphQLDecorator DECORATE = new GraphQLDecorator();
-  public static final CharSequence GRAPHQL_REQUEST =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().server().operationForProtocol("graphql"));
+  public static final CharSequence GRAPHQL_REQUEST = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .server()
+    .operationForProtocol("graphql")
+  );
   public static final CharSequence GRAPHQL_PARSING = UTF8BytesString.create("graphql.parsing");
-  public static final CharSequence GRAPHQL_VALIDATION =
-      UTF8BytesString.create("graphql.validation");
+  public static final CharSequence GRAPHQL_VALIDATION = UTF8BytesString.create("graphql.validation");
   public static final CharSequence GRAPHQL_JAVA = UTF8BytesString.create("graphql-java");
 
   // Extract this to allow for easier testing
@@ -61,13 +62,13 @@ public class GraphQLDecorator extends BaseDecorator {
   }
 
   public void onRequest(final AgentSpan span, final ExecutionContext context) {
-
     if (ActiveSubsystems.APPSEC_ACTIVE) {
-
       Map<String, Map<String, String>> resolversArgs = new HashMap<>();
 
-      for (Selection<?> selection :
-          context.getOperationDefinition().getSelectionSet().getSelections()) {
+      for (Selection<?> selection : context
+        .getOperationDefinition()
+        .getSelectionSet()
+        .getSelections()) {
         if (selection instanceof Field) {
           Field field = (Field) selection;
           String name = field.getName();

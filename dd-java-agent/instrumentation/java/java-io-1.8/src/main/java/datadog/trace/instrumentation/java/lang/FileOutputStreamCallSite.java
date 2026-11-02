@@ -11,11 +11,8 @@ import java.io.File;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
-@CallSite(
-    spi = {IastCallSites.class, RaspCallSites.class},
-    helpers = FileIORaspHelper.class)
+@CallSite(spi = {IastCallSites.class, RaspCallSites.class}, helpers = FileIORaspHelper.class)
 public class FileOutputStreamCallSite {
-
   @CallSite.Before("void java.io.FileOutputStream.<init>(java.lang.String)")
   @CallSite.Before("void java.io.FileOutputStream.<init>(java.lang.String, boolean)")
   public static void beforeConstructor(@CallSite.Argument(0) @Nullable final String path) {

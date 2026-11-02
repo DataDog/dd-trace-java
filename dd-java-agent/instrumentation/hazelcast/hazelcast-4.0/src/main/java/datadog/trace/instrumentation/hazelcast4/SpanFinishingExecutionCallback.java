@@ -5,8 +5,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.function.BiConsumer;
 
 public class SpanFinishingExecutionCallback implements BiConsumer<ClientMessage, Throwable> {
-
-  /** Span that we should finish and annotate when the future is complete. */
+  /**
+   * Span that we should finish and annotate when the future is complete.
+   */
   private final AgentSpan span;
 
   public SpanFinishingExecutionCallback(final AgentSpan span) {

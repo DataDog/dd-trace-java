@@ -4,7 +4,6 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.assertValue;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static java.util.Collections.emptyMap;
-
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanEvent;
 import datadog.trace.test.junit.utils.assertions.Matcher;

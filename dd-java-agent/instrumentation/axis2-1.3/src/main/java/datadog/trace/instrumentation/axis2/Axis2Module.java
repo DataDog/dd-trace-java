@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.axis2;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,6 +17,7 @@ public class Axis2Module extends InstrumenterModule.Tracing {
     return asList(
         new AxisEngineInstrumentation(),
         new AxisTransportInstrumentation(),
-        new WebSphereAsyncInstrumentation());
+        new WebSphereAsyncInstrumentation()
+    );
   }
 }

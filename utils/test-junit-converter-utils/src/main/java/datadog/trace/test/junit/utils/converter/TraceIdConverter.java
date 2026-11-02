@@ -1,7 +1,6 @@
 package datadog.trace.test.junit.utils.converter;
 
 import static java.math.BigInteger.ONE;
-
 import datadog.trace.api.DDTraceId;
 import java.math.BigInteger;
 import org.junit.jupiter.api.extension.ParameterContext;
@@ -27,11 +26,12 @@ public class TraceIdConverter implements ArgumentConverter {
   // 2^64 - 2
   public static final String TRACE_ID_MAX_MINUS_1 = Long.toUnsignedString(-2L);
   // 2^64 (first out-of-range value)
-  public static final String TRACE_ID_MAX_PLUS_1 = new BigInteger(TRACE_ID_MAX).add(ONE).toString();
+  public static final String TRACE_ID_MAX_PLUS_1 = new BigInteger(TRACE_ID_MAX)
+    .add(ONE)
+    .toString();
 
   @Override
-  public Object convert(Object source, ParameterContext context)
-      throws ArgumentConversionException {
+  public Object convert(Object source, ParameterContext context) throws ArgumentConversionException {
     if (source == null) {
       return null;
     }

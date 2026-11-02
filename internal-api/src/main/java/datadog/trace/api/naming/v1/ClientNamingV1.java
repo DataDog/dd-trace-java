@@ -4,7 +4,6 @@ import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 
 public class ClientNamingV1 implements NamingSchema.ForClient {
-
   @Nonnull
   private String normalizeProtocol(@Nonnull final String protocol) {
     switch (protocol) {

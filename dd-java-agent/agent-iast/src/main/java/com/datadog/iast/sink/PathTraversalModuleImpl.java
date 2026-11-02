@@ -1,7 +1,6 @@
 package com.datadog.iast.sink;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
-
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.util.Iterators;
@@ -12,13 +11,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class PathTraversalModuleImpl extends SinkModuleBase implements PathTraversalModule {
-
   public PathTraversalModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
 
   @Override
-  public void onPathTraversal(final @Nullable String path) {
+  public void onPathTraversal(@Nullable final String path) {
     if (!canBeTainted(path)) {
       return;
     }
@@ -26,7 +24,7 @@ public class PathTraversalModuleImpl extends SinkModuleBase implements PathTrave
   }
 
   @Override
-  public void onPathTraversal(final @Nullable String parent, final @Nonnull String child) {
+  public void onPathTraversal(@Nullable final String parent, @Nonnull final String child) {
     if (!canBeTainted(parent) && !canBeTainted(child)) {
       return;
     }
@@ -38,7 +36,7 @@ public class PathTraversalModuleImpl extends SinkModuleBase implements PathTrave
   }
 
   @Override
-  public void onPathTraversal(final @Nonnull String first, final @Nonnull String[] more) {
+  public void onPathTraversal(@Nonnull final String first, @Nonnull final String[] more) {
     if (!canBeTainted(first) && !canBeTainted(more)) {
       return;
     }
@@ -50,12 +48,12 @@ public class PathTraversalModuleImpl extends SinkModuleBase implements PathTrave
   }
 
   @Override
-  public void onPathTraversal(final @Nonnull URI uri) {
+  public void onPathTraversal(@Nonnull final URI uri) {
     checkInjection(VulnerabilityType.PATH_TRAVERSAL, uri);
   }
 
   @Override
-  public void onPathTraversal(final @Nullable File parent, final @Nonnull String child) {
+  public void onPathTraversal(@Nullable final File parent, @Nonnull final String child) {
     if (!canBeTainted(child)) {
       return;
     }

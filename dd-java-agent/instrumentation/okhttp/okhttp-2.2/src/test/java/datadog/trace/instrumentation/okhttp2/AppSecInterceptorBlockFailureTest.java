@@ -8,7 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.squareup.okhttp.Request;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
@@ -34,12 +33,9 @@ import org.junit.jupiter.api.Test;
  * BlockingException} when the callback returns a blocking flow.
  */
 class AppSecInterceptorBlockFailureTest {
-
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
-
   private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
-
   private Request request;
   private RequestContext ctx;
   private AgentSpan span;

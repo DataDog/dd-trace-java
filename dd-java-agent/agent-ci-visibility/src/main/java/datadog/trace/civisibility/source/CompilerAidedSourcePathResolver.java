@@ -8,7 +8,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class CompilerAidedSourcePathResolver implements SourcePathResolver {
-
   private final String repoRoot;
 
   public CompilerAidedSourcePathResolver(String repoRoot) {

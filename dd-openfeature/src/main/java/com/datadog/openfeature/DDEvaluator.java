@@ -31,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
-
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
    * caller's evaluation thread over a caller-owned Value tree, so an arbitrarily deep
@@ -41,41 +40,35 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
    * with the cross-SDK RFC target (4).
    */
   static final int MAX_SNAPSHOT_DEPTH = 4;
-
   /**
    * Maximum number of top-level context fields retained by copyPrunedContext. Bounds the width of
    * the caller-supplied context and, transitively, the size of every FlagEvalEvent sitting in the
    * async hand-off queue. Kept aligned with the cross-SDK RFC.
    */
   static final int MAX_CONTEXT_FIELDS = 256;
-
   /**
    * Maximum character length for a single context KEY retained by copyPrunedContext. Keys are
    * stored verbatim in every full-tier bucket, so an unbounded key size would let a single caller
    * inflate steady-state heap use. Longer keys cause the field to be skipped.
    */
   static final int MAX_KEY_LENGTH = 256;
-
   /**
    * Maximum character length for a single context string VALUE retained by copyPrunedContext.
    * Longer values cause the field to be skipped (matches previous pruneContext behavior).
    * Non-string scalars are not length-bounded.
    */
   static final int MAX_VALUE_LENGTH = 256;
-
   /**
    * Maximum number of elements walked per list encountered during copyPrunedContext. Bounds the
    * fan-out of a single wide list at capture time so one caller cannot inflate the hot path with a
    * huge but shallow structure. Elements past the limit are skipped.
    */
   static final int MAX_LIST_ELEMENTS = 256;
-
   /**
    * Maximum number of properties walked per structure encountered during copyPrunedContext. Same
    * intent as MAX_LIST_ELEMENTS for structures. Properties past the limit are skipped.
    */
   static final int MAX_STRUCTURE_PROPERTIES = 256;
-
   private final Runnable configCallback;
   private final AgentBridge bridge;
   private final Settings settings;
@@ -91,20 +84,26 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final Runnable configCallback,
       final AgentBridge bridge,
       final Settings settings,
-      final ExperimentationOptOutMode experimentationOptOutMode) {
+      final ExperimentationOptOutMode experimentationOptOutMode
+  ) {
     this.configCallback = configCallback;
     this.bridge = bridge;
     this.settings = settings;
     // When span enrichment is off, the __dd_* span-enrichment metadata is attached only to
     // evaluations of allocations logging exposures, for the exposure hook.
-    this.core =
-        new FlagEvaluator(
-            settings.isSpanEnrichmentEnabled(), this::isExposed, experimentationOptOutMode);
+    this.core = new FlagEvaluator(
+        settings.isSpanEnrichmentEnabled(),
+        this::isExposed,
+        experimentationOptOutMode
+    );
   }
 
   @Override
   public boolean initialize(
-      final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
+      final long timeout,
+      final TimeUnit unit,
+      final EvaluationContext context
+  ) throws Exception {
     final FeatureFlagsRuntime acquired;
     synchronized (this) {
       if (this.runtime != null) {
@@ -156,7 +155,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final Class<T> target,
       final String key,
       final T defaultValue,
-      final EvaluationContext context) {
+      final EvaluationContext context
+  ) {
     return core.evaluate(configuration.get(), target, key, defaultValue, context);
   }
 
@@ -177,7 +177,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final String subject,
       final String allocation,
       final String variant,
-      final Integer serialId) {
+      final Integer serialId
+  ) {
     final ExposureDeduplicationCache cache = exposureCache();
     return cache != null && cache.contains(flag, subject, allocation, variant, serialId);
   }
@@ -219,7 +220,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final String variantKey,
       final EvaluationContext context,
       final Integer serialId,
-      final Map<String, Object> features) {
+      final Map<String, Object> features
+  ) {
     return new ExposureEvent(
         System.currentTimeMillis(),
         new com.datadog.openfeature.internal.exposure.Allocation(allocationKey),
@@ -227,7 +229,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
         new com.datadog.openfeature.internal.exposure.Variant(variantKey),
         new Subject(context.getTargetingKey(), flattenContext(context)),
         serialId,
-        features.isEmpty() ? null : features);
+        features.isEmpty() ? null : features
+    );
   }
 
   /**
@@ -256,7 +259,10 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   }
 
   private static Value snapshotValue(
-      final Value value, final Set<Object> seenContainers, final int depth) {
+      final Value value,
+      final Set<Object> seenContainers,
+      final int depth
+  ) {
     if (value == null) {
       return null;
     } else if (value.isNull()) {
@@ -320,8 +326,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
           final Structure structure = value.asStructure();
           if (seenContainers.add(structure)) {
             for (final String property : structure.keySet()) {
-              deque.push(
-                  new FlattenEntry(entry.key + "." + property, structure.getValue(property)));
+              deque.push(new FlattenEntry(entry.key + "." + property, structure.getValue(property)));
             }
           }
         } else {
@@ -355,16 +360,17 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   static final int REASON_MAX_STRUCTURE_PROPERTIES = 1 << 4;
   static final int REASON_MAX_SNAPSHOT_DEPTH = 1 << 5;
   static final int REASON_CYCLE = 1 << 6;
-
-  /** Sorted reason-code strings, indexed by their bit position in the bitmask. */
+  /**
+   * Sorted reason-code strings, indexed by their bit position in the bitmask.
+   */
   private static final String[] REASON_NAMES = {
-    "max_context_fields",
-    "max_key_length",
-    "max_value_length",
-    "max_list_elements",
-    "max_structure_properties",
-    "max_snapshot_depth",
-    "cycle",
+      "max_context_fields",
+      "max_key_length",
+      "max_value_length",
+      "max_list_elements",
+      "max_structure_properties",
+      "max_snapshot_depth",
+      "cycle"
   };
 
   /**
@@ -395,8 +401,9 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
    */
   static final class CopyResult {
     final Map<String, Object> attrs;
-
-    /** Non-null when at least one cap fired; ready to use as the "reason:..." tag value. */
+    /**
+     * Non-null when at least one cap fired; ready to use as the "reason:..." tag value.
+     */
     final String truncatedReason;
 
     CopyResult(final Map<String, Object> attrs, final String truncatedReason) {
@@ -456,7 +463,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final Value value,
       final Set<Object> seen,
       final int depth,
-      final int[] reasonMask) {
+      final int[] reasonMask
+  ) {
     if (out.size() >= MAX_CONTEXT_FIELDS) {
       reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
       return;
@@ -528,7 +536,13 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
         }
         walked++;
         copyPrunedValue(
-            out, key + "." + property, structure.getValue(property), seen, depth + 1, reasonMask);
+            out,
+            key + "." + property,
+            structure.getValue(property),
+            seen,
+            depth + 1,
+            reasonMask
+        );
       }
       seen.remove(structure);
     }

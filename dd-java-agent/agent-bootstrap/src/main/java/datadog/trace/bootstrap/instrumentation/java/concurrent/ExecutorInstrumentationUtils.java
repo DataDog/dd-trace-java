@@ -2,15 +2,15 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.ContextStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Utils for concurrent instrumentations. */
+/**
+ * Utils for concurrent instrumentations.
+ */
 public final class ExecutorInstrumentationUtils {
-
   private static final Logger log = LoggerFactory.getLogger(ExecutorInstrumentationUtils.class);
 
   /**
@@ -40,13 +40,17 @@ public final class ExecutorInstrumentationUtils {
    * @return new state
    */
   public static <T> State setupState(
-      final ContextStore<T, State> contextStore, final T task, final Context context) {
+      final ContextStore<T, State> contextStore,
+      final T task,
+      final Context context
+  ) {
     final State state = contextStore.getOrCreate(task, State.FACTORY);
     if (!state.captureAndSetContinuation(context)) {
       log.debug(
           "continuation was already set for {} in context {}, no continuation captured.",
           task,
-          context);
+          context
+      );
     }
     return state;
   }
@@ -71,5 +75,6 @@ public final class ExecutorInstrumentationUtils {
     }
   }
 
-  private ExecutorInstrumentationUtils() {}
+  private ExecutorInstrumentationUtils() {
+  }
 }

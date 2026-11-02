@@ -12,19 +12,25 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-/** Resolves opt-out policy, validates subject timestamps, and excludes experiment allocations. */
+/**
+ * Resolves opt-out policy, validates subject timestamps, and excludes experiment allocations.
+ */
 public final class ExperimentationOptOut {
   public static final String ATTRIBUTE = "dd_experimentation_opt_out_at";
-  public static final String INVALID_TIMESTAMP =
-      ATTRIBUTE
-          + " must be an ISO offset date-time string; supply a valid timestamp to opt out,"
-          + " or omit the attribute to permit experimentation";
+  public static final String INVALID_TIMESTAMP = ATTRIBUTE
+      + " must be an ISO offset date-time string; supply a valid timestamp to opt out,"
+      + " or omit the attribute to permit experimentation";
 
-  private ExperimentationOptOut() {}
+  private ExperimentationOptOut() {
+  }
 
-  /** Resolves the provider option before reading central configuration. */
+  /**
+   * Resolves the provider option before reading central configuration.
+   */
   public static ExperimentationOptOutMode resolve(
-      final ExperimentationOptOutMode override, final Settings settings) {
+      final ExperimentationOptOutMode override,
+      final Settings settings
+  ) {
     Objects.requireNonNull(override, "experimentationOptOutMode");
     if (override != ExperimentationOptOutMode.DEFAULT) {
       return override;
@@ -39,14 +45,18 @@ public final class ExperimentationOptOut {
         return ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY;
       default:
         throw new IllegalArgumentException(
-            "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE must be disabled, immediate, or future_experiments_only");
+            "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE must be disabled, immediate, or "
+            + "future_experiments_only"
+        );
     }
   }
 
-  /** Parses the cutoff once per evaluation; null means no exclusion. */
+  /**
+   * Parses the cutoff once per evaluation; null means no exclusion.
+   */
   static Instant cutoff(final ExperimentationOptOutMode mode, final EvaluationContext context) {
     if ((mode != ExperimentationOptOutMode.IMMEDIATE
-            && mode != ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY)
+        && mode != ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY)
         || !context.keySet().contains(ATTRIBUTE)) {
       return null;
     }
@@ -62,14 +72,18 @@ public final class ExperimentationOptOut {
     throw new InvalidTimestampException();
   }
 
-  /** Distinguishes invalid subject input from exceptions thrown by a context implementation. */
+  /**
+   * Distinguishes invalid subject input from exceptions thrown by a context implementation.
+   */
   static final class InvalidTimestampException extends IllegalArgumentException {
     InvalidTimestampException() {
       super(INVALID_TIMESTAMP);
     }
   }
 
-  /** Checks prepared activation states before selecting an allocation. */
+  /**
+   * Checks prepared activation states before selecting an allocation.
+   */
   static boolean hasInvalidActivation(final List<Allocation> allocations) {
     if (allocations == null) {
       return false;
@@ -82,9 +96,14 @@ public final class ExperimentationOptOut {
     return false;
   }
 
-  /** Excludes before targeting; unknown activation does not qualify as older. */
+  /**
+   * Excludes before targeting; unknown activation does not qualify as older.
+   */
   static boolean excludes(
-      final ExperimentationOptOutMode mode, final Instant cutoff, final Allocation allocation) {
+      final ExperimentationOptOutMode mode,
+      final Instant cutoff,
+      final Allocation allocation
+  ) {
     if (cutoff == null) {
       return false;
     }

@@ -54,13 +54,13 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 public class TagProjectionBenchmark {
   static final int TYPES = 8;
-
   @Param({"mono", "mega"})
   String mode;
-
   private boolean mono;
 
-  /** Light DCE-safe stand-in for the span — identical trivial work per set across all arms. */
+  /**
+   * Light DCE-safe stand-in for the span — identical trivial work per set across all arms.
+   */
   static final class Sink {
     long acc;
 
@@ -69,7 +69,9 @@ public class TagProjectionBenchmark {
     }
   }
 
-  /** The typed source whose fields are projected (a stand-in for DbInfo). */
+  /**
+   * The typed source whose fields are projected (a stand-in for DbInfo).
+   */
   static final class DbPojo {
     final String dbType, dbUser, dbInstance, dbHostname;
 
@@ -95,13 +97,21 @@ public class TagProjectionBenchmark {
     // shared base: calls the abstract template methods -> megamorphic when many subclasses loaded
     final void onConnection(Sink sink, DbPojo p) {
       String type = dbType(p);
-      if (type != null) sink.set("db.type", type);
+      if (type != null) {
+        sink.set("db.type", type);
+      }
       String user = dbUser(p);
-      if (user != null) sink.set("db.user", user);
+      if (user != null) {
+        sink.set("db.user", user);
+      }
       String instance = dbInstance(p);
-      if (instance != null) sink.set("db.instance", instance);
+      if (instance != null) {
+        sink.set("db.instance", instance);
+      }
       String host = dbHostname(p);
-      if (host != null) sink.set("peer.hostname", host);
+      if (host != null) {
+        sink.set("peer.hostname", host);
+      }
     }
   }
 
@@ -319,10 +329,18 @@ public class TagProjectionBenchmark {
 
   // the actual projection, shared so all extractor variants do identical work
   private static void extract(DbPojo p, Sink sink) {
-    if (p.dbType != null) sink.set("db.type", p.dbType);
-    if (p.dbUser != null) sink.set("db.user", p.dbUser);
-    if (p.dbInstance != null) sink.set("db.instance", p.dbInstance);
-    if (p.dbHostname != null) sink.set("peer.hostname", p.dbHostname);
+    if (p.dbType != null) {
+      sink.set("db.type", p.dbType);
+    }
+    if (p.dbUser != null) {
+      sink.set("db.user", p.dbUser);
+    }
+    if (p.dbInstance != null) {
+      sink.set("db.instance", p.dbInstance);
+    }
+    if (p.dbHostname != null) {
+      sink.set("peer.hostname", p.dbHostname);
+    }
   }
 
   private static Contributor newContributor(DbPojo p, int i) {
@@ -352,9 +370,13 @@ public class TagProjectionBenchmark {
 
   // mono: always index 0 (one type at the site). mega: rotate -> the site sees all TYPES.
   private int next() {
-    if (this.mono) return 0;
+    if (this.mono) {
+      return 0;
+    }
     int i = this.idx + 1;
-    if (i >= TYPES) i = 0;
+    if (i >= TYPES) {
+      i = 0;
+    }
     this.idx = i;
     return i;
   }

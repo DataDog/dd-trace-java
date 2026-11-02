@@ -2,7 +2,6 @@ package datadog.context;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -45,9 +44,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
 public class ContextManagerBenchmark {
-
   // ── Constants ──────────────────────────────────────────────────────────────
-
   // Reflective access to Thread.ofVirtual().factory() (Java 21+).
   // Used to create fixed-size pools of virtual threads so no new VT is spawned per task.
   // Falls back to platform threads on older JVMs — the benchmark still runs, but
@@ -80,9 +77,7 @@ public class ContextManagerBenchmark {
   static final int CONTEXT_COUNT = 16;
   // virtual threads spawned per continuation fan-out
   static final int FAN_OUT = 8;
-
   // ── Parameters ─────────────────────────────────────────────────────────────
-
   /**
    * Which {@link ContextManager} implementation to benchmark.
    *
@@ -92,9 +87,7 @@ public class ContextManagerBenchmark {
    */
   @Param({"ThreadLocal", "Continuable"})
   public String managerType;
-
   // ── Benchmark-scoped shared state ─────────────────────────────────────────
-
   ContextManager manager;
   // CONTEXT_COUNT distinct non-root contexts; threads cycle through them to
   // avoid artificial same-context hits in benchmarks that don't want them
@@ -146,7 +139,6 @@ public class ContextManagerBenchmark {
   }
 
   // ── Per-thread state ───────────────────────────────────────────────────────
-
   @State(Scope.Thread)
   public static class ThreadState {
     int index;
@@ -180,7 +172,6 @@ public class ContextManagerBenchmark {
   }
 
   // ── Thread state with a pre-attached context (for read benchmarks) ─────────
-
   /**
    * Attaches a context once per trial so that {@link #current} and {@link #currentAndGet} measure
    * only the read path, not the attach overhead.
@@ -201,8 +192,9 @@ public class ContextManagerBenchmark {
   }
 
   // ── Scenario 1: attach a different context, close scope ───────────────────
-
-  /** Attach one distinct context then close its scope. The hot path for most instrumentations. */
+  /**
+   * Attach one distinct context then close its scope. The hot path for most instrumentations.
+   */
   @Benchmark
   public void attachAndClose(ThreadState thread) {
     Context ctx = thread.nextContext(contexts);
@@ -212,7 +204,6 @@ public class ContextManagerBenchmark {
   }
 
   // ── Scenario 2: nested attach of two different contexts ───────────────────
-
   /**
    * Attach two distinct contexts in sequence and close both. Exercises the stack push/pop cycle
    * that occurs at every instrumented method boundary.
@@ -229,7 +220,6 @@ public class ContextManagerBenchmark {
   }
 
   // ── Scenario 3: swap different contexts ───────────────────────────────────
-
   /**
    * Swap in a new context then swap back the previous one. {@link
    * ContinuableScopeManager#swap(Context)} replaces the entire scope stack, making this a heavier
@@ -248,7 +238,6 @@ public class ContextManagerBenchmark {
   }
 
   // ── Scenario 4: capture + same-thread resume (continuation baseline) ───────
-
   /**
    * Capture the current context as a continuation and immediately resume it on the same thread.
    * Establishes the allocation and atomic-counter cost of the continuation mechanism without any
@@ -266,7 +255,6 @@ public class ContextManagerBenchmark {
   }
 
   // ── Scenario 5: capture, resume on a platform thread ─────────────────────
-
   /**
    * Capture the current context as a continuation and resume it on a pooled platform thread.
    * Measures cross-thread handoff latency (submit + schedule + execute) for each manager.
@@ -280,7 +268,6 @@ public class ContextManagerBenchmark {
   }
 
   // ── Scenario 6: capture, resume on a virtual thread ──────────────────────
-
   /**
    * Capture the current context as a continuation and resume it on a fixed-pool virtual thread.
    * Shows how well each manager scales when continuations are used for structured concurrency or
@@ -297,19 +284,17 @@ public class ContextManagerBenchmark {
     Context ctx = thread.nextContext(contexts);
     try (ContextScope scope = manager.attach(ctx)) {
       ContextContinuation cont = manager.capture(ctx);
-      CompletableFuture.runAsync(
-              () -> {
-                try (ContextScope resumed = cont.resume()) {
-                  // context propagated to executor thread
-                }
-              },
-              executor)
-          .get(10, SECONDS);
+      CompletableFuture
+        .runAsync(() -> {
+          try (ContextScope resumed = cont.resume()) {
+            // context propagated to executor thread
+          }
+        }, executor)
+        .get(10, SECONDS);
     }
   }
 
   // ── Scenario 7: fan-out — one held continuation resumed on N virtual threads
-
   /**
    * Capture one context, hold the continuation, then fan it out to {@value #FAN_OUT} virtual
    * threads concurrently. Each virtual thread resumes the same continuation and closes its scope;
@@ -334,14 +319,13 @@ public class ContextManagerBenchmark {
       ContextContinuation cont = manager.capture(ctx).hold();
       Semaphore barrier = thread.fanOutBarrier;
       for (int i = 0; i < FAN_OUT; i++) {
-        thread.virtualExecutor.execute(
-            () -> {
-              try (ContextScope resumed = cont.resume()) {
-                // each virtual thread sees the same captured context
-              } finally {
-                barrier.release();
-              }
-            });
+        thread.virtualExecutor.execute(() -> {
+          try (ContextScope resumed = cont.resume()) {
+            // each virtual thread sees the same captured context
+          } finally {
+            barrier.release();
+          }
+        });
       }
       try {
         if (!barrier.tryAcquire(FAN_OUT, 10, SECONDS)) {
@@ -354,7 +338,6 @@ public class ContextManagerBenchmark {
   }
 
   // ── Scenario 8: read the current context ─────────────────────────────────
-
   /**
    * Returns the currently active context. The most frequent operation in any traced application —
    * called at every instrumented method boundary before reading a span or key.
@@ -365,7 +348,6 @@ public class ContextManagerBenchmark {
   }
 
   // ── Scenario 9: read a value from the current context ────────────────────
-
   /**
    * Returns a value from the currently active context. The full "read active span" path that
    * instrumentation executes at every traced method boundary.

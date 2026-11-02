@@ -14,13 +14,14 @@ public class JoinGroupAdvice {
       @Advice.This ConsumerCoordinator coordinator,
       @Advice.Argument(0) final int generationId,
       @Advice.Argument(1) final String memberId,
-      @Advice.Argument(2) final String memberProtocol) {
+      @Advice.Argument(2) final String memberProtocol
+  ) {
     if (memberId == null || memberId.isEmpty()) {
       return;
     }
-    KafkaConsumerInfo kafkaConsumerInfo =
-        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-            .get(coordinator);
+    KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext
+      .get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+      .get(coordinator);
     if (kafkaConsumerInfo == null) {
       return;
     }
@@ -37,7 +38,12 @@ public class JoinGroupAdvice {
       clusterId = metadataState != null ? metadataState.clusterId : null;
     }
     if (KafkaConfigHelper.reportConsumerGroupMember(
-        clusterId, consumerGroup, memberId, generationId, memberProtocol)) {
+        clusterId,
+        consumerGroup,
+        memberId,
+        generationId,
+        memberProtocol
+    )) {
       kafkaConsumerInfo.setLastReportedMembership(memberId, generationId);
     }
   }

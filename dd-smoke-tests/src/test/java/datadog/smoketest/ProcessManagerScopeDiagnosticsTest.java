@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.condition.OS.LINUX;
 import static org.junit.jupiter.api.condition.OS.MAC;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -27,34 +26,37 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ProcessManagerScopeDiagnosticsTest {
-  private final ProcessManager manager =
-      new ProcessManager() {
-        @Override
-        protected void setupTracesConsumer() {}
-      };
+  private final ProcessManager manager = new ProcessManager() {
+    @Override
+    protected void setupTracesConsumer() {}
+  };
 
   @Test
   void replacesCommandPlaceholderWithoutChangingAgentOrder() {
     String argument = "-javaagent:/work space/diagnostics.jar=/report space/control";
-    ProcessBuilder builder =
-        new ProcessBuilder(
-            "java", "-javaagent:tracer.jar", ProcessManager.SCOPE_DIAGNOSTICS_ARGUMENT, "App");
+    ProcessBuilder builder = new ProcessBuilder(
+        "java",
+        "-javaagent:tracer.jar",
+        ProcessManager.SCOPE_DIAGNOSTICS_ARGUMENT,
+        "App"
+    );
 
     assertTrue(manager.replaceScopeDiagnosticsArgument(builder, argument));
-    assertEquals(
-        Arrays.asList("java", "-javaagent:tracer.jar", argument, "App"), builder.command());
+    assertEquals(Arrays.asList("java", "-javaagent:tracer.jar", argument, "App"), builder.command());
   }
 
   @Test
   void replacesEnvironmentPlaceholder() {
     ProcessBuilder builder = new ProcessBuilder("launcher");
     builder
-        .environment()
-        .put("JAVA_OPTS", "-javaagent:tracer.jar " + ProcessManager.SCOPE_DIAGNOSTICS_ARGUMENT);
+      .environment()
+      .put("JAVA_OPTS", "-javaagent:tracer.jar " + ProcessManager.SCOPE_DIAGNOSTICS_ARGUMENT);
 
     assertTrue(manager.replaceScopeDiagnosticsArgument(builder, "-javaagent:diagnostics.jar"));
     assertEquals(
-        "-javaagent:tracer.jar -javaagent:diagnostics.jar", builder.environment().get("JAVA_OPTS"));
+        "-javaagent:tracer.jar -javaagent:diagnostics.jar",
+        builder.environment().get("JAVA_OPTS")
+    );
   }
 
   @ParameterizedTest
@@ -62,16 +64,19 @@ class ProcessManagerScopeDiagnosticsTest {
   @EnabledOnOs({LINUX, MAC})
   void preservesPathsWithSpacesWhenLauncherEvaluatesOptions(String variable) throws Exception {
     String argument = "-javaagent:/work space/diagnostics.jar=/report space/control";
-    ProcessBuilder builder =
-        new ProcessBuilder(
-            "/bin/sh", "-c", "eval \"set -- $" + variable + "\"; printf '%s\\n' \"$@\"");
+    ProcessBuilder builder = new ProcessBuilder(
+        "/bin/sh",
+        "-c",
+        "eval \"set -- $" + variable + "\"; printf '%s\\n' \"$@\""
+    );
     builder
-        .environment()
-        .put(
-            variable,
-            "-javaagent:/work\\ space/tracer.jar "
-                + ProcessManager.SCOPE_DIAGNOSTICS_ARGUMENT
-                + " -Dtest.option=after");
+      .environment()
+      .put(
+          variable,
+          "-javaagent:/work\\ space/tracer.jar "
+          + ProcessManager.SCOPE_DIAGNOSTICS_ARGUMENT
+          + " -Dtest.option=after"
+      );
 
     assertTrue(manager.replaceScopeDiagnosticsArgument(builder, argument));
     Process process = builder.start();
@@ -83,7 +88,8 @@ class ProcessManagerScopeDiagnosticsTest {
         List<String> arguments = output.lines().collect(toList());
         assertEquals(
             Arrays.asList("-javaagent:/work space/tracer.jar", argument, "-Dtest.option=after"),
-            arguments);
+            arguments
+        );
       }
     } finally {
       process.destroyForcibly();
@@ -122,16 +128,15 @@ class ProcessManagerScopeDiagnosticsTest {
   @Test
   @EnabledOnOs({LINUX, MAC})
   void batchApplicationCanOptIntoEarlyExit() throws Exception {
-    ProcessManager batch =
-        new ProcessManager() {
-          @Override
-          protected void setupTracesConsumer() {}
+    ProcessManager batch = new ProcessManager() {
+      @Override
+      protected void setupTracesConsumer() {}
 
-          @Override
-          protected boolean expectsProcessAliveBeforeEachTest() {
-            return false;
-          }
-        };
+      @Override
+      protected boolean expectsProcessAliveBeforeEachTest() {
+        return false;
+      }
+    };
     Process exited = new ProcessBuilder("/bin/sh", "-c", "exit 0").start();
     assertTrue(exited.waitFor(10, SECONDS));
     assertDoesNotThrow(() -> batch.assertProcessAvailable(exited));
@@ -149,14 +154,19 @@ class ProcessManagerScopeDiagnosticsTest {
       Files.write(
           options,
           Arrays.asList(
-              "-javaagent:tracer.jar", ProcessManager.SCOPE_DIAGNOSTICS_ARGUMENT, "-Dtest=after"));
+              "-javaagent:tracer.jar",
+              ProcessManager.SCOPE_DIAGNOSTICS_ARGUMENT,
+              "-Dtest=after"
+          )
+      );
     }
     String argument = "-javaagent:/work space/diagnostics.jar=/report space/control";
     assertTrue(manager.replaceScopeDiagnosticsArgumentInJar(jar, argument));
     try (java.nio.file.FileSystem fs = FileSystems.newFileSystem(uri, Collections.emptyMap())) {
       assertEquals(
           Arrays.asList("-javaagent:tracer.jar", argument, "-Dtest=after"),
-          Files.readAllLines(fs.getPath("wlp", "usr", "servers", "defaultServer", "jvm.options")));
+          Files.readAllLines(fs.getPath("wlp", "usr", "servers", "defaultServer", "jvm.options"))
+      );
     }
     assertFalse(manager.replaceScopeDiagnosticsArgumentInJar(jar, argument));
   }

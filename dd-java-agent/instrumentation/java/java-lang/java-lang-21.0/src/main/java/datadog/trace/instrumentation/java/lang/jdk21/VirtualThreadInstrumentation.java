@@ -12,7 +12,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
@@ -63,18 +62,18 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
 @AutoService(InstrumenterModule.class)
 public final class VirtualThreadInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        ExcludeFilterProvider {
-
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider
+{
   /**
    * Preloads mount/unmount helpers to avoid class loading during a JVMTI mount transition. Class
    * loading can wait for that same transition to finish, or pin carriers in synchronized jar I/O.
    */
   private static final String[] PRELOAD_CLASS_NAMES = {
-    VIRTUAL_THREAD_STATE_CLASS_NAME,
-    "datadog.trace.core.scopemanager.ScopeContext",
-    "datadog.trace.core.scopemanager.ScopeStack"
+      VIRTUAL_THREAD_STATE_CLASS_NAME,
+      "datadog.trace.core.scopemanager.ScopeContext",
+      "datadog.trace.core.scopemanager.ScopeStack"
   };
 
   public VirtualThreadInstrumentation() {
@@ -110,33 +109,39 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor()
-            .and(takesArguments(Executor.class, String.class, int.class, Runnable.class)),
-        getClass().getName() + "$Construct");
+        isConstructor().and(takesArguments(Executor.class, String.class, int.class, Runnable.class)),
+        getClass().getName() + "$Construct"
+    );
     // JDK 22+ enters run(Runnable) after the first mount with the virtual thread current. JDK 21
     // update releases differ, so they retain context swaps on every mount and unmount.
     if (JavaVirtualMachine.isJavaVersionAtLeast(22)) {
       transformer.applyAdvice(
           isMethod().and(named("run")).and(takesArguments(Runnable.class)).and(returns(void.class)),
-          getClass().getName() + "$Run");
+          getClass().getName() + "$Run"
+      );
     }
     transformer.applyAdvice(isMethod().and(named("mount")), getClass().getName() + "$Mount");
     transformer.applyAdvice(isMethod().and(named("unmount")), getClass().getName() + "$Unmount");
     transformer.applyAdvice(
         isMethod().and(named("afterDone")).and(takesArguments(boolean.class)),
-        getClass().getName() + "$AfterDone");
+        getClass().getName() + "$AfterDone"
+    );
     transformer.applyAdvice(
         isMethod().and(named("afterTerminate")).and(takesArguments(boolean.class, boolean.class)),
-        getClass().getName() + "$AfterDone");
+        getClass().getName() + "$AfterDone"
+    );
   }
 
   public static final class Construct {
     @OnMethodExit(suppress = Throwable.class)
     public static void afterInit(
-        @Advice.This Object virtualThread, @Advice.Argument(3) Runnable task) {
+        @Advice.This Object virtualThread,
+        @Advice.Argument(3) Runnable task
+    ) {
       Context context = currentContext();
       if (context == rootContext()) {
-        return; // No active context to propagate, avoid creating state
+        // No active context to propagate, avoid creating state
+        return;
       }
       if (!VirtualThreadState.shouldPropagateContext(task)) {
         return;
@@ -152,7 +157,8 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
     @OnMethodEnter(suppress = Throwable.class)
     public static void onRun(
         @Advice.This Object virtualThread,
-        @Advice.Local("virtualThreadState") VirtualThreadState state) {
+        @Advice.Local("virtualThreadState") VirtualThreadState state
+    ) {
       if (!VirtualThreadState.usePerMountContext()) {
         ContextStore<Object, VirtualThreadState> store =
             InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);

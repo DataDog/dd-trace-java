@@ -3,7 +3,6 @@ package datadog.metrics.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -15,7 +14,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 class AccumulatorTest {
-
   enum Counters {
     FOO,
     BAR,
@@ -79,19 +77,18 @@ class AccumulatorTest {
     CountDownLatch done = new CountDownLatch(threadCount);
     try {
       for (int t = 0; t < threadCount; t++) {
-        pool.execute(
-            () -> {
-              try {
-                start.await();
-                for (int i = 0; i < incrementsPerThread; i++) {
-                  counters.inc(Counters.FOO);
-                }
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              } finally {
-                done.countDown();
-              }
-            });
+        pool.execute(() -> {
+          try {
+            start.await();
+            for (int i = 0; i < incrementsPerThread; i++) {
+              counters.inc(Counters.FOO);
+            }
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          } finally {
+            done.countDown();
+          }
+        });
       }
       start.countDown();
       assertTrue(done.await(30, TimeUnit.SECONDS));
@@ -105,7 +102,9 @@ class AccumulatorTest {
 
   @Test
   void concurrentAccumulateAndDuringWritesNeverExceedsWritten()
-      throws InterruptedException, ExecutionException, TimeoutException {
+      throws InterruptedException,
+      ExecutionException,
+      TimeoutException {
     Accumulator<Counters> counters = Accumulator.of(Counters.class);
     int threadCount = 8;
     int incrementsPerThread = 5_000;
@@ -116,25 +115,22 @@ class AccumulatorTest {
     long[] runningTotal = {0L};
 
     try {
-      Future<?> drainer =
-          pool.submit(
-              () -> {
-                while (!stop.get()) {
-                  Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-                  synchronized (runningTotal) {
-                    runningTotal[0] += drained.get(Counters.FOO);
-                  }
-                }
-              });
+      Future<?> drainer = pool.submit(() -> {
+        while (!stop.get()) {
+          Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+          synchronized (runningTotal) {
+            runningTotal[0] += drained.get(Counters.FOO);
+          }
+        }
+      });
 
       for (int t = 0; t < threadCount; t++) {
-        pool.execute(
-            () -> {
-              for (int i = 0; i < incrementsPerThread; i++) {
-                counters.inc(Counters.FOO);
-              }
-              done.countDown();
-            });
+        pool.execute(() -> {
+          for (int i = 0; i < incrementsPerThread; i++) {
+            counters.inc(Counters.FOO);
+          }
+          done.countDown();
+        });
       }
 
       assertTrue(done.await(30, TimeUnit.SECONDS));
@@ -159,11 +155,9 @@ class AccumulatorTest {
 
     Accumulator.Counts<Counters> first = counters.sum();
     assertEquals(1L, first.get(Counters.FOO));
-
     // sum() didn't reset anything, so a second sum() sees the same total
     Accumulator.Counts<Counters> second = counters.sum();
     assertEquals(1L, second.get(Counters.FOO));
-
     // and a real drain afterwards still sees the value sum() didn't consume
     Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
     assertEquals(1L, drained.get(Counters.FOO));
@@ -221,17 +215,14 @@ class AccumulatorTest {
     Accumulator<Counters> counters = Accumulator.of(Counters.class);
     counters.inc(Counters.FOO);
     counters.add(Counters.BAR, 5L);
-
     // drain once, e.g. as if a reporting cycle already ran and stored this total
     Accumulator.Counts<Counters> storedTotal = counters.accumulateAndReset();
-
     // more activity happens after that drain, before the next one
     counters.inc(Counters.FOO);
 
     Accumulator.Counts<Counters> live = storedTotal.plus(counters.sum());
     assertEquals(2L, live.get(Counters.FOO));
     assertEquals(5L, live.get(Counters.BAR));
-
     // neither input was mutated by combining them
     assertEquals(1L, storedTotal.get(Counters.FOO));
     assertEquals(1L, counters.sum().get(Counters.FOO));
@@ -250,7 +241,6 @@ class AccumulatorTest {
     assertEquals(0L, remaining.get(Counters.FOO));
     assertEquals(4L, remaining.get(Counters.BAR));
     assertEquals(2L, remaining.get(Counters.BAZ));
-
     // the original Counts is untouched by taking a remainder from it
     assertEquals(1L, drained.get(Counters.FOO));
   }

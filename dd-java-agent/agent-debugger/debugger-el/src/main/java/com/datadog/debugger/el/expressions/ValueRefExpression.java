@@ -3,7 +3,6 @@ package com.datadog.debugger.el.expressions;
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 import static com.datadog.debugger.el.expressions.ExpressionHelper.throwRedactedException;
 import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
@@ -15,7 +14,9 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.Objects;
 
-/** An expression taking a reference path and resolving to {@linkplain Value} */
+/**
+ * An expression taking a reference path and resolving to {@linkplain Value}
+ */
 public final class ValueRefExpression implements ValueExpression<Value<?>> {
   private final String symbolName;
 
@@ -45,8 +46,12 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     ValueRefExpression that = (ValueRefExpression) o;
     return Objects.equals(symbolName, that.symbolName);
   }

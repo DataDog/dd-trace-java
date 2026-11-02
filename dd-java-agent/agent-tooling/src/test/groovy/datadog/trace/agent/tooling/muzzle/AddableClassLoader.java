@@ -12,12 +12,12 @@ import java.util.Map;
 import java.util.Set;
 
 public class AddableClassLoader extends SecureClassLoader {
-
   private final Set<String> toDelegate = new HashSet<>();
   private final Map<String, URL> classResources = new HashMap<>();
 
   protected AddableClassLoader(Class<?>... inheritedClasses) {
-    super(null); // delegate to bootstrap
+    // delegate to bootstrap
+    super(null);
     for (Class<?> clazz : inheritedClasses) {
       addDelegateClass(clazz);
     }

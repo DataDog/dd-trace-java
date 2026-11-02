@@ -10,11 +10,12 @@ public class RedisSubscriptionConnectionContextAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterConstruct(
       @Advice.This final Subscription subscription,
-      @Advice.Argument(0) final StatefulConnection connection) {
-    final ContextStore<Subscription, RedisSubscriptionState> store =
-        InstrumentationContext.get(
-            "io.lettuce.core.RedisPublisher$RedisSubscription",
-            "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState");
+      @Advice.Argument(0) final StatefulConnection connection
+  ) {
+    final ContextStore<Subscription, RedisSubscriptionState> store = InstrumentationContext.get(
+        "io.lettuce.core.RedisPublisher$RedisSubscription",
+        "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState"
+    );
     RedisSubscriptionState value = store.get(subscription);
     if (value == null) {
       value = new RedisSubscriptionState();

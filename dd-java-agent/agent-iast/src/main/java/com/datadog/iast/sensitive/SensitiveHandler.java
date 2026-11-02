@@ -9,7 +9,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface SensitiveHandler {
-
   static SensitiveHandler get() {
     return SensitiveHandlerImpl.INSTANCE;
   }
@@ -30,23 +29,20 @@ public interface SensitiveHandler {
   }
 
   interface Tokenizer {
-
     boolean next();
 
     Ranged current();
 
-    Tokenizer EMPTY =
-        new Tokenizer() {
+    Tokenizer EMPTY = new Tokenizer() {
+      @Override
+      public boolean next() {
+        return false;
+      }
 
-          @Override
-          public boolean next() {
-            return false;
-          }
-
-          @Override
-          public Ranged current() {
-            throw new NoSuchElementException("Tokenizer is empty");
-          }
-        };
+      @Override
+      public Ranged current() {
+        throw new NoSuchElementException("Tokenizer is empty");
+      }
+    };
   }
 }

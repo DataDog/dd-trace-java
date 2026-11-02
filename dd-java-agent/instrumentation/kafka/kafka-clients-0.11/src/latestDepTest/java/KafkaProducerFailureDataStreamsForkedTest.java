@@ -1,6 +1,5 @@
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery;
 import datadog.trace.agent.tooling.TracerInstaller;
@@ -46,30 +45,28 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
 class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationTest {
   private static final String OK_TOPIC = "ok.topic";
   private static final String REJECTING_TOPIC = "rejecting.topic";
-
   private static final List<StatsBucket> dataStreamsPayloads = new CopyOnWriteArrayList<>();
-
   private EmbeddedKafkaBroker embeddedKafka;
 
   // AbstractInstrumentationTest has no data streams support, so swap in a tracer whose data
   // streams monitoring records the payloads it flushes.
   @BeforeAll
   static void installDataStreamsTracer() {
-    DefaultDataStreamsMonitoring dataStreamsMonitoring =
-        new DefaultDataStreamsMonitoring(
-            new NoopSink(),
-            new MockFeaturesDiscovery(true),
-            SystemTimeSource.INSTANCE,
-            new DataStreamsEnabledTraceConfig(),
-            (data, serviceNameOverride) -> dataStreamsPayloads.addAll(data),
-            TimeUnit.MILLISECONDS.toNanos(50));
-    CoreTracer coreTracer =
-        CoreTracer.builder()
-            .writer(writer)
-            .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
-            .strictTraceWrites(true)
-            .dataStreamsMonitoring(dataStreamsMonitoring)
-            .build();
+    DefaultDataStreamsMonitoring dataStreamsMonitoring = new DefaultDataStreamsMonitoring(
+        new NoopSink(),
+        new MockFeaturesDiscovery(true),
+        SystemTimeSource.INSTANCE,
+        new DataStreamsEnabledTraceConfig(),
+        (data, serviceNameOverride) -> dataStreamsPayloads.addAll(data),
+        TimeUnit.MILLISECONDS.toNanos(50)
+    );
+    CoreTracer coreTracer = CoreTracer
+      .builder()
+      .writer(writer)
+      .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
+      .strictTraceWrites(true)
+      .dataStreamsMonitoring(dataStreamsMonitoring)
+      .build();
     TracerInstaller.forceInstallGlobalTracer(coreTracer);
     tracer = coreTracer;
   }
@@ -79,9 +76,9 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
     dataStreamsPayloads.clear();
     embeddedKafka = new EmbeddedKafkaBroker(1, true, OK_TOPIC);
     embeddedKafka.afterPropertiesSet();
-    embeddedKafka.addTopics(
-        new NewTopic(REJECTING_TOPIC, 1, (short) 1)
-            .configs(Collections.singletonMap("max.message.bytes", "512")));
+    embeddedKafka.addTopics(new NewTopic(REJECTING_TOPIC, 1, (short) 1)
+      .configs(Collections.singletonMap("max.message.bytes", "512"))
+    );
   }
 
   @AfterEach
@@ -94,36 +91,41 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
   @Test
   void produceRejectedByTheBrokerDoesNotReportAKafkaProduceBacklog() throws Exception {
     try (KafkaProducer<String, String> producer = newProducer(Collections.emptyMap())) {
-      assertThrows(
-          ExecutionException.class,
-          () -> producer.send(new ProducerRecord<>(REJECTING_TOPIC, repeat('x', 2048))).get());
+      assertThrows(ExecutionException.class, () -> producer
+        .send(new ProducerRecord<>(REJECTING_TOPIC, repeat('x', 2048)))
+        .get());
 
       RecordMetadata ok = producer.send(new ProducerRecord<>(OK_TOPIC, "hello")).get();
       waitForProduceBacklog(OK_TOPIC);
 
       assertEquals(
           Collections.singletonList(
-              "topic:" + OK_TOPIC + " partition:" + ok.partition() + " offset:" + ok.offset()),
-          produceBacklogs());
+              "topic:" + OK_TOPIC + " partition:" + ok.partition() + " offset:" + ok.offset()
+          ),
+          produceBacklogs()
+      );
     }
   }
 
   @Test
   void produceRejectedByTheClientDoesNotReportAKafkaProduceBacklog() throws Exception {
     try (KafkaProducer<String, String> failingProducer =
-            newProducer(Collections.singletonMap(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10));
-        KafkaProducer<String, String> producer = newProducer(Collections.emptyMap())) {
-      assertThrows(
-          ExecutionException.class,
-          () -> failingProducer.send(new ProducerRecord<>(REJECTING_TOPIC, "hello")).get());
+        newProducer(Collections.singletonMap(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10));
+        KafkaProducer<String, String> producer = newProducer(Collections.emptyMap())
+    ) {
+      assertThrows(ExecutionException.class, () -> failingProducer
+        .send(new ProducerRecord<>(REJECTING_TOPIC, "hello"))
+        .get());
 
       RecordMetadata ok = producer.send(new ProducerRecord<>(OK_TOPIC, "hello")).get();
       waitForProduceBacklog(OK_TOPIC);
 
       assertEquals(
           Collections.singletonList(
-              "topic:" + OK_TOPIC + " partition:" + ok.partition() + " offset:" + ok.offset()),
-          produceBacklogs());
+              "topic:" + OK_TOPIC + " partition:" + ok.partition() + " offset:" + ok.offset()
+          ),
+          produceBacklogs()
+      );
     }
   }
 
@@ -145,7 +147,8 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
         DataStreamsTags tags = backlog.getKey();
         if (tags.hasAllTags(new String[] {"type:kafka_produce"})) {
           backlogs.add(
-              tags.getTopic() + " " + tags.getPartition() + " offset:" + backlog.getValue());
+              tags.getTopic() + " " + tags.getPartition() + " offset:" + backlog.getValue()
+          );
         }
       }
     }
@@ -183,7 +186,9 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
   }
 
   private static final class DataStreamsEnabledTraceConfig
-      implements TraceConfig, Supplier<TraceConfig> {
+      implements TraceConfig,
+      Supplier<TraceConfig>
+  {
     @Override
     public TraceConfig get() {
       return this;

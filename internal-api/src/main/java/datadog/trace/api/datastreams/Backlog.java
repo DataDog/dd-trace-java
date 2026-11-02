@@ -25,8 +25,7 @@ public class Backlog implements InboxItem {
   private final long timestampNanos;
   private final String serviceNameOverride;
 
-  public Backlog(
-      DataStreamsTags tags, long value, long timestampNanos, String serviceNameOverride) {
+  public Backlog(DataStreamsTags tags, long value, long timestampNanos, String serviceNameOverride) {
     this.tags = tags;
     this.value = value;
     this.timestampNanos = timestampNanos;

@@ -1,7 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.FieldInsnNode;
@@ -19,7 +18,6 @@ import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 public class ByteCodeHelperTest {
-
   @Test
   public void insn() {
     assertEquals(1, ByteCodeHelper.adjustStackUsage(new InsnNode(Opcodes.ACONST_NULL)));
@@ -64,52 +62,75 @@ public class ByteCodeHelperTest {
   @Test
   public void fieldInsn() {
     assertEquals(
-        0, ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.GETFIELD, "", "", "I")));
+        0,
+        ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.GETFIELD, "", "", "I"))
+    );
     assertEquals(
-        1, ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.GETFIELD, "", "", "J")));
+        1,
+        ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.GETFIELD, "", "", "J"))
+    );
     assertEquals(
-        -2, ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.PUTFIELD, "", "", "I")));
+        -2,
+        ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.PUTFIELD, "", "", "I"))
+    );
     assertEquals(
-        -3, ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.PUTFIELD, "", "", "J")));
+        -3,
+        ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.PUTFIELD, "", "", "J"))
+    );
     assertEquals(
-        1, ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.GETSTATIC, "", "", "I")));
+        1,
+        ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.GETSTATIC, "", "", "I"))
+    );
     assertEquals(
-        2, ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.GETSTATIC, "", "", "J")));
+        2,
+        ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.GETSTATIC, "", "", "J"))
+    );
     assertEquals(
-        -1, ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.PUTSTATIC, "", "", "I")));
+        -1,
+        ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.PUTSTATIC, "", "", "I"))
+    );
     assertEquals(
-        -2, ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.PUTSTATIC, "", "", "J")));
+        -2,
+        ByteCodeHelper.adjustStackUsage(new FieldInsnNode(Opcodes.PUTSTATIC, "", "", "J"))
+    );
   }
 
   @Test
   public void methodInsn() {
     assertEquals(
         1,
-        ByteCodeHelper.adjustStackUsage(new MethodInsnNode(Opcodes.INVOKESTATIC, "", "", "()I")));
+        ByteCodeHelper.adjustStackUsage(new MethodInsnNode(Opcodes.INVOKESTATIC, "", "", "()I"))
+    );
     assertEquals(
         2,
-        ByteCodeHelper.adjustStackUsage(new MethodInsnNode(Opcodes.INVOKESTATIC, "", "", "()J")));
+        ByteCodeHelper.adjustStackUsage(new MethodInsnNode(Opcodes.INVOKESTATIC, "", "", "()J"))
+    );
     assertEquals(
         -3,
-        ByteCodeHelper.adjustStackUsage(new MethodInsnNode(Opcodes.INVOKESTATIC, "", "", "(JJ)I")));
+        ByteCodeHelper.adjustStackUsage(new MethodInsnNode(Opcodes.INVOKESTATIC, "", "", "(JJ)I"))
+    );
+    assertEquals(
+        -4,
+        ByteCodeHelper.adjustStackUsage(new MethodInsnNode(Opcodes.INVOKESPECIAL, "", "", "(JJ)I"))
+    );
+    assertEquals(
+        -4,
+        ByteCodeHelper.adjustStackUsage(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "", "", "(JJ)I"))
+    );
     assertEquals(
         -4,
         ByteCodeHelper.adjustStackUsage(
-            new MethodInsnNode(Opcodes.INVOKESPECIAL, "", "", "(JJ)I")));
-    assertEquals(
-        -4,
-        ByteCodeHelper.adjustStackUsage(
-            new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "", "", "(JJ)I")));
-    assertEquals(
-        -4,
-        ByteCodeHelper.adjustStackUsage(
-            new MethodInsnNode(Opcodes.INVOKEINTERFACE, "", "", "(JJ)I")));
+            new MethodInsnNode(Opcodes.INVOKEINTERFACE, "", "", "(JJ)I")
+        )
+    );
   }
 
   @Test
   public void invokeDynamicInsn() {
     assertEquals(
-        -1, ByteCodeHelper.adjustStackUsage(new InvokeDynamicInsnNode("apply", "(J)I", null)));
+        -1,
+        ByteCodeHelper.adjustStackUsage(new InvokeDynamicInsnNode("apply", "(J)I", null))
+    );
   }
 
   @Test

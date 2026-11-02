@@ -1,3 +1,4 @@
 package com.tibco.pe.plugin;
 
-public abstract class Activity extends Component {}
+public abstract class Activity extends Component {
+}

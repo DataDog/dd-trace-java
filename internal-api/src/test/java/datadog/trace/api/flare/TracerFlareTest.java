@@ -10,7 +10,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -25,15 +24,17 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 
 class TracerFlareTest extends DDJavaSpecification {
-
   // give each mock its own type - we use that to disambiguate reporters
-  interface Reporter1 extends TracerFlare.Reporter {}
+  interface Reporter1 extends TracerFlare.Reporter {
+  }
 
-  interface Reporter2 extends TracerFlare.Reporter {}
+  interface Reporter2 extends TracerFlare.Reporter {
+  }
 
   @Test
   void testTracerFlare() throws IOException {
-    TracerFlare.addReporter(zip -> {}); // exercises default methods
+    // exercises default methods
+    TracerFlare.addReporter(zip -> {});
     Reporter1 textReporter = mock(Reporter1.class);
     TracerFlare.addReporter(textReporter);
     Reporter2 binaryReporter = mock(Reporter2.class);
@@ -44,24 +45,24 @@ class TracerFlareTest extends DDJavaSpecification {
     List<String> phases = new ArrayList<>();
     recordPrepareAndCleanup(textReporter, phases);
     recordPrepareAndCleanup(binaryReporter, phases);
-    doAnswer(
-            invocation -> {
-              phases.add("add");
-              ZipOutputStream zos = invocation.getArgument(0);
-              TracerFlare.addText(zos, "test.txt", "example text");
-              throw new IllegalStateException("txt (expected)"); // should not stop flare
-            })
-        .when(textReporter)
-        .addReportToFlare(any());
-    doAnswer(
-            invocation -> {
-              phases.add("add");
-              ZipOutputStream zos = invocation.getArgument(0);
-              TracerFlare.addBinary(zos, "test.bin", binaryContent);
-              throw new IllegalStateException("bin (expected)"); // should not stop flare
-            })
-        .when(binaryReporter)
-        .addReportToFlare(any());
+    doAnswer(invocation -> {
+      phases.add("add");
+      ZipOutputStream zos = invocation.getArgument(0);
+      TracerFlare.addText(zos, "test.txt", "example text");
+      // should not stop flare
+      throw new IllegalStateException("txt (expected)");
+    })
+      .when(textReporter)
+      .addReportToFlare(any());
+    doAnswer(invocation -> {
+      phases.add("add");
+      ZipOutputStream zos = invocation.getArgument(0);
+      TracerFlare.addBinary(zos, "test.bin", binaryContent);
+      // should not stop flare
+      throw new IllegalStateException("bin (expected)");
+    })
+      .when(binaryReporter)
+      .addReportToFlare(any());
 
     Map<String, Object> entries = buildAndExtractZip();
 
@@ -79,7 +80,9 @@ class TracerFlareTest extends DDJavaSpecification {
     assertArrayEquals(binaryContent, (byte[]) entries.get("test.bin"));
     String errors = (String) entries.get("flare_errors.txt");
     assertTrue(
-        errors.matches("(java.lang.IllegalStateException: (bin|txt) \\(expected\\)\n){2}"), errors);
+        errors.matches("(java.lang.IllegalStateException: (bin|txt) \\(expected\\)\n){2}"),
+        errors
+    );
   }
 
   private static void recordPrepareAndCleanup(TracerFlare.Reporter reporter, List<String> phases) {
@@ -109,9 +112,11 @@ class TracerFlareTest extends DDJavaSpecification {
       }
       entries.put(
           entry.getName(),
-          entry.getName().endsWith(".bin")
-              ? bytes.toByteArray()
-              : new String(bytes.toByteArray(), UTF_8));
+          entry.getName().endsWith(".bin") ? bytes.toByteArray() : new String(
+              bytes.toByteArray(),
+              UTF_8
+          )
+      );
     }
 
     return entries;

@@ -9,7 +9,6 @@ import java.net.InetAddress;
 public final class HostNameResolver {
   private static final MethodHandle HOLDER_GET;
   private static final MethodHandle HOSTNAME_GET;
-
   private static final DDCache<String, String> HOSTNAME_CACHE = DDCaches.newFixedSizeCache(64);
 
   static {
@@ -39,7 +38,8 @@ public final class HostNameResolver {
     }
   }
 
-  private HostNameResolver() {}
+  private HostNameResolver() {
+  }
 
   static String getAlreadyResolvedHostName(InetAddress address) {
     if (HOLDER_GET == null) {

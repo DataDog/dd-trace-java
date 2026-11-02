@@ -2,7 +2,6 @@ package com.datadog.iast.taint;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import com.datadog.iast.model.Range;
 import datadog.trace.test.util.CircularBuffer;
 import java.util.ArrayList;
@@ -32,12 +31,9 @@ import org.openjdk.jmh.infra.BenchmarkParams;
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Benchmark)
 public class TaintedMapPutsBenchmark {
-
   private static final int INITIAL_OP_COUNT = 1 << 12;
   private static final int OP_COUNT = 1024;
-
   private static final Range[] EMPTY_RANGES = new Range[0];
-
   private TaintedMap map;
   private List<Object> initialObjectList;
   private GarbageCollectorHandler gcHandler;
@@ -82,7 +78,6 @@ public class TaintedMapPutsBenchmark {
    * they are removed
    */
   private static class GarbageCollectorHandler {
-
     private final Map<Object, TaintedObject> map;
     private final CircularBuffer<Object> alive;
 

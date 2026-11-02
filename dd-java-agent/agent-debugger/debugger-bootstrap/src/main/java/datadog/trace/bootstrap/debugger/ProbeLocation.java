@@ -4,12 +4,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-/** Probe location information used in ProbeDetails class */
+/**
+ * Probe location information used in ProbeDetails class
+ */
 public class ProbeLocation {
   public static final ProbeLocation UNKNOWN =
       new ProbeLocation("UNKNOWN", "UNKNOWN", "UNKNOWN", Collections.emptyList());
-
-  private final String type; // class
+  // class
+  private final String type;
   private final String method;
   private final String file;
   private final List<String> lines;
@@ -39,8 +41,12 @@ public class ProbeLocation {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     ProbeLocation that = (ProbeLocation) o;
     return Objects.equals(type, that.type)
         && Objects.equals(method, that.method)

@@ -2,11 +2,9 @@ package datadog.trace.util;
 
 import static datadog.trace.util.BitUtils.nextPowerOfTwo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.tabletest.junit.TableTest;
 
 class BitUtilsTest {
-
   @TableTest({
     "scenario                  | input      | expected  ",
     "smallest case             | 0          | 1         ",

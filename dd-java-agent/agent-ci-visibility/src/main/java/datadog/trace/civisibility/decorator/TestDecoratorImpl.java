@@ -9,24 +9,25 @@ import datadog.trace.util.Strings;
 import java.util.Map;
 
 public class TestDecoratorImpl implements TestDecorator {
-
   private static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
-
   private final String component;
   private final String sessionName;
   private final Map<String, String> ciTags;
   private final int cpuCount;
 
   public TestDecoratorImpl(
-      String component, String sessionName, String testCommand, Map<String, String> ciTags) {
+      String component,
+      String sessionName,
+      String testCommand,
+      Map<String, String> ciTags
+  ) {
     this.component = component;
     this.ciTags = ciTags;
     if (Strings.isNotBlank(sessionName)) {
       this.sessionName = sessionName;
     } else {
       String ciJobName = ciTags.get(Tags.CI_JOB_NAME);
-      this.sessionName =
-          Strings.isNotBlank(ciJobName) ? ciJobName + "-" + testCommand : testCommand;
+      this.sessionName = Strings.isNotBlank(ciJobName) ? ciJobName + "-" + testCommand : testCommand;
     }
     cpuCount = Runtime.getRuntime().availableProcessors();
   }

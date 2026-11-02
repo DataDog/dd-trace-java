@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springdata.SpringDataDecorator.DECORATOR;
 import static datadog.trace.instrumentation.springdata.SpringDataDecorator.REPOSITORY_OPERATION;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;

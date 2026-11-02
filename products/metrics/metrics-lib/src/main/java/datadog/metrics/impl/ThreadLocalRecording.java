@@ -3,7 +3,6 @@ package datadog.metrics.impl;
 import datadog.metrics.api.Recording;
 
 public class ThreadLocalRecording extends Recording {
-
   private final ThreadLocal<Recording> tls;
 
   public ThreadLocalRecording(ThreadLocal<Recording> tls) {

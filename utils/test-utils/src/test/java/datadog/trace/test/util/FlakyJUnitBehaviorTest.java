@@ -3,7 +3,6 @@ package datadog.trace.test.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
 import static org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder.request;
-
 import org.junit.jupiter.api.Test;
 import org.junit.platform.launcher.Launcher;
 import org.junit.platform.launcher.LauncherDiscoveryRequest;
@@ -33,12 +32,12 @@ class FlakyJUnitBehaviorTest {
 
       LauncherDiscoveryRequest discoveryRequest =
           request().selectors(selectClass(FlakyFixture.class)).build();
-      LauncherConfig launcherConfig =
-          LauncherConfig.builder()
-              .enableLauncherSessionListenerAutoRegistration(false)
-              .enableLauncherDiscoveryListenerAutoRegistration(false)
-              .enableTestExecutionListenerAutoRegistration(false)
-              .build();
+      LauncherConfig launcherConfig = LauncherConfig
+        .builder()
+        .enableLauncherSessionListenerAutoRegistration(false)
+        .enableLauncherDiscoveryListenerAutoRegistration(false)
+        .enableTestExecutionListenerAutoRegistration(false)
+        .build();
       Launcher launcher = LauncherFactory.create(launcherConfig);
       SummaryGeneratingListener listener = new SummaryGeneratingListener();
       launcher.execute(discoveryRequest, listener);
@@ -53,7 +52,11 @@ class FlakyJUnitBehaviorTest {
   }
 
   private static void assertSummary(
-      TestExecutionSummary summary, long found, long succeeded, long skipped) {
+      TestExecutionSummary summary,
+      long found,
+      long succeeded,
+      long skipped
+  ) {
     assertEquals(found, summary.getTestsFoundCount());
     assertEquals(succeeded, summary.getTestsSucceededCount());
     assertEquals(skipped, summary.getTestsSkippedCount());
@@ -74,7 +77,8 @@ class FlakyJUnitBehaviorTest {
   }
 }
 
-class InheritedFlakyCondition extends FlakyCondition {}
+class InheritedFlakyCondition extends FlakyCondition {
+}
 
 class FlakyCondition {
   static boolean isFlaky() {

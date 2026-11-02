@@ -3,7 +3,6 @@ package datadog.trace.plugin.csi.impl;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToDescriptor;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.repeat;
-
 import datadog.trace.plugin.csi.AdvicePointcutParser;
 import datadog.trace.plugin.csi.HasErrors;
 import datadog.trace.plugin.csi.HasErrors.Failure;
@@ -22,7 +21,6 @@ import org.objectweb.asm.Type;
  * {@link MethodType} of the pointcut
  */
 public class RegexpAdvicePointcutParser implements AdvicePointcutParser {
-
   private static final Pattern ADVICE_SIGNATURE_PATTERN =
       Pattern.compile("^(?<return>\\S*)\\s+(?<type>\\S*)\\.(?<method>\\S*)\\s*\\((?<args>.*)\\)$");
   private static final char ARRAY_DESCRIPTOR = '[';
@@ -47,7 +45,8 @@ public class RegexpAdvicePointcutParser implements AdvicePointcutParser {
     if (!matcher.matches()) {
       final String pattern = ADVICE_SIGNATURE_PATTERN.pattern();
       throw new SignatureParsingError(
-          new Failure(ErrorCode.POINTCUT_SIGNATURE_INVALID, signature, pattern));
+          new Failure(ErrorCode.POINTCUT_SIGNATURE_INVALID, signature, pattern)
+      );
     }
     final HasErrors errors = new HasErrorsImpl();
     final Type target = parseTarget(signature, matcher, errors);
@@ -64,7 +63,8 @@ public class RegexpAdvicePointcutParser implements AdvicePointcutParser {
   private static Type parseTarget(
       @Nonnull final String signature,
       @Nonnull final Matcher matcher,
-      @Nonnull final HasErrors errors) {
+      @Nonnull final HasErrors errors
+  ) {
     final String typeName = matcher.group("type");
     try {
       return parseType(typeName);
@@ -77,7 +77,8 @@ public class RegexpAdvicePointcutParser implements AdvicePointcutParser {
   private static Type parseReturn(
       @Nonnull final String signature,
       @Nonnull final Matcher matcher,
-      @Nonnull final HasErrors errors) {
+      @Nonnull final HasErrors errors
+  ) {
     final String returnTypeName = matcher.group("return").trim();
     try {
       return parseType(returnTypeName);
@@ -90,7 +91,8 @@ public class RegexpAdvicePointcutParser implements AdvicePointcutParser {
   private static Type[] parseArguments(
       @Nonnull final String signature,
       @Nonnull final Matcher matcher,
-      @Nonnull final HasErrors errors) {
+      @Nonnull final HasErrors errors
+  ) {
     final String argsGroup = matcher.group("args");
     final String names = argsGroup == null ? "" : argsGroup.trim();
     if (names.isEmpty()) {
@@ -117,16 +119,14 @@ public class RegexpAdvicePointcutParser implements AdvicePointcutParser {
     if (startOfArray >= 0) {
       final Type arrayType = parseType(name.substring(0, startOfArray));
       String arrayDeclaration = name.substring(startOfArray);
-      int dimension =
-          (int)
-              arrayDeclaration
-                  .chars()
-                  .filter(it -> it == ARRAY_DESCRIPTOR)
-                  .count(); // assumes array notation is well-formed
-      String elementType =
-          arrayType.getSort() == Type.OBJECT
-              ? classNameToDescriptor(arrayType.getClassName())
-              : arrayType.getInternalName();
+      int dimension = (int) arrayDeclaration
+        .chars()
+        .filter(it -> it == ARRAY_DESCRIPTOR)
+        // assumes array notation is well-formed
+        .count();
+      String elementType = arrayType.getSort() == Type.OBJECT
+          ? classNameToDescriptor(arrayType.getClassName())
+          : arrayType.getInternalName();
       return Type.getType(repeat(ARRAY_DESCRIPTOR, dimension) + elementType);
     }
     return classNameOrPrimitiveToType(name);

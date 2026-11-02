@@ -4,7 +4,9 @@ import com.datadog.debugger.el.Literal;
 import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 
-/** A string {@linkplain com.datadog.debugger.el.Value} */
+/**
+ * A string {@linkplain com.datadog.debugger.el.Value}
+ */
 public final class StringValue extends Literal<String> {
   public StringValue(String value) {
     super(value, ValueType.OBJECT);

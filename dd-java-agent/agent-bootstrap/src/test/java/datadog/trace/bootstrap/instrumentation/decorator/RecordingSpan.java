@@ -25,7 +25,6 @@ import java.util.Map;
 final class RecordingSpan extends ImmutableSpan {
   private final RecordingSpanContext context = new RecordingSpanContext();
   private final Map<String, String> tags = new LinkedHashMap<>();
-
   private CharSequence spanType;
   private String serviceName;
   private CharSequence serviceNameSource;
@@ -35,7 +34,6 @@ final class RecordingSpan extends ImmutableSpan {
   private TagMap.EntryReader metric;
 
   // ----- recorded mutators -----
-
   @Override
   public AgentSpan setSpanType(CharSequence type) {
     this.spanType = type;
@@ -48,8 +46,7 @@ final class RecordingSpan extends ImmutableSpan {
       return this;
     }
     if (map instanceof TagMap) {
-      ((TagMap) map)
-          .forEach(reader -> tags.put(reader.tag(), String.valueOf(reader.objectValue())));
+      ((TagMap) map).forEach(reader -> tags.put(reader.tag(), String.valueOf(reader.objectValue())));
     } else {
       for (Map.Entry<String, ?> entry : map.entrySet()) {
         tags.put(entry.getKey(), String.valueOf(entry.getValue()));
@@ -110,7 +107,6 @@ final class RecordingSpan extends ImmutableSpan {
   }
 
   // ----- recorded state accessors -----
-
   CharSequence recordedSpanType() {
     return spanType;
   }
@@ -148,7 +144,6 @@ final class RecordingSpan extends ImmutableSpan {
   }
 
   // ----- inert reads (mirror NoopSpan) -----
-
   @Override
   public DDTraceId getTraceId() {
     return DDTraceId.ZERO;

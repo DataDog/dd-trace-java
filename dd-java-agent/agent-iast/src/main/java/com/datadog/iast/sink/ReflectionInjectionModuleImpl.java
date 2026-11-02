@@ -1,7 +1,6 @@
 package com.datadog.iast.sink;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
-
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.VulnerabilityType;
@@ -11,8 +10,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class ReflectionInjectionModuleImpl extends SinkModuleBase
-    implements ReflectionInjectionModule {
-
+    implements ReflectionInjectionModule
+{
   public ReflectionInjectionModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
@@ -27,14 +26,18 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
 
   @Override
   public void onMethodName(
-      @Nonnull Class<?> clazz, @Nonnull String methodName, @Nullable Class<?>... parameterTypes) {
+      @Nonnull Class<?> clazz,
+      @Nonnull String methodName,
+      @Nullable Class<?>... parameterTypes
+  ) {
     if (!canBeTainted(methodName)) {
       return;
     }
     checkInjection(
         VulnerabilityType.REFLECTION_INJECTION,
         methodName,
-        new MethodEvidenceBuilder(clazz, parameterTypes));
+        new MethodEvidenceBuilder(clazz, parameterTypes)
+    );
   }
 
   @Override
@@ -43,13 +46,16 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
       return;
     }
     checkInjection(
-        VulnerabilityType.REFLECTION_INJECTION, fieldName, new FieldEvidenceBuilder(clazz));
+        VulnerabilityType.REFLECTION_INJECTION,
+        fieldName,
+        new FieldEvidenceBuilder(clazz)
+    );
   }
 
   private static class MethodEvidenceBuilder implements EvidenceBuilder {
-
     private final Class<?> clazz;
-    @Nullable private final Class<?>[] parameterTypes;
+    @Nullable
+    private final Class<?>[] parameterTypes;
 
     private MethodEvidenceBuilder(final Class<?> clazz, @Nullable final Class<?>[] parameterTypes) {
       this.clazz = clazz;
@@ -61,7 +67,8 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
         final StringBuilder evidence,
         final RangeBuilder ranges,
         final Object value,
-        final Range[] valueRanges) {
+        final Range[] valueRanges
+    ) {
       final String className = clazz.getName();
       evidence.append(className).append('#').append(value).append('(');
       if (parameterTypes != null) {
@@ -79,7 +86,6 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
   }
 
   private static class FieldEvidenceBuilder implements EvidenceBuilder {
-
     private final Class<?> clazz;
 
     private FieldEvidenceBuilder(final Class<?> clazz) {
@@ -91,7 +97,8 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
         final StringBuilder evidence,
         final RangeBuilder ranges,
         final Object value,
-        final Range[] valueRanges) {
+        final Range[] valueRanges
+    ) {
       final String className = clazz.getName();
       evidence.append(className).append('#').append(value);
       ranges.add(valueRanges, className.length() + 1);

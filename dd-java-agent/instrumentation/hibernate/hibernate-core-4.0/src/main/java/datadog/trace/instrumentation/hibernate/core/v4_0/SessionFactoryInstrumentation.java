@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.hibernate.HibernateDecorator.HIBERNA
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -20,7 +19,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.SharedSessionContract;
 
 public final class SessionFactoryInstrumentation extends AbstractHibernateInstrumentation {
-
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {"org.hibernate.internal.SessionFactoryImpl"};
@@ -40,17 +38,16 @@ public final class SessionFactoryInstrumentation extends AbstractHibernateInstru
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("openSession", "openStatelessSession"))
-            .and(takesArguments(0))
-            .and(returns(namedOneOf("org.hibernate.Session", "org.hibernate.StatelessSession"))),
-        SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice");
+          .and(namedOneOf("openSession", "openStatelessSession"))
+          .and(takesArguments(0))
+          .and(returns(namedOneOf("org.hibernate.Session", "org.hibernate.StatelessSession"))),
+        SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice"
+    );
   }
 
   public static class SessionFactoryAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void openSession(@Advice.Return final SharedSessionContract session) {
-
       final AgentSpan span = startSpan("java-hibernate", HIBERNATE_SESSION);
       DECORATOR.afterStart(span);
       DECORATOR.onConnection(span, session);

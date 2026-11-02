@@ -4,7 +4,9 @@ import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import javax.annotation.Nullable;
 
-/** Reflects flag evaluations onto the agent local root span. */
+/**
+ * Reflects flag evaluations onto the agent local root span.
+ */
 public final class AgentSpanEnricher implements SpanEnricher {
   private final FeatureFlaggingGateway.Backend backend;
 
@@ -13,8 +15,7 @@ public final class AgentSpanEnricher implements SpanEnricher {
   }
 
   @Override
-  public void serialId(
-      final int serialId, final boolean doLog, @Nullable final String targetingKey) {
+  public void serialId(final int serialId, final boolean doLog, @Nullable final String targetingKey) {
     this.backend.enrichSerialId(serialId, doLog, targetingKey);
   }
 

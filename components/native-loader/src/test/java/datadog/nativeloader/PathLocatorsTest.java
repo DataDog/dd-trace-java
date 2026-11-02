@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -40,7 +39,6 @@ public class PathLocatorsTest {
   public void dirBased_diffType_notEquals() {
     PathLocator dirLocator = PathLocators.fromLibDirs("foo1");
     PathLocator otherLocator = (comp, path) -> null;
-
     // be explicit about which equals is being used
     assertFalse(dirLocator.equals(otherLocator));
   }
@@ -100,7 +98,6 @@ public class PathLocatorsTest {
 
     PathLocator locator1 = PathLocators.fromClassLoader(loader, "resource1");
     PathLocator locator2 = (comp, path) -> null;
-
     // be explicit about which equals is being used
     assertFalse(locator1.equals(locator2));
   }

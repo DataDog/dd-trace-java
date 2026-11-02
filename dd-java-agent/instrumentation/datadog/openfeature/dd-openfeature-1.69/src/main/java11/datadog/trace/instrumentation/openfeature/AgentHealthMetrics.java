@@ -4,7 +4,9 @@ import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import javax.annotation.Nullable;
 
-/** Reports the SDK health counters through the agent telemetry. */
+/**
+ * Reports the SDK health counters through the agent telemetry.
+ */
 public final class AgentHealthMetrics implements HealthMetrics {
   private final FeatureFlaggingGateway.Backend backend;
 

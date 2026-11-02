@@ -5,11 +5,8 @@ import java.util.List;
 
 public class SourceMap {
   private final String outputFileName;
-
   private final String defaultStratumName;
-
   private final List<StratumExt> stratumList = new ArrayList<>();
-
   private final List<EmbeddedStratum> embeddedStratumList = new ArrayList<>();
 
   public SourceMap(final String outputFileName, final String defaultStratumName) {

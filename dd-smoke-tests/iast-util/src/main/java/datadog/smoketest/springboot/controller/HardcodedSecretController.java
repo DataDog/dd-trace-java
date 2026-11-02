@@ -1,5 +1,5 @@
+// spotless:off - IAST smoke tests assert the secret's source line number.
 package datadog.smoketest.springboot.controller;
-
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -11,3 +11,4 @@ public class HardcodedSecretController {
     return "AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ";
   }
 }
+// spotless:on

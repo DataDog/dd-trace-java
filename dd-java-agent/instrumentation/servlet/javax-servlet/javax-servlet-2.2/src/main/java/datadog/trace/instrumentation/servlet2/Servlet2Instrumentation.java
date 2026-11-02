@@ -9,7 +9,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,8 +18,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class Servlet2Instrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public Servlet2Instrumentation() {
     super("servlet", "servlet-2");
   }
@@ -47,16 +47,16 @@ public final class Servlet2Instrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("javax.servlet.http.HttpServlet"))
-        .or(implementsInterface(named("javax.servlet.FilterChain")));
+      .or(implementsInterface(named("javax.servlet.FilterChain")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".Servlet2Decorator",
-      packageName + ".ServletRequestURIAdapter",
-      packageName + ".HttpServletRequestExtractAdapter",
-      "datadog.trace.instrumentation.servlet.ServletBlockingHelper",
+        packageName + ".Servlet2Decorator",
+        packageName + ".ServletRequestURIAdapter",
+        packageName + ".HttpServletRequestExtractAdapter",
+        "datadog.trace.instrumentation.servlet.ServletBlockingHelper"
     };
   }
 
@@ -74,9 +74,10 @@ public final class Servlet2Instrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         namedOneOf("doFilter", "service")
-            .and(takesArgument(0, named("javax.servlet.ServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.ServletResponse")))
-            .and(isPublic()),
-        packageName + ".Servlet2Advice");
+          .and(takesArgument(0, named("javax.servlet.ServletRequest")))
+          .and(takesArgument(1, named("javax.servlet.ServletResponse")))
+          .and(isPublic()),
+        packageName + ".Servlet2Advice"
+    );
   }
 }

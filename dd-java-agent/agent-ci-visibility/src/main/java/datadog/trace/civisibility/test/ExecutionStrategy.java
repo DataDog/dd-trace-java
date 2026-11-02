@@ -29,22 +29,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ExecutionStrategy {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionStrategy.class);
-
   private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
   private final AtomicInteger autoRetriesUsed = new AtomicInteger(0);
-
-  @Nonnull private final Config config;
-  @Nonnull private final ExecutionSettings executionSettings;
-  @Nonnull private final SourcePathResolver sourcePathResolver;
-  @Nonnull private final LinesResolver linesResolver;
+  @Nonnull
+  private final Config config;
+  @Nonnull
+  private final ExecutionSettings executionSettings;
+  @Nonnull
+  private final SourcePathResolver sourcePathResolver;
+  @Nonnull
+  private final LinesResolver linesResolver;
 
   public ExecutionStrategy(
       @Nonnull Config config,
       @Nonnull ExecutionSettings executionSettings,
       @Nonnull SourcePathResolver sourcePathResolver,
-      @Nonnull LinesResolver linesResolver) {
+      @Nonnull LinesResolver linesResolver
+  ) {
     this.config = config;
     this.executionSettings = executionSettings;
     this.sourcePathResolver = sourcePathResolver;
@@ -94,7 +96,6 @@ public class ExecutionStrategy {
     if (test == null) {
       return null;
     }
-
     // test should not be skipped if it is an attempt to fix, independent of TIA or Disabled
     if (isAttemptToFix(test)) {
       return null;
@@ -121,14 +122,19 @@ public class ExecutionStrategy {
 
   @Nonnull
   public TestExecutionPolicy executionPolicy(
-      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+      TestIdentifier test,
+      TestSourceData testSource,
+      Collection<String> testTags
+  ) {
     if (test == null) {
       return Regular.INSTANCE;
     }
 
     if (isAttemptToFix(test)) {
-      return new AttemptToFix(
-          executionSettings.getTestManagementSettings().getAttemptToFixRetries());
+      return new AttemptToFix(executionSettings
+        .getTestManagementSettings()
+        .getAttemptToFixRetries()
+      );
     }
 
     if (isEFDApplicable(test, testSource, testTags)) {
@@ -137,7 +143,8 @@ public class ExecutionStrategy {
       earlyFlakeDetectionsUsed.incrementAndGet();
       return new EarlyFlakeDetection(
           executionSettings.getEarlyFlakeDetectionSettings().getExecutionsByDuration(),
-          isQuarantined(test));
+          isQuarantined(test)
+      );
     }
 
     if (isAutoRetryApplicable(test)) {
@@ -147,10 +154,14 @@ public class ExecutionStrategy {
         return new DynamicAutoTestRetry(
             executionSettings.getDynamicAutoTestRetrySettings(),
             isQuarantined(test),
-            autoRetriesUsed);
+            autoRetriesUsed
+        );
       }
       return new AutoTestRetry(
-          config.getCiVisibilityFlakyRetryCount(), isQuarantined(test), autoRetriesUsed);
+          config.getCiVisibilityFlakyRetryCount(),
+          isQuarantined(test),
+          autoRetriesUsed
+      );
     }
 
     if (isQuarantined(test)) {
@@ -166,19 +177,24 @@ public class ExecutionStrategy {
     }
 
     return (!config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
-            || !executionSettings.isFlakyTestsDataAvailable()
-            || executionSettings.isFlaky(test.toFQN()))
+        || !executionSettings.isFlakyTestsDataAvailable()
+        || executionSettings.isFlaky(test.toFQN()))
         && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount();
   }
 
   private boolean isEFDApplicable(
-      @Nonnull TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+      @Nonnull TestIdentifier test,
+      TestSourceData testSource,
+      Collection<String> testTags
+  ) {
     EarlyFlakeDetectionSettings efdSettings = executionSettings.getEarlyFlakeDetectionSettings();
     return efdSettings.isEnabled()
         && !isEFDLimitReached()
         && (isNew(test) || isModified(testSource))
         // endsWith matching is needed for JUnit4-based frameworks, where tags are classes
-        && testTags.stream().noneMatch(t -> t.endsWith(CIConstants.Tags.EFD_DISABLE_TAG));
+    && testTags
+      .stream()
+      .noneMatch(t -> t.endsWith(CIConstants.Tags.EFD_DISABLE_TAG));
   }
 
   public boolean isEFDLimitReached() {
@@ -190,10 +206,10 @@ public class ExecutionStrategy {
     int totalTests = executionSettings.getSettingCount(TestSetting.KNOWN) + detectionsUsed;
     EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
         executionSettings.getEarlyFlakeDetectionSettings();
-    int threshold =
-        Math.max(
-            config.getCiVisibilityEarlyFlakeDetectionLowerLimit(),
-            totalTests * earlyFlakeDetectionSettings.getFaultySessionThreshold() / 100);
+    int threshold = Math.max(
+        config.getCiVisibilityEarlyFlakeDetectionLowerLimit(),
+        totalTests * earlyFlakeDetectionSettings.getFaultySessionThreshold() / 100
+    );
 
     return detectionsUsed > threshold;
   }
@@ -212,9 +228,8 @@ public class ExecutionStrategy {
 
       LinesResolver.Lines lines = getLines(testSourceData.getTestMethod());
       return executionSettings
-          .getPullRequestDiff()
-          .contains(sourcePath, lines.getStartLineNumber(), lines.getEndLineNumber());
-
+        .getPullRequestDiff()
+        .contains(sourcePath, lines.getStartLineNumber(), lines.getEndLineNumber());
     } catch (Exception e) {
       LOGGER.debug("Could not determine if {} was modified, assuming false", testSourceData, e);
       return false;

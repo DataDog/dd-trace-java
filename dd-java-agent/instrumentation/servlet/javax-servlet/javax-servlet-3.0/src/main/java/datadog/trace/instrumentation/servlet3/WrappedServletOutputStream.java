@@ -11,14 +11,13 @@ import javax.servlet.WriteListener;
 public class WrappedServletOutputStream extends ServletOutputStream {
   private final InjectingPipeOutputStream filtered;
   private final ServletOutputStream delegate;
-
   private static final MethodHandle IS_READY_MH = getMh("isReady");
   private static final MethodHandle SET_WRITELISTENER_MH = getMh("setWriteListener");
 
   private static MethodHandle getMh(final String name) {
     try {
       return new MethodHandles(ServletOutputStream.class.getClassLoader())
-          .method(ServletOutputStream.class, name);
+        .method(ServletOutputStream.class, name);
     } catch (Throwable ignored) {
       return null;
     }
@@ -35,10 +34,16 @@ public class WrappedServletOutputStream extends ServletOutputStream {
       byte[] contentToInject,
       Runnable onInjected,
       LongConsumer onBytesWritten,
-      LongConsumer onInjectionTime) {
-    this.filtered =
-        new InjectingPipeOutputStream(
-            delegate, marker, contentToInject, onInjected, onBytesWritten, onInjectionTime);
+      LongConsumer onInjectionTime
+  ) {
+    this.filtered = new InjectingPipeOutputStream(
+        delegate,
+        marker,
+        contentToInject,
+        onInjected,
+        onBytesWritten,
+        onInjectionTime
+    );
     this.delegate = delegate;
   }
 

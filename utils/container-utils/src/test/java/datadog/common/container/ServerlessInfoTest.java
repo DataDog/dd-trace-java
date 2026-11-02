@@ -3,7 +3,6 @@ package datadog.common.container;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.test.util.ControllableEnvironmentVariables;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.File;
@@ -13,10 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 public class ServerlessInfoTest extends DDJavaSpecification {
-
   // AWS_LAMBDA_FUNCTION_NAME is ServerlessInfo.AWS_FUNCTION_VARIABLE (private constant)
   private static final String AWS_FUNCTION_VARIABLE = "AWS_LAMBDA_FUNCTION_NAME";
-
   private static final ControllableEnvironmentVariables environmentVariables =
       ControllableEnvironmentVariables.setup();
 

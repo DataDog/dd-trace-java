@@ -2,7 +2,6 @@ package datadog.trace.core.tagprocessor;
 
 import static datadog.trace.api.KnownTags.DD_PEER_SERVICE_REMAPPED_FROM_ID;
 import static datadog.trace.api.KnownTags.PEER_SERVICE_ID;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.TagStore;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -15,9 +14,7 @@ import javax.annotation.Nonnull;
 
 public final class PeerServiceCalculator extends EagerTagsPostProcessor {
   private final NamingSchema.ForPeerService peerServiceNaming;
-
   private final Map<String, String> peerServiceMapping;
-
   private final boolean canRemap;
 
   public PeerServiceCalculator() {
@@ -27,7 +24,8 @@ public final class PeerServiceCalculator extends EagerTagsPostProcessor {
   @VisibleForTesting
   PeerServiceCalculator(
       @Nonnull final NamingSchema.ForPeerService peerServiceNaming,
-      @Nonnull final Map<String, String> peerServiceMapping) {
+      @Nonnull final Map<String, String> peerServiceMapping
+  ) {
     this.peerServiceNaming = peerServiceNaming;
     this.peerServiceMapping = peerServiceMapping;
     this.canRemap = !peerServiceMapping.isEmpty();
@@ -35,7 +33,10 @@ public final class PeerServiceCalculator extends EagerTagsPostProcessor {
 
   @Override
   public void processTags(
-      TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagStore unsafeTags,
+      DDSpanContext spanContext,
+      AppendableSpanLinks spanLinks
+  ) {
     Object peerService = unsafeTags.load(PEER_SERVICE_ID);
     // the user set it
     if (peerService != null) {

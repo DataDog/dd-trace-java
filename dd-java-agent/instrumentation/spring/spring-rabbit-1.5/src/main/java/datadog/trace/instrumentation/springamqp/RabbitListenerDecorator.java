@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class RabbitListenerDecorator extends BaseDecorator {
   public static final RabbitListenerDecorator DECORATE = new RabbitListenerDecorator();
-
   public static final CharSequence AMQP_CONSUME = UTF8BytesString.create("amqp.consume");
   public static final CharSequence RABBITMQ_AMQP = UTF8BytesString.create("rabbitmq-amqp");
 

@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import datadog.environment.OperatingSystem;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,7 +25,6 @@ class PortableCommandTest {
 
   // Both strategies are exercised on every platform so that the emulated path, which only ships
   // on Windows, is still verified by a POSIX CI run.
-
   @TableTest({
     "scenario           | emulated",
     "native command     | false   ",
@@ -134,7 +132,8 @@ class PortableCommandTest {
   private static void assumeStrategySupported(boolean emulated) {
     assumeTrue(
         emulated || !OperatingSystem.isWindows(),
-        "native commands are only available on POSIX platforms");
+        "native commands are only available on POSIX platforms"
+    );
   }
 
   private static Result run(String[] command, byte[] input) throws Exception {
@@ -151,9 +150,8 @@ class PortableCommandTest {
         }
       }
 
-      assertTrue(
-          process.waitFor(TIMEOUT_SECONDS, SECONDS),
-          () -> "command timed out: " + String.join(" ", command));
+      assertTrue(process.waitFor(TIMEOUT_SECONDS, SECONDS), () -> "command timed out: "
+          + String.join(" ", command));
       return new Result(process.exitValue(), output.text(), error.text());
     } finally {
       process.destroyForcibly();

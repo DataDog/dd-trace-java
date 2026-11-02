@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -23,7 +22,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public IastJakartaServletInstrumentation() {
     super("servlet", "servlet-5");
   }
@@ -47,12 +48,13 @@ public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("service"))
-            .and(isPublic())
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("jakarta.servlet.ServletRequest")))
-            .and(takesArgument(1, named("jakarta.servlet.ServletResponse"))),
-        getClass().getName() + "$IastAdvice");
+          .and(named("service"))
+          .and(isPublic())
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("jakarta.servlet.ServletRequest")))
+          .and(takesArgument(1, named("jakarta.servlet.ServletResponse"))),
+        getClass().getName() + "$IastAdvice"
+    );
   }
 
   @Override
@@ -61,7 +63,6 @@ public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class IastAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(@Advice.This final HttpServlet servlet) {
       final ApplicationModule applicationModule = InstrumentationBridge.APPLICATION;

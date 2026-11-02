@@ -4,10 +4,10 @@ import java.util.Collection;
 import java.util.Collections;
 
 public class NoOpMetricCollector implements CiVisibilityMetricCollector {
-
   public static final CiVisibilityMetricCollector INSTANCE = new NoOpMetricCollector();
 
-  private NoOpMetricCollector() {}
+  private NoOpMetricCollector() {
+  }
 
   @Override
   public void add(CiVisibilityDistributionMetric metric, int value, TagValue... tags) {

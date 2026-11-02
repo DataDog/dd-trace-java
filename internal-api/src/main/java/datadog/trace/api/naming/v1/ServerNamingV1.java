@@ -4,7 +4,6 @@ import datadog.trace.api.naming.NamingSchema;
 import javax.annotation.Nonnull;
 
 public class ServerNamingV1 implements NamingSchema.ForServer {
-
   @Nonnull
   @Override
   public String operationForProtocol(@Nonnull String protocol) {

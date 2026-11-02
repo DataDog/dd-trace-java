@@ -4,7 +4,6 @@ import datadog.trace.util.RandomUtils;
 import java.util.function.Supplier;
 
 public class UnknownArityExample implements Supplier<String> {
-
   @Override
   public String get() {
     final String name = RandomUtils.randomUUID().toString();

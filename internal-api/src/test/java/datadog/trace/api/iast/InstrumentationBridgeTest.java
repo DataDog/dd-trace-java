@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
-
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -13,7 +12,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class InstrumentationBridgeTest {
-
   @AfterEach
   void cleanup() {
     InstrumentationBridge.clearIastModules();
@@ -31,20 +29,22 @@ class InstrumentationBridgeTest {
   }
 
   static Stream<Arguments> moduleCanBeRegisteredArguments() {
-    return InstrumentationBridge.getIastModules().stream()
-        .map(module -> arguments(module.getSimpleName(), module));
+    return InstrumentationBridge
+      .getIastModules()
+      .stream()
+      .map(module -> arguments(module.getSimpleName(), module));
   }
 
   @Test
   void unsupportedModulesThrowExceptions() {
     IastModule unsupported = mock(IastModule.class);
 
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> InstrumentationBridge.registerIastModule(unsupported));
+    assertThrows(UnsupportedOperationException.class, () -> InstrumentationBridge.registerIastModule(
+        unsupported
+    ));
 
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> InstrumentationBridge.getIastModule(IastModule.class));
+    assertThrows(UnsupportedOperationException.class, () -> InstrumentationBridge.getIastModule(
+        IastModule.class
+    ));
   }
 }

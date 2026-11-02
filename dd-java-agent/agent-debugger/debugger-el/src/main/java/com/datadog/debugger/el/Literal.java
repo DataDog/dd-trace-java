@@ -4,9 +4,13 @@ import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Objects;
 
-/** Represents any literal/constant in expression language */
+/**
+ * Represents any literal/constant in expression language
+ */
 public class Literal<ConstantType>
-    implements Value<ConstantType>, ValueExpression<Value<ConstantType>> {
+    implements Value<ConstantType>,
+    ValueExpression<Value<ConstantType>>
+{
   protected final ConstantType value;
   protected final ValueType type;
 
@@ -22,7 +26,8 @@ public class Literal<ConstantType>
 
   @Override
   public boolean isUndefined() {
-    return value != null && (value == Values.UNDEFINED_OBJECT || value == Value.undefinedValue());
+    return value != null
+        && (value == Values.UNDEFINED_OBJECT || value == Value.undefinedValue());
   }
 
   @Override
@@ -42,8 +47,12 @@ public class Literal<ConstantType>
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     Literal<?> literal = (Literal<?>) o;
     return Objects.equals(value, literal.value);
   }

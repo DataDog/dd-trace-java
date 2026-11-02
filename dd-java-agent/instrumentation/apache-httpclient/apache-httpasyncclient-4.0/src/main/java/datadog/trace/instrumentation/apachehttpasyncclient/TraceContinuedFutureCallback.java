@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -19,7 +18,8 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
       final ContextContinuation parentContinuation,
       final AgentSpan clientSpan,
       final HttpContext context,
-      final FutureCallback<T> delegate) {
+      final FutureCallback<T> delegate
+  ) {
     this.parentContinuation = parentContinuation;
     this.clientSpan = clientSpan;
     this.context = context;
@@ -31,7 +31,8 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
   public void completed(final T result) {
     DECORATE.onResponse(clientSpan, context);
     DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish(); // Finish span before calling delegate
+    // Finish span before calling delegate
+    clientSpan.finish();
 
     if (parentContinuation.context() == Context.root()) {
       completeDelegate(result);
@@ -47,7 +48,8 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     DECORATE.onResponse(clientSpan, context);
     DECORATE.onError(clientSpan, ex);
     DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish(); // Finish span before calling delegate
+    // Finish span before calling delegate
+    clientSpan.finish();
 
     if (parentContinuation.context() == Context.root()) {
       failDelegate(ex);
@@ -62,7 +64,8 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
   public void cancelled() {
     DECORATE.onResponse(clientSpan, context);
     DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish(); // Finish span before calling delegate
+    // Finish span before calling delegate
+    clientSpan.finish();
 
     if (parentContinuation.context() == Context.root()) {
       cancelDelegate();

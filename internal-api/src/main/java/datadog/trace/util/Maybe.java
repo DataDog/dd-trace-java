@@ -43,7 +43,8 @@ import javax.annotation.Nullable;
  */
 @NoEscape
 public final class Maybe<T> {
-  @Nullable private final T value;
+  @Nullable
+  private final T value;
 
   private Maybe(@Nullable T value) {
     this.value = value;

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
@@ -16,7 +15,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ExtractedSpanTest {
-
   @Test
   void extractedSpanFromPartialTracingContext() {
     Map<String, String> tagValues = new HashMap<>();

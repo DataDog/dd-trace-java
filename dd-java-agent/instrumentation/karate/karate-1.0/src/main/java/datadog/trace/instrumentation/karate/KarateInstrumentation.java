@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.karate;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import com.intuit.karate.Runner;
 import com.intuit.karate.RuntimeHook;
@@ -16,8 +15,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class KarateInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public KarateInstrumentation() {
     super("ci-visibility", "karate");
   }
@@ -35,13 +35,14 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), KarateInstrumentation.class.getName() + "$KarateAdvice");
+        isConstructor(),
+        KarateInstrumentation.class.getName() + "$KarateAdvice"
+    );
   }
 
   public static class KarateAdvice {
     @Advice.OnMethodExit
-    public static void onRunnerBuilderConstructorExit(
-        @Advice.This Runner.Builder<?> runnerBuilder) {
+    public static void onRunnerBuilderConstructorExit(@Advice.This Runner.Builder<?> runnerBuilder) {
       ContextStore<FeatureRuntime, Boolean> featureRuntimeContextStore =
           InstrumentationContext.get(FeatureRuntime.class, Boolean.class);
       runnerBuilder.hook(new KarateTracingHook(featureRuntimeContextStore));

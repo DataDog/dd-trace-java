@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.elasticsearch7_3;
 
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -16,14 +15,18 @@ import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 
-/** This class is identical to version 6's instrumentation. */
+/**
+ * This class is identical to version 6's instrumentation.
+ */
 public class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
-
   private final ActionListener<T> listener;
   private final AgentSpan span;
 
   public TransportActionListener(
-      final ActionRequest actionRequest, final ActionListener<T> listener, final AgentSpan span) {
+      final ActionRequest actionRequest,
+      final ActionListener<T> listener,
+      final AgentSpan span
+  ) {
     this.listener = listener;
     this.span = span;
     onRequest(actionRequest);
@@ -71,13 +74,16 @@ public class TransportActionListener<T extends ActionResponse> implements Action
     if (response instanceof ReplicationResponse) {
       final ReplicationResponse resp = (ReplicationResponse) response;
       span.setTag("elasticsearch.shard.replication.total", resp.getShardInfo().getTotal());
-      span.setTag(
-          "elasticsearch.shard.replication.successful", resp.getShardInfo().getSuccessful());
+      span.setTag("elasticsearch.shard.replication.successful", resp
+        .getShardInfo()
+        .getSuccessful());
       span.setTag("elasticsearch.shard.replication.failed", resp.getShardInfo().getFailed());
     }
 
     if (response instanceof IndexResponse) {
-      span.setTag("elasticsearch.response.status", ((IndexResponse) response).status().getStatus());
+      span.setTag("elasticsearch.response.status", ((IndexResponse) response)
+        .status()
+        .getStatus());
     }
 
     if (response instanceof BulkShardResponse) {

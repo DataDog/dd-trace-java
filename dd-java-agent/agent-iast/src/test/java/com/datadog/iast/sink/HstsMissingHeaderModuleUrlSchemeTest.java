@@ -8,7 +8,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.Reporter;
@@ -21,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class HstsMissingHeaderModuleUrlSchemeTest {
-
   @TableTest({
     "Scenario                    | url                 | scheme | forwardedProto | expected",
     "Legacy HTTPS                | https://localhost/a |        |                | true    ",
@@ -56,11 +54,11 @@ class HstsMissingHeaderModuleUrlSchemeTest {
     AgentSpan span = mock(AgentSpan.class);
     when(span.getTags()).thenReturn(tags);
     when(overheadController.consumeQuota(REPORT_VULNERABILITY, span, HSTS_HEADER_MISSING))
-        .thenReturn(true);
+      .thenReturn(true);
 
     new HstsMissingHeaderModuleImpl(dependencies).onRequestEnd(context, span);
 
     verify(reporter)
-        .report(eq(span), argThat(vulnerability -> vulnerability.getType() == HSTS_HEADER_MISSING));
+      .report(eq(span), argThat(vulnerability -> vulnerability.getType() == HSTS_HEADER_MISSING));
   }
 }

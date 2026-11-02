@@ -3,7 +3,6 @@ package datadog.communication.serialization;
 import java.nio.ByteBuffer;
 
 public interface StreamingBuffer {
-
   int capacity();
 
   boolean isDirty();
@@ -42,7 +41,9 @@ public interface StreamingBuffer {
 
   void put(ByteBuffer buffer);
 
-  /** Discards everything written since the last {@link #mark()}, keeping completed messages. */
+  /**
+   * Discards everything written since the last {@link #mark()}, keeping completed messages.
+   */
   void rewind();
 
   void reset();

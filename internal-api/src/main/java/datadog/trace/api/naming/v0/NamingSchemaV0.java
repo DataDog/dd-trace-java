@@ -5,7 +5,6 @@ import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.v1.PeerServiceNamingV1;
 
 public class NamingSchemaV0 implements NamingSchema {
-
   private final boolean allowInferredServices =
       !Config.get().isRemoveIntegrationServiceNamesEnabled();
   private final NamingSchema.ForCache cacheNaming = new CacheNamingV0(allowInferredServices);
@@ -15,10 +14,11 @@ public class NamingSchemaV0 implements NamingSchema {
       new DatabaseNamingV0(allowInferredServices);
   private final NamingSchema.ForMessaging messagingNaming =
       new MessagingNamingV0(allowInferredServices);
-  private final NamingSchema.ForPeerService peerServiceNaming =
-      Config.get().isPeerServiceDefaultsEnabled()
-          ? new PeerServiceNamingV1(Config.get().getPeerServiceComponentOverrides())
-          : new PeerServiceNamingV0();
+  private final NamingSchema.ForPeerService peerServiceNaming = Config
+    .get()
+    .isPeerServiceDefaultsEnabled()
+      ? new PeerServiceNamingV1(Config.get().getPeerServiceComponentOverrides())
+      : new PeerServiceNamingV0();
   private final NamingSchema.ForServer serverNaming = new ServerNamingV0();
 
   @Override

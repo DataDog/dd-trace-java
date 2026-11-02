@@ -13,7 +13,6 @@ import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.asm.Advice.This;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.auto.service.AutoService;
@@ -33,8 +32,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   // these must remain as String literals so they can be easily be shared (copied) with the nested
   // advice classes
   private static final String HANDLER_ENV_NAME = "_HANDLER";
@@ -50,9 +50,9 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(
-        named(hierarchyMarkerType())
-            .or(named("com.amazonaws.services.lambda.runtime.RequestHandler")));
+    return implementsInterface(named(hierarchyMarkerType())
+      .or(named("com.amazonaws.services.lambda.runtime.RequestHandler"))
+    );
   }
 
   @Override
@@ -67,9 +67,10 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
     // full spec here : https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html
     transformer.applyAdvice(
         isMethod()
-            .and(named("handleRequest"))
-            .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
-        getClass().getName() + "$ExtensionCommunicationAdvice");
+          .and(named("handleRequest"))
+          .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
+        getClass().getName() + "$ExtensionCommunicationAdvice"
+    );
   }
 
   public static class ExtensionCommunicationAdvice {
@@ -79,8 +80,8 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(0) final Object in,
         @Advice.Argument(1) final Object out,
         @Advice.Argument(2) final Context awsContext,
-        @Origin("#m") final String methodName) {
-
+        @Origin("#m") final String methodName
+    ) {
       if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
         return null;
       }
@@ -105,8 +106,8 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         @Enter final ContextScope scope,
         @Advice.Argument(1) final Object result,
         @Advice.Argument(2) final Context awsContext,
-        @Advice.Thrown final Throwable throwable) {
-
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }
@@ -138,8 +139,9 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         span.setResourceName(INVOCATION_SPAN_NAME, ResourceNamePriorities.TAG_INTERCEPTOR);
         scope.close();
         span.finish();
-        AgentTracer.get()
-            .notifyExtensionEnd(span, result, null != throwable, awsContext.getAwsRequestId());
+        AgentTracer
+          .get()
+          .notifyExtensionEnd(span, result, null != throwable, awsContext.getAwsRequestId());
       }
     }
   }

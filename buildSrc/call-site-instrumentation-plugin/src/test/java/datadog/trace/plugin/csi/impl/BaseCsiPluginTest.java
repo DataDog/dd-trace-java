@@ -7,7 +7,6 @@ import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_RESOLVER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.plugin.csi.HasErrors;
 import datadog.trace.plugin.csi.ValidationContext;
 import java.io.File;
@@ -20,16 +19,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public abstract class BaseCsiPluginTest {
-
   protected static void assertNoErrors(HasErrors hasErrors) {
     List<String> errors =
-        hasErrors.getErrors().stream()
-            .map(
-                error -> {
-                  String causeString = error.getCause() == null ? "-" : error.getCauseString();
-                  return error.getMessage() + ": " + causeString;
-                })
-            .collect(Collectors.toList());
+        hasErrors
+      .getErrors()
+      .stream()
+      .map(error -> {
+        String causeString = error.getCause() == null ? "-" : error.getCauseString();
+        return error.getMessage() + ": " + causeString;
+      })
+      .collect(Collectors.toList());
     assertEquals(Collections.emptyList(), errors);
   }
 
@@ -51,7 +50,9 @@ public abstract class BaseCsiPluginTest {
   protected static CallSiteSpecification buildClassSpecification(Class<?> clazz) {
     File classFile = fetchClass(clazz);
     CallSiteSpecification spec = specificationBuilder().build(classFile).get();
-    spec.getAdvices().forEach(advice -> advice.parseSignature(pointcutParser()));
+    spec
+      .getAdvices()
+      .forEach(advice -> advice.parseSignature(pointcutParser()));
     return spec;
   }
 

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.undertow;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,7 +13,8 @@ import io.undertow.server.HttpServerExchange;
 public class ExchangeEndSpanListener implements ExchangeCompletionListener {
   public static final ExchangeEndSpanListener INSTANCE = new ExchangeEndSpanListener();
 
-  private ExchangeEndSpanListener() {}
+  private ExchangeEndSpanListener() {
+  }
 
   @Override
   public void exchangeEvent(HttpServerExchange exchange, NextListener nextListener) {

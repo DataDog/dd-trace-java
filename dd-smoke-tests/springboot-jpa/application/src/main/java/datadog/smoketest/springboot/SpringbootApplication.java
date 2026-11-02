@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Bean;
 
 @SpringBootApplication
 public class SpringbootApplication {
-
   @Bean
   public Filter badBehaviorFilter() {
     return new SessionVisitorFilter();

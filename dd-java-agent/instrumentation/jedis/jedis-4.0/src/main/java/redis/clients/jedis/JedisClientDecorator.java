@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 
 public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Connection> {
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
-
   private static final String REDIS = "redis";
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation(REDIS));

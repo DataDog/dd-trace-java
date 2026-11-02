@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -27,13 +26,10 @@ final class ExpectedSpanState {
   private CharSequence spanType;
   private final Map<String, String> tags = new LinkedHashMap<>();
   private CharSequence integrationName;
-
   private boolean expectService;
   private String serviceName;
   private CharSequence serviceNameSource;
-
   private boolean measured;
-
   // null => expect setMetric(null); non-null => expect the analytics-rate metric entry.
   private Double analyticsSampleRate;
 
@@ -99,11 +95,14 @@ final class ExpectedSpanState {
       assertEquals(
           expectedTag.getValue(),
           span.recordedTags().get(expectedTag.getKey()),
-          "tag " + expectedTag.getKey());
+          "tag " + expectedTag.getKey()
+      );
     }
   }
 
-  /** Exact check: the recorded state must match exactly, with no additional tags. */
+  /**
+   * Exact check: the recorded state must match exactly, with no additional tags.
+   */
   void assertAppliedTo(RecordingSpan span) {
     assertAppliedTo(span, false);
   }
@@ -124,7 +123,8 @@ final class ExpectedSpanState {
         assertEquals(
             expectedTag.getValue(),
             span.recordedTags().get(expectedTag.getKey()),
-            "tag " + expectedTag.getKey());
+            "tag " + expectedTag.getKey()
+        );
       }
     } else {
       assertEquals(tags, span.recordedTags(), "applied tags");
@@ -147,7 +147,10 @@ final class ExpectedSpanState {
       assertTrue(span.metricSet(), "expected setMetric to be called");
       assertEquals(ANALYTICS_SAMPLE_RATE, span.recordedMetric().tag(), "analytics metric key");
       assertEquals(
-          analyticsSampleRate, span.recordedMetric().doubleValue(), "analytics metric value");
+          analyticsSampleRate,
+          span.recordedMetric().doubleValue(),
+          "analytics metric value"
+      );
     }
   }
 

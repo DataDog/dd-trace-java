@@ -4,7 +4,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
 
 public final class BackpressureProfiling {
-
   private static final class Holder {
     static final BackpressureProfiling INSTANCE = new BackpressureProfiling(Config.get());
   }
@@ -29,8 +28,7 @@ public final class BackpressureProfiling {
 
   public void process(Class<?> backpressureMechanism, Object task) {
     if (sampler.sample()) {
-      new BackpressureSampleEvent(backpressureMechanism, TaskWrapper.getUnwrappedType(task))
-          .commit();
+      new BackpressureSampleEvent(backpressureMechanism, TaskWrapper.getUnwrappedType(task)).commit();
     }
   }
 }

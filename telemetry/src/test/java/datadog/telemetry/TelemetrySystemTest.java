@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.metrics.api.Monitoring;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class TelemetrySystemTest {
-
   @AfterEach
   void cleanup() {
     TelemetrySystem.stop();
@@ -39,7 +37,8 @@ class TelemetrySystemTest {
       verify(instrumentation, times(1)).addTransformer(transformerCaptor.capture());
       assertEquals(
           "datadog.telemetry.dependency.LocationsCollectingTransformer",
-          transformerCaptor.getValue().getClass().getName());
+          transformerCaptor.getValue().getClass().getName()
+      );
     } finally {
       dependencyService.stop();
     }
@@ -70,8 +69,9 @@ class TelemetrySystemTest {
 
     assertTrue(
         TelemetrySystem.getTelemetryThread() == null
-            || TelemetrySystem.getTelemetryThread().isInterrupted()
-            || !TelemetrySystem.getTelemetryThread().isAlive());
+        || TelemetrySystem.getTelemetryThread().isInterrupted()
+        || !TelemetrySystem.getTelemetryThread().isAlive()
+    );
   }
 
   private SharedCommunicationObjects sharedCommunicationObjects() {

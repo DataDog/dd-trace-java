@@ -3,7 +3,6 @@ package datadog.trace.civisibility.ipc;
 import datadog.trace.api.DDTraceId;
 
 public abstract class ModuleSignal implements Signal {
-
   protected final DDTraceId sessionId;
   protected final long moduleId;
 

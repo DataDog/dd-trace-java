@@ -18,11 +18,9 @@ import org.springframework.web.util.UrlPathHelper;
 
 @SpringBootApplication
 public class SpringbootApplication {
-
   @Configuration
   @ComponentScan(basePackages = {"datadog.smoketest.springboot.controller"})
   public static class WebConfig extends WebMvcConfigurerAdapter {
-
     @Override
     public void configurePathMatch(PathMatchConfigurer configurer) {
       UrlPathHelper urlPathHelper = new UrlPathHelper();

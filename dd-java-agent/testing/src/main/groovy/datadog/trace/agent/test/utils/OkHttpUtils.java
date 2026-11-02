@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
  * OkHttpClient class which contains java 8 only classes, which caused the build to fail for java 7.
  */
 public class OkHttpUtils {
-
   private static final Logger CLIENT_LOGGER = LoggerFactory.getLogger("http-client");
 
   static {
@@ -37,15 +36,14 @@ public class OkHttpUtils {
 
   private static final HttpLoggingInterceptor LOGGING_INTERCEPTOR =
       new HttpLoggingInterceptor(CLIENT_LOGGER::debug);
-
   private static final Interceptor EXPECT_CONTINUE_INTERCEPTOR =
       chain -> {
-        final Request.Builder builder = chain.request().newBuilder();
-        if (chain.request().body() != null) {
-          builder.addHeader("Expect", "100-continue");
-        }
-        return chain.proceed(builder.build());
-      };
+    final Request.Builder builder = chain.request().newBuilder();
+    if (chain.request().body() != null) {
+      builder.addHeader("Expect", "100-continue");
+    }
+    return chain.proceed(builder.build());
+  };
 
   static {
     LOGGING_INTERCEPTOR.setLevel(Level.BASIC);
@@ -54,11 +52,11 @@ public class OkHttpUtils {
   public static OkHttpClient.Builder clientBuilder() {
     final TimeUnit unit = TimeUnit.MINUTES;
     return new OkHttpClient.Builder()
-        .addInterceptor(EXPECT_CONTINUE_INTERCEPTOR)
-        .addInterceptor(LOGGING_INTERCEPTOR)
-        .connectTimeout(1, unit)
-        .writeTimeout(1, unit)
-        .readTimeout(1, unit);
+      .addInterceptor(EXPECT_CONTINUE_INTERCEPTOR)
+      .addInterceptor(LOGGING_INTERCEPTOR)
+      .connectTimeout(1, unit)
+      .writeTimeout(1, unit)
+      .readTimeout(1, unit);
   }
 
   public static OkHttpClient client() {
@@ -67,7 +65,9 @@ public class OkHttpUtils {
 
   public static OkHttpClient client(long connectTimeout, long readTimeout, TimeUnit unit) {
     return client(
-        clientBuilder().connectTimeout(connectTimeout, unit).readTimeout(readTimeout, unit), false);
+        clientBuilder().connectTimeout(connectTimeout, unit).readTimeout(readTimeout, unit),
+        false
+    );
   }
 
   public static OkHttpClient client(final boolean followRedirects) {
@@ -78,13 +78,12 @@ public class OkHttpUtils {
     return builder.followRedirects(followRedirects).build();
   }
 
-  public static OkHttpClient client(
-      final TestHttpServer server, final ProxySelector proxySelector) {
+  public static OkHttpClient client(final TestHttpServer server, final ProxySelector proxySelector) {
     return clientBuilder()
-        .sslSocketFactory(server.sslContext.getSocketFactory(), server.getTrustManager())
-        .hostnameVerifier(server.getHostnameVerifier())
-        .proxySelector(proxySelector)
-        .build();
+      .sslSocketFactory(server.sslContext.getSocketFactory(), server.getTrustManager())
+      .hostnameVerifier(server.getHostnameVerifier())
+      .proxySelector(proxySelector)
+      .build();
   }
 
   public static <E> CookieJar cookieJar(Function<HttpUrl, E> cookieKey) {
@@ -96,7 +95,6 @@ public class OkHttpUtils {
   }
 
   private static class CustomCookieJar<E> implements CookieJar {
-
     private final ConcurrentHashMap<E, List<Cookie>> cookies;
     private final Function<HttpUrl, E> key;
 
@@ -107,7 +105,9 @@ public class OkHttpUtils {
 
     @Override
     public void saveFromResponse(final HttpUrl httpUrl, final List<Cookie> list) {
-      cookies.computeIfAbsent(key.apply(httpUrl), k -> new ArrayList<>()).addAll(list);
+      cookies
+        .computeIfAbsent(key.apply(httpUrl), k -> new ArrayList<>())
+        .addAll(list);
     }
 
     @Override

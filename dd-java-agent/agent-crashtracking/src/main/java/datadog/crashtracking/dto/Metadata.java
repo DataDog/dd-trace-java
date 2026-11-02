@@ -7,10 +7,8 @@ import java.util.Objects;
 public final class Metadata {
   @Json(name = "library_name")
   public final String libraryName;
-
   @Json(name = "library_version")
   public final String libraryVersion;
-
   public final String family;
   public final String[] tags;
 

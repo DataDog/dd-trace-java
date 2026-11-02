@@ -9,7 +9,6 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.Test;
 class GenAiApmTagsTest {
   private static final String LLMOBS_TAG_PREFIX = "_ml_obs_tag.";
   private static final String LLMOBS_METRIC_PREFIX = "_ml_obs_metric.";
-
   private final Map<String, Object> tags = new HashMap<>();
   private AgentSpan span;
 
@@ -28,18 +26,14 @@ class GenAiApmTagsTest {
   void setUp() {
     span = mock(AgentSpan.class);
     when(span.getTag(anyString())).thenAnswer(call -> tags.get(call.<String>getArgument(0)));
-    when(span.setTag(anyString(), anyString()))
-        .thenAnswer(
-            call -> {
-              tags.put(call.getArgument(0), call.getArgument(1));
-              return span;
-            });
-    when(span.setMetric(any(CharSequence.class), anyDouble()))
-        .thenAnswer(
-            call -> {
-              tags.put(call.<CharSequence>getArgument(0).toString(), call.getArgument(1));
-              return span;
-            });
+    when(span.setTag(anyString(), anyString())).thenAnswer(call -> {
+      tags.put(call.getArgument(0), call.getArgument(1));
+      return span;
+    });
+    when(span.setMetric(any(CharSequence.class), anyDouble())).thenAnswer(call -> {
+      tags.put(call.<CharSequence>getArgument(0).toString(), call.getArgument(1));
+      return span;
+    });
   }
 
   @Test
@@ -147,7 +141,10 @@ class GenAiApmTagsTest {
 
     GenAiApmTags.apply(span);
 
-    assertTrue(tags.keySet().stream().noneMatch(key -> key.startsWith("gen_ai.")));
+    assertTrue(tags
+      .keySet()
+      .stream()
+      .noneMatch(key -> key.startsWith("gen_ai.")));
     assertFalse(tags.containsKey(GenAiApmTags.ARTIFICIAL_TAGS));
   }
 
@@ -196,7 +193,10 @@ class GenAiApmTagsTest {
   void spanWithNoResolvableOperationEmitsNothing() {
     GenAiApmTags.apply(span, null, "gpt-4", "my-app");
 
-    assertTrue(tags.keySet().stream().noneMatch(key -> key.startsWith("gen_ai.")));
+    assertTrue(tags
+      .keySet()
+      .stream()
+      .noneMatch(key -> key.startsWith("gen_ai.")));
   }
 
   @Test
@@ -214,7 +214,10 @@ class GenAiApmTagsTest {
     GenAiApmTags.usage(span, LLMOBS_METRIC_PREFIX + "input_tokens", null);
     GenAiApmTags.usage(null, LLMOBS_METRIC_PREFIX + "input_tokens", 11L);
 
-    assertTrue(tags.keySet().stream().noneMatch(key -> key.startsWith("gen_ai.")));
+    assertTrue(tags
+      .keySet()
+      .stream()
+      .noneMatch(key -> key.startsWith("gen_ai.")));
   }
 
   private void llmObsTag(String key, String value) {

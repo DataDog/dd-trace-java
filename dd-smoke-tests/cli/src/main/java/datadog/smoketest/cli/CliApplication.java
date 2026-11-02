@@ -2,12 +2,12 @@ package datadog.smoketest.cli;
 
 import datadog.trace.api.Trace;
 
-/** Simple application that sleeps then quits. */
+/**
+ * Simple application that sleeps then quits.
+ */
 public class CliApplication {
-
   public static void main(final String[] args) throws InterruptedException {
     final CliApplication app = new CliApplication();
-
     // Sleep to ensure all of the processes are running
     Thread.sleep(5000);
 
@@ -16,7 +16,6 @@ public class CliApplication {
     app.exampleTrace();
 
     System.out.println("Finished calling example trace");
-
     // Sleep to allow the trace to be reported
     Thread.sleep(1000);
   }

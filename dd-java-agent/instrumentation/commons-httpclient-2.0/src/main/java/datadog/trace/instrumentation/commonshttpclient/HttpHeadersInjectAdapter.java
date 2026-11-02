@@ -7,7 +7,6 @@ import org.apache.commons.httpclient.HttpMethod;
 
 @ParametersAreNonnullByDefault
 public class HttpHeadersInjectAdapter implements CarrierSetter<HttpMethod> {
-
   public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
 
   @Override

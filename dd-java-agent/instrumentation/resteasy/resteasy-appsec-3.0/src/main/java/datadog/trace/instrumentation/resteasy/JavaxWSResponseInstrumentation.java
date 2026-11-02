@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,8 +19,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JavaxWSResponseInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public JavaxWSResponseInstrumentation() {
     super("resteasy");
   }
@@ -30,10 +30,12 @@ public class JavaxWSResponseInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("header").and(isPublic().and(takesArguments(String.class, Object.class))),
-        JavaxWSResponseInstrumentation.class.getName() + "$HeaderAdvice");
+        JavaxWSResponseInstrumentation.class.getName() + "$HeaderAdvice"
+    );
     transformer.applyAdvice(
         named("location").and(isPublic().and(takesArguments(URI.class))),
-        JavaxWSResponseInstrumentation.class.getName() + "$RedirectionAdvice");
+        JavaxWSResponseInstrumentation.class.getName() + "$RedirectionAdvice"
+    );
   }
 
   @Override
@@ -55,7 +57,9 @@ public class JavaxWSResponseInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onExit(
-        @Advice.Argument(0) String headerName, @Advice.Argument(1) Object headerValue) {
+        @Advice.Argument(0) String headerName,
+        @Advice.Argument(1) Object headerValue
+    ) {
       if (headerValue instanceof String) {
         String value = (String) headerValue;
         if (value.length() > 0) {

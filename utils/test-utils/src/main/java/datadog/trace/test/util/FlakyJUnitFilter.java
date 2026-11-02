@@ -1,14 +1,15 @@
 package datadog.trace.test.util;
 
 import static datadog.trace.test.util.FlakyJUnitExtension.findFlaky;
-
 import org.junit.platform.engine.FilterResult;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.PostDiscoveryFilter;
 
-/** Selects flaky JUnit tests for flaky-only runs before execution. */
+/**
+ * Selects flaky JUnit tests for flaky-only runs before execution.
+ */
 public final class FlakyJUnitFilter implements PostDiscoveryFilter {
   @Override
   public FilterResult apply(TestDescriptor descriptor) {

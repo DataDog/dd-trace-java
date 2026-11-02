@@ -30,7 +30,6 @@ import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SKIPPED_BAGGAGE_K
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SPAN_TYPE;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.isExportedTagKey;
 import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
-
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -47,14 +46,22 @@ import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import java.util.List;
 import java.util.Map;
 
-/** Provides writers for OpenTelemetry's "trace.proto" JSON encoding. */
+/**
+ * Provides writers for OpenTelemetry's "trace.proto" JSON encoding.
+ */
 public final class OtlpTraceJson {
+  private OtlpTraceJson() {
+  }
 
-  private OtlpTraceJson() {}
-
-  /** Writes one complete {@code Span} JSON object. */
+  /**
+   * Writes one complete {@code Span} JSON object.
+   */
   public static void writeSpan(
-      JsonWriter writer, DDSpan span, MetaWriter metaWriter, List<? extends AgentSpanLink> links) {
+      JsonWriter writer,
+      DDSpan span,
+      MetaWriter metaWriter,
+      List<? extends AgentSpanLink> links
+  ) {
     PropagationTags propagationTags = span.spanContext().getPropagationTags();
     SamplingState samplingState = propagationTags.samplingState();
 
@@ -87,8 +94,8 @@ public final class OtlpTraceJson {
     writer.name("kind").value(spanKind(span.spanContext().getSpanKindString()));
     writer.name("startTimeUnixNano").value(Long.toString(span.getStartTime()));
     writer
-        .name("endTimeUnixNano")
-        .value(Long.toString(span.getStartTime() + PendingTrace.getDurationNano(span)));
+      .name("endTimeUnixNano")
+      .value(Long.toString(span.getStartTime() + PendingTrace.getDurationNano(span)));
 
     writer.name("attributes").beginArray();
     if (!Config.get().getServiceName().equals(span.getServiceName())) {
@@ -102,7 +109,9 @@ public final class OtlpTraceJson {
     // Export root propagation tags on the span selected by the collector for sampling tags,
     // including when the exported trace contains no local root span.
     span.processTagsAndBaggage(
-        metaWriter, metaWriter.includeSamplingTags ? ROOT_PROPAGATION_TAGS : 0);
+        metaWriter,
+        metaWriter.includeSamplingTags ? ROOT_PROPAGATION_TAGS : 0
+    );
     writer.endArray();
 
     if (!links.isEmpty()) {
@@ -119,14 +128,17 @@ public final class OtlpTraceJson {
       if (errorMessage instanceof String) {
         writer.name("message").value((String) errorMessage);
       }
-      writer.name("code").value(2); // STATUS_CODE_ERROR
+      // STATUS_CODE_ERROR
+      writer.name("code").value(2);
       writer.endObject();
     }
 
     writer.endObject();
   }
 
-  /** Writes one complete {@code SpanLink} JSON object. */
+  /**
+   * Writes one complete {@code SpanLink} JSON object.
+   */
   public static void writeSpanLink(JsonWriter writer, AgentSpanLink spanLink) {
     writer.beginObject();
 
@@ -139,8 +151,12 @@ public final class OtlpTraceJson {
     Map<?, ?> attributes = spanLink.attributes().asMap();
     if (!attributes.isEmpty()) {
       writer.name("attributes").beginArray();
-      attributes.forEach(
-          (key, value) -> writeAttribute(writer, STRING_ATTRIBUTE, key.toString(), value));
+      attributes.forEach((key, value) -> writeAttribute(
+          writer,
+          STRING_ATTRIBUTE,
+          key.toString(),
+          value
+      ));
       writer.endArray();
     }
 
@@ -150,15 +166,17 @@ public final class OtlpTraceJson {
   }
 
   private static void writeSpanTag(
-      JsonWriter writer, Integer direction, TagMap.EntryReader tagEntry) {
+      JsonWriter writer,
+      Integer direction,
+      TagMap.EntryReader tagEntry
+  ) {
     // OTLP is the OpenTelemetry wire format, but the rename itself is opt-in: emit the
     // OpenTelemetry-namespace name only when OTel semantics are enabled, else the entry's own
     // (Datadog) name, so existing consumers keep seeing Datadog names until they opt in. A few
     // OpenTelemetry names depend on the span's direction (peer.port is server.port on a client).
-    String key =
-        Config.get().isTraceOtelSemanticsEnabled()
-            ? tagEntry.openTelemetryTag(direction)
-            : tagEntry.tag();
+    String key = Config.get().isTraceOtelSemanticsEnabled()
+        ? tagEntry.openTelemetryTag(direction)
+        : tagEntry.tag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
         writeAttribute(writer, BOOLEAN_ATTRIBUTE, key, tagEntry.objectValue());
@@ -187,7 +205,6 @@ public final class OtlpTraceJson {
   public static class MetaWriter implements MetadataConsumer {
     private final JsonWriter writer;
     private final OtlpSpanAttributes.Writer<JsonWriter> spanTags;
-
     private boolean includeProcessTags;
     private boolean includeSamplingTags;
 
@@ -196,12 +213,16 @@ public final class OtlpTraceJson {
       this.spanTags = new OtlpSpanAttributes.Writer<>(writer, OtlpTraceJson::writeSpanTag);
     }
 
-    /** Call this to ensure process tags are written out for the next span. */
+    /**
+     * Call this to ensure process tags are written out for the next span.
+     */
     public void includeProcessTags() {
       includeProcessTags = true;
     }
 
-    /** Call this to ensure sampling tags are written out for the next span. */
+    /**
+     * Call this to ensure sampling tags are written out for the next span.
+     */
     public void includeSamplingTags() {
       includeSamplingTags = true;
     }
@@ -231,10 +252,9 @@ public final class OtlpTraceJson {
       if (metadata.getHttpStatusCode() != UNSET_STATUS) {
         writeSpanTag(
             writer,
-            Config.get().isTraceOtelSemanticsEnabled()
-                ? HTTP_STATUS_CODE_KEY
-                : HTTP_STATUS_CODE_KEY_DD,
-            metadata.getHttpStatusCode());
+            Config.get().isTraceOtelSemanticsEnabled() ? HTTP_STATUS_CODE_KEY : HTTP_STATUS_CODE_KEY_DD,
+            metadata.getHttpStatusCode()
+        );
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(writer, ORIGIN_KEY, metadata.getOrigin());
@@ -247,7 +267,6 @@ public final class OtlpTraceJson {
       // The direction is computed once per span; boxing -1..2 hits the Integer cache.
       Integer direction = KnownTagCodec.directionOf(tags);
       boolean otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
-
       // Baggage carries the propagation tags (e.g. the _dd.p.dm sampling decision maker) and any
       // baggage items injected as tags, as in the Datadog mappers. Span tags and the attributes
       // written directly above win when they are exported under the same key, which keeps OTLP
@@ -259,10 +278,8 @@ public final class OtlpTraceJson {
         }
         writeAttribute(writer, STRING_ATTRIBUTE, entry.getKey(), entry.getValue());
       }
-
       // global tags are left to the resource
       spanTags.write(metadata, direction);
-
       // reset for next span
       includeProcessTags = false;
       includeSamplingTags = false;

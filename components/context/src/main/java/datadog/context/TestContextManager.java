@@ -1,10 +1,13 @@
 package datadog.context;
 
-/** Test class that always delegates to the latest registered {@link ContextManager}. */
+/**
+ * Test class that always delegates to the latest registered {@link ContextManager}.
+ */
 final class TestContextManager implements ContextManager {
   private static final ContextManager TEST_INSTANCE = new TestContextManager();
 
-  private TestContextManager() {}
+  private TestContextManager() {
+  }
 
   static boolean register() {
     // attempt to register before manager choice is locked, then check if we succeeded

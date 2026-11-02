@@ -14,7 +14,6 @@ import org.springframework.web.client.RestTemplate;
 public class DemoController {
   private int[] users;
   private final int MAX_REQUESTS = 100000000;
-
   @Value("${server.port}")
   private String httpPort;
 

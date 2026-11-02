@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import javax.annotation.Nonnull;
 
 public class ConcurrentEnumMap<K extends Enum<K>, V> implements Map<K, V> {
-
   private final K[] enumConstants;
   private final AtomicReferenceArray<V> values;
 

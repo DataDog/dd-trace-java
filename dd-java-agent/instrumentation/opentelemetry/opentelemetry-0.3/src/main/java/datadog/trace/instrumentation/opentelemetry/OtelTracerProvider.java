@@ -6,10 +6,10 @@ import io.opentelemetry.trace.TracerProvider;
 
 public class OtelTracerProvider implements TracerProvider {
   public static final OtelTracerProvider INSTANCE = new OtelTracerProvider();
-
   private final TypeConverter converter = new TypeConverter();
 
-  private OtelTracerProvider() {}
+  private OtelTracerProvider() {
+  }
 
   @Override
   public Tracer get(final String instrumentationName) {

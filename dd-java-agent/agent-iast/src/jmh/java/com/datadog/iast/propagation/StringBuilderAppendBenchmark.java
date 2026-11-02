@@ -1,7 +1,6 @@
 package com.datadog.iast.propagation;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
-
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import datadog.trace.api.iast.IastContext;
@@ -10,8 +9,8 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 
 public class StringBuilderAppendBenchmark
-    extends AbstractBenchmark<StringBuilderAppendBenchmark.Context> {
-
+    extends AbstractBenchmark<StringBuilderAppendBenchmark.Context>
+{
   @Override
   protected Context initializeContext() {
     final IastRequestContext context = new IastRequestContext();
@@ -20,11 +19,11 @@ public class StringBuilderAppendBenchmark
         tainted(context, "I am a tainted string", new Range(5, 6, source(), NOT_MARKED));
     final StringBuilder notTaintedBuilder =
         notTainted(new StringBuilder("I am not a tainted string builder"));
-    final StringBuilder taintedBuilder =
-        tainted(
-            context,
-            new StringBuilder("I am a tainted string builder"),
-            new Range(5, 6, source(), NOT_MARKED));
+    final StringBuilder taintedBuilder = tainted(
+        context,
+        new StringBuilder("I am a tainted string builder"),
+        new Range(5, 6, source(), NOT_MARKED)
+    );
     return new Context(context, notTainted, tainted, notTaintedBuilder, taintedBuilder);
   }
 
@@ -80,12 +79,9 @@ public class StringBuilderAppendBenchmark
   }
 
   protected static class Context extends AbstractBenchmark.BenchmarkContext {
-
     private final String notTainted;
     private final String tainted;
-
     private final StringBuilder notTaintedBuilder;
-
     private final StringBuilder taintedBuilder;
 
     protected Context(
@@ -93,7 +89,8 @@ public class StringBuilderAppendBenchmark
         final String notTainted,
         final String tainted,
         final StringBuilder notTaintedBuilder,
-        final StringBuilder taintedBuilder) {
+        final StringBuilder taintedBuilder
+    ) {
       super(context);
       this.tainted = tainted;
       this.notTainted = notTainted;

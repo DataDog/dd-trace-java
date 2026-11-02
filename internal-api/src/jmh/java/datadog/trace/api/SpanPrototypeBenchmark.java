@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -47,7 +46,6 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(3)
 @Threads(8)
 public class SpanPrototypeBenchmark {
-
   // The constant set a typical server span carries, as cached entries (the shared-Entry
   // hand-optimization the decorators use today).
   private static final TagMap.Entry COMPONENT = TagMap.Entry.create(Tags.COMPONENT, "netty");
@@ -57,19 +55,18 @@ public class SpanPrototypeBenchmark {
       TagMap.Entry.create(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
   private static final TagMap.Entry ANALYTICS =
       TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, 1.0d);
-
   private SpanPrototype prototype;
 
   @Setup(Level.Trial)
   public void setUp() {
     // Baked once — the same constants, composed through the builder.
-    prototype =
-        SpanPrototype.builder()
-            .initComponentOnly("netty")
-            .initKind(Tags.SPAN_KIND_SERVER)
-            .initTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE)
-            .initTag(ANALYTICS)
-            .build();
+    prototype = SpanPrototype
+      .builder()
+      .initComponentOnly("netty")
+      .initKind(Tags.SPAN_KIND_SERVER)
+      .initTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE)
+      .initTag(ANALYTICS)
+      .build();
   }
 
   @Benchmark

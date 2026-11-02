@@ -9,10 +9,11 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Receives the flag configuration from Remote Configuration, through the Datadog Java agent. */
+/**
+ * Receives the flag configuration from Remote Configuration, through the Datadog Java agent.
+ */
 public final class RemoteConfigurationService implements ConfigurationService {
   private static final Logger LOGGER = LoggerFactory.getLogger(RemoteConfigurationService.class);
-
   private final ConfigurationSource source;
   private AutoCloseable subscription;
 
@@ -26,29 +27,28 @@ public final class RemoteConfigurationService implements ConfigurationService {
       return;
     }
     LOGGER.debug("Feature Flags subscribing to Remote Configuration");
-    this.subscription =
-        this.source.subscribe(
-            content -> {
-              if (content == null) {
-                listener.accept(null);
-                return;
-              }
-              final ServerConfiguration configuration;
-              try {
-                configuration = UniversalFlagConfigParser.parse(content);
-              } catch (final IOException | RuntimeException e) {
-                LOGGER.debug(
-                    "Remote Configuration returned a malformed flag configuration ({}); retaining the current configuration",
-                    e.getClass().getSimpleName(),
-                    e);
-                // Rejects the document so the agent reports it as not applied.
-                throw new IllegalArgumentException(
-                    "Malformed flag configuration: " + e.getMessage(), e);
-              }
-              if (configuration != null) {
-                listener.accept(configuration);
-              }
-            });
+    this.subscription = this.source.subscribe(content -> {
+      if (content == null) {
+        listener.accept(null);
+        return;
+      }
+      final ServerConfiguration configuration;
+      try {
+        configuration = UniversalFlagConfigParser.parse(content);
+      } catch (final IOException | RuntimeException e) {
+        LOGGER.debug(
+            "Remote Configuration returned a malformed flag configuration ({}); retaining the "
+            + "current configuration",
+            e.getClass().getSimpleName(),
+            e
+        );
+        // Rejects the document so the agent reports it as not applied.
+        throw new IllegalArgumentException("Malformed flag configuration: " + e.getMessage(), e);
+      }
+      if (configuration != null) {
+        listener.accept(configuration);
+      }
+    });
   }
 
   @Override

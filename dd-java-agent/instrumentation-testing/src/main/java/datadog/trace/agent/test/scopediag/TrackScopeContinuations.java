@@ -24,9 +24,13 @@ public @interface TrackScopeContinuations {
    */
   boolean enabled() default true;
 
-  /** Checks excluded from enforcement while recording remains enabled. Requires a reason. */
+  /**
+   * Checks excluded from enforcement while recording remains enabled. Requires a reason.
+   */
   ScopeDiagnosticsCheck[] disabledChecks() default {};
 
-  /** Required when recording is disabled or {@link #disabledChecks()} is nonempty. */
+  /**
+   * Required when recording is disabled or {@link #disabledChecks()} is nonempty.
+   */
   String reason() default "";
 }

@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
  */
 public final class FallbackTransport implements EventTransport {
   private static final Logger LOGGER = LoggerFactory.getLogger(FallbackTransport.class);
-
   private final EventTransport proxy;
   private final EventTransport direct;
   private volatile boolean proxyUnavailable;

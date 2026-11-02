@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.telemetry.TelemetryService;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChangeCollector;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class ProductChangeActionTest {
-
   private final ProductChangeAction action = new ProductChangeAction();
   private final TelemetryService telemetryService = mock(TelemetryService.class);
 
@@ -25,8 +23,7 @@ class ProductChangeActionTest {
 
     action.doIteration(telemetryService);
 
-    ArgumentCaptor<ProductChange> productChangeCaptor =
-        ArgumentCaptor.forClass(ProductChange.class);
+    ArgumentCaptor<ProductChange> productChangeCaptor = ArgumentCaptor.forClass(ProductChange.class);
     verify(telemetryService, times(1)).addProductChange(productChangeCaptor.capture());
     ProductChange productChange = productChangeCaptor.getValue();
     assertEquals(APPSEC, productChange.getProductType());

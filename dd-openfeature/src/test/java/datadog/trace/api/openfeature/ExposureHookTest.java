@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
 import dev.openfeature.sdk.HookContext;
@@ -17,7 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** Checks the deprecated exposure hook alias delegates to the SDK hook. */
+/**
+ * Checks the deprecated exposure hook alias delegates to the SDK hook.
+ */
 @SuppressWarnings("deprecation")
 class ExposureHookTest {
   @Test
@@ -25,14 +26,14 @@ class ExposureHookTest {
     final List<ExposureHook.Evaluation> evaluations = new ArrayList<>();
     final ExposureHook hook = new ExposureHook(evaluations::add);
     final HookContext<Object> context = context();
-    final FlagEvaluationDetails<Object> details =
-        details(
-            ImmutableMetadata.builder()
-                .addString("allocationKey", "allocation")
-                .addBoolean("__dd_do_log", true)
-                .addBoolean("__dd_exposure_cache_hit", false)
-                .addString("__dd_feature.holdout.key", "holdout")
-                .build());
+    final FlagEvaluationDetails<Object> details = details(ImmutableMetadata
+      .builder()
+      .addString("allocationKey", "allocation")
+      .addBoolean("__dd_do_log", true)
+      .addBoolean("__dd_exposure_cache_hit", false)
+      .addString("__dd_feature.holdout.key", "holdout")
+      .build()
+    );
 
     hook.finallyAfter(context, details, emptyMap());
 
@@ -67,15 +68,22 @@ class ExposureHookTest {
 
   private static HookContext<Object> context() {
     return HookContext.from(
-        "flag", FlagValueType.STRING, null, null, new ImmutableContext("user"), "default");
+        "flag",
+        FlagValueType.STRING,
+        null,
+        null,
+        new ImmutableContext("user"),
+        "default"
+    );
   }
 
   private static FlagEvaluationDetails<Object> details(final ImmutableMetadata metadata) {
-    return FlagEvaluationDetails.builder()
-        .flagKey("flag")
-        .variant("on")
-        .value("on")
-        .flagMetadata(metadata)
-        .build();
+    return FlagEvaluationDetails
+      .builder()
+      .flagKey("flag")
+      .variant("on")
+      .value("on")
+      .flagMetadata(metadata)
+      .build();
   }
 }

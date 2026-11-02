@@ -4,7 +4,6 @@ import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -63,7 +62,6 @@ import org.slf4j.LoggerFactory;
  * through {@link AIGuardSystem#start()}.
  */
 public class AIGuardInternal implements Evaluator {
-
   private static final Logger log = LoggerFactory.getLogger(AIGuardInternal.class);
 
   public static class BadConfigurationException extends RuntimeException {
@@ -79,22 +77,23 @@ public class AIGuardInternal implements Evaluator {
   static final String REASON_TAG = "ai_guard.reason";
   static final String BLOCKED_TAG = "ai_guard.blocked";
   static final String REDACTED_TAG = "ai_guard.redacted";
-
   static final String RESPONSE_REDACTION_REPLACEMENTS = "redaction_replacements";
-
   static final String META_STRUCT_TAG = "ai_guard";
   static final String META_STRUCT_MESSAGES = "messages";
   static final String META_STRUCT_CATEGORIES = "attack_categories";
   static final String META_STRUCT_SDS = "sds";
   static final String META_STRUCT_TAG_PROBS = "tag_probs";
-
   /**
    * Anomaly detection tags copied from the local root span onto every {@code ai_guard} span with
    * the {@code ai_guard.} prefix, so the AI Guard backend can correlate AI Guard requests with the
    * request context (client IP, user, session) without depending on the local root span.
    */
   static final String[] ANOMALY_DETECTION_TAGS = {
-    Tags.HTTP_CLIENT_IP, Tags.NETWORK_CLIENT_IP, Tags.HTTP_USER_AGENT, "usr.id", "usr.session_id"
+      Tags.HTTP_CLIENT_IP,
+      Tags.NETWORK_CLIENT_IP,
+      Tags.HTTP_USER_AGENT,
+      "usr.id",
+      "usr.session_id"
   };
 
   public static void install() {
@@ -103,31 +102,34 @@ public class AIGuardInternal implements Evaluator {
     final String appKey = config.getApplicationKey();
     if (isBlank(apiKey) || isBlank(appKey)) {
       throw new BadConfigurationException(
-          "AI Guard: Missing api and/or application key, use DD_API_KEY and DD_APP_KEY");
+          "AI Guard: Missing api and/or application key, use DD_API_KEY and DD_APP_KEY"
+      );
     }
     String endpoint = config.getAiGuardEndpoint();
     if (isBlank(endpoint)) {
       endpoint = String.format("https://app.%s/api/v2/ai-guard", config.getSite());
     }
-    final Map<String, String> headers =
-        mapOf(
-            "DD-API-KEY",
-            apiKey,
-            "DD-APPLICATION-KEY",
-            appKey,
-            "DD-AI-GUARD-VERSION",
-            TRACER_VERSION,
-            "DD-AI-GUARD-SOURCE",
-            "SDK",
-            "DD-AI-GUARD-LANGUAGE",
-            "jvm");
+    final Map<String, String> headers = mapOf(
+        "DD-API-KEY",
+        apiKey,
+        "DD-APPLICATION-KEY",
+        appKey,
+        "DD-AI-GUARD-VERSION",
+        TRACER_VERSION,
+        "DD-AI-GUARD-SOURCE",
+        "SDK",
+        "DD-AI-GUARD-LANGUAGE",
+        "jvm"
+    );
     final HttpUrl url = HttpUrl.get(endpoint).newBuilder().addPathSegment("evaluate").build();
     final int timeout = config.getAiGuardTimeout();
     final OkHttpClient client = buildClient(url, timeout);
     Installer.install(new AIGuardInternal(url, headers, client));
   }
 
-  /** Used by tests to reset status */
+  /**
+   * Used by tests to reset status
+   */
   static void uninstall() {
     Installer.install(new NoOpEvaluator());
   }
@@ -146,10 +148,9 @@ public class AIGuardInternal implements Evaluator {
     this.moshi = new Moshi.Builder().add(new AIGuardFactory()).build();
     final Config config = Config.get();
     this.meta = mapOf("service", config.getServiceName(), "env", config.getEnv());
-    this.redactor =
-        config.isAiGuardRedactionEnabled()
-            ? new MessageRedactor.DefaultRedactor()
-            : new MessageRedactor.NoOp();
+    this.redactor = config.isAiGuardRedactionEnabled()
+        ? new MessageRedactor.DefaultRedactor()
+        : new MessageRedactor.NoOp();
   }
 
   /**
@@ -188,8 +189,7 @@ public class AIGuardInternal implements Evaluator {
           }
         }
 
-        result.add(
-            new Message(source.getRole(), truncatedParts, toolCalls, source.getToolCallId()));
+        result.add(new Message(source.getRole(), truncatedParts, toolCalls, source.getToolCallId()));
       } else {
         String content = source.getContent();
         if (content != null && content.length() > maxContent) {
@@ -222,7 +222,9 @@ public class AIGuardInternal implements Evaluator {
    *     which case no {@code ai_guard.redacted} tag is attached at all
    */
   private AIGuardRedaction reportRedaction(
-      final AgentSpan span, final MessageRedactor.Result redaction) {
+      final AgentSpan span,
+      final MessageRedactor.Result redaction
+  ) {
     if (!redactor.enabled()) {
       // No tag at all, so an absent tag ("redaction is off") stays distinguishable from a false
       // one ("redaction is on and nothing was redacted").
@@ -231,7 +233,8 @@ public class AIGuardInternal implements Evaluator {
     if (redaction.skipped > 0) {
       log.debug(
           "AI Guard skipped {} redaction replacement(s) that could not be applied",
-          redaction.skipped);
+          redaction.skipped
+      );
       // Reported and then forgotten: redaction is best effort and must never fail the evaluation
       // it rode in on, so this counts an error without counting a failed request.
       WafMetricCollector.get().aiGuardRedactionErrors(redaction.skipped);
@@ -251,10 +254,12 @@ public class AIGuardInternal implements Evaluator {
   private static String getToolName(final Message current, final List<Message> messages) {
     if (current.getToolCalls() != null) {
       // assistant message with tool calls
-      return current.getToolCalls().stream()
-          .map(ToolCall::getFunction)
-          .map(Function::getName)
-          .collect(Collectors.joining(","));
+      return current
+        .getToolCalls()
+        .stream()
+        .map(ToolCall::getFunction)
+        .map(Function::getName)
+        .collect(Collectors.joining(","));
     }
     // assistant message with tool output (search the linked tool call in reverse order)
     final String id = current.getToolCallId();
@@ -304,8 +309,7 @@ public class AIGuardInternal implements Evaluator {
     }
   }
 
-  private static void copyAnomalyDetectionTags(
-      final AgentSpan span, final AgentSpan localRootSpan) {
+  private static void copyAnomalyDetectionTags(final AgentSpan span, final AgentSpan localRootSpan) {
     for (final String tag : ANOMALY_DETECTION_TAGS) {
       final Object value = localRootSpan.getTag(tag);
       if (value != null) {
@@ -361,8 +365,8 @@ public class AIGuardInternal implements Evaluator {
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
       final Request.Builder request =
           new Request.Builder()
-              .url(url)
-              .method("POST", new MoshiJsonRequestBody(moshi, messages, meta));
+        .url(url)
+        .method("POST", new MoshiJsonRequestBody(moshi, messages, meta));
       headers.forEach(request::header);
       try (final Response response = executeRequest(tracer, request.build())) {
         final Map<String, Object> result;
@@ -425,14 +429,22 @@ public class AIGuardInternal implements Evaluator {
           metaStruct.put(META_STRUCT_SDS, sdsFindings);
         }
         final boolean shouldBlock =
-            isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
+            isBlockingEnabled(options, result.get("is_blocking_enabled"))
+            && action != Action.ALLOW;
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock, redactionState);
         if (shouldBlock) {
           span.setTag(BLOCKED_TAG, true);
           throw new AIGuardAbortError(action, reason, tags, tagProbs, sdsFindings);
         }
         return new Evaluation(
-            action, reason, tags, tagProbs, sdsFindings, redaction.messages, redactionReplacements);
+            action,
+            reason,
+            tags,
+            tagProbs,
+            sdsFindings,
+            redaction.messages,
+            redactionReplacements
+        );
       } finally {
         metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(finalMessages));
       }
@@ -447,7 +459,9 @@ public class AIGuardInternal implements Evaluator {
       WafMetricCollector.get().aiGuardError(errorType);
       final AIGuardClientError error =
           new AIGuardClientError(
-              "AI Guard service returned unexpected response: " + e.getMessage(), e);
+              "AI Guard service returned unexpected response: " + e.getMessage(),
+              e
+      );
       span.addThrowable(error);
       throw error;
     } finally {
@@ -509,11 +523,13 @@ public class AIGuardInternal implements Evaluator {
   }
 
   static class AIGuardFactory implements JsonAdapter.Factory {
-
     @Nullable
     @Override
     public JsonAdapter<?> create(
-        final Type type, final Set<? extends Annotation> annotations, final Moshi moshi) {
+        final Type type,
+        final Set<? extends Annotation> annotations,
+        final Moshi moshi
+    ) {
       final Class<?> rawType = Types.getRawType(type);
       if (rawType != AIGuard.Message.class) {
         return null;
@@ -523,7 +539,6 @@ public class AIGuardInternal implements Evaluator {
   }
 
   static class MessageAdapter extends JsonAdapter<Message> {
-
     private final JsonAdapter<AIGuard.ToolCall> toolCallAdapter;
 
     MessageAdapter(final JsonAdapter<ToolCall> toolCallAdapter) {
@@ -553,8 +568,10 @@ public class AIGuardInternal implements Evaluator {
     }
 
     private void writeContentParts(
-        final JsonWriter writer, final String name, final List<ContentPart> contentParts)
-        throws IOException {
+        final JsonWriter writer,
+        final String name,
+        final List<ContentPart> contentParts
+    ) throws IOException {
       writer.name(name);
       writer.beginArray();
       for (final ContentPart part : contentParts) {
@@ -601,15 +618,16 @@ public class AIGuardInternal implements Evaluator {
   }
 
   static class MoshiJsonRequestBody extends RequestBody {
-
     private static final MediaType JSON = MediaType.parse("application/json");
-
     private final Moshi moshi;
     private final Map<String, String> meta;
     private final Collection<Message> messages;
 
     public MoshiJsonRequestBody(
-        final Moshi moshi, final Collection<Message> messages, final Map<String, String> meta) {
+        final Moshi moshi,
+        final Collection<Message> messages,
+        final Map<String, String> meta
+    ) {
       this.moshi = moshi;
       this.messages = messages;
       this.meta = meta;
@@ -624,18 +642,24 @@ public class AIGuardInternal implements Evaluator {
     @Override
     public void writeTo(final BufferedSink sink) throws IOException {
       final JsonWriter writer = JsonWriter.of(sink);
-      writer.beginObject(); // request
+      // request
+      writer.beginObject();
       writer.name("data");
-      writer.beginObject(); // data
+      // data
+      writer.beginObject();
       writer.name("attributes");
-      writer.beginObject(); // attributes
+      // attributes
+      writer.beginObject();
       writer.name("messages");
       moshi.adapter(Object.class).toJson(writer, messages);
       writer.name("meta");
       writer.jsonValue(meta);
-      writer.endObject(); // attributes
-      writer.endObject(); // data
-      writer.endObject(); // request
+      // attributes
+      writer.endObject();
+      // data
+      writer.endObject();
+      // request
+      writer.endObject();
     }
   }
 }

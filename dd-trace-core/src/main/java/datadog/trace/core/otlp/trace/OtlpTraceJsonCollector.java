@@ -5,7 +5,6 @@ import static datadog.trace.core.otlp.common.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.core.otlp.common.OtlpProtoBuffer.MAX_CAPACITY_BYTES;
 import static datadog.trace.core.otlp.common.OtlpResourceJson.buildTraceResourceFragment;
 import static datadog.trace.core.otlp.trace.OtlpTraceJson.writeSpan;
-
 import datadog.json.JsonWriter;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -36,29 +35,25 @@ import java.util.List;
  * remote config tag change) completes the current resource and starts a new one.
  */
 public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
-
   private static final OtelInstrumentationScope DEFAULT_TRACE_SCOPE =
       new OtelInstrumentationScope("", null, null);
-
   private JsonWriter writer;
   private OtlpTraceJson.MetaWriter metaWriter;
-
   private boolean payloadStarted;
   private boolean anySpanWritten;
   private boolean firstSpanInScope;
-
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
   private List<? extends AgentSpanLink> currentSpanLinks = Collections.emptyList();
-
   // global tags of the trace being added
   private TagMap traceGlobalTags;
-
   // resources for the last two global tags seen, see CachedResource
   private CachedResource currentResource;
   private CachedResource previousResource;
 
-  /** Adds the given trace spans to the collector. */
+  /**
+   * Adds the given trace spans to the collector.
+   */
   @Override
   public void addTrace(List<? extends CoreSpan<?>> spans) {
     if (!payloadStarted) {
@@ -112,7 +107,9 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     writer.name("resourceSpans").beginArray();
   }
 
-  /** Cleanup elements used to collect trace data. */
+  /**
+   * Cleanup elements used to collect trace data.
+   */
   private void stop() {
     payloadStarted = false;
     payloadGlobalTags = null;
@@ -131,11 +128,10 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     // Rebuild when the open resource's tags (payloadGlobalTags) differ from the cached one
     if (currentResource == null || currentResource.globalTags != payloadGlobalTags) {
       CachedResource replaced = currentResource;
-      currentResource =
-          previousResource != null && previousResource.globalTags == payloadGlobalTags
-              ? previousResource
-              : new CachedResource(
-                  payloadGlobalTags, buildTraceResourceFragment(payloadGlobalTags));
+      currentResource = previousResource != null
+          && previousResource.globalTags == payloadGlobalTags
+          ? previousResource
+          : new CachedResource(payloadGlobalTags, buildTraceResourceFragment(payloadGlobalTags));
       previousResource = replaced;
     }
     return currentResource.fragment;
@@ -150,7 +146,6 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     writer.beginObject();
     writer.name("resource").jsonValue(resourceFragment());
     writer.name("scopeSpans").beginArray();
-
     // for now put all spans under the default scope
     visitScopedSpans(DEFAULT_TRACE_SCOPE);
   }
@@ -192,9 +187,10 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     if (currentScope != null) {
       completeResource();
     }
-
-    writer.endArray(); // resourceSpans
-    writer.endObject(); // root
+    // resourceSpans
+    writer.endArray();
+    // root
+    writer.endObject();
 
     if (!anySpanWritten) {
       return OtlpPayload.EMPTY;
@@ -207,9 +203,10 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
   // called once we've processed all spans with the same global tags
   private void completeResource() {
     completeScope();
-
-    writer.endArray(); // scopeSpans
-    writer.endObject(); // resourceSpans[i]
+    // scopeSpans
+    writer.endArray();
+    // resourceSpans[i]
+    writer.endObject();
   }
 
   // called once we've processed all spans in a specific scope
@@ -219,10 +216,10 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
       metaWriter.includeSamplingTags();
       completeSpan();
     }
-
-    writer.endArray(); // spans
-    writer.endObject(); // scopeSpans[0]
-
+    // spans
+    writer.endArray();
+    // scopeSpans[0]
+    writer.endObject();
     // reset temporary elements for next scope
     currentScope = null;
   }
@@ -237,14 +234,14 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     }
     writeSpan(writer, currentSpan, metaWriter, currentSpanLinks);
     anySpanWritten = true;
-
     // reset temporary elements for next span
     currentSpan = null;
     currentSpanLinks = Collections.emptyList();
 
     if (writer.size() > MAX_CAPACITY_BYTES) {
       throw new IllegalStateException(
-          "OTLP payload exceeds maximum buffer size of " + MAX_CAPACITY_BYTES + " bytes");
+          "OTLP payload exceeds maximum buffer size of " + MAX_CAPACITY_BYTES + " bytes"
+      );
     }
   }
 

@@ -20,28 +20,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CiEnvironmentVariables {
-
   private static final Logger logger = LoggerFactory.getLogger(CiEnvironmentVariables.class);
-
   static final String CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL =
       "dd.civisibility.remote.env.vars.provider.url";
   static final String CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY =
       "dd.civisibility.remote.env.vars.provider.key";
-
   static final String DD_ENV_VARS_PROVIDER_KEY_HEADER = "DD-Env-Vars-Provider-Key";
   static final String ACCEPT_HEADER = "Accept";
-
   private static final int CONNECT_TIMEOUT_MILLIS = 5000;
   private static final int READ_TIMEOUT_MILLIS = 10000;
-
   private static final Map<String, String> REMOTE_ENVIRONMENT;
 
   static {
     String url = getConfigValue(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL);
     String key = getConfigValue(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
     if (url != null && key != null) {
-      REMOTE_ENVIRONMENT =
-          getRemoteEnvironmentWithRetries(url, key, new RetryPolicy(500, 5, 2), null);
+      REMOTE_ENVIRONMENT = getRemoteEnvironmentWithRetries(
+          url,
+          key,
+          new RetryPolicy(500, 5, 2),
+          null
+      );
     } else {
       REMOTE_ENVIRONMENT = null;
     }
@@ -56,7 +55,11 @@ public class CiEnvironmentVariables {
   }
 
   static Map<String, String> getRemoteEnvironmentWithRetries(
-      String url, String key, RetryPolicy retryPolicy, Map<String, String> fallbackValue) {
+      String url,
+      String key,
+      RetryPolicy retryPolicy,
+      Map<String, String> fallbackValue
+  ) {
     return doWithBackoffRetries(() -> getRemoteEnvironment(url, key), retryPolicy, fallbackValue);
   }
 
@@ -73,7 +76,10 @@ public class CiEnvironmentVariables {
   }
 
   private static <T> T doWithBackoffRetries(
-      Callable<T> action, RetryPolicy retryPolicy, T fallbackValue) {
+      Callable<T> action,
+      RetryPolicy retryPolicy,
+      T fallbackValue
+  ) {
     long delayMillis = retryPolicy.delayMillis;
     for (int i = 0; i < retryPolicy.maxAttempts; i++) {
       if (Thread.currentThread().isInterrupted()) {
@@ -82,7 +88,6 @@ public class CiEnvironmentVariables {
       }
       try {
         return action.call();
-
       } catch (Exception e) {
         logger.warn("Error while trying to read remote environment", e);
         sleep(delayMillis);
@@ -118,17 +123,17 @@ public class CiEnvironmentVariables {
           properties.load(r);
         }
         return asMap(properties);
-
       } else {
         try (BufferedReader r =
-            new BufferedReader(
-                new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
+            new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
           String body = r.lines().collect(Collectors.joining("\n"));
-          throw new IOException(
-              String.format("Remote environment request failed (HTTP %d) %s", code, body));
+          throw new IOException(String.format(
+              "Remote environment request failed (HTTP %d) %s",
+              code,
+              body
+          ));
         }
       }
-
     } finally {
       if (conn != null) {
         conn.disconnect();

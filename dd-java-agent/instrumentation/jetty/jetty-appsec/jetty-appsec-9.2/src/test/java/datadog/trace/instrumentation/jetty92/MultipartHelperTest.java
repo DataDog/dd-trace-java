@@ -13,7 +13,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -38,13 +37,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class MultipartHelperTest {
-
   private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
   private CallbackProvider callbackProvider;
   private RequestContext reqCtx;
   private BlockResponseFunction brf;
   private TraceSegment traceSegment;
-
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
 
@@ -83,12 +80,11 @@ class MultipartHelperTest {
 
   private <T> void stubCallback(EventType<BiFunction<RequestContext, T, Flow<Void>>> event) {
     doReturn((Object) (BiFunction<RequestContext, T, Flow<Void>>) (ctx, x) -> blockingFlow())
-        .when(callbackProvider)
-        .getCallback(event);
+      .when(callbackProvider)
+      .getCallback(event);
   }
 
   // ── fireFilenamesEvent: wiring to BlockResponseFunction ─────────────────────
-
   @Test
   void fireFilenamesEventCommitFails() {
     stubCallback(Events.EVENTS.requestFilesFilenames());
@@ -126,7 +122,6 @@ class MultipartHelperTest {
   }
 
   // ── fireFilesContentEvent: wiring to BlockResponseFunction ──────────────────
-
   @Test
   void fireFilesContentEventCommitFails() throws IOException {
     stubCallback(Events.EVENTS.requestFilesContent());
@@ -135,7 +130,7 @@ class MultipartHelperTest {
     Part p = mock(Part.class);
     when(p.getSubmittedFileName()).thenReturn("photo.jpg");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
 
     BlockingException result = MultipartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
 
@@ -151,7 +146,7 @@ class MultipartHelperTest {
     Part p = mock(Part.class);
     when(p.getSubmittedFileName()).thenReturn("photo.jpg");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
 
     BlockingException result = MultipartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
 
@@ -167,7 +162,7 @@ class MultipartHelperTest {
     Part p = mock(Part.class);
     when(p.getSubmittedFileName()).thenReturn("photo.jpg");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
 
     BlockingException result = MultipartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
 
@@ -228,7 +223,6 @@ class MultipartHelperTest {
   }
 
   // ── extractContents ─────────────────────────────────────────────────────────
-
   @Test
   void extractContentsReturnsEmptyListForNull() {
     assertEquals(emptyList(), MultipartHelper.extractContents(null));
@@ -250,7 +244,7 @@ class MultipartHelperTest {
     Part p = mock(Part.class);
     when(p.getSubmittedFileName()).thenReturn("");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
     when(p.getContentType()).thenReturn("text/plain; charset=UTF-8");
     assertEquals(singletonList("data"), MultipartHelper.extractContents(singletonList(p)));
   }
@@ -260,7 +254,7 @@ class MultipartHelperTest {
     Part p = mock(Part.class);
     when(p.getSubmittedFileName()).thenReturn("photo.jpg");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("file-content".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("file-content".getBytes(StandardCharsets.UTF_8)));
     when(p.getContentType()).thenReturn("text/plain; charset=UTF-8");
     assertEquals(singletonList("file-content"), MultipartHelper.extractContents(singletonList(p)));
   }
@@ -293,8 +287,9 @@ class MultipartHelperTest {
     for (int i = 0; i < count; i++) {
       Part p = mock(Part.class);
       when(p.getSubmittedFileName()).thenReturn("file" + i + ".txt");
-      when(p.getInputStream())
-          .thenReturn(new ByteArrayInputStream("c".getBytes(StandardCharsets.UTF_8)));
+      when(p.getInputStream()).thenReturn(
+          new ByteArrayInputStream("c".getBytes(StandardCharsets.UTF_8))
+      );
       when(p.getContentType()).thenReturn(null);
       parts.add(p);
     }

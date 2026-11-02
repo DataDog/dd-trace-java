@@ -16,13 +16,13 @@ import org.springframework.util.MultiValueMap;
 
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintQueryParamsAdvice {
-
   @SuppressWarnings("Duplicates")
   @Advice.OnMethodExit(suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
   public static void after(
       @Advice.Return MultiValueMap<String, String> queryParams,
-      @ActiveRequestContext RequestContext reqCtx) {
+      @ActiveRequestContext RequestContext reqCtx
+  ) {
     final PropagationModule prop = InstrumentationBridge.PROPAGATION;
     if (prop == null || queryParams == null || queryParams.isEmpty()) {
       return;

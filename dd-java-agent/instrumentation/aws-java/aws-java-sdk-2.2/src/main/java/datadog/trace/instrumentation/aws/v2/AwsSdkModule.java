@@ -8,10 +8,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-/** Groups the instrumentations for AWS SDK 2.2+. */
+/**
+ * Groups the instrumentations for AWS SDK 2.2+.
+ */
 @AutoService(InstrumenterModule.class)
 public final class AwsSdkModule extends InstrumenterModule.Tracing {
-
   public AwsSdkModule() {
     super("aws-sdk");
   }
@@ -19,7 +20,9 @@ public final class AwsSdkModule extends InstrumenterModule.Tracing {
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");
+        "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse",
+        "java.lang.String"
+    );
   }
 
   @Override

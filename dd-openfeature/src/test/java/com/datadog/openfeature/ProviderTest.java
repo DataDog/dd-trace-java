@@ -19,7 +19,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadog.openfeature.Provider.Options;
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.LocalHttpServer;
@@ -72,9 +71,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class ProviderTest {
-
   private static final long EVENT_TIMEOUT_SECONDS = 10;
-
   private ExecutorService executor;
   private LocalHttpServer cdn;
   private DDEvaluator evaluator;
@@ -102,13 +99,14 @@ public class ProviderTest {
 
   private Provider newProvider(final Options options, final AgentBridge bridge) {
     final Provider[] providerRef = new Provider[1];
-    this.evaluator =
-        new DDEvaluator(
-            () -> providerRef[0].onConfigurationChange(),
-            bridge,
-            TestSettings.of(
-                "feature.flags.configuration.source.agentless.base.url",
-                this.cdn.uri("/").toString()));
+    this.evaluator = new DDEvaluator(
+        () -> providerRef[0].onConfigurationChange(),
+        bridge,
+        TestSettings.of(
+            "feature.flags.configuration.source.agentless.base.url",
+            this.cdn.uri("/").toString()
+        )
+    );
     providerRef[0] = new Provider(options, this.evaluator);
     return providerRef[0];
   }
@@ -162,9 +160,9 @@ public class ProviderTest {
     final Client client = api.getClient();
     client.on(ProviderEvent.PROVIDER_READY, readyEventHandler);
 
-    assertThrows(
-        ProviderNotReadyError.class,
-        () -> api.setProviderAndWait(newProvider(new Options().initTimeout(10, MILLISECONDS))));
+    assertThrows(ProviderNotReadyError.class, () -> api.setProviderAndWait(
+        newProvider(new Options().initTimeout(10, MILLISECONDS))
+    ));
 
     assertThat(client.getProviderState(), equalTo(ProviderState.ERROR));
     assertFalse(readyEvent.isDone());
@@ -181,37 +179,38 @@ public class ProviderTest {
   public void testSetProviderAndWaitCompletesWhenConfigurationArrivesAtTimeoutBoundary()
       throws Exception {
     final Provider[] providerRef = new Provider[1];
-    final Evaluator evaluator =
-        new Evaluator() {
-          private boolean hasConfiguration;
+    final Evaluator evaluator = new Evaluator() {
+      private boolean hasConfiguration;
 
-          @Override
-          public boolean initialize(
-              final long timeout,
-              final java.util.concurrent.TimeUnit timeUnit,
-              final EvaluationContext context) {
-            hasConfiguration = true;
-            providerRef[0].onConfigurationChange();
-            return false;
-          }
+      @Override
+      public boolean initialize(
+          final long timeout,
+          final java.util.concurrent.TimeUnit timeUnit,
+          final EvaluationContext context
+      ) {
+        hasConfiguration = true;
+        providerRef[0].onConfigurationChange();
+        return false;
+      }
 
-          @Override
-          public boolean hasConfiguration() {
-            return hasConfiguration;
-          }
+      @Override
+      public boolean hasConfiguration() {
+        return hasConfiguration;
+      }
 
-          @Override
-          public void shutdown() {}
+      @Override
+      public void shutdown() {}
 
-          @Override
-          public <T> ProviderEvaluation<T> evaluate(
-              final Class<T> target,
-              final String key,
-              final T defaultValue,
-              final EvaluationContext context) {
-            return ProviderEvaluation.<T>builder().value(defaultValue).build();
-          }
-        };
+      @Override
+      public <T> ProviderEvaluation<T> evaluate(
+          final Class<T> target,
+          final String key,
+          final T defaultValue,
+          final EvaluationContext context
+      ) {
+        return ProviderEvaluation.<T>builder().value(defaultValue).build();
+      }
+    };
 
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
@@ -224,39 +223,40 @@ public class ProviderTest {
   @Test
   public void testSetProviderAndWaitFailsWhenConfigurationIsRemovedBeforeInitializationCompletes() {
     final Provider[] providerRef = new Provider[1];
-    final Evaluator evaluator =
-        new Evaluator() {
-          private boolean hasConfiguration;
+    final Evaluator evaluator = new Evaluator() {
+      private boolean hasConfiguration;
 
-          @Override
-          public boolean initialize(
-              final long timeout,
-              final java.util.concurrent.TimeUnit timeUnit,
-              final EvaluationContext context) {
-            hasConfiguration = true;
-            providerRef[0].onConfigurationChange();
-            hasConfiguration = false;
-            providerRef[0].onConfigurationChange();
-            return true;
-          }
+      @Override
+      public boolean initialize(
+          final long timeout,
+          final java.util.concurrent.TimeUnit timeUnit,
+          final EvaluationContext context
+      ) {
+        hasConfiguration = true;
+        providerRef[0].onConfigurationChange();
+        hasConfiguration = false;
+        providerRef[0].onConfigurationChange();
+        return true;
+      }
 
-          @Override
-          public boolean hasConfiguration() {
-            return hasConfiguration;
-          }
+      @Override
+      public boolean hasConfiguration() {
+        return hasConfiguration;
+      }
 
-          @Override
-          public void shutdown() {}
+      @Override
+      public void shutdown() {}
 
-          @Override
-          public <T> ProviderEvaluation<T> evaluate(
-              final Class<T> target,
-              final String key,
-              final T defaultValue,
-              final EvaluationContext context) {
-            return ProviderEvaluation.<T>builder().value(defaultValue).build();
-          }
-        };
+      @Override
+      public <T> ProviderEvaluation<T> evaluate(
+          final Class<T> target,
+          final String key,
+          final T defaultValue,
+          final EvaluationContext context
+      ) {
+        return ProviderEvaluation.<T>builder().value(defaultValue).build();
+      }
+    };
 
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
@@ -270,42 +270,44 @@ public class ProviderTest {
   @Test
   public void testInitializationErrorDoesNotOverwriteRecoveredReadyState() throws Exception {
     final Provider[] providerRef = new Provider[1];
-    final Evaluator evaluator =
-        new Evaluator() {
-          private boolean hasConfiguration;
+    final Evaluator evaluator = new Evaluator() {
+      private boolean hasConfiguration;
 
-          @Override
-          public boolean initialize(
-              final long timeout,
-              final java.util.concurrent.TimeUnit timeUnit,
-              final EvaluationContext context) {
-            hasConfiguration = true;
-            providerRef[0].onConfigurationChange();
-            hasConfiguration = false;
-            providerRef[0].onConfigurationChange();
-            hasConfiguration = true;
-            providerRef[0].onConfigurationChange();
-            throw new ProviderNotReadyError(
-                "Provider timed-out while waiting for initial configuration");
-          }
+      @Override
+      public boolean initialize(
+          final long timeout,
+          final java.util.concurrent.TimeUnit timeUnit,
+          final EvaluationContext context
+      ) {
+        hasConfiguration = true;
+        providerRef[0].onConfigurationChange();
+        hasConfiguration = false;
+        providerRef[0].onConfigurationChange();
+        hasConfiguration = true;
+        providerRef[0].onConfigurationChange();
+        throw new ProviderNotReadyError(
+            "Provider timed-out while waiting for initial configuration"
+        );
+      }
 
-          @Override
-          public boolean hasConfiguration() {
-            return hasConfiguration;
-          }
+      @Override
+      public boolean hasConfiguration() {
+        return hasConfiguration;
+      }
 
-          @Override
-          public void shutdown() {}
+      @Override
+      public void shutdown() {}
 
-          @Override
-          public <T> ProviderEvaluation<T> evaluate(
-              final Class<T> target,
-              final String key,
-              final T defaultValue,
-              final EvaluationContext context) {
-            return ProviderEvaluation.<T>builder().value(defaultValue).build();
-          }
-        };
+      @Override
+      public <T> ProviderEvaluation<T> evaluate(
+          final Class<T> target,
+          final String key,
+          final T defaultValue,
+          final EvaluationContext context
+      ) {
+        return ProviderEvaluation.<T>builder().value(defaultValue).build();
+      }
+    };
 
     providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
 
@@ -358,24 +360,26 @@ public class ProviderTest {
   @Test
   public void testDisabledProductFailsInitialization() {
     final Provider[] providerRef = new Provider[1];
-    final DDEvaluator disabled =
-        new DDEvaluator(
-            () -> providerRef[0].onConfigurationChange(),
-            AgentBridge.NONE,
-            TestSettings.of("feature.flags.enabled", "false"));
+    final DDEvaluator disabled = new DDEvaluator(
+        () -> providerRef[0].onConfigurationChange(),
+        AgentBridge.NONE,
+        TestSettings.of("feature.flags.enabled", "false")
+    );
     providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), disabled);
 
-    final FatalError error =
-        assertThrows(
-            FatalError.class,
-            () -> OpenFeatureAPI.getInstance().setProviderAndWait(providerRef[0]));
+    final FatalError error = assertThrows(FatalError.class, () -> OpenFeatureAPI
+      .getInstance()
+      .setProviderAndWait(providerRef[0]));
     assertThat(error.getCause().getMessage(), equalTo("Feature Flags is disabled"));
   }
 
   @MethodSource("providerMethods")
   @ParameterizedTest
   public <E> void testRemoteConfigurationWithoutCompatibleAgentUsesDefaults(
-      final String flag, final E defaultValue, final EvaluateMethod<E> method) throws Exception {
+      final String flag,
+      final E defaultValue,
+      final EvaluateMethod<E> method
+  ) throws Exception {
     final Provider provider = newRemoteConfigurationProvider(AgentBridge.NONE);
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
 
@@ -413,15 +417,16 @@ public class ProviderTest {
 
   private Provider newRemoteConfigurationProvider(final AgentBridge bridge) {
     final Provider[] providerRef = new Provider[1];
-    this.evaluator =
-        new DDEvaluator(
-            () -> providerRef[0].onConfigurationChange(),
-            bridge,
-            TestSettings.of(
-                "feature.flags.configuration.source",
-                "remote_config",
-                "feature.flags.configuration.source.agentless.base.url",
-                this.cdn.uri("/").toString()));
+    this.evaluator = new DDEvaluator(
+        () -> providerRef[0].onConfigurationChange(),
+        bridge,
+        TestSettings.of(
+            "feature.flags.configuration.source",
+            "remote_config",
+            "feature.flags.configuration.source.agentless.base.url",
+            this.cdn.uri("/").toString()
+        )
+    );
     providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), this.evaluator);
     return providerRef[0];
   }
@@ -442,15 +447,14 @@ public class ProviderTest {
   @Test
   public void testClientEvaluationRoutesThroughFlagEvalLoggingHook() throws Exception {
     final BlockingQueue<byte[]> posted = new LinkedBlockingQueue<>();
-    final Provider provider =
-        newProvider(
-            new Options().initTimeout(10, SECONDS),
-            new ProxyAgentBridge(
-                (route, json) -> {
-                  if ("flagevaluation".equals(route)) {
-                    posted.add(json);
-                  }
-                }));
+    final Provider provider = newProvider(
+        new Options().initTimeout(10, SECONDS),
+        new ProxyAgentBridge((route, json) -> {
+          if ("flagevaluation".equals(route)) {
+            posted.add(json);
+          }
+        })
+    );
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     this.executor.submit(() -> api.setProviderAndWait(provider));
     awaitInitialization();
@@ -475,7 +479,8 @@ public class ProviderTest {
     assertThat(event.get("evaluation_count"), equalTo(1L));
     assertThat(
         ((Map<?, ?>) ((Map<?, ?>) event.get("context")).get("evaluation")).get("region"),
-        equalTo("us-east-1"));
+        equalTo("us-east-1")
+    );
   }
 
   @Test
@@ -483,8 +488,7 @@ public class ProviderTest {
     final Evaluator evaluator = mock(Evaluator.class);
     final Provider providerWithoutSpanEnrichment =
         new Provider(new Options(), evaluator, Boolean.FALSE);
-    final Provider providerWithSpanEnrichment =
-        new Provider(new Options(), evaluator, Boolean.TRUE);
+    final Provider providerWithSpanEnrichment = new Provider(new Options(), evaluator, Boolean.TRUE);
 
     assertHasFlagEvalMetricsHook(providerWithoutSpanEnrichment);
     assertHasFlagEvalMetricsHook(providerWithSpanEnrichment);
@@ -514,13 +518,15 @@ public class ProviderTest {
     final List<Hook> hooks = provider.getProviderHooks();
     assertTrue(
         hooks.get(hooks.size() - 1) instanceof ExposureLoggingHook,
-        "the exposure logging hook should run last");
+        "the exposure logging hook should run last"
+    );
   }
 
   private static void assertHasFlagEvalMetricsHook(final Provider provider) {
     assertTrue(
         provider.getProviderHooks().stream().anyMatch(FlagEvalMetricsHook.class::isInstance),
-        "flag evaluation metrics hook should be registered");
+        "flag evaluation metrics hook should be registered"
+    );
   }
 
   public interface EvaluateMethod<E> {
@@ -529,28 +535,30 @@ public class ProviderTest {
 
   private static Arguments[] providerMethods() {
     return new Arguments[] {
-      Arguments.of("bool", false, (EvaluateMethod<Boolean>) Features::getBooleanDetails),
-      Arguments.of("string", "Hello!", (EvaluateMethod<String>) Features::getStringDetails),
-      Arguments.of("int", 23, (EvaluateMethod<Integer>) Features::getIntegerDetails),
-      Arguments.of("double", 3.14D, (EvaluateMethod<Double>) Features::getDoubleDetails),
-      Arguments.of("object", new Value(), (EvaluateMethod<Value>) Features::getObjectDetails)
+        Arguments.of("bool", false, (EvaluateMethod<Boolean>) Features::getBooleanDetails),
+        Arguments.of("string", "Hello!", (EvaluateMethod<String>) Features::getStringDetails),
+        Arguments.of("int", 23, (EvaluateMethod<Integer>) Features::getIntegerDetails),
+        Arguments.of("double", 3.14D, (EvaluateMethod<Double>) Features::getDoubleDetails),
+        Arguments.of("object", new Value(), (EvaluateMethod<Value>) Features::getObjectDetails)
     };
   }
 
   @MethodSource("providerMethods")
   @ParameterizedTest
   public <E> void testProviderEvaluation(
-      final String flag, final E defaultValue, final EvaluateMethod<E> method) throws Exception {
+      final String flag,
+      final E defaultValue,
+      final EvaluateMethod<E> method
+  ) throws Exception {
     final Evaluator evaluator = mock(Evaluator.class);
     when(evaluator.initialize(eq(10L), eq(SECONDS), any())).thenReturn(true);
     when(evaluator.hasConfiguration()).thenReturn(true);
     when(evaluator.evaluate(any(), any(), any(), any()))
-        .thenAnswer(
-            invocation ->
-                ProviderEvaluation.builder()
-                    .value(invocation.getArgument(2))
-                    .reason("MOCK")
-                    .build());
+      .thenAnswer(invocation -> ProviderEvaluation
+        .builder()
+        .value(invocation.getArgument(2))
+        .reason("MOCK")
+        .build());
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     api.setProviderAndWait(new Provider(new Options().initTimeout(10, SECONDS), evaluator));
     final Client client = api.getClient();
@@ -559,7 +567,7 @@ public class ProviderTest {
     assertThat(result.getReason(), equalTo("MOCK"));
     verify(evaluator, times(1)).initialize(eq(10L), eq(SECONDS), any());
     verify(evaluator, times(1))
-        .evaluate(any(), eq(flag), eq(defaultValue), any(EvaluationContext.class));
+      .evaluate(any(), eq(flag), eq(defaultValue), any(EvaluationContext.class));
   }
 
   private static String initializationState(final Provider provider) throws Exception {
@@ -571,19 +579,19 @@ public class ProviderTest {
 
   @SuppressWarnings("unchecked")
   private static Consumer<EventDetails> completingHandler(
-      final CompletableFuture<EventDetails> event) {
+      final CompletableFuture<EventDetails> event
+  ) {
     final Consumer<EventDetails> handler = mock(Consumer.class);
-    doAnswer(
-            invocation -> {
-              event.complete(invocation.getArgument(0));
-              return null;
-            })
-        .when(handler)
-        .accept(any());
+    doAnswer(invocation -> {
+      event.complete(invocation.getArgument(0));
+      return null;
+    }).when(handler).accept(any());
     return handler;
   }
 
-  /** Waits for the evaluator to start waiting for its initial configuration. */
+  /**
+   * Waits for the evaluator to start waiting for its initial configuration.
+   */
   private void awaitInitialization() throws InterruptedException {
     final long deadline = System.nanoTime() + SECONDS.toNanos(EVENT_TIMEOUT_SECONDS);
     while (this.evaluator.runtime() == null && System.nanoTime() < deadline) {
@@ -610,7 +618,8 @@ public class ProviderTest {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put(
         "logged-flag",
-        new Flag("logged-flag", true, ValueType.STRING, variations, singletonList(allocation)));
+        new Flag("logged-flag", true, ValueType.STRING, variations, singletonList(allocation))
+    );
     return new ServerConfiguration("", "", true, null, flags);
   }
 
@@ -620,7 +629,9 @@ public class ProviderTest {
     return (Map<String, Object>) ((List<Object>) request.get("flagEvaluations")).get(0);
   }
 
-  /** A bridge only providing an event platform proxy. */
+  /**
+   * A bridge only providing an event platform proxy.
+   */
   private static final class ProxyAgentBridge implements AgentBridge {
     private final EventTransport proxy;
 

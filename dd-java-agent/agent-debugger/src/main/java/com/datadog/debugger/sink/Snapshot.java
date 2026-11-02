@@ -13,11 +13,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Data class representing all data collected at a probe location */
+/**
+ * Data class representing all data collected at a probe location
+ */
 public class Snapshot {
   private static final String LANGUAGE = "java";
   private static final int VERSION = 2;
-
   private String id;
   private final transient int version;
   private final long timestamp;
@@ -57,7 +58,8 @@ public class Snapshot {
       CapturedThread thread,
       String traceId,
       String spanId,
-      int maxDepth) {
+      int maxDepth
+  ) {
     this.id = id;
     this.version = version;
     this.timestamp = timestamp;
@@ -215,13 +217,14 @@ public class Snapshot {
     AFTER
   }
 
-  /** Stores all collected data at different location (method entry/exit, lines, exceptions) */
+  /**
+   * Stores all collected data at different location (method entry/exit, lines, exceptions)
+   */
   public static class Captures {
     private CapturedContext entry;
     private Map<Integer, CapturedContext> lines;
     // returnValue encoded into a local of CapturedContext
     private CapturedContext _return;
-
     private List<CapturedThrowable> caughtExceptions;
 
     public CapturedContext getEntry() {
@@ -252,7 +255,8 @@ public class Snapshot {
       if (lines == null) {
         lines = new HashMap<>();
       }
-      lines.put(line, context); // /!\ boxing /!\
+      // /!\ boxing /!\
+      lines.put(line, context);
     }
 
     public void addCaughtException(CapturedThrowable context) {
@@ -265,8 +269,12 @@ public class Snapshot {
     @Generated
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       Captures captures = (Captures) o;
       return Objects.equals(entry, captures.entry)
           && Objects.equals(lines, captures.lines)
@@ -320,8 +328,12 @@ public class Snapshot {
     @Generated
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       CapturedThread that = (CapturedThread) o;
       return id == that.id && Objects.equals(name, that.name);
     }

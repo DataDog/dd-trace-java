@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -24,8 +23,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class HandleAbstractMethodTest {
-
-  /** What a call site writes: {@code apply} delegating to {@code handleAbstractMethod}. */
+  /**
+   * What a call site writes: {@code apply} delegating to {@code handleAbstractMethod}.
+   */
   private abstract static class Handling<T, R, E extends Exception> extends ClassLatch<T, R, E> {
     protected abstract R invoke(T target) throws E;
 
@@ -46,11 +46,12 @@ class HandleAbstractMethodTest {
   private static AbstractMethodError receiverError(Class<?> type, String methodName) {
     return new AbstractMethodError(
         "Receiver class "
-            + type.getName()
-            + " does not define or inherit an implementation of the resolved method 'abstract"
-            + " java.lang.String "
-            + methodName
-            + "()' of interface I.");
+        + type.getName()
+        + " does not define or inherit an implementation of the resolved method 'abstract"
+        + " java.lang.String "
+        + methodName
+        + "()' of interface I."
+    );
   }
 
   private static final class Throwing extends Handling<Object, String, Exception> {
@@ -79,11 +80,11 @@ class HandleAbstractMethodTest {
   void returnsTheResultAndLatchesNothing() throws Exception {
     Handling<Object, String, RuntimeException> latch =
         new Handling<Object, String, RuntimeException>() {
-          @Override
-          protected String invoke(Object target) {
-            return "ok";
-          }
-        };
+      @Override
+      protected String invoke(Object target) {
+        return "ok";
+      }
+    };
 
     assertEquals("ok", latch.tryApply("x"));
     assertFalse(latch.isLatched("x"));
@@ -117,12 +118,12 @@ class HandleAbstractMethodTest {
     AtomicInteger calls = new AtomicInteger();
     Handling<Object, String, RuntimeException> latch =
         new Handling<Object, String, RuntimeException>() {
-          @Override
-          protected String invoke(Object target) {
-            calls.incrementAndGet();
-            throw receiverError(Integer.class);
-          }
-        };
+      @Override
+      protected String invoke(Object target) {
+        calls.incrementAndGet();
+        throw receiverError(Integer.class);
+      }
+    };
 
     assertNull(latch.tryApply("x"));
     assertNull(latch.tryApply("x"));
@@ -131,7 +132,9 @@ class HandleAbstractMethodTest {
     assertFalse(latch.isLatched("x"));
   }
 
-  /** Fails like {@link Throwing} with an {@link AbstractMethodError}, but has a fallback. */
+  /**
+   * Fails like {@link Throwing} with an {@link AbstractMethodError}, but has a fallback.
+   */
   private static final class WithFallback extends Handling<Object, String, RuntimeException> {
     final AtomicInteger calls = new AtomicInteger();
     final AtomicInteger fallbacks = new AtomicInteger();
@@ -201,16 +204,16 @@ class HandleAbstractMethodTest {
   void anUnsupportedOperationYieldsTheFallbackWithoutLatching() {
     Handling<Object, String, RuntimeException> latch =
         new Handling<Object, String, RuntimeException>() {
-          @Override
-          protected String invoke(Object target) {
-            throw new UnsupportedOperationException();
-          }
+      @Override
+      protected String invoke(Object target) {
+        throw new UnsupportedOperationException();
+      }
 
-          @Override
-          protected String fallback(Object target) {
-            return "fallback";
-          }
-        };
+      @Override
+      protected String fallback(Object target) {
+        return "fallback";
+      }
+    };
 
     assertEquals("fallback", latch.tryApply("x"));
     assertFalse(latch.isLatched("x"));
@@ -223,12 +226,12 @@ class HandleAbstractMethodTest {
     AtomicInteger calls = new AtomicInteger();
     Handling<Object, String, RuntimeException> latch =
         new Handling<Object, String, RuntimeException>() {
-          @Override
-          protected String invoke(Object target) {
-            calls.incrementAndGet();
-            throw receiverError(target.getClass(), "other");
-          }
-        };
+      @Override
+      protected String invoke(Object target) {
+        calls.incrementAndGet();
+        throw receiverError(target.getClass(), "other");
+      }
+    };
 
     assertNull(latch.tryApply("x"));
     assertNull(latch.tryApply("x"));
@@ -242,16 +245,17 @@ class HandleAbstractMethodTest {
     AtomicInteger calls = new AtomicInteger();
     for (AbstractMethodError error :
         new AbstractMethodError[] {
-          new AbstractMethodError(), new AbstractMethodError("something else entirely")
-        }) {
+        new AbstractMethodError(),
+        new AbstractMethodError("something else entirely")
+    }) {
       Handling<Object, String, RuntimeException> latch =
           new Handling<Object, String, RuntimeException>() {
-            @Override
-            protected String invoke(Object target) {
-              calls.incrementAndGet();
-              throw error;
-            }
-          };
+        @Override
+        protected String invoke(Object target) {
+          calls.incrementAndGet();
+          throw error;
+        }
+      };
 
       assertNull(latch.tryApply("x"));
       assertFalse(latch.isLatched("x"));
@@ -290,8 +294,7 @@ class HandleAbstractMethodTest {
   }
 
   @Test
-  void doesNotLatchAWorkingDefaultMethodAfterInterfaceEvolution(@TempDir Path dir)
-      throws Exception {
+  void doesNotLatchAWorkingDefaultMethodAfterInterfaceEvolution(@TempDir Path dir) throws Exception {
     JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     assumeTrue(compiler != null, "needs a JDK");
 
@@ -304,63 +307,61 @@ class HandleAbstractMethodTest {
         null,
         "Defaults",
         "public interface Defaults {"
-            + " java.util.function.Supplier<String> delegate();"
-            + " default String b() { return delegate().get(); } }");
+        + " java.util.function.Supplier<String> delegate();"
+        + " default String b() { return delegate().get(); } }"
+    );
     compile(
         compiler,
         oldDir,
         oldDir,
         "Wrapper",
         "public class Wrapper implements Added, Defaults {"
-            + " private final java.util.function.Supplier<String> delegate;"
-            + " public Wrapper(java.util.function.Supplier<String> delegate) {"
-            + " this.delegate = delegate; }"
-            + " public java.util.function.Supplier<String> delegate() { return delegate; } }");
+        + " private final java.util.function.Supplier<String> delegate;"
+        + " public Wrapper(java.util.function.Supplier<String> delegate) {"
+        + " this.delegate = delegate; }"
+        + " public java.util.function.Supplier<String> delegate() { return delegate; } }"
+    );
     compile(compiler, newDir, null, "Added", "public interface Added { String b(); }");
     compile(
         compiler,
         newDir,
         newDir,
         "Caller",
-        "public class Caller { public static String call(Added value) { return value.b(); } }");
+        "public class Caller { public static String call(Added value) { return value.b(); } }"
+    );
 
-    try (URLClassLoader loader =
-        new URLClassLoader(
-            new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
-            HandleAbstractMethodTest.class.getClassLoader())) {
+    try (URLClassLoader loader = new URLClassLoader(
+        new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
+        HandleAbstractMethodTest.class.getClassLoader()
+    )) {
       Class<?> wrapperType = loader.loadClass("Wrapper");
       Object healthy =
           wrapperType.getConstructor(Supplier.class).newInstance((Supplier<String>) () -> "ok");
       Object failing =
-          wrapperType
-              .getConstructor(Supplier.class)
-              .newInstance(
-                  (Supplier<String>)
-                      () -> {
-                        throw new AbstractMethodError();
-                      });
+          wrapperType.getConstructor(Supplier.class).newInstance((Supplier<String>) () -> {
+        throw new AbstractMethodError();
+      });
       Method call = loader.loadClass("Caller").getMethod("call", loader.loadClass("Added"));
       AtomicInteger calls = new AtomicInteger();
-      Handling<Object, Object, Exception> latch =
-          new Handling<Object, Object, Exception>() {
-            @Override
-            protected String methodName() {
-              return "b";
-            }
+      Handling<Object, Object, Exception> latch = new Handling<Object, Object, Exception>() {
+        @Override
+        protected String methodName() {
+          return "b";
+        }
 
-            @Override
-            protected Object invoke(Object target) throws Exception {
-              calls.incrementAndGet();
-              try {
-                return call.invoke(null, target);
-              } catch (InvocationTargetException e) {
-                if (e.getCause() instanceof AbstractMethodError) {
-                  throw (AbstractMethodError) e.getCause();
-                }
-                throw e;
-              }
+        @Override
+        protected Object invoke(Object target) throws Exception {
+          calls.incrementAndGet();
+          try {
+            return call.invoke(null, target);
+          } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof AbstractMethodError) {
+              throw (AbstractMethodError) e.getCause();
             }
-          };
+            throw e;
+          }
+        }
+      };
 
       assertEquals("ok", latch.tryApply(healthy));
       assertNull(latch.tryApply(failing));
@@ -389,44 +390,45 @@ class HandleAbstractMethodTest {
         oldDir,
         oldDir,
         "Impl",
-        "public class Impl implements I { public String a() { return \"a\"; } }");
+        "public class Impl implements I { public String a() { return \"a\"; } }"
+    );
     compile(compiler, newDir, null, "I", "public interface I { String a(); String b(); }");
     compile(
         compiler,
         newDir,
         newDir,
         "Caller",
-        "public class Caller { public static String call(I i) { return i.b(); } }");
+        "public class Caller { public static String call(I i) { return i.b(); } }"
+    );
 
-    try (URLClassLoader loader =
-        new URLClassLoader(
-            new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
-            HandleAbstractMethodTest.class.getClassLoader())) {
+    try (URLClassLoader loader = new URLClassLoader(
+        new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
+        HandleAbstractMethodTest.class.getClassLoader()
+    )) {
       Class<?> iface = loader.loadClass("I");
       Object impl = loader.loadClass("Impl").getDeclaredConstructor().newInstance();
       Method call = loader.loadClass("Caller").getMethod("call", iface);
 
       AtomicInteger calls = new AtomicInteger();
-      Handling<Object, Object, Exception> latch =
-          new Handling<Object, Object, Exception>() {
-            @Override
-            protected String methodName() {
-              return "b";
-            }
+      Handling<Object, Object, Exception> latch = new Handling<Object, Object, Exception>() {
+        @Override
+        protected String methodName() {
+          return "b";
+        }
 
-            @Override
-            protected Object invoke(Object target) throws Exception {
-              calls.incrementAndGet();
-              try {
-                return call.invoke(null, target);
-              } catch (InvocationTargetException e) {
-                if (e.getCause() instanceof AbstractMethodError) {
-                  throw (AbstractMethodError) e.getCause();
-                }
-                throw e;
-              }
+        @Override
+        protected Object invoke(Object target) throws Exception {
+          calls.incrementAndGet();
+          try {
+            return call.invoke(null, target);
+          } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof AbstractMethodError) {
+              throw (AbstractMethodError) e.getCause();
             }
-          };
+            throw e;
+          }
+        }
+      };
 
       assertNull(latch.tryApply(impl));
       assertNull(latch.tryApply(impl));
@@ -451,45 +453,53 @@ class HandleAbstractMethodTest {
     Path oldDir = Files.createDirectory(dir.resolve("old"));
     Path newDir = Files.createDirectory(dir.resolve("new"));
     compile(
-        compiler, oldDir, null, "I", "public interface I { default String a() { return \"a\"; } }");
+        compiler,
+        oldDir,
+        null,
+        "I",
+        "public interface I { default String a() { return \"a\"; } }"
+    );
     compile(compiler, oldDir, oldDir, "Impl", "public class Impl implements I { }");
     compile(
         compiler,
         newDir,
         null,
         "I",
-        "public interface I { String b(); default String a() { return b(); } }");
+        "public interface I { String b(); default String a() { return b(); } }"
+    );
 
-    try (URLClassLoader loader =
-        new URLClassLoader(
-            new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
-            HandleAbstractMethodTest.class.getClassLoader())) {
+    try (URLClassLoader loader = new URLClassLoader(
+        new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
+        HandleAbstractMethodTest.class.getClassLoader()
+    )) {
       loader.loadClass("I");
       Object impl = loader.loadClass("Impl").getDeclaredConstructor().newInstance();
       Method a = loader.loadClass("I").getMethod("a");
 
       AtomicInteger calls = new AtomicInteger();
-      Handling<Object, Object, Exception> latch =
-          new Handling<Object, Object, Exception>() {
-            @Override
-            protected Object invoke(Object target) throws Exception {
-              calls.incrementAndGet();
-              try {
-                return a.invoke(target);
-              } catch (InvocationTargetException e) {
-                if (e.getCause() instanceof AbstractMethodError) {
-                  throw (AbstractMethodError) e.getCause();
-                }
-                throw e;
-              }
+      Handling<Object, Object, Exception> latch = new Handling<Object, Object, Exception>() {
+        @Override
+        protected Object invoke(Object target) throws Exception {
+          calls.incrementAndGet();
+          try {
+            return a.invoke(target);
+          } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof AbstractMethodError) {
+              throw (AbstractMethodError) e.getCause();
             }
-          };
+            throw e;
+          }
+        }
+      };
 
       assertNull(latch.tryApply(impl));
       assertNull(latch.tryApply(impl));
 
       assertEquals(
-          2, calls.get(), "an error naming the key but not the guarded method must not latch");
+          2,
+          calls.get(),
+          "an error naming the key but not the guarded method must not latch"
+      );
       assertFalse(latch.isLatched(impl));
     }
   }
@@ -515,7 +525,8 @@ class HandleAbstractMethodTest {
         oldDir,
         oldDir,
         "Impl",
-        "public class Impl implements I { public String a() { return \"a\"; } }");
+        "public class Impl implements I { public String a() { return \"a\"; } }"
+    );
     compile(compiler, newDir, null, "I", "public interface I { String a(); String b(); }");
     compile(
         compiler,
@@ -523,45 +534,45 @@ class HandleAbstractMethodTest {
         newDir,
         "Caller",
         "import java.util.function.Function;\n"
-            + "public class Caller {\n"
-            + "  public static String call(I i) {\n"
-            + "    Function<I, String> fn = I::b;\n"
-            + "    return fn.apply(i);\n"
-            + "  }\n"
-            + "}\n");
+        + "public class Caller {\n"
+        + "  public static String call(I i) {\n"
+        + "    Function<I, String> fn = I::b;\n"
+        + "    return fn.apply(i);\n"
+        + "  }\n"
+        + "}\n"
+    );
 
-    try (URLClassLoader loader =
-        new URLClassLoader(
-            // old first: "I" (lacking b()) must win over Caller's compile-time "I" so that
-            // linking Caller's I::b reference fails, instead of linking fine and only failing
-            // later when b() is actually invoked on a receiver that doesn't implement it
-            new URL[] {oldDir.toUri().toURL(), newDir.toUri().toURL()},
-            HandleAbstractMethodTest.class.getClassLoader())) {
+    try (URLClassLoader loader = new URLClassLoader(
+        // old first: "I" (lacking b()) must win over Caller's compile-time "I" so that
+        // linking Caller's I::b reference fails, instead of linking fine and only failing
+        // later when b() is actually invoked on a receiver that doesn't implement it
+        new URL[] {oldDir.toUri().toURL(), newDir.toUri().toURL()},
+        HandleAbstractMethodTest.class.getClassLoader()
+    )) {
       Class<?> iface = loader.loadClass("I");
       Object impl = loader.loadClass("Impl").getDeclaredConstructor().newInstance();
       Method call = loader.loadClass("Caller").getMethod("call", iface);
 
       AtomicInteger calls = new AtomicInteger();
-      ClassLatch<Object, Object, Exception> latch =
-          new ClassLatch<Object, Object, Exception>() {
-            @Override
-            protected Object apply(Object target) throws Exception {
-              calls.incrementAndGet();
-              try {
-                return call.invoke(null, target);
-              } catch (InvocationTargetException e) {
-                // reflection always wraps the failure in InvocationTargetException; which error it
-                // wraps is what differs by JVM version
-                if (e.getCause() instanceof BootstrapMethodError) {
-                  throw (BootstrapMethodError) e.getCause();
-                }
-                if (e.getCause() instanceof NoSuchMethodError) {
-                  throw (NoSuchMethodError) e.getCause();
-                }
-                throw e;
-              }
+      ClassLatch<Object, Object, Exception> latch = new ClassLatch<Object, Object, Exception>() {
+        @Override
+        protected Object apply(Object target) throws Exception {
+          calls.incrementAndGet();
+          try {
+            return call.invoke(null, target);
+          } catch (InvocationTargetException e) {
+            // reflection always wraps the failure in InvocationTargetException; which error it
+            // wraps is what differs by JVM version
+            if (e.getCause() instanceof BootstrapMethodError) {
+              throw (BootstrapMethodError) e.getCause();
             }
-          };
+            if (e.getCause() instanceof NoSuchMethodError) {
+              throw (NoSuchMethodError) e.getCause();
+            }
+            throw e;
+          }
+        }
+      };
 
       assertNull(latch.tryApply(impl));
       assertNull(latch.tryApply(impl));

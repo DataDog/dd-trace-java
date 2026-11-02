@@ -4,7 +4,6 @@ import static com.datadog.iast.model.Source.PROPAGATION_PLACEHOLDER;
 import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
-
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.Ranges;
@@ -23,8 +22,9 @@ import javax.annotation.Nullable;
 
 @SuppressWarnings("DuplicatedCode")
 public class PropagationModuleImpl implements PropagationModule {
-
-  /** Prevent copy of values bigger than this threshold */
+  /**
+   * Prevent copy of values bigger than this threshold
+   */
   private static final int MAX_VALUE_LENGTH = Config.get().getIastTruncationMaxValueLength();
 
   @Override
@@ -57,7 +57,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable IastContext ctx,
       @Nullable Object target,
       byte origin,
-      @Nullable CharSequence name) {
+      @Nullable CharSequence name
+  ) {
     taintObject(ctx, target, origin, name, target);
   }
 
@@ -71,13 +72,18 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable IastContext ctx,
       @Nullable String target,
       byte origin,
-      @Nullable CharSequence name) {
+      @Nullable CharSequence name
+  ) {
     taintString(ctx, target, origin, name, target);
   }
 
   @Override
   public void taintObjectRange(
-      @Nullable final Object target, final byte origin, final int start, final int length) {
+      @Nullable final Object target,
+      final byte origin,
+      final int start,
+      final int length
+  ) {
     if (target == null || length == 0) {
       return;
     }
@@ -94,7 +100,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object target,
       final byte origin,
       final int start,
-      final int length) {
+      final int length
+  ) {
     if (ctx == null || target == null || length == 0) {
       return;
     }
@@ -106,7 +113,11 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taintStringRange(
-      @Nullable final String target, final byte origin, final int start, final int length) {
+      @Nullable final String target,
+      final byte origin,
+      final int start,
+      final int length
+  ) {
     if (target == null || length == 0) {
       return;
     }
@@ -123,7 +134,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final String target,
       final byte origin,
       final int start,
-      final int length) {
+      final int length
+  ) {
     if (ctx == null || target == null || length == 0) {
       return;
     }
@@ -138,7 +150,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object target,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final Object value) {
+      @Nullable final Object value
+  ) {
     if (target == null) {
       return;
     }
@@ -155,7 +168,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object target,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final Object value) {
+      @Nullable final Object value
+  ) {
     if (ctx == null || target == null) {
       return;
     }
@@ -168,7 +182,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final String target,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final CharSequence value) {
+      @Nullable final CharSequence value
+  ) {
     if (target == null) {
       return;
     }
@@ -185,7 +200,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final String target,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final CharSequence value) {
+      @Nullable final CharSequence value
+  ) {
     if (ctx == null || target == null) {
       return;
     }
@@ -200,7 +216,10 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taintObjectIfTainted(
-      @Nullable IastContext ctx, @Nullable Object target, @Nullable Object input) {
+      @Nullable IastContext ctx,
+      @Nullable Object target,
+      @Nullable Object input
+  ) {
     taintObjectIfTainted(ctx, target, input, false, NOT_MARKED);
   }
 
@@ -211,13 +230,20 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taintStringIfTainted(
-      @Nullable IastContext ctx, @Nullable String target, @Nullable Object input) {
+      @Nullable IastContext ctx,
+      @Nullable String target,
+      @Nullable Object input
+  ) {
     taintStringIfTainted(ctx, target, input, false, NOT_MARKED);
   }
 
   @Override
   public void taintObjectIfTainted(
-      @Nullable final Object target, @Nullable final Object input, boolean keepRanges, int mark) {
+      @Nullable final Object target,
+      @Nullable final Object input,
+      boolean keepRanges,
+      int mark
+  ) {
     if (target == null || input == null) {
       return;
     }
@@ -234,7 +260,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object target,
       @Nullable final Object input,
       boolean keepRanges,
-      int mark) {
+      int mark
+  ) {
     if (ctx == null || target == null || input == null) {
       return;
     }
@@ -248,7 +275,11 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taintStringIfTainted(
-      @Nullable final String target, @Nullable final Object input, boolean keepRanges, int mark) {
+      @Nullable final String target,
+      @Nullable final Object input,
+      boolean keepRanges,
+      int mark
+  ) {
     if (target == null || input == null) {
       return;
     }
@@ -265,7 +296,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final String target,
       @Nullable final Object input,
       boolean keepRanges,
-      int mark) {
+      int mark
+  ) {
     if (ctx == null || target == null || input == null) {
       return;
     }
@@ -284,7 +316,8 @@ public class PropagationModuleImpl implements PropagationModule {
       final int start,
       final int length,
       boolean keepRanges,
-      int mark) {
+      int mark
+  ) {
     if (target == null || input == null || length == 0) {
       return;
     }
@@ -303,7 +336,8 @@ public class PropagationModuleImpl implements PropagationModule {
       final int start,
       final int length,
       boolean keepRanges,
-      int mark) {
+      int mark
+  ) {
     if (ctx == null || target == null || input == null || length == 0) {
       return;
     }
@@ -331,7 +365,8 @@ public class PropagationModuleImpl implements PropagationModule {
       final int start,
       final int length,
       boolean keepRanges,
-      int mark) {
+      int mark
+  ) {
     if (target == null || input == null || length == 0) {
       return;
     }
@@ -350,7 +385,8 @@ public class PropagationModuleImpl implements PropagationModule {
       final int start,
       final int length,
       boolean keepRanges,
-      int mark) {
+      int mark
+  ) {
     if (ctx == null || target == null || input == null || length == 0) {
       return;
     }
@@ -378,7 +414,11 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taintObjectIfTainted(
-      @Nullable IastContext ctx, @Nullable Object target, @Nullable Object input, byte origin) {
+      @Nullable IastContext ctx,
+      @Nullable Object target,
+      @Nullable Object input,
+      byte origin
+  ) {
     taintObjectIfTainted(ctx, target, input, origin, null, target);
   }
 
@@ -389,13 +429,21 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taintStringIfTainted(
-      @Nullable IastContext ctx, @Nullable String target, @Nullable Object input, byte origin) {
+      @Nullable IastContext ctx,
+      @Nullable String target,
+      @Nullable Object input,
+      byte origin
+  ) {
     taintStringIfTainted(ctx, target, input, origin, null, target);
   }
 
   @Override
   public void taintObjectIfTainted(
-      @Nullable Object target, @Nullable Object input, byte origin, @Nullable CharSequence name) {
+      @Nullable Object target,
+      @Nullable Object input,
+      byte origin,
+      @Nullable CharSequence name
+  ) {
     taintObjectIfTainted(target, input, origin, name, target);
   }
 
@@ -405,13 +453,18 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable Object target,
       @Nullable Object input,
       byte origin,
-      @Nullable CharSequence name) {
+      @Nullable CharSequence name
+  ) {
     taintObjectIfTainted(ctx, target, input, origin, name, target);
   }
 
   @Override
   public void taintStringIfTainted(
-      @Nullable String target, @Nullable Object input, byte origin, @Nullable CharSequence name) {
+      @Nullable String target,
+      @Nullable Object input,
+      byte origin,
+      @Nullable CharSequence name
+  ) {
     taintStringIfTainted(target, input, origin, name, target);
   }
 
@@ -421,7 +474,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable String target,
       @Nullable Object input,
       byte origin,
-      @Nullable CharSequence name) {
+      @Nullable CharSequence name
+  ) {
     taintStringIfTainted(ctx, target, input, origin, name, target);
   }
 
@@ -431,7 +485,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object input,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final Object value) {
+      @Nullable final Object value
+  ) {
     if (target == null || input == null) {
       return;
     }
@@ -449,7 +504,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object input,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final Object value) {
+      @Nullable final Object value
+  ) {
     if (ctx == null || target == null || input == null) {
       return;
     }
@@ -465,7 +521,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object input,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final Object value) {
+      @Nullable final Object value
+  ) {
     if (target == null || input == null) {
       return;
     }
@@ -483,7 +540,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object input,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final Object value) {
+      @Nullable final Object value
+  ) {
     if (ctx == null || target == null || input == null) {
       return;
     }
@@ -500,7 +558,10 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taintObjectIfAnyTainted(
-      @Nullable IastContext ctx, @Nullable Object target, @Nullable Object[] inputs) {
+      @Nullable IastContext ctx,
+      @Nullable Object target,
+      @Nullable Object[] inputs
+  ) {
     taintObjectIfAnyTainted(ctx, target, inputs, false, NOT_MARKED);
   }
 
@@ -511,7 +572,10 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taintStringIfAnyTainted(
-      @Nullable IastContext ctx, @Nullable String target, @Nullable Object[] inputs) {
+      @Nullable IastContext ctx,
+      @Nullable String target,
+      @Nullable Object[] inputs
+  ) {
     taintStringIfAnyTainted(ctx, target, inputs, false, NOT_MARKED);
   }
 
@@ -520,7 +584,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object target,
       @Nullable final Object[] inputs,
       final boolean keepRanges,
-      final int mark) {
+      final int mark
+  ) {
     if (target == null || inputs == null || inputs.length == 0) {
       return;
     }
@@ -537,7 +602,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final Object target,
       @Nullable final Object[] inputs,
       final boolean keepRanges,
-      final int mark) {
+      final int mark
+  ) {
     if (ctx == null || target == null || inputs == null || inputs.length == 0) {
       return;
     }
@@ -560,7 +626,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final String target,
       @Nullable final Object[] inputs,
       final boolean keepRanges,
-      final int mark) {
+      final int mark
+  ) {
     if (target == null || inputs == null || inputs.length == 0) {
       return;
     }
@@ -577,7 +644,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final String target,
       @Nullable final Object[] inputs,
       final boolean keepRanges,
-      final int mark) {
+      final int mark
+  ) {
     if (ctx == null || target == null || inputs == null || inputs.length == 0) {
       return;
     }
@@ -597,7 +665,10 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public int taintObjectDeeply(
-      @Nullable final Object target, final byte origin, final Predicate<Class<?>> classFilter) {
+      @Nullable final Object target,
+      final byte origin,
+      final Predicate<Class<?>> classFilter
+  ) {
     if (target == null) {
       return 0;
     }
@@ -613,7 +684,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       final byte origin,
-      final Predicate<Class<?>> classFilter) {
+      final Predicate<Class<?>> classFilter
+  ) {
     if (ctx == null || target == null) {
       return 0;
     }
@@ -643,8 +715,7 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Nullable
   @Override
-  public Taintable.Source findSource(
-      @Nullable final IastContext ctx, @Nullable final Object target) {
+  public Taintable.Source findSource(@Nullable final IastContext ctx, @Nullable final Object target) {
     if (ctx == null || target == null) {
       return null;
     }
@@ -693,7 +764,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nonnull final Object target,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final Object value) {
+      @Nullable final Object value
+  ) {
     final Object sourceValue = sourceReference(target, value, true);
     final Object sourceName = name == value ? sourceValue : sourceReference(target, name, false);
     return new Source(origin, sourceName, sourceValue);
@@ -707,7 +779,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nonnull final String tainted,
       final byte origin,
       @Nullable final CharSequence name,
-      @Nullable final CharSequence value) {
+      @Nullable final CharSequence value
+  ) {
     final Object sourceValue = sourceReference(tainted, value, true);
     final Object sourceName = name == value ? sourceValue : sourceReference(tainted, name, false);
     return new Source(origin, sourceName, sourceValue);
@@ -719,7 +792,10 @@ public class PropagationModuleImpl implements PropagationModule {
    */
   @Nullable
   private static Object sourceReference(
-      @Nonnull final Object tainted, @Nullable final Object target, final boolean value) {
+      @Nonnull final Object tainted,
+      @Nullable final Object target,
+      final boolean value
+  ) {
     if (target instanceof String) {
       // weak reference if it's a value or matches the tainted value
       return value || tainted == target ? new WeakReference<>(target) : target;
@@ -737,7 +813,9 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Nullable
   private static Range[] getRangesInArray(
-      final @Nonnull TaintedObjects to, final @Nonnull Object[] objects) {
+      @Nonnull final TaintedObjects to,
+      @Nonnull final Object[] objects
+  ) {
     for (final Object object : objects) {
       final Range[] ranges = getRanges(to, object);
       if (ranges != null) {
@@ -748,7 +826,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Nullable
-  private static Range[] getRanges(final @Nonnull TaintedObjects to, final @Nonnull Object object) {
+  private static Range[] getRanges(@Nonnull final TaintedObjects to, @Nonnull final Object object) {
     if (object instanceof Taintable) {
       final Source source = highestPrioritySource(to, object);
       if (source == null) {
@@ -763,7 +841,9 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Nullable
   private static Source highestPrioritySourceInArray(
-      final @Nonnull TaintedObjects to, final @Nonnull Object[] objects) {
+      @Nonnull final TaintedObjects to,
+      @Nonnull final Object[] objects
+  ) {
     for (final Object object : objects) {
       final Source source = highestPrioritySource(to, object);
       if (source != null) {
@@ -775,7 +855,9 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Nullable
   private static Source highestPrioritySource(
-      final @Nonnull TaintedObjects to, final @Nonnull Object object) {
+      @Nonnull final TaintedObjects to,
+      @Nonnull final Object object
+  ) {
     if (object instanceof Taintable) {
       return (Source) ((Taintable) object).$$DD$getSource();
     } else {
@@ -788,7 +870,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nonnull final TaintedObjects to,
       @Nonnull final Object value,
       @Nullable Source source,
-      int mark) {
+      int mark
+  ) {
     if (source == null) {
       return;
     }
@@ -808,7 +891,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nonnull final TaintedObjects to,
       @Nonnull final String value,
       @Nullable Source source,
-      int mark) {
+      int mark
+  ) {
     if (source == null) {
       return;
     }
@@ -820,7 +904,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nonnull final TaintedObjects to,
       @Nonnull final Object value,
       @Nullable Range[] ranges,
-      final int mark) {
+      final int mark
+  ) {
     if (ranges == null || ranges.length == 0) {
       return;
     }
@@ -850,7 +935,8 @@ public class PropagationModuleImpl implements PropagationModule {
       @Nonnull final TaintedObjects to,
       @Nonnull final String value,
       @Nullable Range[] ranges,
-      final int mark) {
+      final int mark
+  ) {
     if (ranges == null || ranges.length == 0) {
       return;
     }
@@ -887,7 +973,9 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   private static Range[] attachSourceValue(
-      @Nonnull final Range[] ranges, @Nonnull final CharSequence value) {
+      @Nonnull final Range[] ranges,
+      @Nonnull final CharSequence value
+  ) {
     // unbound sources can only occur when there's a single range in the array
     if (ranges.length != 1) {
       return ranges;
@@ -895,13 +983,10 @@ public class PropagationModuleImpl implements PropagationModule {
     final Range range = ranges[0];
     final Source source = range.getSource();
     final Source newSource = attachSourceValue(source, value);
-    return newSource == source
-        ? ranges
-        : Ranges.forCharSequence(value, newSource, range.getMarks());
+    return newSource == source ? ranges : Ranges.forCharSequence(value, newSource, range.getMarks());
   }
 
   private static class TaintingVisitor implements ObjectVisitor.Visitor {
-
     private final TaintedObjects taintedObjects;
     private final byte origin;
     private int count;
@@ -918,8 +1003,7 @@ public class PropagationModuleImpl implements PropagationModule {
         final CharSequence charSequence = (CharSequence) value;
         final Source source = newSource(charSequence, origin, path, charSequence);
         count++;
-        taintedObjects.taint(
-            charSequence, Ranges.forCharSequence(charSequence, source, NOT_MARKED));
+        taintedObjects.taint(charSequence, Ranges.forCharSequence(charSequence, source, NOT_MARKED));
       }
       return CONTINUE;
     }

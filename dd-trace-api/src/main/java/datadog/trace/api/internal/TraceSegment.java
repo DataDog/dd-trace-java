@@ -7,7 +7,6 @@ package datadog.trace.api.internal;
  * TraceSegment} should not be stored and used at a later time, or passed around to async functions.
  */
 public interface TraceSegment {
-
   /**
    * Add a tag to the top of this {@code TraceSegment}.
    *
@@ -98,7 +97,9 @@ public interface TraceSegment {
    */
   Object getDataTop(String key);
 
-  /** Mark the request as effectively blocked, by setting the tag appsec.blocked */
+  /**
+   * Mark the request as effectively blocked, by setting the tag appsec.blocked
+   */
   void effectivelyBlocked();
 
   /**
@@ -140,7 +141,8 @@ public interface TraceSegment {
   class NoOp implements TraceSegment {
     public static final TraceSegment INSTANCE = new NoOp();
 
-    private NoOp() {}
+    private NoOp() {
+    }
 
     @Override
     public void setTagTop(String key, Object value, boolean sanitize) {}

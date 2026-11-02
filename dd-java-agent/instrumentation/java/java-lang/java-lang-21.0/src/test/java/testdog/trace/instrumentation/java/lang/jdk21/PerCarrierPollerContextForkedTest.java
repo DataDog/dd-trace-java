@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static testdog.trace.instrumentation.java.lang.jdk21.PollerContextForkedTest.field;
 import static testdog.trace.instrumentation.java.lang.jdk21.PollerContextForkedTest.virtualThreadState;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores;
@@ -52,37 +51,31 @@ class PerCarrierPollerContextForkedTest extends AbstractInstrumentationTest {
 
       try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
           Socket socket = new Socket(InetAddress.getLoopbackAddress(), server.getLocalPort());
-          Socket peer = server.accept()) {
+          Socket peer = server.accept()
+      ) {
         socket.setSoTimeout(10_000);
-        reader =
-            Thread.ofVirtual()
-                .start(
-                    () -> {
-                      try {
-                        assertSame(parentSpan, activeSpan());
-                        assertEquals(1, socket.getInputStream().read());
-                        assertSame(
-                            parentSpan,
-                            activeSpan(),
-                            "poller creation must restore request context");
-                      } catch (Throwable error) {
-                        failure.set(error);
-                      }
-                    });
+        reader = Thread.ofVirtual().start(() -> {
+          try {
+            assertSame(parentSpan, activeSpan());
+            assertEquals(1, socket.getInputStream().read());
+            assertSame(parentSpan, activeSpan(), "poller creation must restore request context");
+          } catch (Throwable error) {
+            failure.set(error);
+          }
+        });
 
-        new PollingConditions(10)
-            .eventually(
-                () -> {
-                  assertFalse(readPollers.isEmpty());
-                  for (Object readPoller : readPollers) {
-                    Thread owner = (Thread) field(poller, "owner").get(readPoller);
-                    assertTrue(owner != null && owner.isAlive());
-                    assertTrue(owner.isVirtual());
-                    assertNull(
-                        virtualThreadState(owner),
-                        "live carrier poller must retain neither context nor continuation");
-                  }
-                });
+        new PollingConditions(10).eventually(() -> {
+          assertFalse(readPollers.isEmpty());
+          for (Object readPoller : readPollers) {
+            Thread owner = (Thread) field(poller, "owner").get(readPoller);
+            assertTrue(owner != null && owner.isAlive());
+            assertTrue(owner.isVirtual());
+            assertNull(
+                virtualThreadState(owner),
+                "live carrier poller must retain neither context nor continuation"
+            );
+          }
+        });
         peer.getOutputStream().write(1);
         assertTrue(reader.join(Duration.ofSeconds(10)));
         assertNull(failure.get());

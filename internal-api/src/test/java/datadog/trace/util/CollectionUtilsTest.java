@@ -9,7 +9,6 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -20,7 +19,6 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class CollectionUtilsTest {
-
   @Test
   void immutableCopyOfSetCreatedWhenThePlatformPermits() {
     Set<String> set = new HashSet<>(Arrays.asList("x", "y", "z"));

@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.coverage.report;
 
 import static datadog.communication.http.OkHttpUtils.jsonRequestBodyOf;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -28,7 +27,6 @@ import okhttp3.RequestBody;
 import okio.BufferedSink;
 
 public class CoverageReportUploader {
-
   private final BackendApi backendApi;
   private final Map<String, String> ciTags;
   private final List<String> flags;
@@ -39,7 +37,8 @@ public class CoverageReportUploader {
       BackendApi backendApi,
       Map<String, String> ciTags,
       List<String> flags,
-      CiVisibilityMetricCollector metricCollector) {
+      CiVisibilityMetricCollector metricCollector
+  ) {
     this.backendApi = backendApi;
     this.ciTags = ciTags;
     this.flags = Collections.unmodifiableList(new ArrayList<>(flags));
@@ -62,25 +61,25 @@ public class CoverageReportUploader {
 
     RequestBody coverageBody = new GzipMultipartRequestBody(reportStream);
 
-    MultipartBody multipartBody =
-        new MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("coverage", "coverage.gz", coverageBody)
-            .addFormDataPart("event", "event.json", eventBody)
-            .build();
+    MultipartBody multipartBody = new MultipartBody.Builder()
+      .setType(MultipartBody.FORM)
+      .addFormDataPart("coverage", "coverage.gz", coverageBody)
+      .addFormDataPart("event", "event.json", eventBody)
+      .build();
 
-    OkHttpUtils.CustomListener telemetryListener =
-        new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST)
-            .requestBytes(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_BYTES)
-            .requestErrors(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_MS)
-            .build();
+    OkHttpUtils.CustomListener telemetryListener = new TelemetryListener.Builder(metricCollector)
+      .requestCount(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST)
+      .requestBytes(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_BYTES)
+      .requestErrors(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST_ERRORS)
+      .requestDuration(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_MS)
+      .build();
 
     backendApi.post("cicovreprt", multipartBody, responseStream -> null, telemetryListener, false);
   }
 
-  /** Request body that compresses a form data part */
+  /**
+   * Request body that compresses a form data part
+   */
   private static class GzipMultipartRequestBody extends RequestBody {
     private final InputStream stream;
 

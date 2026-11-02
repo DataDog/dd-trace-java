@@ -4,7 +4,9 @@ import java.util.Collections;
 import java.util.Map.Entry;
 import java.util.Set;
 
-/** An interface representing the context carrier. Typically, message headers. */
+/**
+ * An interface representing the context carrier. Typically, message headers.
+ */
 public interface DataStreamsContextCarrier {
   /**
    * @return A set of key value pairs, such as message headers.
@@ -20,7 +22,8 @@ public interface DataStreamsContextCarrier {
   final class NoOp implements DataStreamsContextCarrier {
     public static final DataStreamsContextCarrier INSTANCE = new NoOp();
 
-    private NoOp() {}
+    private NoOp() {
+    }
 
     @Override
     public Set<Entry<String, Object>> entries() {

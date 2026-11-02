@@ -8,14 +8,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 
-/** Helper class for handling denied classes and packages for instrumentation */
+/**
+ * Helper class for handling denied classes and packages for instrumentation
+ */
 public class DenyListHelper implements DebuggerContext.ClassFilter {
-
   private static final Collection<String> DENIED_PACKAGES =
       Arrays.asList("java.security", "javax.security", "sun.security");
   private static final Collection<String> DENIED_CLASSES =
       Arrays.asList("java.lang.Object", "java.lang.String");
-
   private ClassNameTrie packagePrefixTrie;
   private HashSet<String> classes;
 

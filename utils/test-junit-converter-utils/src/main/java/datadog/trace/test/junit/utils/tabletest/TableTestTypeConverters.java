@@ -4,10 +4,12 @@ import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.intake.TrackType;
 import org.tabletest.junit.TypeConverter;
 
-/** Shared converters for JUnit 5 TableTest tests that use unparsable constants. */
+/**
+ * Shared converters for JUnit 5 TableTest tests that use unparsable constants.
+ */
 public final class TableTestTypeConverters {
-
-  private TableTestTypeConverters() {}
+  private TableTestTypeConverters() {
+  }
 
   @TypeConverter
   public static TrackType toTrackType(String value) {

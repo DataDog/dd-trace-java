@@ -3,13 +3,11 @@ package datadog.trace.api.debugger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.InstrumenterConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class DebuggerConfigBridgeTest {
-
   @AfterEach
   public void cleanup() {
     DebuggerConfigBridge.reset();
@@ -23,7 +21,8 @@ class DebuggerConfigBridgeTest {
     assertFalse(DebuggerConfigBridge.isExceptionReplayEnabled());
     assertEquals(
         InstrumenterConfig.getDefaultCodeOriginForSpanEnabled(),
-        DebuggerConfigBridge.isCodeOriginEnabled());
+        DebuggerConfigBridge.isCodeOriginEnabled()
+    );
     assertFalse(DebuggerConfigBridge.isDistributedDebuggerEnabled());
 
     DebuggerConfigBridge.setUpdater(updater);
@@ -101,20 +100,18 @@ class DebuggerConfigBridgeTest {
     @Override
     public void updateConfig(DebuggerConfigUpdate update) {
       calls++;
-      dynamicInstrumentationEnabled =
-          update.getDynamicInstrumentationEnabled() != null
-              ? update.getDynamicInstrumentationEnabled()
-              : dynamicInstrumentationEnabled;
-      exceptionReplayEnabled =
-          update.getExceptionReplayEnabled() != null
-              ? update.getExceptionReplayEnabled()
-              : exceptionReplayEnabled;
-      codeOriginEnabled =
-          update.getCodeOriginEnabled() != null ? update.getCodeOriginEnabled() : codeOriginEnabled;
-      distributedDebuggerEnabled =
-          update.getDistributedDebuggerEnabled() != null
-              ? update.getDistributedDebuggerEnabled()
-              : distributedDebuggerEnabled;
+      dynamicInstrumentationEnabled = update.getDynamicInstrumentationEnabled() != null
+          ? update.getDynamicInstrumentationEnabled()
+          : dynamicInstrumentationEnabled;
+      exceptionReplayEnabled = update.getExceptionReplayEnabled() != null
+          ? update.getExceptionReplayEnabled()
+          : exceptionReplayEnabled;
+      codeOriginEnabled = update.getCodeOriginEnabled() != null
+          ? update.getCodeOriginEnabled()
+          : codeOriginEnabled;
+      distributedDebuggerEnabled = update.getDistributedDebuggerEnabled() != null
+          ? update.getDistributedDebuggerEnabled()
+          : distributedDebuggerEnabled;
     }
 
     @Override

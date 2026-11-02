@@ -5,7 +5,6 @@ import static datadog.trace.api.git.GitUtils.isTagReference;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -14,13 +13,11 @@ import datadog.trace.civisibility.ci.env.CiEnvironment;
 import javax.annotation.Nonnull;
 
 class AzurePipelinesInfo implements CIProviderInfo {
-
   // https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops
   public static final String AZURE = "TF_BUILD";
   public static final String AZURE_PROVIDER_NAME = "azurepipelines";
   public static final String AZURE_PIPELINE_NAME = "BUILD_DEFINITIONNAME";
-  public static final String AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI =
-      "SYSTEM_TEAMFOUNDATIONSERVERURI";
+  public static final String AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI = "SYSTEM_TEAMFOUNDATIONSERVERURI";
   public static final String AZURE_SYSTEM_TEAMPROJECTID = "SYSTEM_TEAMPROJECTID";
   public static final String AZURE_SYSTEM_STAGEDISPLAYNAME = "SYSTEM_STAGEDISPLAYNAME";
   public static final String AZURE_SYSTEM_JOBDISPLAYNAME = "SYSTEM_JOBDISPLAYNAME";
@@ -42,7 +39,6 @@ class AzurePipelinesInfo implements CIProviderInfo {
   public static final String AZURE_BUILD_REQUESTED_FOR_EMAIL = "BUILD_REQUESTEDFOREMAIL";
   public static final String AZURE_PR_NUMBER = "SYSTEM_PULLREQUEST_PULLREQUESTNUMBER";
   public static final String AZURE_PR_TARGET_BRANCH = "SYSTEM_PULLREQUEST_TARGETBRANCH";
-
   private final CiEnvironment environment;
 
   AzurePipelinesInfo(CiEnvironment environment) {
@@ -59,7 +55,9 @@ class AzurePipelinesInfo implements CIProviderInfo {
             buildGitCommit(),
             buildGitCommitAuthor(),
             PersonInfo.NOOP,
-            environment.get(AZURE_BUILD_SOURCEVERSION_MESSAGE)));
+            environment.get(AZURE_BUILD_SOURCEVERSION_MESSAGE)
+        )
+    );
   }
 
   @Override
@@ -70,19 +68,20 @@ class AzurePipelinesInfo implements CIProviderInfo {
     final String jobId = environment.get(AZURE_SYSTEM_JOBID);
     final String taskId = environment.get(AZURE_SYSTEM_TASKINSTANCEID);
 
-    return CIInfo.builder(environment)
-        .ciProviderName(AZURE_PROVIDER_NAME)
-        .ciPipelineId(environment.get(AZURE_BUILD_BUILDID))
-        .ciPipelineName(environment.get(AZURE_PIPELINE_NAME))
-        .ciPipelineNumber(buildId)
-        .ciPipelineUrl(buildCiPipelineUrl(uri, project, buildId))
-        .ciStageName(environment.get(AZURE_SYSTEM_STAGEDISPLAYNAME))
-        .ciJobId(jobId)
-        .ciJobName(environment.get(AZURE_SYSTEM_JOBDISPLAYNAME))
-        .ciJobUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
-        .ciWorkspace(expandTilde(environment.get(AZURE_WORKSPACE_PATH)))
-        .ciEnvVars(AZURE_SYSTEM_TEAMPROJECTID, AZURE_BUILD_BUILDID, AZURE_SYSTEM_JOBID)
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(AZURE_PROVIDER_NAME)
+      .ciPipelineId(environment.get(AZURE_BUILD_BUILDID))
+      .ciPipelineName(environment.get(AZURE_PIPELINE_NAME))
+      .ciPipelineNumber(buildId)
+      .ciPipelineUrl(buildCiPipelineUrl(uri, project, buildId))
+      .ciStageName(environment.get(AZURE_SYSTEM_STAGEDISPLAYNAME))
+      .ciJobId(jobId)
+      .ciJobName(environment.get(AZURE_SYSTEM_JOBDISPLAYNAME))
+      .ciJobUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
+      .ciWorkspace(expandTilde(environment.get(AZURE_WORKSPACE_PATH)))
+      .ciEnvVars(AZURE_SYSTEM_TEAMPROJECTID, AZURE_BUILD_BUILDID, AZURE_SYSTEM_JOBID)
+      .build();
   }
 
   @Nonnull
@@ -93,7 +92,8 @@ class AzurePipelinesInfo implements CIProviderInfo {
         null,
         null,
         CommitInfo.NOOP,
-        environment.get(AZURE_PR_NUMBER));
+        environment.get(AZURE_PR_NUMBER)
+    );
   }
 
   private String buildGitBranch() {
@@ -143,9 +143,16 @@ class AzurePipelinesInfo implements CIProviderInfo {
       final String project,
       final String buildId,
       final String jobId,
-      final String taskId) {
+      final String taskId
+  ) {
     return String.format(
-        "%s%s/_build/results?buildId=%s&view=logs&j=%s&t=%s", uri, project, buildId, jobId, taskId);
+        "%s%s/_build/results?buildId=%s&view=logs&j=%s&t=%s",
+        uri,
+        project,
+        buildId,
+        jobId,
+        taskId
+    );
   }
 
   private String buildCiPipelineUrl(final String uri, final String project, final String buildId) {
@@ -155,7 +162,8 @@ class AzurePipelinesInfo implements CIProviderInfo {
   private PersonInfo buildGitCommitAuthor() {
     return new PersonInfo(
         environment.get(AZURE_BUILD_REQUESTED_FOR_ID),
-        environment.get(AZURE_BUILD_REQUESTED_FOR_EMAIL));
+        environment.get(AZURE_BUILD_REQUESTED_FOR_EMAIL)
+    );
   }
 
   @Override

@@ -4,12 +4,10 @@ import static datadog.trace.api.endpoint.SegmentPattern.simplify;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class SegmentPatternTest {
-
   // 20 chars
   private static final String TWENTY_CHARS = "aaaaaaaaaaaaaaaaaaaa";
 
@@ -71,8 +69,7 @@ class SegmentPatternTest {
     "contains delimiter       | abc-123    | false   ",
     "empty                    | ''         | false   "
   })
-  void hexPatternMatchesHexadecimalStringsWithAtLeastOneDecimalDigit(
-      String input, boolean expected) {
+  void hexPatternMatchesHexadecimalStringsWithAtLeastOneDecimalDigit(String input, boolean expected) {
     assertEquals(expected, SegmentPattern.HEX.matches(input));
   }
 
@@ -93,7 +90,9 @@ class SegmentPatternTest {
     "empty                           | ''          | false   "
   })
   void hexIdPatternMatchesHexDelimiterStringsWithAtLeastOneDecimalDigit(
-      String input, boolean expected) {
+      String input,
+      boolean expected
+  ) {
     assertEquals(expected, SegmentPattern.HEX_ID.matches(input));
   }
 
@@ -120,8 +119,7 @@ class SegmentPatternTest {
     "dash is not special          | abc-def                               | false   ",
     "empty                        | ''                                    | false   "
   })
-  void stringPatternMatchesLongStringsOrStringsWithSpecialCharacters(
-      String input, boolean expected) {
+  void stringPatternMatchesLongStringsOrStringsWithSpecialCharacters(String input, boolean expected) {
     assertEquals(expected, SegmentPattern.STRING.matches(input));
   }
 
@@ -161,16 +159,12 @@ class SegmentPatternTest {
   void patternPriorityEnsuresCorrectReplacement() {
     // "123" could match INT_ID but INTEGER has priority
     assertEquals("{param:int}", simplify("123"));
-
     // "abc123" could match HEX_ID but HEX has priority (no delimiters)
     assertEquals("{param:hex}", simplify("abc123"));
-
     // "abc-123" matches HEX_ID (has delimiter)
     assertEquals("{param:hex_id}", simplify("abc-123"));
-
     // Very long string matches STRING (length priority)
     assertEquals("{param:str}", simplify(TWENTY_CHARS));
-
     // Numeric string with delimiters matches INT_ID
     assertEquals("{param:int_id}", simplify("1-2-3"));
   }

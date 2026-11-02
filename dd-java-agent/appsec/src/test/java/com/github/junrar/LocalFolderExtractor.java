@@ -6,7 +6,6 @@ import java.io.File;
 // Minimal stub replacing junrar:7.5.5 to avoid shipping a test dependency with known CVEs.
 // Preserves the constructor and method signatures used by ScaRealLibraryBytecodeTest.
 class LocalFolderExtractor {
-
   @SuppressWarnings("unused")
   private final File destinationFolder;
 

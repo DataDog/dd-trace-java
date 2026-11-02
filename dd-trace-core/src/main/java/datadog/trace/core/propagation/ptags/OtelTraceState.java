@@ -9,7 +9,6 @@ final class OtelTraceState implements CharSequence {
   private static final long MAX_56_BIT_VALUE = 0x00ff_ffff_ffff_ffffL;
   private static final double TWO_TO_56 = 0x1.0p56;
   private static final int MAX_VALUE_LENGTH = 256;
-
   private final CharSequence value;
   private final CharSequence fields;
   private final int originalSize;
@@ -36,7 +35,8 @@ final class OtelTraceState implements CharSequence {
       int thresholdEnd,
       boolean includeRandomValue,
       boolean includeThreshold,
-      boolean inheritedRandomValue) {
+      boolean inheritedRandomValue
+  ) {
     this.value = value;
     this.fields = fields;
     this.originalSize = originalSize;
@@ -134,7 +134,8 @@ final class OtelTraceState implements CharSequence {
         thresholdEnd,
         randomValueStart >= 0,
         thresholdStart >= 0,
-        true);
+        true
+    );
   }
 
   private static OtelTraceState parseCanonical(CharSequence value, int originalSize) {
@@ -169,11 +170,15 @@ final class OtelTraceState implements CharSequence {
         thresholdEnd,
         randomValueStart >= 0,
         thresholdStart >= 0,
-        true);
+        true
+    );
   }
 
   static OtelTraceState fromProbabilityDecision(
-      long traceIdLowOrderBits, double rate, int samplingPriority) {
+      long traceIdLowOrderBits,
+      double rate,
+      int samplingPriority
+  ) {
     long hash = traceIdLowOrderBits * HASH_MULTIPLIER;
     long randomValue = (~hash) >>> 8;
     long threshold = Math.round((1.0 - rate) * TWO_TO_56);
@@ -190,7 +195,19 @@ final class OtelTraceState implements CharSequence {
     }
 
     return new OtelTraceState(
-        null, null, 0, randomValue, threshold, -1, -1, -1, -1, true, true, false);
+        null,
+        null,
+        0,
+        randomValue,
+        threshold,
+        -1,
+        -1,
+        -1,
+        -1,
+        true,
+        true,
+        false
+    );
   }
 
   OtelTraceState withoutThreshold() {
@@ -219,7 +236,10 @@ final class OtelTraceState implements CharSequence {
   }
 
   private OtelTraceState withFields(
-      boolean retainRandomValue, boolean retainThreshold, boolean randomValueIsInherited) {
+      boolean retainRandomValue,
+      boolean retainThreshold,
+      boolean randomValueIsInherited
+  ) {
     if (!retainRandomValue && !retainThreshold && !hasUnknownFields()) {
       return null;
     }
@@ -235,7 +255,8 @@ final class OtelTraceState implements CharSequence {
         thresholdEnd,
         retainRandomValue,
         retainThreshold,
-        randomValueIsInherited);
+        randomValueIsInherited
+    );
   }
 
   int getOriginalSize() {
@@ -278,7 +299,13 @@ final class OtelTraceState implements CharSequence {
     StringBuilder result = new StringBuilder(32);
     if (includeRandomValue) {
       appendManagedField(
-          result, RANDOM_VALUE_KEY, randomValue, randomValueStart, randomValueEnd, false);
+          result,
+          RANDOM_VALUE_KEY,
+          randomValue,
+          randomValueStart,
+          randomValueEnd,
+          false
+      );
     }
     if (includeThreshold) {
       appendManagedField(result, THRESHOLD_KEY, threshold, thresholdStart, thresholdEnd, true);
@@ -295,7 +322,8 @@ final class OtelTraceState implements CharSequence {
       long numericValue,
       int sourceStart,
       int sourceEnd,
-      boolean trimTrailingZeros) {
+      boolean trimTrailingZeros
+  ) {
     appendSeparator(result);
     result.append(key);
     if (fields != null && sourceStart >= 0) {
@@ -348,7 +376,8 @@ final class OtelTraceState implements CharSequence {
       int randomValueStart,
       int randomValueEnd,
       int thresholdStart,
-      int thresholdEnd) {
+      int thresholdEnd
+  ) {
     StringBuilder result = new StringBuilder(raw.length());
     if (randomValueStart >= 0) {
       appendRange(result, RANDOM_VALUE_KEY, raw, randomValueStart, randomValueEnd);
@@ -374,7 +403,12 @@ final class OtelTraceState implements CharSequence {
   }
 
   private static void appendRange(
-      StringBuilder result, String key, CharSequence source, int start, int end) {
+      StringBuilder result,
+      String key,
+      CharSequence source,
+      int start,
+      int end
+  ) {
     appendSeparator(result);
     result.append(key).append(source, start, end);
   }
@@ -430,7 +464,12 @@ final class OtelTraceState implements CharSequence {
   }
 
   private static boolean isLowerHex(
-      CharSequence value, int start, int end, int minimumLength, int maximumLength) {
+      CharSequence value,
+      int start,
+      int end,
+      int minimumLength,
+      int maximumLength
+  ) {
     int length = end - start;
     if (length < minimumLength || length > maximumLength) {
       return false;

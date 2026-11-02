@@ -26,11 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class CiVisibilityPluginExtension {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilityPluginExtension.class);
-
   public static final String MODULE_LAYOUT_PROPERTY = "moduleLayout";
-
   private final ObjectFactory objectFactory;
   private FileCollection compilerPluginClasspath;
   private String moduleName;
@@ -92,10 +89,9 @@ public abstract class CiVisibilityPluginExtension {
     javaCompile.setClasspath(updatedClasspath);
 
     FileCollection annotationProcessorPath = options.getAnnotationProcessorPath();
-    FileCollection updatedAnnotationProcessorPath =
-        annotationProcessorPath != null
-            ? annotationProcessorPath.plus(compilerPluginClasspath)
-            : compilerPluginClasspath;
+    FileCollection updatedAnnotationProcessorPath = annotationProcessorPath != null
+        ? annotationProcessorPath.plus(compilerPluginClasspath)
+        : compilerPluginClasspath;
     options.setAnnotationProcessorPath(updatedAnnotationProcessorPath);
 
     CommandLineArgumentProvider argumentProvider =
@@ -134,7 +130,12 @@ public abstract class CiVisibilityPluginExtension {
 
   public static List<Path> getClasspath(Test task) {
     try {
-      return task.getClasspath().getFiles().stream().map(File::toPath).collect(Collectors.toList());
+      return task
+        .getClasspath()
+        .getFiles()
+        .stream()
+        .map(File::toPath)
+        .collect(Collectors.toList());
     } catch (Exception e) {
       LOGGER.error("Could not get classpath for test task", e);
       return null;
@@ -167,15 +168,16 @@ public abstract class CiVisibilityPluginExtension {
       jacocoTaskExtension.setExcludeClassLoaders(updatedTaskExcludeClassLoaders);
     } else {
       jacocoTaskExtension.setExcludeClassLoaders(
-          new ArrayList<>(ciVisibilityService.getExcludeClassLoaders()));
+          new ArrayList<>(ciVisibilityService.getExcludeClassLoaders())
+      );
     }
 
     jacocoTaskExtension.setIncludes(
-        merge(
-            jacocoTaskExtension.getIncludes(), ciVisibilityService.getCoverageIncludedPackages()));
+        merge(jacocoTaskExtension.getIncludes(), ciVisibilityService.getCoverageIncludedPackages())
+    );
     jacocoTaskExtension.setExcludes(
-        merge(
-            jacocoTaskExtension.getExcludes(), ciVisibilityService.getCoverageExcludedPackages()));
+        merge(jacocoTaskExtension.getExcludes(), ciVisibilityService.getCoverageExcludedPackages())
+    );
   }
 
   @SafeVarargs
@@ -197,7 +199,8 @@ public abstract class CiVisibilityPluginExtension {
   private void applyTracerSettings(
       String taskPath,
       Map<String, String> projectProperties,
-      List<CommandLineArgumentProvider> jvmArgumentProviders) {
+      List<CommandLineArgumentProvider> jvmArgumentProviders
+  ) {
     CommandLineArgumentProvider tracerArgumentsProvider =
         objectFactory.newInstance(TracerArgumentsProvider.class, taskPath, projectProperties);
     jvmArgumentProviders.add(tracerArgumentsProvider);

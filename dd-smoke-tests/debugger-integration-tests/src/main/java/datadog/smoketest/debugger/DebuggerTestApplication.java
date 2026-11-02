@@ -1,5 +1,5 @@
+// spotless:off - Debugger probes use fixed source line numbers.
 package datadog.smoketest.debugger;
-
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForInstrumentation;
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForTransformerInstalled;
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForUpload;
@@ -131,3 +131,4 @@ class Main {
     }
   }
 }
+// spotless:on

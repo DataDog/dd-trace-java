@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.H2_QU
 import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.eqs;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanTypes;
@@ -33,7 +32,6 @@ import reactor.core.publisher.Mono;
  * query) and checks the db type comes from the pooled protocol, not the {@code pool} driver.
  */
 class R2dbcPoolTest extends AbstractInstrumentationTest {
-
   private ConnectionFactory connectionFactory;
   private Connection connection;
 
@@ -41,10 +39,10 @@ class R2dbcPoolTest extends AbstractInstrumentationTest {
   public void setUp() {
     connectionFactory = ConnectionFactories.get("r2dbc:pool:h2:mem:///pooldb;DB_CLOSE_DELAY=-1");
     connection = Mono.from(connectionFactory.create()).block();
-    Mono.from(
-            connection.createStatement("CREATE TABLE IF NOT EXISTS pool_table (id INT)").execute())
-        .flatMapMany(result -> result.getRowsUpdated())
-        .blockLast();
+    Mono
+      .from(connection.createStatement("CREATE TABLE IF NOT EXISTS pool_table (id INT)").execute())
+      .flatMapMany(result -> result.getRowsUpdated())
+      .blockLast();
 
     tracer.flush();
     writer.clear();
@@ -73,10 +71,11 @@ class R2dbcPoolTest extends AbstractInstrumentationTest {
   void pooledQueryCreatesExactlyOneSpan() {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
-      Flux.from(connection.createStatement("SELECT * FROM pool_table").execute())
-          .flatMap(result -> result.map((row, metadata) -> row.get(0)))
-          .collectList()
-          .block();
+      Flux
+        .from(connection.createStatement("SELECT * FROM pool_table").execute())
+        .flatMap(result -> result.map((row, metadata) -> row.get(0)))
+        .collectList()
+        .block();
     } finally {
       parent.finish();
     }
@@ -86,18 +85,21 @@ class R2dbcPoolTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
             span()
-                .childOfPrevious()
-                .operationName(H2_QUERY)
-                .resourceName(eqs("SELECT * FROM pool_table"))
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_OPERATION, eqs("SELECT")),
-                    tag(Tags.DB_INSTANCE, any()),
-                    tag("_dd.svc_src", any()),
-                    defaultTags())));
+              .childOfPrevious()
+              .operationName(H2_QUERY)
+              .resourceName(eqs("SELECT * FROM pool_table"))
+              .type(DDSpanTypes.SQL)
+              .measured()
+              .tags(
+                  tag(Tags.COMPONENT, eqs("r2dbc")),
+                  tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                  tag(Tags.DB_TYPE, eqs("h2")),
+                  tag(Tags.DB_OPERATION, eqs("SELECT")),
+                  tag(Tags.DB_INSTANCE, any()),
+                  tag("_dd.svc_src", any()),
+                  defaultTags()
+              )
+        )
+    );
   }
 }

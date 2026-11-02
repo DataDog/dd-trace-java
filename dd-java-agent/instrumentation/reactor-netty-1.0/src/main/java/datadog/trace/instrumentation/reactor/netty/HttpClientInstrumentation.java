@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -22,8 +21,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public HttpClientInstrumentation() {
     super("reactor-netty", "reactor-netty-1");
   }
@@ -42,11 +42,11 @@ public class HttpClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.netty41.AttributeKeys",
-      packageName + ".CaptureConnectSpan",
-      packageName + ".TransferConnectSpan",
-      packageName + ".ClearRequestContext",
-      packageName + ".ClearRequestContext$DeferredCleanup",
+        "datadog.trace.instrumentation.netty41.AttributeKeys",
+        packageName + ".CaptureConnectSpan",
+        packageName + ".TransferConnectSpan",
+        packageName + ".ClearRequestContext",
+        packageName + ".ClearRequestContext$DeferredCleanup"
     };
   }
 
@@ -59,6 +59,7 @@ public class HttpClientInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isStatic()).and(namedOneOf("create", "newConnection")),
-        packageName + ".AfterConstructorAdvice");
+        packageName + ".AfterConstructorAdvice"
+    );
   }
 }

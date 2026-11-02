@@ -14,8 +14,7 @@ public final class BinaryExpression implements BooleanExpression {
   protected final BooleanExpression right;
   private final BinaryOperator operator;
 
-  public BinaryExpression(
-      BooleanExpression left, BooleanExpression right, BinaryOperator operator) {
+  public BinaryExpression(BooleanExpression left, BooleanExpression right, BinaryOperator operator) {
     this.left = left == null ? BooleanExpression.FALSE : left;
     this.right = right == null ? BooleanExpression.FALSE : right;
     this.operator = operator;
@@ -58,7 +57,9 @@ public final class BinaryExpression implements BooleanExpression {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     BinaryExpression that = (BinaryExpression) o;
     return Objects.equals(left, that.left)
         && Objects.equals(right, that.right)

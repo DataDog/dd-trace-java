@@ -2,11 +2,9 @@ package datadog.communication.ddagent;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 class AgentVersionTest {
-
   @Test
   void testIsVersionBelow_VersionBelowThreshold() {
     assertTrue(AgentVersion.isVersionBelow("7.64.0", 7, 65, 0));

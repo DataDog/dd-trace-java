@@ -33,11 +33,15 @@ public class MatchesExpression implements BooleanExpression {
         sourceString != null ? sourceString.evaluate(evalContext) : Value.nullValue();
     if (sourceValue.isUndefined()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for undefined value",
+          PrettyPrintVisitor.print(this)
+      );
     }
     if (sourceValue.isNull()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for null value",
+          PrettyPrintVisitor.print(this)
+      );
     }
     if (pattern != null && sourceValue.getValue() instanceof String) {
       String sourceStr = (String) sourceValue.getValue();
@@ -58,7 +62,9 @@ public class MatchesExpression implements BooleanExpression {
     return str;
   }
 
-  /** Wraps a String to check the timeout on each char access while the regex is matching. */
+  /**
+   * Wraps a String to check the timeout on each char access while the regex is matching.
+   */
   private static class TimeoutCharSequence implements CharSequence {
     private final TimeoutChecker timeoutChecker;
     private final MatchesExpression matchesExpression;
@@ -66,7 +72,10 @@ public class MatchesExpression implements BooleanExpression {
     private int charAccessCount;
 
     TimeoutCharSequence(
-        TimeoutChecker timeoutChecker, MatchesExpression matchesExpression, String s) {
+        TimeoutChecker timeoutChecker,
+        MatchesExpression matchesExpression,
+        String s
+    ) {
       this.timeoutChecker = timeoutChecker;
       this.matchesExpression = matchesExpression;
       this.s = s;
@@ -100,7 +109,9 @@ public class MatchesExpression implements BooleanExpression {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     MatchesExpression that = (MatchesExpression) o;
     return Objects.equals(sourceString, that.sourceString) && Objects.equals(str, that.str);
   }

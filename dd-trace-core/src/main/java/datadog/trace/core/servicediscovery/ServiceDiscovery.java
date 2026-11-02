@@ -1,7 +1,6 @@
 package datadog.trace.core.servicediscovery;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
-
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.serialization.GrowableBuffer;
@@ -16,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 public class ServiceDiscovery {
   private static final Logger log = LoggerFactory.getLogger(ServiceDiscovery.class);
-
   private final ForeignMemoryWriter foreignMemoryWriter;
 
   public ServiceDiscovery(ForeignMemoryWriter foreignMemoryWriter) {
@@ -25,17 +23,17 @@ public class ServiceDiscovery {
 
   public void writeTracerMetadata(Config config) {
     try {
-      byte[] payload =
-          ServiceDiscovery.encodePayload(
-              TracerVersion.TRACER_VERSION,
-              config.getHostName(),
-              config.isAppLogsCollectionEnabled(),
-              config.getRuntimeId(),
-              config.getServiceName(),
-              config.getEnv(),
-              config.getVersion(),
-              ProcessTags.getTagsForSerialization(),
-              ContainerInfo.get().getContainerId());
+      byte[] payload = ServiceDiscovery.encodePayload(
+          TracerVersion.TRACER_VERSION,
+          config.getHostName(),
+          config.isAppLogsCollectionEnabled(),
+          config.getRuntimeId(),
+          config.getServiceName(),
+          config.getEnv(),
+          config.getVersion(),
+          ProcessTags.getTagsForSerialization(),
+          ContainerInfo.get().getContainerId()
+      );
 
       foreignMemoryWriter.write(generateFileName(), payload);
     } catch (Throwable t) {
@@ -57,7 +55,8 @@ public class ServiceDiscovery {
       String env,
       String serviceVersion,
       UTF8BytesString processTags,
-      String containerID) {
+      String containerID
+  ) {
     GrowableBuffer buffer = new GrowableBuffer(1024);
     MsgPackWriter writer = new MsgPackWriter(buffer);
 

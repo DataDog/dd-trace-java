@@ -11,8 +11,8 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 public final class TestManagementTestsResponse {
-
-  @Nullable public Map<String, Suites> modules;
+  @Nullable
+  public Map<String, Suites> modules;
 
   public Map<String, Suites> getModules() {
     return modules != null ? modules : Collections.emptyMap();
@@ -33,28 +33,30 @@ public final class TestManagementTestsResponse {
       String moduleName = moduleEntry.getKey();
       for (Map.Entry<String, Tests> suiteEntry : moduleEntry.getValue().getSuites().entrySet()) {
         String suiteName = suiteEntry.getKey();
-        for (Map.Entry<String, Properties> testEntry :
-            suiteEntry.getValue().getTests().entrySet()) {
+        for (Map.Entry<String, Properties> testEntry : suiteEntry
+          .getValue()
+          .getTests()
+          .entrySet()) {
           String testName = testEntry.getKey();
           Properties properties = testEntry.getValue();
           TestFQN fqn = new TestFQN(suiteName, testName);
           if (properties.isQuarantined()) {
             result
-                .get(TestSetting.QUARANTINED)
-                .computeIfAbsent(moduleName, k -> new HashSet<>())
-                .add(fqn);
+              .get(TestSetting.QUARANTINED)
+              .computeIfAbsent(moduleName, k -> new HashSet<>())
+              .add(fqn);
           }
           if (properties.isDisabled()) {
             result
-                .get(TestSetting.DISABLED)
-                .computeIfAbsent(moduleName, k -> new HashSet<>())
-                .add(fqn);
+              .get(TestSetting.DISABLED)
+              .computeIfAbsent(moduleName, k -> new HashSet<>())
+              .add(fqn);
           }
           if (properties.isAttemptToFix()) {
             result
-                .get(TestSetting.ATTEMPT_TO_FIX)
-                .computeIfAbsent(moduleName, k -> new HashSet<>())
-                .add(fqn);
+              .get(TestSetting.ATTEMPT_TO_FIX)
+              .computeIfAbsent(moduleName, k -> new HashSet<>())
+              .add(fqn);
           }
         }
       }
@@ -74,7 +76,8 @@ public final class TestManagementTestsResponse {
   }
 
   public static final class Properties {
-    @Nullable public Map<String, Boolean> properties;
+    @Nullable
+    public Map<String, Boolean> properties;
 
     public boolean isQuarantined() {
       return properties != null
@@ -82,7 +85,8 @@ public final class TestManagementTestsResponse {
     }
 
     public boolean isDisabled() {
-      return properties != null && properties.getOrDefault(TestSetting.DISABLED.asString(), false);
+      return properties != null
+          && properties.getOrDefault(TestSetting.DISABLED.asString(), false);
     }
 
     public boolean isAttemptToFix() {
@@ -92,7 +96,8 @@ public final class TestManagementTestsResponse {
   }
 
   public static final class Tests {
-    @Nullable public Map<String, Properties> tests;
+    @Nullable
+    public Map<String, Properties> tests;
 
     public Map<String, Properties> getTests() {
       return tests != null ? tests : Collections.emptyMap();
@@ -100,7 +105,8 @@ public final class TestManagementTestsResponse {
   }
 
   public static final class Suites {
-    @Nullable public Map<String, Tests> suites;
+    @Nullable
+    public Map<String, Tests> suites;
 
     public Map<String, Tests> getSuites() {
       return suites != null ? suites : Collections.emptyMap();

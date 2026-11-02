@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
-
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.core.otlp.common.OtlpGrpcSender;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -16,8 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class OtlpWriterTest {
-
-  @Mock OtlpSender sender;
+  @Mock
+  OtlpSender sender;
 
   @Test
   void closeShutsDownSender() {
@@ -56,26 +55,26 @@ class OtlpWriterTest {
     // Exercises the default-path sender construction (real OtlpHttpSender) without
     // actually sending anything — start/close only. Guards against a default config
     // that would otherwise fail at construction time.
-    assertDoesNotThrow(
-        () -> {
-          OtlpWriter writer = OtlpWriter.builder().build();
-          writer.start();
-          writer.close();
-        });
+    assertDoesNotThrow(() -> {
+      OtlpWriter writer = OtlpWriter.builder().build();
+      writer.start();
+      writer.close();
+    });
   }
 
   @Test
   void grpcProtocolUsesGrpcMethodPath() {
-    OtlpWriter writer =
-        OtlpWriter.builder()
-            .protocol(OtlpConfig.Protocol.GRPC)
-            .endpoint("http://localhost:4317")
-            .build();
+    OtlpWriter writer = OtlpWriter
+      .builder()
+      .protocol(OtlpConfig.Protocol.GRPC)
+      .endpoint("http://localhost:4317")
+      .build();
     try {
       OtlpGrpcSender grpcSender = assertInstanceOf(OtlpGrpcSender.class, writer.getSender());
       assertEquals(
           "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
-          grpcSender.url().encodedPath());
+          grpcSender.url().encodedPath()
+      );
     } finally {
       writer.close();
     }

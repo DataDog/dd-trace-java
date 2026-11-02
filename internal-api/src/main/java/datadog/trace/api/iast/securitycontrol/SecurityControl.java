@@ -6,18 +6,17 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class SecurityControl {
-
-  @Nonnull private SecurityControlType type;
-
+  @Nonnull
+  private SecurityControlType type;
   private int marks;
-
-  @Nonnull private String className;
-
-  @Nonnull private String method;
-
-  @Nullable private List<String> parameterTypes;
-
-  @Nullable private BitSet parametersToMark;
+  @Nonnull
+  private String className;
+  @Nonnull
+  private String method;
+  @Nullable
+  private List<String> parameterTypes;
+  @Nullable
+  private BitSet parametersToMark;
 
   public SecurityControl(
       @Nonnull SecurityControlType type,
@@ -25,7 +24,8 @@ public class SecurityControl {
       @Nonnull String className,
       @Nonnull String method,
       @Nullable List<String> parameterTypes,
-      @Nullable BitSet parametersToMark) {
+      @Nullable BitSet parametersToMark
+  ) {
     this.type = type;
     this.marks = marks;
     this.className = className;

@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -22,8 +21,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class HandleNoSuchOrAbstractMethodTest {
-
-  /** What a call site writes: {@code apply} delegating to {@code handleNoSuchOrAbstractMethod}. */
+  /**
+   * What a call site writes: {@code apply} delegating to {@code handleNoSuchOrAbstractMethod}.
+   */
   private abstract static class Handling<T, R, E extends Exception> extends ClassLatch<T, R, E> {
     final AtomicInteger calls = new AtomicInteger();
 
@@ -31,13 +31,10 @@ class HandleNoSuchOrAbstractMethodTest {
 
     @Override
     protected final R apply(T target) throws E {
-      return handleNoSuchOrAbstractMethod(
-          target,
-          "m",
-          t -> {
-            calls.incrementAndGet();
-            return invoke(t);
-          });
+      return handleNoSuchOrAbstractMethod(target, "m", t -> {
+        calls.incrementAndGet();
+        return invoke(t);
+      });
     }
   }
 
@@ -84,13 +81,14 @@ class HandleNoSuchOrAbstractMethodTest {
 
   @Test
   void abstractMethodStillLatchesOnlyWhenTheErrorNamesTheKey() throws Exception {
-    Throwing named =
-        new Throwing(
-            new AbstractMethodError(
-                "Receiver class "
-                    + String.class.getName()
-                    + " does not define or inherit an implementation of the resolved method"
-                    + " 'abstract java.lang.String m()' of interface I."));
+    Throwing named = new Throwing(
+        new AbstractMethodError(
+            "Receiver class "
+            + String.class.getName()
+            + " does not define or inherit an implementation of the resolved method"
+            + " 'abstract java.lang.String m()' of interface I."
+        )
+    );
     assertNull(named.tryApply("x"));
     assertTrue(named.isLatched("x"));
 
@@ -140,37 +138,38 @@ class HandleNoSuchOrAbstractMethodTest {
         oldDir,
         oldDir,
         "Caller",
-        "public class Caller { public static String call(I i) { return i.b(); } }");
+        "public class Caller { public static String call(I i) { return i.b(); } }"
+    );
     compile(compiler, newDir, null, "I", "public interface I { String a(); }");
     compile(
         compiler,
         newDir,
         newDir,
         "Impl",
-        "public class Impl implements I { public String a() { return \"a\"; } }");
+        "public class Impl implements I { public String a() { return \"a\"; } }"
+    );
 
-    try (URLClassLoader loader =
-        new URLClassLoader(
-            new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
-            HandleNoSuchOrAbstractMethodTest.class.getClassLoader())) {
+    try (URLClassLoader loader = new URLClassLoader(
+        new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
+        HandleNoSuchOrAbstractMethodTest.class.getClassLoader()
+    )) {
       Class<?> iface = loader.loadClass("I");
       Object impl = loader.loadClass("Impl").getDeclaredConstructor().newInstance();
       Method call = loader.loadClass("Caller").getMethod("call", iface);
 
-      Handling<Object, Object, Exception> latch =
-          new Handling<Object, Object, Exception>() {
-            @Override
-            protected Object invoke(Object target) throws Exception {
-              try {
-                return call.invoke(null, target);
-              } catch (InvocationTargetException e) {
-                if (e.getCause() instanceof NoSuchMethodError) {
-                  throw (NoSuchMethodError) e.getCause();
-                }
-                throw e;
-              }
+      Handling<Object, Object, Exception> latch = new Handling<Object, Object, Exception>() {
+        @Override
+        protected Object invoke(Object target) throws Exception {
+          try {
+            return call.invoke(null, target);
+          } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof NoSuchMethodError) {
+              throw (NoSuchMethodError) e.getCause();
             }
-          };
+            throw e;
+          }
+        }
+      };
 
       assertNull(latch.tryApply(impl));
       assertNull(latch.tryApply(impl));

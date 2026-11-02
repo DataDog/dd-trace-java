@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
@@ -25,7 +24,6 @@ import org.junit.jupiter.api.Test;
 
 class ContainsExpressionTest {
   private final EvalContext evalContext = createEvalContext(this);
-
   private List<String> list = Arrays.asList("foo", "bar", "baz");
   private List<String> listWithNull = Arrays.asList("foo", null, "baz");
   private List<Integer> largeList = new ArrayList<>();
@@ -99,8 +97,7 @@ class ContainsExpressionTest {
 
   @Test
   void stringExpression() {
-    ContainsExpression expression =
-        new ContainsExpression(DSL.value("abcd"), new StringValue("bc"));
+    ContainsExpression expression = new ContainsExpression(DSL.value("abcd"), new StringValue("bc"));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("contains(\"abcd\", \"bc\")", print(expression));
 
@@ -132,9 +129,9 @@ class ContainsExpressionTest {
 
     ContainsExpression slowListExpression =
         new ContainsExpression(DSL.ref("slowList"), DSL.value(new SlowObject()));
-    assertThrows(
-        EvaluationException.class,
-        () -> slowListExpression.evaluate(createEvalContext(this, Duration.ofMillis(1))));
+    assertThrows(EvaluationException.class, () -> slowListExpression.evaluate(
+        createEvalContext(this, Duration.ofMillis(1))
+    ));
   }
 
   @Test
@@ -165,8 +162,7 @@ class ContainsExpressionTest {
 
     ContainsExpression primitiveNullExpression = new ContainsExpression(DSL.ref("arrayInt"), null);
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class, () -> primitiveNullExpression.evaluate(evalContext));
+        assertThrows(EvaluationException.class, () -> primitiveNullExpression.evaluate(evalContext));
     assertEquals("Cannot compare null with primitive array", exception.getMessage());
     assertEquals("contains(arrayInt, null)", print(primitiveNullExpression));
   }

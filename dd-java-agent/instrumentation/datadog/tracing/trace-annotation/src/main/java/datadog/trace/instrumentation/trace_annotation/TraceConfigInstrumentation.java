@@ -14,7 +14,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isSetter;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.isToString;
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -47,9 +46,7 @@ public class TraceConfigInstrumentation extends InstrumenterModule.Tracing {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TraceDecorator",
-    };
+    return new String[] {packageName + ".TraceDecorator"};
   }
 
   @Override
@@ -95,21 +92,21 @@ public class TraceConfigInstrumentation extends InstrumenterModule.Tracing {
       }
       ElementMatcher<MethodDescription> methodFilter;
       if (hasWildcard) {
-        methodFilter =
-            not(
-                isHashCode()
-                    .or(isEquals())
-                    .or(isToString())
-                    .or(isFinalizer())
-                    .or(isGetter())
-                    .or(isSetter())
-                    .or(isSynthetic()));
+        methodFilter = not(isHashCode()
+          .or(isEquals())
+          .or(isToString())
+          .or(isFinalizer())
+          .or(isGetter())
+          .or(isSetter())
+          .or(isSynthetic())
+        );
       } else {
         methodFilter = namedOneOf(methodNames);
       }
       transformer.applyAdvice(
           isMethod().and(methodFilter),
-          "datadog.trace.instrumentation.trace_annotation.TraceAdvice");
+          "datadog.trace.instrumentation.trace_annotation.TraceAdvice"
+      );
     }
   }
 }

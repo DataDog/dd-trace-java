@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecora
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.NETTY_CONNECT;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -24,12 +23,14 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public ChannelFutureListenerInstrumentation() {
     super(
         NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME,
-        NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES);
+        NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES
+    );
   }
 
   @Override
@@ -46,9 +47,10 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("operationComplete"))
-            .and(takesArgument(0, named("io.netty.channel.ChannelFuture"))),
-        ChannelFutureListenerInstrumentation.class.getName() + "$OperationCompleteAdvice");
+          .and(named("operationComplete"))
+          .and(takesArgument(0, named("io.netty.channel.ChannelFuture"))),
+        ChannelFutureListenerInstrumentation.class.getName() + "$OperationCompleteAdvice"
+    );
   }
 
   public static class OperationCompleteAdvice {

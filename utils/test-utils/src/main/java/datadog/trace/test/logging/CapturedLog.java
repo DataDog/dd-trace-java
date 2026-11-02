@@ -16,7 +16,8 @@ public final class CapturedLog {
       final String level,
       final String template,
       final Object[] arguments,
-      final String message) {
+      final String message
+  ) {
     this.marker = marker;
     this.level = level;
     this.template = template;

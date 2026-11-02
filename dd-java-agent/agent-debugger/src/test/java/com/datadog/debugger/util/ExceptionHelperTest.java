@@ -1,5 +1,5 @@
+// spotless:off - Stack trace assertions include source line numbers.
 package com.datadog.debugger.util;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -207,3 +207,4 @@ public class ExceptionHelperTest {
     return null;
   }
 }
+// spotless:on

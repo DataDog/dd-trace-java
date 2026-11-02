@@ -11,7 +11,8 @@ import scala.Tuple1;
 import scala.compat.java8.JFunction1;
 
 public class TaintOptionalCookieFunction
-    implements JFunction1<Tuple1<Option<HttpCookiePair>>, Tuple1<Option<HttpCookiePair>>> {
+    implements JFunction1<Tuple1<Option<HttpCookiePair>>, Tuple1<Option<HttpCookiePair>>>
+{
   public static final TaintOptionalCookieFunction INSTANCE = new TaintOptionalCookieFunction();
 
   @Override

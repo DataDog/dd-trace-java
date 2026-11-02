@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.liberty20;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import com.ibm.ws.classloading.internal.ThreadContextClassLoader;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -11,8 +10,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ThreadContextClassloaderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private static final String LIBERTY = "liberty";
 
   public ThreadContextClassloaderInstrumentation() {
@@ -27,7 +27,9 @@ public class ThreadContextClassloaderInstrumentation extends InstrumenterModule.
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), getClass().getName() + "$ThreadContextClassloaderAdvice");
+        isConstructor(),
+        getClass().getName() + "$ThreadContextClassloaderAdvice"
+    );
   }
 
   public static class ThreadContextClassloaderAdvice {

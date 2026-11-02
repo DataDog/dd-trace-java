@@ -4,10 +4,12 @@ import org.spockframework.runtime.extension.IAnnotationDrivenExtension;
 import org.spockframework.runtime.model.FeatureInfo;
 import org.spockframework.runtime.model.SpecInfo;
 
-/** Handles specs annotated with {@link ExcludeInheritedFeatures}. */
+/**
+ * Handles specs annotated with {@link ExcludeInheritedFeatures}.
+ */
 public class ExcludeInheritedFeaturesExtension
-    implements IAnnotationDrivenExtension<ExcludeInheritedFeatures> {
-
+    implements IAnnotationDrivenExtension<ExcludeInheritedFeatures>
+{
   @Override
   public void visitSpecAnnotation(final ExcludeInheritedFeatures annotation, final SpecInfo spec) {
     final SpecInfo superSpec = spec.getSuperSpec();

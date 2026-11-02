@@ -1,5 +1,5 @@
+// spotless:off - Exception fingerprints include source line numbers.
 package com.datadog.debugger.exception;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -149,3 +149,4 @@ class ExceptionProbeManagerTest {
     return snapshot;
   }
 }
+// spotless:on

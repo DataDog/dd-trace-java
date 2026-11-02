@@ -1,7 +1,6 @@
 package datadog.trace.util.stacktrace;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import external.util.stacktrace.RecursiveRunner;
 import java.util.List;
@@ -29,14 +28,10 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @State(Scope.Benchmark)
 public class HotSpotStackWalkerBenchmark {
-
   private HotSpotStackWalker hotSpotStackWalker;
-
   private DefaultStackWalker defaultStackWalker;
-
   @Param({"1", "3", "10"})
   int limit;
-
   @Param({"10", "50", "100"})
   int deep;
 
@@ -57,19 +52,17 @@ public class HotSpotStackWalkerBenchmark {
   }
 
   private void generateStack(final StackWalker stackWalker) {
+    Runnable runnable = new Runnable() {
+      @SuppressForbidden
+      @Override
+      public void run() {
+        stackWalker.walk(this::toLimitedList).forEach(System.out::println);
+      }
 
-    Runnable runnable =
-        new Runnable() {
-          @SuppressForbidden
-          @Override
-          public void run() {
-            stackWalker.walk(this::toLimitedList).forEach(System.out::println);
-          }
-
-          private List<StackTraceElement> toLimitedList(final Stream<StackTraceElement> stack) {
-            return stack.limit(limit).collect(Collectors.toList());
-          }
-        };
+      private List<StackTraceElement> toLimitedList(final Stream<StackTraceElement> stack) {
+        return stack.limit(limit).collect(Collectors.toList());
+      }
+    };
 
     RecursiveRunner runner = new RecursiveRunner(deep, runnable);
   }

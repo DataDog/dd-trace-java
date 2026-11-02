@@ -13,7 +13,6 @@ import datadog.trace.api.llmobs.LLMObsPropagationValues;
 final class LLMObsTagValues {
   static final LLMObsTagValues EMPTY =
       new LLMObsTagValues(null, null, null, null, null, null, null, null);
-
   final TagValue traceId;
   final TagValue mlApp;
   final TagValue sessionId;
@@ -23,7 +22,9 @@ final class LLMObsTagValues {
   final TagValue sampleRate;
   final TagValue samplingDecision;
 
-  /** Returns {@link #EMPTY} when every value is {@code null}, otherwise a new bundle. */
+  /**
+   * Returns {@link #EMPTY} when every value is {@code null}, otherwise a new bundle.
+   */
   static LLMObsTagValues of(
       TagValue traceId,
       TagValue mlApp,
@@ -32,7 +33,8 @@ final class LLMObsTagValues {
       TagValue parentAgentName,
       TagValue parentId,
       TagValue sampleRate,
-      TagValue samplingDecision) {
+      TagValue samplingDecision
+  ) {
     if (traceId == null
         && mlApp == null
         && sessionId == null
@@ -51,10 +53,13 @@ final class LLMObsTagValues {
         parentAgentName,
         parentId,
         sampleRate,
-        samplingDecision);
+        samplingDecision
+    );
   }
 
-  /** The wire-level values an injection supplied, encoded as tags. */
+  /**
+   * The wire-level values an injection supplied, encoded as tags.
+   */
   static LLMObsTagValues from(LLMObsPropagationValues values) {
     return of(
         toTagValue(values.traceId),
@@ -64,7 +69,8 @@ final class LLMObsTagValues {
         toTagValue(values.parentAgentName),
         toTagValue(values.parentId),
         toTagValue(values.sampleRate),
-        toTagValue(values.samplingDecision));
+        toTagValue(values.samplingDecision)
+    );
   }
 
   /**
@@ -115,7 +121,8 @@ final class LLMObsTagValues {
         parentAgentName,
         parentId,
         sampleRate,
-        samplingDecision);
+        samplingDecision
+    );
   }
 
   private LLMObsTagValues(
@@ -126,7 +133,8 @@ final class LLMObsTagValues {
       TagValue parentAgentName,
       TagValue parentId,
       TagValue sampleRate,
-      TagValue samplingDecision) {
+      TagValue samplingDecision
+  ) {
     this.traceId = traceId;
     this.mlApp = mlApp;
     this.sessionId = sessionId;

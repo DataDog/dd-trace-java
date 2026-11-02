@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.grizzly.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.DECORATE;
-
 import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.HttpResponseBodyPart;
 import com.ning.http.client.HttpResponseHeaders;

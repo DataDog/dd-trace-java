@@ -10,7 +10,8 @@ import scala.Tuple1;
 import scala.compat.java8.JFunction1;
 
 public class TaintCookieFunction
-    implements JFunction1<Tuple1<HttpCookiePair>, Tuple1<HttpCookiePair>> {
+    implements JFunction1<Tuple1<HttpCookiePair>, Tuple1<HttpCookiePair>>
+{
   public static final TaintCookieFunction INSTANCE = new TaintCookieFunction();
 
   @Override

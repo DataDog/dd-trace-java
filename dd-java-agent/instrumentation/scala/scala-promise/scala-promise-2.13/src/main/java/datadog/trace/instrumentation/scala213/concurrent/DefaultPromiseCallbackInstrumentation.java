@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.scala213.concurrent;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
 import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -28,9 +27,11 @@ import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 
 @AutoService(InstrumenterModule.class)
-public final class DefaultPromiseCallbackInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
-
+public final class DefaultPromiseCallbackInstrumentation
+    extends InstrumenterModule.ContextTracking
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasTypeAdvice
+{
   private static final String TRANSFORMATION = "scala.concurrent.impl.Promise$Transformation";
 
   public DefaultPromiseCallbackInstrumentation() {
@@ -50,14 +51,15 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
   @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {
-      new Reference.Builder("scala.concurrent.impl.Promise$DefaultPromise")
-          .withMethod(
-              new String[0],
-              EXPECTS_NON_STATIC,
-              "unregisterCallback",
-              "V",
-              "Lscala/concurrent/impl/Promise$Transformation;")
-          .build()
+        new Reference.Builder("scala.concurrent.impl.Promise$DefaultPromise")
+      .withMethod(
+          new String[0],
+          EXPECTS_NON_STATIC,
+          "unregisterCallback",
+          "V",
+          "Lscala/concurrent/impl/Promise$Transformation;"
+      )
+      .build()
     };
   }
 
@@ -70,11 +72,14 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
   public void typeAdvice(TypeTransformer transformer) {
     transformer.applyAdvice(
         new UnregisterCallbackVisitorWrapper(
-            getContextStoreId(TRANSFORMATION, State.class.getName())));
+            getContextStoreId(TRANSFORMATION, State.class.getName())
+        )
+    );
   }
 
   public static final class UnregisterCallbackVisitorWrapper
-      extends AsmVisitorWrapper.AbstractBase {
+      extends AsmVisitorWrapper.AbstractBase
+  {
     private final int contextStoreId;
 
     public UnregisterCallbackVisitorWrapper(int contextStoreId) {
@@ -95,7 +100,8 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
         FieldList<FieldDescription.InDefinedShape> fields,
         MethodList<?> methods,
         int writerFlags,
-        int readerFlags) {
+        int readerFlags
+    ) {
       return new UnregisterCallbackClassVisitor(classVisitor, contextStoreId);
     }
   }
@@ -103,7 +109,6 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
   static final class UnregisterCallbackClassVisitor extends ClassVisitor {
     private static final String UNREGISTER_DESCRIPTOR =
         "(Lscala/concurrent/impl/Promise$Transformation;)V";
-
     private final int contextStoreId;
     private boolean foundUnregisterCallback;
 
@@ -114,7 +119,12 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
 
     @Override
     public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        String[] exceptions
+    ) {
       MethodVisitor methodVisitor =
           super.visitMethod(access, name, descriptor, signature, exceptions);
       if ("unregisterCallback".equals(name) && UNREGISTER_DESCRIPTOR.equals(descriptor)) {
@@ -142,15 +152,14 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
         "(Ljava/lang/Object;Ljava/lang/Object;)Z";
     private static final String CONTINUATION_HELPER =
         Type.getInternalName(ScalaPromiseContinuationHelper.class);
-    private static final String CANCEL_DESCRIPTOR =
-        Type.getMethodDescriptor(
-            Type.BOOLEAN_TYPE,
-            Type.getType(AtomicReference.class),
-            Type.getType(Object.class),
-            Type.getType(Object.class),
-            Type.INT_TYPE,
-            Type.getType(Object.class));
-
+    private static final String CANCEL_DESCRIPTOR = Type.getMethodDescriptor(
+        Type.BOOLEAN_TYPE,
+        Type.getType(AtomicReference.class),
+        Type.getType(Object.class),
+        Type.getType(Object.class),
+        Type.INT_TYPE,
+        Type.getType(Object.class)
+    );
     private final int contextStoreId;
     private int rewrittenCallSites;
     private boolean loadedCallback;
@@ -162,7 +171,12 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
 
     @Override
     public void visitMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
+        int opcode,
+        String owner,
+        String name,
+        String descriptor,
+        boolean isInterface
+    ) {
       loadedCallback = false;
       if (opcode == Opcodes.INVOKEVIRTUAL
           && DEFAULT_PROMISE.equals(owner)
@@ -177,9 +191,8 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
 
     @Override
     public void visitVarInsn(int opcode, int var) {
-      boolean writesCallback =
-          (var == 1 && opcode >= Opcodes.ISTORE && opcode <= Opcodes.ASTORE)
-              || (var == 0 && (opcode == Opcodes.LSTORE || opcode == Opcodes.DSTORE));
+      boolean writesCallback = (var == 1 && opcode >= Opcodes.ISTORE && opcode <= Opcodes.ASTORE)
+          || (var == 0 && (opcode == Opcodes.LSTORE || opcode == Opcodes.DSTORE));
       if (writesCallback && !(opcode == Opcodes.ASTORE && var == 1 && loadedCallback)) {
         throw new IllegalStateException("unregisterCallback overwrites its callback argument");
       }
@@ -220,7 +233,11 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
 
     @Override
     public void visitInvokeDynamicInsn(
-        String name, String descriptor, Handle bootstrapMethod, Object... bootstrapArguments) {
+        String name,
+        String descriptor,
+        Handle bootstrapMethod,
+        Object... bootstrapArguments
+    ) {
       loadedCallback = false;
       super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethod, bootstrapArguments);
     }
@@ -269,7 +286,8 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
       if (rewrittenCallSites != 2) {
         // Reject the combined class transformation instead of installing a partial rewrite.
         throw new IllegalStateException(
-            "Expected 2 unregisterCallback compareAndSet sites, found " + rewrittenCallSites);
+            "Expected 2 unregisterCallback compareAndSet sites, found " + rewrittenCallSites
+        );
       }
       super.visitEnd();
     }
@@ -282,7 +300,8 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
           CONTINUATION_HELPER,
           "compareAndSetAndCancel",
           CANCEL_DESCRIPTOR,
-          false);
+          false
+      );
     }
   }
 }

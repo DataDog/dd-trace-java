@@ -2,12 +2,10 @@ package datadog.communication.serialization;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-
 import java.nio.ByteBuffer;
 import org.junit.jupiter.api.Test;
 
 public class FlushingBufferTest {
-
   @Test
   public void testBufferCapacity() {
     assertEquals(5, new FlushingBuffer(5, (messageCount, buffer) -> {}).capacity());
@@ -16,13 +14,11 @@ public class FlushingBufferTest {
   @Test
   public void testMessageCount() {
     FlushingBuffer fb = new FlushingBuffer(10, (messageCount, buffer) -> {});
-
     // initial counter
     assertEquals(0, fb.messageCount());
 
     fb.mark();
     fb.mark();
-
     // counter doesn't change if no data pushed into the buffer
     assertEquals(0, fb.messageCount());
 
@@ -37,7 +33,6 @@ public class FlushingBufferTest {
     fb.mark();
     fb.mark();
     // no change to the counter expected for consecutive mark calls
-
     fb.putChar('a');
     fb.putChar('b');
     fb.putChar('c');

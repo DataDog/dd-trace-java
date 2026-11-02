@@ -2,7 +2,6 @@ package datadog.environment;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
-
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -14,7 +13,8 @@ import javax.annotation.Nullable;
  *     Manager</a>
  */
 public final class SystemProperties {
-  private SystemProperties() {}
+  private SystemProperties() {
+  }
 
   /**
    * Gets a system property value.

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -14,7 +13,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class AIGuardTest {
-
   @Test
   void testTextMessage() {
     AIGuard.Message message = AIGuard.Message.message("user", "What day is today?");
@@ -27,11 +25,10 @@ class AIGuardTest {
 
   @Test
   void testAssistantToolCall() {
-    AIGuard.Message message =
-        AIGuard.Message.assistant(
-            AIGuard.ToolCall.toolCall(
-                "1", "execute_http_request", "{ \"url\": \"http://localhost\" }"),
-            AIGuard.ToolCall.toolCall("2", "random_number", "{ \"min\": 0, \"max\": 10 }"));
+    AIGuard.Message message = AIGuard.Message.assistant(
+        AIGuard.ToolCall.toolCall("1", "execute_http_request", "{ \"url\": \"http://localhost\" }"),
+        AIGuard.ToolCall.toolCall("2", "random_number", "{ \"min\": 0, \"max\": 10 }")
+    );
 
     assertEquals("assistant", message.getRole());
     assertNull(message.getContent());
@@ -62,17 +59,19 @@ class AIGuardTest {
 
   @Test
   void testNoopImplementation() {
-    List<AIGuard.Message> messages =
-        Arrays.asList(
-            AIGuard.Message.message("system", "You are a beautiful AI assistant"),
-            AIGuard.Message.message("user", "What day is today?"),
-            AIGuard.Message.message("assistant", "Today is monday"),
-            AIGuard.Message.message("user", "Give me a random number"),
-            AIGuard.Message.assistant(
-                AIGuard.ToolCall.toolCall(
-                    "1", "generate_random_number", "{ \"min\": 0, \"max\": 10 }")),
-            AIGuard.Message.tool("1", "5"),
-            AIGuard.Message.message("assistant", "Your number is 5"));
+    List<AIGuard.Message> messages = Arrays.asList(
+        AIGuard.Message.message("system", "You are a beautiful AI assistant"),
+        AIGuard.Message.message("user", "What day is today?"),
+        AIGuard.Message.message("assistant", "Today is monday"),
+        AIGuard.Message.message("user", "Give me a random number"),
+        AIGuard.Message.assistant(AIGuard.ToolCall.toolCall(
+            "1",
+            "generate_random_number",
+            "{ \"min\": 0, \"max\": 10 }"
+        )),
+        AIGuard.Message.tool("1", "5"),
+        AIGuard.Message.message("assistant", "Your number is 5")
+    );
 
     AIGuard.Evaluation evaluation = AIGuard.evaluate(messages);
 
@@ -98,9 +97,14 @@ class AIGuardTest {
     List<AIGuard.Message> messages =
         Collections.singletonList(AIGuard.Message.message("user", "My SSN is <REDACTED>"));
 
-    AIGuard.Evaluation evaluation =
-        new AIGuard.Evaluation(
-            ALLOW, "No rule match.", Collections.<String>emptyList(), null, null, messages);
+    AIGuard.Evaluation evaluation = new AIGuard.Evaluation(
+        ALLOW,
+        "No rule match.",
+        Collections.<String>emptyList(),
+        null,
+        null,
+        messages
+    );
 
     assertSame(messages, evaluation.getMessages());
   }
@@ -109,8 +113,7 @@ class AIGuardTest {
   @SuppressWarnings("deprecation")
   void testEvaluationWithoutMessagesReturnsEmptyList() {
     AIGuard.Evaluation evaluation =
-        new AIGuard.Evaluation(
-            ALLOW, "No rule match.", Collections.<String>emptyList(), null, null);
+        new AIGuard.Evaluation(ALLOW, "No rule match.", Collections.<String>emptyList(), null, null);
 
     assertNotNull(evaluation.getMessages());
     assertTrue(evaluation.getMessages().isEmpty());
@@ -119,9 +122,14 @@ class AIGuardTest {
   @Test
   @SuppressWarnings("deprecation")
   void testEvaluationWithNullMessagesReturnsEmptyList() {
-    AIGuard.Evaluation evaluation =
-        new AIGuard.Evaluation(
-            ALLOW, "No rule match.", Collections.<String>emptyList(), null, null, null);
+    AIGuard.Evaluation evaluation = new AIGuard.Evaluation(
+        ALLOW,
+        "No rule match.",
+        Collections.<String>emptyList(),
+        null,
+        null,
+        null
+    );
 
     assertNotNull(evaluation.getMessages());
     assertTrue(evaluation.getMessages().isEmpty());
@@ -134,15 +142,15 @@ class AIGuardTest {
     List<Map<String, String>> replacements =
         Collections.singletonList(Collections.singletonMap("path", "messages[0].content"));
 
-    AIGuard.Evaluation evaluation =
-        new AIGuard.Evaluation(
-            ALLOW,
-            "No rule match.",
-            Collections.<String>emptyList(),
-            null,
-            null,
-            messages,
-            replacements);
+    AIGuard.Evaluation evaluation = new AIGuard.Evaluation(
+        ALLOW,
+        "No rule match.",
+        Collections.<String>emptyList(),
+        null,
+        null,
+        messages,
+        replacements
+    );
 
     assertSame(replacements, evaluation.getRedactionReplacements());
   }
@@ -150,9 +158,14 @@ class AIGuardTest {
   @Test
   @SuppressWarnings("deprecation")
   void testEvaluationWithoutReplacementsReturnsEmptyList() {
-    AIGuard.Evaluation evaluation =
-        new AIGuard.Evaluation(
-            ALLOW, "No rule match.", Collections.<String>emptyList(), null, null, null);
+    AIGuard.Evaluation evaluation = new AIGuard.Evaluation(
+        ALLOW,
+        "No rule match.",
+        Collections.<String>emptyList(),
+        null,
+        null,
+        null
+    );
 
     assertNotNull(evaluation.getRedactionReplacements());
     assertTrue(evaluation.getRedactionReplacements().isEmpty());
@@ -160,9 +173,15 @@ class AIGuardTest {
 
   @Test
   void testEvaluationWithNullReplacementsReturnsEmptyList() {
-    AIGuard.Evaluation evaluation =
-        new AIGuard.Evaluation(
-            ALLOW, "No rule match.", Collections.<String>emptyList(), null, null, null, null);
+    AIGuard.Evaluation evaluation = new AIGuard.Evaluation(
+        ALLOW,
+        "No rule match.",
+        Collections.<String>emptyList(),
+        null,
+        null,
+        null,
+        null
+    );
 
     assertNotNull(evaluation.getRedactionReplacements());
     assertTrue(evaluation.getRedactionReplacements().isEmpty());
@@ -189,12 +208,13 @@ class AIGuardTest {
 
   @Test
   void testMessageWithContentParts() {
-    AIGuard.Message message =
-        AIGuard.Message.message(
-            "user",
-            Arrays.asList(
-                AIGuard.ContentPart.text("Describe this image:"),
-                AIGuard.ContentPart.imageUrl("https://example.com/image.jpg")));
+    AIGuard.Message message = AIGuard.Message.message(
+        "user",
+        Arrays.asList(
+            AIGuard.ContentPart.text("Describe this image:"),
+            AIGuard.ContentPart.imageUrl("https://example.com/image.jpg")
+        )
+    );
 
     assertEquals("user", message.getRole());
     assertNull(message.getContent());
@@ -204,7 +224,9 @@ class AIGuardTest {
     assertEquals("Describe this image:", message.getContentParts().get(0).getText());
     assertEquals(AIGuard.ContentPart.Type.IMAGE_URL, message.getContentParts().get(1).getType());
     assertEquals(
-        "https://example.com/image.jpg", message.getContentParts().get(1).getImageUrl().getUrl());
+        "https://example.com/image.jpg",
+        message.getContentParts().get(1).getImageUrl().getUrl()
+    );
   }
 
   @Test
@@ -219,7 +241,9 @@ class AIGuardTest {
   void testMessageWithContentPartsReturnsNullContent() {
     AIGuard.Message message =
         AIGuard.Message.message(
-            "user", Collections.singletonList(AIGuard.ContentPart.text("Hello")));
+            "user",
+            Collections.singletonList(AIGuard.ContentPart.text("Hello"))
+    );
 
     assertNull(message.getContent());
     assertNotNull(message.getContentParts());

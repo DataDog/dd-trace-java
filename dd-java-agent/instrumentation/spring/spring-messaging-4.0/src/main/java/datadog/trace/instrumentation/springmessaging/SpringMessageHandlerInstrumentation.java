@@ -14,7 +14,6 @@ import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorat
 import static datadog.trace.instrumentation.springmessaging.SpringMessageExtractAdapter.GETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -28,8 +27,9 @@ import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
 
 @AutoService(InstrumenterModule.class)
 public final class SpringMessageHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public SpringMessageHandlerInstrumentation() {
     super("spring-messaging", "spring-messaging-4");
   }
@@ -43,19 +43,21 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(
-                named("invoke")
-                    .and(takesArgument(0, named("org.springframework.messaging.Message")))),
+          .and(named("invoke")
+            .and(takesArgument(0, named("org.springframework.messaging.Message")))
+          ),
         SpringMessageHandlerInstrumentation.class.getName() + "$ContextPropagationAdvice",
-        SpringMessageHandlerInstrumentation.class.getName() + "$HandleMessageAdvice");
+        SpringMessageHandlerInstrumentation.class.getName() + "$HandleMessageAdvice"
+    );
   }
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextPropagationAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
-        @Advice.Argument(0) Message<?> message, @Advice.Local("ctxScope") ContextScope scope) {
+        @Advice.Argument(0) Message<?> message,
+        @Advice.Local("ctxScope") ContextScope scope
+    ) {
       if (message != null && activeSpan() == null) {
         // no local active span, so extract from message to avoid disconnected trace
         scope = defaultPropagator().extract(rootContext(), message, GETTER).attach();
@@ -64,12 +66,13 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(@Advice.Local("ctxScope") ContextScope scope) {
-      if (scope != null) scope.close();
+      if (scope != null) {
+        scope.close();
+      }
     }
   }
 
   public static class HandleMessageAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
       AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPRING_INBOUND);
@@ -82,7 +85,8 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
     public static void onExit(
         @Advice.Enter ContextScope scope,
         @Advice.Return(readOnly = false) Object result,
-        @Advice.Thrown Throwable error) {
+        @Advice.Thrown Throwable error
+    ) {
       if (null == scope) {
         return;
       }

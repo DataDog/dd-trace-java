@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
 public class PerRecordingRateLimiter {
-
   private final AdaptiveSampler sampler;
 
   public PerRecordingRateLimiter(Duration windowDuration, int limit, Duration recordingLength) {
@@ -12,7 +11,11 @@ public class PerRecordingRateLimiter {
   }
 
   public PerRecordingRateLimiter(
-      Duration windowDuration, int limit, Duration recordingLength, int budgetLookback) {
+      Duration windowDuration,
+      int limit,
+      Duration recordingLength,
+      int budgetLookback
+  ) {
     int lookback = samplingWindowsPerRecording(recordingLength.getSeconds(), windowDuration);
     int samplesPerWindow =
         limit / samplingWindowsPerRecording(recordingLength.getSeconds(), windowDuration);
@@ -29,10 +32,9 @@ public class PerRecordingRateLimiter {
      * None of these durations should be big enough to warrant dealing with bigints.
      * We also do not care about nanoseconds here.
      */
-    return (int)
-        Math.min(
-            Duration.of(uploadPeriodSeconds, ChronoUnit.SECONDS).toMillis()
-                / samplingWindow.toMillis(),
-            Integer.MAX_VALUE);
+    return (int) Math.min(
+        Duration.of(uploadPeriodSeconds, ChronoUnit.SECONDS).toMillis() / samplingWindow.toMillis(),
+        Integer.MAX_VALUE
+    );
   }
 }

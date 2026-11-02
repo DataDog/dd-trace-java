@@ -1,7 +1,6 @@
 package com.datadog.debugger.agent;
 
 import static datadog.trace.api.Config.isExplicitlyDisabled;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.DebuggerConfig;
@@ -13,9 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDebuggerConfigUpdater.class);
-
   private final Config config;
 
   public DefaultDebuggerConfigUpdater(Config config) {
@@ -29,7 +26,8 @@ class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
         DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED,
         update.getDynamicInstrumentationEnabled(),
         DebuggerAgent::startDynamicInstrumentation,
-        DebuggerAgent::stopDynamicInstrumentation);
+        DebuggerAgent::stopDynamicInstrumentation
+    );
     if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
       // Cannot remotely enable Exception Replay for JDK < 11 (JVM 8 bug)
       startOrStopFeature(
@@ -37,7 +35,8 @@ class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
           DebuggerConfig.EXCEPTION_REPLAY_ENABLED,
           update.getExceptionReplayEnabled(),
           DebuggerAgent::startExceptionReplay,
-          DebuggerAgent::stopExceptionReplay);
+          DebuggerAgent::stopExceptionReplay
+      );
     } else {
       LOGGER.debug("Cannot start Exception Replay on JDK version < 11");
     }
@@ -46,13 +45,15 @@ class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
         TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED,
         update.getCodeOriginEnabled(),
         DebuggerAgent::startCodeOriginForSpans,
-        DebuggerAgent::stopCodeOriginForSpans);
+        DebuggerAgent::stopCodeOriginForSpans
+    );
     startOrStopFeature(
         config,
         DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED,
         update.getDistributedDebuggerEnabled(),
         DebuggerAgent::startDistributedDebugger,
-        DebuggerAgent::stopDistributedDebugger);
+        DebuggerAgent::stopDistributedDebugger
+    );
   }
 
   @Override
@@ -80,7 +81,8 @@ class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
       String booleanKey,
       Boolean currentStatus,
       Consumer<Config> start,
-      Runnable stop) {
+      Runnable stop
+  ) {
     if (isExplicitlyDisabled(booleanKey)) {
       LOGGER.debug("Feature {} is explicitly disabled", booleanKey);
       return;

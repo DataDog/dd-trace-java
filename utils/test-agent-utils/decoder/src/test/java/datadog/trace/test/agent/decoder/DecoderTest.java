@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,7 +16,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 public class DecoderTest {
-
   @Test
   public void decodeV05() throws Throwable {
     String resourceName = "/greeting.msgpack";
@@ -40,7 +38,8 @@ public class DecoderTest {
         "smoke-test-java-app",
         "web",
         singletonMap("component", "tomcat-server"),
-        singletonMap("_dd.top_level", 1));
+        singletonMap("_dd.top_level", 1)
+    );
     DecodedSpan second = sorted.get(1);
     validateSpan(
         second,
@@ -51,7 +50,8 @@ public class DecoderTest {
         "smoke-test-java-app",
         "web",
         singletonMap("component", "spring-web-controller"),
-        singletonMap("_dd.measured", 1));
+        singletonMap("_dd.measured", 1)
+    );
   }
 
   @Test
@@ -77,7 +77,8 @@ public class DecoderTest {
         "smoke-test-java-app",
         "web",
         singletonMap("component", "netty"),
-        singletonMap("_dd.agent_psr", 1.0));
+        singletonMap("_dd.agent_psr", 1.0)
+    );
 
     DecodedSpan second = sorted.get(1);
     validateSpan(
@@ -89,7 +90,8 @@ public class DecoderTest {
         "smoke-test-java-app",
         "web",
         singletonMap("component", "spring-webflux-controller"),
-        singletonMap("_dd.measured", 1));
+        singletonMap("_dd.measured", 1)
+    );
   }
 
   @Test
@@ -115,7 +117,8 @@ public class DecoderTest {
         "smoke-test-java-app",
         "web",
         singletonMap("component", "netty"),
-        singletonMap("_dd.agent_psr", 1.0));
+        singletonMap("_dd.agent_psr", 1.0)
+    );
 
     DecodedSpan second = sorted.get(1);
     validateSpan(
@@ -127,7 +130,8 @@ public class DecoderTest {
         "smoke-test-java-app",
         "web",
         singletonMap("component", "spring-webflux-controller"),
-        singletonMap("_dd.measured", 1));
+        singletonMap("_dd.measured", 1)
+    );
   }
 
   @Test
@@ -164,7 +168,8 @@ public class DecoderTest {
       String service,
       String type,
       Map<String, String> meta,
-      Map<String, ? extends Number> metrics) {
+      Map<String, ? extends Number> metrics
+  ) {
     assertEquals(traceId, span.getTraceId());
     assertEquals(parentId, span.getParentId());
     assertEquals(name, span.getName());

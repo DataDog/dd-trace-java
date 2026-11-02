@@ -6,10 +6,8 @@ package datadog.trace.bootstrap.debugger.el;
  * @see ValueReferenceResolver
  */
 public final class ValueReferences {
-
   public static String SYNTHETIC_PREFIX = "@";
   public static String THIS = "this";
-
   public static String DURATION_EXTENSION_NAME = "duration";
   public static String RETURN_EXTENSION_NAME = "return";
   public static String ITERATOR_EXTENSION_NAME = "it";

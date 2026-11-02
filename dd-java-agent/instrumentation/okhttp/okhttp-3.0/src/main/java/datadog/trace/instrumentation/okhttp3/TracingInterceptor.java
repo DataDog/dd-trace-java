@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.OKHTTP_REQUEST;
 import static datadog.trace.instrumentation.okhttp3.RequestBuilderInjectAdapter.SETTER;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;

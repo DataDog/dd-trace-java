@@ -11,5 +11,7 @@ import org.junit.platform.suite.api.Suite;
 @SelectClasspathResource("org/example/cucumber/calculator/basic_arithmetic.feature")
 @ConfigurationParameter(
     key = Constants.GLUE_PROPERTY_NAME,
-    value = "org.example.cucumber.calculator")
-public class TestSucceedCucumber {}
+    value = "org.example.cucumber.calculator"
+)
+public class TestSucceedCucumber {
+}

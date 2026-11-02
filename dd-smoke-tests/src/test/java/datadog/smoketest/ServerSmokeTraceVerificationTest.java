@@ -3,7 +3,6 @@ package datadog.smoketest;
 import static java.util.Collections.singleton;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -20,7 +19,8 @@ import org.spockframework.runtime.model.MethodInfo;
 import org.spockframework.runtime.model.SpecInfo;
 
 class ServerSmokeTraceVerificationTest {
-  @TempDir Path directory;
+  @TempDir
+  Path directory;
 
   @Test
   void excludedApplicationFeaturesDoNotRequireTraces() throws Throwable {

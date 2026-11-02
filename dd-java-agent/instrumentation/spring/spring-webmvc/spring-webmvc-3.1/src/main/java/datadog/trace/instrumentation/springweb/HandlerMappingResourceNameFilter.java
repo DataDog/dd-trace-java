@@ -1,5 +1,5 @@
+// spotless:off - System-test snapshots include this filter's source line numbers.
 package datadog.trace.instrumentation.springweb;
-
 import static datadog.context.Context.root;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
@@ -103,3 +103,4 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
     }
   }
 }
+// spotless:on

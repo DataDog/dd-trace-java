@@ -5,7 +5,6 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 public enum EarlyFlakeDetectionAbortReason implements TagValue {
   FAULTY,
   SLOW;
-
   private final String s;
 
   EarlyFlakeDetectionAbortReason() {

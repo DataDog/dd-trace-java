@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.ro
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.SPRAY_HTTP_SERVER;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,7 +18,8 @@ public class SprayHttpServerRunSealedRouteAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope enter(
       @Advice.Argument(value = 1, readOnly = false) RequestContext ctx,
-      @Advice.Local("completion") AtomicInteger completion) {
+      @Advice.Local("completion") AtomicInteger completion
+  ) {
     final Context parentContext;
     final Context context;
     final AgentSpan span;
@@ -48,7 +48,8 @@ public class SprayHttpServerRunSealedRouteAdvice {
   public static void exit(
       @Advice.Enter final ContextScope scope,
       @Advice.Thrown final Throwable throwable,
-      @Advice.Local("completion") AtomicInteger completion) {
+      @Advice.Local("completion") AtomicInteger completion
+  ) {
     try {
       if (throwable != null) {
         DECORATE.onError(scope, throwable);

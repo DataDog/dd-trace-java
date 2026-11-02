@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackAc
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import akka.dispatch.Envelope;
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
@@ -22,8 +21,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class AkkaActorCellInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public AkkaActorCellInstrumentation() {
     super("akka_actor_receive", "akka_actor", "akka_concurrent", "java_concurrent");
   }
@@ -40,8 +40,8 @@ public class AkkaActorCellInstrumentation extends InstrumenterModule.ContextTrac
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("invoke")), getClass().getName() + "$InvokeAdvice");
+    transformer.applyAdvice(isMethod().and(named("invoke")), getClass().getName()
+        + "$InvokeAdvice");
   }
 
   /**
@@ -59,12 +59,13 @@ public class AkkaActorCellInstrumentation extends InstrumenterModule.ContextTrac
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Context enter(
         @Advice.Argument(value = 0) Envelope envelope,
-        @Advice.Local("taskScope") ContextScope taskScope) {
-
+        @Advice.Local("taskScope") ContextScope taskScope
+    ) {
       // do this before checkpointing, as the envelope's task scope may already be active
-      taskScope =
-          AdviceUtils.startTaskScope(
-              InstrumentationContext.get(Envelope.class, State.class), envelope);
+      taskScope = AdviceUtils.startTaskScope(
+          InstrumentationContext.get(Envelope.class, State.class),
+          envelope
+      );
 
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // remember the currently active scope so we can roll back to this point
@@ -78,15 +79,14 @@ public class AkkaActorCellInstrumentation extends InstrumenterModule.ContextTrac
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
         @Advice.Local("taskScope") ContextScope taskScope,
-        @Advice.Enter Context checkpointContext) {
-
+        @Advice.Enter Context checkpointContext
+    ) {
       if (checkpointContext == null) {
         // Clean up any leaking scopes from akka-streams/akka-http etc.
         rollbackActiveToCheckpoint();
       } else {
         checkpointContext.swap();
       }
-
       // close envelope's task scope if we previously started it
       if (taskScope != null) {
         taskScope.close();

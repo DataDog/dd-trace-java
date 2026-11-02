@@ -1,8 +1,9 @@
 package com.datadog.debugger.agent;
 
-/** Helper class for matching class name */
+/**
+ * Helper class for matching class name
+ */
 public class TypeNameHelper {
-
   public static String extractSimpleName(Class<?> clazz) {
     String typeName;
     try {
@@ -22,13 +23,16 @@ public class TypeNameHelper {
     int idx = className.lastIndexOf('$');
     String typeName;
     if (idx != -1) {
-      typeName = className.substring(idx + 1); // strip the package & enclosing name
+      // strip the package & enclosing name
+      typeName = className.substring(idx + 1);
       if (typeName.length() > 0 && Character.isDigit(typeName.charAt(0))) {
         // this is anonymous class let's keep the enclosing name
-        typeName = className.substring(className.lastIndexOf('.') + 1); // strip the package name
+        // strip the package name
+        typeName = className.substring(className.lastIndexOf('.') + 1);
       }
     } else {
-      typeName = className.substring(className.lastIndexOf('.') + 1); // strip the package name
+      // strip the package name
+      typeName = className.substring(className.lastIndexOf('.') + 1);
     }
     return typeName;
   }

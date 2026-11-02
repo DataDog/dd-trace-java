@@ -3,11 +3,9 @@ package com.datadog.profiling.controller;
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
-
 import datadog.environment.JavaVirtualMachine;
 
 public class ProfilingSupport {
-
   /**
    * Checks whether jmethodID handling is safe on the current JVM version. Unsafe versions can cause
    * crashes due to <a href="https://bugs.openjdk.org/browse/JDK-8313816">JDK-8313816</a>.

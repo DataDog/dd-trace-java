@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver.g
 import static datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver.resolve;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
 
 class ReflectiveFieldValueResolverTest {
-
   @Test
   void testGetFieldAsCapturedValue() {
     assertNull(getFieldAsCapturedValue(null, "fieldName").getValue());
@@ -30,7 +28,8 @@ class ReflectiveFieldValueResolverTest {
         getFieldAsCapturedValue(new ArrayList<>(), "elementData");
     assertEquals(
         "Field is not accessible: module java.base does not opens/exports to the current module",
-        elementData.getNotCapturedReason());
+        elementData.getNotCapturedReason()
+    );
   }
 
   @Test
@@ -47,7 +46,9 @@ class ReflectiveFieldValueResolverTest {
   @EnabledForJreRange(min = JRE.JAVA_17)
   void testResolveInaccessible() {
     assertEquals(
-        Values.UNDEFINED_OBJECT, resolve(new ArrayList<>(), ArrayList.class, "elementData"));
+        Values.UNDEFINED_OBJECT,
+        resolve(new ArrayList<>(), ArrayList.class, "elementData")
+    );
   }
 
   static class A {
@@ -55,7 +56,8 @@ class ReflectiveFieldValueResolverTest {
     private String a2 = "2";
   }
 
-  static class B extends A {}
+  static class B extends A {
+  }
 
   static class C extends A {
     private int c1 = 3;

@@ -1,5 +1,5 @@
+// spotless:off - Debugger probes and code-origin tests use fixed source line numbers.
 package datadog.smoketest.debugger;
-
 import datadog.trace.api.Trace;
 import java.io.IOException;
 import java.util.HashMap;
@@ -329,3 +329,4 @@ class TopLevel {
     return "TopLevel.process: " + arg;
   }
 }
+// spotless:on

@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.Metric;
 import datadog.trace.api.telemetry.WafMetricCollector;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class WafMetricPeriodicActionTest {
-
   private final WafMetricPeriodicAction periodicAction = new WafMetricPeriodicAction();
   private final TelemetryService telemetryService = mock(TelemetryService.class);
 
@@ -39,17 +37,20 @@ class WafMetricPeriodicActionTest {
         metrics,
         "waf.init",
         1L,
-        Arrays.asList("waf_version:0.0.0", "event_rules_version:rules_ver_1", "success:true"));
+        Arrays.asList("waf_version:0.0.0", "event_rules_version:rules_ver_1", "success:true")
+    );
     assertMetric(
         metrics,
         "waf.updates",
         1L,
-        Arrays.asList("waf_version:0.0.0", "event_rules_version:rules_ver_2", "success:true"));
+        Arrays.asList("waf_version:0.0.0", "event_rules_version:rules_ver_2", "success:true")
+    );
     assertMetric(
         metrics,
         "waf.updates",
         1L,
-        Arrays.asList("waf_version:0.0.0", "event_rules_version:rules_ver_3", "success:true"));
+        Arrays.asList("waf_version:0.0.0", "event_rules_version:rules_ver_3", "success:true")
+    );
   }
 
   @Test
@@ -77,24 +78,45 @@ class WafMetricPeriodicActionTest {
     assertRequestMetric(
         firstBatch,
         3L,
-        requestTags("rules_ver_1", false, false, false, false, false, false, false));
+        requestTags("rules_ver_1", false, false, false, false, false, false, false)
+    );
     assertRequestMetric(
-        firstBatch, 1L, requestTags("rules_ver_1", true, false, false, false, false, false, false));
+        firstBatch,
+        1L,
+        requestTags("rules_ver_1", true, false, false, false, false, false, false)
+    );
     assertRequestMetric(
-        firstBatch, 1L, requestTags("rules_ver_1", false, true, false, false, false, false, false));
+        firstBatch,
+        1L,
+        requestTags("rules_ver_1", false, true, false, false, false, false, false)
+    );
     assertRequestMetric(
-        firstBatch, 1L, requestTags("rules_ver_1", false, false, true, false, false, false, false));
+        firstBatch,
+        1L,
+        requestTags("rules_ver_1", false, false, true, false, false, false, false)
+    );
     assertRequestMetric(
-        firstBatch, 1L, requestTags("rules_ver_1", false, false, false, true, false, false, false));
+        firstBatch,
+        1L,
+        requestTags("rules_ver_1", false, false, false, true, false, false, false)
+    );
     assertRequestMetric(
-        firstBatch, 1L, requestTags("rules_ver_1", false, false, false, false, true, false, false));
+        firstBatch,
+        1L,
+        requestTags("rules_ver_1", false, false, false, false, true, false, false)
+    );
     assertRequestMetric(
-        firstBatch, 1L, requestTags("rules_ver_1", false, false, false, false, false, true, false));
+        firstBatch,
+        1L,
+        requestTags("rules_ver_1", false, false, false, false, false, true, false)
+    );
     assertRequestMetric(
-        firstBatch, 1L, requestTags("rules_ver_1", false, false, false, false, false, false, true));
+        firstBatch,
+        1L,
+        requestTags("rules_ver_1", false, false, false, false, false, false, true)
+    );
 
     clearInvocations(telemetryService);
-
     // waf.updates happens
     WafMetricCollector.get().wafUpdates("rules_ver_2", true);
     WafMetricCollector.get().wafRequest(false, false, false, false, false, false, false, false);
@@ -107,7 +129,6 @@ class WafMetricPeriodicActionTest {
     WafMetricCollector.get().wafRequest(false, false, false, false, false, false, true, false);
     WafMetricCollector.get().prepareMetrics();
     periodicAction.doIteration(telemetryService);
-
     // following waf.request have a new event_rules_version tag
     ArgumentCaptor<Metric> secondBatchCaptor = forClass(Metric.class);
     verify(telemetryService, times(9)).addMetric(secondBatchCaptor.capture());
@@ -118,35 +139,43 @@ class WafMetricPeriodicActionTest {
     assertRequestMetric(
         secondBatch,
         1L,
-        requestTags("rules_ver_2", false, false, false, false, false, false, false));
+        requestTags("rules_ver_2", false, false, false, false, false, false, false)
+    );
     assertRequestMetric(
         secondBatch,
         1L,
-        requestTags("rules_ver_2", true, false, false, false, false, false, false));
+        requestTags("rules_ver_2", true, false, false, false, false, false, false)
+    );
     assertRequestMetric(
         secondBatch,
         1L,
-        requestTags("rules_ver_2", false, true, false, false, false, false, false));
+        requestTags("rules_ver_2", false, true, false, false, false, false, false)
+    );
     assertRequestMetric(
         secondBatch,
         1L,
-        requestTags("rules_ver_2", false, false, true, false, false, false, false));
+        requestTags("rules_ver_2", false, false, true, false, false, false, false)
+    );
     assertRequestMetric(
         secondBatch,
         1L,
-        requestTags("rules_ver_2", false, false, false, true, false, false, false));
+        requestTags("rules_ver_2", false, false, false, true, false, false, false)
+    );
     assertRequestMetric(
         secondBatch,
         1L,
-        requestTags("rules_ver_2", false, false, false, false, true, false, false));
+        requestTags("rules_ver_2", false, false, false, false, true, false, false)
+    );
     assertRequestMetric(
         secondBatch,
         1L,
-        requestTags("rules_ver_2", false, false, false, false, false, true, false));
+        requestTags("rules_ver_2", false, false, false, false, false, true, false)
+    );
     assertRequestMetric(
         secondBatch,
         1L,
-        requestTags("rules_ver_2", false, false, false, false, false, false, true));
+        requestTags("rules_ver_2", false, false, false, false, false, false, true)
+    );
   }
 
   private void assertRequestMetric(List<Metric> metrics, long expectedCount, List<String> tags) {
@@ -159,12 +188,16 @@ class WafMetricPeriodicActionTest {
    * is not guaranteed. Match by (metric name, tags) rather than by position.
    */
   private void assertMetric(
-      List<Metric> metrics, String metricName, long expectedCount, List<String> tags) {
-    List<Metric> matches =
-        metrics.stream()
-            .filter(metric -> metric.getMetric().equals(metricName))
-            .filter(metric -> tags == null || tags.equals(metric.getTags()))
-            .collect(Collectors.toList());
+      List<Metric> metrics,
+      String metricName,
+      long expectedCount,
+      List<String> tags
+  ) {
+    List<Metric> matches = metrics
+      .stream()
+      .filter(metric -> metric.getMetric().equals(metricName))
+      .filter(metric -> tags == null || tags.equals(metric.getTags()))
+      .collect(Collectors.toList());
     assertEquals(1, matches.size(), "expected exactly one match for " + metricName + " " + tags);
 
     Metric metric = matches.get(0);
@@ -180,7 +213,8 @@ class WafMetricPeriodicActionTest {
       boolean wafTimeout,
       boolean blockFailure,
       boolean rateLimited,
-      boolean inputTruncated) {
+      boolean inputTruncated
+  ) {
     return Arrays.asList(
         "waf_version:0.0.0",
         "event_rules_version:" + rulesVersion,
@@ -191,6 +225,7 @@ class WafMetricPeriodicActionTest {
         "block_failure:" + blockFailure,
         "rate_limited:" + rateLimited,
         "input_truncated:" + inputTruncated,
-        "request_excluded:none");
+        "request_excluded:none"
+    );
   }
 }

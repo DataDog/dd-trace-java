@@ -7,7 +7,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.test.util.DDJavaSpecification;
 import datadog.trace.test.util.GCUtils;
 import java.lang.ref.WeakReference;
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class AgentTaskSchedulerTest extends DDJavaSpecification {
-
   private AgentTaskScheduler scheduler;
 
   @BeforeEach
@@ -36,13 +34,12 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
   @Test
   void testScheduling() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(2);
-    AgentTaskScheduler.Task<CountDownLatch> task =
-        new AgentTaskScheduler.Task<CountDownLatch>() {
-          @Override
-          public void run(CountDownLatch target) {
-            target.countDown();
-          }
-        };
+    AgentTaskScheduler.Task<CountDownLatch> task = new AgentTaskScheduler.Task<CountDownLatch>() {
+      @Override
+      public void run(CountDownLatch target) {
+        target.countDown();
+      }
+    };
 
     assertFalse(scheduler.isShutdown());
 
@@ -56,13 +53,12 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
   void testWeakScheduling() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(Integer.MAX_VALUE);
     WeakReference<CountDownLatch> weakLatch = new WeakReference<>(latch);
-    AgentTaskScheduler.Task<CountDownLatch> task =
-        new AgentTaskScheduler.Task<CountDownLatch>() {
-          @Override
-          public void run(CountDownLatch target) {
-            target.countDown();
-          }
-        };
+    AgentTaskScheduler.Task<CountDownLatch> task = new AgentTaskScheduler.Task<CountDownLatch>() {
+      @Override
+      public void run(CountDownLatch target) {
+        target.countDown();
+      }
+    };
 
     assertFalse(scheduler.isShutdown());
 
@@ -77,13 +73,12 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
   @Test
   void testDelay() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
-    AgentTaskScheduler.Task<CountDownLatch> task =
-        new AgentTaskScheduler.Task<CountDownLatch>() {
-          @Override
-          public void run(CountDownLatch target) {
-            target.countDown();
-          }
-        };
+    AgentTaskScheduler.Task<CountDownLatch> task = new AgentTaskScheduler.Task<CountDownLatch>() {
+      @Override
+      public void run(CountDownLatch target) {
+        target.countDown();
+      }
+    };
 
     assertFalse(scheduler.isShutdown());
 
@@ -103,19 +98,18 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
   void testFixedDelay() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(3);
     List<Long> timestamps = new ArrayList<>();
-    AgentTaskScheduler.Task<CountDownLatch> task =
-        new AgentTaskScheduler.Task<CountDownLatch>() {
-          @Override
-          public void run(CountDownLatch target) {
-            timestamps.add(System.nanoTime());
-            try {
-              Thread.sleep(100);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-            }
-            target.countDown();
-          }
-        };
+    AgentTaskScheduler.Task<CountDownLatch> task = new AgentTaskScheduler.Task<CountDownLatch>() {
+      @Override
+      public void run(CountDownLatch target) {
+        timestamps.add(System.nanoTime());
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+        target.countDown();
+      }
+    };
 
     assertFalse(scheduler.isShutdown());
 
@@ -124,21 +118,22 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
 
     assertTrue(latch.await(1000, MILLISECONDS));
     assertTrue(
-        delta(timestamps.get(1), timestamps.get(0), 0.15f, NANOSECONDS.convert(300, MILLISECONDS)));
+        delta(timestamps.get(1), timestamps.get(0), 0.15f, NANOSECONDS.convert(300, MILLISECONDS))
+    );
     assertTrue(
-        delta(timestamps.get(2), timestamps.get(1), 0.15f, NANOSECONDS.convert(300, MILLISECONDS)));
+        delta(timestamps.get(2), timestamps.get(1), 0.15f, NANOSECONDS.convert(300, MILLISECONDS))
+    );
   }
 
   @Test
   void testCancel() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(Integer.MAX_VALUE);
-    AgentTaskScheduler.Task<CountDownLatch> task =
-        new AgentTaskScheduler.Task<CountDownLatch>() {
-          @Override
-          public void run(CountDownLatch target) {
-            target.countDown();
-          }
-        };
+    AgentTaskScheduler.Task<CountDownLatch> task = new AgentTaskScheduler.Task<CountDownLatch>() {
+      @Override
+      public void run(CountDownLatch target) {
+        target.countDown();
+      }
+    };
 
     assertFalse(scheduler.isShutdown());
 
@@ -153,13 +148,12 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
   @Test
   void testExecute() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
-    Runnable target =
-        new Runnable() {
-          @Override
-          public void run() {
-            latch.countDown();
-          }
-        };
+    Runnable target = new Runnable() {
+      @Override
+      public void run() {
+        latch.countDown();
+      }
+    };
 
     assertFalse(scheduler.isShutdown());
 
@@ -172,13 +166,12 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
   @Test
   void testShutdown() {
     CountDownLatch latch = new CountDownLatch(Integer.MAX_VALUE);
-    AgentTaskScheduler.Task<CountDownLatch> task =
-        new AgentTaskScheduler.Task<CountDownLatch>() {
-          @Override
-          public void run(CountDownLatch target) {
-            target.countDown();
-          }
-        };
+    AgentTaskScheduler.Task<CountDownLatch> task = new AgentTaskScheduler.Task<CountDownLatch>() {
+      @Override
+      public void run(CountDownLatch target) {
+        target.countDown();
+      }
+    };
 
     assertFalse(scheduler.isShutdown());
 
@@ -192,13 +185,12 @@ class AgentTaskSchedulerTest extends DDJavaSpecification {
   @Test
   void testNullTarget() {
     AtomicInteger callCount = new AtomicInteger();
-    AgentTaskScheduler.Task<Object> task =
-        new AgentTaskScheduler.Task<Object>() {
-          @Override
-          public void run(Object target) {
-            callCount.incrementAndGet();
-          }
-        };
+    AgentTaskScheduler.Task<Object> task = new AgentTaskScheduler.Task<Object>() {
+      @Override
+      public void run(Object target) {
+        callCount.incrementAndGet();
+      }
+    };
 
     assertFalse(scheduler.isShutdown());
 

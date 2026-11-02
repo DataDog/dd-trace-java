@@ -21,10 +21,8 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
  * </ul>
  */
 public class BoxedValueConverter implements ArgumentConverter {
-
   @Override
-  public Object convert(Object source, ParameterContext context)
-      throws ArgumentConversionException {
+  public Object convert(Object source, ParameterContext context) throws ArgumentConversionException {
     if (source == null) {
       return null;
     }

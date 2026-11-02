@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling.context.benchmark;
 import static datadog.trace.agent.tooling.context.benchmark.ContextStoreBenchmarkSupport.installAgent;
 import static datadog.trace.agent.tooling.context.benchmark.ContextStoreBenchmarkSupport.newKey;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import context.benchmark.ContextStoreBenchmarkKey;
 import java.util.function.Function;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -76,7 +75,9 @@ public class ContextStoreBenchmark {
     keys.nonFieldInjected[i].write(keys.context);
   }
 
-  /** Reads an existing context without replacing it with the supplied value. */
+  /**
+   * Reads an existing context without replacing it with the supplied value.
+   */
   @Benchmark
   public Object fieldInjectedGetOrPutHit(Keys keys) {
     return keys.fieldInjected[keys.next()].getOrPutContext(0, keys.alternateContext);
@@ -87,7 +88,9 @@ public class ContextStoreBenchmark {
     return keys.nonFieldInjected[keys.next()].getOrPutContext(0, keys.alternateContext);
   }
 
-  /** Reads an existing context without invoking the factory. */
+  /**
+   * Reads an existing context without invoking the factory.
+   */
   @Benchmark
   public Object fieldInjectedGetOrComputeHit(Keys keys) {
     return keys.fieldInjected[keys.next()].getOrComputeContext(0, keys.contextFactory);
@@ -98,7 +101,9 @@ public class ContextStoreBenchmark {
     return keys.nonFieldInjected[keys.next()].getOrComputeContext(0, keys.contextFactory);
   }
 
-  /** Models request-local context association without making application keys shared by threads. */
+  /**
+   * Models request-local context association without making application keys shared by threads.
+   */
   @Benchmark
   public boolean mixedRequestLifecycle(LifecycleKeys keys) {
     int i = keys.next();
@@ -135,8 +140,8 @@ public class ContextStoreBenchmark {
         keys.freshContexts ? new ContextStoreBenchmarkInstrumentation.State(42) : keys.context;
     Object secondContext =
         keys.freshContexts
-            ? new ContextStoreBenchmarkInstrumentation.State1(42)
-            : keys.secondContext;
+        ? new ContextStoreBenchmarkInstrumentation.State1(42)
+        : keys.secondContext;
     injected.putContext(0, context);
     fallback.putContext(0, context);
     injected.putContext(1, secondContext);
@@ -159,7 +164,6 @@ public class ContextStoreBenchmark {
   public static class FreshKeys {
     @Param("false")
     public boolean freshContexts;
-
     private ContextStoreBenchmarkKey fieldInjected;
     private ContextStoreBenchmarkKey nonFieldInjected;
     private final Object context = new ContextStoreBenchmarkInstrumentation.State(42);
@@ -198,7 +202,6 @@ public class ContextStoreBenchmark {
   public static class Keys {
     @Param({"1", "1024"})
     public int keyCount;
-
     private ContextStoreBenchmarkKey[] fieldInjected;
     private ContextStoreBenchmarkKey[] nonFieldInjected;
     private final Object context = new ContextStoreBenchmarkInstrumentation.State(42);
@@ -214,8 +217,8 @@ public class ContextStoreBenchmark {
 
       Function<Object, Object> unexpectedFactory =
           key -> {
-            throw new IllegalStateException("getOrCompute invoked the factory for a populated key");
-          };
+        throw new IllegalStateException("getOrCompute invoked the factory for a populated key");
+      };
       for (int i = 0; i < keyCount; i++) {
         fieldInjected[i].write(context);
         nonFieldInjected[i].write(context);
@@ -230,7 +233,9 @@ public class ContextStoreBenchmark {
       }
     }
 
-    /** Returns the current key index and advances to the next key. */
+    /**
+     * Returns the current key index and advances to the next key.
+     */
     int next() {
       int i = index;
       index = (i + 1) & (keyCount - 1);
@@ -242,10 +247,8 @@ public class ContextStoreBenchmark {
   public static class LifecycleKeys {
     @Param("1024")
     public int keyCount;
-
     @Param({"1", "4"})
     public int storeCount;
-
     private ContextStoreBenchmarkKey[] fieldInjected;
     private ContextStoreBenchmarkKey[] nonFieldInjected;
     private Object[] contexts;
@@ -262,13 +265,12 @@ public class ContextStoreBenchmark {
       fieldInjected = types.newFieldInjectedKeys(keyCount);
       nonFieldInjected = types.newNonFieldInjectedKeys(keyCount);
       threadIndex = threadParams.getThreadIndex();
-      contexts =
-          new Object[] {
-            new ContextStoreBenchmarkInstrumentation.State(42),
-            new ContextStoreBenchmarkInstrumentation.State1(42),
-            new ContextStoreBenchmarkInstrumentation.State2(42),
-            new ContextStoreBenchmarkInstrumentation.State3(42)
-          };
+      contexts = new Object[] {
+          new ContextStoreBenchmarkInstrumentation.State(42),
+          new ContextStoreBenchmarkInstrumentation.State1(42),
+          new ContextStoreBenchmarkInstrumentation.State2(42),
+          new ContextStoreBenchmarkInstrumentation.State3(42)
+      };
       verifyStores();
     }
 
@@ -286,7 +288,9 @@ public class ContextStoreBenchmark {
       }
     }
 
-    /** Returns the current key index and advances to the next key. */
+    /**
+     * Returns the current key index and advances to the next key.
+     */
     int next() {
       int i = index;
       index = (i + 1) & (keyCount - 1);

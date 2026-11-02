@@ -3,7 +3,6 @@ package datadog.trace.api.llmobs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import org.junit.jupiter.api.Test;
@@ -175,19 +174,18 @@ class LLMObsContextTest {
   @Test
   void attachWithSamplingDecisionStoresDecisionAndRate() {
     AgentSpanContext ctx = mock(AgentSpanContext.class);
-    try (ContextScope scope =
-        LLMObsContext.attach(
-            ctx,
-            null,
-            null,
-            null,
-            null,
-            "0.25",
-            LLMObsContext.SAMPLING_DECISION_DROPPED,
-            null,
-            null)) {
-      assertEquals(
-          LLMObsContext.SAMPLING_DECISION_DROPPED, LLMObsContext.currentSamplingDecision());
+    try (ContextScope scope = LLMObsContext.attach(
+        ctx,
+        null,
+        null,
+        null,
+        null,
+        "0.25",
+        LLMObsContext.SAMPLING_DECISION_DROPPED,
+        null,
+        null
+    )) {
+      assertEquals(LLMObsContext.SAMPLING_DECISION_DROPPED, LLMObsContext.currentSamplingDecision());
       assertEquals("0.25", LLMObsContext.currentSampleRate());
     }
     assertNull(LLMObsContext.currentSamplingDecision());
@@ -209,28 +207,29 @@ class LLMObsContextTest {
   void childScopeInheritsParentSamplingDecision() {
     AgentSpanContext parent = mock(AgentSpanContext.class);
     AgentSpanContext child = mock(AgentSpanContext.class);
-    try (ContextScope parentScope =
-        LLMObsContext.attach(
-            parent,
-            null,
-            null,
-            null,
-            null,
-            "1",
-            LLMObsContext.SAMPLING_DECISION_SAMPLED,
-            null,
-            null)) {
+    try (ContextScope parentScope = LLMObsContext.attach(
+        parent,
+        null,
+        null,
+        null,
+        null,
+        "1",
+        LLMObsContext.SAMPLING_DECISION_SAMPLED,
+        null,
+        null
+    )) {
       try (ContextScope childScope = LLMObsContext.attach(child)) {
         assertEquals(child, LLMObsContext.current());
         assertEquals(
-            LLMObsContext.SAMPLING_DECISION_SAMPLED, LLMObsContext.currentSamplingDecision());
+            LLMObsContext.SAMPLING_DECISION_SAMPLED,
+            LLMObsContext.currentSamplingDecision()
+        );
         assertEquals("1", LLMObsContext.currentSampleRate());
       }
     }
   }
 
   // ── full attach (session_id + agent_version + sampling + pagent attribution) ──
-
   @Test
   void currentParentAgentSpanIdReturnsNullWhenNoContextAttached() {
     assertNull(LLMObsContext.currentParentAgentSpanId());
@@ -244,25 +243,24 @@ class LLMObsContextTest {
   @Test
   void fullAttachStoresAllFields() {
     AgentSpanContext ctx = mock(AgentSpanContext.class);
-    try (ContextScope scope =
-        LLMObsContext.attach(
-            ctx,
-            "0123456789abcdef0123456789abcdef",
-            "my-app",
-            "session-1",
-            "v2",
-            "0.5",
-            LLMObsContext.SAMPLING_DECISION_SAMPLED,
-            "span-99",
-            "my-agent")) {
+    try (ContextScope scope = LLMObsContext.attach(
+        ctx,
+        "0123456789abcdef0123456789abcdef",
+        "my-app",
+        "session-1",
+        "v2",
+        "0.5",
+        LLMObsContext.SAMPLING_DECISION_SAMPLED,
+        "span-99",
+        "my-agent"
+    )) {
       assertEquals(ctx, LLMObsContext.current());
       assertEquals("0123456789abcdef0123456789abcdef", LLMObsContext.currentTraceId());
       assertEquals("my-app", LLMObsContext.currentMlApp());
       assertEquals("session-1", LLMObsContext.currentSessionId());
       assertEquals("v2", LLMObsContext.currentAgentVersion());
       assertEquals("0.5", LLMObsContext.currentSampleRate());
-      assertEquals(
-          LLMObsContext.SAMPLING_DECISION_SAMPLED, LLMObsContext.currentSamplingDecision());
+      assertEquals(LLMObsContext.SAMPLING_DECISION_SAMPLED, LLMObsContext.currentSamplingDecision());
       assertEquals("span-99", LLMObsContext.currentParentAgentSpanId());
       assertEquals("my-agent", LLMObsContext.currentParentAgentName());
     }
@@ -308,7 +306,16 @@ class LLMObsContextTest {
     AgentSpanContext inner = mock(AgentSpanContext.class);
     try (ContextScope outerScope =
         LLMObsContext.attach(
-            outer, null, null, "s", "v1", null, null, "agent-span-id", "outer-agent")) {
+            outer,
+            null,
+            null,
+            "s",
+            "v1",
+            null,
+            null,
+            "agent-span-id",
+            "outer-agent"
+    )) {
       assertEquals("agent-span-id", LLMObsContext.currentParentAgentSpanId());
       assertEquals("outer-agent", LLMObsContext.currentParentAgentName());
 
@@ -317,7 +324,6 @@ class LLMObsContextTest {
         assertNull(LLMObsContext.currentParentAgentSpanId());
         assertNull(LLMObsContext.currentParentAgentName());
       }
-
       // Outer values are restored after inner scope closes.
       assertEquals("agent-span-id", LLMObsContext.currentParentAgentSpanId());
       assertEquals("outer-agent", LLMObsContext.currentParentAgentName());
@@ -328,12 +334,28 @@ class LLMObsContextTest {
   void fullAttachInnerAgentOverridesOuterAgentForDescendants() {
     AgentSpanContext outer = mock(AgentSpanContext.class);
     AgentSpanContext inner = mock(AgentSpanContext.class);
-    try (ContextScope outerScope =
-        LLMObsContext.attach(
-            outer, null, null, null, null, null, null, "outer-span-id", "outer-agent")) {
-      try (ContextScope innerScope =
-          LLMObsContext.attach(
-              inner, null, null, null, null, null, null, "inner-span-id", "inner-agent")) {
+    try (ContextScope outerScope = LLMObsContext.attach(
+        outer,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "outer-span-id",
+        "outer-agent"
+    )) {
+      try (ContextScope innerScope = LLMObsContext.attach(
+          inner,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "inner-span-id",
+          "inner-agent"
+      )) {
         assertEquals("inner-span-id", LLMObsContext.currentParentAgentSpanId());
         assertEquals("inner-agent", LLMObsContext.currentParentAgentName());
       }
@@ -348,9 +370,17 @@ class LLMObsContextTest {
     // leak into its scope — only the span ID is set.
     AgentSpanContext outer = mock(AgentSpanContext.class);
     AgentSpanContext inner = mock(AgentSpanContext.class);
-    try (ContextScope outerScope =
-        LLMObsContext.attach(
-            outer, null, null, null, null, null, null, "outer-span-id", "outer-agent")) {
+    try (ContextScope outerScope = LLMObsContext.attach(
+        outer,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "outer-span-id",
+        "outer-agent"
+    )) {
       try (ContextScope innerScope =
           LLMObsContext.attach(inner, null, null, null, null, null, null, "inner-span-id", null)) {
         assertEquals("inner-span-id", LLMObsContext.currentParentAgentSpanId());
@@ -364,24 +394,26 @@ class LLMObsContextTest {
     AgentSpanContext parent = mock(AgentSpanContext.class);
     AgentSpanContext child = mock(AgentSpanContext.class);
     // Every propagation mechanism coexists on one context and is inherited together.
-    try (ContextScope parentScope =
-        LLMObsContext.attach(
-            parent,
-            "0123456789abcdef0123456789abcdef",
-            "app-abc",
-            "session-abc",
-            "v7",
-            "0.5",
-            LLMObsContext.SAMPLING_DECISION_SAMPLED,
-            "agent-span-7",
-            "agent-seven")) {
+    try (ContextScope parentScope = LLMObsContext.attach(
+        parent,
+        "0123456789abcdef0123456789abcdef",
+        "app-abc",
+        "session-abc",
+        "v7",
+        "0.5",
+        LLMObsContext.SAMPLING_DECISION_SAMPLED,
+        "agent-span-7",
+        "agent-seven"
+    )) {
       try (ContextScope childScope = LLMObsContext.attach(child)) {
         assertEquals("0123456789abcdef0123456789abcdef", LLMObsContext.currentTraceId());
         assertEquals("app-abc", LLMObsContext.currentMlApp());
         assertEquals("session-abc", LLMObsContext.currentSessionId());
         assertEquals("v7", LLMObsContext.currentAgentVersion());
         assertEquals(
-            LLMObsContext.SAMPLING_DECISION_SAMPLED, LLMObsContext.currentSamplingDecision());
+            LLMObsContext.SAMPLING_DECISION_SAMPLED,
+            LLMObsContext.currentSamplingDecision()
+        );
         assertEquals("0.5", LLMObsContext.currentSampleRate());
         assertEquals("agent-span-7", LLMObsContext.currentParentAgentSpanId());
         assertEquals("agent-seven", LLMObsContext.currentParentAgentName());

@@ -17,9 +17,7 @@ import java.util.stream.Collectors;
 
 public class EmbeddingDecorator {
   public static final EmbeddingDecorator DECORATE = new EmbeddingDecorator();
-
   private static final CharSequence EMBEDDINGS_CREATE = UTF8BytesString.create("createEmbedding");
-
   private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
 
   public void withEmbeddingCreateParams(AgentSpan span, EmbeddingCreateParams params) {
@@ -34,7 +32,6 @@ public class EmbeddingDecorator {
     if (!llmObsEnabled) {
       return;
     }
-
     // Keep model_name stable on error paths where no response is available.
     modelName.ifPresent(str -> span.setTag(CommonTags.MODEL_NAME, str));
 
@@ -45,16 +42,17 @@ public class EmbeddingDecorator {
     Map<String, Object> metadata = new HashMap<>();
     Optional<String> encodingFormat = extractEncodingFormat(params);
     encodingFormat.ifPresent(v -> metadata.put("encoding_format", v));
-    params.dimensions().ifPresent(v -> metadata.put("dimensions", v));
+    params
+      .dimensions()
+      .ifPresent(v -> metadata.put("dimensions", v));
     span.setTag(CommonTags.METADATA, metadata);
   }
 
   private List<LLMObs.Document> embeddingDocuments(EmbeddingCreateParams.Input input) {
-    List<String> inputs =
-        input
-            .string()
-            .map(Collections::singletonList)
-            .orElseGet(() -> input.arrayOfStrings().orElse(Collections.emptyList()));
+    List<String> inputs = input
+      .string()
+      .map(Collections::singletonList)
+      .orElseGet(() -> input.arrayOfStrings().orElse(Collections.emptyList()));
     return inputs.stream().map(LLMObs.Document::from).collect(Collectors.toList());
   }
 
@@ -63,7 +61,10 @@ public class EmbeddingDecorator {
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
-    response._usage().asKnown().ifPresent(usage -> withUsage(span, usage));
+    response
+      ._usage()
+      .asKnown()
+      .ifPresent(usage -> withUsage(span, usage));
 
     if (!llmObsEnabled) {
       return;
@@ -77,27 +78,37 @@ public class EmbeddingDecorator {
           firstEmbedding._embedding().asKnown().orElse(Collections.emptyList()).size();
       span.setTag(
           CommonTags.OUTPUT,
-          String.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize));
+          String.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize)
+      );
     }
   }
 
   private static void withUsage(AgentSpan span, CreateEmbeddingResponse.Usage usage) {
     usage
-        ._promptTokens()
-        .asKnown()
-        .ifPresent(v -> TokenUsage.set(span, CommonTags.INPUT_TOKENS, v));
-    usage._totalTokens().asKnown().ifPresent(v -> TokenUsage.set(span, CommonTags.TOTAL_TOKENS, v));
+      ._promptTokens()
+      .asKnown()
+      .ifPresent(v -> TokenUsage.set(span, CommonTags.INPUT_TOKENS, v));
+    usage
+      ._totalTokens()
+      .asKnown()
+      .ifPresent(v -> TokenUsage.set(span, CommonTags.TOTAL_TOKENS, v));
   }
 
   private Optional<String> extractEmbeddingModelName(EmbeddingCreateParams params) {
     Optional<String> modelName =
-        params._model().asKnown().flatMap(model -> model._value().asString());
+        params
+      ._model()
+      .asKnown()
+      .flatMap(model -> model._value().asString());
     return modelName.isPresent() ? modelName : params._model().asString();
   }
 
   private Optional<String> extractEncodingFormat(EmbeddingCreateParams params) {
     Optional<String> encodingFormat =
-        params._encodingFormat().asKnown().flatMap(format -> format._value().asString());
+        params
+      ._encodingFormat()
+      .asKnown()
+      .flatMap(format -> format._value().asString());
     return encodingFormat.isPresent() ? encodingFormat : params._encodingFormat().asString();
   }
 }

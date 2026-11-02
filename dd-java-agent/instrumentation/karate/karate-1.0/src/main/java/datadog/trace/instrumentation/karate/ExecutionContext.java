@@ -7,7 +7,6 @@ import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import java.util.Collection;
 
 public class ExecutionContext {
-
   private final TestExecutionPolicy executionPolicy;
   private boolean suppressFailures;
 
@@ -30,8 +29,10 @@ public class ExecutionContext {
   public static ExecutionContext create(Scenario scenario) {
     TestIdentifier testIdentifier = KarateUtils.toTestIdentifier(scenario);
     Collection<String> testTags = scenario.getTagsEffective().getTagKeys();
-    return new ExecutionContext(
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-            testIdentifier, TestSourceData.UNKNOWN, testTags));
+    return new ExecutionContext(TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
+        testIdentifier,
+        TestSourceData.UNKNOWN,
+        testTags
+    ));
   }
 }

@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;

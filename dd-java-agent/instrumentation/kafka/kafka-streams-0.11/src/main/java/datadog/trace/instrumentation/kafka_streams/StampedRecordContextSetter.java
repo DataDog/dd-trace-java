@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.kafka_streams;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.context.propagation.CarrierSetter;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.streams.processor.internals.StampedRecord;

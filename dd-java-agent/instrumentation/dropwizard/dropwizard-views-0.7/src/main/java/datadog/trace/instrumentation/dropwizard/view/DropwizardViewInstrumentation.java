@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -23,8 +22,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class DropwizardViewInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice
+{
   public DropwizardViewInstrumentation() {
     super("dropwizard", "dropwizard-view");
   }
@@ -37,8 +37,8 @@ public final class DropwizardViewInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.dropwizard.views.freemarker.FreemarkerViewRenderer",
-      "io.dropwizard.views.mustache.MustacheViewRenderer"
+        "io.dropwizard.views.freemarker.FreemarkerViewRenderer",
+        "io.dropwizard.views.mustache.MustacheViewRenderer"
     };
   }
 
@@ -56,17 +56,19 @@ public final class DropwizardViewInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("render"))
-            .and(takesArgument(0, named("io.dropwizard.views.View")))
-            .and(isPublic()),
-        DropwizardViewInstrumentation.class.getName() + "$RenderAdvice");
+          .and(named("render"))
+          .and(takesArgument(0, named("io.dropwizard.views.View")))
+          .and(isPublic()),
+        DropwizardViewInstrumentation.class.getName() + "$RenderAdvice"
+    );
   }
 
   public static class RenderAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(
-        @Advice.This final Object obj, @Advice.Argument(0) final View view) {
+        @Advice.This final Object obj,
+        @Advice.Argument(0) final View view
+    ) {
       if (activeSpan() == null) {
         return null;
       }
@@ -79,7 +81,9 @@ public final class DropwizardViewInstrumentation extends InstrumenterModule.Trac
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

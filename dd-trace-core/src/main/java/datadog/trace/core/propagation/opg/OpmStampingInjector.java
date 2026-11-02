@@ -15,7 +15,6 @@ import java.util.function.Supplier;
  * and any inbound OPM is forwarded as-is, per the RFC.
  */
 final class OpmStampingInjector implements HttpCodec.Injector {
-
   private final HttpCodec.Injector delegate;
   private final Supplier<String> localOpmSupplier;
 

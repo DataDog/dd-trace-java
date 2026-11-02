@@ -2,7 +2,6 @@ package datadog.trace.common.writer;
 
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -16,7 +15,6 @@ import org.msgpack.core.MessagePack;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 class SerializationTest extends DDJavaSpecification {
-
   @Test
   void testJsonMapperSerialization() throws Exception {
     ObjectMapper mapper = new ObjectMapper();
@@ -25,7 +23,8 @@ class SerializationTest extends DDJavaSpecification {
     byte[] serializedList = ("[" + new String(serializedMap) + "]").getBytes();
 
     List<Map<String, String>> result =
-        mapper.readValue(serializedList, new TypeReference<List<Map<String, String>>>() {});
+        mapper.readValue(serializedList, new TypeReference<List<Map<String, String>>>() {
+    });
 
     assertEquals(Collections.singletonList(map), result);
     assertEquals("[{\"key1\":\"val1\"}]", new String(serializedList));
@@ -53,7 +52,8 @@ class SerializationTest extends DDJavaSpecification {
     byte[] serializedList = packer.toByteArray();
 
     List<Map<String, String>> result =
-        mapper.readValue(serializedList, new TypeReference<List<Map<String, String>>>() {});
+        mapper.readValue(serializedList, new TypeReference<List<Map<String, String>>>() {
+    });
 
     assertEquals(input, result);
   }

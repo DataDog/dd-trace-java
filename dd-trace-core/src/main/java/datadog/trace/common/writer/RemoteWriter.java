@@ -2,7 +2,6 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.concurrent.TimeUnit.MINUTES;
-
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -27,17 +26,13 @@ import org.slf4j.LoggerFactory;
  * is made to keep, to avoid wasting the serialization effort.
  */
 public abstract class RemoteWriter implements Writer {
-
   private static final Logger log = LoggerFactory.getLogger(RemoteWriter.class);
-
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
-
   protected final TraceProcessingWorker traceProcessingWorker;
   private final PayloadDispatcher dispatcher;
   private final boolean alwaysFlush;
   private final int flushTimeout;
   private final TimeUnit flushTimeoutUnit;
-
   private volatile boolean closed;
   public final HealthMetrics healthMetrics;
 
@@ -47,7 +42,8 @@ public abstract class RemoteWriter implements Writer {
       final HealthMetrics healthMetrics,
       final int flushTimeout,
       final TimeUnit flushTimeoutUnit,
-      final boolean alwaysFlush) {
+      final boolean alwaysFlush
+  ) {
     this.traceProcessingWorker = traceProcessingWorker;
     this.dispatcher = dispatcher;
     this.healthMetrics = healthMetrics;
@@ -60,7 +56,8 @@ public abstract class RemoteWriter implements Writer {
       final TraceProcessingWorker traceProcessingWorker,
       final PayloadDispatcher dispatcher,
       final HealthMetrics healthMetrics,
-      final boolean alwaysFlush) {
+      final boolean alwaysFlush
+  ) {
     // Default constructor with 1 second of flush timeout. Used by the DDAgentWriter.
     this(traceProcessingWorker, dispatcher, healthMetrics, 1, TimeUnit.SECONDS, alwaysFlush);
   }
@@ -96,8 +93,9 @@ public abstract class RemoteWriter implements Writer {
             } else {
               rlLog.warn(
                   "Dropped a kept trace due to a buffer overflow: [{} spans]."
-                      + " Traces are being produced faster than they can be sent to the agent.",
-                  trace.size());
+                  + " Traces are being produced faster than they can be sent to the agent.",
+                  trace.size()
+              );
             }
             handleDroppedTrace(trace);
             break;
@@ -109,12 +107,15 @@ public abstract class RemoteWriter implements Writer {
           case DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN:
             if (log.isDebugEnabled()) {
               log.debug(
-                  "Dropped a single span sampling candidate due to a buffer overflow: {}", trace);
+                  "Dropped a single span sampling candidate due to a buffer overflow: {}",
+                  trace
+              );
             } else {
               rlLog.warn(
                   "Dropped a single span sampling candidate due to a buffer overflow: [{} spans]."
-                      + " Traces are being produced faster than they can be sent to the agent.",
-                  trace.size());
+                  + " Traces are being produced faster than they can be sent to the agent.",
+                  trace.size()
+              );
             }
             handleDroppedTrace(trace);
             break;

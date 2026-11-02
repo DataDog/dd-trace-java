@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.test.util.DDJavaSpecification;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
@@ -26,7 +25,6 @@ import org.tabletest.junit.TableTest;
 
 @SuppressForbidden
 public class ContainerInfoTest extends DDJavaSpecification {
-
   // spotless:off
   @TableTest({
     "id | controllers           | path                                                                                                                            | containerId                                                        | podId                                  | line",
@@ -98,11 +96,14 @@ public class ContainerInfoTest extends DDJavaSpecification {
     assertEquals(podId, cGroupInfo.getPodId());
   }
   // spotless:on
-
   @ParameterizedTest
   @MethodSource("containerInfoParsedFromFileContentArguments")
   void containerInfoParsedFromFileContent(
-      String containerId, String podId, int size, String content) throws Exception {
+      String containerId,
+      String podId,
+      int size,
+      String content
+  ) throws Exception {
     ContainerInfo containerInfo = ContainerInfo.parse(content);
 
     assertEquals(containerId, containerInfo.getContainerId());
@@ -274,7 +275,6 @@ public class ContainerInfoTest extends DDJavaSpecification {
         ContainerInfo.readEntityID(containerInfo, true, Paths.get("/sys/fs/cgroup")));
   }
   // spotless:on
-
   @TableTest({
     "cid",
     "   ",
@@ -339,7 +339,6 @@ public class ContainerInfoTest extends DDJavaSpecification {
     assertEquals(expected, ContainerInfo.readEntityID(containerInfo, false, mountPath.toPath()));
   }
   // spotless:on
-
   @Test
   void readEntityIDReturnIdInoForParentWhenPathIsSlash() throws Exception {
     File mountPath = createTempDir();

@@ -6,7 +6,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface CommandInjectionModule extends IastModule {
-
   void onRuntimeExec(@Nonnull String... command);
 
   void onRuntimeExec(@Nullable String[] env, @Nonnull String... command);

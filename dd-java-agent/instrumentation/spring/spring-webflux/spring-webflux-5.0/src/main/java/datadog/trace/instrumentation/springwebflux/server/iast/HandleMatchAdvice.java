@@ -16,13 +16,13 @@ import org.springframework.web.server.ServerWebExchange;
 
 @RequiresRequestContext(RequestContextSlot.IAST)
 public class HandleMatchAdvice {
-
   @SuppressWarnings("Duplicates")
   @Advice.OnMethodExit(suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_PATH_PARAMETER)
   public static void after(
-      @Advice.Argument(2) ServerWebExchange xchg, @ActiveRequestContext RequestContext reqCtx) {
-
+      @Advice.Argument(2) ServerWebExchange xchg,
+      @ActiveRequestContext RequestContext reqCtx
+  ) {
     Object templateVars = xchg.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
     Object matrixVars = xchg.getAttribute(HandlerMapping.MATRIX_VARIABLES_ATTRIBUTE);
     if (templateVars == null && matrixVars == null) {
@@ -38,10 +38,15 @@ public class HandleMatchAdvice {
           String parameterName = e.getKey();
           String value = e.getValue();
           if (parameterName == null || value == null) {
-            continue; // should not happen
+            // should not happen
+            continue;
           }
           module.taintString(
-              iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+              iastRequestContext,
+              value,
+              SourceTypes.REQUEST_PATH_PARAMETER,
+              parameterName
+          );
         }
       }
 
@@ -61,13 +66,18 @@ public class HandleMatchAdvice {
                   iastRequestContext,
                   innerKey,
                   SourceTypes.REQUEST_MATRIX_PARAMETER,
-                  parameterName);
+                  parameterName
+              );
             }
             Iterable<String> innerValues = ie.getValue();
             if (innerValues != null) {
               for (String iv : innerValues) {
                 module.taintString(
-                    iastRequestContext, iv, SourceTypes.REQUEST_MATRIX_PARAMETER, parameterName);
+                    iastRequestContext,
+                    iv,
+                    SourceTypes.REQUEST_MATRIX_PARAMETER,
+                    parameterName
+                );
               }
             }
           }

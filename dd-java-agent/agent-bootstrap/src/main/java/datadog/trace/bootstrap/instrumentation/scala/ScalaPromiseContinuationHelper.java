@@ -1,12 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.scala;
 
 import static datadog.trace.bootstrap.ContextStores.getContextStore;
-
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class ScalaPromiseContinuationHelper {
-  private ScalaPromiseContinuationHelper() {}
+  private ScalaPromiseContinuationHelper() {
+  }
 
   /**
    * Atomically replace a callback collection and release a continuation removed with its callback.
@@ -18,7 +18,8 @@ public final class ScalaPromiseContinuationHelper {
       Object expected,
       Object replacement,
       int contextStoreId,
-      Object callback) {
+      Object callback
+  ) {
     boolean updated = reference.compareAndSet(expected, replacement);
     if (updated && expected != replacement) {
       State state = (State) getContextStore(contextStoreId).get(callback);

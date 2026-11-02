@@ -11,7 +11,6 @@ import scala.collection.Iterable;
 import scala.collection.Iterator;
 
 public class TaintParametersFunction<T> implements Function1<Tuple1<T>, Tuple1<T>> {
-
   private final IastContext ctx;
   private final String paramName;
 

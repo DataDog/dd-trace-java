@@ -5,8 +5,8 @@ import java.util.Enumeration;
 import javax.servlet.http.HttpServletRequest;
 
 public class HttpServletRequestExtractAdapter
-    implements AgentPropagation.ContextVisitor<HttpServletRequest> {
-
+    implements AgentPropagation.ContextVisitor<HttpServletRequest>
+{
   public static final HttpServletRequestExtractAdapter GETTER =
       new HttpServletRequestExtractAdapter();
 

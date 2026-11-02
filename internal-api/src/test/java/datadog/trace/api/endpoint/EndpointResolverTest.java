@@ -5,13 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.TagMap;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class EndpointResolverTest {
-
   @TableTest({
     "scenario         | input         | expected",
     // Valid routes
@@ -88,7 +86,10 @@ class EndpointResolverTest {
     "empty route      | ''              | 'http://example.com/search'     | /search              "
   })
   void computesEndpointAndTagsWhenRouteIsIneligible(
-      String ineligibleRoute, String url, String expectedEndpoint) {
+      String ineligibleRoute,
+      String url,
+      String expectedEndpoint
+  ) {
     EndpointResolver resolver = new EndpointResolver(true, false);
     TagMap unsafeTags = TagMap.create();
 
@@ -115,13 +116,12 @@ class EndpointResolverTest {
   void realWorldScenarioServiceWithRoute() {
     EndpointResolver resolver = new EndpointResolver(true, false);
     TagMap unsafeTags = TagMap.create();
-
     // framework provides accurate route
-    String result =
-        resolver.resolveEndpoint(
-            unsafeTags,
-            "/api/v2/customers/{id}/orders",
-            "http://api.example.com/api/v2/customers/123/orders");
+    String result = resolver.resolveEndpoint(
+        unsafeTags,
+        "/api/v2/customers/{id}/orders",
+        "http://api.example.com/api/v2/customers/123/orders"
+    );
 
     assertEquals("/api/v2/customers/{id}/orders", result);
     // Uses route, no endpoint tag
@@ -132,11 +132,12 @@ class EndpointResolverTest {
   void realWorldScenarioProxyWithoutRoute() {
     EndpointResolver resolver = new EndpointResolver(true, false);
     TagMap unsafeTags = TagMap.create();
-
     // no route available (tracer in proxy)
-    String result =
-        resolver.resolveEndpoint(
-            unsafeTags, null, "http://api.example.com/api/v2/customers/123/orders");
+    String result = resolver.resolveEndpoint(
+        unsafeTags,
+        null,
+        "http://api.example.com/api/v2/customers/123/orders"
+    );
 
     assertEquals("/api/v2/customers/{param:int}/orders", result);
     assertEquals("/api/v2/customers/{param:int}/orders", unsafeTags.get(HTTP_ENDPOINT));
@@ -147,7 +148,6 @@ class EndpointResolverTest {
   void realWorldScenarioBadInstrumentationWithCatchAll() {
     EndpointResolver resolver = new EndpointResolver(true, false);
     TagMap unsafeTags = TagMap.create();
-
     // instrumentation provides unhelpful catch-all route
     String result =
         resolver.resolveEndpoint(unsafeTags, "*/*", "http://api.example.com/users/abc-123/profile");
@@ -161,11 +161,12 @@ class EndpointResolverTest {
   void realWorldScenarioTestingWithAlwaysSimplified() {
     EndpointResolver resolver = new EndpointResolver(true, true);
     TagMap unsafeTags = TagMap.create();
-
     // testing mode to compare with backend inference
-    String result =
-        resolver.resolveEndpoint(
-            unsafeTags, "/api/v1/users/{userId}", "http://api.example.com/api/v1/users/123");
+    String result = resolver.resolveEndpoint(
+        unsafeTags,
+        "/api/v1/users/{userId}",
+        "http://api.example.com/api/v1/users/123"
+    );
 
     assertEquals("/api/v1/users/{param:int}", result);
     assertEquals("/api/v1/users/{param:int}", unsafeTags.get(HTTP_ENDPOINT));
@@ -178,7 +179,6 @@ class EndpointResolverTest {
     TagMap unsafeTags = TagMap.create();
 
     String result = resolver.resolveEndpoint(unsafeTags, null, "not-a-url");
-
     // EndpointSimplifier returns "/" for malformed URLs
     assertEquals("/", result);
     assertEquals("/", unsafeTags.get(HTTP_ENDPOINT));

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -31,13 +30,10 @@ import org.junit.jupiter.params.provider.ValueSource;
  * managed to commit the blocking response.
  */
 class RaspProcessImplInstrumentationHelpersBlockingTest {
-
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.JSON);
-
   private static final String[] CMD_ARRAY = {"/bin/../usr/bin/reboot", "-f"};
   private static final String SHELL_CMD = "/bin/../usr/bin/reboot -f";
-
   private AgentTracer.TracerAPI originalTracer;
   private TraceSegment traceSegment;
   private RequestContext reqCtx;
@@ -78,8 +74,9 @@ class RaspProcessImplInstrumentationHelpersBlockingTest {
   void cmdiThrowsWithoutBlockResponseFunction() {
     when(reqCtx.getBlockResponseFunction()).thenReturn(null);
 
-    assertThrows(
-        BlockingException.class, () -> ProcessImplInstrumentationHelpers.cmdiRaspCheck(CMD_ARRAY));
+    assertThrows(BlockingException.class, () -> ProcessImplInstrumentationHelpers.cmdiRaspCheck(
+        CMD_ARRAY
+    ));
   }
 
   @ParameterizedTest(name = "commit succeeds: {0}")
@@ -88,8 +85,9 @@ class RaspProcessImplInstrumentationHelpersBlockingTest {
     RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction(commitResult);
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
 
-    assertThrows(
-        BlockingException.class, () -> ProcessImplInstrumentationHelpers.cmdiRaspCheck(CMD_ARRAY));
+    assertThrows(BlockingException.class, () -> ProcessImplInstrumentationHelpers.cmdiRaspCheck(
+        CMD_ARRAY
+    ));
 
     brf.assertCommittedOnce(traceSegment);
   }
@@ -98,8 +96,9 @@ class RaspProcessImplInstrumentationHelpersBlockingTest {
   void shiThrowsWithoutBlockResponseFunction() {
     when(reqCtx.getBlockResponseFunction()).thenReturn(null);
 
-    assertThrows(
-        BlockingException.class, () -> ProcessImplInstrumentationHelpers.shiRaspCheck(SHELL_CMD));
+    assertThrows(BlockingException.class, () -> ProcessImplInstrumentationHelpers.shiRaspCheck(
+        SHELL_CMD
+    ));
   }
 
   @ParameterizedTest(name = "commit succeeds: {0}")
@@ -108,8 +107,9 @@ class RaspProcessImplInstrumentationHelpersBlockingTest {
     RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction(commitResult);
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
 
-    assertThrows(
-        BlockingException.class, () -> ProcessImplInstrumentationHelpers.shiRaspCheck(SHELL_CMD));
+    assertThrows(BlockingException.class, () -> ProcessImplInstrumentationHelpers.shiRaspCheck(
+        SHELL_CMD
+    ));
 
     brf.assertCommittedOnce(traceSegment);
   }
@@ -135,7 +135,8 @@ class RaspProcessImplInstrumentationHelpersBlockingTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       calls++;
       lastSegment = segment;
       lastStatusCode = statusCode;

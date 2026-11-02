@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,8 +17,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryContextStorageInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice
+{
   public OpenTelemetryContextStorageInstrumentation() {
     super("opentelemetry.experimental", "opentelemetry-1");
   }
@@ -42,8 +42,8 @@ public class OpenTelemetryContextStorageInstrumentation extends InstrumenterModu
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.opentelemetry.context.ThreadLocalContextStorage",
-      "io.opentelemetry.context.StrictContextStorage",
+        "io.opentelemetry.context.ThreadLocalContextStorage",
+        "io.opentelemetry.context.StrictContextStorage"
     };
   }
 
@@ -57,11 +57,11 @@ public class OpenTelemetryContextStorageInstrumentation extends InstrumenterModu
     // Context ContextStorage.current()
     transformer.applyAdvice(
         isMethod()
-            .and(named("current"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.context.Context"))),
-        OpenTelemetryContextStorageInstrumentation.class.getName()
-            + "$ContextStorageCurrentAdvice");
+          .and(named("current"))
+          .and(takesNoArguments())
+          .and(returns(named("io.opentelemetry.context.Context"))),
+        OpenTelemetryContextStorageInstrumentation.class.getName() + "$ContextStorageCurrentAdvice"
+    );
   }
 
   public static class ContextStorageCurrentAdvice {

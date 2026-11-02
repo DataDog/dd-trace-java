@@ -11,12 +11,10 @@ import javax.annotation.Nonnull;
  * {@link MethodType} instance.
  */
 public interface AdvicePointcutParser {
-
   @Nonnull
   MethodType parse(@Nonnull String signature);
 
   class SignatureParsingError extends HasErrorsException {
-
     public SignatureParsingError(@Nonnull final HasErrors errors) {
       super(errors);
     }

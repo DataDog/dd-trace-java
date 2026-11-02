@@ -12,7 +12,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -53,59 +52,65 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 public final class ThreadPoolExecutorInstrumentation
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   // These executors inspect or wrap tasks before calling super.execute().
   // Defer tracing so task markers remain visible to their context checks,
   // and avoid double wrapping.
-  private static final ElementMatcher<MethodDescription> NO_WRAPPING_BEFORE_DELEGATION =
-      not(
-          isDeclaredBy(
-              namedOneOf(
-                  "org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor",
-                  "org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor",
-                  "com.intellij.util.concurrency.AppScheduledExecutorService$BackendThreadPoolExecutor")));
+  private static final ElementMatcher<MethodDescription> NO_WRAPPING_BEFORE_DELEGATION = not(
+      isDeclaredBy(
+          namedOneOf(
+              "org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor",
+              "org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor",
+              "com.intellij.util.concurrency.AppScheduledExecutorService$BackendThreadPoolExecutor"
+          )
+      )
+  );
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return not(named("java.util.concurrent.ScheduledThreadPoolExecutor"))
-        .and(extendsClass(named("java.util.concurrent.ThreadPoolExecutor")));
+      .and(extendsClass(named("java.util.concurrent.ThreadPoolExecutor")));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("execute")
-            .and(isMethod())
-            .and(NO_WRAPPING_BEFORE_DELEGATION)
-            .and(takesArgument(0, named(Runnable.class.getName()))),
-        getClass().getName() + "$Execute");
+          .and(isMethod())
+          .and(NO_WRAPPING_BEFORE_DELEGATION)
+          .and(takesArgument(0, named(Runnable.class.getName()))),
+        getClass().getName() + "$Execute"
+    );
     transformer.applyAdvice(
-        named("beforeExecute")
-            .and(isMethod())
-            .and(takesArgument(1, named(Runnable.class.getName()))),
-        getClass().getName() + "$BeforeExecute");
+        named("beforeExecute").and(isMethod()).and(
+            takesArgument(1, named(Runnable.class.getName()))
+        ),
+        getClass().getName() + "$BeforeExecute"
+    );
     transformer.applyAdvice(
-        named("afterExecute")
-            .and(isMethod())
-            .and(takesArgument(0, named(Runnable.class.getName()))),
-        getClass().getName() + "$AfterExecute");
+        named("afterExecute").and(isMethod()).and(takesArgument(0, named(Runnable.class.getName()))),
+        getClass().getName() + "$AfterExecute"
+    );
     transformer.applyAdvice(
         named("remove").and(isMethod()).and(returns(Runnable.class)),
-        getClass().getName() + "$Remove");
+        getClass().getName() + "$Remove"
+    );
   }
 
   public static final class Execute {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void capture(
         @Advice.This final ThreadPoolExecutor tpe,
-        @Advice.Argument(readOnly = false, value = 0) Runnable task) {
+        @Advice.Argument(readOnly = false, value = 0) Runnable task
+    ) {
       if (TPEHelper.shouldPropagate(tpe)) {
         if (TPEHelper.useWrapping(task)) {
           task = Wrapper.wrap(task);
@@ -122,7 +127,8 @@ public final class ThreadPoolExecutorInstrumentation
                   tpe.getClass(),
                   queue.getClass(),
                   queue.size(),
-                  task);
+                  task
+              );
             } else if (!exclude(RUNNABLE_FUTURE, task) && task instanceof RunnableFuture) {
               Queue<?> queue = tpe.getQueue();
               QueueTimerHelper.startQueuingTimer(
@@ -130,7 +136,8 @@ public final class ThreadPoolExecutorInstrumentation
                   tpe.getClass(),
                   queue.getClass(),
                   queue.size(),
-                  (RunnableFuture<?>) task);
+                  (RunnableFuture<?>) task
+              );
             }
           }
         }
@@ -142,13 +149,13 @@ public final class ThreadPoolExecutorInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beforeExecuteEnter(
         @Advice.This final ThreadPoolExecutor tpe,
-        @Advice.Argument(readOnly = false, value = 1) Runnable task) {
+        @Advice.Argument(readOnly = false, value = 1) Runnable task
+    ) {
       if (TPEHelper.shouldPropagate(tpe)) {
         if (TPEHelper.useWrapping(task)) {
           task = Wrapper.unwrap(task);
         } else {
-          return TPEHelper.startScope(
-              InstrumentationContext.get(Runnable.class, State.class), task);
+          return TPEHelper.startScope(InstrumentationContext.get(Runnable.class, State.class), task);
         }
       }
       return null;
@@ -156,7 +163,9 @@ public final class ThreadPoolExecutorInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void beforeExecuteExit(
-        @Advice.Enter final ContextScope scope, @Advice.Argument(value = 1) Runnable task) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Argument(value = 1) Runnable task
+    ) {
       if (scope != null) {
         TPEHelper.setThreadLocalScope(scope, task);
       }
@@ -167,7 +176,8 @@ public final class ThreadPoolExecutorInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope afterExecuteEnter(
         @Advice.This final ThreadPoolExecutor tpe,
-        @Advice.Argument(readOnly = false, value = 0) Runnable task) {
+        @Advice.Argument(readOnly = false, value = 0) Runnable task
+    ) {
       if (TPEHelper.shouldPropagate(tpe)) {
         if (TPEHelper.useWrapping(task)) {
           task = Wrapper.unwrap(task);
@@ -180,7 +190,9 @@ public final class ThreadPoolExecutorInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterExecuteExit(
-        @Advice.Enter final ContextScope scope, @Advice.Argument(value = 0) Runnable task) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Argument(value = 0) Runnable task
+    ) {
       if (scope != null) {
         TPEHelper.endScope(scope, task);
       }
@@ -191,7 +203,8 @@ public final class ThreadPoolExecutorInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void remove(
         @Advice.This final ThreadPoolExecutor tpe,
-        @Advice.Return(readOnly = false) Runnable removed) {
+        @Advice.Return(readOnly = false) Runnable removed
+    ) {
       if (TPEHelper.shouldPropagate(tpe)) {
         if (TPEHelper.useWrapping(removed)) {
           if (removed instanceof Wrapper) {

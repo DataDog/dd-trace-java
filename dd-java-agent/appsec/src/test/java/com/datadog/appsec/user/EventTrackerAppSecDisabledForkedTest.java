@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.login.EventTrackerV2;
 import datadog.appsec.api.user.User;
 import datadog.trace.api.GlobalTracer;
@@ -24,12 +23,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-@SuppressWarnings("deprecation") // exercises the deprecated v1 EventTracker API on purpose
+// exercises the deprecated v1 EventTracker API on purpose
+@SuppressWarnings("deprecation")
 @WithConfig(key = APPSEC_ENABLED, value = "false")
 class EventTrackerAppSecDisabledForkedTest extends DDJavaSpecification {
-
   private static final Map<String, String> METADATA = metadata();
-
   private TraceSegment traceSegment;
   private AppSecEventTracker tracker;
 

@@ -84,21 +84,34 @@ import org.openjdk.jmh.infra.Blackhole;
  *       {@code hit}/{@code hitFresh} but falls behind on {@code miss}.
  * </ul>
  */
-@Fork(5) // extra forks needed historically to settle bimodal JIT behavior on some arms
+// extra forks needed historically to settle bimodal JIT behavior on some arms
+@Fork(5)
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
 @State(Scope.Benchmark)
 public class ImmutableSetBenchmark {
   static final String[] STRINGS = {
-    "foo", "bar", "baz", "quux", "hello", "world",
-    "service", "queryString", "lorem", "ipsum", "dolem", "sit"
+      "foo",
+      "bar",
+      "baz",
+      "quux",
+      "hello",
+      "world",
+      "service",
+      "queryString",
+      "lorem",
+      "ipsum",
+      "dolem",
+      "sit"
   };
-
-  /** Distinct String instances that are never present, for the miss path. */
+  /**
+   * Distinct String instances that are never present, for the miss path.
+   */
   static final String[] MISSES = newMisses();
-
-  /** Equal, non-interned copies of {@link #STRINGS} used to exercise equality. */
+  /**
+   * Equal, non-interned copies of {@link #STRINGS} used to exercise equality.
+   */
   static final String[] FRESH_STRINGS = newFreshStrings();
 
   static String[] newFreshStrings() {
@@ -149,7 +162,9 @@ public class ImmutableSetBenchmark {
     stringIndex = StringIndex.of(STRINGS);
   }
 
-  /** Per-thread lookup cursor so each reader thread cycles keys independently. */
+  /**
+   * Per-thread lookup cursor so each reader thread cycles keys independently.
+   */
   @State(Scope.Thread)
   public static class Cursor {
     int hitIndex = 0;
@@ -173,7 +188,9 @@ public class ImmutableSetBenchmark {
       return STRINGS[i];
     }
 
-    /** See {@code hitFresh} in the class javadoc. */
+    /**
+     * See {@code hitFresh} in the class javadoc.
+     */
     String nextHitFresh() {
       int i = hitFreshIndex + 1;
       if (i >= FRESH_STRINGS.length) {

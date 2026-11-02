@@ -22,11 +22,9 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   public static final JettyDecorator DECORATE = new JettyDecorator();
   public static final CharSequence SERVLET_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
-
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
   public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
-
   private static final Class<?> JAVAX_SERVLET_EXCEPTION_CLS =
       findClassIfExists("javax.servlet.ServletException");
   private static final Class<?> JAKARTA_SERVLET_EXCEPTION_CLS =
@@ -147,9 +145,10 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     }
     if (ex instanceof Throwable) {
       Throwable throwable = (Throwable) ex;
-      if ((JAVAX_SERVLET_EXCEPTION_CLS != null && JAVAX_SERVLET_EXCEPTION_CLS.isInstance(throwable))
+      if ((JAVAX_SERVLET_EXCEPTION_CLS != null
+          && JAVAX_SERVLET_EXCEPTION_CLS.isInstance(throwable))
           || (JAKARTA_SERVLET_EXCEPTION_CLS != null
-              && JAKARTA_SERVLET_EXCEPTION_CLS.isInstance(throwable))) {
+          && JAKARTA_SERVLET_EXCEPTION_CLS.isInstance(throwable))) {
         // unwrap using getCause that's equivalent to servletException.getRootCause
         throwable = throwable.getCause();
       }

@@ -7,9 +7,11 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 
 public class TestFilesJava11Suite {
-
   public static Path writeString(
-      final Path path, final CharSequence content, final OpenOption... options) throws IOException {
+      final Path path,
+      final CharSequence content,
+      final OpenOption... options
+  ) throws IOException {
     return Files.writeString(path, content, options);
   }
 
@@ -17,8 +19,8 @@ public class TestFilesJava11Suite {
       final Path path,
       final CharSequence content,
       final Charset charset,
-      final OpenOption... options)
-      throws IOException {
+      final OpenOption... options
+  ) throws IOException {
     return Files.writeString(path, content, charset, options);
   }
 

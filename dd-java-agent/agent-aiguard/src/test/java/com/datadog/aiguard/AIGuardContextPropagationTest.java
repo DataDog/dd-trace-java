@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -61,61 +60,64 @@ class AIGuardContextPropagationTest {
     "error at scope depth limit  | {true, false}     | ERROR   | 1              "
   })
   void isolatesHttpWorkAndRestoresCaller(
-      boolean callerPropagation, Outcome outcome, int scopeDepthLimit) throws Exception {
+      boolean callerPropagation,
+      Outcome outcome,
+      int scopeDepthLimit
+  ) throws Exception {
     Properties properties = new Properties();
     properties.setProperty("trace.scope.depth.limit", Integer.toString(scopeDepthLimit));
-    tracer =
-        CoreTracer.builder()
-            .withProperties(properties)
-            .writer(writer)
-            .strictTraceWrites(true)
-            .build();
+    tracer = CoreTracer
+      .builder()
+      .withProperties(properties)
+      .writer(writer)
+      .strictTraceWrites(true)
+      .build();
     AgentTracer.forceRegister(tracer);
     HttpUrl url = HttpUrl.get("http://localhost/evaluate");
     OkHttpClient client = mock(OkHttpClient.class);
     Call call = mock(Call.class);
     when(client.newCall(any(Request.class))).thenReturn(call);
-    when(call.execute())
-        .thenAnswer(
-            invocation -> {
-              DDSpan span = (DDSpan) tracer.activeSpan();
-              assertEquals(
-                  scopeDepthLimit == 1 ? "parent" : "ai_guard", span.getOperationName().toString());
-              assertFalse(tracer.isAsyncPropagationEnabled());
-              if (outcome == Outcome.ERROR) {
-                throw new IOException("Transport failed");
-              }
-              String action = outcome == Outcome.BLOCK ? "DENY" : "ALLOW";
-              return new Response.Builder()
-                  .request(new Request.Builder().url(url).build())
-                  .protocol(Protocol.HTTP_1_1)
-                  .code(200)
-                  .message("OK")
-                  .body(
-                      ResponseBody.create(
-                          MediaType.get("application/json"),
-                          "{\"data\":{\"attributes\":{\"action\":\""
-                              + action
-                              + "\",\"is_blocking_enabled\":true}}}"))
-                  .build();
-            });
+    when(call.execute()).thenAnswer(invocation -> {
+      DDSpan span = (DDSpan) tracer.activeSpan();
+      assertEquals(scopeDepthLimit == 1 ? "parent" : "ai_guard", span
+        .getOperationName()
+        .toString());
+      assertFalse(tracer.isAsyncPropagationEnabled());
+      if (outcome == Outcome.ERROR) {
+        throw new IOException("Transport failed");
+      }
+      String action = outcome == Outcome.BLOCK ? "DENY" : "ALLOW";
+      return new Response.Builder()
+        .request(new Request.Builder().url(url).build())
+        .protocol(Protocol.HTTP_1_1)
+        .code(200)
+        .message("OK")
+        .body(ResponseBody.create(
+            MediaType.get("application/json"),
+            "{\"data\":{\"attributes\":{\"action\":\"" + action + "\",\"is_blocking_enabled\":true}}}"
+        ))
+        .build();
+    });
     AIGuardInternal evaluator = new AIGuardInternal(url, emptyMap(), client);
     List<AIGuard.Message> messages = singletonList(AIGuard.Message.message("user", "Hello"));
     AgentSpan parent = tracer.startSpan("test", "parent");
     try (ContextScope ignored = tracer.activateSpan(parent)) {
       tracer.setAsyncPropagationEnabled(callerPropagation);
       if (outcome == Outcome.ERROR) {
-        assertThrows(
-            AIGuard.AIGuardClientError.class,
-            () -> evaluator.evaluate(messages, AIGuard.Options.DEFAULT));
+        assertThrows(AIGuard.AIGuardClientError.class, () -> evaluator.evaluate(
+            messages,
+            AIGuard.Options.DEFAULT
+        ));
       } else if (outcome == Outcome.BLOCK) {
-        assertThrows(
-            AIGuard.AIGuardAbortError.class,
-            () -> evaluator.evaluate(messages, AIGuard.Options.DEFAULT));
+        assertThrows(AIGuard.AIGuardAbortError.class, () -> evaluator.evaluate(
+            messages,
+            AIGuard.Options.DEFAULT
+        ));
       } else {
         assertEquals(
             AIGuard.Action.ALLOW,
-            evaluator.evaluate(messages, AIGuard.Options.DEFAULT).getAction());
+            evaluator.evaluate(messages, AIGuard.Options.DEFAULT).getAction()
+        );
       }
       assertSame(parent, tracer.activeSpan());
       assertEquals(callerPropagation, tracer.isAsyncPropagationEnabled());
@@ -126,11 +128,12 @@ class AIGuardContextPropagationTest {
     writer.waitForTraces(1);
     assertEquals(1, writer.size());
     assertEquals(2, writer.get(0).size());
-    DDSpan evaluation =
-        writer.get(0).stream()
-            .filter(span -> "ai_guard".contentEquals(span.getOperationName()))
-            .findFirst()
-            .get();
+    DDSpan evaluation = writer
+      .get(0)
+      .stream()
+      .filter(span -> "ai_guard".contentEquals(span.getOperationName()))
+      .findFirst()
+      .get();
     assertEquals(parent.getSpanId(), evaluation.getParentId());
     assertTrue(evaluation.isFinished());
   }

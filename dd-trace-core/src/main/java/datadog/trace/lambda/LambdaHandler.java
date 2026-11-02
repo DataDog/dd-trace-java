@@ -2,7 +2,6 @@ package datadog.trace.lambda;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.DDSpanId;
@@ -30,12 +29,9 @@ import org.slf4j.LoggerFactory;
  * the right span.
  */
 public class LambdaHandler {
-
   private static final Logger log = LoggerFactory.getLogger(LambdaHandler.class);
-
   // Note: this header is used to disable tracing for calls to the extension
   private static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
-
   private static final String DATADOG_TRACE_ID = "x-datadog-trace-id";
   private static final String DATADOG_SPAN_ID = "x-datadog-span-id";
   private static final String DATADOG_SAMPLING_PRIORITY = "x-datadog-sampling-priority";
@@ -44,55 +40,45 @@ public class LambdaHandler {
   private static final String DATADOG_INVOCATION_ERROR_TYPE = "x-datadog-invocation-error-type";
   private static final String DATADOG_INVOCATION_ERROR_STACK = "x-datadog-invocation-error-stack";
   private static final String LAMBDA_RUNTIME_AWS_REQUEST_ID = "lambda-runtime-aws-request-id";
-
   private static final String START_INVOCATION = "/lambda/start-invocation";
   private static final String END_INVOCATION = "/lambda/end-invocation";
-
   private static final Long REQUEST_TIMEOUT_IN_S = 3L;
   private static final int MAX_IDLE_CONNECTIONS = 5;
   private static final Long KEEP_ALIVE_DURATION = 300L;
-
-  private static OkHttpClient HTTP_CLIENT =
-      new OkHttpClient.Builder()
-          .retryOnConnectionFailure(true)
-          .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .writeTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .readTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .callTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .connectionPool(new ConnectionPool(MAX_IDLE_CONNECTIONS, KEEP_ALIVE_DURATION, SECONDS))
-          .build();
-
+  private static OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
+    .retryOnConnectionFailure(true)
+    .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+    .writeTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+    .readTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+    .callTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+    .connectionPool(new ConnectionPool(MAX_IDLE_CONNECTIONS, KEEP_ALIVE_DURATION, SECONDS))
+    .build();
   private static final MediaType jsonMediaType = MediaType.parse("application/json");
-  private static final JsonAdapter<Object> adapter =
-      new Moshi.Builder()
-          .add(ByteArrayInputStream.class, new ReadFromInputStreamJsonAdapter())
-          .add(ByteArrayOutputStream.class, new ReadFromOutputStreamJsonAdapter())
-          .add(SkipUnsupportedTypeJsonAdapter.newFactory())
-          .build()
-          .adapter(Object.class);
-
+  private static final JsonAdapter<Object> adapter = new Moshi.Builder()
+    .add(ByteArrayInputStream.class, new ReadFromInputStreamJsonAdapter())
+    .add(ByteArrayOutputStream.class, new ReadFromOutputStreamJsonAdapter())
+    .add(SkipUnsupportedTypeJsonAdapter.newFactory())
+    .build()
+    .adapter(Object.class);
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
   public static AgentSpanContext notifyStartInvocation(Object event, String lambdaRequestId) {
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
-    try (Response response =
-        HTTP_CLIENT
-            .newCall(
-                new Request.Builder()
-                    .url(EXTENSION_BASE_URL + START_INVOCATION)
-                    .addHeader(DATADOG_META_LANG, "java")
-                    .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
-                    .post(body)
-                    .build())
-            .execute()) {
+    try (Response response = HTTP_CLIENT
+      .newCall(new Request.Builder()
+        .url(EXTENSION_BASE_URL + START_INVOCATION)
+        .addHeader(DATADOG_META_LANG, "java")
+        .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
+        .post(body)
+        .build()
+      )
+      .execute()) {
       if (response.isSuccessful()) {
-        return extractContextAndGetSpanContext(
-            response.headers(),
-            (carrier, classifier) -> {
-              for (String headerName : carrier.names()) {
-                classifier.accept(headerName, carrier.get(headerName));
-              }
-            });
+        return extractContextAndGetSpanContext(response.headers(), (carrier, classifier) -> {
+          for (String headerName : carrier.names()) {
+            classifier.accept(headerName, carrier.get(headerName));
+          }
+        });
       } else {
         log.debug("Extension call failed with status: {}", response.code());
       }
@@ -103,23 +89,27 @@ public class LambdaHandler {
   }
 
   public static boolean notifyEndInvocation(
-      AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
+      AgentSpan span,
+      Object result,
+      boolean isError,
+      String lambdaRequestId
+  ) {
     if (null == span || null == span.getSamplingPriority()) {
       log.error(
-          "could not notify the extension as the lambda span is null or no sampling priority has been found");
+          "could not notify the extension as the lambda span is null or no sampling priority has been found"
+      );
       return false;
     }
 
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(result));
-    Request.Builder builder =
-        new Request.Builder()
-            .url(EXTENSION_BASE_URL + END_INVOCATION)
-            .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
-            .addHeader(DATADOG_SPAN_ID, DDSpanId.toString(span.getSpanId()))
-            .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
-            .addHeader(DATADOG_META_LANG, "java")
-            .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
-            .post(body);
+    Request.Builder builder = new Request.Builder()
+      .url(EXTENSION_BASE_URL + END_INVOCATION)
+      .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
+      .addHeader(DATADOG_SPAN_ID, DDSpanId.toString(span.getSpanId()))
+      .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
+      .addHeader(DATADOG_META_LANG, "java")
+      .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
+      .post(body);
 
     addHeaderIfValid(builder, DATADOG_INVOCATION_ERROR_MSG, span.getTag(DDTags.ERROR_MSG));
     addHeaderIfValid(builder, DATADOG_INVOCATION_ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
@@ -127,8 +117,9 @@ public class LambdaHandler {
     Object errorStack = span.getTag(DDTags.ERROR_STACK);
     if (errorStack != null) {
       String encodedErrStack =
-          Base64.getEncoder()
-              .encodeToString(errorStack.toString().getBytes(StandardCharsets.UTF_8));
+          Base64
+        .getEncoder()
+        .encodeToString(errorStack.toString().getBytes(StandardCharsets.UTF_8));
       if (Strings.isNotBlank(encodedErrStack)) {
         builder.addHeader(DATADOG_INVOCATION_ERROR_STACK, encodedErrStack);
       }

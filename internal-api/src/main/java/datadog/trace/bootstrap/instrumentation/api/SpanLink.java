@@ -1,10 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.bootstrap.instrumentation.api.SpanAttributes.EMPTY;
-
 import datadog.trace.api.DDTraceId;
 
-/** This class is a base implementation of {@link AgentSpanLink}. */
+/**
+ * This class is a base implementation of {@link AgentSpanLink}.
+ */
 public class SpanLink implements AgentSpanLink {
   private final DDTraceId traceId;
   private final long spanId;
@@ -17,7 +18,8 @@ public class SpanLink implements AgentSpanLink {
       long spanId,
       byte traceFlags,
       String traceState,
-      SpanAttributes attributes) {
+      SpanAttributes attributes
+  ) {
     this.traceId = traceId == null ? DDTraceId.ZERO : traceId;
     this.spanId = spanId;
     this.traceFlags = traceFlags;
@@ -47,12 +49,21 @@ public class SpanLink implements AgentSpanLink {
    * @return A span link to the given context.
    */
   public static SpanLink from(
-      AgentSpanContext context, byte traceFlags, String traceState, SpanAttributes attributes) {
+      AgentSpanContext context,
+      byte traceFlags,
+      String traceState,
+      SpanAttributes attributes
+  ) {
     if (context.getSamplingPriority() > 0) {
       traceFlags = (byte) (traceFlags | SAMPLED_FLAG);
     }
     return new SpanLink(
-        context.getTraceId(), context.getSpanId(), traceFlags, traceState, attributes);
+        context.getTraceId(),
+        context.getSpanId(),
+        traceFlags,
+        traceState,
+        attributes
+    );
   }
 
   @Override

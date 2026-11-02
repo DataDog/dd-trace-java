@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -36,10 +35,10 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   private final AgentSpan delegate;
-
-  /** The direction of the span's kind, fixed at start; it decides direction-scoped names. */
+  /**
+   * The direction of the span's kind, fixed at start; it decides direction-scoped names.
+   */
   private final int direction;
-
   private StatusCode statusCode = UNSET;
   private volatile boolean recording = true;
 

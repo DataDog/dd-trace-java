@@ -5,7 +5,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class TriggerTask implements Runnable {
-
   private final CountDownLatch latch = new CountDownLatch(1);
 
   @Scheduled(cron = "0/5 * * * * *", scheduler = "tracingTaskScheduler")

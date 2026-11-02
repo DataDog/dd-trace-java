@@ -8,13 +8,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * number of retries is determined by the duration of the initial attempt.
  */
 public class DynamicAutoTestRetry extends AutoTestRetry {
-
   private final DynamicAutoTestRetrySettings settings;
 
   public DynamicAutoTestRetry(
       DynamicAutoTestRetrySettings settings,
       boolean suppressFailures,
-      AtomicInteger totalRetryCount) {
+      AtomicInteger totalRetryCount
+  ) {
     super(2, suppressFailures, totalRetryCount);
     this.settings = settings;
   }

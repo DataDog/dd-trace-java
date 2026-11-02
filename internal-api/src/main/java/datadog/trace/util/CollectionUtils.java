@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
-
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -16,7 +15,6 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 public final class CollectionUtils {
-
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
   private static final MethodHandle IMMUTABLE_COPY_OF_SET = findCopyOf(Set.class, Collection.class);
   private static final MethodHandle IMMUTABLE_COPY_OF_LIST =
@@ -91,7 +89,9 @@ public final class CollectionUtils {
     return null;
   }
 
-  /** Appends value to an array, growing it as needed; treats null arrays as empty. */
+  /**
+   * Appends value to an array, growing it as needed; treats null arrays as empty.
+   */
   public static <T> T[] appendToArray(@Nullable T[] array, T value) {
     T[] appended;
     if (array == null) {
@@ -105,7 +105,9 @@ public final class CollectionUtils {
     return appended;
   }
 
-  /** Checks whether an array contains an element; treats null arrays as empty. */
+  /**
+   * Checks whether an array contains an element; treats null arrays as empty.
+   */
   public static <T> boolean arrayContains(@Nullable T[] array, T value) {
     if (array != null) {
       for (T element : array) {

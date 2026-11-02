@@ -3,11 +3,12 @@ package datadog.trace.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.util.HashMap;
 import org.junit.jupiter.api.Test;
 
-/** {@link TagMap#set(long, Object)} and its overloads: setting a known tag by its id. */
+/**
+ * {@link TagMap#set(long, Object)} and its overloads: setting a known tag by its id.
+ */
 class TagMapSetByIdTest {
   @Test
   void storesUnderTheCanonicalName() {
@@ -93,7 +94,8 @@ class TagMapSetByIdTest {
 
   @Test
   void theCoresTrustedSetsCoverTheRemainingValueShapes() {
-    Object component = new StringBuilder("jdbc"); // not a String: exercises the Object overload
+    // not a String: exercises the Object overload
+    Object component = new StringBuilder("jdbc");
     TagMap checked = TagMap.create();
     checked.set(KnownTags.COMPONENT_ID, component);
     checked.set(KnownTags.DB_POOL_NAME_ID, 1.5f);

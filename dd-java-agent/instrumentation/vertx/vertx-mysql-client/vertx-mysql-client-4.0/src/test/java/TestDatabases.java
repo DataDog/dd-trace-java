@@ -8,31 +8,30 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 public class TestDatabases implements Closeable {
-
   private final MySQLContainer<?> mysql;
   private final Map<String, TestDBInfo> dbInfos;
 
   @SuppressWarnings("resource")
   private TestDatabases(String dbName) {
     Map<String, TestDBInfo> infos = new HashMap<>();
-    mysql =
-        new MySQLContainer<>(
-                DockerImageName.parse(System.getProperty("test.mysql.image"))
-                    .asCompatibleSubstituteFor("mysql"))
-            .withDatabaseName(dbName)
-            .withUsername("sa")
-            .withPassword("sa");
+    mysql = new MySQLContainer<>(DockerImageName
+      .parse(System.getProperty("test.mysql.image"))
+      .asCompatibleSubstituteFor("mysql")
+    )
+      .withDatabaseName(dbName)
+      .withUsername("sa")
+      .withPassword("sa");
     // https://github.com/testcontainers/testcontainers-java/issues/914
     mysql.addParameter("TC_MY_CNF", null);
     mysql.start();
-    TestDBInfo info =
-        new TestDBInfo(
-            mysql.getUsername(),
-            mysql.getPassword(),
-            mysql.getHost(),
-            mysql.getMappedPort(MySQLContainer.MYSQL_PORT),
-            "mysql",
-            dbName);
+    TestDBInfo info = new TestDBInfo(
+        mysql.getUsername(),
+        mysql.getPassword(),
+        mysql.getHost(),
+        mysql.getMappedPort(MySQLContainer.MYSQL_PORT),
+        "mysql",
+        dbName
+    );
     PortUtils.waitForPortToOpen(info.host, info.port, 5, TimeUnit.SECONDS);
     infos.put("mysql", info);
     dbInfos = Collections.unmodifiableMap(infos);
@@ -63,7 +62,13 @@ public class TestDatabases implements Closeable {
     private final String uri;
 
     public TestDBInfo(
-        String user, String password, String host, Integer port, String type, String dbName) {
+        String user,
+        String password,
+        String host,
+        Integer port,
+        String type,
+        String dbName
+    ) {
       this.user = user;
       this.password = password;
       this.host = host;

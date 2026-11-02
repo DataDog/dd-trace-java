@@ -3,14 +3,12 @@ package datadog.trace.api.datastreams;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.Pair;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class TransactionInfoTest {
-
   @Test
   void testCheckpointIdCacheSerializationMultiple() {
     TransactionInfo.resetCache();

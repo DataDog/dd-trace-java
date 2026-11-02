@@ -11,12 +11,10 @@ import java.util.List;
 import java.util.zip.ZipOutputStream;
 
 public class TraceDumpJsonExporter implements Writer {
-
-  private static final JsonAdapter<Collection<DDSpan>> TRACE_ADAPTER =
-      new Moshi.Builder()
-          .add(DDSpanJsonAdapter.buildFactory(false))
-          .build()
-          .adapter(Types.newParameterizedType(Collection.class, DDSpan.class));
+  private static final JsonAdapter<Collection<DDSpan>> TRACE_ADAPTER = new Moshi.Builder()
+    .add(DDSpanJsonAdapter.buildFactory(false))
+    .build()
+    .adapter(Types.newParameterizedType(Collection.class, DDSpan.class));
   private StringBuilder dumpText;
   private ZipOutputStream zip;
 

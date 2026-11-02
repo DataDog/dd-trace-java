@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.ddagent.TracerVersion;
@@ -43,7 +42,8 @@ class TestTelemetryRouter extends TelemetryRouter {
   public TelemetryClient.Result sendRequest(TelemetryRequest request) {
     if (mockResults.isEmpty()) {
       throw new IllegalStateException(
-          "Unexpected request has been sent. State expectations with `expectRequests` prior sending requests.");
+          "Unexpected request has been sent. State expectations with `expectRequests` prior sending requests."
+      );
     }
 
     Request.Builder requestBuilder = request.httpRequest();
@@ -64,7 +64,9 @@ class TestTelemetryRouter extends TelemetryRouter {
 
   RequestAssertions assertRequest() {
     if (!mockResults.isEmpty()) {
-      throw new IllegalStateException("Expected " + mockResults.size() + " more sendRequest calls");
+      throw new IllegalStateException("Expected "
+          + mockResults.size()
+          + " more sendRequest calls");
     }
     if (requests.isEmpty()) {
       throw new IllegalStateException("No more requests have been sent.");
@@ -82,7 +84,8 @@ class TestTelemetryRouter extends TelemetryRouter {
     }
     if (!requests.isEmpty()) {
       throw new IllegalStateException(
-          "Still have " + requests.size() + " requests when none expected.");
+          "Still have " + requests.size() + " requests when none expected."
+      );
     }
   }
 
@@ -106,19 +109,19 @@ class TestTelemetryRouter extends TelemetryRouter {
 
     RequestAssertions headers(RequestType requestType) {
       assertEquals("POST", request.method());
-      assertTrue(
-          request
-              .headers()
-              .names()
-              .containsAll(
-                  Arrays.asList(
-                      "Content-Type",
-                      "Content-Length",
-                      "DD-Client-Library-Language",
-                      "DD-Client-Library-Version",
-                      "DD-Telemetry-API-Version",
-                      "DD-Telemetry-Request-Type",
-                      "DD-Session-ID")));
+      assertTrue(request
+        .headers()
+        .names()
+        .containsAll(Arrays.asList(
+            "Content-Type",
+            "Content-Length",
+            "DD-Client-Library-Language",
+            "DD-Client-Library-Version",
+            "DD-Telemetry-API-Version",
+            "DD-Telemetry-Request-Type",
+            "DD-Session-ID"
+        ))
+      );
       assertEquals("application/json; charset=utf-8", request.header("Content-Type"));
       assertTrue(Integer.parseInt(request.header("Content-Length")) > 0);
       assertEquals("jvm", request.header("DD-Client-Library-Language"));
@@ -129,7 +132,8 @@ class TestTelemetryRouter extends TelemetryRouter {
       assertTrue(entityId == null || entityId.startsWith("in-") || entityId.startsWith("cin-"));
       String sessionId = request.header("DD-Session-ID");
       assertTrue(
-          sessionId != null && sessionId.matches("[\\da-f]{8}-([\\da-f]{4}-){3}[\\da-f]{12}"));
+          sessionId != null && sessionId.matches("[\\da-f]{8}-([\\da-f]{4}-){3}[\\da-f]{12}")
+      );
       assertEquals(Config.get().getRuntimeId(), sessionId);
       // DD-Root-Session-ID should only be present when inherited from a parent process
       // (i.e., when rootSessionId != runtimeId). In normal test context, they're equal.
@@ -148,12 +152,10 @@ class TestTelemetryRouter extends TelemetryRouter {
       request.body().writeTo(buf);
       byte[] bytes = new byte[(int) buf.size()];
       buf.read(bytes);
-      Map<String, Object> parsed =
-          (Map<String, Object>)
-              new Moshi.Builder()
-                  .build()
-                  .adapter(Types.newParameterizedType(Map.class, String.class, Object.class))
-                  .fromJson(new String(bytes, StandardCharsets.UTF_8));
+      Map<String, Object> parsed = (Map<String, Object>) new Moshi.Builder()
+        .build()
+        .adapter(Types.newParameterizedType(Map.class, String.class, Object.class))
+        .fromJson(new String(bytes, StandardCharsets.UTF_8));
       return new BodyAssertions(parsed, bytes);
     }
   }
@@ -192,8 +194,9 @@ class TestTelemetryRouter extends TelemetryRouter {
       assertNotNull(host.get("kernel_release"));
       assertNotNull(host.get("kernel_version"));
 
-      assertTrue(
-          ((String) body.get("runtime_id")).matches("[\\da-f]{8}-([\\da-f]{4}-){3}[\\da-f]{12}"));
+      assertTrue(((String) body.get("runtime_id"))
+        .matches("[\\da-f]{8}-([\\da-f]{4}-){3}[\\da-f]{12}")
+      );
       assertTrue(((Number) body.get("seq_id")).doubleValue() > 0);
       assertTrue(((Number) body.get("tracer_time")).doubleValue() > 0);
       assertEquals(requestType.toString(), body.get("request_type"));
@@ -234,7 +237,8 @@ class TestTelemetryRouter extends TelemetryRouter {
     private BatchMessageAssertions assertMessage(int index, RequestType expected) {
       if (index > messages.size()) {
         throw new IllegalStateException(
-            "Asserted more messages than available (" + messages.size() + ") in the batch");
+            "Asserted more messages than available (" + messages.size() + ") in the batch"
+        );
       }
       Map<String, Object> message = messages.get(index);
       assertEquals(String.valueOf(expected), message.get("request_type"));
@@ -248,7 +252,10 @@ class TestTelemetryRouter extends TelemetryRouter {
     private final Map<String, Object> message;
 
     BatchMessageAssertions(
-        BatchAssertions batchAssertions, int messageIndex, Map<String, Object> message) {
+        BatchAssertions batchAssertions,
+        int messageIndex,
+        Map<String, Object> message
+    ) {
       this.batchAssertions = batchAssertions;
       this.messageIndex = messageIndex;
       this.message = message;
@@ -382,13 +389,17 @@ class TestTelemetryRouter extends TelemetryRouter {
     }
 
     PayloadAssertions products(
-        boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled) {
+        boolean appsecEnabled,
+        boolean profilerEnabled,
+        boolean dynamicInstrumentationEnabled
+    ) {
       Map<String, Object> expected = new HashMap<>();
       expected.put("appsec", Collections.singletonMap("enabled", appsecEnabled));
       expected.put("profiler", Collections.singletonMap("enabled", profilerEnabled));
       expected.put(
           "dynamic_instrumentation",
-          Collections.singletonMap("enabled", dynamicInstrumentationEnabled));
+          Collections.singletonMap("enabled", dynamicInstrumentationEnabled)
+      );
       assertEquals(expected, payload.get("products"));
       return this;
     }

@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -23,11 +22,9 @@ class RumInjectorTest extends DDJavaSpecification {
   void disabledInjector() {
     Config config = mock(Config.class);
     InstrumenterConfig instrumenterConfig = mock(InstrumenterConfig.class);
-
     // when
     when(instrumenterConfig.isRumEnabled()).thenReturn(false);
     RumInjector injector = new RumInjector(config, instrumenterConfig);
-
     // then
     assertFalse(injector.isEnabled());
     assertNull(injector.getMarkerBytes(UTF8));
@@ -38,12 +35,10 @@ class RumInjectorTest extends DDJavaSpecification {
   void invalidConfigInjector() {
     Config config = mock(Config.class);
     InstrumenterConfig instrumenterConfig = mock(InstrumenterConfig.class);
-
     // when
     when(instrumenterConfig.isRumEnabled()).thenReturn(true);
     when(config.getRumInjectorConfig()).thenReturn(null);
     RumInjector injector = new RumInjector(config, instrumenterConfig);
-
     // then
     assertFalse(injector.isEnabled());
     assertNull(injector.getMarkerBytes(UTF8));
@@ -57,13 +52,11 @@ class RumInjectorTest extends DDJavaSpecification {
     Config config = mock(Config.class);
     InstrumenterConfig instrumenterConfig = mock(InstrumenterConfig.class);
     RumInjectorConfig injectorConfig = mock(RumInjectorConfig.class);
-
     // when
     when(instrumenterConfig.isRumEnabled()).thenReturn(true);
     when(config.getRumInjectorConfig()).thenReturn(injectorConfig);
     when(injectorConfig.getSnippet()).thenReturn("<script></script>");
     RumInjector injector = new RumInjector(config, instrumenterConfig);
-
     // then
     assertTrue(injector.isEnabled());
     assertNotNull(injector.getMarkerBytes(UTF8));
@@ -78,7 +71,6 @@ class RumInjectorTest extends DDJavaSpecification {
     try {
       // when
       RumInjector.setTelemetryCollector(telemetryCollector);
-
       // then
       assertSame(telemetryCollector, RumInjector.getTelemetryCollector());
     } finally {
@@ -90,7 +82,6 @@ class RumInjectorTest extends DDJavaSpecification {
   void returnNoOpWhenTelemetryCollectorIsNotSet() {
     // when
     RumInjector.setTelemetryCollector(null);
-
     // then
     assertSame(NO_OP, RumInjector.getTelemetryCollector());
   }
@@ -104,7 +95,6 @@ class RumInjectorTest extends DDJavaSpecification {
     RumInjector.enableTelemetry();
     RumTelemetryCollector collector = RumInjector.getTelemetryCollector();
     boolean isRumEnabled = RumInjector.get().isEnabled();
-
     // then
     assertNotNull(collector);
     if (isRumEnabled) {
@@ -118,10 +108,8 @@ class RumInjectorTest extends DDJavaSpecification {
   @Test
   void shutdownTelemetry() {
     RumInjector.enableTelemetry();
-
     // when
     RumInjector.shutdownTelemetry();
-
     // then
     assertSame(NO_OP, RumInjector.getTelemetryCollector());
   }

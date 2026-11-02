@@ -1,7 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
@@ -24,7 +23,6 @@ import org.slf4j.LoggerFactory;
  */
 public final class LenExpression implements ValueExpression<Value<? extends Number>> {
   private static final Logger log = LoggerFactory.getLogger(LenExpression.class);
-
   private ValueExpression<?> source;
 
   public LenExpression(ValueExpression<?> source) {
@@ -46,7 +44,8 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
         result = (NumericValue) Value.of(((CollectionValue) materialized).count(), ValueType.INT);
       } else {
         throw new RuntimeException(
-            "Cannot evaluate the expression for " + materialized.getClass().getTypeName());
+            "Cannot evaluate the expression for " + materialized.getClass().getTypeName()
+        );
       }
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
@@ -67,7 +66,9 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     LenExpression that = (LenExpression) o;
     return Objects.equals(source, that.source);
   }

@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores;
@@ -50,7 +49,9 @@ class PollerContextForkedTest extends AbstractInstrumentationTest {
         assertTrue(thread.isVirtual());
         assertTrue(thread.isAlive());
         assertNull(
-            virtualThreadState(thread), "poller must retain neither context nor continuation");
+            virtualThreadState(thread),
+            "poller must retain neither context nor continuation"
+        );
       }
       assertSame(parent, activeSpan(), "poller startup must restore the caller context");
     } finally {
@@ -60,10 +61,10 @@ class PollerContextForkedTest extends AbstractInstrumentationTest {
   }
 
   static Object virtualThreadState(Thread thread) {
-    int storeId =
-        ContextStores.getContextStoreId(
-            "java.lang.VirtualThread",
-            "datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState");
+    int storeId = ContextStores.getContextStoreId(
+        "java.lang.VirtualThread",
+        "datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState"
+    );
     return ContextStores.getContextStore(storeId).get(thread);
   }
 

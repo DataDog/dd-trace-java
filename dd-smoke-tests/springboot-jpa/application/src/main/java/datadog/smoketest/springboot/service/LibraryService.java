@@ -10,8 +10,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class LibraryService {
-
-  @PersistenceContext private EntityManager em;
+  @PersistenceContext
+  private EntityManager em;
 
   @Transactional
   public void save(final Library library) {
@@ -22,14 +22,15 @@ public class LibraryService {
   public Library update(Library library) {
     library.increaseUpdateCount();
     library.getBooks().forEach(Book::increaseUpdateCount);
-    library.getBooks().stream()
-        .map(Book::getId)
-        .map(this::findBookById)
-        .forEach(
-            book -> {
-              book.getAuthors().forEach(Author::increaseUpdateCount);
-              book.getOwner().increaseUpdateCount();
-            });
+    library
+      .getBooks()
+      .stream()
+      .map(Book::getId)
+      .map(this::findBookById)
+      .forEach(book -> {
+        book.getAuthors().forEach(Author::increaseUpdateCount);
+        book.getOwner().increaseUpdateCount();
+      });
     return em.merge(library);
   }
 

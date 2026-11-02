@@ -2,7 +2,6 @@ package com.datadog.debugger.origin;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import org.junit.jupiter.api.Test;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
 
 public class CodeOriginConfigTest {
-
   @EnabledForJreRange(min = JRE.JAVA_25)
   @Test
   public void defaultConfigJDK25() {

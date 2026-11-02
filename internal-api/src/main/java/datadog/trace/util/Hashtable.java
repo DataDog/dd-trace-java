@@ -39,7 +39,8 @@ import javax.annotation.Nullable;
  * Hashtable.Entry)}, and friends).
  */
 public final class Hashtable {
-  private Hashtable() {}
+  private Hashtable() {
+  }
 
   /**
    * Internal base class for entries. Stores the precomputed 64-bit keyHash and the chain-next
@@ -113,7 +114,9 @@ public final class Hashtable {
         this.key = key;
       }
 
-      /** The key this entry was created with. */
+      /**
+       * The key this entry was created with.
+       */
       @Nullable
       public K key() {
         return this.key;
@@ -168,7 +171,9 @@ public final class Hashtable {
      */
     @Nonnull
     public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createBounded(
-        @Nonnull Class<TEntry> entryClass, int maxCapacity) {
+        @Nonnull Class<TEntry> entryClass,
+        int maxCapacity
+    ) {
       return new D1<>(maxCapacity);
     }
 
@@ -180,7 +185,9 @@ public final class Hashtable {
       return this.sizeManager.estimateSize();
     }
 
-    /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
+    /**
+     * {@code true} once {@link #size()} has reached this table's fixed capacity.
+     */
     public boolean isFull() {
       return this.sizeManager.isFull();
     }
@@ -188,7 +195,8 @@ public final class Hashtable {
     @Nullable
     public TEntry get(@Nullable K key) {
       long keyHash = D1.Entry.hash(key);
-      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+      for (
+          TEntry curEntry = bucketFor(this.buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
@@ -203,8 +211,10 @@ public final class Hashtable {
       // Walks the chain directly instead of delegating to Hashtable#removeMatching: an
       // `e -> e.matches(key)` predicate captures `key`, so it would allocate on every call.
       long keyHash = D1.Entry.hash(key);
-      for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
-          iter.hasNext(); ) {
+      for (
+          MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
+          iter.hasNext();
+          ) {
         TEntry curEntry = iter.next();
         if (curEntry.matches(key)) {
           iter.remove();
@@ -249,9 +259,11 @@ public final class Hashtable {
      * allocation-free path this class exists for.
      */
     public boolean tryInsertOrReplace(@Nonnull TEntry newEntry) {
-      for (MutatingBucketIterator<TEntry> iter =
-              mutatingBucketIterator(this.buckets, newEntry.keyHash);
-          iter.hasNext(); ) {
+      for (
+          MutatingBucketIterator<TEntry> iter =
+          mutatingBucketIterator(this.buckets, newEntry.keyHash);
+          iter.hasNext();
+          ) {
         TEntry curEntry = iter.next();
 
         if (curEntry.matches(newEntry.key)) {
@@ -283,7 +295,9 @@ public final class Hashtable {
      */
     @Nonnull
     public Maybe<TEntry> tryGetOrCreate(
-        @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
+        @Nullable K key,
+        @Nonnull Function<? super K, ? extends TEntry> creator
+    ) {
       return Maybe.of(tryGetOrCreateOrNull(key, creator));
     }
 
@@ -297,9 +311,12 @@ public final class Hashtable {
      */
     @Nullable
     public TEntry tryGetOrCreateOrNull(
-        @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
+        @Nullable K key,
+        @Nonnull Function<? super K, ? extends TEntry> creator
+    ) {
       long keyHash = D1.Entry.hash(key);
-      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+      for (
+          TEntry curEntry = bucketFor(this.buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
@@ -325,7 +342,8 @@ public final class Hashtable {
     public Maybe<TEntry> tryGetOrCreateOrEvict(
         @Nullable K key,
         @Nonnull Function<? super K, ? extends TEntry> creator,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Nonnull Predicate<? super TEntry> evictable
+    ) {
       return Maybe.of(tryGetOrCreateOrEvictOrNull(key, creator, evictable));
     }
 
@@ -343,9 +361,11 @@ public final class Hashtable {
     public TEntry tryGetOrCreateOrEvictOrNull(
         @Nullable K key,
         @Nonnull Function<? super K, ? extends TEntry> creator,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Nonnull Predicate<? super TEntry> evictable
+    ) {
       long keyHash = D1.Entry.hash(key);
-      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+      for (
+          TEntry curEntry = bucketFor(this.buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
@@ -354,7 +374,8 @@ public final class Hashtable {
       }
       // Evict before creation because creator may throw; reserving the freed slot first could leak
       // it.
-      if (this.sizeManager.isFull() && this.sizeManager.evictOne(this.buckets, evictable) == null) {
+      if (this.sizeManager.isFull()
+          && this.sizeManager.evictOne(this.buckets, evictable) == null) {
         return null;
       }
       TEntry newEntry = creator.apply(key);
@@ -443,13 +464,17 @@ public final class Hashtable {
         this.key2 = key2;
       }
 
-      /** The first key part this entry was created with. */
+      /**
+       * The first key part this entry was created with.
+       */
       @Nullable
       public K1 key1() {
         return this.key1;
       }
 
-      /** The second key part this entry was created with. */
+      /**
+       * The second key part this entry was created with.
+       */
       @Nullable
       public K2 key2() {
         return this.key2;
@@ -499,7 +524,9 @@ public final class Hashtable {
      */
     @Nonnull
     public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createBounded(
-        @Nonnull Class<TEntry> entryClass, int maxCapacity) {
+        @Nonnull Class<TEntry> entryClass,
+        int maxCapacity
+    ) {
       return new D2<>(maxCapacity);
     }
 
@@ -511,7 +538,9 @@ public final class Hashtable {
       return this.sizeManager.estimateSize();
     }
 
-    /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
+    /**
+     * {@code true} once {@link #size()} has reached this table's fixed capacity.
+     */
     public boolean isFull() {
       return this.sizeManager.isFull();
     }
@@ -519,7 +548,8 @@ public final class Hashtable {
     @Nullable
     public TEntry get(@Nullable K1 key1, @Nullable K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+      for (
+          TEntry curEntry = bucketFor(this.buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
@@ -534,8 +564,10 @@ public final class Hashtable {
       // Chain walked directly rather than via Hashtable#removeMatching -- see D1#remove for why a
       // capturing predicate is avoided on this path.
       long keyHash = D2.Entry.hash(key1, key2);
-      for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
-          iter.hasNext(); ) {
+      for (
+          MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
+          iter.hasNext();
+          ) {
         TEntry curEntry = iter.next();
         if (curEntry.matches(key1, key2)) {
           iter.remove();
@@ -553,16 +585,22 @@ public final class Hashtable {
       return Hashtable.removeIf(this.sizeManager, this.buckets, predicate);
     }
 
-    /** Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract. */
+    /**
+     * Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract.
+     */
     public boolean insert(@Nonnull TEntry newEntry) {
       return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
-    /** Two-key analogue of {@link D1#tryInsertOrReplace}, with the same refusal contract. */
+    /**
+     * Two-key analogue of {@link D1#tryInsertOrReplace}, with the same refusal contract.
+     */
     public boolean tryInsertOrReplace(@Nonnull TEntry newEntry) {
-      for (MutatingBucketIterator<TEntry> iter =
-              mutatingBucketIterator(this.buckets, newEntry.keyHash);
-          iter.hasNext(); ) {
+      for (
+          MutatingBucketIterator<TEntry> iter =
+          mutatingBucketIterator(this.buckets, newEntry.keyHash);
+          iter.hasNext();
+          ) {
         TEntry curEntry = iter.next();
 
         if (curEntry.matches(newEntry.key1, newEntry.key2)) {
@@ -596,7 +634,8 @@ public final class Hashtable {
     public Maybe<TEntry> tryGetOrCreate(
         @Nullable K1 key1,
         @Nullable K2 key2,
-        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator
+    ) {
       return Maybe.of(tryGetOrCreateOrNull(key1, key2, creator));
     }
 
@@ -614,9 +653,11 @@ public final class Hashtable {
     public TEntry tryGetOrCreateOrNull(
         @Nullable K1 key1,
         @Nullable K2 key2,
-        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator
+    ) {
       long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+      for (
+          TEntry curEntry = bucketFor(this.buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
@@ -644,7 +685,8 @@ public final class Hashtable {
         @Nullable K1 key1,
         @Nullable K2 key2,
         @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Nonnull Predicate<? super TEntry> evictable
+    ) {
       return Maybe.of(tryGetOrCreateOrEvictOrNull(key1, key2, creator, evictable));
     }
 
@@ -664,9 +706,11 @@ public final class Hashtable {
         @Nullable K1 key1,
         @Nullable K2 key2,
         @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Nonnull Predicate<? super TEntry> evictable
+    ) {
       long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry curEntry = bucketFor(this.buckets, keyHash);
+      for (
+          TEntry curEntry = bucketFor(this.buckets, keyHash);
           curEntry != null;
           curEntry = curEntry.next()) {
         if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
@@ -675,7 +719,8 @@ public final class Hashtable {
       }
       // Evict before creation because creator may throw; reserving the freed slot first could leak
       // it.
-      if (this.sizeManager.isFull() && this.sizeManager.evictOne(this.buckets, evictable) == null) {
+      if (this.sizeManager.isFull()
+          && this.sizeManager.evictOne(this.buckets, evictable) == null) {
         return null;
       }
       TEntry newEntry = creator.apply(key1, key2);
@@ -731,8 +776,9 @@ public final class Hashtable {
   // Not thread-safe: there is no locking here. Concurrent access, including mixing reads with
   // writes, requires external synchronization.
   // ============================================================================================
-
-  /** Upper bound on the bucket-array length returned by {@link #sizeFor(int)}. */
+  /**
+   * Upper bound on the bucket-array length returned by {@link #sizeFor(int)}.
+   */
   static final int MAX_BUCKETS = 1 << 30;
 
   /**
@@ -753,7 +799,9 @@ public final class Hashtable {
   @SuppressWarnings("unchecked")
   @Nonnull
   public static <TEntry extends Entry> TEntry[] create(
-      @Nonnull Class<TEntry> entryClass, int capacity) {
+      @Nonnull Class<TEntry> entryClass,
+      int capacity
+  ) {
     return (TEntry[]) Array.newInstance(entryClass, sizeFor(capacity));
   }
 
@@ -820,7 +868,8 @@ public final class Hashtable {
     }
     if (requestedSize > MAX_BUCKETS) {
       throw new IllegalArgumentException(
-          "requestedSize exceeds maximum bucket count (" + MAX_BUCKETS + "): " + requestedSize);
+          "requestedSize exceeds maximum bucket count (" + MAX_BUCKETS + "): " + requestedSize
+      );
     }
     if (requestedSize <= 1) {
       return 1;
@@ -844,7 +893,9 @@ public final class Hashtable {
   @SuppressWarnings("unchecked")
   @Nullable
   public static <TEntry extends Entry> TEntry bucketFor(
-      @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+      @Nonnull Hashtable.Entry[] buckets,
+      long keyHash
+  ) {
     return (TEntry) buckets[bucketIndex(buckets, keyHash)];
   }
 
@@ -853,9 +904,12 @@ public final class Hashtable {
    * responsible for size accounting -- this method only touches the chain pointers.
    */
   public static void insertHeadEntryAt(
-      @Nonnull Hashtable.Entry[] buckets, int bucketIndex, @Nonnull Hashtable.Entry entry) {
-    assert entry.next() == null
-        : "Entry already linked -- inserting the same Entry instance twice corrupts the chain";
+      @Nonnull Hashtable.Entry[] buckets,
+      int bucketIndex,
+      @Nonnull Hashtable.Entry entry
+  ) {
+    assert entry.next() == null :
+        "Entry already linked -- inserting the same Entry instance twice corrupts the chain";
     entry.setNext(buckets[bucketIndex]);
     buckets[bucketIndex] = entry;
   }
@@ -873,7 +927,10 @@ public final class Hashtable {
    * as an array index.
    */
   public static void insertHeadEntryFor(
-      @Nonnull Hashtable.Entry[] buckets, long keyHash, @Nonnull Hashtable.Entry entry) {
+      @Nonnull Hashtable.Entry[] buckets,
+      long keyHash,
+      @Nonnull Hashtable.Entry entry
+  ) {
     insertHeadEntryAt(buckets, bucketIndex(buckets, keyHash), entry);
   }
 
@@ -891,7 +948,8 @@ public final class Hashtable {
       @Nonnull SizeManager sizeManager,
       @Nonnull Hashtable.Entry[] buckets,
       long keyHash,
-      @Nonnull Hashtable.Entry entry) {
+      @Nonnull Hashtable.Entry entry
+  ) {
     if (!sizeManager.tryReserve()) {
       return false;
     }
@@ -906,7 +964,10 @@ public final class Hashtable {
    * witness at the call site.
    */
   public static <TEntry extends Entry> boolean insertHeadEntryFor(
-      @Nonnull State<TEntry> state, long keyHash, @Nonnull TEntry entry) {
+      @Nonnull State<TEntry> state,
+      long keyHash,
+      @Nonnull TEntry entry
+  ) {
     return insertHeadEntryFor(state.sizeManager, state.buckets, keyHash, entry);
   }
 
@@ -921,9 +982,12 @@ public final class Hashtable {
       @Nonnull SizeManager sizeManager,
       @Nonnull Hashtable.Entry[] buckets,
       long keyHash,
-      @Nonnull Predicate<? super TEntry> matches) {
-    for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(buckets, keyHash);
-        iter.hasNext(); ) {
+      @Nonnull Predicate<? super TEntry> matches
+  ) {
+    for (
+        MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(buckets, keyHash);
+        iter.hasNext();
+        ) {
       TEntry curEntry = iter.next();
       if (matches.test(curEntry)) {
         iter.remove();
@@ -945,51 +1009,57 @@ public final class Hashtable {
   public static <TEntry extends Entry> void drain(
       @Nonnull SizeManager sizeManager,
       @Nonnull Hashtable.Entry[] buckets,
-      @Nonnull Consumer<? super TEntry> sink) {
+      @Nonnull Consumer<? super TEntry> sink
+  ) {
     // Before any entry reaches the sink: the saved cursor may point at one, and the sink is free to
     // link it into another table, where a later eviction would follow it.
     sizeManager.clearCursor();
-    drain(
-        buckets,
-        (Consumer<TEntry>)
-            entry -> {
-              sizeManager.decrement();
-              sink.accept(entry);
-            });
+    drain(buckets, (Consumer<TEntry>) entry -> {
+      sizeManager.decrement();
+      sink.accept(entry);
+    });
   }
 
-  /** Context-passing form of {@link #drain(SizeManager, Hashtable.Entry[], Consumer)}. */
+  /**
+   * Context-passing form of {@link #drain(SizeManager, Hashtable.Entry[], Consumer)}.
+   */
   public static <C, TEntry extends Entry> void drain(
       @Nonnull SizeManager sizeManager,
       @Nonnull Hashtable.Entry[] buckets,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink
+  ) {
     sizeManager.clearCursor();
-    drain(
-        buckets,
-        context,
-        (BiConsumer<C, TEntry>)
-            (ctx, entry) -> {
-              sizeManager.decrement();
-              sink.accept(ctx, entry);
-            });
+    drain(buckets, context, (BiConsumer<C, TEntry>) (ctx, entry) -> {
+      sizeManager.decrement();
+      sink.accept(ctx, entry);
+    });
   }
 
-  /** {@link #drain(SizeManager, Hashtable.Entry[], Consumer)} over a {@link State}. */
+  /**
+   * {@link #drain(SizeManager, Hashtable.Entry[], Consumer)} over a {@link State}.
+   */
   public static <TEntry extends Entry> void drain(
-      @Nonnull State<TEntry> state, @Nonnull Consumer<? super TEntry> sink) {
+      @Nonnull State<TEntry> state,
+      @Nonnull Consumer<? super TEntry> sink
+  ) {
     drain(state.sizeManager, state.buckets, sink);
   }
 
-  /** Context-passing form of {@link #drain(State, Consumer)}. */
+  /**
+   * Context-passing form of {@link #drain(State, Consumer)}.
+   */
   public static <C, TEntry extends Entry> void drain(
       @Nonnull State<TEntry> state,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink
+  ) {
     drain(state.sizeManager, state.buckets, context, sink);
   }
 
-  /** Live entries in {@code state}; see {@link SizeManager#estimateSize()} for why an estimate. */
+  /**
+   * Live entries in {@code state}; see {@link SizeManager#estimateSize()} for why an estimate.
+   */
   public static int estimateSize(@Nonnull State<?> state) {
     return state.sizeManager.estimateSize();
   }
@@ -1008,8 +1078,7 @@ public final class Hashtable {
    * type so the chain walk at the call site needs no cast or witness.
    */
   @Nullable
-  public static <TEntry extends Entry> TEntry bucketFor(
-      @Nonnull State<TEntry> state, long keyHash) {
+  public static <TEntry extends Entry> TEntry bucketFor(@Nonnull State<TEntry> state, long keyHash) {
     return bucketFor(state.buckets, keyHash);
   }
 
@@ -1030,21 +1099,31 @@ public final class Hashtable {
    * calling that one here would count the entry twice.
    */
   public static <TEntry extends Entry> void insertReserved(
-      @Nonnull State<TEntry> state, long keyHash, @Nonnull TEntry entry) {
+      @Nonnull State<TEntry> state,
+      long keyHash,
+      @Nonnull TEntry entry
+  ) {
     insertHeadEntryFor(state.buckets, keyHash, entry);
   }
 
-  /** {@link #forEach(Hashtable.Entry[], Consumer)} over a {@link State}. */
+  /**
+   * {@link #forEach(Hashtable.Entry[], Consumer)} over a {@link State}.
+   */
   public static <TEntry extends Entry> void forEach(
-      @Nonnull State<TEntry> state, @Nonnull Consumer<? super TEntry> consumer) {
+      @Nonnull State<TEntry> state,
+      @Nonnull Consumer<? super TEntry> consumer
+  ) {
     Hashtable.<TEntry>forEach(state.buckets, consumer);
   }
 
-  /** {@link #forEach(Hashtable.Entry[], Object, BiConsumer)} over a {@link State}. */
+  /**
+   * {@link #forEach(Hashtable.Entry[], Object, BiConsumer)} over a {@link State}.
+   */
   public static <C, TEntry extends Entry> void forEach(
       @Nonnull State<TEntry> state,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+      @Nonnull BiConsumer<? super C, ? super TEntry> consumer
+  ) {
     Hashtable.<C, TEntry>forEach(state.buckets, context, consumer);
   }
 
@@ -1056,7 +1135,9 @@ public final class Hashtable {
    * allocation-free.
    */
   public static <TEntry extends Entry> boolean tryReserveOrEvict(
-      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+      @Nonnull State<TEntry> state,
+      @Nonnull Predicate<? super TEntry> evictable
+  ) {
     return state.sizeManager.tryReserveOrEvict(state.buckets, evictable);
   }
 
@@ -1066,7 +1147,9 @@ public final class Hashtable {
    */
   @Nullable
   public static <TEntry extends Entry> TEntry evictOne(
-      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+      @Nonnull State<TEntry> state,
+      @Nonnull Predicate<? super TEntry> evictable
+  ) {
     return state.sizeManager.evictOne(state.buckets, evictable);
   }
 
@@ -1075,7 +1158,9 @@ public final class Hashtable {
    * returns how many went.
    */
   public static <TEntry extends Entry> int evictAll(
-      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+      @Nonnull State<TEntry> state,
+      @Nonnull Predicate<? super TEntry> evictable
+  ) {
     return state.sizeManager.evictAll(state.buckets, evictable);
   }
 
@@ -1087,17 +1172,24 @@ public final class Hashtable {
   public static <TEntry extends Entry> boolean removeIf(
       @Nonnull SizeManager sizeManager,
       @Nonnull Hashtable.Entry[] buckets,
-      @Nonnull Predicate<? super TEntry> predicate) {
+      @Nonnull Predicate<? super TEntry> predicate
+  ) {
     return sizeManager.evictAll(buckets, predicate) > 0;
   }
 
-  /** {@link #removeIf(SizeManager, Hashtable.Entry[], Predicate)} over a {@link State}. */
+  /**
+   * {@link #removeIf(SizeManager, Hashtable.Entry[], Predicate)} over a {@link State}.
+   */
   public static <TEntry extends Entry> boolean removeIf(
-      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> predicate) {
+      @Nonnull State<TEntry> state,
+      @Nonnull Predicate<? super TEntry> predicate
+  ) {
     return removeIf(state.sizeManager, state.buckets, predicate);
   }
 
-  /** {@link #clear(SizeManager, Hashtable.Entry[])} over a {@link State}. */
+  /**
+   * {@link #clear(SizeManager, Hashtable.Entry[])} over a {@link State}.
+   */
   public static void clear(@Nonnull State<?> state) {
     clear(state.sizeManager, state.buckets);
   }
@@ -1109,7 +1201,9 @@ public final class Hashtable {
    */
   @SuppressWarnings("unchecked")
   public static <TEntry extends Entry> void forEach(
-      @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> consumer) {
+      @Nonnull Hashtable.Entry[] buckets,
+      @Nonnull Consumer<? super TEntry> consumer
+  ) {
     for (int i = 0; i < buckets.length; i++) {
       for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
         consumer.accept((TEntry) e);
@@ -1126,7 +1220,8 @@ public final class Hashtable {
   public static <C, TEntry extends Entry> void forEach(
       @Nonnull Hashtable.Entry[] buckets,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+      @Nonnull BiConsumer<? super C, ? super TEntry> consumer
+  ) {
     for (int i = 0; i < buckets.length; i++) {
       for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
         consumer.accept(context, (TEntry) e);
@@ -1136,14 +1231,17 @@ public final class Hashtable {
 
   @Nonnull
   public static <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
-      @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+      @Nonnull Hashtable.Entry[] buckets,
+      long keyHash
+  ) {
     return new BucketIterator<TEntry>(buckets, keyHash);
   }
 
   @Nonnull
-  public static <TEntry extends Hashtable.Entry>
-      MutatingBucketIterator<TEntry> mutatingBucketIterator(
-          @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+  public static <TEntry extends Hashtable.Entry> MutatingBucketIterator<TEntry> mutatingBucketIterator(
+      @Nonnull Hashtable.Entry[] buckets,
+      long keyHash
+  ) {
     return new MutatingBucketIterator<TEntry>(buckets, keyHash);
   }
 
@@ -1152,8 +1250,9 @@ public final class Hashtable {
    * -- eviction, expunge -- that aren't keyed to a specific hash.
    */
   @Nonnull
-  public static <TEntry extends Hashtable.Entry>
-      MutatingTableIterator<TEntry> mutatingTableIterator(@Nonnull Hashtable.Entry[] buckets) {
+  public static <TEntry extends Hashtable.Entry> MutatingTableIterator<TEntry> mutatingTableIterator(
+      @Nonnull Hashtable.Entry[] buckets
+  ) {
     return new MutatingTableIterator<TEntry>(buckets, 0, buckets.length);
   }
 
@@ -1168,9 +1267,11 @@ public final class Hashtable {
    * @param endBucket exclusive upper bound; must be in {@code [startBucket, buckets.length]}.
    */
   @Nonnull
-  public static <TEntry extends Hashtable.Entry>
-      MutatingTableIterator<TEntry> mutatingTableIterator(
-          @Nonnull Hashtable.Entry[] buckets, int startBucket, int endBucket) {
+  public static <TEntry extends Hashtable.Entry> MutatingTableIterator<TEntry> mutatingTableIterator(
+      @Nonnull Hashtable.Entry[] buckets,
+      int startBucket,
+      int endBucket
+  ) {
     return new MutatingTableIterator<TEntry>(buckets, startBucket, endBucket);
   }
 
@@ -1180,12 +1281,12 @@ public final class Hashtable {
    * MutatingTableIterator#MutatingTableIterator(Hashtable.Entry[], int, int, Hashtable.Entry)}.
    */
   @Nonnull
-  public static <TEntry extends Hashtable.Entry>
-      MutatingTableIterator<TEntry> resumingTableIterator(
-          @Nonnull Hashtable.Entry[] buckets,
-          int bucket,
-          int endBucket,
-          @Nullable Hashtable.Entry resumeAfter) {
+  public static <TEntry extends Hashtable.Entry> MutatingTableIterator<TEntry> resumingTableIterator(
+      @Nonnull Hashtable.Entry[] buckets,
+      int bucket,
+      int endBucket,
+      @Nullable Hashtable.Entry resumeAfter
+  ) {
     return new MutatingTableIterator<TEntry>(buckets, bucket, endBucket, resumeAfter);
   }
 
@@ -1195,7 +1296,10 @@ public final class Hashtable {
    */
   @Nullable
   public static <TEntry extends Entry> TEntry removeMatching(
-      @Nonnull State<TEntry> state, long keyHash, @Nonnull Predicate<? super TEntry> matches) {
+      @Nonnull State<TEntry> state,
+      long keyHash,
+      @Nonnull Predicate<? super TEntry> matches
+  ) {
     return removeMatching(state.sizeManager, state.buckets, keyHash, matches);
   }
 
@@ -1231,7 +1335,9 @@ public final class Hashtable {
    */
   @SuppressWarnings("unchecked")
   public static <TEntry extends Entry> void drain(
-      @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> sink) {
+      @Nonnull Hashtable.Entry[] buckets,
+      @Nonnull Consumer<? super TEntry> sink
+  ) {
     for (int i = 0; i < buckets.length; i++) {
       Entry entry = buckets[i];
       while (entry != null) {
@@ -1257,7 +1363,8 @@ public final class Hashtable {
   public static <C, TEntry extends Entry> void drain(
       @Nonnull Hashtable.Entry[] buckets,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink
+  ) {
     for (int i = 0; i < buckets.length; i++) {
       Entry entry = buckets[i];
       while (entry != null) {
@@ -1281,14 +1388,12 @@ public final class Hashtable {
   public static final class SizeManager {
     private final int capacity;
     private int size;
-
     /**
      * Bucket where the next eviction scan starts: the bucket of the last eviction, moved on by one
      * after each refused scan. Starting here keeps a sustained eviction stream from re-testing the
      * same entries near bucket 0.
      */
     private int cursor;
-
     /**
      * Predecessor of the last evicted entry in {@code cursor}'s chain, or {@code null} when the
      * next scan starts at the bucket head. A saved predecessor lets the next scan resume mid-chain
@@ -1297,7 +1402,8 @@ public final class Hashtable {
      * Hashtable.MutatingTableIterator#MutatingTableIterator(Hashtable.Entry[], int, int,
      * Hashtable.Entry)} for what happens if this entry is removed before the next resume.
      */
-    @Nullable private Hashtable.Entry cursorPrev;
+    @Nullable
+    private Hashtable.Entry cursorPrev;
 
     public SizeManager(int capacity) {
       this.capacity = capacity;
@@ -1316,7 +1422,9 @@ public final class Hashtable {
       return this.capacity;
     }
 
-    /** {@code true} once {@link #estimateSize()} has reached {@link #capacity()}. */
+    /**
+     * {@code true} once {@link #estimateSize()} has reached {@link #capacity()}.
+     */
     public boolean isFull() {
       return this.size >= this.capacity;
     }
@@ -1345,7 +1453,9 @@ public final class Hashtable {
      * @return whether a slot was reserved
      */
     public <TEntry extends Entry> boolean tryReserveOrEvict(
-        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
+        @Nonnull Hashtable.Entry[] buckets,
+        @Nonnull Predicate<? super TEntry> evictable
+    ) {
       if (tryReserve()) {
         return true;
       }
@@ -1357,12 +1467,16 @@ public final class Hashtable {
       return true;
     }
 
-    /** Call after successfully linking a new entry. */
+    /**
+     * Call after successfully linking a new entry.
+     */
     public void increment() {
       this.size += 1;
     }
 
-    /** Call after successfully unlinking an entry. */
+    /**
+     * Call after successfully unlinking an entry.
+     */
     public void decrement() {
       this.size -= 1;
     }
@@ -1377,20 +1491,26 @@ public final class Hashtable {
       forget(unlinked);
     }
 
-    /** Drops the saved scan position when it is {@code unlinked}, an entry leaving the table. */
+    /**
+     * Drops the saved scan position when it is {@code unlinked}, an entry leaving the table.
+     */
     void forget(@Nonnull Hashtable.Entry unlinked) {
       if (unlinked == this.cursorPrev) {
         this.cursorPrev = null;
       }
     }
 
-    /** Zeroes both the live count and the eviction scan position. */
+    /**
+     * Zeroes both the live count and the eviction scan position.
+     */
     public void reset() {
       this.size = 0;
       clearCursor();
     }
 
-    /** Restarts the eviction scan from the first bucket, dropping any saved mid-chain position. */
+    /**
+     * Restarts the eviction scan from the first bucket, dropping any saved mid-chain position.
+     */
     private void clearCursor() {
       this.cursor = 0;
       this.cursorPrev = null;
@@ -1416,7 +1536,9 @@ public final class Hashtable {
     @SuppressWarnings("unchecked")
     @Nullable
     public <TEntry extends Entry> TEntry evictOne(
-        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
+        @Nonnull Hashtable.Entry[] buckets,
+        @Nonnull Predicate<? super TEntry> evictable
+    ) {
       Entry resumeAfter = this.cursorPrev;
       Entry evicted = evictOneInRange(buckets, evictable, this.cursor, buckets.length, resumeAfter);
       if (evicted == null) {
@@ -1446,11 +1568,11 @@ public final class Hashtable {
         @Nonnull Predicate<? super TEntry> evictable,
         int startBucket,
         int endBucket,
-        @Nullable Entry resumeAfter) {
-      MutatingTableIterator<Entry> iter =
-          resumeAfter != null
-              ? resumingTableIterator(buckets, startBucket, endBucket, resumeAfter)
-              : mutatingTableIterator(buckets, startBucket, endBucket);
+        @Nullable Entry resumeAfter
+    ) {
+      MutatingTableIterator<Entry> iter = resumeAfter != null
+          ? resumingTableIterator(buckets, startBucket, endBucket, resumeAfter)
+          : mutatingTableIterator(buckets, startBucket, endBucket);
       while (iter.hasNext()) {
         Entry candidate = iter.next();
         if (evictable.test((TEntry) candidate)) {
@@ -1473,7 +1595,9 @@ public final class Hashtable {
      */
     @SuppressWarnings("unchecked")
     public <TEntry extends Entry> int evictAll(
-        @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
+        @Nonnull Hashtable.Entry[] buckets,
+        @Nonnull Predicate<? super TEntry> evictable
+    ) {
       int count = 0;
       MutatingTableIterator<Entry> iter = mutatingTableIterator(buckets);
       while (iter.hasNext()) {
@@ -1536,7 +1660,8 @@ public final class Hashtable {
    */
   @Deprecated
   public static final class Support {
-    private Support() {}
+    private Support() {
+    }
 
     /**
      * @deprecated use {@link Hashtable#create(int)} (or {@link Hashtable#create(Class, int)} for a
@@ -1580,7 +1705,8 @@ public final class Hashtable {
      * @deprecated equivalent to {@code 1f / Hashtable#DEFAULT_LOAD_FACTOR}; prefer {@link
      *     Hashtable#capacityFor(int)}, which applies that load factor directly.
      */
-    @Deprecated public static final float MAX_RATIO = 1.0f / Hashtable.DEFAULT_LOAD_FACTOR;
+    @Deprecated
+    public static final float MAX_RATIO = 1.0f / Hashtable.DEFAULT_LOAD_FACTOR;
 
     /**
      * @deprecated use {@link Hashtable#sizeFor(int)}.
@@ -1604,7 +1730,9 @@ public final class Hashtable {
     @Deprecated
     @Nonnull
     public static <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
-        @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+        @Nonnull Hashtable.Entry[] buckets,
+        long keyHash
+    ) {
       return Hashtable.bucketIterator(buckets, keyHash);
     }
 
@@ -1613,9 +1741,10 @@ public final class Hashtable {
      */
     @Deprecated
     @Nonnull
-    public static <TEntry extends Hashtable.Entry>
-        MutatingBucketIterator<TEntry> mutatingBucketIterator(
-            @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+    public static <TEntry extends Hashtable.Entry> MutatingBucketIterator<TEntry> mutatingBucketIterator(
+        @Nonnull Hashtable.Entry[] buckets,
+        long keyHash
+    ) {
       return Hashtable.mutatingBucketIterator(buckets, keyHash);
     }
 
@@ -1624,8 +1753,9 @@ public final class Hashtable {
      */
     @Deprecated
     @Nonnull
-    public static <TEntry extends Hashtable.Entry>
-        MutatingTableIterator<TEntry> mutatingTableIterator(@Nonnull Hashtable.Entry[] buckets) {
+    public static <TEntry extends Hashtable.Entry> MutatingTableIterator<TEntry> mutatingTableIterator(
+        @Nonnull Hashtable.Entry[] buckets
+    ) {
       return Hashtable.mutatingTableIterator(buckets);
     }
 
@@ -1634,9 +1764,11 @@ public final class Hashtable {
      */
     @Deprecated
     @Nonnull
-    public static <TEntry extends Hashtable.Entry>
-        MutatingTableIterator<TEntry> mutatingTableIterator(
-            @Nonnull Hashtable.Entry[] buckets, int startBucket, int endBucket) {
+    public static <TEntry extends Hashtable.Entry> MutatingTableIterator<TEntry> mutatingTableIterator(
+        @Nonnull Hashtable.Entry[] buckets,
+        int startBucket,
+        int endBucket
+    ) {
       return Hashtable.mutatingTableIterator(buckets, startBucket, endBucket);
     }
 
@@ -1653,7 +1785,10 @@ public final class Hashtable {
      */
     @Deprecated
     public static void insertHeadEntry(
-        @Nonnull Hashtable.Entry[] buckets, int bucketIndex, @Nonnull Hashtable.Entry entry) {
+        @Nonnull Hashtable.Entry[] buckets,
+        int bucketIndex,
+        @Nonnull Hashtable.Entry entry
+    ) {
       Hashtable.insertHeadEntryAt(buckets, bucketIndex, entry);
     }
 
@@ -1663,7 +1798,10 @@ public final class Hashtable {
      */
     @Deprecated
     public static void insertHeadEntry(
-        @Nonnull Hashtable.Entry[] buckets, long keyHash, @Nonnull Hashtable.Entry entry) {
+        @Nonnull Hashtable.Entry[] buckets,
+        long keyHash,
+        @Nonnull Hashtable.Entry entry
+    ) {
       Hashtable.insertHeadEntryFor(buckets, keyHash, entry);
     }
 
@@ -1673,7 +1811,9 @@ public final class Hashtable {
     @Deprecated
     @Nullable
     public static <TEntry extends Hashtable.Entry> TEntry bucket(
-        @Nonnull Hashtable.Entry[] buckets, long keyHash) {
+        @Nonnull Hashtable.Entry[] buckets,
+        long keyHash
+    ) {
       return Hashtable.bucketFor(buckets, keyHash);
     }
 
@@ -1682,7 +1822,9 @@ public final class Hashtable {
      */
     @Deprecated
     public static <TEntry extends Hashtable.Entry> void forEach(
-        @Nonnull Hashtable.Entry[] buckets, @Nonnull Consumer<? super TEntry> consumer) {
+        @Nonnull Hashtable.Entry[] buckets,
+        @Nonnull Consumer<? super TEntry> consumer
+    ) {
       Hashtable.forEach(buckets, consumer);
     }
 
@@ -1693,7 +1835,8 @@ public final class Hashtable {
     public static <C, TEntry extends Hashtable.Entry> void forEach(
         @Nonnull Hashtable.Entry[] buckets,
         C context,
-        @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+        @Nonnull BiConsumer<? super C, ? super TEntry> consumer
+    ) {
       Hashtable.forEach(buckets, context, consumer);
     }
   }
@@ -1759,21 +1902,25 @@ public final class Hashtable {
    * constructor for the first match); {@link #hasNext()} is an O(1) field read.
    */
   public static final class MutatingBucketIterator<TEntry extends Entry>
-      implements Iterator<TEntry> {
+      implements Iterator<TEntry>
+  {
     private final long keyHash;
-
     private final Hashtable.Entry[] buckets;
-
-    /** The entry prior to the last entry returned by next Used for mutating operations */
+    /**
+     * The entry prior to the last entry returned by next Used for mutating operations
+     */
     private Hashtable.Entry curPrevEntry;
-
-    /** The entry that was last returned by next */
+    /**
+     * The entry that was last returned by next
+     */
     private Hashtable.Entry curEntry;
-
-    /** The entry prior to the next entry */
+    /**
+     * The entry prior to the next entry
+     */
     private Hashtable.Entry nextPrevEntry;
-
-    /** The next entry to be returned by next */
+    /**
+     * The next entry to be returned by next
+     */
     private Hashtable.Entry nextEntry;
 
     MutatingBucketIterator(@Nonnull Hashtable.Entry[] buckets, long keyHash) {
@@ -1821,9 +1968,7 @@ public final class Hashtable {
       this.curPrevEntry = this.nextPrevEntry;
 
       Hashtable.Entry prev, cur;
-      for (prev = this.nextEntry, cur = this.nextEntry.next();
-          cur != null;
-          prev = cur, cur = prev.next()) {
+      for (prev = this.nextEntry, cur = this.nextEntry.next(); cur != null; prev = cur, cur = prev.next()) {
         if (cur.keyHash == keyHash) {
           break;
         }
@@ -1846,7 +1991,6 @@ public final class Hashtable {
       // Detach the removed entry from the chain so stale references can't traverse back into
       // the live chain and so a now-unreachable tail can be reclaimed by GC.
       oldCurEntry.setNext(null);
-
       // If the next match was directly after oldCurEntry, its predecessor is now
       // curPrevEntry (oldCurEntry was just unlinked from the chain).
       if (this.nextPrevEntry == oldCurEntry) {
@@ -1860,15 +2004,14 @@ public final class Hashtable {
       if (oldCurEntry == null) {
         throw new IllegalStateException();
       }
-      assert replacementEntry.next() == null
-          : "Entry already linked -- inserting the same Entry instance twice corrupts the chain";
+      assert replacementEntry.next() == null :
+          "Entry already linked -- inserting the same Entry instance twice corrupts the chain";
 
       Hashtable.Entry oldNext = oldCurEntry.next();
       replacementEntry.setNext(oldNext);
       this.setPrevNext(replacementEntry);
       // Detach the replaced entry from the chain; the replacement now owns the chain slot.
       oldCurEntry.setNext(null);
-
       // If the next match was directly after oldCurEntry, its predecessor is now
       // the replacement entry (which took oldCurEntry's chain slot).
       if (this.nextPrevEntry == oldCurEntry) {
@@ -1898,37 +2041,35 @@ public final class Hashtable {
    * specific hash. For per-bucket walks keyed to a search hash, use {@link MutatingBucketIterator}.
    */
   public static final class MutatingTableIterator<TEntry extends Entry>
-      implements Iterator<TEntry> {
+      implements Iterator<TEntry>
+  {
     private final Hashtable.Entry[] buckets;
-
-    /** Exclusive upper bound for bucket indices visited by this iterator. */
+    /**
+     * Exclusive upper bound for bucket indices visited by this iterator.
+     */
     private final int endBucket;
-
     /**
      * Index of the bucket holding {@link #nextEntry} (or holding {@link #curEntry} after remove).
      */
     private int nextBucketIndex;
-
     /**
      * Predecessor of {@link #nextEntry}, or {@code null} when {@code nextEntry} is the bucket head.
      */
     private Hashtable.Entry nextPrevEntry;
-
-    /** Next entry to be returned by {@link #next()}, or {@code null} if iteration is exhausted. */
+    /**
+     * Next entry to be returned by {@link #next()}, or {@code null} if iteration is exhausted.
+     */
     private Hashtable.Entry nextEntry;
-
     /**
      * Bucket index that held the entry last returned by {@code next}; {@code -1} before the first
      * {@code next}. {@code remove} leaves it unchanged.
      */
     private int curBucketIndex = -1;
-
     /**
      * Predecessor of the entry last returned by {@code next}, or {@code null} if it was the bucket
      * head.
      */
     private Hashtable.Entry curPrevEntry;
-
     /**
      * Entry last returned by {@code next}; {@code null} before any call and after {@code remove}.
      */
@@ -1938,17 +2079,13 @@ public final class Hashtable {
       this.buckets = buckets;
       if (startBucket < 0 || startBucket > buckets.length) {
         throw new IndexOutOfBoundsException(
-            "startBucket " + startBucket + " out of range [0, " + buckets.length + "]");
+            "startBucket " + startBucket + " out of range [0, " + buckets.length + "]"
+        );
       }
       if (endBucket < startBucket || endBucket > buckets.length) {
         throw new IndexOutOfBoundsException(
-            "endBucket "
-                + endBucket
-                + " out of range ["
-                + startBucket
-                + ", "
-                + buckets.length
-                + "]");
+            "endBucket " + endBucket + " out of range [" + startBucket + ", " + buckets.length + "]"
+        );
       }
       this.endBucket = endBucket;
       seekFromBucket(startBucket);
@@ -1970,7 +2107,8 @@ public final class Hashtable {
         @Nonnull Hashtable.Entry[] buckets,
         int bucket,
         int endBucket,
-        @Nullable Hashtable.Entry resumeAfter) {
+        @Nullable Hashtable.Entry resumeAfter
+    ) {
       this.buckets = buckets;
       this.endBucket = endBucket;
       Hashtable.Entry head = (resumeAfter == null) ? buckets[bucket] : resumeAfter.next();
@@ -2048,7 +2186,6 @@ public final class Hashtable {
       // Detach the removed entry from the chain so stale references can't traverse back into
       // the live chain and so a now-unreachable tail can be reclaimed by GC.
       oldCurEntry.setNext(null);
-
       // If the next entry was the immediate chain successor of oldCurEntry, its predecessor is
       // now what came before oldCurEntry (oldCurEntry was just unlinked).
       if (this.nextPrevEntry == oldCurEntry) {

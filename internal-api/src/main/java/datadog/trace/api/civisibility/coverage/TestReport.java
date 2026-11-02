@@ -5,7 +5,6 @@ import java.util.Collection;
 import javax.annotation.Nonnull;
 
 public class TestReport {
-
   private final DDTraceId testSessionId;
   private final Long testSuiteId;
   private final long spanId;
@@ -15,7 +14,8 @@ public class TestReport {
       DDTraceId testSessionId,
       Long testSuiteId,
       long spanId,
-      @Nonnull Collection<TestReportFileEntry> testReportFileEntries) {
+      @Nonnull Collection<TestReportFileEntry> testReportFileEntries
+  ) {
     this.testSessionId = testSessionId;
     this.testSuiteId = testSuiteId;
     this.spanId = spanId;

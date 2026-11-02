@@ -6,7 +6,6 @@ import static datadog.trace.api.config.IastConfig.IAST_EXPERIMENTAL_PROPAGATION_
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,7 +16,6 @@ import org.tabletest.junit.TableTest;
 
 @ExtendWith(WithConfigExtension.class)
 class IastEnabledChecksTests {
-
   @ParameterizedTest(name = "{0}")
   @MethodSource("testMinJavaVersionArguments")
   void testMinJavaVersion(String majorJavaVersion, boolean expected) {
@@ -31,7 +29,8 @@ class IastEnabledChecksTests {
         arguments("8", isJavaVersionAtLeast(8)),
         arguments("9", isJavaVersionAtLeast(9)),
         arguments("17", isJavaVersionAtLeast(17)),
-        arguments("abcd", false));
+        arguments("abcd", false)
+    );
   }
 
   @TableTest({

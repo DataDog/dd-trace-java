@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.DECORATE;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.SCHEDULED_CALL;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,11 +18,12 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
       Config.get().isLegacyTracingEnabled(false, "spring-scheduling");
 
   static class SchedulingAware extends SpringSchedulingRunnableWrapper
-      implements SchedulingAwareRunnable {
-
-    private static final MethodHandle GET_QUALIFIER_MH =
-        new MethodHandles(SchedulingAwareRunnable.class.getClassLoader())
-            .method(SchedulingAwareRunnable.class, "getQualifier");
+      implements SchedulingAwareRunnable
+  {
+    private static final MethodHandle GET_QUALIFIER_MH = new MethodHandles(SchedulingAwareRunnable.class
+      .getClassLoader()
+    )
+      .method(SchedulingAwareRunnable.class, "getQualifier");
 
     SchedulingAware(Runnable runnable) {
       super(runnable);
@@ -54,10 +54,9 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
 
   @Override
   public void run() {
-    final AgentSpan span =
-        LEGACY_TRACING
-            ? startSpan("spring-scheduling", SCHEDULED_CALL)
-            : startSpan("spring-scheduling", SCHEDULED_CALL, null);
+    final AgentSpan span = LEGACY_TRACING
+        ? startSpan("spring-scheduling", SCHEDULED_CALL)
+        : startSpan("spring-scheduling", SCHEDULED_CALL, null);
     DECORATE.afterStart(span);
     DECORATE.measureIfEnabled(span);
 

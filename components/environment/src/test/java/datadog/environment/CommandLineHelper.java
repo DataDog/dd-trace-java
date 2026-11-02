@@ -3,7 +3,6 @@ package datadog.environment;
 import static java.io.File.separator;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -18,13 +17,13 @@ class CommandLineHelper {
   private static final String REAL_CMD_ARGUMENTS_MARKER = "-- REAL CMD ARGUMENTS --";
   static final String TEST_PROCESS_CLASS_NAME = CommandLineTestProcess.class.getName();
 
-  static Result forkAndRunWithArgs(RunArguments arguments)
-      throws IOException, InterruptedException {
+  static Result forkAndRunWithArgs(RunArguments arguments) throws IOException, InterruptedException {
     return forkAndRunWithArgs(arguments, emptyMap());
   }
 
   static Result forkAndRunWithArgs(RunArguments arguments, Map<String, String> environmentVariables)
-      throws IOException, InterruptedException {
+      throws IOException,
+      InterruptedException {
     // Build the command to run a new Java process
     List<String> command = new ArrayList<>();
     command.add(System.getProperty("java.home") + separator + "bin" + separator + "java");
@@ -41,8 +40,7 @@ class CommandLineHelper {
     Result result = new Result();
     List<String> current = null;
     String output = "";
-    try (BufferedReader reader =
-        new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
       String line;
       while ((line = reader.readLine()) != null) {
         if (JVM_OPTIONS_MARKER.equals(line)) {
@@ -68,8 +66,7 @@ class CommandLineHelper {
       }
     }
     String error = "";
-    try (BufferedReader reader =
-        new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
       String line;
       while ((line = reader.readLine()) != null) {
         error += line + "\n";

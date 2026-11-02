@@ -26,9 +26,10 @@ public class RateLimiter {
   private static final long MASK_COUNT_PREV_SEC = 0xFFFFF00000L;
   private static final int SHIFT_COUNT_PREV_SEC = 20;
   private static final int SHIFT_CUR_SEC = 40;
-  private static final int MAX_LIMIT = 0xFFFFF; // 2^20 -1
-  private static final int TIME_RING_MASK = 0xFFFFFF; // 24 bits
-
+  // 2^20 -1
+  private static final int MAX_LIMIT = 0xFFFFF;
+  // 24 bits
+  private static final int TIME_RING_MASK = 0xFFFFFF;
   private final TimeSource timeSource;
   private final ThrottledCallback throttledCb;
 
@@ -64,11 +65,8 @@ public class RateLimiter {
         switch (diff) {
           case 0:
             {
-              int count =
-                  storedCurCount
-                      + (int)
-                          (storedPrevCount
-                              * (1.0f - (float) (curSec % 1000000000L) / 1000000000.0f));
+              int count = storedCurCount
+                  + (int) (storedPrevCount * (1.0f - (float) (curSec % 1000000000L) / 1000000000.0f));
               if (count >= limitPerSec) {
                 this.throttledCb.onThrottled();
                 return true;
@@ -86,10 +84,9 @@ public class RateLimiter {
                 this.throttledCb.onThrottled();
                 return true;
               }
-              newState =
-                  ((long) curSec24 << SHIFT_CUR_SEC)
-                      | (((long) storedCurCount) << SHIFT_COUNT_PREV_SEC)
-                      | 1L;
+              newState = ((long) curSec24 << SHIFT_CUR_SEC)
+                  | (((long) storedCurCount) << SHIFT_COUNT_PREV_SEC)
+                  | 1L;
               break;
             }
           case 0xFFFFFF:
@@ -99,7 +96,8 @@ public class RateLimiter {
               curSec24 = curSecond24bit(curSec);
               diff = (curSec24 - storedCurSec24) & TIME_RING_MASK;
               if (diff != 0xFFFFFF) {
-                continue; // reevaluate switch
+                // reevaluate switch
+                continue;
               }
               // else we're still behind, so we likely wrapped around since the last write
               // in that case, fall to default case
@@ -107,7 +105,8 @@ public class RateLimiter {
           default:
             newState = ((long) curSec24 << SHIFT_CUR_SEC) | 1L;
         }
-        break; // while (true)
+        // while (true)
+        break;
       }
     } while (!state.compareAndSet(storedState, newState));
     return false;

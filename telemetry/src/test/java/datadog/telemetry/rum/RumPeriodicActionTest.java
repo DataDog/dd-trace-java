@@ -8,7 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Metric;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class RumPeriodicActionTest {
-
   private final TelemetryService telemetryService = mock(TelemetryService.class);
 
   @Test

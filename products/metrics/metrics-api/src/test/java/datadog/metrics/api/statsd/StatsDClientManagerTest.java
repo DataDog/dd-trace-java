@@ -1,11 +1,9 @@
 package datadog.metrics.api.statsd;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import org.junit.jupiter.api.Test;
 
 class StatsDClientManagerTest {
-
   @Test
   void defaultFiveArgOverloadDelegatesWithAggregationEnabled() {
     StatsDClient client = StatsDClient.NO_OP;
@@ -32,7 +30,8 @@ class StatsDClientManagerTest {
         String namedPipe,
         String namespace,
         String[] constantTags,
-        boolean useAggregation) {
+        boolean useAggregation
+    ) {
       this.lastUseAggregation = useAggregation;
       return client;
     }

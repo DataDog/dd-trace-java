@@ -3,7 +3,6 @@ package datadog.trace.common.writer.ddagent;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
-
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
@@ -29,14 +28,11 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 public final class TraceMapperV0_5 implements TraceMapper {
-
   private final WritableFormatter dictionaryWriter;
   private final DictionaryMapper dictionaryMapper;
   private final Map<Object, Integer> encoding = new HashMap<>();
   private final FlushingBuffer dictionary;
-
   private final MetaWriter metaWriter = new MetaWriter();
-
   private final int size;
   private boolean firstSpanWritten;
 
@@ -45,15 +41,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   public TraceMapperV0_5(int dictionarySize, int bufferSize) {
-    this.dictionary =
-        new FlushingBuffer(
-            dictionarySize,
-            (count, buffer) -> {
-              // Escape the dictionary writer's local reset: completed traces still reference these
-              // entries. The trace writer must publish them before resetting and retrying the
-              // trace.
-              throw new BufferOverflowException();
-            });
+    this.dictionary = new FlushingBuffer(dictionarySize, (count, buffer) -> {
+      // Escape the dictionary writer's local reset: completed traces still reference these
+      // entries. The trace writer must publish them before resetting and retrying the
+      // trace.
+      throw new BufferOverflowException();
+    });
     this.dictionaryWriter = new MsgPackWriter(dictionary);
     this.dictionaryMapper = new DictionaryMapper(dictionarySize);
     this.size = bufferSize;
@@ -90,10 +83,13 @@ public final class TraceMapperV0_5 implements TraceMapper {
       writable.writeInt(span.getError());
       /* 10, 11  */
       span.processTagsAndBaggage(
-          metaWriter
-              .withWritable(writable)
-              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
-          i == 0 ? ROOT_PROPAGATION_TAGS : 0);
+          metaWriter.withWritable(writable).forSpan(
+              i == 0,
+              i == trace.size() - 1,
+              !firstSpanWritten
+          ),
+          i == 0 ? ROOT_PROPAGATION_TAGS : 0
+      );
       /* 12 */
       writeDictionaryEncoded(writable, span.getType());
       firstSpanWritten = true;
@@ -124,7 +120,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   @Override
   public int messageBufferSize() {
-    return size; // 2MB
+    // 2MB
+    return size;
   }
 
   @Override
@@ -150,7 +147,6 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   private static class DictionaryMapper implements Mapper<Object> {
-
     private final int capacity;
 
     private DictionaryMapper(int capacity) {
@@ -207,7 +203,6 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   private static class PayloadV0_5 extends Payload {
-
     private final ByteBuffer dictionary;
     private final int stringCount;
 
@@ -239,16 +234,18 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     private List<ByteBuffer> toList() {
       return bodyAfter(
-          // msgpack array header with 2 elements (FIXARRAY | 2)
-          ByteBuffer.allocate(1).put(0, (byte) 0x92),
+          ByteBuffer
+            .allocate(1)
+            // msgpack array header with 2 elements (FIXARRAY | 2)
+            .put(0, (byte) 0x92),
           msgpackArrayHeader(stringCount),
           dictionary.duplicate(),
-          msgpackArrayHeader(traceCount()));
+          msgpackArrayHeader(traceCount())
+      );
     }
   }
 
   private final class MetaWriter implements MetadataConsumer {
-
     private Writable writable;
     private boolean firstSpanInTrace;
     private boolean lastSpanInTrace;
@@ -277,20 +274,18 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
       TagMap tags = metadata.getTags();
 
-      int metaSize =
-          metadata.getBaggage().size()
-              + tags.size()
-              + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
-              + (null == metadata.getOrigin() ? 0 : 1)
-              + (null == processTags ? 0 : 1)
-              + (null == otlpExport ? 0 : 1)
-              + 1;
-      int metricsSize =
-          (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
-              + (metadata.measured() ? 1 : 0)
-              + (metadata.topLevel() ? 1 : 0)
-              + (metadata.longRunningVersion() != 0 ? 1 : 0)
-              + 1;
+      int metaSize = metadata.getBaggage().size()
+          + tags.size()
+          + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
+          + (null == metadata.getOrigin() ? 0 : 1)
+          + (null == processTags ? 0 : 1)
+          + (null == otlpExport ? 0 : 1)
+          + 1;
+      int metricsSize = (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
+          + (metadata.measured() ? 1 : 0)
+          + (metadata.topLevel() ? 1 : 0)
+          + (metadata.longRunningVersion() != 0 ? 1 : 0)
+          + 1;
 
       for (TagMap.EntryReader entry : tags) {
         if (entry.isNumber()) {
@@ -333,7 +328,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
       }
 
       for (TagMap.EntryReader entry : tags) {
-        if (entry.isNumber()) continue;
+        if (entry.isNumber()) {
+          continue;
+        }
 
         String key = entry.tag();
         Object value = entry.objectValue();
@@ -372,26 +369,24 @@ public final class TraceMapperV0_5 implements TraceMapper {
       writable.writeLong(metadata.getThreadId());
 
       for (EntryReader entry : metadata.getTags()) {
-        if (!entry.isNumber()) continue;
+        if (!entry.isNumber()) {
+          continue;
+        }
 
         writeDictionaryEncoded(writable, entry.tag());
         switch (entry.type()) {
           case TagMap.EntryReader.INT:
             writable.writeInt(entry.intValue());
             break;
-
           case TagMap.EntryReader.LONG:
             writable.writeLong(entry.longValue());
             break;
-
           case TagMap.EntryReader.FLOAT:
             writable.writeFloat(entry.floatValue());
             break;
-
           case TagMap.EntryReader.DOUBLE:
             writable.writeDouble(entry.doubleValue());
             break;
-
           default:
             writable.writeObject(entry.objectValue(), null);
             break;

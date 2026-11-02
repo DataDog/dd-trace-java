@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.datadog.openfeature.Provider.Options;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Flag;
@@ -53,7 +52,6 @@ class DebugLoggingTest {
   private static final String TRACE_DEBUG = "dd.trace.debug";
   private static final String AGENTLESS_BASE_URL =
       "dd.feature.flags.configuration.source.agentless.base.url";
-
   private static final String SDK_LOGGERS = "com.datadog.openfeature";
 
   @BeforeEach
@@ -88,11 +86,13 @@ class DebugLoggingTest {
     assertTrue(message.contains("reason=STATIC"), message);
     assertEquals(
         Level.DEBUG,
-        CapturingServiceProvider.events().stream()
-            .filter(e -> e.message.equals(message))
-            .findFirst()
-            .get()
-            .level);
+        CapturingServiceProvider
+          .events()
+          .stream()
+          .filter(e -> e.message.equals(message))
+          .findFirst()
+          .get().level
+    );
   }
 
   @Test
@@ -127,11 +127,12 @@ class DebugLoggingTest {
     client.getIntegerValue("flag", 5, new MutableContext("user-1"));
 
     assertTrue(messages("Feature Flagging evaluation:").isEmpty());
-    final List<Event> warnings =
-        CapturingServiceProvider.events().stream()
-            .filter(e -> e.level == Level.WARN)
-            .filter(e -> e.message.contains("DD_TRACE_DEBUG is enabled"))
-            .collect(Collectors.toList());
+    final List<Event> warnings = CapturingServiceProvider
+      .events()
+      .stream()
+      .filter(e -> e.level == Level.WARN)
+      .filter(e -> e.message.contains("DD_TRACE_DEBUG is enabled"))
+      .collect(Collectors.toList());
     assertEquals(1, warnings.size());
   }
 
@@ -153,10 +154,11 @@ class DebugLoggingTest {
     System.setProperty(TRACE_DEBUG, "true");
     register();
 
-    final List<Event> announcements =
-        CapturingServiceProvider.events().stream()
-            .filter(e -> e.message.contains("personal data"))
-            .collect(Collectors.toList());
+    final List<Event> announcements = CapturingServiceProvider
+      .events()
+      .stream()
+      .filter(e -> e.message.contains("personal data"))
+      .collect(Collectors.toList());
     assertEquals(1, announcements.size(), announcements.toString());
     assertEquals(Level.INFO, announcements.get(0).level);
   }
@@ -169,10 +171,11 @@ class DebugLoggingTest {
     CapturingServiceProvider.enable(DebugLoggingHook.class.getName(), Level.DEBUG);
     register();
 
-    final List<Event> announcements =
-        CapturingServiceProvider.events().stream()
-            .filter(e -> e.message.contains("personal data"))
-            .collect(Collectors.toList());
+    final List<Event> announcements = CapturingServiceProvider
+      .events()
+      .stream()
+      .filter(e -> e.message.contains("personal data"))
+      .collect(Collectors.toList());
     assertEquals(1, announcements.size(), announcements.toString());
     assertEquals(DebugLoggingHook.class.getName(), announcements.get(0).logger);
     assertEquals(Level.INFO, announcements.get(0).level);
@@ -190,23 +193,23 @@ class DebugLoggingTest {
   void containsAFailureToFormatTheEvaluation() {
     final EvaluationContext failing = mock(EvaluationContext.class);
     when(failing.asUnmodifiableMap()).thenThrow(new IllegalStateException("cannot render"));
-    final HookContext<Object> hookContext =
-        HookContext.<Object>builder()
-            .flagKey("flag")
-            .type(FlagValueType.INTEGER)
-            .defaultValue(0)
-            .ctx(failing)
-            .build();
+    final HookContext<Object> hookContext = HookContext
+      .<Object>builder()
+      .flagKey("flag")
+      .type(FlagValueType.INTEGER)
+      .defaultValue(0)
+      .ctx(failing)
+      .build();
     final FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder().flagKey("flag").value(1).build();
 
-    assertDoesNotThrow(
-        () -> new DebugLoggingHook<>().finallyAfter(hookContext, details, emptyMap()));
+    assertDoesNotThrow(() -> new DebugLoggingHook<>()
+      .finallyAfter(hookContext, details, emptyMap()));
 
     assertEquals(
         1,
-        messages("Feature Flagging evaluation diagnostic unavailable: java.lang.IllegalState")
-            .size());
+        messages("Feature Flagging evaluation diagnostic unavailable: java.lang.IllegalState").size()
+    );
   }
 
   @Test
@@ -236,10 +239,11 @@ class DebugLoggingTest {
 
   @Test
   void rendersNestedValuesAsTheyAre() {
-    final Value nested =
-        new Value(
-            Arrays.asList(
-                new Value("a"), new Value(new MutableStructure().add("k", "v")), new Value(2)));
+    final Value nested = new Value(Arrays.asList(
+        new Value("a"),
+        new Value(new MutableStructure().add("k", "v")),
+        new Value(2)
+    ));
 
     final String message = hookMessage(hookContext(new MutableContext("u"), nested), details());
 
@@ -277,19 +281,18 @@ class DebugLoggingTest {
   @Test
   void stopsWalkingAListOnceTheBudgetIsSpent() {
     final int[] reads = {0};
-    final List<String> wide =
-        new AbstractList<String>() {
-          @Override
-          public String get(final int index) {
-            reads[0]++;
-            return "element-" + index;
-          }
+    final List<String> wide = new AbstractList<String>() {
+      @Override
+      public String get(final int index) {
+        reads[0]++;
+        return "element-" + index;
+      }
 
-          @Override
-          public int size() {
-            return 1_000_000;
-          }
-        };
+      @Override
+      public int size() {
+        return 1_000_000;
+      }
+    };
 
     final String message = hookMessage(hookContext(new MutableContext("u"), wide), details());
 
@@ -300,19 +303,18 @@ class DebugLoggingTest {
   @Test
   void doesNotScanAWrappedListBeforeRenderingIt() {
     final int[] reads = {0};
-    final List<Value> wide =
-        new AbstractList<Value>() {
-          @Override
-          public Value get(final int index) {
-            reads[0]++;
-            return new Value("element-" + index);
-          }
+    final List<Value> wide = new AbstractList<Value>() {
+      @Override
+      public Value get(final int index) {
+        reads[0]++;
+        return new Value("element-" + index);
+      }
 
-          @Override
-          public int size() {
-            return 1_000_000;
-          }
-        };
+      @Override
+      public int size() {
+        return 1_000_000;
+      }
+    };
 
     final String message =
         hookMessage(hookContext(new MutableContext("u"), new Value(wide)), details());
@@ -324,23 +326,22 @@ class DebugLoggingTest {
   @Test
   void returnsFromAnInfiniteIterable() {
     final Iterable<String> infinite =
-        () ->
-            new Iterator<String>() {
-              @Override
-              public boolean hasNext() {
-                return true;
-              }
+        () -> new Iterator<String>() {
+      @Override
+      public boolean hasNext() {
+        return true;
+      }
 
-              @Override
-              public String next() {
-                return "x";
-              }
-            };
+      @Override
+      public String next() {
+        return "x";
+      }
+    };
 
-    final String message =
-        assertTimeoutPreemptively(
-            Duration.ofSeconds(10),
-            () -> hookMessage(hookContext(new MutableContext("u"), infinite), details()));
+    final String message = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> hookMessage(
+        hookContext(new MutableContext("u"), infinite),
+        details()
+    ));
 
     assertTrue(message.contains("...(truncated)"), message);
   }
@@ -430,22 +431,24 @@ class DebugLoggingTest {
 
   @Test
   void capsTheVariantAndTheReason() {
-    final FlagEvaluationDetails<Object> details =
-        FlagEvaluationDetails.<Object>builder()
-            .flagKey("flag")
-            .value(1)
-            .variant("v".repeat(5_000))
-            .reason("r".repeat(5_000))
-            .build();
+    final FlagEvaluationDetails<Object> details = FlagEvaluationDetails
+      .<Object>builder()
+      .flagKey("flag")
+      .value(1)
+      .variant("v".repeat(5_000))
+      .reason("r".repeat(5_000))
+      .build();
 
     final String message = hookMessage(hookContext(new MutableContext("u"), new Value(0)), details);
 
     assertTrue(
         message.contains("variant=" + "v".repeat(1_024) + "...(truncated, 5000 characters), "),
-        message);
+        message
+    );
     assertTrue(
         message.contains("reason=" + "r".repeat(1_024) + "...(truncated, 5000 characters), "),
-        message);
+        message
+    );
   }
 
   @Test
@@ -459,9 +462,11 @@ class DebugLoggingTest {
     assertTrue(
         message.startsWith(
             "Feature Flagging evaluation: flag="
-                + "k".repeat(1_024)
-                + "...(truncated, 5000 characters), context="),
-        message.substring(0, Math.min(message.length(), 1_200)));
+            + "k".repeat(1_024)
+            + "...(truncated, 5000 characters), context="
+        ),
+        message.substring(0, Math.min(message.length(), 1_200))
+    );
   }
 
   @Test
@@ -469,7 +474,7 @@ class DebugLoggingTest {
     System.setProperty(TRACE_DEBUG, "true");
     final Client client = register();
     // The emoji is a surrogate pair whose first half is the last character below the limit.
-    final String key = "k".repeat(1_023) + "\uD83D\uDE00" + "k".repeat(100);
+    final String key = "k".repeat(1_023) + "😀" + "k".repeat(100);
 
     client.getIntegerValue(key, 5, new MutableContext("user-1"));
 
@@ -477,22 +482,21 @@ class DebugLoggingTest {
     assertTrue(
         message.startsWith(
             "Feature Flagging evaluation: flag="
-                + "k".repeat(1_023)
-                + "...(truncated, 1125 characters), context="),
-        message.substring(0, Math.min(message.length(), 1_200)));
+            + "k".repeat(1_023)
+            + "...(truncated, 1125 characters), context="
+        ),
+        message.substring(0, Math.min(message.length(), 1_200))
+    );
     assertFalse(message.contains("\uD83D"), "A lone surrogate was logged");
   }
 
   @Test
   void doesNotLogTheCredentialsOfAnInvalidEndpoint() {
     System.setProperty(AGENTLESS_BASE_URL, "ftp://user:pw-secret@example.com/ufc?token=tok-secret");
-
     // The provider cannot initialize: the endpoint is invalid.
-    assertThrows(
-        Exception.class,
-        () ->
-            OpenFeatureAPI.getInstance()
-                .setProviderAndWait(new Provider(new Options().initTimeout(1, SECONDS))));
+    assertThrows(Exception.class, () -> OpenFeatureAPI
+      .getInstance()
+      .setProviderAndWait(new Provider(new Options().initTimeout(1, SECONDS))));
 
     assertEquals(1, messages("Feature Flagging provider initialization failed: java.lang.").size());
     for (final Event event : CapturingServiceProvider.events()) {
@@ -505,7 +509,6 @@ class DebugLoggingTest {
   void logsTheErrorMessageTheApplicationObserves() throws Exception {
     System.setProperty(TRACE_DEBUG, "true");
     final Client client = register();
-
     // The configuration does not observe full evaluation data, so the provider drops the message.
     client.getStringValue("flag", "default", new MutableContext("user-1"));
 
@@ -529,7 +532,6 @@ class DebugLoggingTest {
     CapturingServiceProvider.failOn("Feature Flagging provider ready");
 
     final Client client = register();
-
     // The registration did not fail, and the provider evaluates.
     assertEquals(1, client.getIntegerValue("flag", 5, new MutableContext("user-1")));
   }
@@ -537,14 +539,13 @@ class DebugLoggingTest {
   @Test
   void shuttingDownDoesNotDependOnTheLoggingBackend() {
     final boolean[] evaluatorShutDown = {false};
-    final ExposureTestEvaluator evaluator =
-        new ExposureTestEvaluator(configuration(), true) {
-          @Override
-          public synchronized void shutdown() {
-            super.shutdown();
-            evaluatorShutDown[0] = true;
-          }
-        };
+    final ExposureTestEvaluator evaluator = new ExposureTestEvaluator(configuration(), true) {
+      @Override
+      public synchronized void shutdown() {
+        super.shutdown();
+        evaluatorShutDown[0] = true;
+      }
+    };
     final Provider provider = new Provider(new Options(), evaluator);
     CapturingServiceProvider.failOn("provider shut down");
 
@@ -564,20 +565,25 @@ class DebugLoggingTest {
 
     assertEquals(
         1,
-        messages("Feature Flagging exposure suppressed: evaluation failed or details unavailable")
-            .size());
+        messages("Feature Flagging exposure suppressed: evaluation failed or details unavailable").size()
+    );
     assertEquals(
-        1, messages("Feature Flagging exposure suppressed: exposure already recorded").size());
+        1,
+        messages("Feature Flagging exposure suppressed: exposure already recorded").size()
+    );
   }
 
   private static HookContext<Object> hookContext(
-      final EvaluationContext context, final Object defaultValue) {
-    return HookContext.<Object>builder()
-        .flagKey("flag")
-        .type(FlagValueType.OBJECT)
-        .defaultValue(defaultValue)
-        .ctx(context)
-        .build();
+      final EvaluationContext context,
+      final Object defaultValue
+  ) {
+    return HookContext
+      .<Object>builder()
+      .flagKey("flag")
+      .type(FlagValueType.OBJECT)
+      .defaultValue(defaultValue)
+      .ctx(context)
+      .build();
   }
 
   private static FlagEvaluationDetails<Object> details() {
@@ -585,7 +591,9 @@ class DebugLoggingTest {
   }
 
   private String hookMessage(
-      final HookContext<Object> hookContext, final FlagEvaluationDetails<Object> details) {
+      final HookContext<Object> hookContext,
+      final FlagEvaluationDetails<Object> details
+  ) {
     new DebugLoggingHook<>().finallyAfter(hookContext, details, emptyMap());
     return singleMessage("Feature Flagging evaluation:");
   }
@@ -595,7 +603,9 @@ class DebugLoggingTest {
     api.setProviderAndWait(
         new Provider(
             new Options().initTimeout(10, SECONDS),
-            new ExposureTestEvaluator(configuration(), true)));
+            new ExposureTestEvaluator(configuration(), true)
+        )
+    );
     return api.getClient();
   }
 
@@ -606,10 +616,12 @@ class DebugLoggingTest {
   }
 
   private List<String> messages(final String prefix) {
-    return CapturingServiceProvider.events().stream()
-        .map(e -> e.message)
-        .filter(message -> message.startsWith(prefix))
-        .collect(Collectors.toList());
+    return CapturingServiceProvider
+      .events()
+      .stream()
+      .map(e -> e.message)
+      .filter(message -> message.startsWith(prefix))
+      .collect(Collectors.toList());
   }
 
   private static ServerConfiguration configuration() {
@@ -620,7 +632,9 @@ class DebugLoggingTest {
         new Allocation("allocation", null, null, null, singletonList(split), Boolean.TRUE);
     final Map<String, Flag> flags = new HashMap<>();
     flags.put(
-        "flag", new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation)));
+        "flag",
+        new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation))
+    );
     return new ServerConfiguration("", "", false, null, flags);
   }
 }

@@ -3,7 +3,6 @@ package datadog.trace.core.taginterceptor;
 import datadog.trace.api.Config;
 
 public class RuleFlags {
-
   public enum Feature {
     // These names all derive from the simple class names which
     // were exposed as config at some point in the past.
@@ -18,9 +17,7 @@ public class RuleFlags {
     PEER_SERVICE("PeerServiceTagInterceptor", false),
     SERVICE_NAME("ServiceNameTagInterceptor"),
     SERVLET_CONTEXT("ServletContextTagInterceptor");
-
     private final String name;
-
     private final boolean defaultEnabled;
 
     Feature(String name) {

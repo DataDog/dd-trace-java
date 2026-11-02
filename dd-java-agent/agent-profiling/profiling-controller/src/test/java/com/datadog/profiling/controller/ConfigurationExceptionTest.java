@@ -2,11 +2,9 @@ package com.datadog.profiling.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import org.junit.jupiter.api.Test;
 
 public class ConfigurationExceptionTest {
-
   private static final String MESSAGE = "message";
 
   @Test

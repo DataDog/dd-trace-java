@@ -1,10 +1,10 @@
 package datadog.trace.civisibility.codeowners.matcher;
 
 public class AsteriskMatcher implements Matcher {
-
   public static final Matcher INSTANCE = new AsteriskMatcher();
 
-  private AsteriskMatcher() {}
+  private AsteriskMatcher() {
+  }
 
   @Override
   public int consume(String line, int offset) {

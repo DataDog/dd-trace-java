@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -23,8 +22,9 @@ import org.apache.synapse.transport.passthru.TargetResponse;
 
 @AutoService(InstrumenterModule.class)
 public final class SynapseClientWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public SynapseClientWorkerInstrumentation() {
     super("synapse3-client", "synapse3");
   }
@@ -38,11 +38,13 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(2, named("org.apache.synapse.transport.passthru.TargetResponse"))),
-        getClass().getName() + "$NewClientWorkerAdvice");
+          .and(takesArgument(2, named("org.apache.synapse.transport.passthru.TargetResponse"))),
+        getClass().getName() + "$NewClientWorkerAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("run")).and(takesNoArguments()),
-        getClass().getName() + "$ClientWorkerResponseAdvice");
+        getClass().getName() + "$ClientWorkerResponseAdvice"
+    );
   }
 
   public static final class NewClientWorkerAdvice {
@@ -58,7 +60,8 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
   public static final class ClientWorkerResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginResponse(
-        @Advice.FieldValue("response") final TargetResponse response) {
+        @Advice.FieldValue("response") final TargetResponse response
+    ) {
       Object continuation =
           response.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
       return continuation instanceof ContextContinuation
@@ -70,7 +73,8 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
     public static void responseReceived(
         @Advice.Enter final ContextScope scope,
         @Advice.FieldValue("response") final TargetResponse response,
-        @Advice.Thrown final Throwable error) {
+        @Advice.Thrown final Throwable error
+    ) {
       if (null == scope) {
         return;
       }

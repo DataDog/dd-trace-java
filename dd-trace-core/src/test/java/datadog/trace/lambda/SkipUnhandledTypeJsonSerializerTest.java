@@ -1,7 +1,6 @@
 package datadog.trace.lambda;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.SNSEvent;
 import com.amazonaws.services.lambda.runtime.events.SQSEvent;
@@ -27,7 +26,8 @@ class SubClass extends AbstractSerialize {
   }
 }
 
-interface ApiRequestPath {}
+interface ApiRequestPath {
+}
 
 class LambdaRequest {
   public boolean testBool;
@@ -41,7 +41,6 @@ class CustomRequest<P extends ApiRequestPath, B> extends LambdaRequest {
 }
 
 public class SkipUnhandledTypeJsonSerializerTest extends DDCoreJavaSpecification {
-
   static class TestJsonObject {
     public String field1;
     public boolean field2;
@@ -68,9 +67,9 @@ public class SkipUnhandledTypeJsonSerializerTest extends DDCoreJavaSpecification
 
   private static JsonAdapter<Object> buildAdapter() {
     return new Moshi.Builder()
-        .add(SkipUnsupportedTypeJsonAdapter.newFactory())
-        .build()
-        .adapter(Object.class);
+      .add(SkipUnsupportedTypeJsonAdapter.newFactory())
+      .build()
+      .adapter(Object.class);
   }
 
   @Test
@@ -81,7 +80,8 @@ public class SkipUnhandledTypeJsonSerializerTest extends DDCoreJavaSpecification
 
     assertEquals(
         "{\"field1\":\"toto\",\"field2\":true,\"field3\":{},\"field4\":{\"field\":{}},\"field5\":{}}",
-        result);
+        result
+    );
   }
 
   @Test
@@ -127,7 +127,9 @@ public class SkipUnhandledTypeJsonSerializerTest extends DDCoreJavaSpecification
     String result = adapter.toJson(myEvent);
 
     assertEquals(
-        "{\"records\":[{\"eventSource\":\"mySource\",\"eventVersion\":\"myVersion\"}]}", result);
+        "{\"records\":[{\"eventSource\":\"mySource\",\"eventVersion\":\"myVersion\"}]}",
+        result
+    );
   }
 
   @Test
@@ -156,8 +158,11 @@ public class SkipUnhandledTypeJsonSerializerTest extends DDCoreJavaSpecification
     String result = adapter.toJson(myEvent);
 
     assertEquals(
-        "{\"firstKey\":{\"field1\":\"toto\",\"field2\":true,\"field3\":{},\"field4\":{\"field\":{}},\"field5\":{}},\"secondKey\":{\"nestedKey2\":[\"aaa\",\"bbb\",\"ccc\",\"dddd\"],\"nestedKey0\":\"nestedValue1\",\"nestedKey1\":true}}",
-        result);
+        "{\"firstKey\":{\"field1\":\"toto\",\"field2\":true,\"field3\":{},\"field4\":"
+        + "{\"field\":{}},\"field5\":{}},\"secondKey\":{\"nestedKey2\":[\"aaa\",\"bbb\","
+        + "\"ccc\",\"dddd\"],\"nestedKey0\":\"nestedValue1\",\"nestedKey1\":true}}",
+        result
+    );
   }
 
   @Test

@@ -10,7 +10,6 @@ import javax.servlet.http.HttpServlet;
 import net.bytebuddy.asm.Advice;
 
 public class IastServlet2Advice {
-
   @Sink(VulnerabilityTypes.APPLICATION)
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onExit(@Advice.This Object servlet) {

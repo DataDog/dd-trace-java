@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.okhttp2;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static java.util.Collections.unmodifiableList;
-
 import com.squareup.okhttp.Headers;
 import com.squareup.okhttp.Interceptor;
 import com.squareup.okhttp.Request;
@@ -42,9 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AppSecInterceptor implements Interceptor {
-
   private static final int BODY_PARSING_SIZE_LIMIT = Config.get().getAppSecBodyParsingSizeLimit();
-
   private static final Logger LOGGER = LoggerFactory.getLogger(AppSecInterceptor.class);
 
   @Override
@@ -80,7 +77,11 @@ public class AppSecInterceptor implements Interceptor {
   }
 
   public static Request onRequest(
-      final AgentSpan span, final boolean sampled, final String url, final Request request) {
+      final AgentSpan span,
+      final boolean sampled,
+      final String url,
+      final Request request
+  ) {
     Request result = request;
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb =
@@ -105,11 +106,11 @@ public class AppSecInterceptor implements Interceptor {
           if (payload.length <= BODY_PARSING_SIZE_LIMIT) {
             clientRequest.setBody(mediaType, new ByteArrayInputStream(payload));
           }
-          result =
-              request
-                  .newBuilder()
-                  .method(request.method(), RequestBody.create(requestBody.contentType(), payload))
-                  .build(); // update request
+          result = request
+            .newBuilder()
+            .method(request.method(), RequestBody.create(requestBody.contentType(), payload))
+            // update request
+            .build();
         }
       } catch (IOException e) {
         // ignore it and keep the original request
@@ -120,7 +121,10 @@ public class AppSecInterceptor implements Interceptor {
   }
 
   public static Response onResponse(
-      final AgentSpan span, final boolean sampled, final Response response) {
+      final AgentSpan span,
+      final boolean sampled,
+      final Response response
+  ) {
     Response result = response;
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, HttpClientResponse, Flow<Void>> responseCb =
@@ -145,11 +149,10 @@ public class AppSecInterceptor implements Interceptor {
           if (payload.length <= BODY_PARSING_SIZE_LIMIT) {
             clientResponse.setBody(mediaType, new ByteArrayInputStream(payload));
           }
-          result =
-              response
-                  .newBuilder()
-                  .body(ResponseBody.create(responseBody.contentType(), payload))
-                  .build();
+          result = response
+            .newBuilder()
+            .body(ResponseBody.create(responseBody.contentType(), payload))
+            .build();
         }
       } catch (IOException e) {
         // ignore it and keep the original response
@@ -172,7 +175,8 @@ public class AppSecInterceptor implements Interceptor {
   private static <P extends HttpClientPayload> void publish(
       final RequestContext ctx,
       final P request,
-      final BiFunction<RequestContext, P, Flow<Void>> callback) {
+      final BiFunction<RequestContext, P, Flow<Void>> callback
+  ) {
     Flow<Void> flow = callback.apply(ctx, request);
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
@@ -203,10 +207,12 @@ public class AppSecInterceptor implements Interceptor {
    */
   private static boolean shouldProcessBody(final long contentLength, final MediaType mediaType) {
     if (contentLength <= 0) {
-      return false; // prevent from copying from unbounded source (just to be safe)
+      // prevent from copying from unbounded source (just to be safe)
+      return false;
     }
     if (BODY_PARSING_SIZE_LIMIT <= 0) {
-      return false; // effectively disabled by configuration
+      // effectively disabled by configuration
+      return false;
     }
     if (contentLength > BODY_PARSING_SIZE_LIMIT) {
       return false;
@@ -214,8 +220,7 @@ public class AppSecInterceptor implements Interceptor {
     return mediaType.isDeserializable();
   }
 
-  private static byte[] readBody(final RequestBody body, final int contentLength)
-      throws IOException {
+  private static byte[] readBody(final RequestBody body, final int contentLength) throws IOException {
     final ByteArrayOutputStream buffer = new ByteArrayOutputStream(contentLength);
     try (final BufferedSink sink = Okio.buffer(Okio.sink(buffer))) {
       body.writeTo(sink);
@@ -227,7 +232,8 @@ public class AppSecInterceptor implements Interceptor {
       throws IOException {
     final ByteArrayOutputStream buffer = new ByteArrayOutputStream(contentLength);
     try (final BufferedSource source = body.source();
-        final Sink sink = Okio.sink(buffer)) {
+        final Sink sink = Okio.sink(buffer)
+    ) {
       source.readAll(sink);
     }
     return buffer.toByteArray();
@@ -260,11 +266,13 @@ public class AppSecInterceptor implements Interceptor {
 
   private static MediaType contentType(final RequestBody body) {
     return MediaType.parse(
-        body == null || body.contentType() == null ? null : body.contentType().toString());
+        body == null || body.contentType() == null ? null : body.contentType().toString()
+    );
   }
 
   private static MediaType contentType(final ResponseBody body) {
     return MediaType.parse(
-        body == null || body.contentType() == null ? null : body.contentType().toString());
+        body == null || body.contentType() == null ? null : body.contentType().toString()
+    );
   }
 }

@@ -8,7 +8,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
@@ -34,19 +33,17 @@ import org.tabletest.junit.TableTest;
 
 class ExposurePipelineTest {
   private static final long TIMEOUT_NANOS = SECONDS.toNanos(5);
-
   private final List<Map<String, Object>> requests = new CopyOnWriteArrayList<>();
   private final AtomicInteger posts = new AtomicInteger();
   private volatile int failingPost = -1;
-
   private final EventTransport transport =
       (route, json) -> {
-        assertEquals("exposures", route);
-        if (this.posts.incrementAndGet() == this.failingPost) {
-          throw new IOException("ambiguous timeout");
-        }
-        this.requests.add(JsonReading.readObject(json));
-      };
+    assertEquals("exposures", route);
+    if (this.posts.incrementAndGet() == this.failingPost) {
+      throw new IOException("ambiguous timeout");
+    }
+    this.requests.add(JsonReading.readObject(json));
+  };
 
   @TableTest({
     "service        | env    | version",
@@ -78,14 +75,14 @@ class ExposurePipelineTest {
 
   @Test
   void serializesExposureWireShape() throws Exception {
-    final ExposureEvent exposure =
-        new ExposureEvent(
-            1234L,
-            new Allocation("allocation"),
-            new Flag("flag"),
-            new Variant("variant"),
-            new Subject("subject", singletonMap("tier", "gold")),
-            7);
+    final ExposureEvent exposure = new ExposureEvent(
+        1234L,
+        new Allocation("allocation"),
+        new Flag("flag"),
+        new Variant("variant"),
+        new Subject("subject", singletonMap("tier", "gold")),
+        7
+    );
 
     try (ExposurePipeline pipeline = pipeline(emptyMap())) {
       pipeline.start();
@@ -129,30 +126,30 @@ class ExposurePipelineTest {
     final List<ExposureEvent> exposures = buildExposures(threads * exposuresPerThread);
     final CountDownLatch latch = new CountDownLatch(1);
 
-    try (ExposurePipeline pipeline =
-        new ExposurePipeline(
-            ExposurePipeline.DEFAULT_CAPACITY,
-            100,
-            MILLISECONDS,
-            this.transport,
-            emptyMap(),
-            new RuntimeServices(HealthMetrics.NOOP))) {
+    try (ExposurePipeline pipeline = new ExposurePipeline(
+        ExposurePipeline.DEFAULT_CAPACITY,
+        100,
+        MILLISECONDS,
+        this.transport,
+        emptyMap(),
+        new RuntimeServices(HealthMetrics.NOOP)
+    )) {
       pipeline.start();
       final List<Future<Boolean>> futures = new ArrayList<>();
       for (int index = 0; index < exposures.size(); index += exposuresPerThread) {
         final List<ExposureEvent> partition =
             exposures.subList(index, Math.min(index + exposuresPerThread, exposures.size()));
-        futures.add(
-            executor.submit(
-                () -> {
-                  latch.await();
-                  partition.forEach(pipeline);
-                  return true;
-                }));
+        futures.add(executor.submit(() -> {
+          latch.await();
+          partition.forEach(pipeline);
+          return true;
+        }));
       }
-      latch.countDown(); // start threads
+      // start threads
+      latch.countDown();
       for (final Future<Boolean> future : futures) {
-        assertTrue(future.get()); // wait for all threads to finish
+        // wait for all threads to finish
+        assertTrue(future.get());
       }
 
       eventually(() -> allExposures().size() == exposures.size());
@@ -216,17 +213,17 @@ class ExposurePipelineTest {
   })
   void closeFlushesPendingExposures(final boolean buffered) throws Exception {
     final List<ExposureEvent> exposures = buildExposures(3);
-    final ExposurePipeline pipeline =
-        new ExposurePipeline(
-            16,
-            Long.MAX_VALUE,
-            NANOSECONDS,
-            (route, json) -> {
-              assertFalse(Thread.currentThread().isInterrupted());
-              this.transport.post(route, json);
-            },
-            emptyMap(),
-            new RuntimeServices(HealthMetrics.NOOP));
+    final ExposurePipeline pipeline = new ExposurePipeline(
+        16,
+        Long.MAX_VALUE,
+        NANOSECONDS,
+          (route, json) -> {
+            assertFalse(Thread.currentThread().isInterrupted());
+            this.transport.post(route, json);
+          },
+        emptyMap(),
+        new RuntimeServices(HealthMetrics.NOOP)
+    );
     try {
       pipeline.start();
       exposures.forEach(pipeline);
@@ -259,24 +256,24 @@ class ExposurePipelineTest {
     final CountDownLatch postStarted = new CountDownLatch(1);
     final CountDownLatch releasePost = new CountDownLatch(1);
     final AtomicBoolean interrupted = new AtomicBoolean();
-    final ExposurePipeline pipeline =
-        new ExposurePipeline(
-            16,
-            inFlight ? 0 : Long.MAX_VALUE,
-            NANOSECONDS,
-            (route, json) -> {
-              postStarted.countDown();
-              try {
-                releasePost.await();
-              } catch (final InterruptedException e) {
-                interrupted.set(true);
-                Thread.currentThread().interrupt();
-                throw new IOException(e);
-              }
-              this.transport.post(route, json);
-            },
-            emptyMap(),
-            new RuntimeServices(HealthMetrics.NOOP));
+    final ExposurePipeline pipeline = new ExposurePipeline(
+        16,
+        inFlight ? 0 : Long.MAX_VALUE,
+        NANOSECONDS,
+          (route, json) -> {
+            postStarted.countDown();
+            try {
+              releasePost.await();
+            } catch (final InterruptedException e) {
+              interrupted.set(true);
+              Thread.currentThread().interrupt();
+              throw new IOException(e);
+            }
+            this.transport.post(route, json);
+          },
+        emptyMap(),
+        new RuntimeServices(HealthMetrics.NOOP)
+    );
     final ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
       pipeline.start();
@@ -322,7 +319,8 @@ class ExposurePipelineTest {
         MILLISECONDS,
         this.transport,
         context,
-        new RuntimeServices(HealthMetrics.NOOP));
+        new RuntimeServices(HealthMetrics.NOOP)
+    );
   }
 
   @SuppressWarnings("unchecked")
@@ -347,9 +345,10 @@ class ExposurePipelineTest {
     final Set<String> keys = new HashSet<>();
     for (final Map<String, Object> exposure : exposures) {
       keys.add(
-          ((Map<String, Object>) exposure.get("flag")).get("key")
-              + "/"
-              + ((Map<String, Object>) exposure.get("subject")).get("id"));
+              ((Map<String, Object>) exposure.get("flag")).get("key")
+          + "/"
+          + ((Map<String, Object>) exposure.get("subject")).get("id")
+      );
     }
     return keys;
   }
@@ -373,11 +372,15 @@ class ExposurePipelineTest {
         new Flag(UUID.randomUUID().toString()),
         new Variant(UUID.randomUUID().toString()),
         new Subject(UUID.randomUUID().toString(), attributes),
-        null);
+        null
+    );
   }
 
   private static void putIfNotNull(
-      final Map<String, String> map, final String key, final String value) {
+      final Map<String, String> map,
+      final String key,
+      final String value
+  ) {
     if (value != null) {
       map.put(key, value);
     }

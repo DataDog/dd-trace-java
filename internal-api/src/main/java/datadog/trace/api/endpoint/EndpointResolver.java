@@ -1,7 +1,6 @@
 package datadog.trace.api.endpoint;
 
 import static datadog.trace.api.KnownTags.HTTP_ENDPOINT_ID;
-
 import datadog.trace.api.TagStore;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -16,7 +15,6 @@ import org.slf4j.LoggerFactory;
  */
 public class EndpointResolver {
   private static final Logger log = LoggerFactory.getLogger(EndpointResolver.class);
-
   private final boolean enabled;
   private final boolean alwaysSimplifiedEndpoint;
 
@@ -51,11 +49,13 @@ public class EndpointResolver {
    */
   @Nullable
   public String resolveEndpoint(
-      TagStore unsafeTags, @Nullable String httpRoute, @Nullable String httpUrl) {
+      TagStore unsafeTags,
+      @Nullable String httpRoute,
+      @Nullable String httpUrl
+  ) {
     if (!enabled) {
       return null;
     }
-
     // If alwaysSimplifiedEndpoint is set, always compute and tag
     if (alwaysSimplifiedEndpoint) {
       String endpoint = computeEndpoint(httpUrl);
@@ -64,12 +64,10 @@ public class EndpointResolver {
       }
       return endpoint;
     }
-
     // If route exists and is eligible, use it
     if (isRouteEligible(httpRoute)) {
       return httpRoute;
     }
-
     // Compute endpoint from URL and tag the span
     String endpoint = computeEndpoint(httpUrl);
     if (endpoint != null) {
@@ -92,7 +90,6 @@ public class EndpointResolver {
     if (route == null || route.isEmpty()) {
       return false;
     }
-
     // Discard catch-all routes that indicate instrumentation problems
     if ("*".equals(route) || "*/*".equals(route)) {
       return false;

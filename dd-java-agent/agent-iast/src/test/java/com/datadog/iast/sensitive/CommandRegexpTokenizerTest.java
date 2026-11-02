@@ -3,7 +3,6 @@ package com.datadog.iast.sensitive;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.sensitive.SensitiveHandler.Tokenizer;
 import com.datadog.iast.util.Ranged;
@@ -15,11 +14,13 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class CommandRegexpTokenizerTest {
-
   @ParameterizedTest(name = "{0}")
   @MethodSource("redactsCommandArgumentsArguments")
   void redactsCommandArguments(
-      final String description, final String command, final List<String> expected) {
+      final String description,
+      final String command,
+      final List<String> expected
+  ) {
     assertEquals(expected, tokenize(command));
   }
 
@@ -29,7 +30,11 @@ class CommandRegexpTokenizerTest {
         arguments("sudo prefix is skipped", "sudo rm -rf /", asList("-rf /")),
         arguments("doas prefix is skipped", "doas cat /etc/passwd", asList("/etc/passwd")),
         arguments(
-            "everything after the binary is captured", "echo hello world", asList("hello world")));
+            "everything after the binary is captured",
+            "echo hello world",
+            asList("hello world")
+        )
+    );
   }
 
   private static List<String> tokenize(String command) {

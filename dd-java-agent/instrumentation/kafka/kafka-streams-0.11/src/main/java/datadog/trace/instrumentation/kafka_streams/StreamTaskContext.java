@@ -6,7 +6,8 @@ public class StreamTaskContext {
   private ContextScope scope;
   private String applicationId;
 
-  public StreamTaskContext() {}
+  public StreamTaskContext() {
+  }
 
   public void setScope(ContextScope scope) {
     this.scope = scope;

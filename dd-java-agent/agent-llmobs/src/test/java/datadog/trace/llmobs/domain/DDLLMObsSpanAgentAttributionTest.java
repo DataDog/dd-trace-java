@@ -3,7 +3,6 @@ package datadog.trace.llmobs.domain;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
@@ -18,11 +17,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class DDLLMObsSpanAgentAttributionTest {
-
   private static final String PAGENT_SPAN_ID_TAG = "_ml_obs_tag.pagent_span_id";
   private static final String PAGENT_NAME_TAG = "_ml_obs_tag.pagent_name";
   private static final Field SPAN_FIELD;
-
   private static CoreTracer tracer;
 
   static {
@@ -56,7 +53,9 @@ class DDLLMObsSpanAgentAttributionTest {
     return (AgentSpan) SPAN_FIELD.get(llmObsSpan);
   }
 
-  /** Starts a root APM span and activates it, so all LLMObs spans created within share a trace. */
+  /**
+   * Starts a root APM span and activates it, so all LLMObs spans created within share a trace.
+   */
   private static ContextScope startRootApmScope() {
     AgentSpan root = AgentTracer.get().buildSpan("apm", "http.server.request").start();
     return AgentTracer.activateSpan(root);
@@ -110,7 +109,9 @@ class DDLLMObsSpanAgentAttributionTest {
             AgentSpan toolInner = innerSpan(tool);
             AgentSpan innerAgentSpan = innerSpan(innerAgent);
             assertEquals(
-                String.valueOf(innerAgentSpan.getSpanId()), toolInner.getTag(PAGENT_SPAN_ID_TAG));
+                String.valueOf(innerAgentSpan.getSpanId()),
+                toolInner.getTag(PAGENT_SPAN_ID_TAG)
+            );
             assertEquals("inner-agent", toolInner.getTag(PAGENT_NAME_TAG));
           } finally {
             tool.finish();
@@ -133,7 +134,6 @@ class DDLLMObsSpanAgentAttributionTest {
       try {
         AgentSpan agentInner = innerSpan(agentSpan);
         String expectedParentAgentSpanId = String.valueOf(agentInner.getSpanId());
-
         // Created while agentSpan's ContextScope is active — should inherit attribution
         DDLLMObsSpan toolSpan = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "child-tool");
         try {
@@ -208,7 +208,6 @@ class DDLLMObsSpanAgentAttributionTest {
         DDLLMObsSpan innerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "inner-agent");
         innerAgent.finish();
         // After finish(), inner agent's LLMObsContext scope is closed — outer agent's is restored.
-
         // Sibling span created now sees outer agent's attribution via the restored LLMObsContext.
         DDLLMObsSpan siblingTool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "sibling-tool");
         try {
@@ -234,11 +233,9 @@ class DDLLMObsSpanAgentAttributionTest {
 
     DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "first-trace-agent");
     // agentSpan's LLMObsContext is now active in the current thread
-
     // Close the first APM scope (but do NOT close agentSpan's scope yet) — simulate a context
     // leak where the LLMObsContext outlives the APM scope it was created in.
     firstScope.close();
-
     // Start a fresh APM root (different trace) while the first trace's LLMObsContext is active
     AgentSpan secondRoot = AgentTracer.get().buildSpan("apm", "http.request.2").start();
     ContextScope secondScope = AgentTracer.activateSpan(secondRoot);
@@ -269,9 +266,11 @@ class DDLLMObsSpanAgentAttributionTest {
         AgentSpan inner = innerSpan(agentSpan);
         assertEquals("span-name", inner.getTag(PAGENT_NAME_TAG));
 
-        agentSpan.annotateAgentManifest(
-            LLMObs.AgentManifest.builder().name("manifest-name").build());
-
+        agentSpan.annotateAgentManifest(LLMObs.AgentManifest
+          .builder()
+          .name("manifest-name")
+          .build()
+        );
         // The internal tag (used by the serializer for this span's agent_attribution) updates
         // to the manifest name. Context-propagated pagent name for children remains the span name.
         assertEquals("manifest-name", inner.getTag(PAGENT_NAME_TAG));

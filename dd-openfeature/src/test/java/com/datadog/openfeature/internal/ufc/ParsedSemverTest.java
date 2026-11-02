@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -13,9 +12,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class ParsedSemverTest {
-
   // --- Parse tests (ported from Go semver_test.go TestParseSemver) ---
-
   static Stream<Arguments> validVersions() {
     return Stream.of(
         Arguments.of("0.0.0", 0L, 0L, 0L, ""),
@@ -24,11 +21,13 @@ class ParsedSemverTest {
             Long.parseUnsignedLong("18446744073709551615"),
             Long.parseUnsignedLong("18446744073709551615"),
             Long.parseUnsignedLong("18446744073709551615"),
-            ""),
+            ""
+        ),
         Arguments.of("1.2.3-alpha.1", 1L, 2L, 3L, "alpha.1"),
         Arguments.of("1.2.3-18446744073709551616", 1L, 2L, 3L, "18446744073709551616"),
         Arguments.of("1.2.3+build.001", 1L, 2L, 3L, ""),
-        Arguments.of("1.2.3-alpha-1+build.001", 1L, 2L, 3L, "alpha-1"));
+        Arguments.of("1.2.3-alpha-1+build.001", 1L, 2L, 3L, "alpha-1")
+    );
   }
 
   @ParameterizedTest(name = "valid: {0}")
@@ -38,7 +37,8 @@ class ParsedSemverTest {
       final long major,
       final long minor,
       final long patch,
-      final String prerelease) {
+      final String prerelease
+  ) {
     final ParsedSemver parsed = ParsedSemver.parse(version);
     assertTrue(parsed != null, "expected " + version + " to parse");
     assertEquals(major, parsed.getMajor());
@@ -67,7 +67,8 @@ class ParsedSemverTest {
         "1.2.3-alpha+build+other",
         "1.2.3-α",
         " 1.2.3",
-        "1.2.3 ");
+        "1.2.3 "
+    );
   }
 
   @ParameterizedTest(name = "invalid: {0}")
@@ -77,20 +78,21 @@ class ParsedSemverTest {
   }
 
   // --- Compare tests (ported from Go semver_test.go TestCompareSemver) ---
-
-  /** The canonical SemVer precedence ordering from the spec. */
+  /**
+   * The canonical SemVer precedence ordering from the spec.
+   */
   private static final String[] ORDERED_VERSIONS = {
-    "1.0.0-alpha",
-    "1.0.0-alpha.1",
-    "1.0.0-alpha.beta",
-    "1.0.0-beta",
-    "1.0.0-beta.2",
-    "1.0.0-beta.11",
-    "1.0.0-rc.1",
-    "1.0.0",
-    "1.0.1",
-    "1.1.0",
-    "2.0.0",
+      "1.0.0-alpha",
+      "1.0.0-alpha.1",
+      "1.0.0-alpha.beta",
+      "1.0.0-beta",
+      "1.0.0-beta.2",
+      "1.0.0-beta.11",
+      "1.0.0-rc.1",
+      "1.0.0",
+      "1.0.1",
+      "1.1.0",
+      "2.0.0"
   };
 
   @Test
@@ -98,26 +100,36 @@ class ParsedSemverTest {
     assertEquals(0, ParsedSemver.compare(ParsedSemver.parse("18"), ParsedSemver.parse("18.0.0")));
     assertEquals(0, ParsedSemver.compare(ParsedSemver.parse("18.0"), ParsedSemver.parse("18.0.0")));
     assertEquals(
-        0, ParsedSemver.compare(ParsedSemver.parse("1.2.3"), ParsedSemver.parse("1.2.3.0")));
+        0,
+        ParsedSemver.compare(ParsedSemver.parse("1.2.3"), ParsedSemver.parse("1.2.3.0"))
+    );
     assertEquals(
-        0, ParsedSemver.compare(ParsedSemver.parse("1.2.3"), ParsedSemver.parse("1.2.3.0.0")));
+        0,
+        ParsedSemver.compare(ParsedSemver.parse("1.2.3"), ParsedSemver.parse("1.2.3.0.0"))
+    );
     assertTrue(
-        ParsedSemver.compare(ParsedSemver.parse("1.2.3.4"), ParsedSemver.parse("1.2.3.5")) < 0);
+        ParsedSemver.compare(ParsedSemver.parse("1.2.3.4"), ParsedSemver.parse("1.2.3.5")) < 0
+    );
     assertTrue(ParsedSemver.parse("1.2.3.4.5.6") != null);
     assertTrue(ParsedSemver.parse("1.2.3.4.5.6.7") != null);
     assertTrue(
-        ParsedSemver.compare(ParsedSemver.parse("1.2.3.4.5"), ParsedSemver.parse("1.2.3.4.6")) < 0);
+        ParsedSemver.compare(ParsedSemver.parse("1.2.3.4.5"), ParsedSemver.parse("1.2.3.4.6")) < 0
+    );
     assertTrue(
-        ParsedSemver.compare(ParsedSemver.parse("1.2.3.4.5.6"), ParsedSemver.parse("1.2.3.4.5.7"))
-            < 0);
+        ParsedSemver.compare(ParsedSemver.parse("1.2.3.4.5.6"), ParsedSemver.parse("1.2.3.4.5.7")) < 0
+    );
     assertTrue(
         ParsedSemver.compare(
-                ParsedSemver.parse("1.2.3.4.5.6.7"), ParsedSemver.parse("1.2.3.4.5.6.8"))
-            < 0);
+            ParsedSemver.parse("1.2.3.4.5.6.7"),
+            ParsedSemver.parse("1.2.3.4.5.6.8")
+        ) < 0
+    );
     assertTrue(
-        ParsedSemver.compare(ParsedSemver.parse("18.0.0.0"), ParsedSemver.parse("17.0.0")) > 0);
+        ParsedSemver.compare(ParsedSemver.parse("18.0.0.0"), ParsedSemver.parse("17.0.0")) > 0
+    );
     assertTrue(
-        ParsedSemver.compare(ParsedSemver.parse("18.0.0.0.0"), ParsedSemver.parse("17.0.0")) > 0);
+        ParsedSemver.compare(ParsedSemver.parse("18.0.0.0.0"), ParsedSemver.parse("17.0.0")) > 0
+    );
   }
 
   @Test
@@ -193,7 +205,6 @@ class ParsedSemverTest {
     assertEquals(base.hashCode(), trailingZero.hashCode());
     assertEquals(base.hashCode(), trailingZeros.hashCode());
     assertEquals(trailingZero.hashCode(), trailingZeros.hashCode());
-
     // All-zero versions of varying length are also compare-equal and must hash identically.
     final ParsedSemver zero = ParsedSemver.parse("0");
     final ParsedSemver zeroZero = ParsedSemver.parse("0.0.0.0");
@@ -202,7 +213,6 @@ class ParsedSemverTest {
     assertEquals(0, ParsedSemver.compare(zero, zeroZero));
     assertEquals(zero, zeroZero);
     assertEquals(zero.hashCode(), zeroZero.hashCode());
-
     // Distinct versions must remain unequal and may differ in hash.
     final ParsedSemver release = ParsedSemver.parse("1.2.4");
     assertTrue(release != null);

@@ -49,7 +49,9 @@ public final class KnownTagCodec {
    */
   public static final long LEVEL_TRACE = 1L << 2;
 
-  /** True if the tagId names a trace-level tag. */
+  /**
+   * True if the tagId names a trace-level tag.
+   */
   public static boolean isTraceLevel(long tagId) {
     return (tagId & LEVEL_TRACE) != 0L;
   }
@@ -60,15 +62,20 @@ public final class KnownTagCodec {
    */
   public static final long INTERCEPTED = 1L << 1;
 
-  /** True if the tagId names a tag TagInterceptor may route on the set-path. */
+  /**
+   * True if the tagId names a tag TagInterceptor may route on the set-path.
+   */
   public static boolean isIntercepted(long tagId) {
     return (tagId & INTERCEPTED) != 0L;
   }
 
-  /** Bit position of the slot: bits [47-32] of an id. */
+  /**
+   * Bit position of the slot: bits [47-32] of an id.
+   */
   public static final int SLOT_SHIFT = 32;
-
-  /** The slot of a known tag on no modeled span type. */
+  /**
+   * The slot of a known tag on no modeled span type.
+   */
   public static final int NO_SLOT = 0xFFFF;
 
   /**
@@ -91,12 +98,16 @@ public final class KnownTagCodec {
     return tagId != 0L && slotOf(tagId) != NO_SLOT;
   }
 
-  /** Slots in use: every slotted tag's slot is below this. */
+  /**
+   * Slots in use: every slotted tag's slot is below this.
+   */
   public static int slotCount() {
     return KnownTags.SLOT_COUNT;
   }
 
-  /** Returns the tagId with the {@link #LEVEL_TRACE} flag set. */
+  /**
+   * Returns the tagId with the {@link #LEVEL_TRACE} flag set.
+   */
   public static long traceLevel(long tagId) {
     return tagId | LEVEL_TRACE;
   }
@@ -117,26 +128,34 @@ public final class KnownTagCodec {
    * in every direction; direction applies only when naming it. Pass one of these to
    * openTelemetryTagOf(long, int).
    */
-
-  /** Direction not known, for example a span with no kind: only names that need none apply. */
+  /**
+   * Direction not known, for example a span with no kind: only names that need none apply.
+   */
   public static final int DIRECTION_UNKNOWN = -1;
-
-  /** Server and consumer spans, which receive a request or message. */
+  /**
+   * Server and consumer spans, which receive a request or message.
+   */
   public static final int DIRECTION_INBOUND = 0;
-
-  /** Client and producer spans, which send a request or message. */
+  /**
+   * Client and producer spans, which send a request or message.
+   */
   public static final int DIRECTION_OUTBOUND = 1;
-
-  /** Internal spans, which have no other end. */
+  /**
+   * Internal spans, which have no other end.
+   */
   public static final int DIRECTION_NONE = 2;
 
-  /** The direction of a span with these tags, from its {@code span.kind}. */
+  /**
+   * The direction of a span with these tags, from its {@code span.kind}.
+   */
   public static int directionOf(TagMap tags) {
     TagMap.Entry kind = tags.getEntry(KnownTags.SPAN_KIND_ID);
     return kind == null ? DIRECTION_UNKNOWN : directionOfKind(kind.stringValue());
   }
 
-  /** The direction of a span of {@code kind}; brokers and custom kinds have none. */
+  /**
+   * The direction of a span of {@code kind}; brokers and custom kinds have none.
+   */
   public static int directionOfKind(String kind) {
     if (kind == null) {
       return DIRECTION_UNKNOWN;
@@ -155,9 +174,13 @@ public final class KnownTagCodec {
     }
   }
 
-  /** The registry's tables. Generated as {@code KnownTags.RESOLVER}; this class owns the policy. */
+  /**
+   * The registry's tables. Generated as {@code KnownTags.RESOLVER}; this class owns the policy.
+   */
   public interface Resolver {
-    /** The tag's Datadog-namespace (canonical) name. */
+    /**
+     * The tag's Datadog-namespace (canonical) name.
+     */
     String nameOf(long tagId);
 
     /**
@@ -167,10 +190,14 @@ public final class KnownTagCodec {
      */
     String openTelemetryNameOf(long tagId, int direction);
 
-    /** The id for {@code name} in ANY namespace (many→one), or 0 when it is not a known tag. */
+    /**
+     * The id for {@code name} in ANY namespace (many→one), or 0 when it is not a known tag.
+     */
     long keyOf(String name);
 
-    /** See {@link KnownTagCodec#directionalKeyOf}. */
+    /**
+     * See {@link KnownTagCodec#directionalKeyOf}.
+     */
     long directionalKeyOf(String name, int direction);
   }
 
@@ -183,12 +210,16 @@ public final class KnownTagCodec {
     static final Resolver RESOLVER = KnownTags.RESOLVER;
   }
 
-  /** The tag's canonical (Datadog-namespace) name, or {@code null} when the id is not known. */
+  /**
+   * The tag's canonical (Datadog-namespace) name, or {@code null} when the id is not known.
+   */
   public static String nameOf(long tagId) {
     return Installed.RESOLVER.nameOf(tagId);
   }
 
-  /** The tag's Datadog-namespace (canonical) name — the same value as {@link #nameOf}. */
+  /**
+   * The tag's Datadog-namespace (canonical) name — the same value as {@link #nameOf}.
+   */
   public static String datadogNameOf(long tagId) {
     return nameOf(tagId);
   }
@@ -247,10 +278,13 @@ public final class KnownTagCodec {
    */
   public static boolean isKnown(long tagId) {
     int serial = serialNum(tagId);
-    return serial != 0 && serial < serialLimit(); // serial 0 is no tag
+    // serial 0 is no tag
+    return serial != 0 && serial < serialLimit();
   }
 
-  /** The id for {@code name} in any namespace, or 0 when it is not a known tag. */
+  /**
+   * The id for {@code name} in any namespace, or 0 when it is not a known tag.
+   */
   public static long keyOf(String name) {
     return Installed.RESOLVER.keyOf(name);
   }
@@ -270,7 +304,8 @@ public final class KnownTagCodec {
     return id != 0 ? nameOf(id) : name;
   }
 
-  private KnownTagCodec() {}
+  private KnownTagCodec() {
+  }
 
   /**
    * The tag an OpenTelemetry name denotes on spans of {@code direction}, for a name whose tag
@@ -284,7 +319,9 @@ public final class KnownTagCodec {
     return name == null ? 0L : Installed.RESOLVER.directionalKeyOf(name, direction);
   }
 
-  /** True if {@code name} denotes a different tag depending on the span's direction. */
+  /**
+   * True if {@code name} denotes a different tag depending on the span's direction.
+   */
   public static boolean isDirectionScoped(String name) {
     for (int direction = DIRECTION_INBOUND; direction <= DIRECTION_NONE; direction++) {
       if (directionalKeyOf(name, direction) != 0) {

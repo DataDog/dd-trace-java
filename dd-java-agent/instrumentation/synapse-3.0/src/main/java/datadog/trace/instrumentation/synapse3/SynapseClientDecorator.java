@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.synapse3;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
-
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;

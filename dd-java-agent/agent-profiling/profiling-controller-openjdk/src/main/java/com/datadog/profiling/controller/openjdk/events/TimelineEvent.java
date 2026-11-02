@@ -14,13 +14,10 @@ import jdk.jfr.StackTrace;
 @Category("Datadog")
 @StackTrace(false)
 public class TimelineEvent extends Event implements Stateful {
-
   @Label("Local Root Span Id")
   private final long localRootSpanId;
-
   @Label("Span Id")
   private final long spanId;
-
   @Label("Span Name")
   @Name("_dd.trace.operation")
   private final String operation;

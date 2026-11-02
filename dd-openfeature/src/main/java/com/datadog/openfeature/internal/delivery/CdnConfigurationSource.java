@@ -1,7 +1,6 @@
 package com.datadog.openfeature.internal.delivery;
 
 import static com.datadog.openfeature.internal.delivery.Retries.isRetryableStatus;
-
 import com.datadog.openfeature.internal.ConfigurationService;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.config.Settings;
@@ -29,10 +28,11 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Polls the flag configuration from the Datadog managed CDN, or a custom HTTP endpoint. */
+/**
+ * Polls the flag configuration from the Datadog managed CDN, or a custom HTTP endpoint.
+ */
 public final class CdnConfigurationSource implements ConfigurationService {
   private static final Logger LOGGER = LoggerFactory.getLogger(CdnConfigurationSource.class);
-
   static final String UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
   static final int MAX_ATTEMPTS = 3;
@@ -42,9 +42,9 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private static final long SECOND_RETRY_MAX_MILLIS = 30_000;
   private static final double RETRY_JITTER = 0.2;
   private static final long WARNING_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
-
   private final URI endpoint;
-  @Nullable private final String apiKey;
+  @Nullable
+  private final String apiKey;
   private final long pollIntervalMillis;
   private final Duration requestTimeout;
   private final HttpClient httpClient;
@@ -63,19 +63,15 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private long lastWarningNanos;
 
   public CdnConfigurationSource(final Settings settings, final RuntimeServices services) {
-    this(
-        endpoint(settings),
-        isManagedEndpoint(settings) ? settings.apiKey() : null,
-        TimeUnit.SECONDS.toMillis(settings.agentlessPollIntervalSeconds()),
-        Duration.ofSeconds(settings.agentlessRequestTimeoutSeconds()),
-        HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(settings.agentlessRequestTimeoutSeconds()))
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .build(),
-        Executors.newSingleThreadScheduledExecutor(
-            task -> services.newThread("configuration", task)),
-        null,
-        () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER));
+    this(endpoint(settings), isManagedEndpoint(settings) ? settings.apiKey() : null, TimeUnit.SECONDS.toMillis(settings.agentlessPollIntervalSeconds()
+    ), Duration.ofSeconds(settings.agentlessRequestTimeoutSeconds()), HttpClient
+      .newBuilder()
+      .connectTimeout(Duration.ofSeconds(settings.agentlessRequestTimeoutSeconds()))
+      .followRedirects(HttpClient.Redirect.NEVER)
+      .build(), Executors.newSingleThreadScheduledExecutor(task -> services.newThread(
+        "configuration",
+        task
+    )), null, () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER));
   }
 
   CdnConfigurationSource(
@@ -86,17 +82,17 @@ public final class CdnConfigurationSource implements ConfigurationService {
       final HttpClient httpClient,
       final ScheduledExecutorService executor,
       @Nullable final Retries.Sleeper retrySleeper,
-      final DoubleSupplier jitter) {
+      final DoubleSupplier jitter
+  ) {
     this.endpoint = endpoint;
     this.apiKey = apiKey;
     this.pollIntervalMillis = pollIntervalMillis;
     this.requestTimeout = requestTimeout;
     this.httpClient = httpClient;
     this.executor = executor;
-    this.retrySleeper =
-        retrySleeper != null
-            ? retrySleeper
-            : delay -> this.closedSignal.await(delay, TimeUnit.MILLISECONDS);
+    this.retrySleeper = retrySleeper != null
+        ? retrySleeper
+        : delay -> this.closedSignal.await(delay, TimeUnit.MILLISECONDS);
     this.jitter = jitter;
   }
 
@@ -114,24 +110,27 @@ public final class CdnConfigurationSource implements ConfigurationService {
     pollOnceSafely();
     synchronized (this.lifecycleLock) {
       if (!this.closed) {
-        this.scheduledPoll =
-            this.executor.scheduleWithFixedDelay(
-                this::pollOnceSafely,
-                this.pollIntervalMillis,
-                this.pollIntervalMillis,
-                TimeUnit.MILLISECONDS);
+        this.scheduledPoll = this.executor.scheduleWithFixedDelay(
+            this::pollOnceSafely,
+            this.pollIntervalMillis,
+            this.pollIntervalMillis,
+            TimeUnit.MILLISECONDS
+        );
       }
     }
     // Logged last: a diagnostic must not keep the polling from starting.
     LOGGER.debug(
-        "Feature Flags agentless configuration source started: endpoint={}://{}{}, pollIntervalMillis={}, requestTimeout={}",
-        // The origin only: the userinfo, the path and the query of a custom endpoint can carry a
-        // credential.
-        this.endpoint.getScheme(),
+        "Feature Flags agentless configuration source started: endpoint={}://{}{}, "
+        + "pollIntervalMillis={}, requestTimeout={}",
+        this.endpoint
+          // The origin only: the userinfo, the path and the query of a custom endpoint can carry a
+          // credential.
+          .getScheme(),
         this.endpoint.getHost(),
         this.endpoint.getPort() < 0 ? "" : ":" + this.endpoint.getPort(),
         this.pollIntervalMillis,
-        this.requestTimeout);
+        this.requestTimeout
+    );
   }
 
   @Override
@@ -160,7 +159,9 @@ public final class CdnConfigurationSource implements ConfigurationService {
     LOGGER.debug("Feature Flags agentless configuration source stopped");
   }
 
-  /** Test seam: sets the configuration listener without starting the polling. */
+  /**
+   * Test seam: sets the configuration listener without starting the polling.
+   */
   void setListenerForTest(final Consumer<ServerConfiguration> listener) {
     this.listener = listener;
   }
@@ -213,7 +214,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
       warn(
           "Feature Flags configuration endpoint failed after {} attempts with HTTP {}",
           MAX_ATTEMPTS,
-          status);
+          status
+      );
       return false;
     }
     synchronized (this.lifecycleLock) {
@@ -231,7 +233,8 @@ public final class CdnConfigurationSource implements ConfigurationService {
         || status == HttpURLConnection.HTTP_FORBIDDEN) {
       warn(
           "Feature Flags configuration endpoint returned HTTP {}; verify endpoint authentication",
-          status);
+          status
+      );
       return false;
     }
     if (status != HttpURLConnection.HTTP_OK || response.body() == null) {
@@ -243,14 +246,17 @@ public final class CdnConfigurationSource implements ConfigurationService {
       configuration = UniversalFlagConfigParser.parseJsonApi(Gzip.decode(response));
     } catch (final IOException | RuntimeException e) {
       LOGGER.debug(
-          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining the current configuration",
+          "Feature Flags configuration endpoint returned a malformed payload ({}); retaining "
+          + "the current configuration",
           e.getClass().getSimpleName(),
-          e);
+          e
+      );
       return false;
     }
     if (configuration == null) {
       LOGGER.debug(
-          "Feature Flags configuration endpoint returned no flag data; retaining the current configuration");
+          "Feature Flags configuration endpoint returned no flag data; retaining the current configuration"
+      );
       return false;
     }
     this.listener.accept(configuration);
@@ -263,40 +269,45 @@ public final class CdnConfigurationSource implements ConfigurationService {
   private HttpResponse<byte[]> fetchWithRetries() throws IOException, InterruptedException {
     final HttpRequest request = buildRequest();
     return Retries.send(
-        () -> {
-          synchronized (this.lifecycleLock) {
-            if (this.closed) {
-              throw new IOException("Feature Flags configuration source is closed");
+          () -> {
+            synchronized (this.lifecycleLock) {
+              if (this.closed) {
+                throw new IOException("Feature Flags configuration source is closed");
+              }
+              this.activeCall = new HttpCall<>(
+                  this.httpClient,
+                  request,
+                  HttpResponse.BodyHandlers.ofByteArray()
+              );
+              return this.activeCall;
             }
-            this.activeCall =
-                new HttpCall<>(this.httpClient, request, HttpResponse.BodyHandlers.ofByteArray());
-            return this.activeCall;
-          }
-        },
-        (response, attempt) -> {
-          if (response != null && !isRetryableStatus(response.statusCode())) {
-            return -1;
-          }
-          final long delayMillis =
-              retryDelayMillis(this.pollIntervalMillis, attempt, this.jitter.getAsDouble());
-          LOGGER.debug(
-              "Feature Flags agentless configuration poll attempt {}/{} {}; retrying in {} ms",
-              attempt,
-              MAX_ATTEMPTS,
-              response == null ? "failed" : "returned HTTP " + response.statusCode(),
-              delayMillis);
-          return delayMillis;
-        },
+          },
+          (response, attempt) -> {
+            if (response != null && !isRetryableStatus(response.statusCode())) {
+              return -1;
+            }
+            final long delayMillis =
+            retryDelayMillis(this.pollIntervalMillis, attempt, this.jitter.getAsDouble());
+            LOGGER.debug(
+                "Feature Flags agentless configuration poll attempt {}/{} {}; retrying in {} ms",
+                attempt,
+                MAX_ATTEMPTS,
+                response == null ? "failed" : "returned HTTP " + response.statusCode(),
+                delayMillis
+            );
+            return delayMillis;
+          },
         MAX_ATTEMPTS,
         this.retrySleeper,
-        () -> this.closed);
+        () -> this.closed
+    );
   }
 
   private HttpRequest buildRequest() {
-    final HttpRequest.Builder request =
-        HttpRequest.newBuilder(this.endpoint)
-            .timeout(this.requestTimeout)
-            .header("Accept-Encoding", "gzip");
+    final HttpRequest.Builder request = HttpRequest
+      .newBuilder(this.endpoint)
+      .timeout(this.requestTimeout)
+      .header("Accept-Encoding", "gzip");
     Headers.addMetadata(request);
     if (this.apiKey != null) {
       request.header("DD-API-KEY", this.apiKey);
@@ -324,28 +335,33 @@ public final class CdnConfigurationSource implements ConfigurationService {
       final String env = settings.env();
       return URI.create(
           "https://"
-              + managedHost(settings)
-              + UFC_RULES_BASED_SERVER_PATH
-              + (env == null ? "" : "?dd_env=" + URLEncoder.encode(env, StandardCharsets.UTF_8)));
+          + managedHost(settings)
+          + UFC_RULES_BASED_SERVER_PATH
+          + (env == null ? "" : "?dd_env=" + URLEncoder.encode(env, StandardCharsets.UTF_8))
+      );
     }
     final URI parsed;
     try {
       parsed = URI.create(configuredBaseUrl);
     } catch (final IllegalArgumentException e) {
       throw new IllegalArgumentException(
-          "Invalid Feature Flags configuration source URL: " + configuredBaseUrl, e);
+          "Invalid Feature Flags configuration source URL: " + configuredBaseUrl,
+          e
+      );
     }
     final String scheme = parsed.getScheme();
     if ((!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))
         || parsed.getHost() == null) {
       throw new IllegalArgumentException(
-          "Invalid Feature Flags configuration source URL: " + configuredBaseUrl);
+          "Invalid Feature Flags configuration source URL: " + configuredBaseUrl
+      );
     }
     final String path = parsed.getRawPath();
     if (path == null || path.isEmpty() || "/".equals(path)) {
       final String query = parsed.getRawQuery();
       return parsed.resolve(
-          query == null ? UFC_RULES_BASED_SERVER_PATH : UFC_RULES_BASED_SERVER_PATH + "?" + query);
+          query == null ? UFC_RULES_BASED_SERVER_PATH : UFC_RULES_BASED_SERVER_PATH + "?" + query
+      );
     }
     return parsed;
   }
@@ -359,7 +375,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
   }
 
   static long retryDelayMillis(
-      final long pollIntervalMillis, final int attempt, final double jitter) {
+      final long pollIntervalMillis,
+      final int attempt,
+      final double jitter
+  ) {
     final long baseDelay;
     if (attempt == 1) {
       baseDelay = clamp(pollIntervalMillis / 6, FIRST_RETRY_MIN_MILLIS, FIRST_RETRY_MAX_MILLIS);

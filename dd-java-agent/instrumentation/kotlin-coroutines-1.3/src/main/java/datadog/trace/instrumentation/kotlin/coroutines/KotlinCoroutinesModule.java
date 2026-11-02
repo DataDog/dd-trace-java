@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,7 +17,9 @@ public class KotlinCoroutinesModule extends InstrumenterModule.ContextTracking {
     super("kotlin_coroutine");
   }
 
-  /** Includes the synthetic flow collection boundary used by older coroutine releases. */
+  /**
+   * Includes the synthetic flow collection boundary used by older coroutine releases.
+   */
   @Override
   public ElementMatcher<? super MethodDescription> methodIgnoreMatcher() {
     return isSynthetic().and(not(named("collectWithContextUndispatched")));
@@ -31,6 +32,7 @@ public class KotlinCoroutinesModule extends InstrumenterModule.ContextTracking {
         new CoroutineInstrumentation(),
         new LazyCoroutineInstrumentation(),
         new CoroutineFlowInstrumentation(),
-        new CoroutineFlowContextCheckInstrumentation());
+        new CoroutineFlowContextCheckInstrumentation()
+    );
   }
 }

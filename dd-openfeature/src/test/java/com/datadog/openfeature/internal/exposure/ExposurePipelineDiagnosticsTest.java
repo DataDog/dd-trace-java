@@ -6,7 +6,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
@@ -41,7 +40,6 @@ class ExposurePipelineDiagnosticsTest {
     pipeline.accept(exposure());
     pipeline.accept(exposure());
     pipeline.accept(exposure());
-
     // The producer, an application thread, does not log.
     assertEquals(logged, pipelineEvents().size(), messages("").toString());
     pipeline.start();
@@ -95,12 +93,9 @@ class ExposurePipelineDiagnosticsTest {
 
   @Test
   void reportsAFailedFlushAsDroppingTheBatch() throws Exception {
-    final ExposurePipeline pipeline =
-        pipeline(
-            16,
-            (route, json) -> {
-              throw new IOException("returned error response 503");
-            });
+    final ExposurePipeline pipeline = pipeline(16, (route, json) -> {
+      throw new IOException("returned error response 503");
+    });
     pipeline.start();
     try {
       pipeline.accept(exposure());
@@ -115,7 +110,13 @@ class ExposurePipelineDiagnosticsTest {
 
   private static ExposurePipeline pipeline(final int capacity, final EventTransport transport) {
     return new ExposurePipeline(
-        capacity, 10, MILLISECONDS, transport, emptyMap(), new RuntimeServices(HealthMetrics.NOOP));
+        capacity,
+        10,
+        MILLISECONDS,
+        transport,
+        emptyMap(),
+        new RuntimeServices(HealthMetrics.NOOP)
+    );
   }
 
   private static ExposureEvent exposure() {
@@ -125,7 +126,8 @@ class ExposurePipelineDiagnosticsTest {
         new Flag("flag"),
         new Variant("variant"),
         new Subject("subject", emptyMap()),
-        1);
+        1
+    );
   }
 
   private static void awaitLog(final String text) throws InterruptedException {
@@ -136,17 +138,23 @@ class ExposurePipelineDiagnosticsTest {
     assertFalse(messages(text).isEmpty(), "Missing log: " + text + " in " + messages(""));
   }
 
-  /** The events of the pipeline only: other threads of the JVM can log in the same window. */
+  /**
+   * The events of the pipeline only: other threads of the JVM can log in the same window.
+   */
   private static List<CapturingServiceProvider.Event> pipelineEvents() {
-    return CapturingServiceProvider.events().stream()
-        .filter(e -> e.logger.equals(ExposurePipeline.class.getName()))
-        .collect(Collectors.toList());
+    return CapturingServiceProvider
+      .events()
+      .stream()
+      .filter(e -> e.logger.equals(ExposurePipeline.class.getName()))
+      .collect(Collectors.toList());
   }
 
   private static List<String> messages(final String text) {
-    return CapturingServiceProvider.events().stream()
-        .map(e -> e.message)
-        .filter(message -> message.contains(text))
-        .collect(Collectors.toList());
+    return CapturingServiceProvider
+      .events()
+      .stream()
+      .map(e -> e.message)
+      .filter(message -> message.contains(text))
+      .collect(Collectors.toList());
   }
 }

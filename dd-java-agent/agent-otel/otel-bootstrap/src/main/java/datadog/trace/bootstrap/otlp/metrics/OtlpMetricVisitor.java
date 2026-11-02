@@ -8,9 +8,13 @@ import datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor;
  * <p>Methods must be called in the following order: ( visitAttribute* visitDataPoint )*
  */
 public interface OtlpMetricVisitor extends OtlpAttributeVisitor {
-  /** Visits an attribute of the upcoming data point. */
+  /**
+   * Visits an attribute of the upcoming data point.
+   */
   void visitAttribute(int type, String key, Object value);
 
-  /** Visits a data point in the metric. */
+  /**
+   * Visits a data point in the metric.
+   */
   void visitDataPoint(OtlpDataPoint point);
 }

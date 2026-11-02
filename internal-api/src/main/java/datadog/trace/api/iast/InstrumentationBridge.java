@@ -39,9 +39,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Bridge between instrumentations and {@link IastModule} instances. */
+/**
+ * Bridge between instrumentations and {@link IastModule} instances.
+ */
 public abstract class InstrumentationBridge {
-
   public static StringModule STRING;
   public static CodecModule CODEC;
   public static SqlInjectionModule SQL_INJECTION;
@@ -72,10 +73,10 @@ public abstract class InstrumentationBridge {
   public static UntrustedDeserializationModule UNTRUSTED_DESERIALIZATION;
   public static EmailInjectionModule EMAIL_INJECTION;
   public static CodeInjectionModule CODE_INJECTION;
-
   private static final Map<Class<? extends IastModule>, Field> MODULE_MAP = buildModuleMap();
 
-  private InstrumentationBridge() {}
+  private InstrumentationBridge() {
+  }
 
   public static void registerIastModule(final IastModule module) {
     final Class<? extends IastModule> type = getType(module.getClass());
@@ -86,7 +87,9 @@ public abstract class InstrumentationBridge {
     set(field, module);
   }
 
-  /** Used for testing purposes, never use it from production code */
+  /**
+   * Used for testing purposes, never use it from production code
+   */
   static <M extends IastModule> M getIastModule(final Class<M> type) {
     final Field field = MODULE_MAP.get(type);
     if (field == null) {
@@ -95,12 +98,16 @@ public abstract class InstrumentationBridge {
     return get(field);
   }
 
-  /** Used for testing purposes, never use it from production code */
+  /**
+   * Used for testing purposes, never use it from production code
+   */
   static void clearIastModules() {
     MODULE_MAP.values().forEach(it -> set(it, null));
   }
 
-  /** Used for testing purposes, never use it from production code */
+  /**
+   * Used for testing purposes, never use it from production code
+   */
   static Set<Class<? extends IastModule>> getIastModules() {
     return MODULE_MAP.keySet();
   }

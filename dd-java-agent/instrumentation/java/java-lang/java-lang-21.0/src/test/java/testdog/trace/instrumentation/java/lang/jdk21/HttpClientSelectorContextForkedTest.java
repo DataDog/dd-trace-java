@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static testdog.trace.instrumentation.java.lang.jdk21.PollerContextForkedTest.field;
 import static testdog.trace.instrumentation.java.lang.jdk21.PollerContextForkedTest.virtualThreadState;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

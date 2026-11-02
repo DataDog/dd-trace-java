@@ -1,7 +1,6 @@
 package com.datadog.iast.model.json;
 
 import static com.datadog.iast.model.json.TruncationUtils.writeTruncableValue;
-
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.json.AdapterFactory.Context;
 import com.datadog.iast.model.json.AdapterFactory.RedactionContext;
@@ -13,7 +12,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class SourceAdapter extends FormattingAdapter<Source> {
-
   private final SourceTypeAdapter sourceTypeAdapter;
   private final JsonAdapter<Source> defaultAdapter;
   private final JsonAdapter<Source> redactedAdapter;
@@ -25,7 +23,7 @@ public class SourceAdapter extends FormattingAdapter<Source> {
   }
 
   @Override
-  public void toJson(@Nonnull final JsonWriter writer, final @Nullable Source source)
+  public void toJson(@Nonnull final JsonWriter writer, @Nullable final Source source)
       throws IOException {
     if (source == null) {
       writer.nullValue();
@@ -39,7 +37,6 @@ public class SourceAdapter extends FormattingAdapter<Source> {
   }
 
   private class DefaultSourceAdapter extends FormattingAdapter<Source> {
-
     @Override
     public void toJson(@Nonnull JsonWriter writer, @Nonnull Source source) throws IOException {
       writer.beginObject();
@@ -54,9 +51,8 @@ public class SourceAdapter extends FormattingAdapter<Source> {
   }
 
   private class RedactedSourceAdapter extends FormattingAdapter<Source> {
-
     @Override
-    public void toJson(@Nonnull final JsonWriter writer, final @Nonnull Source source)
+    public void toJson(@Nonnull final JsonWriter writer, @Nonnull final Source source)
         throws IOException {
       final RedactionContext ctx = Context.get().getRedaction(source);
       if (ctx.shouldRedact()) {
@@ -67,8 +63,10 @@ public class SourceAdapter extends FormattingAdapter<Source> {
     }
 
     private void toRedactedJson(
-        final JsonWriter writer, final Source source, @Nullable final String value)
-        throws IOException {
+        final JsonWriter writer,
+        final Source source,
+        @Nullable final String value
+    ) throws IOException {
       writer.beginObject();
       writer.name("origin");
       sourceTypeAdapter.toJson(writer, source.getOrigin());

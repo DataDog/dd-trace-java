@@ -1,11 +1,9 @@
 package datadog.trace.api.sampling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.tabletest.junit.TableTest;
 
 class SamplingRuleTest {
-
   @TableTest({
     "scenario       | glob  | normalized",
     // '*' is SamplingRule.MATCH_ALL

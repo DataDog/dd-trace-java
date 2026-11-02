@@ -24,11 +24,13 @@ import org.slf4j.LoggerFactory;
  */
 public final class LLMObsTraceId {
   private static final Logger LOGGER = LoggerFactory.getLogger(LLMObsTraceId.class);
-
-  /** Length of an LLMObs trace id in hexadecimal, matching a 128-bit APM trace id. */
+  /**
+   * Length of an LLMObs trace id in hexadecimal, matching a 128-bit APM trace id.
+   */
   private static final int HEX_LENGTH = 32;
 
-  private LLMObsTraceId() {}
+  private LLMObsTraceId() {
+  }
 
   /**
    * Renders an APM trace id in the form an LLMObs trace id seeded from it is stored in: hexadecimal
@@ -101,7 +103,8 @@ public final class LLMObsTraceId {
     }
     LOGGER.debug(
         "LLMObs trace_id {} is neither canonical hex nor a decimal integer, storing as-is",
-        traceId);
+        traceId
+    );
     return traceId;
   }
 
@@ -119,10 +122,15 @@ public final class LLMObsTraceId {
       return value.toString(16);
     }
     return LongStringUtils.toHexStringPadded(
-        value.shiftRight(64).longValue(), value.longValue(), HEX_LENGTH);
+        value.shiftRight(64).longValue(),
+        value.longValue(),
+        HEX_LENGTH
+    );
   }
 
-  /** Whether the value is exactly {@link #HEX_LENGTH} lowercase hexadecimal digits. */
+  /**
+   * Whether the value is exactly {@link #HEX_LENGTH} lowercase hexadecimal digits.
+   */
   private static boolean isCanonicalHex(String value) {
     if (value.length() != HEX_LENGTH) {
       return false;
@@ -136,7 +144,9 @@ public final class LLMObsTraceId {
     return true;
   }
 
-  /** Whether the value is a non-empty run of ASCII digits. */
+  /**
+   * Whether the value is a non-empty run of ASCII digits.
+   */
   private static boolean isDecimal(String value) {
     for (int i = 0; i < value.length(); i++) {
       char c = value.charAt(i);

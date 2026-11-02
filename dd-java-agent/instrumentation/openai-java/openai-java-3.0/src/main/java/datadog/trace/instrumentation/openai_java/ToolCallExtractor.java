@@ -18,7 +18,8 @@ public class ToolCallExtractor {
   private static final Logger log = LoggerFactory.getLogger(ToolCallExtractor.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final TypeReference<Map<String, Object>> MAP_TYPE_REF =
-      new TypeReference<Map<String, Object>>() {};
+      new TypeReference<Map<String, Object>>() {
+  };
 
   public static LLMObs.ToolCall getToolCall(ChatCompletionMessageToolCall toolCall) {
     Optional<ChatCompletionMessageFunctionToolCall> functionToolCallOpt = toolCall.function();

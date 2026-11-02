@@ -4,7 +4,6 @@ import static datadog.trace.core.otlp.common.OtlpResourceProto.buildTraceResourc
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordScopedSpansMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanLinkMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanMessage;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -32,33 +31,28 @@ import java.util.List;
  * (after a remote config tag change) completes the current resource and starts a new one.
  */
 public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
-
   private static final OtelInstrumentationScope DEFAULT_TRACE_SCOPE =
       new OtelInstrumentationScope("", null, null);
-
   private final GrowableBuffer buf = new GrowableBuffer(512);
   private final OtlpTraceProto.MetaWriter metaWriter = new OtlpTraceProto.MetaWriter(buf);
   private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
-
   private boolean payloadStarted;
-
   // total number of chunked bytes at different nesting levels
   private int payloadBytes;
   private int resourceBytes;
   private int scopedBytes;
   private int spanBytes;
-
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
-
   // global tags of the trace being added
   private TagMap traceGlobalTags;
-
   // resources for the last two global tags seen, see CachedResource
   private CachedResource currentResource;
   private CachedResource previousResource;
 
-  /** Adds the given trace spans to the collector. */
+  /**
+   * Adds the given trace spans to the collector.
+   */
   @Override
   public void addTrace(List<? extends CoreSpan<?>> spans) {
     if (!payloadStarted) {
@@ -98,13 +92,17 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     }
   }
 
-  /** Prepare temporary elements to collect trace data. */
+  /**
+   * Prepare temporary elements to collect trace data.
+   */
   private void start() {
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
   }
 
-  /** Cleanup elements used to collect trace data. */
+  /**
+   * Cleanup elements used to collect trace data.
+   */
   private void stop() {
     payloadStarted = false;
     payloadGlobalTags = null;
@@ -127,7 +125,6 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
       completeResource();
     }
     payloadGlobalTags = globalTags;
-
     // for now put all spans under the default scope
     visitScopedSpans(DEFAULT_TRACE_SCOPE);
   }
@@ -179,13 +176,10 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   // called once we've processed all spans with the same global tags
   private void completeResource() {
     completeScope();
-
     // prepend the resource chunk, which carries the global tags
     resourceBytes += protobuf.recordMessage(resourceMessage());
-
     // then prepend the total length of the resource's chunks
     payloadBytes += protobuf.recordMessage(buf, 1, resourceBytes);
-
     // reset temporary elements for next resource
     resourceBytes = 0;
   }
@@ -193,10 +187,10 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   private byte[] resourceMessage() {
     if (currentResource == null || currentResource.globalTags != payloadGlobalTags) {
       CachedResource replaced = currentResource;
-      currentResource =
-          previousResource != null && previousResource.globalTags == payloadGlobalTags
-              ? previousResource
-              : new CachedResource(payloadGlobalTags, buildTraceResourceMessage(payloadGlobalTags));
+      currentResource = previousResource != null
+          && previousResource.globalTags == payloadGlobalTags
+          ? previousResource
+          : new CachedResource(payloadGlobalTags, buildTraceResourceMessage(payloadGlobalTags));
       previousResource = replaced;
     }
     return currentResource.message;
@@ -215,7 +209,6 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     if (scopedBytes > 0) {
       resourceBytes += recordScopedSpansMessage(buf, currentScope, scopedBytes, protobuf);
     }
-
     // reset temporary elements for next scope
     currentScope = null;
     scopedBytes = 0;
@@ -223,9 +216,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
   // called once we've processed all span-links in a specific span
   private void completeSpan() {
-
     scopedBytes += recordSpanMessage(buf, currentSpan, metaWriter, spanBytes, protobuf);
-
     // reset temporary elements for next span
     currentSpan = null;
     spanBytes = 0;

@@ -2,7 +2,6 @@ package datadog.trace.common.sampling;
 
 import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.DROP;
 import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.KEEP;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.TraceConfig;
@@ -20,9 +19,10 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Main interface to sample a collection of traces. */
+/**
+ * Main interface to sample a collection of traces.
+ */
 public interface Sampler {
-
   /**
    * Sample a collection of traces based on the parent span
    *
@@ -31,7 +31,9 @@ public interface Sampler {
    */
   <T extends CoreSpan<T>> boolean sample(T span);
 
-  /** Returns the sampler applying agent published rates. */
+  /**
+   * Returns the sampler applying agent published rates.
+   */
   @Nullable
   default RateByServiceTraceSampler agentSampler() {
     return null;
@@ -54,19 +56,22 @@ public interface Sampler {
     public static Sampler forConfig(
         final Config config,
         final TraceConfig traceConfig,
-        @Nullable final RateByServiceTraceSampler agentSampler) {
+        @Nullable final RateByServiceTraceSampler agentSampler
+    ) {
       Sampler sampler;
       if (config != null) {
         if (!config.isApmTracingEnabled()) {
           if (isAsmEnabled(config)) {
             log.debug(
-                "APM tracing is disabled, but ASM is enabled. Only 1 APM trace per minute will be sent.");
+                "APM tracing is disabled, but ASM is enabled. Only 1 APM trace per minute will be sent."
+            );
             return new AsmStandaloneSampler(Clock.systemUTC());
           }
           // Only ASM needs a trickle of APM traces, so drop them all unless AppSec is activated
           // later by Remote Configuration.
           log.debug(
-              "APM tracing is disabled. APM traces will be dropped, unless AppSec is activated at runtime.");
+              "APM tracing is disabled. APM traces will be dropped, unless AppSec is activated at runtime."
+          );
           return new ApmTracingDisabledSampler(Clock.systemUTC());
         }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
@@ -75,8 +80,9 @@ public interface Sampler {
         if (null != traceConfig) {
           traceSamplingRules = traceConfig.getTraceSamplingRules();
         } else if (null != config.getTraceSamplingRules()) {
-          traceSamplingRules =
-              TraceSamplingRules.deserialize(config.getTraceSamplingRules()).getRules();
+          traceSamplingRules = TraceSamplingRules
+            .deserialize(config.getTraceSamplingRules())
+            .getRules();
         } else {
           traceSamplingRules = Collections.emptyList();
         }
@@ -89,7 +95,8 @@ public interface Sampler {
               TracerConfig.TRACE_SAMPLING_SERVICE_RULES,
               TracerConfig.TRACE_SAMPLING_OPERATION_RULES,
               TracerConfig.TRACE_SAMPLING_RULES,
-              TracerConfig.TRACE_SAMPLING_RULES);
+              TracerConfig.TRACE_SAMPLING_RULES
+          );
         }
         Double traceSampleRate =
             null != traceConfig ? traceConfig.getTraceSampleRate() : config.getTraceSampleRate();
@@ -98,14 +105,14 @@ public interface Sampler {
             || traceSamplingRulesDefined
             || traceSampleRate != null) {
           try {
-            sampler =
-                RuleBasedTraceSampler.build(
-                    serviceRules,
-                    operationRules,
-                    traceSamplingRules,
-                    traceSampleRate,
-                    config.getTraceRateLimit(),
-                    agentSampler);
+            sampler = RuleBasedTraceSampler.build(
+                serviceRules,
+                operationRules,
+                traceSamplingRules,
+                traceSampleRate,
+                config.getTraceRateLimit(),
+                agentSampler
+            );
           } catch (final IllegalArgumentException e) {
             log.error("Invalid sampler configuration. Using AllSampler", e);
             sampler = new AllSampler();
@@ -113,16 +120,21 @@ public interface Sampler {
         } else if (config.isPrioritySamplingEnabled()) {
           if (KEEP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
             log.debug("Force Sampling Priority to: SAMPLER_KEEP.");
-            sampler =
-                new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
+            sampler = new ForcePrioritySampler(
+                PrioritySampling.SAMPLER_KEEP,
+                SamplingMechanism.DEFAULT
+            );
           } else if (DROP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
             log.debug("Force Sampling Priority to: SAMPLER_DROP.");
-            sampler =
-                new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
+            sampler = new ForcePrioritySampler(
+                PrioritySampling.SAMPLER_DROP,
+                SamplingMechanism.DEFAULT
+            );
           } else if (config.isTraceOtlpExporterEnabled()) {
             // RateByServiceTraceSampler relies on the Datadog Agent for rate updates.
             log.debug(
-                "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of RateByServiceTraceSampler.");
+                "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of RateByServiceTraceSampler."
+            );
             sampler = new ParentBasedAlwaysOnSampler();
           } else {
             sampler = agentSampler != null ? agentSampler : new RateByServiceTraceSampler();
@@ -130,7 +142,8 @@ public interface Sampler {
         } else if (config.isTraceOtlpExporterEnabled()) {
           // AllSampler does not emit a sampling priority; OTLP export requires one.
           log.debug(
-              "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of AllSampler.");
+              "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of AllSampler."
+          );
           sampler = new ParentBasedAlwaysOnSampler();
         } else {
           sampler = new AllSampler();
@@ -141,7 +154,9 @@ public interface Sampler {
       return sampler;
     }
 
-    /** Whether any Application Security product is on at startup. */
+    /**
+     * Whether any Application Security product is on at startup.
+     */
     private static boolean isAsmEnabled(Config config) {
       return config.getAppSecActivation() == ProductActivation.FULLY_ENABLED
           || config.getIastActivation() == ProductActivation.FULLY_ENABLED
@@ -152,6 +167,7 @@ public interface Sampler {
       return forConfig(Config.get(config), null);
     }
 
-    private Builder() {}
+    private Builder() {
+    }
   }
 }

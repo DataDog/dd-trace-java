@@ -31,9 +31,7 @@ import org.slf4j.LoggerFactory;
  * <p>Enforcement never runs when the local OPM is unknown (the agent has not yet reported one).
  */
 final class OrgGuardEnforcer {
-
   private static final Logger log = LoggerFactory.getLogger(OrgGuardEnforcer.class);
-
   private final boolean strict;
   private final Set<String> trustedOpms;
   private final Supplier<String> localOpmSupplier;
@@ -44,13 +42,15 @@ final class OrgGuardEnforcer {
       Config config,
       Supplier<String> localOpmSupplier,
       PropagationTags.Factory factory,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics
+  ) {
     this(
         config.isTraceOrgGuardStrict(),
         config.getTraceOrgGuardTrustedOpms(),
         localOpmSupplier,
         factory,
-        healthMetrics);
+        healthMetrics
+    );
   }
 
   // Visible for testing.
@@ -59,7 +59,8 @@ final class OrgGuardEnforcer {
       Set<String> trustedOpms,
       Supplier<String> localOpmSupplier,
       PropagationTags.Factory factory,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics
+  ) {
     this.strict = strict;
     this.trustedOpms = trustedOpms;
     this.localOpmSupplier = localOpmSupplier;
@@ -100,12 +101,17 @@ final class OrgGuardEnforcer {
   }
 
   private ExtractedContext strip(
-      ExtractedContext ctx, OrgGuard.Reason reason, String localOpm, String inboundOpm) {
+      ExtractedContext ctx,
+      OrgGuard.Reason reason,
+      String localOpm,
+      String inboundOpm
+  ) {
     log.debug(
         "OPG enforcement: dropping dd context (reason={}, inbound={}, local={})",
         reason.tag(),
         inboundOpm,
-        localOpm);
+        localOpm
+    );
     healthMetrics.onOrgGuardEnforce(reason);
 
     PropagationTags stripped = factory.emptyW3C(ctx.getPropagationTags().getW3CTracestate());
@@ -120,6 +126,7 @@ final class OrgGuardEnforcer {
         null,
         stripped,
         ctx.getTraceConfig(),
-        ctx.getPropagationStyle());
+        ctx.getPropagationStyle()
+    );
   }
 }

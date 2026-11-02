@@ -12,7 +12,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
@@ -29,7 +28,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class SessionInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private final String namespace;
 
   public SessionInstrumentation(String namespace) {
@@ -50,48 +51,58 @@ public class SessionInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("createProducer"))
-            .and(isPublic())
-            .and(takesArgument(0, named(namespace + ".jms.Destination"))),
-        getClass().getName() + "$CreateProducer");
+          .and(named("createProducer"))
+          .and(isPublic())
+          .and(takesArgument(0, named(namespace + ".jms.Destination"))),
+        getClass().getName() + "$CreateProducer"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("createSender"))
-            .and(isPublic())
-            .and(takesArgument(0, named(namespace + ".jms.Queue"))),
-        getClass().getName() + "$CreateProducer");
+          .and(named("createSender"))
+          .and(isPublic())
+          .and(takesArgument(0, named(namespace + ".jms.Queue"))),
+        getClass().getName() + "$CreateProducer"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("createPublisher"))
-            .and(isPublic())
-            .and(takesArgument(0, named(namespace + ".jms.Topic"))),
-        getClass().getName() + "$CreateProducer");
+          .and(named("createPublisher"))
+          .and(isPublic())
+          .and(takesArgument(0, named(namespace + ".jms.Topic"))),
+        getClass().getName() + "$CreateProducer"
+    );
 
     transformer.applyAdvice(
         isMethod()
-            .and(named("createConsumer"))
-            .and(isPublic())
-            .and(takesArgument(0, named(namespace + ".jms.Destination"))),
-        getClass().getName() + "$CreateConsumer");
+          .and(named("createConsumer"))
+          .and(isPublic())
+          .and(takesArgument(0, named(namespace + ".jms.Destination"))),
+        getClass().getName() + "$CreateConsumer"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("createReceiver"))
-            .and(isPublic())
-            .and(takesArgument(0, named(namespace + ".jms.Queue"))),
-        getClass().getName() + "$CreateConsumer");
+          .and(named("createReceiver"))
+          .and(isPublic())
+          .and(takesArgument(0, named(namespace + ".jms.Queue"))),
+        getClass().getName() + "$CreateConsumer"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("createSubscriber", "createDurableSubscriber"))
-            .and(isPublic())
-            .and(takesArgument(0, named(namespace + ".jms.Topic"))),
-        getClass().getName() + "$CreateConsumer");
+          .and(namedOneOf("createSubscriber", "createDurableSubscriber"))
+          .and(isPublic())
+          .and(takesArgument(0, named(namespace + ".jms.Topic"))),
+        getClass().getName() + "$CreateConsumer"
+    );
 
     transformer.applyAdvice(
-        namedOneOf("recover").and(takesNoArguments()), getClass().getName() + "$Recover");
+        namedOneOf("recover").and(takesNoArguments()),
+        getClass().getName() + "$Recover"
+    );
     transformer.applyAdvice(
-        namedOneOf("commit", "rollback").and(takesNoArguments()), getClass().getName() + "$Commit");
-    transformer.applyAdvice(
-        named("close").and(takesNoArguments()), getClass().getName() + "$Close");
+        namedOneOf("commit", "rollback").and(takesNoArguments()),
+        getClass().getName() + "$Commit"
+    );
+    transformer.applyAdvice(named("close").and(takesNoArguments()), getClass().getName()
+        + "$Close");
   }
 
   public static final class CreateProducer {
@@ -99,11 +110,10 @@ public class SessionInstrumentation
     public static void bindProducerState(
         @Advice.This Session session,
         @Advice.Argument(0) Destination destination,
-        @Advice.Return MessageProducer producer) {
-
+        @Advice.Return MessageProducer producer
+    ) {
       ContextStore<MessageProducer, MessageProducerState> producerStateStore =
           InstrumentationContext.get(MessageProducer.class, MessageProducerState.class);
-
       // avoid doing the same thing more than once when there is delegation to overloads
       if (producerStateStore.get(producer) == null) {
         ContextStore<Session, SessionState> sessionStateStore =
@@ -117,8 +127,10 @@ public class SessionInstrumentation
           } catch (Throwable ignored) {
             ackMode = Session.AUTO_ACKNOWLEDGE;
           }
-          sessionState =
-              sessionStateStore.getOrPut(session, new SessionState(ackMode, TIME_IN_QUEUE_ENABLED));
+          sessionState = sessionStateStore.getOrPut(
+              session,
+              new SessionState(ackMode, TIME_IN_QUEUE_ENABLED)
+          );
         }
 
         boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
@@ -129,7 +141,9 @@ public class SessionInstrumentation
             Config.get().isJmsPropagationDisabledForDestination(destinationName);
 
         producerStateStore.put(
-            producer, new MessageProducerState(sessionState, resourceName, propagationDisabled));
+            producer,
+            new MessageProducerState(sessionState, resourceName, propagationDisabled)
+        );
       }
     }
   }
@@ -139,11 +153,10 @@ public class SessionInstrumentation
     public static void bindConsumerState(
         @Advice.This Session session,
         @Advice.Argument(0) Destination destination,
-        @Advice.Return MessageConsumer consumer) {
-
+        @Advice.Return MessageConsumer consumer
+    ) {
       ContextStore<MessageConsumer, MessageConsumerState> consumerStateStore =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class);
-
       // avoid doing the same thing more than once when there is delegation to overloads
       if (consumerStateStore.get(consumer) == null) {
         ContextStore<Session, SessionState> sessionStateStore =
@@ -157,8 +170,10 @@ public class SessionInstrumentation
           } catch (Throwable ignored) {
             ackMode = Session.AUTO_ACKNOWLEDGE;
           }
-          sessionState =
-              sessionStateStore.getOrPut(session, new SessionState(ackMode, TIME_IN_QUEUE_ENABLED));
+          sessionState = sessionStateStore.getOrPut(
+              session,
+              new SessionState(ackMode, TIME_IN_QUEUE_ENABLED)
+          );
         }
 
         boolean isQueue = CONSUMER_DECORATE.isQueue(destination);
@@ -178,7 +193,9 @@ public class SessionInstrumentation
                 brokerResourceName,
                 destinationName,
                 consumerResourceName,
-                propagationDisabled));
+                propagationDisabled
+            )
+        );
       }
     }
   }

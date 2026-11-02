@@ -23,4 +23,5 @@ import java.lang.annotation.Target;
 @PerfContract
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
-public @interface Singleton {}
+public @interface Singleton {
+}

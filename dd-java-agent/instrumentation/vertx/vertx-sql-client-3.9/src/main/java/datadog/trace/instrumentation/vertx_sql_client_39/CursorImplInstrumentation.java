@@ -5,7 +5,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,7 +12,9 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class CursorImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public CursorImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
@@ -32,9 +33,10 @@ public class CursorImplInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("read"))
-            .and(takesArgument(1, named("io.vertx.core.Handler"))),
-        packageName + ".CursorReadAdvice");
+          .and(isPublic())
+          .and(named("read"))
+          .and(takesArgument(1, named("io.vertx.core.Handler"))),
+        packageName + ".CursorReadAdvice"
+    );
   }
 }

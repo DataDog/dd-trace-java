@@ -10,7 +10,6 @@ import java.util.Map;
 // TODO This naive implementation should be improved
 // cf https://github.com/rohansuri/adaptive-radix-tree
 // or Any PATRICIA derived algorithm
-
 /**
  * There is 2 ways to use this Trie:
  *

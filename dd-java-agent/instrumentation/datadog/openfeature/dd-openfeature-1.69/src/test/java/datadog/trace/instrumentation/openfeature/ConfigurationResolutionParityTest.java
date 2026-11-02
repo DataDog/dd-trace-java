@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
 import datadog.trace.api.InstrumenterConfig;
@@ -51,7 +50,11 @@ class ConfigurationResolutionParityTest {
     "padded legacy reads as false     |          |               | ' true ' |              "
   })
   void agentAndSdkResolveTheSameConfiguration(
-      final String enabled, final String source, final String legacy, final String expected) {
+      final String enabled,
+      final String source,
+      final String legacy,
+      final String expected
+  ) {
     final Map<String, String> settings = new HashMap<>();
     putIfNotNull(settings, FEATURE_FLAGS_ENABLED, enabled);
     putIfNotNull(settings, FEATURE_FLAGS_CONFIGURATION_SOURCE, source);
@@ -61,7 +64,9 @@ class ConfigurationResolutionParityTest {
     assertEquals(expected, sdkSource(settings), "SDK resolution");
   }
 
-  /** Resolves the source like the agent, through {@link InstrumenterConfig}. */
+  /**
+   * Resolves the source like the agent, through {@link InstrumenterConfig}.
+   */
   private static String agentSource(final Map<String, String> settings) {
     settings.forEach(WithConfigExtension::injectSysConfig);
     final InstrumenterConfig config = InstrumenterConfig.get();
@@ -77,12 +82,15 @@ class ConfigurationResolutionParityTest {
   private static String sdkSource(final Map<String, String> settings) {
     final AgentBridge bridge = mock(AgentBridge.class);
     when(bridge.setting(anyString()))
-        .thenAnswer(invocation -> settings.get(invocation.<String>getArgument(0)));
+      .thenAnswer(invocation -> settings.get(invocation.<String>getArgument(0)));
     return Settings.load(bridge).configurationSource();
   }
 
   private static void putIfNotNull(
-      final Map<String, String> map, final String key, final String value) {
+      final Map<String, String> map,
+      final String key,
+      final String value
+  ) {
     if (value != null) {
       map.put(key, value);
     }

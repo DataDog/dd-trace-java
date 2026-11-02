@@ -3,9 +3,12 @@ package com.datadog.openfeature.internal.delivery;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-/** Builds the host of a Datadog endpoint from the configured site. */
+/**
+ * Builds the host of a Datadog endpoint from the configured site.
+ */
 final class SiteHost {
-  private SiteHost() {}
+  private SiteHost() {
+  }
 
   /**
    * Builds the host of a Datadog endpoint.

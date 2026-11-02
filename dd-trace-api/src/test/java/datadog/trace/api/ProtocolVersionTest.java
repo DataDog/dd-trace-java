@@ -8,13 +8,11 @@ import static datadog.trace.api.ProtocolVersion.fromTraceEndpoint;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("trace agent protocol versions")
 class ProtocolVersionTest {
-
   @Test
   @DisplayName("expose configuration values")
   void exposesConfigValues() {

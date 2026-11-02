@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
 import static datadog.trace.api.sampling.PerRecordingRateLimiter.samplingWindowsPerRecording;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.jfr.WindowSampler;
 import java.time.Duration;
@@ -19,7 +18,8 @@ final class ExceptionSampler extends WindowSampler<ExceptionSampleEvent> {
     this(
         SAMPLING_WINDOW,
         getSamplesPerWindow(config),
-        samplingWindowsPerRecording(config.getProfilingUploadPeriod(), SAMPLING_WINDOW));
+        samplingWindowsPerRecording(config.getProfilingUploadPeriod(), SAMPLING_WINDOW)
+    );
   }
 
   ExceptionSampler(Duration windowDuration, int samplesPerWindow, int lookback) {
@@ -27,7 +27,9 @@ final class ExceptionSampler extends WindowSampler<ExceptionSampleEvent> {
   }
 
   protected static int getSamplesPerWindow(final Config config) {
-    return config.getProfilingExceptionSampleLimit()
-        / samplingWindowsPerRecording(config.getProfilingUploadPeriod(), SAMPLING_WINDOW);
+    return config.getProfilingExceptionSampleLimit() / samplingWindowsPerRecording(
+        config.getProfilingUploadPeriod(),
+        SAMPLING_WINDOW
+    );
   }
 }

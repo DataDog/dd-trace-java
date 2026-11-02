@@ -8,9 +8,12 @@ import dev.openfeature.sdk.OpenFeatureAPI;
 import dev.openfeature.sdk.Value;
 import java.util.Map;
 
-/** Registers a released provider and reports how it evaluates flags. */
+/**
+ * Registers a released provider and reports how it evaluates flags.
+ */
 public final class LegacyProviderApplication {
-  private LegacyProviderApplication() {}
+  private LegacyProviderApplication() {
+  }
 
   public static void main(final String[] args) {
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
@@ -32,17 +35,21 @@ public final class LegacyProviderApplication {
   }
 
   private static void report(
-      final String type, final FlagEvaluationDetails<?> details, final Object defaultValue) {
+      final String type,
+      final FlagEvaluationDetails<?> details,
+      final Object defaultValue
+  ) {
     System.out.println(
         "EVALUATION "
-            + type
-            + " default="
-            + defaultValue.equals(details.getValue())
-            + " reason="
-            + details.getReason()
-            + " error="
-            + details.getErrorCode()
-            + " variant="
-            + details.getVariant());
+        + type
+        + " default="
+        + defaultValue.equals(details.getValue())
+        + " reason="
+        + details.getReason()
+        + " error="
+        + details.getErrorCode()
+        + " variant="
+        + details.getVariant()
+    );
   }
 }

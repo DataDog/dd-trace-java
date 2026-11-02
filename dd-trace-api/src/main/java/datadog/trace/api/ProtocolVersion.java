@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -11,7 +10,6 @@ public enum ProtocolVersion {
   V0_4("0.4", "v0.4/traces", "v0.3/traces"),
   V0_5("0.5", "v0.5/traces", "v0.4/traces", "v0.3/traces"),
   V1_0("1.0", "v1.0/traces", "v0.4/traces", "v0.3/traces");
-
   private final String configValue;
   private final String endpoint;
   private final List<String> fallback;

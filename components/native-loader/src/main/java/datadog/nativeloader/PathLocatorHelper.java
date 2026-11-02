@@ -9,7 +9,6 @@ import java.net.URL;
 public final class PathLocatorHelper implements PathLocator {
   final String libName;
   final PathLocator locator;
-
   private Throwable firstCause;
 
   public PathLocatorHelper(String libName, PathLocator locator) {
@@ -22,12 +21,16 @@ public final class PathLocatorHelper implements PathLocator {
     try {
       return this.locator.locate(optionalComponent, path);
     } catch (Throwable t) {
-      if (this.firstCause == null) this.firstCause = t;
+      if (this.firstCause == null) {
+        this.firstCause = t;
+      }
       return null;
     }
   }
 
-  /** Raises a LibraryLoadException if an exception occurred during a prior call to locate */
+  /**
+   * Raises a LibraryLoadException if an exception occurred during a prior call to locate
+   */
   public void tryThrow() throws LibraryLoadException {
     if (this.firstCause instanceof LibraryLoadException) {
       throw (LibraryLoadException) this.firstCause;

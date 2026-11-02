@@ -15,7 +15,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -44,9 +43,14 @@ class FeatureFlagsBackendTest {
   private final SpanEnrichmentWriter spanEnrichmentWriter =
       new SpanEnrichmentWriter(() -> this.root);
   private final CoreMetricCollector metrics = mock(CoreMetricCollector.class);
-  private final FeatureFlagsBackend backend =
-      new FeatureFlagsBackend(
-          this.sco, this.config, this.eventProxy, this.spanEnrichmentWriter, this.metrics, null);
+  private final FeatureFlagsBackend backend = new FeatureFlagsBackend(
+      this.sco,
+      this.config,
+      this.eventProxy,
+      this.spanEnrichmentWriter,
+      this.metrics,
+      null
+  );
 
   private static AgentSpan rootSpan() {
     final AgentSpan root = mock(AgentSpan.class);
@@ -63,11 +67,10 @@ class FeatureFlagsBackendTest {
     when(this.config.getVersion()).thenReturn("1.0");
     when(this.config.isFeatureFlaggingProviderEnabled()).thenReturn(true);
     when(this.config.getFeatureFlaggingConfigurationSource())
-        .thenReturn(FeatureFlaggingSource.AGENTLESS);
+      .thenReturn(FeatureFlaggingSource.AGENTLESS);
     final Properties properties = new Properties();
     properties.setProperty("flagging.evaluation.counts.enabled", "false");
-    when(this.config.configProvider())
-        .thenReturn(ConfigProvider.withPropertiesOverride(properties));
+    when(this.config.configProvider()).thenReturn(ConfigProvider.withPropertiesOverride(properties));
 
     assertEquals("key", this.backend.setting("api-key"));
     assertEquals("datadoghq.eu", this.backend.setting("site"));
@@ -86,16 +89,19 @@ class FeatureFlagsBackendTest {
     "environment selects source     |           | remote_config | remote_config"
   })
   void exposesTheResolvedConfigurationSource(
-      final String property, final String environment, final String expected) {
+      final String property,
+      final String environment,
+      final String expected
+  ) {
     if (property != null) {
       WithConfigExtension.injectSysConfig(FEATURE_FLAGS_CONFIGURATION_SOURCE, property);
     }
     WithConfigExtension.injectEnvConfig("FEATURE_FLAGS_CONFIGURATION_SOURCE", environment);
     final Config config = Config.get();
     when(this.config.getFeatureFlaggingConfigurationSource())
-        .thenReturn(config.getFeatureFlaggingConfigurationSource());
+      .thenReturn(config.getFeatureFlaggingConfigurationSource());
     when(this.config.isFeatureFlaggingProviderEnabled())
-        .thenReturn(config.isFeatureFlaggingProviderEnabled());
+      .thenReturn(config.isFeatureFlaggingProviderEnabled());
     when(this.config.configProvider()).thenReturn(config.configProvider());
 
     assertEquals(expected, this.backend.setting(FEATURE_FLAGS_CONFIGURATION_SOURCE));
@@ -109,7 +115,10 @@ class FeatureFlagsBackendTest {
     "agentless source       | AGENTLESS     | true       | false    "
   })
   void startRegistersRemoteConfigOnlyWhenItIsTheSource(
-      final FeatureFlaggingSource source, final boolean rcEnabled, final boolean registers) {
+      final FeatureFlaggingSource source,
+      final boolean rcEnabled,
+      final boolean registers
+  ) {
     final ConfigurationPoller poller = mock(ConfigurationPoller.class);
     when(this.sco.configurationPoller(this.config)).thenReturn(poller);
     when(this.config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
@@ -127,7 +136,9 @@ class FeatureFlagsBackendTest {
     "remote config             | REMOTE_CONFIG | key    "
   })
   void createsTheBackendFromTheAgentConfiguration(
-      final FeatureFlaggingSource source, final String apiKey) {
+      final FeatureFlaggingSource source,
+      final String apiKey
+  ) {
     when(this.config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
     when(this.config.getApiKey()).thenReturn(apiKey);
 
@@ -139,7 +150,7 @@ class FeatureFlagsBackendTest {
   @Test
   void keepsTheEventProxyAvailableWithABlankApiKey() {
     when(this.config.getFeatureFlaggingConfigurationSource())
-        .thenReturn(FeatureFlaggingSource.AGENTLESS);
+      .thenReturn(FeatureFlaggingSource.AGENTLESS);
     when(this.config.getApiKey()).thenReturn(" \t ");
     when(this.sco.featuresDiscovery(this.config)).thenReturn(mock(DDAgentFeaturesDiscovery.class));
 
@@ -147,20 +158,21 @@ class FeatureFlagsBackendTest {
 
     assertTrue(
         created.isEventProxyAvailable(),
-        "the proxy stays available for recovery when direct intake has no usable API key");
+        "the proxy stays available for recovery when direct intake has no usable API key"
+    );
   }
 
   @Test
   void runsTheFirstShutdownSubscriptionActionOnce() {
     final AtomicInteger firstSubscriptions = new AtomicInteger();
-    final FeatureFlagsBackend backend =
-        new FeatureFlagsBackend(
-            this.sco,
-            this.config,
-            this.eventProxy,
-            this.spanEnrichmentWriter,
-            this.metrics,
-            firstSubscriptions::incrementAndGet);
+    final FeatureFlagsBackend backend = new FeatureFlagsBackend(
+        this.sco,
+        this.config,
+        this.eventProxy,
+        this.spanEnrichmentWriter,
+        this.metrics,
+        firstSubscriptions::incrementAndGet
+    );
 
     backend.subscribeShutdown(() -> {});
     backend.subscribeShutdown(() -> {});
@@ -172,10 +184,9 @@ class FeatureFlagsBackendTest {
   void closeNotifiesTheShutdownListenersBeforeReleasingResources() throws Exception {
     final List<String> calls = new CopyOnWriteArrayList<>();
     this.backend.subscribeShutdown(() -> calls.add("first"));
-    this.backend.subscribeShutdown(
-        () -> {
-          throw new IllegalStateException("failing listener");
-        });
+    this.backend.subscribeShutdown(() -> {
+      throw new IllegalStateException("failing listener");
+    });
     final AutoCloseable unregistered =
         this.backend.subscribeShutdown(() -> calls.add("unregistered"));
     this.backend.subscribeShutdown(() -> calls.add("last"));
@@ -211,8 +222,7 @@ class FeatureFlagsBackendTest {
 
   @Test
   void failsToSubscribeWithoutRemoteConfig() {
-    assertThrows(
-        IllegalStateException.class, () -> this.backend.subscribeRemoteConfig(content -> {}));
+    assertThrows(IllegalStateException.class, () -> this.backend.subscribeRemoteConfig(content -> {}));
   }
 
   @Test

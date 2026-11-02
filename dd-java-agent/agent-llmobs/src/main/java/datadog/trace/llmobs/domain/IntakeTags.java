@@ -5,10 +5,12 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/** Tag helpers shared by the payloads sent to the eval metric intake. */
+/**
+ * Tag helpers shared by the payloads sent to the eval metric intake.
+ */
 final class IntakeTags {
-
-  private IntakeTags() {}
+  private IntakeTags() {
+  }
 
   /**
    * Flattens user tags into the {@code key:value} strings the intake expects.

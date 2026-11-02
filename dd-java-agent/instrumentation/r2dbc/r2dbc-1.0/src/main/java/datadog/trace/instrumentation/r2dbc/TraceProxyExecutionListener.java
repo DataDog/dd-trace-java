@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DB_QUERY;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.R2DBC_QUERY;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
@@ -23,10 +22,8 @@ import java.util.Set;
  * handle cancellation — the {@code afterQuery} callback fires in all cases.
  */
 public final class TraceProxyExecutionListener implements ProxyExecutionListener {
-
   private static final String SPAN_KEY = "datadog.span";
   static final int MAX_BATCH_STATEMENTS_IN_RESOURCE = 10;
-
   private final ConnectionFactoryOptions options;
 
   public TraceProxyExecutionListener(ConnectionFactoryOptions options) {
@@ -49,16 +46,13 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
       // Route through DBQueryInfo/SQLNormalizer (same as JDBC/Vert.x) instead of using the raw
       // query string as the resource name — this strips literals/numbers for grouping and avoids
       // leaking parameter values into the resource name.
-
       // R2DBC commonly re-executes bind-parameterized SQL templates; use the bounded
       // prepared-statement cache to avoid normalizing the same query text per execution.
       // Batch entries skip the cache: with inlined literals they rarely repeat and would evict
       // reusable templates.
       boolean single = queries.size() == 1;
       DBQueryInfo queryInfo =
-          single
-              ? DBQueryInfo.ofPreparedStatement(firstQuery)
-              : DBQueryInfo.ofStatement(firstQuery);
+          single ? DBQueryInfo.ofPreparedStatement(firstQuery) : DBQueryInfo.ofStatement(firstQuery);
       span.setResourceName(single ? queryInfo.getSql() : batchResource(queries, queryInfo));
       span.setTag(DB_OPERATION, queryInfo.getOperation());
     } else {

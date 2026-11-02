@@ -24,7 +24,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-/** File-controlled companion agent used only by smoke-test child processes. */
+/**
+ * File-controlled companion agent used only by smoke-test child processes.
+ */
 public final class ScopeDiagnosticsAgent {
   private static final AtomicLong REPORT_IDS = new AtomicLong();
   private static final long COMMAND_READ_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5);
@@ -34,7 +36,8 @@ public final class ScopeDiagnosticsAgent {
     Properties read() throws IOException;
   }
 
-  private ScopeDiagnosticsAgent() {}
+  private ScopeDiagnosticsAgent() {
+  }
 
   public static void premain(String arguments, Instrumentation instrumentation) throws Exception {
     if (arguments == null || arguments.isEmpty()) {
@@ -58,38 +61,41 @@ public final class ScopeDiagnosticsAgent {
       }
       Map<String, byte[]> payload = payload();
       Class<?> injector = loader.loadClass("datadog.instrument.classinject.ClassInjector");
-      injector
-          .getMethod("injectClasses", Map.class, ClassLoader.class)
-          .invoke(null, payload, loader);
+      injector.getMethod("injectClasses", Map.class, ClassLoader.class).invoke(
+          null,
+          payload,
+          loader
+      );
       Class<?> bridge =
           loader.loadClass("datadog.trace.agent.test.scopediag.SmokeDiagnosticsBridge");
       bridge
-          .getMethod(
-              "install", Instrumentation.class, Map.class, String.class, String.class, long.class)
-          .invoke(
-              null,
-              instrumentation,
-              payload,
-              config.getProperty("disabledChecks", ""),
-              config.getProperty("reason", ""),
-              Long.parseLong(config.getProperty("quiescenceMillis", "2000")));
+        .getMethod(
+            "install",
+            Instrumentation.class,
+            Map.class,
+            String.class,
+            String.class,
+            long.class
+        )
+        .invoke(
+            null,
+            instrumentation,
+            payload,
+            config.getProperty("disabledChecks", ""),
+            config.getProperty("reason", ""),
+            Long.parseLong(config.getProperty("quiescenceMillis", "2000"))
+        );
       Method start = bridge.getMethod("start");
       Method finish = bridge.getMethod("finish");
       if (cli) {
         start.invoke(null);
-        Runtime.getRuntime()
-            .addShutdownHook(
-                new Thread(
-                    () -> {
-                      try {
-                        publish(
-                            new File(directory, "final"),
-                            response(0, (Properties) finish.invoke(null)));
-                      } catch (Throwable failure) {
-                        publishFailure(directory, "final", 0, failure);
-                      }
-                    },
-                    "scope-diagnostics-shutdown"));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+          try {
+            publish(new File(directory, "final"), response(0, (Properties) finish.invoke(null)));
+          } catch (Throwable failure) {
+            publishFailure(directory, "final", 0, failure);
+          }
+        }, "scope-diagnostics-shutdown"));
       }
       Thread controller =
           new Thread(() -> control(directory, start, finish, cli), "scope-diagnostics-control");
@@ -101,7 +107,9 @@ public final class ScopeDiagnosticsAgent {
     } catch (Throwable failure) {
       publishFailure(directory, "error", 0, failure);
       throw new IllegalStateException(
-          "Cannot install smoke-test scope diagnostics", unwrap(failure));
+          "Cannot install smoke-test scope diagnostics",
+          unwrap(failure)
+      );
     }
   }
 
@@ -155,13 +163,12 @@ public final class ScopeDiagnosticsAgent {
   }
 
   private static Map<String, byte[]> payload() throws Exception {
-    File ownJar =
-        new File(
-            ScopeDiagnosticsAgent.class
-                .getProtectionDomain()
-                .getCodeSource()
-                .getLocation()
-                .toURI());
+    File ownJar = new File(ScopeDiagnosticsAgent.class
+      .getProtectionDomain()
+      .getCodeSource()
+      .getLocation()
+      .toURI()
+    );
     Map<String, byte[]> classes = new LinkedHashMap<>();
     try (JarFile jar = new JarFile(ownJar)) {
       Enumeration<JarEntry> entries = jar.entries();
@@ -201,7 +208,8 @@ public final class ScopeDiagnosticsAgent {
   }
 
   static Properties readCommand(CommandReader reader, long timeoutNanos)
-      throws IOException, InterruptedException {
+      throws IOException,
+      InterruptedException {
     long deadline = System.nanoTime() + timeoutNanos;
     for (; ; ) {
       try {
@@ -225,17 +233,18 @@ public final class ScopeDiagnosticsAgent {
 
   private static void publish(File target, Properties data) throws IOException {
     // File.createTempFile initializes SecureRandom, whose security configuration can use NIO.
-    File temporary =
-        new File(
-            target.getParentFile(), ".scope-diagnostics-" + REPORT_IDS.incrementAndGet() + ".tmp");
+    File temporary = new File(
+        target.getParentFile(),
+        ".scope-diagnostics-" + REPORT_IDS.incrementAndGet() + ".tmp"
+    );
     if (!temporary.createNewFile()) {
       throw new IOException("Cannot create scope diagnostic report: " + temporary);
     }
     try {
       // Properties.store formats a date header, which can initialize locale providers and NIO.
-      try (Writer writer =
-          new BufferedWriter(
-              new OutputStreamWriter(new FileOutputStream(temporary), StandardCharsets.US_ASCII))) {
+      try (Writer writer = new BufferedWriter(
+          new OutputStreamWriter(new FileOutputStream(temporary), StandardCharsets.US_ASCII)
+      )) {
         // Protocol field names are fixed ASCII keys; only values need escaping.
         for (String key : data.stringPropertyNames()) {
           writer.write(key);
@@ -272,7 +281,8 @@ public final class ScopeDiagnosticsAgent {
     }
   }
 
-  @SuppressForbidden // Last-resort stderr when writing the diagnostic report fails.
+  // Last-resort stderr when writing the diagnostic report fails.
+  @SuppressForbidden
   private static void publishFailure(File directory, String file, long seq, Throwable failure) {
     Properties result = new Properties();
     result.setProperty("status", "error");

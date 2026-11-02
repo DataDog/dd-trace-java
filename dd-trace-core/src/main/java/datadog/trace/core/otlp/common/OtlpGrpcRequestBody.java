@@ -9,16 +9,14 @@ import okio.BufferedSink;
 import okio.GzipSink;
 import okio.Okio;
 
-/** Wraps an {@link OtlpPayload} as a GRPC {@link RequestBody}. */
+/**
+ * Wraps an {@link OtlpPayload} as a GRPC {@link RequestBody}.
+ */
 public final class OtlpGrpcRequestBody extends RequestBody {
-
   private static final MediaType GRPC_MEDIA_TYPE = MediaType.parse("application/grpc");
-
   private static final int HEADER_LENGTH = 5;
-
   private static final byte UNCOMPRESSED_FLAG = 0;
   private static final byte COMPRESSED_FLAG = 1;
-
   private final OtlpPayload payload;
   private final boolean gzip;
 

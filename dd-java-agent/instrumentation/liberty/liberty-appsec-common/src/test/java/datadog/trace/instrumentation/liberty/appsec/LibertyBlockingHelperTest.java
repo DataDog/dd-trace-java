@@ -17,7 +17,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 import com.ibm.ws.http.channel.internal.inbound.HttpInboundServiceContextImpl;
 import com.ibm.wsspi.bytebuffer.WsByteBuffer;
 import com.ibm.wsspi.genericbnf.HeaderField;
@@ -49,7 +48,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class LibertyBlockingHelperTest {
-
   private TracerAPI previousTracer;
   private TracerAPI tracer;
   private CallbackProvider cbp;
@@ -57,7 +55,6 @@ class LibertyBlockingHelperTest {
   private TriConsumer<RequestContext, String, String> headerCb;
   private Function<RequestContext, Flow<Void>> headersDone;
   private Flow<Void> flow;
-
   private HttpInboundServiceContextImpl thiz;
   private HttpResponseMessage response;
   private HttpRequestMessage request;
@@ -120,8 +117,9 @@ class LibertyBlockingHelperTest {
   }
 
   // ---- tryCommitBlockingResponse ----
-
-  /** Hand-written fake: Mockito mocks do not run default methods. */
+  /**
+   * Hand-written fake: Mockito mocks do not run default methods.
+   */
   private static final class FakeBrf implements BlockResponseFunction {
     final boolean result;
     final RuntimeException toThrow;
@@ -137,13 +135,16 @@ class LibertyBlockingHelperTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       return result;
     }
 
     @Override
     public boolean tryCommitBlockingResponse(
-        RequestContext reqCtx, Flow.Action.RequestBlockingAction rba) {
+        RequestContext reqCtx,
+        Flow.Action.RequestBlockingAction rba
+    ) {
       if (toThrow != null) {
         throw toThrow;
       }
@@ -156,18 +157,23 @@ class LibertyBlockingHelperTest {
 
   @Test
   void tryCommitReturnsBrfResult() {
-    assertTrue(
-        LibertyBlockingHelper.tryCommitBlockingResponse(new FakeBrf(true, null), reqCtx, RBA));
-    assertFalse(
-        LibertyBlockingHelper.tryCommitBlockingResponse(new FakeBrf(false, null), reqCtx, RBA));
+    assertTrue(LibertyBlockingHelper.tryCommitBlockingResponse(new FakeBrf(true, null), reqCtx, RBA)
+    );
+    assertFalse(LibertyBlockingHelper.tryCommitBlockingResponse(
+        new FakeBrf(false, null),
+        reqCtx,
+        RBA
+    ));
     verifyNoInteractions(appSecCtx);
   }
 
   @Test
   void tryCommitReportsFailureWhenBrfThrows() {
-    boolean result =
-        LibertyBlockingHelper.tryCommitBlockingResponse(
-            new FakeBrf(true, new IllegalStateException("boom")), reqCtx, RBA);
+    boolean result = LibertyBlockingHelper.tryCommitBlockingResponse(
+        new FakeBrf(true, new IllegalStateException("boom")),
+        reqCtx,
+        RBA
+    );
 
     assertFalse(result);
     verify(appSecCtx).reportBlockFailure();
@@ -187,7 +193,6 @@ class LibertyBlockingHelperTest {
   }
 
   // ---- syncBufferEnter early returns ----
-
   @Test
   void returnsNullWhenMessageAlreadySent() {
     when(thiz.isMessageSent()).thenReturn(true);
@@ -288,7 +293,6 @@ class LibertyBlockingHelperTest {
   }
 
   // ---- blocking path ----
-
   @Test
   void blocksWithTemplateAndHeaders() throws Exception {
     Map<String, String> extra = new LinkedHashMap<>();
@@ -344,13 +348,12 @@ class LibertyBlockingHelperTest {
   }
 
   // ---- commit failure ----
-
   @Test
   void finishResponseMessageFailureReportsBlockFailureAndStillBlocks() throws Exception {
     blockWith(new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO));
     doThrow(new IllegalStateException("commit failed"))
-        .when(thiz)
-        .finishResponseMessage(any(WsByteBuffer[].class));
+      .when(thiz)
+      .finishResponseMessage(any(WsByteBuffer[].class));
 
     BlockingException be = LibertyBlockingHelper.syncBufferEnter(thiz, new WsByteBuffer[0], span);
 
@@ -379,8 +382,8 @@ class LibertyBlockingHelperTest {
     blockWith(new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO));
     when(reqCtx.getData(RequestContextSlot.APPSEC)).thenReturn(null);
     doThrow(new IllegalStateException("commit failed"))
-        .when(thiz)
-        .finishResponseMessage(any(WsByteBuffer[].class));
+      .when(thiz)
+      .finishResponseMessage(any(WsByteBuffer[].class));
 
     assertNotNull(LibertyBlockingHelper.syncBufferEnter(thiz, new WsByteBuffer[0], span));
     verify(segment).effectivelyBlocked();

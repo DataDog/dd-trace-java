@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.test.junit.utils.config.WithConfig;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class HttpResourceNamesTest extends DDJavaSpecification {
-
   @BeforeEach
   void setup() {
     HttpResourceNames.reset();
@@ -41,8 +39,10 @@ class HttpResourceNamesTest extends DDJavaSpecification {
 
     HttpResourceNames.setForServer(span, "GET", "/asdf/1234", false);
 
-    verify(span)
-        .setResourceName(UTF8BytesString.create("GET /test"), HTTP_SERVER_CONFIG_PATTERN_MATCH);
+    verify(span).setResourceName(
+        UTF8BytesString.create("GET /test"),
+        HTTP_SERVER_CONFIG_PATTERN_MATCH
+    );
   }
 
   @Test
@@ -61,8 +61,10 @@ class HttpResourceNamesTest extends DDJavaSpecification {
 
     HttpResourceNames.setForClient(span, "GET", "/asdf/1234", false);
 
-    verify(span)
-        .setResourceName(UTF8BytesString.create("GET /test"), HTTP_CLIENT_CONFIG_PATTERN_MATCH);
+    verify(span).setResourceName(
+        UTF8BytesString.create("GET /test"),
+        HTTP_CLIENT_CONFIG_PATTERN_MATCH
+    );
   }
 
   @TableTest({

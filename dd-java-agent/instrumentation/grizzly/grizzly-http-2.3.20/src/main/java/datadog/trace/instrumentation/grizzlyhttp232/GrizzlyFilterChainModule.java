@@ -25,6 +25,7 @@ public class GrizzlyFilterChainModule extends InstrumenterModule.Tracing {
         new DefaultFilterChainInstrumentation(),
         new FilterInstrumentation(),
         new HttpCodecFilterInstrumentation(),
-        new HttpServerFilterInstrumentation());
+        new HttpServerFilterInstrumentation()
+    );
   }
 }

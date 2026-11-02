@@ -13,9 +13,13 @@ public interface DDCache<K, V> {
    */
   V computeIfAbsent(final K key, Function<K, ? extends V> producer);
 
-  /** Clear the cache. */
+  /**
+   * Clear the cache.
+   */
   void clear();
 
-  /** Visits elements currently in the cache; for debugging/triage purposes. */
+  /**
+   * Visits elements currently in the cache; for debugging/triage purposes.
+   */
   void visit(BiConsumer<K, V> consumer);
 }

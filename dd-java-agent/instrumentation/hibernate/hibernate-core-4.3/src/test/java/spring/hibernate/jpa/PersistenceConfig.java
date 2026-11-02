@@ -13,7 +13,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 @EnableJpaRepositories(basePackages = "spring/hibernate/jpa")
 public class PersistenceConfig {
-
   @Bean(name = "transactionManager")
   public PlatformTransactionManager dbTransactionManager() {
     final JpaTransactionManager transactionManager = new JpaTransactionManager();
@@ -23,7 +22,6 @@ public class PersistenceConfig {
 
   @Bean
   public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
-
     final HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
     vendorAdapter.setDatabase(Database.HSQL);
     vendorAdapter.setGenerateDdl(true);

@@ -28,11 +28,9 @@ import org.openjdk.jmh.annotations.Warmup;
 @Measurement(iterations = 5)
 @Threads(8)
 public class JDBCConnectionContextBenchmark {
-
   @State(Scope.Thread)
   public static class ConnectionState {
     private static final String BASE_HASH = "-6937226773133363462";
-
     final JDBCConnectionContext context =
         new JDBCConnectionContext(new DBInfo.Builder().type("oracle").build());
 

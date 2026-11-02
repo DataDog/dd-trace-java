@@ -19,7 +19,6 @@ import datadog.trace.api.gateway.RequestContextSlot;
  * every version in that range.
  */
 public class BlockFailureReporter {
-
   /**
    * Commits a blocking response through the {@link BlockResponseFunction} registered on the given
    * request context and, if the commit fails, reports the failure via {@link
@@ -42,7 +41,9 @@ public class BlockFailureReporter {
    *     and no failure is reported).
    */
   public static boolean tryCommitAndReport(
-      RequestContext reqCtx, Flow.Action.RequestBlockingAction rba) {
+      RequestContext reqCtx,
+      Flow.Action.RequestBlockingAction rba
+  ) {
     BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
     if (brf == null) {
       // nothing was attempted, so this is not a block failure
@@ -55,7 +56,9 @@ public class BlockFailureReporter {
     return false;
   }
 
-  /** Reports a block failure on the AppSec context bound to the given request context, if any. */
+  /**
+   * Reports a block failure on the AppSec context bound to the given request context, if any.
+   */
   public static void reportBlockFailure(RequestContext reqCtx) {
     Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
     if (rawAppSecCtx instanceof AppSecContext) {

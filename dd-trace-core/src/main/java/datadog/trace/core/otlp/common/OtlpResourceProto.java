@@ -8,7 +8,6 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.visitResourceAttributes;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
@@ -16,21 +15,24 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-/** Provides a canned message for OpenTelemetry's "resource.proto" wire protocol. */
+/**
+ * Provides a canned message for OpenTelemetry's "resource.proto" wire protocol.
+ */
 public final class OtlpResourceProto {
-  private OtlpResourceProto() {}
+  private OtlpResourceProto() {
+  }
 
-  /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP metric export. */
+  /**
+   * Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP metric export.
+   */
   public static final byte[] RESOURCE_MESSAGE =
       buildResourceMessage(Config.get(), Collections.emptyMap());
-
   /**
    * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
    * {@code datadog.}). Used by the SDK trace-metrics export.
    */
   public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
       buildResourceMessage(Config.get(), datadogResourceAttributes(Config.get()));
-
   private static final Map<String, Object> TRACE_RESOURCE_ATTRIBUTES =
       traceResourceAttributes(Config.get());
 
@@ -49,14 +51,17 @@ public final class OtlpResourceProto {
   }
 
   static byte[] buildResourceMessage(
-      Config config, Map<String, ?> globalTags, Map<String, Object> extraAttributes) {
+      Config config,
+      Map<String, ?> globalTags,
+      Map<String, Object> extraAttributes
+  ) {
     GrowableBuffer buf = new GrowableBuffer(512);
 
-    visitResourceAttributes(
-        config,
-        globalTags,
-        extraAttributes,
-        (key, value) -> writeResourceAttribute(buf, key, value));
+    visitResourceAttributes(config, globalTags, extraAttributes, (key, value) -> writeResourceAttribute(
+        buf,
+        key,
+        value
+    ));
 
     OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
     int numBytes = protobuf.recordMessage(buf, 1);

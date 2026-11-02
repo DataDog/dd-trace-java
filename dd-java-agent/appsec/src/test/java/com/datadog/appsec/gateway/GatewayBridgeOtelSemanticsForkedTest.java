@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadog.appsec.api.security.ApiSecuritySampler;
 import com.datadog.appsec.event.EventProducerService;
 import datadog.trace.api.gateway.InstrumentationGateway;
@@ -63,12 +62,12 @@ class GatewayBridgeOtelSemanticsForkedTest {
     EventProducerService producer = mock(EventProducerService.class);
     when(producer.allSubscribedDataAddresses()).thenReturn(emptyList());
     ApiSecuritySampler sampler = mock(ApiSecuritySampler.class);
-    GatewayBridge bridge =
-        new GatewayBridge(
-            gateway.getSubscriptionService(RequestContextSlot.APPSEC),
-            producer,
-            () -> sampler,
-            emptyList());
+    GatewayBridge bridge = new GatewayBridge(
+        gateway.getSubscriptionService(RequestContextSlot.APPSEC),
+        producer,
+        () -> sampler,
+        emptyList()
+    );
     bridge.init();
     AppSecRequestContext appSecContext = new AppSecRequestContext();
     RequestContext requestContext = mock(RequestContext.class);
@@ -76,9 +75,9 @@ class GatewayBridgeOtelSemanticsForkedTest {
 
     try {
       gateway
-          .getCallbackProvider(RequestContextSlot.APPSEC)
-          .getCallback(EVENTS.requestEnded())
-          .apply(requestContext, span);
+        .getCallbackProvider(RequestContextSlot.APPSEC)
+        .getCallback(EVENTS.requestEnded())
+        .apply(requestContext, span);
 
       verify(sampler).preSampleRequest(appSecContext, "test-http-server");
       assertEquals(route, appSecContext.getRoute());
@@ -93,7 +92,8 @@ class GatewayBridgeOtelSemanticsForkedTest {
   }
 
   private static final class TestServerDecorator
-      extends HttpServerDecorator<URI, Void, Integer, Void> {
+      extends HttpServerDecorator<URI, Void, Integer, Void>
+  {
     @Override
     protected String[] instrumentationNames() {
       return new String[] {"test-http-server"};

@@ -1,11 +1,9 @@
 package datadog.metrics.api;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 class RecordingTest {
-
   @Test
   void closeDelegatesToStop() {
     StoppableRecording recording = new StoppableRecording();

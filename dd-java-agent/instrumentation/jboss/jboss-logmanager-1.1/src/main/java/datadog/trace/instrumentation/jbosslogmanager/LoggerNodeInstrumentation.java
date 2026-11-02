@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,7 +19,9 @@ import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(InstrumenterModule.class)
 public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public LoggerNodeInstrumentation() {
     super("jboss-logmanager");
   }
@@ -38,10 +39,11 @@ public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod()
-            .and(named("publish"))
-            .and(takesArgument(0, named("org.jboss.logmanager.ExtLogRecord"))),
-        LoggerNodeInstrumentation.class.getName() + "$AttachContextAdvice");
+        isMethod().and(named("publish")).and(
+            takesArgument(0, named("org.jboss.logmanager.ExtLogRecord"))
+        ),
+        LoggerNodeInstrumentation.class.getName() + "$AttachContextAdvice"
+    );
   }
 
   public static class AttachContextAdvice {
@@ -55,8 +57,9 @@ public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span = activeSpan();
 
       if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(ExtLogRecord.class, AgentSpanContext.class)
-            .put(record, span.spanContext());
+        InstrumentationContext
+          .get(ExtLogRecord.class, AgentSpanContext.class)
+          .put(record, span.spanContext());
       }
 
       return true;

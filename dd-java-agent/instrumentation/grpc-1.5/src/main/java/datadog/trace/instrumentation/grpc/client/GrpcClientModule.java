@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.grpc.client;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,7 +12,6 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class GrpcClientModule extends InstrumenterModule.Tracing {
-
   public GrpcClientModule() {
     super("grpc", "grpc-client", "grpc-message");
   }
@@ -33,6 +31,7 @@ public class GrpcClientModule extends InstrumenterModule.Tracing {
         new ClientCallImplInstrumentation(),
         new AbstractClientStreamInstrumentation(),
         new ClientStreamListenerImplInstrumentation(),
-        new MessagesAvailableInstrumentation());
+        new MessagesAvailableInstrumentation()
+    );
   }
 }

@@ -2,7 +2,6 @@ package com.datadog.openfeature.internal.ufc;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -29,19 +28,19 @@ import org.slf4j.LoggerFactory;
  */
 public final class UniversalFlagConfigParser {
   private static final Logger LOGGER = LoggerFactory.getLogger(UniversalFlagConfigParser.class);
-
   static final String INVALID_FLAG = "invalid_flag";
   static final String INVALID_SEMVER_COMPARAND = "invalid_semver_comparand";
   private static final String UNIVERSAL_FLAG_CONFIGURATION_TYPE = "universal-flag-configuration";
   private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
-
-  /** UFC documents nest about ten levels deep; the cap bounds the recursive document reader. */
+  /**
+   * UFC documents nest about ten levels deep; the cap bounds the recursive document reader.
+   */
   private static final int MAX_NESTING_DEPTH = 32;
-
   private static final JsonFactory JSON_FACTORY =
       new JsonFactory().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
 
-  private UniversalFlagConfigParser() {}
+  private UniversalFlagConfigParser() {
+  }
 
   /**
    * Parses a raw UFC document, as delivered by Remote Configuration.
@@ -143,13 +142,13 @@ public final class UniversalFlagConfigParser {
     try {
       final Map<?, ?> json = asObject(value, "configuration");
       final Map<String, String> invalidFlags = new HashMap<>();
-      final ServerConfiguration configuration =
-          new ServerConfiguration(
-              asString(json.get("createdAt"), "createdAt"),
-              asString(json.get("format"), "format"),
-              lenientBoolean(json.get("observeFullEvaluationData")),
-              toEnvironment(json.get("environment")),
-              toFlags(json.get("flags"), invalidFlags));
+      final ServerConfiguration configuration = new ServerConfiguration(
+          asString(json.get("createdAt"), "createdAt"),
+          asString(json.get("format"), "format"),
+          lenientBoolean(json.get("observeFullEvaluationData")),
+          toEnvironment(json.get("environment")),
+          toFlags(json.get("flags"), invalidFlags)
+      );
       if (!invalidFlags.isEmpty()) {
         configuration.invalidFlags = invalidFlags;
       }
@@ -169,7 +168,9 @@ public final class UniversalFlagConfigParser {
 
   @Nullable
   private static Map<String, Flag> toFlags(
-      @Nullable final Object value, final Map<String, String> invalidFlags) {
+      @Nullable final Object value,
+      final Map<String, String> invalidFlags
+  ) {
     if (value == null) {
       return null;
     }
@@ -185,9 +186,8 @@ public final class UniversalFlagConfigParser {
       } catch (final IllegalArgumentException error) {
         invalidFlags.put(
             flagKey,
-            error instanceof InvalidSemverComparandException
-                ? INVALID_SEMVER_COMPARAND
-                : INVALID_FLAG);
+            error instanceof InvalidSemverComparandException ? INVALID_SEMVER_COMPARAND : INVALID_FLAG
+        );
         LOGGER.warn("Dropping malformed FFE flag {}: {}", flagKey, error.toString());
       }
     }
@@ -205,7 +205,8 @@ public final class UniversalFlagConfigParser {
         strictBoolean(json, "enabled"),
         asEnum(json.get("variationType"), ValueType.class, "variationType"),
         toVariants(json.get("variations")),
-        toList(json.get("allocations"), "allocations", UniversalFlagConfigParser::toAllocation));
+        toList(json.get("allocations"), "allocations", UniversalFlagConfigParser::toAllocation)
+    );
   }
 
   @Nullable
@@ -245,7 +246,8 @@ public final class UniversalFlagConfigParser {
         toList(json.get("splits"), "splits", UniversalFlagConfigParser::toSplit),
         lenientBoolean(json.get("doLog")),
         parsedActivation,
-        activation != null && parsedActivation == null);
+        activation != null && parsedActivation == null
+    );
   }
 
   @Nullable
@@ -255,7 +257,8 @@ public final class UniversalFlagConfigParser {
     }
     final Map<?, ?> json = asObject(value, "rule");
     return new Rule(
-        toList(json.get("conditions"), "conditions", UniversalFlagConfigParser::toCondition));
+        toList(json.get("conditions"), "conditions", UniversalFlagConfigParser::toCondition)
+    );
   }
 
   @Nullable
@@ -267,7 +270,8 @@ public final class UniversalFlagConfigParser {
     return new ConditionConfiguration(
         asEnum(json.get("operator"), ConditionOperator.class, "operator"),
         asString(json.get("attribute"), "attribute"),
-        json.get("value"));
+        json.get("value")
+    );
   }
 
   @Nullable
@@ -282,7 +286,8 @@ public final class UniversalFlagConfigParser {
         asString(json.get("variationKey"), "variationKey"),
         toStringMap(json.get("extraLogging")),
         serialId == null ? null : asLenientInt(serialId, "serialId"),
-        toFeatures(json.get("features")));
+        toFeatures(json.get("features"))
+    );
   }
 
   /**
@@ -316,15 +321,17 @@ public final class UniversalFlagConfigParser {
     if (!(key instanceof String)
         || ((String) key).isEmpty()
         || !(featureValue instanceof String
-            || featureValue instanceof Double
-            || featureValue instanceof Boolean)
+        || featureValue instanceof Double
+        || featureValue instanceof Boolean)
         || destinations.isEmpty()) {
       return null;
     }
     return new Feature((String) key, featureValue, destinations);
   }
 
-  /** Keeps every non-empty string, including destinations this SDK does not know yet. */
+  /**
+   * Keeps every non-empty string, including destinations this SDK does not know yet.
+   */
   private static List<String> toDestinations(@Nullable final Object value) {
     if (!(value instanceof List)) {
       return emptyList();
@@ -347,7 +354,8 @@ public final class UniversalFlagConfigParser {
     return new Shard(
         asString(json.get("salt"), "salt"),
         toList(json.get("ranges"), "ranges", UniversalFlagConfigParser::toShardRange),
-        asUnsignedInt(json.get("totalShards"), "totalShards"));
+        asUnsignedInt(json.get("totalShards"), "totalShards")
+    );
   }
 
   @Nullable
@@ -358,7 +366,8 @@ public final class UniversalFlagConfigParser {
     final Map<?, ?> json = asObject(value, "range");
     return new ShardRange(
         asUnsignedInt(json.get("start"), "range start"),
-        asUnsignedInt(json.get("end"), "range end"));
+        asUnsignedInt(json.get("end"), "range end")
+    );
   }
 
   @Nullable
@@ -375,7 +384,10 @@ public final class UniversalFlagConfigParser {
 
   @Nullable
   private static <T> List<T> toList(
-      @Nullable final Object value, final String name, final ElementMapper<T> mapper) {
+      @Nullable final Object value,
+      final String name,
+      final ElementMapper<T> mapper
+  ) {
     if (value == null) {
       return null;
     }
@@ -405,7 +417,9 @@ public final class UniversalFlagConfigParser {
     throw new IllegalArgumentException(name + " is not a string");
   }
 
-  /** Reads a required boolean field: absent reads {@code false}, explicit {@code null} rejects. */
+  /**
+   * Reads a required boolean field: absent reads {@code false}, explicit {@code null} rejects.
+   */
   private static boolean strictBoolean(final Map<?, ?> json, final String name) {
     if (!json.containsKey(name)) {
       return false;
@@ -417,7 +431,9 @@ public final class UniversalFlagConfigParser {
     throw new IllegalArgumentException(name + " is not a boolean");
   }
 
-  /** Maps wrong-typed values to {@code null} so callers fall back to their default. */
+  /**
+   * Maps wrong-typed values to {@code null} so callers fall back to their default.
+   */
   @Nullable
   private static Boolean lenientBoolean(@Nullable final Object value) {
     return value instanceof Boolean ? (Boolean) value : null;
@@ -425,7 +441,10 @@ public final class UniversalFlagConfigParser {
 
   @Nullable
   private static <E extends Enum<E>> E asEnum(
-      @Nullable final Object value, final Class<E> type, final String name) {
+      @Nullable final Object value,
+      final Class<E> type,
+      final String name
+  ) {
     final String constant = asString(value, name);
     if (constant == null) {
       return null;
@@ -463,7 +482,11 @@ public final class UniversalFlagConfigParser {
   }
 
   private static long asIntegral(
-      final Object value, final long min, final long max, final String name) {
+      final Object value,
+      final long min,
+      final long max,
+      final String name
+  ) {
     if (!(value instanceof Double)) {
       throw new IllegalArgumentException(name + " is not a number");
     }
@@ -474,7 +497,9 @@ public final class UniversalFlagConfigParser {
     return (long) number;
   }
 
-  /** Ignores unparsable dates and numbers, but rejects other non-string values. */
+  /**
+   * Ignores unparsable dates and numbers, but rejects other non-string values.
+   */
   @Nullable
   private static Instant toInstant(@Nullable final Object value) {
     if (value == null || value instanceof Number) {
@@ -490,7 +515,9 @@ public final class UniversalFlagConfigParser {
     }
   }
 
-  /** Validates the required nested UFC fields and condition operands for a flag. */
+  /**
+   * Validates the required nested UFC fields and condition operands for a flag.
+   */
   private static void validateFlag(final String flagKey, final Flag flag) {
     validateNumericVariants(flagKey, flag);
     if (flag.allocations == null) {
@@ -510,7 +537,8 @@ public final class UniversalFlagConfigParser {
         }
         if (split.shards == null) {
           throw new IllegalArgumentException(
-              "flag \"" + flagKey + "\" contains a split with missing shards");
+              "flag \"" + flagKey + "\" contains a split with missing shards"
+          );
         }
         for (final Shard shard : split.shards) {
           if (shard == null || shard.totalShards == 0 || shard.ranges == null) {
@@ -519,7 +547,8 @@ public final class UniversalFlagConfigParser {
           for (final ShardRange range : shard.ranges) {
             if (range == null) {
               throw new IllegalArgumentException(
-                  "flag \"" + flagKey + "\" contains an invalid shard range");
+                  "flag \"" + flagKey + "\" contains an invalid shard range"
+              );
             }
           }
         }
@@ -528,7 +557,9 @@ public final class UniversalFlagConfigParser {
     validateAndCacheSemverComparands(flagKey, flag);
   }
 
-  /** Preserve Java's numeric coercion, but reject values that cannot be mapped at all. */
+  /**
+   * Preserve Java's numeric coercion, but reject values that cannot be mapped at all.
+   */
   private static void validateNumericVariants(final String flagKey, final Flag flag) {
     if (flag.variations == null
         || (flag.variationType != ValueType.INTEGER && flag.variationType != ValueType.NUMERIC)) {
@@ -570,20 +601,23 @@ public final class UniversalFlagConfigParser {
           case GTE:
             if (!(condition.value instanceof Number)) {
               throw new IllegalArgumentException(
-                  "flag \"" + flagKey + "\" has a non-numeric condition");
+                  "flag \"" + flagKey + "\" has a non-numeric condition"
+              );
             }
             break;
           case ONE_OF:
           case NOT_ONE_OF:
             if (!(condition.value instanceof List)) {
               throw new IllegalArgumentException(
-                  "flag \"" + flagKey + "\" has a non-list condition");
+                  "flag \"" + flagKey + "\" has a non-list condition"
+              );
             }
             break;
           case IS_NULL:
             if (!(condition.value instanceof Boolean)) {
               throw new IllegalArgumentException(
-                  "flag \"" + flagKey + "\" has a non-boolean condition");
+                  "flag \"" + flagKey + "\" has a non-boolean condition"
+              );
             }
             break;
           default:
@@ -623,25 +657,27 @@ public final class UniversalFlagConfigParser {
               if (!(condition.value instanceof String)) {
                 throw new InvalidSemverComparandException(
                     "flag \""
-                        + flagKey
-                        + "\" allocation "
-                        + allocIdx
-                        + " rule has condition with operator \""
-                        + condition.operator
-                        + "\" that requires string value");
+                    + flagKey
+                    + "\" allocation "
+                    + allocIdx
+                    + " rule has condition with operator \""
+                    + condition.operator
+                    + "\" that requires string value"
+                );
               }
               final ParsedSemver parsed = ParsedSemver.parse((String) condition.value);
               if (parsed == null) {
                 throw new InvalidSemverComparandException(
                     "flag \""
-                        + flagKey
-                        + "\" allocation "
-                        + allocIdx
-                        + " rule has condition with operator \""
-                        + condition.operator
-                        + "\" and invalid semantic version \""
-                        + condition.value
-                        + "\"");
+                    + flagKey
+                    + "\" allocation "
+                    + allocIdx
+                    + " rule has condition with operator \""
+                    + condition.operator
+                    + "\" and invalid semantic version \""
+                    + condition.value
+                    + "\""
+                );
               }
               condition.semverComparand = parsed;
               break;
@@ -660,7 +696,9 @@ public final class UniversalFlagConfigParser {
     T map(@Nullable Object value);
   }
 
-  /** Thrown when a SEMVER_* condition has an invalid or non-string comparand value. */
+  /**
+   * Thrown when a SEMVER_* condition has an invalid or non-string comparand value.
+   */
   static final class InvalidSemverComparandException extends IllegalArgumentException {
     InvalidSemverComparandException(final String message) {
       super(message);

@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class CodeInjectionController {
-
   @GetMapping("/code_injection/beanshell")
   public String beanshell(final HttpServletRequest request) {
     final String param = request.getParameter("param");

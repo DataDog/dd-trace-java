@@ -12,7 +12,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public final class StackTraces {
-  private StackTraces() {}
+  private StackTraces() {
+  }
 
   /**
    * Safely retrieves the message from a throwable.
@@ -65,12 +66,12 @@ public final class StackTraces {
       // StackOverflowError while formatting an already stack-constrained throwable).
       // Reconstruct from getStackTrace() so the call site is still locatable.
       try {
-        trace =
-            t.getClass().getName()
-                + System.lineSeparator()
-                + Arrays.stream(t.getStackTrace())
-                    .map(f -> "\tat " + f)
-                    .collect(Collectors.joining(System.lineSeparator()));
+        trace = t.getClass().getName()
+            + System.lineSeparator()
+            + Arrays
+              .stream(t.getStackTrace())
+              .map(f -> "\tat " + f)
+              .collect(Collectors.joining(System.lineSeparator()));
       } catch (Exception | StackOverflowError ignored2) {
         try {
           trace = t.getClass().getName() + ": " + t.getMessage();
@@ -102,10 +103,10 @@ public final class StackTraces {
     if (trace.length() <= maxChars) {
       return trace;
     }
-
     /* last-ditch centre cut to guarantee the limit */
     String cutMessage = "\t... trace centre-cut to " + maxChars + " chars ...";
-    int retainedLength = maxChars - cutMessage.length() - 2; // 2 for the newlines
+    // 2 for the newlines
+    int retainedLength = maxChars - cutMessage.length() - 2;
     if (retainedLength <= 0) {
       return cutMessage + System.lineSeparator();
     }
@@ -122,17 +123,16 @@ public final class StackTraces {
   private static String abbreviatePackageNames(String trace) {
     StringBuilder sb = new StringBuilder(trace.length());
     new BufferedReader(new StringReader(trace))
-        .lines()
-        .forEach(
-            line -> {
-              Matcher m = FRAME.matcher(line);
-              if (m.matches()) {
-                sb.append("\tat ").append(abbreviatePackageName(m.group(1))).append(m.group(2));
-              } else {
-                sb.append(line);
-              }
-              sb.append(System.lineSeparator());
-            });
+      .lines()
+      .forEach(line -> {
+        Matcher m = FRAME.matcher(line);
+        if (m.matches()) {
+          sb.append("\tat ").append(abbreviatePackageName(m.group(1))).append(m.group(2));
+        } else {
+          sb.append(line);
+        }
+        sb.append(System.lineSeparator());
+      });
     return sb.toString();
   }
 
@@ -178,7 +178,8 @@ public final class StackTraces {
     List<String> out = new ArrayList<>(lines.size());
     int i = 0;
     while (i < lines.size()) {
-      out.add(lines.get(i++)); // "Exception ..." / "Caused by: ..."
+      // "Exception ..." / "Caused by: ..."
+      out.add(lines.get(i++));
       int start = i;
       while (i < lines.size() && lines.get(i).startsWith("\tat")) {
         i++;
@@ -200,7 +201,6 @@ public final class StackTraces {
       for (int j = total - keepTail; j < total; j++) {
         out.add(lines.get(start + j));
       }
-
       // "... n more" continuation markers
       if (i < lines.size() && lines.get(i).startsWith("\t...")) {
         out.add(lines.get(i++));

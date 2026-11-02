@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.event.CommandListener;
@@ -38,9 +37,9 @@ import org.bson.ByteBuf;
 @AutoService(InstrumenterModule.class)
 public final class MongoClient34Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.WithTypeStructure,
+    Instrumenter.HasMethodAdvice
+{
   public MongoClient34Instrumentation() {
     super("mongo", "mongo-3.4");
   }
@@ -48,9 +47,9 @@ public final class MongoClient34Instrumentation extends InstrumenterModule.Traci
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "com.mongodb.MongoClientOptions$Builder",
-      "com.mongodb.async.client.MongoClientSettings$Builder",
-      "com.mongodb.MongoClientSettings$Builder"
+        "com.mongodb.MongoClientOptions$Builder",
+        "com.mongodb.async.client.MongoClientSettings$Builder",
+        "com.mongodb.MongoClientSettings$Builder"
     };
   }
 
@@ -62,15 +61,15 @@ public final class MongoClient34Instrumentation extends InstrumenterModule.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".BsonScrubber",
-      packageName + ".BsonScrubber34",
-      packageName + ".BsonScrubber34$1",
-      packageName + ".BsonScrubber34$2",
-      packageName + ".MongoDecorator",
-      packageName + ".MongoDecorator34",
-      packageName + ".Context",
-      packageName + ".MongoCommandListener",
-      packageName + ".MongoCommandListener$SpanEntry"
+        packageName + ".BsonScrubber",
+        packageName + ".BsonScrubber34",
+        packageName + ".BsonScrubber34$1",
+        packageName + ".BsonScrubber34$2",
+        packageName + ".MongoDecorator",
+        packageName + ".MongoDecorator34",
+        packageName + ".Context",
+        packageName + ".MongoCommandListener",
+        packageName + ".MongoCommandListener$SpanEntry"
     };
   }
 
@@ -86,38 +85,43 @@ public final class MongoClient34Instrumentation extends InstrumenterModule.Traci
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("build"))
-            .and(takesArguments(0))
-            .and(isDeclaredBy(declaresField(named("applicationName")))),
-        MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceAppName");
+          .and(isPublic())
+          .and(named("build"))
+          .and(takesArguments(0))
+          .and(isDeclaredBy(declaresField(named("applicationName")))),
+        MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceAppName"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("build"))
-            .and(takesArguments(0))
-            .and(not(isDeclaredBy(declaresField(named("applicationName"))))),
-        MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceNoAppName");
+          .and(isPublic())
+          .and(named("build"))
+          .and(takesArguments(0))
+          .and(not(isDeclaredBy(declaresField(named("applicationName"))))),
+        MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceNoAppName"
+    );
   }
 
   public static class MongoClientAdviceAppName {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static MongoCommandListener injectTraceListener(
-        @Advice.FieldValue("commandListeners") List<CommandListener> listeners) {
+        @Advice.FieldValue("commandListeners") List<CommandListener> listeners
+    ) {
       return MongoCommandListener.tryRegister(
           new MongoCommandListener(
               2,
               MongoDecorator34.INSTANCE,
               InstrumentationContext.get(BsonDocument.class, ByteBuf.class),
-              InstrumentationContext.get(ConnectionDescription.class, CommandListener.class)),
-          listeners);
+              InstrumentationContext.get(ConnectionDescription.class, CommandListener.class)
+          ),
+          listeners
+      );
     }
 
     @Advice.OnMethodExit
     public static void updateApplicationName(
         @Advice.Enter final MongoCommandListener listener,
-        @Advice.FieldValue(value = "applicationName") String applicationName) {
+        @Advice.FieldValue(value = "applicationName") String applicationName
+    ) {
       if (listener != null) {
         listener.setApplicationName(applicationName);
       }
@@ -129,17 +133,19 @@ public final class MongoClient34Instrumentation extends InstrumenterModule.Traci
   }
 
   public static class MongoClientAdviceNoAppName {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void injectTraceListener(
-        @Advice.FieldValue("commandListeners") List<CommandListener> listeners) {
+        @Advice.FieldValue("commandListeners") List<CommandListener> listeners
+    ) {
       MongoCommandListener.tryRegister(
           new MongoCommandListener(
               2,
               MongoDecorator34.INSTANCE,
               InstrumentationContext.get(BsonDocument.class, ByteBuf.class),
-              InstrumentationContext.get(ConnectionDescription.class, CommandListener.class)),
-          listeners);
+              InstrumentationContext.get(ConnectionDescription.class, CommandListener.class)
+          ),
+          listeners
+      );
     }
 
     public static void muzzleCheck(BsonWriter writer) {

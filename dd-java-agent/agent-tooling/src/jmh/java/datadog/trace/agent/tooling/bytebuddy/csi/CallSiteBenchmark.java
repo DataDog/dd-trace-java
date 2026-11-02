@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import datadog.trace.agent.tooling.AgentInstaller;
 import java.lang.instrument.Instrumentation;
 import net.bytebuddy.agent.ByteBuddyAgent;
@@ -23,7 +22,6 @@ import org.springframework.web.client.RestTemplate;
 @OutputTimeUnit(MILLISECONDS)
 @Fork(value = 10)
 public class CallSiteBenchmark {
-
   private Instrumentation instrumentation;
 
   @Setup(Level.Trial)
@@ -61,7 +59,6 @@ public class CallSiteBenchmark {
     NONE(null),
     CALL_SITE("callSite"),
     CALLEE("callee");
-
     private final String instrumentation;
 
     Type(final String instrumentation) {
@@ -81,8 +78,11 @@ public class CallSiteBenchmark {
       }
       String expected = instrumentation == null ? "Hello!" : "Hello! [Transformed]";
       if (!expected.equals(response)) {
-        throw new RuntimeException(
-            String.format("Wrong response, expected '%s' but received '%s'", expected, response));
+        throw new RuntimeException(String.format(
+            "Wrong response, expected '%s' but received '%s'",
+            expected,
+            response
+        ));
       }
     }
   }

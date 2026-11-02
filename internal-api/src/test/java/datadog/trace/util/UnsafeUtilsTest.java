@@ -3,13 +3,11 @@ package datadog.trace.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class UnsafeUtilsTest {
-
   @Test
   void tryShallowClone() {
     MyClass inner = new MyClass("a", false, Arrays.asList(), "b", 2, null, null);
@@ -30,7 +28,6 @@ class UnsafeUtilsTest {
 
   private static class MyParentClass {
     public static final String CONSTANT = "constant";
-
     private final String a;
     private final boolean b;
     private final List<Integer> c;

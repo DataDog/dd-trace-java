@@ -6,7 +6,6 @@ import datadog.trace.agent.tooling.stratum.StratumExt;
 import datadog.trace.api.Pair;
 
 public interface SourceRemapper {
-
   int remapSourceLine(int line);
 
   static SourceRemapper getSourceRemapper(String sourceFile, SourceMap sourceMap) {
@@ -62,7 +61,8 @@ public interface SourceRemapper {
           throw new IllegalArgumentException("Cannot find source filename for fileid=" + fileId);
         }
         if (sourceFileName.equals("fake.kt")) {
-          return -1; // no mapping possible
+          // no mapping possible
+          return -1;
         }
         return pairMain.getRight();
       }

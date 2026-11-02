@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 
 public class StreamingTraceCollector extends TraceCollector {
-
   static class Factory implements TraceCollector.Factory {
     private final CoreTracer tracer;
     private final TimeSource timeSource;
@@ -27,23 +26,27 @@ public class StreamingTraceCollector extends TraceCollector {
 
     @Override
     public StreamingTraceCollector create(
-        @Nonnull DDTraceId traceId, CoreTracer.ConfigSnapshot traceConfig) {
+        @Nonnull DDTraceId traceId,
+        CoreTracer.ConfigSnapshot traceConfig
+    ) {
       return new StreamingTraceCollector(tracer, traceConfig, timeSource, healthMetrics);
     }
   }
 
   private final HealthMetrics healthMetrics;
   private volatile DDSpan rootSpan;
-
-  private static final AtomicReferenceFieldUpdater<StreamingTraceCollector, DDSpan> ROOT_SPAN =
-      AtomicReferenceFieldUpdater.newUpdater(
-          StreamingTraceCollector.class, DDSpan.class, "rootSpan");
+  private static final AtomicReferenceFieldUpdater<StreamingTraceCollector, DDSpan> ROOT_SPAN = AtomicReferenceFieldUpdater.newUpdater(
+      StreamingTraceCollector.class,
+      DDSpan.class,
+      "rootSpan"
+  );
 
   private StreamingTraceCollector(
       CoreTracer tracer,
       CoreTracer.ConfigSnapshot traceConfig,
       TimeSource timeSource,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics
+  ) {
     super(tracer, traceConfig != null ? traceConfig : tracer.captureTraceConfig(), timeSource);
     this.healthMetrics = healthMetrics;
   }

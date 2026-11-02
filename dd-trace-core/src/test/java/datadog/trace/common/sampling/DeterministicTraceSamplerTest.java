@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.core.DDSpan;
 import java.math.BigDecimal;
@@ -18,7 +17,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 class DeterministicTraceSamplerTest {
-
   @TableTest({
     "scenario               | expected | traceId             ",
     "10428415896243638596 f | false    | 10428415896243638596",
@@ -373,11 +371,13 @@ class DeterministicTraceSamplerTest {
     // here
     long cutoff = DeterministicSampler.cutoff(rate / 100.0);
 
-    BigDecimal cutoffFactor =
-        new BigDecimal(BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE));
+    BigDecimal cutoffFactor = new BigDecimal(BigInteger
+      .valueOf(2)
+      .pow(64)
+      .subtract(BigInteger.ONE));
     long expected =
         new BigDecimal(rate / 100D).multiply(cutoffFactor).toBigInteger().longValue()
-            + Long.MIN_VALUE;
+        + Long.MIN_VALUE;
     assertTrue(Math.abs(cutoff - expected) <= 1);
   }
 

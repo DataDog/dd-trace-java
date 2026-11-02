@@ -2,19 +2,22 @@ package datadog.trace.util;
 
 import javax.annotation.Nullable;
 
-/** Exception-free {@code int} parsing, the {@code int} counterpart of {@code LongStringUtils}. */
+/**
+ * Exception-free {@code int} parsing, the {@code int} counterpart of {@code LongStringUtils}.
+ */
 public final class IntStringUtils {
-
   /**
    * Accept a single leading {@code '+'}, as {@link Integer#parseInt(String)} does. Not every
    * grammar allows it, but callers that must match lenient parsers elsewhere may need it.
    */
   public static final boolean ALLOW_LEADING_PLUS = true;
-
-  /** Accept ASCII digits only; any sign makes the input invalid. */
+  /**
+   * Accept ASCII digits only; any sign makes the input invalid.
+   */
   public static final boolean REJECT_LEADING_PLUS = false;
 
-  private IntStringUtils() {}
+  private IntStringUtils() {
+  }
 
   /**
    * Parses a non-negative decimal {@code int} from the whole sequence without throwing.
@@ -61,14 +64,19 @@ public final class IntStringUtils {
    *     {@code int}
    */
   public static int parseNonNegativeInt(
-      @Nullable CharSequence s, int start, int len, boolean allowLeadingPlus) {
+      @Nullable CharSequence s,
+      int start,
+      int len,
+      boolean allowLeadingPlus
+  ) {
     if (s == null || start < 0 || len <= 0 || start > s.length() - len) {
       return -1;
     }
     int i = start;
     final int end = start + len;
     if (allowLeadingPlus && s.charAt(i) == '+' && ++i == end) {
-      return -1; // a sign with no digits
+      // a sign with no digits
+      return -1;
     }
     int result = 0;
     for (; i < end; i++) {

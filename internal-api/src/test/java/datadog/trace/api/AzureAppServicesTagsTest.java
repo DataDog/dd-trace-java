@@ -4,7 +4,6 @@ import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.util.Collection;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(WithConfigExtension.class)
 class AzureAppServicesTagsTest {
-
   private static final String SUBSCRIPTION_ID = "8c500027-5f00-400e-8f00-60000000000f";
 
   @Test
@@ -34,7 +32,8 @@ class AzureAppServicesTagsTest {
       key = "WEBSITE_OWNER_NAME",
       value = SUBSCRIPTION_ID + "+apm-dotnet-EastUSwebspace",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   void subscriptionIdParsed() {
     Config config = Config.get();
 
@@ -48,16 +47,16 @@ class AzureAppServicesTagsTest {
       key = "WEBSITE_OWNER_NAME",
       value = SUBSCRIPTION_ID + "+apm-dotnet-EastUSwebspace",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(key = "WEBSITE_RESOURCE_GROUP", value = "group", env = true, addPrefix = false)
   @WithConfig(key = "WEBSITE_SITE_NAME", value = "site", env = true, addPrefix = false)
   void resourceIdGenerated() {
     Config config = Config.get();
 
-    String expectedResourceId =
-        "/subscriptions/"
-            + SUBSCRIPTION_ID
-            + "/resourcegroups/group/providers/microsoft.web/sites/site";
+    String expectedResourceId = "/subscriptions/"
+        + SUBSCRIPTION_ID
+        + "/resourcegroups/group/providers/microsoft.web/sites/site";
     assertEquals(expectedResourceId, config.getLocalRootSpanTags().getString("aas.resource.id"));
     assertEquals(expectedResourceId, config.getMergedProfilingTags().get("aas.resource.id"));
   }
@@ -102,6 +101,9 @@ class AzureAppServicesTagsTest {
   }
 
   private static List<String> aasKeys(Collection<String> keys) {
-    return keys.stream().filter(key -> key.startsWith("aas")).collect(toList());
+    return keys
+      .stream()
+      .filter(key -> key.startsWith("aas"))
+      .collect(toList());
   }
 }

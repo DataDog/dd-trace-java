@@ -3,7 +3,6 @@ package datadog.cws.tls;
 import datadog.trace.api.DDTraceId;
 
 class DummyTls implements Tls {
-
   private DDTraceId traceId;
   private long spanId;
 

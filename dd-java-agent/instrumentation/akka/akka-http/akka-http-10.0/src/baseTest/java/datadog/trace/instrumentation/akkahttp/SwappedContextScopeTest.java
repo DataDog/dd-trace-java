@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;

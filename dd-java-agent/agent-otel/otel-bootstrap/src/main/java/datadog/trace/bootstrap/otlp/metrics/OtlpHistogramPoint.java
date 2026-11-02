@@ -16,7 +16,8 @@ public final class OtlpHistogramPoint extends OtlpDataPoint {
       List<Double> bucketCounts,
       double sum,
       double min,
-      double max) {
+      double max
+  ) {
     this.count = count;
     this.bucketBoundaries = bucketBoundaries;
     this.bucketCounts = bucketCounts;

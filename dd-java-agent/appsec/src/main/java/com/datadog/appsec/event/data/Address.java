@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class Address<T> {
   private static final int MAX_SERIAL = 0x3FFF;
   private static final AtomicInteger NEXT_SERIAL = new AtomicInteger();
-
   private final String key;
   private final int serial;
 
@@ -33,7 +32,6 @@ public final class Address<T> {
 
   // do not replace equals/hashcode
   // equality is identity
-
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("Address{");

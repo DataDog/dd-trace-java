@@ -1,5 +1,5 @@
+// spotless:off - Secret detection tests assert source line numbers.
 package datadog.trace.agent.tooling.iast;
-
 public class WithHardcodedSecret {
 
   private static final int NUMBER = 1;
@@ -13,3 +13,4 @@ public class WithHardcodedSecret {
     return "ghu_39GyMbaIlk2UMGTkC9WCDlpe9AjRNZa1WZQW";
   }
 }
+// spotless:on

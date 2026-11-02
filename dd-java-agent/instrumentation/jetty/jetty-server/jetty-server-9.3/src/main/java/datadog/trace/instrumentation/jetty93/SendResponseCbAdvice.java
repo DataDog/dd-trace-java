@@ -14,7 +14,8 @@ public class SendResponseCbAdvice {
       @Advice.Argument(0) MetaData.Response responseInfo,
       @Advice.Argument(3) Callback cb,
       @Advice.FieldValue("_committed") AtomicBoolean _committed,
-      @Advice.FieldValue("_transport") HttpTransport _transport) {
+      @Advice.FieldValue("_transport") HttpTransport _transport
+  ) {
     return JettyCommitResponseHelper.before(connection, responseInfo, _transport, _committed, cb);
   }
 }

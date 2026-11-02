@@ -12,15 +12,18 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
  * </ul>
  */
 public class GlobalIgnores {
-  private GlobalIgnores() {}
+  private GlobalIgnores() {
+  }
 
   public static boolean isIgnored(String name, boolean skipAdditionalIgnores) {
     // ignored classes/packages are now maintained in the 'ignored_class_name.trie' resource
     switch (IgnoredClassNameTrie.apply(name)) {
       case 0:
-        return false; // global allow
+        // global allow
+        return false;
       case 1:
-        return true; // system-level ignore
+        // system-level ignore
+        return true;
       case 2:
         return !skipAdditionalIgnores;
       case 3:

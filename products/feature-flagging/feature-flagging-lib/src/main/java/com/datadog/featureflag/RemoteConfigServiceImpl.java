@@ -2,7 +2,6 @@ package com.datadog.featureflag;
 
 import static datadog.remoteconfig.Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES;
 import static datadog.remoteconfig.Product.FFE_FLAGS;
-
 import datadog.remoteconfig.ConfigurationChangesTypedListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
@@ -20,17 +19,14 @@ import org.slf4j.LoggerFactory;
  */
 public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListener<byte[]> {
   private static final Logger LOGGER = LoggerFactory.getLogger(RemoteConfigServiceImpl.class);
-
   private final ConfigurationPoller configurationPoller;
   private final List<Consumer<byte[]>> subscribers = new CopyOnWriteArrayList<>();
   private volatile byte[] current;
-
   /**
    * Whether the current document was received before any subscriber, so the poller acknowledged it
    * without validation. Guarded by the subscribers lock.
    */
   private boolean unvalidated;
-
   private boolean started;
 
   public RemoteConfigServiceImpl(final ConfigurationPoller configurationPoller) {
@@ -131,7 +127,8 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
   public void accept(
       final String configKey,
       @Nullable final byte[] content,
-      final PollingRateHinter pollingRateHinter) {
+      final PollingRateHinter pollingRateHinter
+  ) {
     final Iterator<Consumer<byte[]>> snapshot;
     synchronized (this.subscribers) {
       this.current = content;
@@ -158,7 +155,8 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       LOGGER.debug(
           "Feature Flagging remote_config configuration received: key={}, bytes={}",
           configKey,
-          content.length);
+          content.length
+      );
     }
     if (failure != null) {
       throw failure;

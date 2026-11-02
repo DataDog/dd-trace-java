@@ -32,7 +32,8 @@ public class CrashtrackingTestApplication {
       if (onOutOfMemoryError == null) {
         onOutOfMemoryError = diagBean.getVMOption("OnOutOfMemoryError").getValue();
       }
-      LockSupport.parkNanos(100_00_000L); // 100ms
+      // 100ms
+      LockSupport.parkNanos(100_00_000L);
     }
 
     if (onError == null && onOutOfMemoryError == null) {
@@ -40,18 +41,18 @@ public class CrashtrackingTestApplication {
       System.exit(-1);
     }
 
-    String crashUploaderScript =
-        Arrays.stream(onError.split(";"))
-            .filter(s -> s.trim().contains("dd_crash_uploader"))
-            .findFirst()
-            .map(s -> s.replace(" %p", ""))
-            .orElse(null);
-    String oomeNotifierScript =
-        Arrays.stream(onOutOfMemoryError.split(";"))
-            .filter(s -> s.trim().contains("dd_oome_notifier"))
-            .findFirst()
-            .map(s -> s.replace(" %p", ""))
-            .orElse(null);
+    String crashUploaderScript = Arrays
+      .stream(onError.split(";"))
+      .filter(s -> s.trim().contains("dd_crash_uploader"))
+      .findFirst()
+      .map(s -> s.replace(" %p", ""))
+      .orElse(null);
+    String oomeNotifierScript = Arrays
+      .stream(onOutOfMemoryError.split(";"))
+      .filter(s -> s.trim().contains("dd_oome_notifier"))
+      .findFirst()
+      .map(s -> s.replace(" %p", ""))
+      .orElse(null);
     if (crashUploaderScript == null && oomeNotifierScript == null) {
       System.err.println("Neither OnError nor OnOutOfMemoryError contains the expected value");
       System.exit(-1);
@@ -62,23 +63,20 @@ public class CrashtrackingTestApplication {
 
     CountDownLatch latch = new CountDownLatch(1);
 
-    Thread t =
-        new Thread(
-            () -> {
-              Path scriptPath =
-                  Paths.get(crashUploaderScript != null ? crashUploaderScript : oomeNotifierScript);
-              while (!Files.exists(scriptPath)) {
-                System.out.println("Waiting for the script " + scriptPath + " to be created...");
-                LockSupport.parkNanos(1_000_000_000L);
-              }
-              latch.countDown();
-            });
+    Thread t = new Thread(() -> {
+      Path scriptPath =
+          Paths.get(crashUploaderScript != null ? crashUploaderScript : oomeNotifierScript);
+      while (!Files.exists(scriptPath)) {
+        System.out.println("Waiting for the script " + scriptPath + " to be created...");
+        LockSupport.parkNanos(1_000_000_000L);
+      }
+      latch.countDown();
+    });
     t.setDaemon(true);
     t.start();
 
     System.out.println("Waiting for initialization...");
     latch.await(5, TimeUnit.MINUTES);
-
     // let's provoke OOME
     List<byte[]> buffer = new ArrayList<>();
     int size = 1;

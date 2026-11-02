@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.condition.JRE.JAVA_16;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -49,7 +48,6 @@ import org.junit.jupiter.api.condition.EnabledForJreRange;
 
 @EnabledForJreRange(min = JAVA_16)
 public class TunnelingJdkSocketTest {
-
   private TestUnixSocketServer server;
 
   @BeforeAll
@@ -85,8 +83,9 @@ public class TunnelingJdkSocketTest {
     assertFalse(clientSocket.isClosed());
     assertFalse(clientSocket.isInputShutdown());
     assertFalse(clientSocket.isOutputShutdown());
-    assertThrows(
-        SocketException.class, () -> clientSocket.connect(new InetSocketAddress("localhost", 0)));
+    assertThrows(SocketException.class, () -> clientSocket.connect(
+        new InetSocketAddress("localhost", 0)
+    ));
 
     clientSocket.close();
 
@@ -107,16 +106,18 @@ public class TunnelingJdkSocketTest {
     Path missingSocketPath = getSocketPath();
     TunnelingJdkSocket clientSocket = new TunnelingJdkSocket(missingSocketPath);
 
-    assertThrows(
-        IOException.class, () -> clientSocket.connect(new InetSocketAddress("localhost", 0)));
+    assertThrows(IOException.class, () -> clientSocket.connect(
+        new InetSocketAddress("localhost", 0)
+    ));
 
     assertFalse(clientSocket.isConnected());
     assertTrue(clientSocket.isClosed());
     assertTrue(clientSocket.isInputShutdown());
     assertTrue(clientSocket.isOutputShutdown());
     assertFalse(clientSocket.getChannel().isOpen());
-    assertThrows(
-        SocketException.class, () -> clientSocket.connect(new InetSocketAddress("localhost", 0)));
+    assertThrows(SocketException.class, () -> clientSocket.connect(
+        new InetSocketAddress("localhost", 0)
+    ));
   }
 
   @Test
@@ -181,13 +182,12 @@ public class TunnelingJdkSocketTest {
     int newTimeout = testTimeout / 2;
     clientSocket.setSoTimeout(newTimeout);
     assertEquals(newTimeout, clientSocket.getSoTimeout());
-    assertTimeoutPreemptively(
-        Duration.ofMillis(testTimeout),
-        () -> assertThrows(SocketTimeoutException.class, () -> inputStream.read(new byte[1])));
+    assertTimeoutPreemptively(Duration.ofMillis(testTimeout), () -> assertThrows(SocketTimeoutException.class, () -> inputStream.read(
+        new byte[1]
+    )));
 
     int invalidTimeout = -1;
     assertThrows(IllegalArgumentException.class, () -> clientSocket.setSoTimeout(invalidTimeout));
-
     // The socket should block indefinitely when timeout is set to 0, per
     // https://docs.oracle.com/en/java/javase/16/docs/api//java.base/java/net/Socket.html#setSoTimeout(int).
     int infiniteTimeout = 0;
@@ -201,7 +201,8 @@ public class TunnelingJdkSocketTest {
       reader.shutdownNow();
       assertInstanceOf(
           InterruptedIOException.class,
-          assertThrows(ExecutionException.class, () -> read.get(5, TimeUnit.SECONDS)).getCause());
+          assertThrows(ExecutionException.class, () -> read.get(5, TimeUnit.SECONDS)).getCause()
+      );
     } finally {
       reader.shutdownNow();
       clientSocket.close();
@@ -249,18 +250,20 @@ public class TunnelingJdkSocketTest {
     assertEquals(newBufferSize, clientSocket.getStreamBufferSize());
 
     int invalidBufferSize = -1;
-    assertThrows(
-        IllegalArgumentException.class, () -> clientSocket.setSendBufferSize(invalidBufferSize));
-    assertThrows(
-        IllegalArgumentException.class, () -> clientSocket.setReceiveBufferSize(invalidBufferSize));
+    assertThrows(IllegalArgumentException.class, () -> clientSocket.setSendBufferSize(
+        invalidBufferSize
+    ));
+    assertThrows(IllegalArgumentException.class, () -> clientSocket.setReceiveBufferSize(
+        invalidBufferSize
+    ));
 
     clientSocket.close();
-    assertThrows(
-        SocketException.class,
-        () -> clientSocket.setSendBufferSize(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE));
-    assertThrows(
-        SocketException.class,
-        () -> clientSocket.setReceiveBufferSize(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE));
+    assertThrows(SocketException.class, () -> clientSocket.setSendBufferSize(
+        TunnelingJdkSocket.DEFAULT_BUFFER_SIZE
+    ));
+    assertThrows(SocketException.class, () -> clientSocket.setReceiveBufferSize(
+        TunnelingJdkSocket.DEFAULT_BUFFER_SIZE
+    ));
     assertThrows(SocketException.class, clientSocket::getSendBufferSize);
     assertThrows(SocketException.class, clientSocket::getReceiveBufferSize);
     assertThrows(SocketException.class, clientSocket::getStreamBufferSize);
@@ -305,11 +308,13 @@ public class TunnelingJdkSocketTest {
       clientSocket.selector = new ClosedAfterSelectSelector();
       assertTrue(
           clientSocket.getChannel().isBlocking(),
-          "The channel should be blocking before getInputStream()");
+          "The channel should be blocking before getInputStream()"
+      );
       InputStream inputStream = clientSocket.getInputStream();
       assertFalse(
           clientSocket.getChannel().isBlocking(),
-          "getInputStream() should switch the channel to nonblocking mode");
+          "getInputStream() should switch the channel to nonblocking mode"
+      );
 
       SocketException exception = assertThrows(SocketException.class, inputStream::read);
 
@@ -339,32 +344,28 @@ public class TunnelingJdkSocketTest {
       InputStream inputStream = clientSocket.getInputStream();
       AtomicReference<Throwable> readFailure = new AtomicReference<>();
 
-      reader =
-          new Thread(
-              () -> {
-                try {
-                  inputStream.read();
-                } catch (Throwable t) {
-                  readFailure.set(t);
-                }
-              },
-              "tunneling-jdk-socket-reader");
+      reader = new Thread(() -> {
+        try {
+          inputStream.read();
+        } catch (Throwable t) {
+          readFailure.set(t);
+        }
+      }, "tunneling-jdk-socket-reader");
       reader.setDaemon(true);
       reader.start();
 
       assertTrue(
           blockingCloseSelector.awaitSelectStarted(5, TimeUnit.SECONDS),
-          "The reader did not block in Selector.select");
+          "The reader did not block in Selector.select"
+      );
       clientSocket.close();
       reader.join(TimeUnit.SECONDS.toMillis(5));
 
       assertFalse(reader.isAlive(), "The blocked read did not terminate after close");
       Throwable failure = readFailure.get();
       assertNotNull(failure, "The blocked read should fail when the socket is closed");
-      assertInstanceOf(
-          IOException.class,
-          failure,
-          () -> "Expected an IOException, but got " + failure.getClass().getName());
+      assertInstanceOf(IOException.class, failure, () -> "Expected an IOException, but got "
+          + failure.getClass().getName());
     } finally {
       clientSocket.close();
       if (reader != null && reader.isAlive()) {
@@ -382,34 +383,27 @@ public class TunnelingJdkSocketTest {
       clientSocket.setSendBufferSize(4096);
       OutputStream output = clientSocket.getOutputStream();
       CountDownLatch writing = new CountDownLatch(1);
-      Future<?> writer =
-          executor.submit(
-              () -> {
-                writing.countDown();
-                // The server accepts but does not read, so this exceeds the socket's send buffer.
-                output.write(new byte[1024 * 1024]);
-                return null;
-              });
+      Future<?> writer = executor.submit(() -> {
+        writing.countDown();
+        // The server accepts but does not read, so this exceeds the socket's send buffer.
+        output.write(new byte[1024 * 1024]);
+        return null;
+      });
       assertTrue(writing.await(5, TimeUnit.SECONDS));
       assertThrows(TimeoutException.class, () -> writer.get(100, TimeUnit.MILLISECONDS));
 
       AtomicReference<Thread> inputThread = new AtomicReference<>();
-      Future<InputStream> input =
-          executor.submit(
-              () -> {
-                inputThread.set(Thread.currentThread());
-                return clientSocket.getInputStream();
-              });
+      Future<InputStream> input = executor.submit(() -> {
+        inputThread.set(Thread.currentThread());
+        return clientSocket.getInputStream();
+      });
       // Wait until input setup is waiting for the channel's blocked writer before closing.
-      assertTimeoutPreemptively(
-          Duration.ofSeconds(5),
-          () -> {
-            while (inputThread.get() == null
-                || inputThread.get().getState() != Thread.State.WAITING) {
-              assertFalse(input.isDone(), "Input setup should wait for the blocked writer");
-              Thread.sleep(1);
-            }
-          });
+      assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+        while (inputThread.get() == null || inputThread.get().getState() != Thread.State.WAITING) {
+          assertFalse(input.isDone(), "Input setup should wait for the blocked writer");
+          Thread.sleep(1);
+        }
+      });
 
       executor.submit(clientSocket::close).get(5, TimeUnit.SECONDS);
 
@@ -417,10 +411,12 @@ public class TunnelingJdkSocketTest {
       assertFalse(clientSocket.getChannel().isOpen());
       assertInstanceOf(
           IOException.class,
-          assertThrows(ExecutionException.class, () -> writer.get(5, TimeUnit.SECONDS)).getCause());
+          assertThrows(ExecutionException.class, () -> writer.get(5, TimeUnit.SECONDS)).getCause()
+      );
       assertInstanceOf(
           IOException.class,
-          assertThrows(ExecutionException.class, () -> input.get(5, TimeUnit.SECONDS)).getCause());
+          assertThrows(ExecutionException.class, () -> input.get(5, TimeUnit.SECONDS)).getCause()
+      );
     } finally {
       // Also release the writer if the regression prevents socket.close() from taking its monitor.
       clientSocket.getChannel().close();
@@ -486,18 +482,15 @@ public class TunnelingJdkSocketTest {
         }
       }
 
-      serverThread =
-          new Thread(
-              () -> {
-                try {
-                  acceptedChannel.set(serverChannel.accept());
-                } catch (IOException e) {
-                  if (serverChannel.isOpen()) {
-                    serverFailure.set(e);
-                  }
-                }
-              },
-              "tunneling-jdk-socket-test-server");
+      serverThread = new Thread(() -> {
+        try {
+          acceptedChannel.set(serverChannel.accept());
+        } catch (IOException e) {
+          if (serverChannel.isOpen()) {
+            serverFailure.set(e);
+          }
+        }
+      }, "tunneling-jdk-socket-test-server");
       serverThread.setDaemon(true);
       serverThread.start();
     }
@@ -731,8 +724,7 @@ public class TunnelingJdkSocketTest {
     try {
       socketPath = Files.createTempFile("testSocketSupport", null);
       Files.delete(socketPath);
-      try (ServerSocketChannel serverChannel =
-          ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
+      try (ServerSocketChannel serverChannel = ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
         serverChannel.bind(UnixDomainSocketAddress.of(socketPath));
       }
       return true;

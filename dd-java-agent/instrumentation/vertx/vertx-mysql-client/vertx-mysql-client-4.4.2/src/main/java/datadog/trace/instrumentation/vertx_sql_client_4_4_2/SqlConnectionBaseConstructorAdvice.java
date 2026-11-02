@@ -13,18 +13,20 @@ import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
 public class SqlConnectionBaseConstructorAdvice {
-
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterConstructor(
       @Advice.This final SqlClient zis,
-      @Advice.Argument(1) final ConnectionFactory connectionFactory) {
-
+      @Advice.Argument(1) final ConnectionFactory connectionFactory
+  ) {
     if (connectionFactory instanceof MySQLConnectionFactory) {
-      InstrumentationContext.get(SqlClient.class, DBInfo.class)
-          .put(
-              zis,
-              InstrumentationContext.get(MySQLConnectionFactory.class, DBInfo.class)
-                  .get((MySQLConnectionFactory) connectionFactory));
+      InstrumentationContext
+        .get(SqlClient.class, DBInfo.class)
+        .put(
+            zis,
+            InstrumentationContext
+              .get(MySQLConnectionFactory.class, DBInfo.class)
+              .get((MySQLConnectionFactory) connectionFactory)
+        );
     }
   }
 

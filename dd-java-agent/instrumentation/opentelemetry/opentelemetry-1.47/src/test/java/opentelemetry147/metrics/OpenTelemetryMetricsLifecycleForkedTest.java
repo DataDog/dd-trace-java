@@ -2,7 +2,6 @@ package opentelemetry147.metrics;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
 import datadog.trace.test.junit.utils.config.WithConfig;
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.Test;
 
 @WithConfig(key = "metrics.otel.enabled", value = "true")
 class OpenTelemetryMetricsLifecycleForkedTest extends AbstractInstrumentationTest {
-
   @Test
   void closingGlobalMeterProviderRunsShutdownHook() throws Exception {
     Closeable meterProvider =

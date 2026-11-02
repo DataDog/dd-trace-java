@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.serialization.ByteBufferConsumer;
@@ -47,32 +46,26 @@ import org.junit.jupiter.api.BeforeEach;
 import org.tabletest.junit.TableTest;
 
 class DDApiIntegrationTest extends AbstractTraceAgentTest {
-
   // Looks like okHttp needs to resolve this, even for connection over socket
   static final String SOMEHOST = "datadoghq.com";
   static final int SOMEPORT = 123;
-
   static Process process;
   static File socketPath;
-
   CoreTracer tracer;
   DDSpan span;
-
   DDAgentFeaturesDiscovery discovery;
   DDAgentFeaturesDiscovery udsDiscovery;
   DDAgentApi api;
   DDAgentApi unixDomainSocketApi;
   TraceMapper mapper;
   String traceEndpoint;
-
   AtomicReference<String> endpoint = new AtomicReference<>(null);
   AtomicReference<Map<String, Map<String, Number>>> agentResponse = new AtomicReference<>(null);
-
   RemoteResponseListener responseListener =
       (receivedEndpoint, responseJson) -> {
-        endpoint.set(receivedEndpoint);
-        agentResponse.set(responseJson);
-      };
+    endpoint.set(receivedEndpoint);
+    agentResponse.set(responseJson);
+  };
 
   @BeforeAll
   static void startSocatProxy() throws IOException {
@@ -81,20 +74,22 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     socketPath = new File(tmpDir, "socket");
     System.out.println(
         "!!!socat UNIX-LISTEN:"
-            + socketPath
-            + ",reuseaddr,fork TCP-CONNECT:"
-            + getAgentContainerHost()
-            + ":"
-            + getAgentContainerPort());
-    process =
-        Runtime.getRuntime()
-            .exec(
-                "socat UNIX-LISTEN:"
-                    + socketPath
-                    + ",reuseaddr,fork TCP-CONNECT:"
-                    + getAgentContainerHost()
-                    + ":"
-                    + getAgentContainerPort());
+        + socketPath
+        + ",reuseaddr,fork TCP-CONNECT:"
+        + getAgentContainerHost()
+        + ":"
+        + getAgentContainerPort()
+    );
+    process = Runtime
+      .getRuntime()
+      .exec(
+          "socat UNIX-LISTEN:"
+          + socketPath
+          + ",reuseaddr,fork TCP-CONNECT:"
+          + getAgentContainerHost()
+          + ":"
+          + getAgentContainerPort()
+      );
   }
 
   @BeforeEach
@@ -123,14 +118,26 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
     HttpUrl agentUrl = HttpUrl.get(Config.get().getAgentUrl());
     OkHttpClient httpClient = OkHttpUtils.buildHttpClient(agentUrl, 5000);
-    discovery =
-        new DDAgentFeaturesDiscovery(httpClient, monitoring, agentUrl, protocol, true, false);
+    discovery = new DDAgentFeaturesDiscovery(
+        httpClient,
+        monitoring,
+        agentUrl,
+        protocol,
+        true,
+        false
+    );
     api = new DDAgentApi(httpClient, agentUrl, discovery, monitoring, false);
     api.addResponseListener(responseListener);
     HttpUrl udsAgentUrl = HttpUrl.get(String.format("http://%s:%d", SOMEHOST, SOMEPORT));
     OkHttpClient udsClient = OkHttpUtils.buildHttpClient(true, socketPath.toString(), null, 5000);
-    udsDiscovery =
-        new DDAgentFeaturesDiscovery(udsClient, monitoring, agentUrl, protocol, true, false);
+    udsDiscovery = new DDAgentFeaturesDiscovery(
+        udsClient,
+        monitoring,
+        agentUrl,
+        protocol,
+        true,
+        false
+    );
     unixDomainSocketApi = new DDAgentApi(udsClient, udsAgentUrl, udsDiscovery, monitoring, false);
     unixDomainSocketApi.addResponseListener(responseListener);
     if (protocol == V1_0) {
@@ -213,9 +220,9 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
   void sendingTracesToUnixDomainSocketSucceeds(ProtocolVersion protocol) throws IOException {
     beforeTest(protocol);
 
-    RemoteApi.Response response =
-        unixDomainSocketApi.sendSerializedTraces(
-            prepareRequest(singletonList(singletonList(span)), mapper));
+    RemoteApi.Response response = unixDomainSocketApi.sendSerializedTraces(
+        prepareRequest(singletonList(singletonList(span)), mapper)
+    );
     assertFalse(response.response().isEmpty());
     assertFalse(response.exception().isPresent());
     assertTrue(response.status().isPresent());

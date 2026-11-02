@@ -32,11 +32,17 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
       String optionalComponent,
       String libName,
       boolean isPreloaded,
-      URL optionalUrl) {
+      URL optionalUrl
+  ) {
     for (LibraryLoadingListener listener : this.listeners) {
       try {
         listener.onResolveDynamic(
-            platformSpec, optionalComponent, libName, isPreloaded, optionalUrl);
+            platformSpec,
+            optionalComponent,
+            libName,
+            isPreloaded,
+            optionalUrl
+        );
       } catch (Throwable ignored) {
       }
     }
@@ -47,7 +53,8 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      Throwable optionalCause) {
+      Throwable optionalCause
+  ) {
     for (LibraryLoadingListener listener : this.listeners) {
       try {
         listener.onResolveDynamicFailure(platformSpec, optionalComponent, libName, optionalCause);
@@ -62,7 +69,8 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
       String optionalComponent,
       String libName,
       boolean isPreloaded,
-      Path optionalLibPath) {
+      Path optionalLibPath
+  ) {
     for (LibraryLoadingListener listener : this.listeners) {
       try {
         listener.onLoad(platformSpec, optionalComponent, libName, isPreloaded, optionalLibPath);
@@ -76,7 +84,8 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      Throwable optionalCause) {
+      Throwable optionalCause
+  ) {
     for (LibraryLoadingListener listener : this.listeners) {
       try {
         listener.onLoadFailure(platformSpec, optionalComponent, libName, optionalCause);
@@ -87,7 +96,11 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
 
   @Override
   public void onTempFileCreated(
-      PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Path tempFile
+  ) {
     for (LibraryLoadingListener listener : this.listeners) {
       try {
         listener.onTempFileCreated(platformSpec, optionalComponent, libName, tempFile);
@@ -103,11 +116,18 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
       String libName,
       Path tempDir,
       String libExt,
-      Throwable optionalCause) {
+      Throwable optionalCause
+  ) {
     for (LibraryLoadingListener listener : this.listeners) {
       try {
         listener.onTempFileCreationFailure(
-            platformSpec, optionalComponent, libName, tempDir, libExt, optionalCause);
+            platformSpec,
+            optionalComponent,
+            libName,
+            tempDir,
+            libExt,
+            optionalCause
+        );
       } catch (Throwable ignored) {
       }
     }
@@ -115,7 +135,11 @@ final class CompositeLibraryLoadingListener extends SafeLibraryLoadingListener {
 
   @Override
   public void onTempFileCleanup(
-      PlatformSpec platformSpec, String optionalComponent, String libName, Path tempPath) {
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Path tempPath
+  ) {
     for (LibraryLoadingListener listener : this.listeners) {
       try {
         listener.onTempFileCleanup(platformSpec, optionalComponent, libName, tempPath);

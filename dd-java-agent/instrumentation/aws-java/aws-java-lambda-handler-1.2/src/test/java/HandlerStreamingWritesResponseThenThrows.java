@@ -9,10 +9,10 @@ public class HandlerStreamingWritesResponseThenThrows implements RequestStreamHa
   @Override
   public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
       throws IOException {
-    outputStream.write(
-        ("{\"statusCode\":200,\"headers\":{\"content-type\":\"application/json\"},"
-                + "\"body\":\"{\\\"discarded\\\":true}\"}")
-            .getBytes(StandardCharsets.UTF_8));
+    outputStream.write(("{\"statusCode\":200,\"headers\":{\"content-type\":\"application/json\"},"
+        + "\"body\":\"{\\\"discarded\\\":true}\"}")
+      .getBytes(StandardCharsets.UTF_8)
+    );
     throw new Error("Some error");
   }
 }

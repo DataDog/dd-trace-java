@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.credential.BearerTokenCredential;
@@ -45,46 +44,42 @@ import org.junit.jupiter.api.Test;
  * singleton initializes, and {@code forkedTest} forks per test class ({@code forkEvery = 1}).
  */
 abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTest {
-
   protected static HttpServer mockServer;
   protected static OpenAIClient openAiClient;
-
   private static final String CHAT_COMPLETION_BODY =
       "{\"id\":\"chatcmpl-test\",\"object\":\"chat.completion\",\"created\":1,"
-          + "\"model\":\"gpt-4o-mini-2024-07-18\","
-          + "\"choices\":[{\"index\":0,\"finish_reason\":\"stop\",\"logprobs\":null,"
-          + "\"message\":{\"role\":\"assistant\",\"content\":\"hi\"}}],"
-          + "\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":7,\"total_tokens\":18,"
-          + "\"prompt_tokens_details\":{\"cached_tokens\":4}}}";
-
+      + "\"model\":\"gpt-4o-mini-2024-07-18\","
+      + "\"choices\":[{\"index\":0,\"finish_reason\":\"stop\",\"logprobs\":null,"
+      + "\"message\":{\"role\":\"assistant\",\"content\":\"hi\"}}],"
+      + "\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":7,\"total_tokens\":18,"
+      + "\"prompt_tokens_details\":{\"cached_tokens\":4}}}";
   private static final String EMBEDDING_BODY =
       "{\"object\":\"list\",\"model\":\"text-embedding-ada-002\","
-          + "\"data\":[{\"object\":\"embedding\",\"index\":0,\"embedding\":[0.1,0.2]}],"
-          + "\"usage\":{\"prompt_tokens\":5,\"total_tokens\":5}}";
+      + "\"data\":[{\"object\":\"embedding\",\"index\":0,\"embedding\":[0.1,0.2]}],"
+      + "\"usage\":{\"prompt_tokens\":5,\"total_tokens\":5}}";
 
   @BeforeAll
   static void setupMockOpenAi() throws IOException {
     mockServer = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
     mockServer.createContext("/v1/chat/completions", jsonHandler(CHAT_COMPLETION_BODY));
     mockServer.createContext("/v1/embeddings", jsonHandler(EMBEDDING_BODY));
-    mockServer.createContext(
-        "/v1/",
-        exchange -> {
-          exchange.sendResponseHeaders(200, -1);
-          exchange.close();
-        });
+    mockServer.createContext("/v1/", exchange -> {
+      exchange.sendResponseHeaders(200, -1);
+      exchange.close();
+    });
     mockServer.start();
 
-    openAiClient =
-        OpenAIOkHttpClient.builder()
-            .baseUrl(
-                "http://"
-                    + mockServer.getAddress().getHostString()
-                    + ":"
-                    + mockServer.getAddress().getPort()
-                    + "/v1")
-            .credential(BearerTokenCredential.create(""))
-            .build();
+    openAiClient = OpenAIOkHttpClient
+      .builder()
+      .baseUrl(
+          "http://"
+          + mockServer.getAddress().getHostString()
+          + ":"
+          + mockServer.getAddress().getPort()
+          + "/v1"
+      )
+      .credential(BearerTokenCredential.create(""))
+      .build();
   }
 
   @AfterAll
@@ -108,26 +103,29 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
   }
 
   protected static ChatCompletionCreateParams buildMinimalChatParams() {
-    return ChatCompletionCreateParams.builder()
-        .model(ChatModel.GPT_4O_MINI)
-        .addSystemMessage("")
-        .addUserMessage("")
-        .build();
+    return ChatCompletionCreateParams
+      .builder()
+      .model(ChatModel.GPT_4O_MINI)
+      .addSystemMessage("")
+      .addUserMessage("")
+      .build();
   }
 
   protected static EmbeddingCreateParams buildMinimalEmbeddingParams() {
-    return EmbeddingCreateParams.builder()
-        .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
-        .input("")
-        .build();
+    return EmbeddingCreateParams
+      .builder()
+      .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
+      .input("")
+      .build();
   }
 
   protected static DDSpan findSpanByOperationName(List<List<DDSpan>> traces, String operationName) {
-    return traces.stream()
-        .flatMap(List::stream)
-        .filter(s -> operationName.equals(s.getOperationName().toString()))
-        .findFirst()
-        .orElse(null);
+    return traces
+      .stream()
+      .flatMap(List::stream)
+      .filter(s -> operationName.equals(s.getOperationName().toString()))
+      .findFirst()
+      .orElse(null);
   }
 }
 
@@ -149,15 +147,13 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
  */
 @WithConfig(key = "llmobs.enabled", value = "true")
 class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest {
-
   @Test
   void openAiRequestSpanInheritsSessionIdFromActiveContext() throws Exception {
     String expectedSessionId = "session-propagation-test-abc";
 
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
-      try (ContextScope ignored2 =
-          LLMObsContext.attach(parentSpan.spanContext(), expectedSessionId)) {
+      try (ContextScope ignored2 = LLMObsContext.attach(parentSpan.spanContext(), expectedSessionId)) {
         openAiClient.chat().completions().create(buildMinimalChatParams());
       }
     } finally {
@@ -204,17 +200,17 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   void openAiRequestSpanInheritsDroppedSamplingDecisionFromActiveContext() throws Exception {
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
-      try (ContextScope ignored2 =
-          LLMObsContext.attach(
-              parentSpan.spanContext(),
-              null,
-              null,
-              null,
-              null,
-              "0.25",
-              LLMObsContext.SAMPLING_DECISION_DROPPED,
-              null,
-              null)) {
+      try (ContextScope ignored2 = LLMObsContext.attach(
+          parentSpan.spanContext(),
+          null,
+          null,
+          null,
+          null,
+          "0.25",
+          LLMObsContext.SAMPLING_DECISION_DROPPED,
+          null,
+          null
+      )) {
         openAiClient.chat().completions().create(buildMinimalChatParams());
       }
     } finally {
@@ -226,7 +222,8 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(
         LLMObsContext.SAMPLING_DECISION_DROPPED,
-        openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+        openAiSpan.getTag("_ml_obs_tag.sampling_decision")
+    );
     assertEquals("0.25", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
   }
 
@@ -234,17 +231,17 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   void openAiRequestSpanInheritsRetainedSamplingDecisionFromActiveContext() throws Exception {
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
-      try (ContextScope ignored2 =
-          LLMObsContext.attach(
-              parentSpan.spanContext(),
-              null,
-              null,
-              null,
-              null,
-              "1",
-              LLMObsContext.SAMPLING_DECISION_SAMPLED,
-              null,
-              null)) {
+      try (ContextScope ignored2 = LLMObsContext.attach(
+          parentSpan.spanContext(),
+          null,
+          null,
+          null,
+          null,
+          "1",
+          LLMObsContext.SAMPLING_DECISION_SAMPLED,
+          null,
+          null
+      )) {
         openAiClient.chat().completions().create(buildMinimalChatParams());
       }
     } finally {
@@ -256,14 +253,14 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(
         LLMObsContext.SAMPLING_DECISION_SAMPLED,
-        openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+        openAiSpan.getTag("_ml_obs_tag.sampling_decision")
+    );
     assertEquals("1", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
   }
 
   @Test
   void openAiRequestSpanComputesItsOwnSamplingDecisionWhenNoLlmObsContext() throws Exception {
     openAiClient.chat().completions().create(buildMinimalChatParams());
-
     // No verdict to inherit, so the span is the root of its own LLMObs trace and decides for
     // itself. The rate of 1.0 retains every trace ID, so the verdict is deterministic without
     // controlling the trace ID.
@@ -272,7 +269,8 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(
         LLMObsContext.SAMPLING_DECISION_SAMPLED,
-        openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+        openAiSpan.getTag("_ml_obs_tag.sampling_decision")
+    );
     assertEquals("1", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
   }
 
@@ -285,17 +283,17 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
 
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
-      try (ContextScope ignored2 =
-          LLMObsContext.attach(
-              parentSpan.spanContext(),
-              adoptedTraceId,
-              null,
-              null,
-              null,
-              "1",
-              LLMObsContext.SAMPLING_DECISION_SAMPLED,
-              null,
-              null)) {
+      try (ContextScope ignored2 = LLMObsContext.attach(
+          parentSpan.spanContext(),
+          adoptedTraceId,
+          null,
+          null,
+          null,
+          "1",
+          LLMObsContext.SAMPLING_DECISION_SAMPLED,
+          null,
+          null
+      )) {
         openAiClient.chat().completions().create(buildMinimalChatParams());
       }
     } finally {
@@ -315,17 +313,17 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
 
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
-      try (ContextScope ignored2 =
-          LLMObsContext.attach(
-              parentSpan.spanContext(),
-              null,
-              expectedMlApp,
-              null,
-              null,
-              "1",
-              LLMObsContext.SAMPLING_DECISION_SAMPLED,
-              null,
-              null)) {
+      try (ContextScope ignored2 = LLMObsContext.attach(
+          parentSpan.spanContext(),
+          null,
+          expectedMlApp,
+          null,
+          null,
+          "1",
+          LLMObsContext.SAMPLING_DECISION_SAMPLED,
+          null,
+          null
+      )) {
         openAiClient.chat().completions().create(buildMinimalChatParams());
       }
     } finally {
@@ -341,7 +339,6 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   @Test
   void openAiRequestSpanUsesServiceDefaultsWithoutLlmObsContext() throws Exception {
     openAiClient.chat().completions().create(buildMinimalChatParams());
-
     // No parent: no trace_id tag, so the mapper seeds it from the APM trace id, and ml_app is the
     // configured default.
     writer.waitForTraces(1);
@@ -359,7 +356,16 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
       try (ContextScope ignored2 =
           LLMObsContext.attach(
-              parentSpan.spanContext(), null, null, null, null, null, null, null, null)) {
+              parentSpan.spanContext(),
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+      )) {
         openAiClient.chat().completions().create(buildMinimalChatParams());
       }
     } finally {
@@ -369,8 +375,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     writer.waitForTraces(1);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
-    assertEquals(
-        String.valueOf(parentSpan.getSpanId()), openAiSpan.getTag("_ml_obs_tag.parent_id"));
+    assertEquals(String.valueOf(parentSpan.getSpanId()), openAiSpan.getTag("_ml_obs_tag.parent_id"));
     assertNull(openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
     assertNull(openAiSpan.getTag("_ml_obs_tag.sample_rate"));
   }
@@ -381,17 +386,17 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     // but its span is never made the active tracer span, so the openai.request call below starts
     // a brand-new trace and the trace-consistency gate in OpenAiDecorator must skip inheritance.
     AgentSpan staleParent = AgentTracer.startSpan("test", "stale-parent");
-    try (ContextScope ignored =
-        LLMObsContext.attach(
-            staleParent.spanContext(),
-            null,
-            null,
-            "stale-session",
-            "stale-version",
-            "0.25",
-            LLMObsContext.SAMPLING_DECISION_DROPPED,
-            "stale-agent-span-id",
-            "stale-agent")) {
+    try (ContextScope ignored = LLMObsContext.attach(
+        staleParent.spanContext(),
+        null,
+        null,
+        "stale-session",
+        "stale-version",
+        "0.25",
+        LLMObsContext.SAMPLING_DECISION_DROPPED,
+        "stale-agent-span-id",
+        "stale-agent"
+    )) {
       openAiClient.chat().completions().create(buildMinimalChatParams());
     } finally {
       staleParent.finish();
@@ -400,14 +405,13 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     writer.waitForTraces(2);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
-
     // The stale "0"/"0.25" pair must not leak; the span falls through to deciding for itself at
     // the configured rate of 1.0 instead.
     assertEquals(
         LLMObsContext.SAMPLING_DECISION_SAMPLED,
-        openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+        openAiSpan.getTag("_ml_obs_tag.sampling_decision")
+    );
     assertEquals("1", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
-
     // The same gate covers parent_id, session_id, agent_version and agent attribution: inheriting
     // any of them would point this span at a parent in an unrelated trace and file it under an
     // unrelated session or agent.
@@ -422,8 +426,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   void openAiRequestSpanAdoptsPropagatedContextWithNoLlmObsSpanInTheService() throws Exception {
     // An HTTP handler or queue consumer that calls OpenAI directly: the upstream LLMObs context
     // arrived on the request headers, and nothing in this service opened an LLMObs span.
-    try (ServerScope ignored =
-        startServerScope(inboundHeaders(UPSTREAM_TAGS + "," + SAMPLED_TAGS))) {
+    try (ServerScope ignored = startServerScope(inboundHeaders(UPSTREAM_TAGS + "," + SAMPLED_TAGS))) {
       openAiClient.chat().completions().create(buildMinimalChatParams());
     }
 
@@ -438,7 +441,8 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     assertEquals("planner-agent", openAiSpan.getTag("_ml_obs_tag.pagent_name"));
     assertEquals(
         LLMObsContext.SAMPLING_DECISION_SAMPLED,
-        openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+        openAiSpan.getTag("_ml_obs_tag.sampling_decision")
+    );
     assertEquals("0.5", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
   }
 
@@ -446,12 +450,13 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   void openAiRequestSpanHonoursAPropagatedDropDecision() throws Exception {
     // The caller dropped this LLMObs trace; re-rolling locally at the rate of 1.0 would keep the
     // LLM span while the rest of the trace is discarded.
-    try (ServerScope ignored =
-        startServerScope(
-            inboundHeaders(
-                UPSTREAM_TAGS
-                    + ",_dd.p.llmobs_sr=0.25,_dd.p.llmobs_sd="
-                    + LLMObsContext.SAMPLING_DECISION_DROPPED))) {
+    try (ServerScope ignored = startServerScope(
+        inboundHeaders(
+            UPSTREAM_TAGS
+            + ",_dd.p.llmobs_sr=0.25,_dd.p.llmobs_sd="
+            + LLMObsContext.SAMPLING_DECISION_DROPPED
+        )
+    )) {
       openAiClient.chat().completions().create(buildMinimalChatParams());
     }
 
@@ -460,7 +465,8 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(
         LLMObsContext.SAMPLING_DECISION_DROPPED,
-        openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+        openAiSpan.getTag("_ml_obs_tag.sampling_decision")
+    );
     assertEquals("0.25", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
   }
 
@@ -482,12 +488,13 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
 
   @Test
   void openAiRequestSpanPrefersTheInProcessParentOverThePropagatedContext() throws Exception {
-    try (ServerScope ignored1 =
-        startServerScope(inboundHeaders(UPSTREAM_TAGS + "," + SAMPLED_TAGS))) {
+    try (ServerScope ignored1 = startServerScope(inboundHeaders(UPSTREAM_TAGS
+        + ","
+        + SAMPLED_TAGS))) {
       AgentSpan localParent = AgentTracer.startSpan("test", "local-workflow");
       try (ContextScope ignored2 = AgentTracer.activateSpan(localParent);
-          ContextScope ignored3 =
-              LLMObsContext.attach(localParent.spanContext(), "local-session")) {
+          ContextScope ignored3 = LLMObsContext.attach(localParent.spanContext(), "local-session")
+      ) {
         openAiClient.chat().completions().create(buildMinimalChatParams());
       } finally {
         localParent.finish();
@@ -499,7 +506,9 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     assertNotNull(openAiSpan, "openai.request span should have been created");
     DDSpan localParent = findSpanByOperationName(writer, "local-workflow");
     assertEquals(
-        String.valueOf(localParent.getSpanId()), openAiSpan.getTag("_ml_obs_tag.parent_id"));
+        String.valueOf(localParent.getSpanId()),
+        openAiSpan.getTag("_ml_obs_tag.parent_id")
+    );
     assertEquals("local-session", openAiSpan.getTag("_ml_obs_tag.session_id"));
   }
 
@@ -509,8 +518,8 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     // another trace, so it must neither contribute values nor shadow what arrived with this one.
     AgentSpan staleParent = AgentTracer.startSpan("test", "stale-parent");
     try (ContextScope ignored1 = LLMObsContext.attach(staleParent.spanContext(), "stale-session");
-        ServerScope ignored2 =
-            startServerScope(inboundHeaders(UPSTREAM_TAGS + "," + SAMPLED_TAGS))) {
+        ServerScope ignored2 = startServerScope(inboundHeaders(UPSTREAM_TAGS + "," + SAMPLED_TAGS))
+    ) {
       openAiClient.chat().completions().create(buildMinimalChatParams());
     } finally {
       staleParent.finish();
@@ -525,8 +534,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
   }
 
   @Test
-  void openAiRequestSpanIsAnLlmObsRootWhenTheInboundRequestCarriesNoLlmObsContext()
-      throws Exception {
+  void openAiRequestSpanIsAnLlmObsRootWhenTheInboundRequestCarriesNoLlmObsContext() throws Exception {
     // An APM-only caller: the trace is distributed, but there is no LLMObs context to adopt.
     try (ServerScope ignored = startServerScope(inboundHeaders(null))) {
       openAiClient.chat().completions().create(buildMinimalChatParams());
@@ -543,22 +551,23 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     assertEquals(Config.get().getLlmObsMlApp(), openAiSpan.getTag("_ml_obs_tag.ml_app"));
     assertEquals(
         LLMObsContext.SAMPLING_DECISION_SAMPLED,
-        openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+        openAiSpan.getTag("_ml_obs_tag.sampling_decision")
+    );
   }
 
   @Test
   void openAiRequestSpanIsAnLlmObsRootWhenTheUpstreamSentNoParentSpan() throws Exception {
     // A caller with no LLMObs span active still sends its ml_app, session and a trace id of its
     // own, but a parent id of "undefined". There is nothing to continue, so none of it is adopted.
-    String noParent =
-        UPSTREAM_TAGS.replace(
-            "_dd.p.llmobs_parent_id=" + UPSTREAM_PARENT_ID, "_dd.p.llmobs_parent_id=undefined");
-    try (ServerScope ignored =
-        startServerScope(
-            inboundHeaders(
-                noParent
-                    + ",_dd.p.llmobs_sr=0.25,_dd.p.llmobs_sd="
-                    + LLMObsContext.SAMPLING_DECISION_DROPPED))) {
+    String noParent = UPSTREAM_TAGS.replace(
+        "_dd.p.llmobs_parent_id=" + UPSTREAM_PARENT_ID,
+        "_dd.p.llmobs_parent_id=undefined"
+    );
+    try (ServerScope ignored = startServerScope(
+        inboundHeaders(
+            noParent + ",_dd.p.llmobs_sr=0.25,_dd.p.llmobs_sd=" + LLMObsContext.SAMPLING_DECISION_DROPPED
+        )
+    )) {
       openAiClient.chat().completions().create(buildMinimalChatParams());
     }
 
@@ -573,28 +582,29 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     // Rolled locally at the configured rate of 1.0, not the upstream drop at 0.25.
     assertEquals(
         LLMObsContext.SAMPLING_DECISION_SAMPLED,
-        openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+        openAiSpan.getTag("_ml_obs_tag.sampling_decision")
+    );
     assertEquals("1", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
   }
 
-  /** The upstream LLMObs trace id, deliberately not the APM one, in the hex form it is stored. */
+  /**
+   * The upstream LLMObs trace id, deliberately not the APM one, in the hex form it is stored.
+   */
   private static final String UPSTREAM_LLMOBS_TRACE_ID = "6ab41f6e00000000fea4f6b7295bd5e9";
-
   private static final String UPSTREAM_PARENT_ID = "12571653173807582101";
   private static final String UPSTREAM_AGENT_SPAN_ID = "12571653173807582101";
-
-  /** The upstream context as dd-trace-py writes it; the trace id goes out as decimal. */
-  private static final String UPSTREAM_TAGS =
-      "_dd.p.llmobs_trace_id="
-          + new BigInteger(UPSTREAM_LLMOBS_TRACE_ID, 16)
-          + ",_dd.p.llmobs_parent_id="
-          + UPSTREAM_PARENT_ID
-          + ",_dd.p.llmobs_ml_app=upstream-app"
-          + ",_dd.p.llmobs_sid=upstream-session"
-          + ",_dd.p.llmobs_pagent_span_id="
-          + UPSTREAM_AGENT_SPAN_ID
-          + ",_dd.p.llmobs_pagent_name=planner-agent";
-
+  /**
+   * The upstream context as dd-trace-py writes it; the trace id goes out as decimal.
+   */
+  private static final String UPSTREAM_TAGS = "_dd.p.llmobs_trace_id="
+      + new BigInteger(UPSTREAM_LLMOBS_TRACE_ID, 16)
+      + ",_dd.p.llmobs_parent_id="
+      + UPSTREAM_PARENT_ID
+      + ",_dd.p.llmobs_ml_app=upstream-app"
+      + ",_dd.p.llmobs_sid=upstream-session"
+      + ",_dd.p.llmobs_pagent_span_id="
+      + UPSTREAM_AGENT_SPAN_ID
+      + ",_dd.p.llmobs_pagent_name=planner-agent";
   private static final String SAMPLED_TAGS =
       "_dd.p.llmobs_sr=0.5,_dd.p.llmobs_sd=" + LLMObsContext.SAMPLING_DECISION_SAMPLED;
 
@@ -614,7 +624,9 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
    * would open for them. That local span takes over the extracted propagation tags, which is where
    * the openai.request span started under it reads the upstream LLMObs context from.
    */
-  /** Closes the server span's scope and finishes the span, as the server instrumentation would. */
+  /**
+   * Closes the server span's scope and finishes the span, as the server instrumentation would.
+   */
   private static ServerScope startServerScope(Map<String, String> headers) {
     return new ServerScope(headers);
   }
@@ -628,16 +640,16 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     private final ContextScope scope;
 
     ServerScope(Map<String, String> headers) {
-      Context extracted =
-          Propagators.defaultPropagator()
-              .extract(Context.root(), headers, (c, visitor) -> c.forEach(visitor));
+      Context extracted = Propagators
+        .defaultPropagator()
+        .extract(Context.root(), headers, (c, visitor) -> c.forEach(visitor));
       AgentSpan remoteParent = AgentSpan.fromContext(extracted);
       assertNotNull(remoteParent, "expected trace context to be extracted");
-      server =
-          AgentTracer.get()
-              .buildSpan("test", "http.request")
-              .asChildOf(remoteParent.spanContext())
-              .start();
+      server = AgentTracer
+        .get()
+        .buildSpan("test", "http.request")
+        .asChildOf(remoteParent.spanContext())
+        .start();
       scope = AgentTracer.activateSpan(server);
     }
 
@@ -656,7 +668,6 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
 @WithConfig(key = "llmobs.enabled", value = "true")
 @WithConfig(key = "llmobs.sample.rate", value = "0")
 class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
-
   @Test
   void parentlessOpenAiRequestSpanIsDroppedAtZeroSampleRate() throws Exception {
     openAiClient.chat().completions().create(buildMinimalChatParams());
@@ -666,7 +677,8 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(
         LLMObsContext.SAMPLING_DECISION_DROPPED,
-        openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
+        openAiSpan.getTag("_ml_obs_tag.sampling_decision")
+    );
     assertEquals("0", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
   }
 }
@@ -678,7 +690,6 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
  */
 @WithConfig(key = "llmobs.enabled", value = "false")
 class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
-
   @Test
   void chatCompletionEmitsTheGenAiAttributesAvailableWithoutLlmObs() {
     openAiClient.chat().completions().create(buildMinimalChatParams());
@@ -709,7 +720,9 @@ class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
 
     assertEquals("embedding", openAiSpan.getTag("gen_ai.operation.name"));
     assertEquals(
-        openAiSpan.getTag("openai.request.model"), openAiSpan.getTag("gen_ai.request.model"));
+        openAiSpan.getTag("openai.request.model"),
+        openAiSpan.getTag("gen_ai.request.model")
+    );
     assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
 
     assertEquals(5.0, openAiSpan.getTag("gen_ai.usage.input_tokens"));
@@ -727,11 +740,12 @@ class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
   }
 
   private static DDSpan findOpenAiSpan(List<List<DDSpan>> traces, String endpoint) {
-    return traces.stream()
-        .flatMap(List::stream)
-        .filter(span -> "openai.request".equals(span.getOperationName().toString()))
-        .filter(span -> endpoint.equals(span.getTag("openai.request.endpoint")))
-        .findFirst()
-        .orElse(null);
+    return traces
+      .stream()
+      .flatMap(List::stream)
+      .filter(span -> "openai.request".equals(span.getOperationName().toString()))
+      .filter(span -> endpoint.equals(span.getTag("openai.request.endpoint")))
+      .findFirst()
+      .orElse(null);
   }
 }

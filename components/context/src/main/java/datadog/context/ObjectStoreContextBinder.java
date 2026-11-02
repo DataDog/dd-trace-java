@@ -2,13 +2,13 @@ package datadog.context;
 
 import static datadog.context.Context.root;
 import static java.util.Objects.requireNonNull;
-
 import datadog.instrument.fieldinject.ObjectStore;
 
-/** {@link ContextBinder} that uses {@link ObjectStore} to track context carriers. */
+/**
+ * {@link ContextBinder} that uses {@link ObjectStore} to track context carriers.
+ */
 final class ObjectStoreContextBinder implements ContextBinder {
   static final ContextBinder INSTANCE = new ObjectStoreContextBinder();
-
   private static final ObjectStore<Object, Context> CONTEXT_STORE =
       ObjectStore.of(Object.class, Context.class);
 

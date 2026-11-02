@@ -6,10 +6,16 @@ public enum BlockingContentType {
    * header. If the preference value is the same, {@link #JSON} will be preferred.
    */
   AUTO,
-  /** An HTTP response. */
+  /**
+   * An HTTP response.
+   */
   HTML,
-  /** A JSON response. */
+  /**
+   * A JSON response.
+   */
   JSON,
-  /** No body in the response */
-  NONE,
+  /**
+   * No body in the response
+   */
+  NONE
 }

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.javax.mail;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,9 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public class JavaxMailInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private static Logger LOGGER = LoggerFactory.getLogger(JavaxMailInstrumentation.class);
 
   public JavaxMailInstrumentation() {
@@ -33,7 +33,8 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("send0").and(takesArgument(0, named("javax.mail.Message"))),
-        JavaxMailInstrumentation.class.getName() + "$MailInjectionAdvice");
+        JavaxMailInstrumentation.class.getName() + "$MailInjectionAdvice"
+    );
   }
 
   @Override
@@ -45,7 +46,8 @@ public class JavaxMailInstrumentation extends InstrumenterModule.Iast
     @Sink(VulnerabilityTypes.EMAIL_HTML_INJECTION)
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onSend(@Advice.Argument(0) final Message message)
-        throws MessagingException, IOException {
+        throws MessagingException,
+        IOException {
       EmailInjectionModule emailInjectionModule = InstrumentationBridge.EMAIL_INJECTION;
       if (emailInjectionModule == null) {
         return;

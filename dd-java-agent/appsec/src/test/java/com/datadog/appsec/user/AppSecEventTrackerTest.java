@@ -28,7 +28,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import com.datadog.appsec.gateway.NoopFlow;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
@@ -68,18 +67,16 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
-@SuppressWarnings("deprecation") // exercises the deprecated v1 EventTracker API on purpose
+// exercises the deprecated v1 EventTracker API on purpose
+@SuppressWarnings("deprecation")
 class AppSecEventTrackerTest extends DDJavaSpecification {
-
   private static final String USER_LOGIN = "user";
   private static final String ANONYMIZED_USER_LOGIN = "anon_04f8996da763b7a969b1028ee3007569";
   private static final String USER_ID = "1";
   private static final String ANONYMIZED_USER_ID = "anon_6b86b273ff34fce19d6b804eff5a3f57";
   private static final Map<String, String> METADATA = metadata();
-
   private static boolean appSecActiveBefore;
   private static EventTracker eventTrackerBefore;
-
   private TestAppSecEventTracker tracker;
   private TraceSegment traceSegment;
   private RequestContext requestContext;
@@ -134,7 +131,6 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     User.setUserService(tracker);
     EventTrackerV2.setEventTrackerService(tracker.v2EventTrackerService());
     ActiveSubsystems.APPSEC_ACTIVE = true;
-
     // discard telemetry produced elsewhere so each assertion only sees its own event
     drainSdkEvents();
   }
@@ -260,16 +256,22 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
   void wrongEventArgumentValidation() {
     EventTracker eventTracker = GlobalTracer.getEventTracker();
 
-    assertThrows(
-        IllegalArgumentException.class, () -> eventTracker.trackLoginSuccessEvent(null, null));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> eventTracker.trackLoginFailureEvent(null, false, null));
+    assertThrows(IllegalArgumentException.class, () -> eventTracker.trackLoginSuccessEvent(
+        null,
+        null
+    ));
+    assertThrows(IllegalArgumentException.class, () -> eventTracker.trackLoginFailureEvent(
+        null,
+        false,
+        null
+    ));
     assertThrows(IllegalArgumentException.class, () -> eventTracker.trackCustomEvent(null, null));
-    assertThrows(
-        IllegalArgumentException.class, () -> eventTracker.trackLoginSuccessEvent("", null));
-    assertThrows(
-        IllegalArgumentException.class, () -> eventTracker.trackLoginFailureEvent("", false, null));
+    assertThrows(IllegalArgumentException.class, () -> eventTracker.trackLoginSuccessEvent("", null));
+    assertThrows(IllegalArgumentException.class, () -> eventTracker.trackLoginFailureEvent(
+        "",
+        false,
+        null
+    ));
     assertThrows(IllegalArgumentException.class, () -> eventTracker.trackCustomEvent("", null));
     assertThrows(IllegalArgumentException.class, () -> setUser(null, null));
   }
@@ -286,12 +288,19 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     tracker.onSignupEvent(mode, USER_LOGIN, METADATA);
 
     if (mode != DISABLED) {
-      verify(traceSegment).getTagTop("_dd.appsec.events.users.signup.sdk"); // no SDK event before
+      // no SDK event before
+      verify(traceSegment).getTagTop("_dd.appsec.events.users.signup.sdk");
       verify(traceSegment).setTagTop("_dd.appsec.usr.login", expectedUserLogin);
-      verify(traceSegment)
-          .setTagTop("_dd.appsec.events.users.signup.auto.mode", mode.fullName(), true);
-      verify(traceSegment)
-          .setTagTop("appsec.events.users.signup.usr.login", expectedUserLogin, true);
+      verify(traceSegment).setTagTop(
+          "_dd.appsec.events.users.signup.auto.mode",
+          mode.fullName(),
+          true
+      );
+      verify(traceSegment).setTagTop(
+          "appsec.events.users.signup.usr.login",
+          expectedUserLogin,
+          true
+      );
       verify(traceSegment).setTagTop("appsec.events.users.signup", METADATA, true);
       verify(traceSegment).setTagTop("appsec.events.users.signup.track", true, true);
       verify(traceSegment).setTagTop("asm.keep", true);
@@ -317,9 +326,9 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
       verify(traceSegment).getTagTop("_dd.appsec.events.users.login.success.sdk");
       verify(traceSegment).setTagTop("_dd.appsec.usr.login", expectedUserLogin);
       verify(traceSegment)
-          .setTagTop("_dd.appsec.events.users.login.success.auto.mode", mode.fullName(), true);
+        .setTagTop("_dd.appsec.events.users.login.success.auto.mode", mode.fullName(), true);
       verify(traceSegment)
-          .setTagTop("appsec.events.users.login.success.usr.login", expectedUserLogin, true);
+        .setTagTop("appsec.events.users.login.success.usr.login", expectedUserLogin, true);
       verify(traceSegment).setTagTop("appsec.events.users.login.success", METADATA, true);
       verify(traceSegment).setTagTop("appsec.events.users.login.success.track", true, true);
       verify(traceSegment).setTagTop("asm.keep", true);
@@ -345,9 +354,9 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
       verify(traceSegment).getTagTop("_dd.appsec.events.users.login.failure.sdk");
       verify(traceSegment).setTagTop("_dd.appsec.usr.login", expectedUserLogin);
       verify(traceSegment)
-          .setTagTop("_dd.appsec.events.users.login.failure.auto.mode", mode.fullName(), true);
+        .setTagTop("_dd.appsec.events.users.login.failure.auto.mode", mode.fullName(), true);
       verify(traceSegment)
-          .setTagTop("appsec.events.users.login.failure.usr.login", expectedUserLogin, true);
+        .setTagTop("appsec.events.users.login.failure.usr.login", expectedUserLogin, true);
       verify(traceSegment).setTagTop("appsec.events.users.login.failure", METADATA, true);
       verify(traceSegment).setTagTop("appsec.events.users.login.failure.usr.exists", true, true);
       verify(traceSegment).setTagTop("appsec.events.users.login.failure.track", true, true);
@@ -371,7 +380,8 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
 
     if (mode != DISABLED) {
       verify(traceSegment).setTagTop("_dd.appsec.usr.id", expectedUserId);
-      verify(traceSegment).getTagTop("_dd.appsec.user.collection_mode"); // no user event before
+      // no user event before
+      verify(traceSegment).getTagTop("_dd.appsec.user.collection_mode");
       verify(traceSegment).setTagTop("_dd.appsec.user.collection_mode", mode.fullName());
       verify(traceSegment).setTagTop("usr.id", expectedUserId);
       verify(traceSegment).setTagTop("asm.keep", true);
@@ -394,7 +404,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
       // no SDK event before
       verify(traceSegment).getTagTop("_dd.appsec.events.users.login.failure.sdk");
       verify(traceSegment)
-          .setTagTop("_dd.appsec.events.users.login.failure.auto.mode", mode.fullName(), true);
+        .setTagTop("_dd.appsec.events.users.login.failure.auto.mode", mode.fullName(), true);
       verify(traceSegment).setTagTop("appsec.events.users.login.failure.usr.exists", false, true);
       verify(traceSegment).setTagTop("appsec.events.users.login.failure.track", true, true);
       verify(traceSegment).setTagTop("asm.keep", true);
@@ -454,11 +464,14 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     Flow.Action.RequestBlockingAction action =
         new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
     when(loginEvent.apply(isA(RequestContext.class), eq(LOGIN_SUCCESS), eq(USER_LOGIN)))
-        .thenReturn(new ActionFlow<>(action));
+      .thenReturn(new ActionFlow<>(action));
 
-    assertThrows(
-        BlockingException.class,
-        () -> tracker.onLoginSuccessEvent(SDK, USER_LOGIN, USER_ID, METADATA));
+    assertThrows(BlockingException.class, () -> tracker.onLoginSuccessEvent(
+        SDK,
+        USER_LOGIN,
+        USER_ID,
+        METADATA
+    ));
   }
 
   /**
@@ -471,12 +484,15 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     Flow.Action.RequestBlockingAction action =
         new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
     when(loginEvent.apply(isA(RequestContext.class), eq(LOGIN_SUCCESS), eq(USER_LOGIN)))
-        .thenReturn(new ActionFlow<>(action));
+      .thenReturn(new ActionFlow<>(action));
     when(requestContext.getBlockResponseFunction()).thenReturn(null);
 
-    assertThrows(
-        BlockingException.class,
-        () -> tracker.onLoginSuccessEvent(SDK, USER_LOGIN, USER_ID, METADATA));
+    assertThrows(BlockingException.class, () -> tracker.onLoginSuccessEvent(
+        SDK,
+        USER_LOGIN,
+        USER_ID,
+        METADATA
+    ));
   }
 
   @ParameterizedTest(name = "commit succeeds: {0}")
@@ -485,14 +501,17 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     Flow.Action.RequestBlockingAction action =
         new Flow.Action.RequestBlockingAction(403, BlockingContentType.JSON);
     when(loginEvent.apply(isA(RequestContext.class), eq(LOGIN_SUCCESS), eq(USER_LOGIN)))
-        .thenReturn(new ActionFlow<>(action));
+      .thenReturn(new ActionFlow<>(action));
     RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction(commitResult);
     when(requestContext.getBlockResponseFunction()).thenReturn(brf);
     when(requestContext.getTraceSegment()).thenReturn(traceSegment);
 
-    assertThrows(
-        BlockingException.class,
-        () -> tracker.onLoginSuccessEvent(SDK, USER_LOGIN, USER_ID, METADATA));
+    assertThrows(BlockingException.class, () -> tracker.onLoginSuccessEvent(
+        SDK,
+        USER_LOGIN,
+        USER_ID,
+        METADATA
+    ));
 
     assertEquals(1, brf.calls);
     assertSame(traceSegment, brf.lastSegment);
@@ -512,7 +531,6 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     when(traceSegment.getTagTop("_dd.appsec.user.collection_mode")).thenReturn(SDK.fullName());
 
     tracker.onUserEvent(IDENTIFICATION, USER_ID, emptyMap());
-
     // SDK data remains untouched
     verify(traceSegment).getTagTop("_dd.appsec.user.collection_mode");
     verify(traceSegment).setTagTop("_dd.appsec.usr.id", USER_ID);
@@ -528,8 +546,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment).getTagTop("_dd.appsec.events.users.login.success.sdk");
     verify(traceSegment).setTagTop("_dd.appsec.usr.login", USER_LOGIN);
     verify(traceSegment)
-        .setTagTop(
-            "_dd.appsec.events.users.login.success.auto.mode", IDENTIFICATION.fullName(), true);
+      .setTagTop("_dd.appsec.events.users.login.success.auto.mode", IDENTIFICATION.fullName(), true);
     verifyNoMoreMockInteractions();
   }
 
@@ -542,8 +559,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment).getTagTop("_dd.appsec.events.users.login.failure.sdk");
     verify(traceSegment).setTagTop("_dd.appsec.usr.login", USER_LOGIN);
     verify(traceSegment)
-        .setTagTop(
-            "_dd.appsec.events.users.login.failure.auto.mode", IDENTIFICATION.fullName(), true);
+      .setTagTop("_dd.appsec.events.users.login.failure.auto.mode", IDENTIFICATION.fullName(), true);
     verifyNoMoreMockInteractions();
   }
 
@@ -555,8 +571,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
 
     verify(traceSegment).getTagTop("_dd.appsec.events.users.login.failure.sdk");
     verify(traceSegment)
-        .setTagTop(
-            "_dd.appsec.events.users.login.failure.auto.mode", IDENTIFICATION.fullName(), true);
+      .setTagTop("_dd.appsec.events.users.login.failure.auto.mode", IDENTIFICATION.fullName(), true);
     verifyNoMoreMockInteractions();
   }
 
@@ -580,7 +595,9 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     assertEquals("count", metric.type);
     assertEquals(1L, metric.value.longValue());
     assertEquals(
-        asList("event_type:" + event.getTag(), "sdk_version:" + version.getTag()), metric.tags);
+        asList("event_type:" + event.getTag(), "sdk_version:" + version.getTag()),
+        metric.tags
+    );
   }
 
   private static List<WafMetric> drainSdkEvents() {
@@ -600,7 +617,6 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
    * call it; both are {@code protected} on {@link AppSecEventTracker}.
    */
   private static class TestAppSecEventTracker extends AppSecEventTracker {
-
     private final TracerAPI tracer;
 
     TestAppSecEventTracker(TracerAPI tracer) {
@@ -639,7 +655,8 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       calls++;
       lastSegment = segment;
       lastStatusCode = statusCode;
@@ -649,7 +666,6 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
   }
 
   private static class ActionFlow<T> implements Flow<T> {
-
     private final Action action;
 
     ActionFlow(Action action) {

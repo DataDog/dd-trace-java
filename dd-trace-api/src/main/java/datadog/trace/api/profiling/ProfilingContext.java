@@ -1,7 +1,6 @@
 package datadog.trace.api.profiling;
 
 public interface ProfilingContext {
-
   /**
    * Sets a context value to be appended to profiling data
    *

@@ -7,7 +7,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.TestProfilingContextIntegration;
@@ -35,12 +34,12 @@ class TimingReadinessForkedTest extends AbstractInstrumentationTest {
     tracer.close();
     writer = new ListWriter();
     profiling = new TestProfilingContextIntegration();
-    CoreTracer profilingTracer =
-        CoreTracer.builder()
-            .writer(writer)
-            .strictTraceWrites(true)
-            .profilingContextIntegration(profiling)
-            .build();
+    CoreTracer profilingTracer = CoreTracer
+      .builder()
+      .writer(writer)
+      .strictTraceWrites(true)
+      .profilingContextIntegration(profiling)
+      .build();
     TracerInstaller.forceInstallGlobalTracer(profilingTracer);
     tracer = profilingTracer;
   }

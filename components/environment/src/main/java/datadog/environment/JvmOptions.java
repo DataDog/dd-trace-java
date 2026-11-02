@@ -4,7 +4,6 @@ import static datadog.environment.OperatingSystem.isLinux;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-
 import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
@@ -18,14 +17,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
 
-/** Fetches and captures the JVM options. */
+/**
+ * Fetches and captures the JVM options.
+ */
 class JvmOptions {
   static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
   static final String JDK_JAVA_OPTIONS = "JDK_JAVA_OPTIONS";
   final String[] PROCFS_CMDLINE = readProcFsCmdLine();
   final List<String> VM_OPTIONS = findVmOptions();
 
-  @SuppressForbidden // split on single-character uses a fast path
+  // split on single-character uses a fast path
+  @SuppressForbidden
   private String[] readProcFsCmdLine() {
     if (isLinux()) {
       try {
@@ -41,13 +43,13 @@ class JvmOptions {
     return null;
   }
 
-  @SuppressForbidden // Class.forName() as backup
+  // Class.forName() as backup
+  @SuppressForbidden
   private List<String> findVmOptions() {
     // Try ProcFS on Linux
     if (PROCFS_CMDLINE != null) {
       return findVmOptionsFromProcFs(PROCFS_CMDLINE);
     }
-
     // Try Oracle-based
     // IBM Semeru Runtime 1.8.0_345-b01 will throw UnsatisfiedLinkError here.
     try {
@@ -57,8 +59,9 @@ class JvmOptions {
 
       Object vmManagement;
       try {
-        vmManagement =
-            managementFactoryHelperClass.getDeclaredMethod("getVMManagement").invoke(null);
+        vmManagement = managementFactoryHelperClass
+          .getDeclaredMethod("getVMManagement")
+          .invoke(null);
       } catch (final Throwable e) {
         // Older vm before getVMManagement() existed
         final Field field = managementFactoryHelperClass.getDeclaredField("jvm");
@@ -71,7 +74,6 @@ class JvmOptions {
     } catch (final Throwable ignored) {
       // Ignored exception
     }
-
     // Try IBM-based.
     try {
       final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
@@ -80,7 +82,6 @@ class JvmOptions {
     } catch (final Throwable ignored) {
       // Ignored exception
     }
-
     // Fallback to default
     try {
       return ManagementFactory.getRuntimeMXBean().getInputArguments();
@@ -106,18 +107,15 @@ class JvmOptions {
       // Inflate arg files
       if (argument.startsWith("@")) {
         vmOptions.addAll(getArgumentsFromFile(argument));
-      }
-      // Skip classpath argument (not part of VM options)
-      else if ("-cp".equals(argument)) {
+      } else // Skip classpath argument (not part of VM options)
+      if ("-cp".equals(argument)) {
         index++;
-      }
-      // Check "-jar" or class name argument as the end of the VM options
-      else if ("-jar".equals(argument) || !argument.startsWith("-")) {
+      } else // Check "-jar" or class name argument as the end of the VM options
+      if ("-jar".equals(argument) || !argument.startsWith("-")) {
         // End of VM options
         break;
-      }
-      // Otherwise add as a VM option
-      else {
+      } else // Otherwise add as a VM option
+      {
         vmOptions.add(argument);
       }
     }

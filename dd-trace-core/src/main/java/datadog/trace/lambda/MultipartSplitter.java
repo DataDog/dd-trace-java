@@ -9,18 +9,19 @@ import java.util.List;
  * Content-Disposition} parameters.
  */
 final class MultipartSplitter {
-
   private static final int MAX_BOUNDARY_LENGTH = 70;
 
-  private MultipartSplitter() {}
+  private MultipartSplitter() {
+  }
 
   /**
    * One part of a multipart body. Content is an index range into the body passed to {@link #split}.
    */
   static final class Part {
-    /** {@code null} when the part declares no such header. Duplicates keep the last seen value. */
+    /**
+     * {@code null} when the part declares no such header. Duplicates keep the last seen value.
+     */
     final String contentDisposition;
-
     final String contentType;
     final int contentStart;
     final int contentEnd;
@@ -29,7 +30,8 @@ final class MultipartSplitter {
         final String contentDisposition,
         final String contentType,
         final int contentStart,
-        final int contentEnd) {
+        final int contentEnd
+    ) {
       this.contentDisposition = contentDisposition;
       this.contentType = contentType;
       this.contentStart = contentStart;
@@ -233,7 +235,8 @@ final class MultipartSplitter {
     if (body.startsWith(delimiter, from) && endsLine(body, from + delimiter.length())) {
       return from;
     }
-    for (int newline = body.indexOf('\n', from);
+    for (
+        int newline = body.indexOf('\n', from);
         newline >= 0;
         newline = body.indexOf('\n', newline + 1)) {
       if (body.startsWith(delimiter, newline + 1)
@@ -299,7 +302,11 @@ final class MultipartSplitter {
    *     not a header line at all — there is no colon, and obs-fold is unsupported
    */
   private static String headerValue(
-      final String body, final int from, final int to, final String name) {
+      final String body,
+      final int from,
+      final int to,
+      final String name
+  ) {
     int colon = -1;
     for (int i = from; i < to; i++) {
       if (body.charAt(i) == ':') {
@@ -321,7 +328,7 @@ final class MultipartSplitter {
     // The canonical spelling first: that comparison is intrinsified, and every real client sends it
     if (end - start != name.length()
         || !(body.regionMatches(start, name, 0, name.length())
-            || body.regionMatches(true, start, name, 0, name.length()))) {
+        || body.regionMatches(true, start, name, 0, name.length()))) {
       return null;
     }
     return body.substring(colon + 1, to).trim();

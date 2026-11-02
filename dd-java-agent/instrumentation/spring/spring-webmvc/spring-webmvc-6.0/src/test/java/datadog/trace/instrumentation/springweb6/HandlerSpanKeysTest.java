@@ -4,7 +4,6 @@ import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecora
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.trace.api.Pair;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +18,8 @@ class HandlerSpanKeysTest {
     assertSame(first.getRight(), second.getRight());
     assertEquals(
         "dd.handler.span.datadog.trace.instrumentation.springweb6.HandlerSpanKeysTest$Controller",
-        first.getLeft());
+        first.getLeft()
+    );
     assertEquals(first.getLeft() + ".continue", first.getRight());
   }
 
@@ -31,10 +31,13 @@ class HandlerSpanKeysTest {
     assertNotSame(parent, child);
     assertEquals(
         "dd.handler.span.datadog.trace.instrumentation.springweb6.HandlerSpanKeysTest$ChildController",
-        child.getLeft());
+        child.getLeft()
+    );
   }
 
-  static class Controller {}
+  static class Controller {
+  }
 
-  static class ChildController extends Controller {}
+  static class ChildController extends Controller {
+  }
 }

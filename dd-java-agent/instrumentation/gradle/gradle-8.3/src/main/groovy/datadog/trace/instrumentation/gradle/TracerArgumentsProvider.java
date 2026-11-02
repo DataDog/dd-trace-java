@@ -12,7 +12,6 @@ import org.gradle.process.CommandLineArgumentProvider;
 
 public abstract class TracerArgumentsProvider implements CommandLineArgumentProvider {
   private static final Pattern PROJECT_PROPERTY_REFERENCE = Pattern.compile("\\$\\{([^}]+)\\}");
-
   private final String taskPath;
   private final Map<String, String> projectProperties;
 
@@ -28,7 +27,10 @@ public abstract class TracerArgumentsProvider implements CommandLineArgumentProv
   @Override
   public Iterable<String> asArguments() {
     Collection<String> tracerJvmArgs = getCiVisibilityService().get().getTracerJvmArgs(taskPath);
-    return tracerJvmArgs.stream().map(this::replaceProjectProperties).collect(Collectors.toList());
+    return tracerJvmArgs
+      .stream()
+      .map(this::replaceProjectProperties)
+      .collect(Collectors.toList());
   }
 
   private String replaceProjectProperties(String s) {

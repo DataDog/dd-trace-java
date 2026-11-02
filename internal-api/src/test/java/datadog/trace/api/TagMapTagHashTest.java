@@ -3,7 +3,6 @@ package datadog.trace.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -31,8 +30,10 @@ class TagMapTagHashTest {
   void theNameFactoriesAreForCustomTagsOnly() {
     // Entry's name factories skip the registry, so a known name must come in through its id;
     // anyEntryFor and friends resolve a name first. (Tests run with assertions enabled.)
-    assertThrows(
-        AssertionError.class, () -> TagMap.Entry.newAnyEntry(KnownTags.HTTP_METHOD_NAME, "GET"));
+    assertThrows(AssertionError.class, () -> TagMap.Entry.newAnyEntry(
+        KnownTags.HTTP_METHOD_NAME,
+        "GET"
+    ));
     assertEquals(0L, TagMap.Entry.newAnyEntry("my.custom.tag", "value").tagId());
   }
 
@@ -49,7 +50,8 @@ class TagMapTagHashTest {
   void theBucketHashOfACustomTagIsUnchanged() {
     assertEquals(
         TagMap.Entry._hash("my.custom.tag"),
-        TagMap.Entry.bucketHash(TagMap.Entry.tagHashOf("my.custom.tag")));
+        TagMap.Entry.bucketHash(TagMap.Entry.tagHashOf("my.custom.tag"))
+    );
   }
 
   @Test
@@ -57,7 +59,8 @@ class TagMapTagHashTest {
     // Folding from bit 32 would leave the serial above any bucket mask; it must come from bit 48.
     assertNotEquals(
         TagMap.Entry.bucketHash(KnownTags.HTTP_METHOD_ID) & 0xFF,
-        TagMap.Entry.bucketHash(KnownTags.HTTP_ROUTE_ID) & 0xFF);
+        TagMap.Entry.bucketHash(KnownTags.HTTP_ROUTE_ID) & 0xFF
+    );
   }
 
   @Test

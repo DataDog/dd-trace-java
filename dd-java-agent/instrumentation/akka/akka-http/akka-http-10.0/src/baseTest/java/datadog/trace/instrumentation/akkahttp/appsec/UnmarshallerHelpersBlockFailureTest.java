@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.appsec.AppSecContext;
@@ -25,15 +24,13 @@ import org.junit.jupiter.api.Test;
  * testRuntimeOnly libs.mokito.core}).
  */
 class UnmarshallerHelpersBlockFailureTest {
-
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
 
   @Test
   void reportsBlockFailureWhenBlockingResponseCannotBeCommitted() {
     CountingAppSecContext appSecCtx = new CountingAppSecContext();
-    TestRequestContext ctx =
-        new TestRequestContext(new TestBlockResponseFunction(false), appSecCtx);
+    TestRequestContext ctx = new TestRequestContext(new TestBlockResponseFunction(false), appSecCtx);
 
     BlockingException exception = UnmarshallerHelpers.tryBlock(ctx, RBA, "for test");
 
@@ -68,8 +65,7 @@ class UnmarshallerHelpersBlockFailureTest {
 
   @Test
   void doesNotThrowWhenAppSecSlotDoesNotHoldAnAppSecContext() {
-    TestRequestContext nullSlot =
-        new TestRequestContext(new TestBlockResponseFunction(false), null);
+    TestRequestContext nullSlot = new TestRequestContext(new TestBlockResponseFunction(false), null);
     assertNull(UnmarshallerHelpers.tryBlock(nullSlot, RBA, "for test"));
 
     TestRequestContext foreignSlot =
@@ -102,7 +98,9 @@ class UnmarshallerHelpersBlockFailureTest {
 
     @Override
     public boolean tryCommitBlockingResponse(
-        TraceSegment segment, Flow.Action.RequestBlockingAction rba) {
+        TraceSegment segment,
+        Flow.Action.RequestBlockingAction rba
+    ) {
       this.lastAction = rba;
       return BlockResponseFunction.super.tryCommitBlockingResponse(segment, rba);
     }
@@ -113,7 +111,8 @@ class UnmarshallerHelpersBlockFailureTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       this.lastSegment = segment;
       return committed;
     }

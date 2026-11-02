@@ -4,7 +4,6 @@ import java.lang.annotation.Annotation;
 import org.junit.Ignore;
 
 public final class SkippedByDatadog implements Ignore {
-
   private final String description;
 
   public SkippedByDatadog(String description) {

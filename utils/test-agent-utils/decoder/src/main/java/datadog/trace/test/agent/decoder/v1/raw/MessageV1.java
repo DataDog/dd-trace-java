@@ -12,7 +12,9 @@ import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 import org.msgpack.value.ValueType;
 
-/** MessageV1 decodes V1.0 trace payload format. */
+/**
+ * MessageV1 decodes V1.0 trace payload format.
+ */
 public class MessageV1 implements DecodedMessage {
   // Tracer Payload field IDs
   static final int FIELD_CHUNKS = 11;
@@ -31,7 +33,6 @@ public class MessageV1 implements DecodedMessage {
       // Index 0 is reserved for empty string
       List<String> stringTable = new ArrayList<>();
       stringTable.add("");
-
       // Check what format we have
       if (!unpacker.hasNext()) {
         return new MessageV1(new DecodedTrace[0]);
@@ -57,7 +58,8 @@ public class MessageV1 implements DecodedMessage {
         }
       } else {
         throw new IllegalArgumentException(
-            "Expected Map at start of V1.0 payload, got: " + firstType);
+            "Expected Map at start of V1.0 payload, got: " + firstType
+        );
       }
 
       return new MessageV1(traces.toArray(new DecodedTrace[0]));
@@ -75,7 +77,10 @@ public class MessageV1 implements DecodedMessage {
   private final DecodedTrace[] traces;
 
   private static void skipPayloadField(
-      MessageUnpacker unpacker, int fieldId, List<String> stringTable) throws IOException {
+      MessageUnpacker unpacker,
+      int fieldId,
+      List<String> stringTable
+  ) throws IOException {
     switch (fieldId) {
       case 2:
       case 3:

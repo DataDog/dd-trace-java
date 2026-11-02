@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.twilio;
 
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
-
 import com.google.common.util.concurrent.FutureCallback;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
@@ -10,8 +9,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
  * on a potential failure.
  */
 public class SpanFinishingCallback implements FutureCallback {
-
-  /** Span that we should finish and annotate when the future is complete. */
+  /**
+   * Span that we should finish and annotate when the future is complete.
+   */
   private final AgentSpan span;
 
   public SpanFinishingCallback(final AgentSpan span) {

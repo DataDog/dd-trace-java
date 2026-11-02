@@ -52,7 +52,8 @@ public final class UnixDomainServerSocketFactory extends ServerSocketFactory {
     private UnixServerSocketChannel serverSocketChannel;
     private InetSocketAddress endpoint;
 
-    private UnixDomainServerSocket() throws IOException {}
+    private UnixDomainServerSocket() throws IOException {
+    }
 
     @Override
     public void bind(SocketAddress endpoint, int backlog) throws IOException {
@@ -78,7 +79,8 @@ public final class UnixDomainServerSocketFactory extends ServerSocketFactory {
 
     @Override
     public int getLocalPort() {
-      return 1; // MockWebServer requires a port even though a UDS has none.
+      // MockWebServer requires a port even though a UDS has none.
+      return 1;
     }
 
     @Override

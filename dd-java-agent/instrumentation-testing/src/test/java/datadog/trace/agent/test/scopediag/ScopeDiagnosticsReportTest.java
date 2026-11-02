@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.DDTraceId;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -15,10 +14,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ScopeDiagnosticsReportTest {
-
-  private static final StackTraceElement[] STACK = {
-    new StackTraceElement("com.app.Worker", "submit", "Worker.java", 42)
-  };
+  private static final StackTraceElement[] STACK =
+      {new StackTraceElement("com.app.Worker", "submit", "Worker.java", 42)};
 
   private static ScopeEvent event(ScopeEvent.Type type, String thread, long nanos) {
     return new ScopeEvent(type, thread, nanos, STACK);
@@ -26,13 +23,22 @@ class ScopeDiagnosticsReportTest {
 
   private static ContinuationRecord record(long seq, DDTraceId trace) {
     return new ContinuationRecord(
-        seq, trace, 7L, "op", (byte) 0, false, event(ScopeEvent.Type.CAPTURE, "main", 1000));
+        seq,
+        trace,
+        7L,
+        "op",
+        (byte) 0,
+        false,
+        event(ScopeEvent.Type.CAPTURE, "main", 1000)
+    );
   }
 
   @TrackScopeContinuations(
       disabledChecks = ScopeDiagnosticsCheck.LEAKED,
-      reason = "synthetic report tests exclusion")
-  private static class ExcludeLeaks {}
+      reason = "synthetic report tests exclusion"
+  )
+  private static class ExcludeLeaks {
+  }
 
   @Test
   void firstResumeTimingUsesEarliestTimestampRegardlessOfRecordingOrder() {
@@ -172,12 +178,11 @@ class ScopeDiagnosticsReportTest {
     List<ContinuationRecord> records = list(leaked);
     records.add(doubled);
     ScopeDiagnosticsReport report = report(records, rootWritten);
-    TrackScopeContinuations config =
-        ExcludeLeaks.class.getAnnotation(TrackScopeContinuations.class);
+    TrackScopeContinuations config = ExcludeLeaks.class
+      .getAnnotation(TrackScopeContinuations.class);
 
     AssertionError failure =
-        assertThrows(
-            AssertionError.class, () -> ScopeDiagnostics.assertNoViolations(report, config));
+        assertThrows(AssertionError.class, () -> ScopeDiagnostics.assertNoViolations(report, config));
     String message = failure.getMessage();
     assertTrue(message.contains("[DOUBLE_FINISH] #1"));
     assertTrue(message.contains("[LATE_FINISH] #1"));
@@ -266,7 +271,9 @@ class ScopeDiagnosticsReportTest {
   }
 
   private static ScopeDiagnosticsReport report(
-      List<ContinuationRecord> records, Map<DDTraceId, Long> rootWritten) {
+      List<ContinuationRecord> records,
+      Map<DDTraceId, Long> rootWritten
+  ) {
     return new ScopeDiagnosticsReport(records, new ArrayList<>(), rootWritten);
   }
 

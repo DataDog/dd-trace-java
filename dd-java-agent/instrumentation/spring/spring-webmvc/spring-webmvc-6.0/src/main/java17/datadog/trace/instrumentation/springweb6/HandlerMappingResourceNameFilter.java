@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.springweb6;
 import static datadog.context.Context.root;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.servlet.FilterChain;
@@ -23,7 +22,6 @@ import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
 public class HandlerMappingResourceNameFilter extends OncePerRequestFilter implements Ordered {
-
   private static final Logger log = LoggerFactory.getLogger(HandlerMappingResourceNameFilter.class);
   private final List<HandlerMapping> handlerMappings = new CopyOnWriteArrayList<>();
 
@@ -31,9 +29,8 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
   protected void doFilterInternal(
       final HttpServletRequest request,
       final HttpServletResponse response,
-      final FilterChain filterChain)
-      throws ServletException, IOException {
-
+      final FilterChain filterChain
+  ) throws ServletException, IOException {
     final Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
     if (contextObj instanceof Context) {
       Context context = (Context) contextObj;
@@ -80,7 +77,8 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       } else {
         log.debug(
             "discarding handler mapping {} which won't set BEST_MATCHING_PATTERN_ATTRIBUTE",
-            handlerMapping);
+            handlerMapping
+        );
       }
     }
   }

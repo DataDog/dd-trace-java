@@ -28,16 +28,19 @@ public class PromiseHelper {
     if (ret == null) {
       LOGGER.debug(
           "Redisson instrumentation blocked. Cannot resolve getPromise method handle for class {}",
-          cls);
+          cls
+      );
       return null;
     }
     try {
       return ret.asType(MethodType.methodType(CompletionStage.class, cls));
     } catch (Throwable t) {
       LOGGER.debug(
-          "Redisson instrumentation blocked. Cannot getPromise method for class {} is not compatible with CompletionStage",
+          "Redisson instrumentation blocked. Cannot getPromise method for class {} is not "
+          + "compatible with CompletionStage",
           cls,
-          t);
+          t
+      );
     }
     return null;
   }
@@ -54,5 +57,6 @@ public class PromiseHelper {
     return null;
   }
 
-  private PromiseHelper() {}
+  private PromiseHelper() {
+  }
 }

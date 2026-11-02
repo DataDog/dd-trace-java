@@ -9,7 +9,6 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @EnableKafka
 @EnableAsync
 public class KafkaApplication {
-
   public static void main(final String[] args) {
     SpringApplication.run(KafkaApplication.class, args);
   }

@@ -9,4 +9,5 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @ExtendWith(DisableOnJ9Condition.class)
-public @interface DisabledOnJ9 {}
+public @interface DisabledOnJ9 {
+}

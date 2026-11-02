@@ -8,13 +8,10 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
   private static final CharSequence COUCHBASE_CLIENT = UTF8BytesString.create("couchbase-client");
   private static final String DB_TYPE = "couchbase";
-
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service(DB_TYPE);
-
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
-
   public static final CouchbaseClientDecorator DECORATE = new CouchbaseClientDecorator();
 
   @Override

@@ -5,7 +5,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HO
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -62,7 +61,8 @@ class HttpDecoratorsDatadogSemanticsForkedTest {
         span,
         null,
         URI.create("http://internal.example.com:8080/orders"),
-        AgentSpan.fromSpanContext(extracted));
+        AgentSpan.fromSpanContext(extracted)
+    );
     span.finish();
 
     assertEquals(0, decorator.headerLookups);
@@ -72,7 +72,8 @@ class HttpDecoratorsDatadogSemanticsForkedTest {
   }
 
   private static final class TestServerDecorator
-      extends HttpServerDecorator<URI, Void, Integer, Object> {
+      extends HttpServerDecorator<URI, Void, Integer, Object>
+  {
     private int headerLookups;
 
     @Override

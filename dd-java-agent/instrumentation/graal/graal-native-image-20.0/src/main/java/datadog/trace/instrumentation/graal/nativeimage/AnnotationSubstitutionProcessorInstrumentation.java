@@ -3,14 +3,14 @@ package datadog.trace.instrumentation.graal.nativeimage;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 
 public final class AnnotationSubstitutionProcessorInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "com.oracle.svm.hosted.substitute.AnnotationSubstitutionProcessor";
@@ -19,14 +19,15 @@ public final class AnnotationSubstitutionProcessorInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod()
-            .and(named("lookup"))
-            .and(takesArgument(0, named("jdk.vm.ci.meta.ResolvedJavaField"))),
-        "datadog.trace.instrumentation.graal.nativeimage.DeleteFieldAdvice");
+        isMethod().and(named("lookup")).and(
+            takesArgument(0, named("jdk.vm.ci.meta.ResolvedJavaField"))
+        ),
+        "datadog.trace.instrumentation.graal.nativeimage.DeleteFieldAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("findTargetClasses")),
-        AnnotationSubstitutionProcessorInstrumentation.class.getName()
-            + "$FindTargetClassesAdvice");
+        AnnotationSubstitutionProcessorInstrumentation.class.getName() + "$FindTargetClassesAdvice"
+    );
   }
 
   public static class FindTargetClassesAdvice {

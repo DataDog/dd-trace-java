@@ -13,12 +13,16 @@ public interface ApiSecuritySampler {
    * @param ctx the request context
    * @param framework the web framework handling the request, may be {@code null}
    */
-  boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx, final String framework);
+  boolean preSampleRequest(@Nonnull final AppSecRequestContext ctx, final String framework);
 
-  /** Get the final sampling decision. This method is NOT required to be thread-safe. */
+  /**
+   * Get the final sampling decision. This method is NOT required to be thread-safe.
+   */
   boolean sampleRequest(AppSecRequestContext ctx);
 
-  /** Release one permit for the sampler. This must be called after processing a span. */
+  /**
+   * Release one permit for the sampler. This must be called after processing a span.
+   */
   void releaseOne();
 
   final class NoOp implements ApiSecuritySampler {

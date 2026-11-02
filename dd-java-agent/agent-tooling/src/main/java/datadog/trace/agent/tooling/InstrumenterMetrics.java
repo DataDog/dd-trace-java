@@ -4,7 +4,6 @@ import datadog.trace.api.InstrumenterConfig;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class InstrumenterMetrics {
-
   // split long into count (max ~32 million) and elapsed (max ~9 minutes)
   private static final int COUNT_SHIFT = 39;
   private static final long COUNT_BIT = 1L << COUNT_SHIFT;
@@ -53,7 +52,8 @@ public final class InstrumenterMetrics {
           newValue += COUNT_BIT;
         }
         if ((newValue | ~NANOS_MASK) != -1) {
-          newValue += Math.min(System.nanoTime() - fromTick, NANOS_MASK - (newValue & NANOS_MASK));
+          newValue += Math.min(System.nanoTime() - fromTick, NANOS_MASK - (newValue
+              & NANOS_MASK));
         }
       } while (!stat.compareAndSet(oldValue, newValue));
     }
@@ -204,10 +204,11 @@ public final class InstrumenterMetrics {
 
   private static void summarize(StringBuilder buf, String prefix, AtomicLong stat) {
     long value = stat.get();
-    buf.append(prefix)
-        .append(String.format("%-12d", value >>> COUNT_SHIFT))
-        .append(' ')
-        .append(String.format("%.1f", (value & NANOS_MASK) / 1_000_000.0))
-        .append(" ms\n");
+    buf
+      .append(prefix)
+      .append(String.format("%-12d", value >>> COUNT_SHIFT))
+      .append(' ')
+      .append(String.format("%.1f", (value & NANOS_MASK) / 1_000_000.0))
+      .append(" ms\n");
   }
 }

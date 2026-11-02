@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-
 import datadog.context.Context;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.TestProfilingContextIntegration;
@@ -27,7 +26,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Tests profiler context binding during virtual-thread lifecycle transitions. */
+/**
+ * Tests profiler context binding during virtual-thread lifecycle transitions.
+ */
 public class VirtualThreadProfilingContextTest extends AbstractInstrumentationTest {
   private static final Duration TIMEOUT = Duration.ofSeconds(10);
   private static final RecordingProfilingContextIntegration PROFILING_CONTEXT =
@@ -37,13 +38,13 @@ public class VirtualThreadProfilingContextTest extends AbstractInstrumentationTe
   static void installRecordingProfilingContext() {
     tracer.close();
     writer = new ListWriter();
-    CoreTracer coreTracer =
-        CoreTracer.builder()
-            .writer(writer)
-            .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
-            .strictTraceWrites(true)
-            .profilingContextIntegration(PROFILING_CONTEXT)
-            .build();
+    CoreTracer coreTracer = CoreTracer
+      .builder()
+      .writer(writer)
+      .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
+      .strictTraceWrites(true)
+      .profilingContextIntegration(PROFILING_CONTEXT)
+      .build();
     TracerInstaller.forceInstallGlobalTracer(coreTracer);
     tracer = coreTracer;
   }
@@ -69,27 +70,28 @@ public class VirtualThreadProfilingContextTest extends AbstractInstrumentationTe
     assertEquals(
         List.of(0L, expectedSpanId.get()),
         bindings.subList(bindings.size() - 2, bindings.size()),
-        "the first mount should clear the carrier before run() binds the captured span");
+        "the first mount should clear the carrier before run() binds the captured span"
+    );
     assertEquals(
         expectedSpanId.get(),
         spanIdAtRunnableEntry.get(),
-        "the captured span must be bound before the no-park runnable starts");
+        "the captured span must be bound before the no-park runnable starts"
+    );
   }
 
   @Trace(operationName = "parent")
   private static void runWithSpan(
       AtomicLong expectedSpanId,
       AtomicLong spanIdAtRunnableEntry,
-      AtomicReference<List<Long>> bindingsAtRunnableEntry) {
+      AtomicReference<List<Long>> bindingsAtRunnableEntry
+  ) {
     expectedSpanId.set(AgentTracer.activeSpan().getSpanId());
     PROFILING_CONTEXT.reset();
 
-    Thread thread =
-        Thread.startVirtualThread(
-            () -> {
-              spanIdAtRunnableEntry.set(PROFILING_CONTEXT.activeSpanId());
-              bindingsAtRunnableEntry.set(PROFILING_CONTEXT.bindings());
-            });
+    Thread thread = Thread.startVirtualThread(() -> {
+      spanIdAtRunnableEntry.set(PROFILING_CONTEXT.activeSpanId());
+      bindingsAtRunnableEntry.set(PROFILING_CONTEXT.bindings());
+    });
     try {
       assertTrue(thread.join(TIMEOUT), "virtual thread did not finish in time");
     } catch (InterruptedException e) {
@@ -99,21 +101,21 @@ public class VirtualThreadProfilingContextTest extends AbstractInstrumentationTe
   }
 
   private static final class RecordingProfilingContextIntegration
-      extends TestProfilingContextIntegration {
+      extends TestProfilingContextIntegration
+  {
     private final AtomicLong activeSpanId = new AtomicLong();
     private final List<Long> bindings = new ArrayList<>();
-    private final Stateful contextManager =
-        new Stateful() {
-          @Override
-          public void close() {
-            record(0);
-          }
+    private final Stateful contextManager = new Stateful() {
+      @Override
+      public void close() {
+        record(0);
+      }
 
-          @Override
-          public void activate(Object context) {
-            record(((ProfilerContext) context).getSpanId());
-          }
-        };
+      @Override
+      public void activate(Object context) {
+        record(((ProfilerContext) context).getSpanId());
+      }
+    };
 
     @Override
     public Stateful newScopeState(ProfilerContext profilerContext) {

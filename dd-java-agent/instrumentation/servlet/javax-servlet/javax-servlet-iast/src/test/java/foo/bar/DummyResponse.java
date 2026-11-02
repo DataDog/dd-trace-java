@@ -126,7 +126,9 @@ public class DummyResponse implements HttpServletResponse {
     return null;
   }
 
-  public static class CustomCookie {}
+  public static class CustomCookie {
+  }
 
-  public static class CustomHeaderName {}
+  public static class CustomHeaderName {
+  }
 }

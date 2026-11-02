@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
@@ -14,17 +13,14 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.redis.client.Command;
 
 public class VertxRedisClientDecorator
-    extends DBTypeProcessingDatabaseClientDecorator<SocketAddress> {
-
+    extends DBTypeProcessingDatabaseClientDecorator<SocketAddress>
+{
   public static final VertxRedisClientDecorator DECORATE = new VertxRedisClientDecorator();
-
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().cache().service("redis");
   public static final CharSequence REDIS_COMMAND =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
-
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
-
   // There are 201 possible Redis commands
   private final DDCache<String, UTF8BytesString> commandCache =
       DDCaches.newFixedSizeCache(201 * 4 / 3);
@@ -76,7 +72,9 @@ public class VertxRedisClientDecorator
   }
 
   public AgentSpan startAndDecorateSpan(
-      Command command, ContextStore<Command, UTF8BytesString> contextStore) {
+      Command command,
+      ContextStore<Command, UTF8BytesString> contextStore
+  ) {
     return innerStartAndDecorateSpan(contextStore.get(command));
   }
 

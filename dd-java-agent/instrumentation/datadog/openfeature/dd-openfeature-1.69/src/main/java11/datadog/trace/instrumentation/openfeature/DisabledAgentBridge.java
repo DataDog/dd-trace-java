@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.openfeature;
 
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
-
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
@@ -17,7 +16,8 @@ import javax.annotation.Nullable;
 public final class DisabledAgentBridge implements AgentBridge {
   static final DisabledAgentBridge INSTANCE = new DisabledAgentBridge();
 
-  private DisabledAgentBridge() {}
+  private DisabledAgentBridge() {
+  }
 
   @Nullable
   @Override

@@ -1,13 +1,11 @@
 package datadog.trace.bootstrap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class AgentFeatureFlaggingLifecycleTest {
-
   @BeforeEach
   void reset() {
     FakeFeatureFlaggingSystem.stopCalls.set(0);
@@ -15,16 +13,15 @@ class AgentFeatureFlaggingLifecycleTest {
 
   @Test
   void shutdownInvokesFeatureFlaggingSystemStopThroughAgentClassLoader() {
-    final ClassLoader classLoader =
-        new ClassLoader(null) {
-          @Override
-          public Class<?> loadClass(final String name) throws ClassNotFoundException {
-            if ("com.datadog.featureflag.FeatureFlaggingSystem".equals(name)) {
-              return FakeFeatureFlaggingSystem.class;
-            }
-            return super.loadClass(name);
-          }
-        };
+    final ClassLoader classLoader = new ClassLoader(null) {
+      @Override
+      public Class<?> loadClass(final String name) throws ClassNotFoundException {
+        if ("com.datadog.featureflag.FeatureFlaggingSystem".equals(name)) {
+          return FakeFeatureFlaggingSystem.class;
+        }
+        return super.loadClass(name);
+      }
+    };
 
     Agent.shutdownFeatureFlagging(classLoader);
 

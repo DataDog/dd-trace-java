@@ -14,7 +14,6 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  */
 @SuppressForbidden
 public class AllowContextTestingExtension implements BeforeAllCallback {
-
   @Override
   public void beforeAll(ExtensionContext context) {
     try {

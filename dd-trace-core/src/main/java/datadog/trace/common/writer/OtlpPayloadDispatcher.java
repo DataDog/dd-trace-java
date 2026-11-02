@@ -13,9 +13,8 @@ import org.slf4j.LoggerFactory;
 
 final class OtlpPayloadDispatcher implements PayloadDispatcher {
   private static final Logger log = LoggerFactory.getLogger(OtlpPayloadDispatcher.class);
-
-  private static final int FLUSH_THRESHOLD_BYTES = 5 << 20; // 5 MiB
-
+  // 5 MiB
+  private static final int FLUSH_THRESHOLD_BYTES = 5 << 20;
   private final OtlpTraceCollector collector;
   private final OtlpSender sender;
 
@@ -42,7 +41,8 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
         RemoteApi.Response response = sender.send(payload);
         OtlpTelemetry.getInstance().onTracesExportComplete(response.success());
       }
-    } catch (RuntimeException e) { // don't catch severe Errors
+    } catch (RuntimeException e) {
+      // don't catch severe Errors
       log.debug("Failed to send OTLP payload", e);
     }
   }

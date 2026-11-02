@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -37,12 +36,9 @@ import org.junit.jupiter.params.provider.ValueSource;
  * callback.
  */
 class MessageBodyWriterAdviceAppSecTest {
-
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
-
   private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
-
   private RequestContext reqCtx;
   private TraceSegment segment;
   private int callbackInvocations;
@@ -61,10 +57,10 @@ class MessageBodyWriterAdviceAppSecTest {
 
     BiFunction<RequestContext, Object, Flow<Void>> callback =
         (ctx, entity) -> {
-          callbackInvocations++;
-          callbackEntity = entity;
-          return blockingFlow();
-        };
+      callbackInvocations++;
+      callbackEntity = entity;
+      return blockingFlow();
+    };
     CallbackProvider cbp = mock(CallbackProvider.class);
     when(cbp.getCallback(EVENTS.responseBody())).thenReturn(callback);
     AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
@@ -85,10 +81,11 @@ class MessageBodyWriterAdviceAppSecTest {
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
     Object entity = new Object();
 
-    BlockingException ex =
-        assertThrows(
-            BlockingException.class,
-            () -> MessageBodyWriterAdvice.before(entity, MediaType.APPLICATION_JSON_TYPE, reqCtx));
+    BlockingException ex = assertThrows(BlockingException.class, () -> MessageBodyWriterAdvice.before(
+        entity,
+        MediaType.APPLICATION_JSON_TYPE,
+        reqCtx
+    ));
 
     assertEquals("Blocked request (for MessageBodyWriter)", ex.getMessage());
     assertEquals(1, callbackInvocations);
@@ -106,8 +103,11 @@ class MessageBodyWriterAdviceAppSecTest {
     when(reqCtx.getBlockResponseFunction()).thenReturn(null);
     Object entity = new Object();
 
-    assertDoesNotThrow(
-        () -> MessageBodyWriterAdvice.before(entity, MediaType.APPLICATION_JSON_TYPE, reqCtx));
+    assertDoesNotThrow(() -> MessageBodyWriterAdvice.before(
+        entity,
+        MediaType.APPLICATION_JSON_TYPE,
+        reqCtx
+    ));
 
     assertEquals(1, callbackInvocations);
   }
@@ -137,7 +137,9 @@ class MessageBodyWriterAdviceAppSecTest {
     };
   }
 
-  /** Fake implementing only the abstract 5-arg method, so any default overload routes here. */
+  /**
+   * Fake implementing only the abstract 5-arg method, so any default overload routes here.
+   */
   private static final class RecordingBlockResponseFunction implements BlockResponseFunction {
     private final boolean commitResult;
     private int invocations;
@@ -155,7 +157,8 @@ class MessageBodyWriterAdviceAppSecTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       invocations++;
       this.segment = segment;
       this.statusCode = statusCode;

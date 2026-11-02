@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -13,13 +12,16 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Loads extensions into the Datadog tracer. */
+/**
+ * Loads extensions into the Datadog tracer.
+ */
 public final class ExtensionLoader {
   private static final Logger log = LoggerFactory.getLogger(ExtensionLoader.class);
-
   private static final String[] NO_EXTENSIONS = {};
 
-  /** Loads extensions from the extended classloader built by {@link ExtensionFinder}. */
+  /**
+   * Loads extensions from the extended classloader built by {@link ExtensionFinder}.
+   */
   public static <T> List<T> loadExtensions(Class<T> extensionType) {
     return loadExtensions(Utils.getExtendedClassLoader(), extensionType);
   }
@@ -39,7 +41,9 @@ public final class ExtensionLoader {
     return extensions;
   }
 
-  /** Returns the class names listed under the extension's {@code META-INF/services} descriptor. */
+  /**
+   * Returns the class names listed under the extension's {@code META-INF/services} descriptor.
+   */
   private static String[] listExtensionNames(ClassLoader classLoader, Class<?> extensionType) {
     try {
       Set<String> lines = new LinkedHashSet<>();

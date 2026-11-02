@@ -1,7 +1,6 @@
 package com.datadog.openfeature.internal.exposure;
 
 import static com.datadog.openfeature.internal.EventPipeline.awaitThread;
-
 import com.datadog.openfeature.internal.EventPipeline;
 import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
@@ -16,15 +15,16 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Batches exposure events to the event platform {@code exposures} route. */
+/**
+ * Batches exposure events to the event platform {@code exposures} route.
+ */
 public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ExposurePipeline.class);
-  public static final int DEFAULT_CAPACITY = 1 << 16; // 65536 elements
+  // 65536 elements
+  public static final int DEFAULT_CAPACITY = 1 << 16;
   public static final int DEFAULT_FLUSH_INTERVAL_IN_SECONDS = 1;
   private static final int FLUSH_THRESHOLD = 100;
   private static final String EXPOSURES_ROUTE = "exposures";
-
   private final EventQueue<ExposureEvent> queue;
   private final ExposureSerializingHandler serializer;
   private final Thread serializerThread;
@@ -38,15 +38,23 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
       final TimeUnit timeUnit,
       final EventTransport transport,
       final Map<String, String> context,
-      final RuntimeServices services) {
+      final RuntimeServices services
+  ) {
     this.queue = new EventQueue<>(capacity);
-    this.serializer =
-        new ExposureSerializingHandler(
-            transport, this.queue, flushInterval, timeUnit, context, this.droppedQueueFull);
+    this.serializer = new ExposureSerializingHandler(
+        transport,
+        this.queue,
+        flushInterval,
+        timeUnit,
+        context,
+        this.droppedQueueFull
+    );
     this.serializerThread = services.newThread("exposures", this.serializer);
   }
 
-  /** Starts the background serializing thread. */
+  /**
+   * Starts the background serializing thread.
+   */
   public void start() {
     synchronized (this.lifecycleLock) {
       if (!this.closed.get()) {
@@ -63,8 +71,10 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
         this.serializer.requestShutdown();
         // Logged last: a diagnostic must not keep the worker from being signaled.
         LOGGER.debug(
-            "Feature Flags exposure shutdown requested: queued={}; pending exposures get a final best-effort flush",
-            queued);
+            "Feature Flags exposure shutdown requested: queued={}; pending exposures get a "
+            + "final best-effort flush",
+            queued
+        );
       }
     }
   }
@@ -94,10 +104,8 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
     private final EventQueue<ExposureEvent> queue;
     private final long ticksRequiredToFlush;
     private long lastTicks;
-
     private final EventTransport transport;
     private final Map<String, String> context;
-
     private final List<ExposureEvent> buffer = new ArrayList<>();
     private final AtomicBoolean shutdownRequested = new AtomicBoolean();
     private final AtomicLong droppedQueueFull;
@@ -108,7 +116,8 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
         final long flushInterval,
         final TimeUnit timeUnit,
         final Map<String, String> context,
-        final AtomicLong droppedQueueFull) {
+        final AtomicLong droppedQueueFull
+    ) {
       this.droppedQueueFull = droppedQueueFull;
       this.queue = queue;
       this.transport = transport;
@@ -178,7 +187,9 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
       final long dropped = this.droppedQueueFull.getAndSet(0);
       if (dropped > 0) {
         LOGGER.debug(
-            "Feature Flags exposures dropped since the last flush: queue full, count={}", dropped);
+            "Feature Flags exposures dropped since the last flush: queue full, count={}",
+            dropped
+        );
       }
       if (this.buffer.isEmpty()) {
         return;
@@ -202,7 +213,8 @@ public class ExposurePipeline implements Consumer<ExposureEvent>, EventPipeline 
             "Feature Flags exposure flush failed: {}; dropping the batch of {} exposure(s)",
             e.toString(),
             count,
-            e);
+            e
+        );
       } finally {
         // Best-effort delivery must not retry an ambiguously accepted batch.
         this.buffer.clear();

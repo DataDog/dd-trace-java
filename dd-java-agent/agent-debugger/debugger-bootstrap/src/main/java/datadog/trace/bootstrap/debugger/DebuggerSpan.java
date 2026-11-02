@@ -8,7 +8,6 @@ public interface DebuggerSpan {
   DebuggerSpan NOOP_SPAN = new NoopSpan();
 
   class NoopSpan implements DebuggerSpan {
-
     @Override
     public void finish() {}
 

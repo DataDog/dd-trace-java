@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.websocket.jetty10;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -35,32 +34,34 @@ public class MethodHandleWrappers {
    * context and the original parameter jetty is already binding (the session and the endpoint
    * config)
    */
-  public static final MethodHandle OPEN_METHOD_HANDLE =
-      new MethodHandles(MethodHandleWrappers.class.getClassLoader())
-          .method(
-              MethodHandleWrappers.class,
-              "onOpen",
-              MethodHandle.class,
-              ContextStore.class,
-              ContextStore.class,
-              JavaxWebSocketSession.class,
-              EndpointConfig.class);
-
+  public static final MethodHandle OPEN_METHOD_HANDLE = new MethodHandles(MethodHandleWrappers.class
+    .getClassLoader()
+  )
+    .method(
+        MethodHandleWrappers.class,
+        "onOpen",
+        MethodHandle.class,
+        ContextStore.class,
+        ContextStore.class,
+        JavaxWebSocketSession.class,
+        EndpointConfig.class
+    );
   /**
    * OnClose method handles that takes more arguments comparing to the original. We inject at the
    * beginning the origin alto delegate the call, the context stores we need to lookup the handler
    * context and the original parameter jetty is already binding (the session and the close reason)
    */
-  public static final MethodHandle CLOSE_METHOD_HANDLE =
-      new MethodHandles(MethodHandleWrappers.class.getClassLoader())
-          .method(
-              MethodHandleWrappers.class,
-              "onClose",
-              MethodHandle.class,
-              ContextStore.class,
-              Session.class,
-              CloseReason.class);
-
+  public static final MethodHandle CLOSE_METHOD_HANDLE = new MethodHandles(MethodHandleWrappers.class
+    .getClassLoader()
+  )
+    .method(
+        MethodHandleWrappers.class,
+        "onClose",
+        MethodHandle.class,
+        ContextStore.class,
+        Session.class,
+        CloseReason.class
+    );
   /**
    * OnMessage method handles that takes more arguments comparing to the original. We inject at the
    * beginning the origin alto delegate the call, the context stores we need to lookup the handler
@@ -68,24 +69,26 @@ public class MethodHandleWrappers {
    * instrumented. At the end we also accept the original method arguments as an object varargs
    * since we cannot know in advance the one that will be passed.
    */
-  public static final MethodHandle MESSAGE_METHOD_HANDLE =
-      new MethodHandles(MethodHandleWrappers.class.getClassLoader())
-          .method(
-              MethodHandleWrappers.class,
-              "onMessage",
-              MethodHandle.class,
-              JavaxWebSocketSession.class,
-              HandlerContext.Receiver.class,
-              ContextStore.class,
-              Object[].class);
+  public static final MethodHandle MESSAGE_METHOD_HANDLE = new MethodHandles(MethodHandleWrappers.class
+    .getClassLoader()
+  )
+    .method(
+        MethodHandleWrappers.class,
+        "onMessage",
+        MethodHandle.class,
+        JavaxWebSocketSession.class,
+        HandlerContext.Receiver.class,
+        ContextStore.class,
+        Object[].class
+    );
 
   public static void onOpen(
       MethodHandle delegate,
       ContextStore<Session, HandlerContext.Sender> sessionStore,
       ContextStore<JavaxWebSocketSession, Boolean> specificStore,
       JavaxWebSocketSession session,
-      EndpointConfig config)
-      throws Throwable {
+      EndpointConfig config
+  ) throws Throwable {
     try {
       specificStore.put(session, true);
 
@@ -97,7 +100,9 @@ public class MethodHandleWrappers {
           current.forceSamplingDecision();
         }
         sessionStore.getOrPut(
-            session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
+            session,
+            new HandlerContext.Sender(current.getLocalRootSpan(), session.getId())
+        );
       }
     } catch (Throwable t) {
       ExceptionLogger.LOGGER.debug("Unforeseen error instrumenting jetty websocket POJO", t);
@@ -110,19 +115,18 @@ public class MethodHandleWrappers {
       MethodHandle delegate,
       ContextStore<Session, HandlerContext.Sender> contextStore,
       Session session,
-      CloseReason closeReason)
-      throws Throwable {
+      CloseReason closeReason
+  ) throws Throwable {
     HandlerContext.Sender handlerContext =
         contextStore != null && session != null ? contextStore.get(session) : null;
     if (handlerContext != null) {
       final HandlerContext.Receiver closeContext =
           new HandlerContext.Receiver(handlerContext.getHandshakeSpan(), session.getId());
-      try (ContextScope ignored =
-          activateSpan(
-              DECORATE.startInboundCloseSpan(
-                  closeContext,
-                  closeReason.getReasonPhrase(),
-                  closeReason.getCloseCode().getCode()))) {
+      try (ContextScope ignored = activateSpan(DECORATE.startInboundCloseSpan(
+          closeContext,
+          closeReason.getReasonPhrase(),
+          closeReason.getCloseCode().getCode()
+      ))) {
         delegate.invoke(session, closeReason);
       } finally {
         DECORATE.onFrameEnd(closeContext);
@@ -137,8 +141,8 @@ public class MethodHandleWrappers {
       JavaxWebSocketSession session,
       HandlerContext.Receiver handlerContext,
       ContextStore<JavaxWebSocketSession, Boolean> contextStore,
-      Object[] args)
-      throws Throwable {
+      Object[] args
+  ) throws Throwable {
     AgentSpan wsSpan = null;
     if (!Boolean.TRUE.equals(contextStore.get(session))) {
       return delegate.invokeWithArguments(args);
@@ -146,11 +150,10 @@ public class MethodHandleWrappers {
     boolean instrument;
     boolean finishSpan = true;
     try {
-      instrument =
-          handlerContext != null
-              && args != null
-              && args.length > 0
-              && CallDepthThreadLocalMap.incrementCallDepth(MessageHandler.class) == 0;
+      instrument = handlerContext != null
+          && args != null
+          && args.length > 0
+          && CallDepthThreadLocalMap.incrementCallDepth(MessageHandler.class) == 0;
       boolean partialDelivery;
       if (instrument) {
         partialDelivery = args.length > 1 && (args[1] instanceof Boolean);

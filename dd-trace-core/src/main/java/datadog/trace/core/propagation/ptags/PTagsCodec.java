@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.core.propagation.ptags.PTagsFactory.PROPAGATION_ERROR_TAG_KEY;
-
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.core.propagation.PropagationTags;
@@ -15,7 +14,6 @@ import java.util.Map;
 abstract class PTagsCodec {
   private static final String PROPAGATION_ERROR_INJECT_MAX_SIZE = "inject_max_size";
   private static final String PROPAGATION_ERROR_DISABLED = "disabled";
-
   protected static final TagKey DECISION_MAKER_TAG = TagKey.from("dm");
   protected static final TagKey TRACE_ID_TAG = TagKey.from("tid");
   protected static final TagKey TRACE_SOURCE_TAG = TagKey.from("ts");
@@ -44,29 +42,30 @@ abstract class PTagsCodec {
       PTags ptags,
       CharSequence lastParentIdOverride,
       LLMObsPropagationValues llmObsValues,
-      SamplingState samplingState) {
+      SamplingState samplingState
+  ) {
     // Neither branch extracts anything: extraction already happened in fromHeaderValue. This picks
     // which already-resolved set to write. Null means the injecting span has no LLMObs context of
     // its own — either LLM Observability is off, or no LLMObs span is active on this trace — so
     // the inbound values are forwarded untouched. Non-null replaces them with the injecting span's
     // own, which need a fit check because they have never been through a size limit.
-    LLMObsTagValues llmObsTags =
-        llmObsValues == null
-            ? ptags.getExtractedLLMObsTagValues()
-            : codec.degradeLLMObsToFit(ptags, LLMObsTagValues.from(llmObsValues), samplingState);
+    LLMObsTagValues llmObsTags = llmObsValues == null
+        ? ptags.getExtractedLLMObsTagValues()
+        : codec.degradeLLMObsToFit(ptags, LLMObsTagValues.from(llmObsValues), samplingState);
 
-    int estimate =
-        codec.addLLMObsSize(
-            codec.estimateHeaderSize(ptags, lastParentIdOverride, samplingState), llmObsTags);
+    int estimate = codec.addLLMObsSize(
+        codec.estimateHeaderSize(ptags, lastParentIdOverride, samplingState),
+        llmObsTags
+    );
     if (estimate == 0) {
       return "";
     }
-
     // No encoding validation here because we don't allow arbitrary tag change
     StringBuilder sb = new StringBuilder(estimate);
-    int size =
-        codec.addLLMObsSize(
-            codec.appendPrefix(sb, ptags, lastParentIdOverride, samplingState), llmObsTags);
+    int size = codec.addLLMObsSize(
+        codec.appendPrefix(sb, ptags, lastParentIdOverride, samplingState),
+        llmObsTags
+    );
     if (!ptags.isPropagationTagsDisabled()) {
       TagValue decisionMakerTagValue = ptags.getDecisionMakerTagValue(samplingState);
       if (decisionMakerTagValue != null) {
@@ -76,12 +75,12 @@ abstract class PTagsCodec {
         size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
       }
       if (ptags.getTraceSource() != ProductTraceSource.UNSET) {
-        size =
-            codec.appendTag(
-                sb,
-                TRACE_SOURCE_TAG,
-                TagValue.from(ProductTraceSource.getBitfieldHex(ptags.getTraceSource())),
-                size);
+        size = codec.appendTag(
+            sb,
+            TRACE_SOURCE_TAG,
+            TagValue.from(ProductTraceSource.getBitfieldHex(ptags.getTraceSource())),
+            size
+        );
       }
       if (ptags.getDebugPropagation() != null) {
         size = codec.appendTag(sb, DEBUG_TAG, TagValue.from(ptags.getDebugPropagation()), size);
@@ -91,9 +90,12 @@ abstract class PTagsCodec {
         size = codec.appendTag(sb, KNUTH_SAMPLING_RATE_TAG, knuthSamplingRateTagValue, size);
       }
       if (ptags.getOrgPropagationMarkerTagValue() != null) {
-        size =
-            codec.appendTag(
-                sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
+        size = codec.appendTag(
+            sb,
+            ORG_PROPAGATION_MARKER_TAG,
+            ptags.getOrgPropagationMarkerTagValue(),
+            size
+        );
       }
       // Ordered by how much the receiver loses without each one, because W3CPTagsCodec drops any
       // single tag that would overflow the tracestate and carries on with the next: what is
@@ -173,84 +175,97 @@ abstract class PTagsCodec {
       TagElement tagValue = it.next();
       tagMap.put(
           tagKey.forType(Encoding.DATADOG).toString(),
-          tagValue.forType(Encoding.DATADOG).toString());
+          tagValue.forType(Encoding.DATADOG).toString()
+      );
     }
     TagValue decisionMakerTagValue = propagationTags.getDecisionMakerTagValue(samplingState);
     if (decisionMakerTagValue != null) {
       tagMap.put(
           DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
-          decisionMakerTagValue.forType(Encoding.DATADOG).toString());
+          decisionMakerTagValue.forType(Encoding.DATADOG).toString()
+      );
     }
     if (propagationTags.getTraceSource() != ProductTraceSource.UNSET) {
       tagMap.put(
           TRACE_SOURCE_TAG.forType(Encoding.DATADOG).toString(),
-          TagValue.from(ProductTraceSource.getBitfieldHex(propagationTags.getTraceSource()))
-              .forType(Encoding.DATADOG)
-              .toString());
+          TagValue
+            .from(ProductTraceSource.getBitfieldHex(propagationTags.getTraceSource()))
+            .forType(Encoding.DATADOG)
+            .toString()
+      );
     }
     if (propagationTags.getDebugPropagation() != null) {
       tagMap.put(
-          DEBUG_TAG.forType(Encoding.DATADOG).toString(), propagationTags.getDebugPropagation());
+          DEBUG_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags.getDebugPropagation()
+      );
     }
-    TagValue knuthSamplingRateTagValue =
-        propagationTags.getKnuthSamplingRateTagValue(samplingState);
+    TagValue knuthSamplingRateTagValue = propagationTags.getKnuthSamplingRateTagValue(samplingState);
     if (knuthSamplingRateTagValue != null) {
       tagMap.put(
           KNUTH_SAMPLING_RATE_TAG.forType(Encoding.DATADOG).toString(),
-          knuthSamplingRateTagValue.forType(Encoding.DATADOG).toString());
+          knuthSamplingRateTagValue.forType(Encoding.DATADOG).toString()
+      );
     }
     if (propagationTags.getOrgPropagationMarkerTagValue() != null) {
       tagMap.put(
           ORG_PROPAGATION_MARKER_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getOrgPropagationMarkerTagValue().forType(Encoding.DATADOG).toString());
+          propagationTags.getOrgPropagationMarkerTagValue().forType(Encoding.DATADOG).toString()
+      );
     }
     if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
       tagMap.put(
           TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags
-              .getTraceIdHighOrderBitsHexTagValue()
-              .forType(Encoding.DATADOG)
-              .toString());
+          propagationTags.getTraceIdHighOrderBitsHexTagValue().forType(Encoding.DATADOG).toString()
+      );
     }
     if (llmObsTags.traceId != null) {
       tagMap.put(
           LLMOBS_TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
-          llmObsTags.traceId.forType(Encoding.DATADOG).toString());
+          llmObsTags.traceId.forType(Encoding.DATADOG).toString()
+      );
     }
     if (llmObsTags.mlApp != null) {
       tagMap.put(
           LLMOBS_ML_APP_TAG.forType(Encoding.DATADOG).toString(),
-          llmObsTags.mlApp.forType(Encoding.DATADOG).toString());
+          llmObsTags.mlApp.forType(Encoding.DATADOG).toString()
+      );
     }
     if (llmObsTags.sessionId != null) {
       tagMap.put(
           LLMOBS_SESSION_ID_TAG.forType(Encoding.DATADOG).toString(),
-          llmObsTags.sessionId.forType(Encoding.DATADOG).toString());
+          llmObsTags.sessionId.forType(Encoding.DATADOG).toString()
+      );
     }
     if (llmObsTags.parentAgentSpanId != null) {
       tagMap.put(
           LLMOBS_PAGENT_SPAN_ID_TAG.forType(Encoding.DATADOG).toString(),
-          llmObsTags.parentAgentSpanId.forType(Encoding.DATADOG).toString());
+          llmObsTags.parentAgentSpanId.forType(Encoding.DATADOG).toString()
+      );
     }
     if (llmObsTags.parentAgentName != null) {
       tagMap.put(
           LLMOBS_PAGENT_NAME_TAG.forType(Encoding.DATADOG).toString(),
-          llmObsTags.parentAgentName.forType(Encoding.DATADOG).toString());
+          llmObsTags.parentAgentName.forType(Encoding.DATADOG).toString()
+      );
     }
     if (llmObsTags.parentId != null) {
       tagMap.put(
           LLMOBS_PARENT_ID_TAG.forType(Encoding.DATADOG).toString(),
-          llmObsTags.parentId.forType(Encoding.DATADOG).toString());
+          llmObsTags.parentId.forType(Encoding.DATADOG).toString()
+      );
     }
     if (llmObsTags.sampleRate != null) {
       tagMap.put(
           LLMOBS_SAMPLE_RATE_TAG.forType(Encoding.DATADOG).toString(),
-          llmObsTags.sampleRate.forType(Encoding.DATADOG).toString());
+          llmObsTags.sampleRate.forType(Encoding.DATADOG).toString()
+      );
     }
     if (llmObsTags.samplingDecision != null) {
       tagMap.put(
           LLMOBS_SAMPLING_DECISION_TAG.forType(Encoding.DATADOG).toString(),
-          llmObsTags.samplingDecision.forType(Encoding.DATADOG).toString());
+          llmObsTags.samplingDecision.forType(Encoding.DATADOG).toString()
+      );
     }
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());
@@ -267,12 +282,16 @@ abstract class PTagsCodec {
       }
       key = !key;
       size += tagPair.length();
-      size += 1; // tag or key separator
+      // tag or key separator
+      size += 1;
     }
-    return size == 0 ? 0 : size - 1; // exclude last separator
+    // exclude last separator
+    return size == 0 ? 0 : size - 1;
   }
 
-  /** Adds what the eight LLM Observability tags cost in {@code x-datadog-tags} to {@code size}. */
+  /**
+   * Adds what the eight LLM Observability tags cost in {@code x-datadog-tags} to {@code size}.
+   */
   static int calcLLMObsSize(int size, LLMObsTagValues llmObsTags) {
     // Same order as headerValue appends them; the total is the same either way.
     size = calcXDatadogTagsSize(size, LLMOBS_TRACE_ID_TAG, llmObsTags.traceId);
@@ -315,14 +334,20 @@ abstract class PTagsCodec {
    * the carrier degrades on its own. See {@link DatadogPTagsCodec#degradeLLMObsToFit}.
    */
   protected LLMObsTagValues degradeLLMObsToFit(
-      PTags ptags, LLMObsTagValues llmObsTags, SamplingState samplingState) {
+      PTags ptags,
+      LLMObsTagValues llmObsTags,
+      SamplingState samplingState
+  ) {
     return llmObsTags;
   }
 
   abstract PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value);
 
   protected int estimateHeaderSize(
-      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
+      PTags pTags,
+      CharSequence lastParentIdOverride,
+      SamplingState samplingState
+  ) {
     return pTags.getXDatadogTagsSize(samplingState);
   }
 
@@ -330,7 +355,8 @@ abstract class PTagsCodec {
       StringBuilder sb,
       PTags ptags,
       CharSequence lastParentIdOverride,
-      SamplingState samplingState) {
+      SamplingState samplingState
+  ) {
     return ptags.getXDatadogTagsSize(samplingState);
   }
 

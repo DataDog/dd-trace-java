@@ -2,7 +2,6 @@ package opentelemetry147.metrics;
 
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.opentelemetry.shim.metrics.OtelMeterProvider;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -22,10 +21,8 @@ import org.junit.jupiter.api.Test;
 @WithConfig(key = "metrics.otel.enabled", value = "true")
 @WithConfig(key = "otlp.metrics.temporality.preference", value = "cumulative")
 class OpenTelemetryMetricsCumulativeForkedTest extends AbstractInstrumentationTest {
-
   private static final Attributes SOME_ATTRIBUTES = Attributes.of(stringKey("some"), "thing");
   private static final String WITH_ATTRS = "@{some=thing}";
-
   private OtelMeterProvider meterProvider;
   private Meter meter;
   private Map<String, Object> points;
@@ -47,20 +44,17 @@ class OpenTelemetryMetricsCumulativeForkedTest extends AbstractInstrumentationTe
   @Test
   void testObservableLongCounterCumulative() {
     long[] absoluteValue = {0L};
-    AutoCloseable observable =
-        meter
-            .counterBuilder("cumulative-observable-long-counter")
-            .buildWithCallback(m -> m.record(absoluteValue[0]));
+    AutoCloseable observable = meter
+      .counterBuilder("cumulative-observable-long-counter")
+      .buildWithCallback(m -> m.record(absoluteValue[0]));
 
     absoluteValue[0] = 5L;
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(5L, points.get("test:cumulative-observable-long-counter"));
-
     // cumulative: same absolute value is reported as-is (not as delta=0)
     points.clear();
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(5L, points.get("test:cumulative-observable-long-counter"));
-
     // absolute value increases: reports new absolute value
     points.clear();
     absoluteValue[0] = 12L;
@@ -73,21 +67,18 @@ class OpenTelemetryMetricsCumulativeForkedTest extends AbstractInstrumentationTe
   @Test
   void testObservableDoubleCounterCumulative() {
     double[] absoluteValue = {0.0};
-    AutoCloseable observable =
-        meter
-            .counterBuilder("cumulative-observable-double-counter")
-            .ofDoubles()
-            .buildWithCallback(m -> m.record(absoluteValue[0]));
+    AutoCloseable observable = meter
+      .counterBuilder("cumulative-observable-double-counter")
+      .ofDoubles()
+      .buildWithCallback(m -> m.record(absoluteValue[0]));
 
     absoluteValue[0] = 3.5;
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(3.5, points.get("test:cumulative-observable-double-counter"));
-
     // cumulative: same absolute value is reported as-is (not as delta=0.0)
     points.clear();
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(3.5, points.get("test:cumulative-observable-double-counter"));
-
     // absolute value increases: reports new absolute value
     points.clear();
     absoluteValue[0] = 8.0;
@@ -107,7 +98,6 @@ class OpenTelemetryMetricsCumulativeForkedTest extends AbstractInstrumentationTe
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(1L, points.get("test:cumulative-long-counter"));
     assertEquals(2L, points.get("test:cumulative-long-counter" + WITH_ATTRS));
-
     // cumulative: values accumulate without reset between collects
     points.clear();
     counter.add(3);
@@ -127,7 +117,6 @@ class OpenTelemetryMetricsCumulativeForkedTest extends AbstractInstrumentationTe
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(1.0, points.get("test:cumulative-double-counter"));
     assertEquals(2.0, points.get("test:cumulative-double-counter" + WITH_ATTRS));
-
     // cumulative: values accumulate without reset between collects
     points.clear();
     counter.add(0.5);

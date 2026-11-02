@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,7 +16,9 @@ import io.reactivex.MaybeObserver;
 import net.bytebuddy.asm.Advice;
 
 public final class MaybeInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "io.reactivex.Maybe";
@@ -28,10 +29,11 @@ public final class MaybeInstrumentation
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("subscribe"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.reactivex.MaybeObserver"))),
-        getClass().getName() + "$PropagateParentSpanAdvice");
+          .and(named("subscribe"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("io.reactivex.MaybeObserver"))),
+        getClass().getName() + "$PropagateParentSpanAdvice"
+    );
   }
 
   public static class CaptureParentSpanAdvice {
@@ -48,7 +50,8 @@ public final class MaybeInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onSubscribe(
         @Advice.This final Maybe<?> maybe,
-        @Advice.Argument(value = 0, readOnly = false) MaybeObserver<?> observer) {
+        @Advice.Argument(value = 0, readOnly = false) MaybeObserver<?> observer
+    ) {
       if (observer != null) {
         Context parentContext = InstrumentationContext.get(Maybe.class, Context.class).get(maybe);
         if (parentContext != null) {

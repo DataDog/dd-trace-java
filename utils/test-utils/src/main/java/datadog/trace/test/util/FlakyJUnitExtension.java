@@ -2,7 +2,6 @@ package datadog.trace.test.util;
 
 import static org.junit.platform.commons.support.AnnotationSupport.findAnnotation;
 import static org.junit.platform.commons.support.ReflectionSupport.findMethod;
-
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -12,7 +11,9 @@ import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-/** Selects JUnit tests using the project's flaky-test modes. */
+/**
+ * Selects JUnit tests using the project's flaky-test modes.
+ */
 public final class FlakyJUnitExtension implements ExecutionCondition {
   private static final String RUN_FLAKY_TESTS = "run.flaky.tests";
 
@@ -30,7 +31,8 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
       return ConditionEvaluationResult.enabled("Container may contain tests outside flaky suites");
     }
     return ConditionEvaluationResult.disabled(
-        flaky.value().isEmpty() ? "Flaky test" : "Flaky test: " + flaky.value());
+        flaky.value().isEmpty() ? "Flaky test" : "Flaky test: " + flaky.value()
+    );
   }
 
   static Flaky findFlaky(Class<?> testClass, Method method) {
@@ -40,9 +42,7 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
         return flaky;
       }
     }
-    for (Class<?> enclosing = testClass;
-        enclosing != null;
-        enclosing = enclosing.getEnclosingClass()) {
+    for (Class<?> enclosing = testClass; enclosing != null; enclosing = enclosing.getEnclosingClass()) {
       for (Class<?> current = enclosing; current != null; current = current.getSuperclass()) {
         Flaky flaky = matchingAnnotation(current, testClass);
         if (flaky != null) {
@@ -73,13 +73,15 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
     if (flaky.conditionMethod().isEmpty()) {
       if (flaky.condition() != Flaky.True.class) {
         throw new ExtensionConfigurationException(
-            "JUnit @Flaky conditions must use conditionMethod");
+            "JUnit @Flaky conditions must use conditionMethod"
+        );
       }
       return flaky;
     }
     if (flaky.condition() != Flaky.True.class) {
       throw new ExtensionConfigurationException(
-          "@Flaky cannot set both condition and conditionMethod");
+          "@Flaky cannot set both condition and conditionMethod"
+      );
     }
     try {
       return evaluateConditionMethod(flaky.conditionMethod(), testClass.getClassLoader())
@@ -94,7 +96,8 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
     int separator = reference.lastIndexOf('#');
     if (separator <= 0 || separator == reference.length() - 1) {
       throw new IllegalArgumentException(
-          "@Flaky condition method must use the format fully.qualified.Class#method");
+          "@Flaky condition method must use the format fully.qualified.Class#method"
+      );
     }
 
     String className = reference.substring(0, separator);
@@ -103,23 +106,29 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
       Class<?> conditionClass = classLoader.loadClass(className);
       Method method =
           findMethod(conditionClass, methodName)
-              .orElseThrow(() -> new NoSuchMethodException(reference));
+        .orElseThrow(() -> new NoSuchMethodException(reference));
       if (!Modifier.isStatic(method.getModifiers())) {
         throw new IllegalArgumentException(
-            "@Flaky condition method " + reference + " must be static");
+            "@Flaky condition method " + reference + " must be static"
+        );
       }
       if (method.getReturnType() != boolean.class && method.getReturnType() != Boolean.class) {
         throw new IllegalArgumentException(
-            "@Flaky condition method " + reference + " must return boolean");
+            "@Flaky condition method " + reference + " must return boolean"
+        );
       }
       method.setAccessible(true);
       return Boolean.TRUE.equals(method.invoke(null));
     } catch (InvocationTargetException e) {
       throw new IllegalArgumentException(
-          "Could not evaluate @Flaky condition method " + reference, e.getCause());
+          "Could not evaluate @Flaky condition method " + reference,
+          e.getCause()
+      );
     } catch (ReflectiveOperationException e) {
       throw new IllegalArgumentException(
-          "Could not evaluate @Flaky condition method " + reference, e);
+          "Could not evaluate @Flaky condition method " + reference,
+          e
+      );
     }
   }
 

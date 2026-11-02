@@ -11,31 +11,26 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class App {
-
   private static final Logger logger = Logger.getLogger(App.class.getName());
-
   private Server server;
 
   private void start() throws IOException {
     int port = Integer.getInteger("grpc.http.port", 8080);
-    server =
-        Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create())
-            .addService(new IastServiceImpl())
-            .build()
-            .start();
+    server = Grpc
+      .newServerBuilderForPort(port, InsecureServerCredentials.create())
+      .addService(new IastServiceImpl())
+      .build()
+      .start();
     logger.info("Server started, listening on " + port);
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread(
-                () -> {
-                  System.err.println("*** shutting down gRPC server since JVM is shutting down");
-                  try {
-                    App.this.stop();
-                  } catch (InterruptedException e) {
-                    e.printStackTrace(System.err);
-                  }
-                  System.err.println("*** server shut down");
-                }));
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      System.err.println("*** shutting down gRPC server since JVM is shutting down");
+      try {
+        App.this.stop();
+      } catch (InterruptedException e) {
+        e.printStackTrace(System.err);
+      }
+      System.err.println("*** server shut down");
+    }));
   }
 
   private void stop() throws InterruptedException {

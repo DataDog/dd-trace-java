@@ -5,7 +5,6 @@ import static datadog.trace.api.FeatureFlaggingSource.REMOTE_CONFIG;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static java.util.Locale.ROOT;
-
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -21,7 +20,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The agent services exposed to the Feature Flags SDK instrumentation. */
+/**
+ * The agent services exposed to the Feature Flags SDK instrumentation.
+ */
 public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend, AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagsBackend.class);
   private static final String API_KEY = "api-key";
@@ -29,14 +30,14 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
   private static final String ENV = "env";
   private static final String SERVICE = "service";
   private static final String VERSION = "version";
-
   private final SharedCommunicationObjects sco;
   private final Config config;
   private final EventProxy eventProxy;
   private final SpanEnrichmentWriter spanEnrichmentWriter;
   private final CoreMetricCollector metrics;
   private final List<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
-  @Nullable private final Runnable onFirstShutdownSubscription;
+  @Nullable
+  private final Runnable onFirstShutdownSubscription;
   private final AtomicBoolean shutdownSubscribed = new AtomicBoolean();
   private RemoteConfigServiceImpl remoteConfig;
 
@@ -49,7 +50,8 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
   public FeatureFlagsBackend(
       final SharedCommunicationObjects sco,
       final Config config,
-      @Nullable final Runnable onFirstShutdownSubscription) {
+      @Nullable final Runnable onFirstShutdownSubscription
+  ) {
     this(
         sco,
         config,
@@ -57,11 +59,13 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
             new BackendApiFactory(config, sco, EventProxy.IDENTITY_HEADERS, true),
             config.getFeatureFlaggingConfigurationSource() == AGENTLESS,
             config.getFeatureFlaggingConfigurationSource() == AGENTLESS
-                && config.getApiKey() != null
-                && !config.getApiKey().trim().isEmpty()),
+            && config.getApiKey() != null
+            && !config.getApiKey().trim().isEmpty()
+        ),
         SpanEnrichmentWriter.getInstance(),
         CoreMetricCollector.getInstance(),
-        onFirstShutdownSubscription);
+        onFirstShutdownSubscription
+    );
   }
 
   FeatureFlagsBackend(
@@ -70,7 +74,8 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
       final EventProxy eventProxy,
       final SpanEnrichmentWriter spanEnrichmentWriter,
       final CoreMetricCollector metrics,
-      @Nullable final Runnable onFirstShutdownSubscription) {
+      @Nullable final Runnable onFirstShutdownSubscription
+  ) {
     this.sco = sco;
     this.config = config;
     this.eventProxy = eventProxy;
@@ -79,7 +84,9 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
     this.onFirstShutdownSubscription = onFirstShutdownSubscription;
   }
 
-  /** Registers the Remote Configuration product early when it is the configuration source. */
+  /**
+   * Registers the Remote Configuration product early when it is the configuration source.
+   */
   public void start() {
     if (this.config.getFeatureFlaggingConfigurationSource() == REMOTE_CONFIG
         && isRemoteConfigAvailable()) {
@@ -149,7 +156,10 @@ public final class FeatureFlagsBackend implements FeatureFlaggingGateway.Backend
 
   @Override
   public void enrichSerialId(
-      final int serialId, final boolean doLog, @Nullable final String targetingKey) {
+      final int serialId,
+      final boolean doLog,
+      @Nullable final String targetingKey
+  ) {
     this.spanEnrichmentWriter.serialId(serialId, doLog, targetingKey);
   }
 

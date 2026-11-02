@@ -8,7 +8,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -19,13 +18,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
 class PropagationUtilsTest {
-
   private static final String VALUE = "http://test.com";
-
   private static final Answer<Void> THROW_EXCEPTION =
       invocation -> {
-        throw new Exception("test exception");
-      };
+    throw new Exception("test exception");
+  };
 
   @AfterEach
   void tearDown() {
@@ -138,8 +135,10 @@ class PropagationUtilsTest {
 
     assertEquals(sb.toString(), result);
     verify(iastModule).onStringBuilderToString(sb, VALUE);
-    verify(iastModule)
-        .onUnexpectedException(eq("onStringBuilderToString threw"), any(Exception.class));
+    verify(iastModule).onUnexpectedException(
+        eq("onStringBuilderToString threw"),
+        any(Exception.class)
+    );
     verifyNoMoreInteractions(iastModule);
   }
 
@@ -154,8 +153,10 @@ class PropagationUtilsTest {
 
     assertSame(sb, result);
     verify(iastModule).onStringBuilderAppend(sb, VALUE);
-    verify(iastModule)
-        .onUnexpectedException(eq("onStringBuilderAppend threw"), any(Exception.class));
+    verify(iastModule).onUnexpectedException(
+        eq("onStringBuilderAppend threw"),
+        any(Exception.class)
+    );
     verifyNoMoreInteractions(iastModule);
   }
 
@@ -169,8 +170,7 @@ class PropagationUtilsTest {
     PropagationUtils.taintObjectIfTainted(VALUE, inputTest);
 
     verify(iastModule).taintObjectIfTainted(VALUE, inputTest);
-    verify(iastModule)
-        .onUnexpectedException(eq("taintObjectIfTainted threw"), any(Exception.class));
+    verify(iastModule).onUnexpectedException(eq("taintObjectIfTainted threw"), any(Exception.class));
     verifyNoMoreInteractions(iastModule);
   }
 }

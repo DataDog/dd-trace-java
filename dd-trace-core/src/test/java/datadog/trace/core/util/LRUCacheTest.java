@@ -2,14 +2,12 @@ package datadog.trace.core.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class LRUCacheTest {
-
   @Test
   void shouldEjectLeastRecentlyUsedElement() {
     LRUCache<Integer, String> lruCache = new LRUCache<>(5);

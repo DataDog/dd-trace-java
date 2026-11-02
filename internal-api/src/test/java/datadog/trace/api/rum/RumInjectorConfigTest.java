@@ -4,17 +4,15 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_SITE;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.rum.RumInjectorConfig.PrivacyLevel;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class RumInjectorConfigTest {
-
   @ParameterizedTest
   @CsvSource(
       value = {
-        // spotless:off
+      // spotless:off
       // Minimal configuration ID
       "appId | token | null              | null | null | 6 | null | null  | null  | null  | null | null  | null  | remote-config-id",
       // Using site
@@ -57,7 +55,8 @@ class RumInjectorConfigTest {
       // spotless:on
       },
       delimiterString = "|",
-      nullValues = "null")
+      nullValues = "null"
+  )
   void testValidConfig(
       String applicationId,
       String clientToken,
@@ -72,23 +71,24 @@ class RumInjectorConfigTest {
       PrivacyLevel defaultPrivacyLevel,
       Float sessionSampleRate,
       Float sessionReplaySampleRate,
-      String remoteConfigurationId) {
-    RumInjectorConfig injectorConfig =
-        new RumInjectorConfig(
-            applicationId,
-            clientToken,
-            site,
-            service,
-            env,
-            majorVersion,
-            version,
-            trackUserInteractions,
-            trackResources,
-            trackLongTask,
-            defaultPrivacyLevel,
-            sessionSampleRate,
-            sessionReplaySampleRate,
-            remoteConfigurationId);
+      String remoteConfigurationId
+  ) {
+    RumInjectorConfig injectorConfig = new RumInjectorConfig(
+        applicationId,
+        clientToken,
+        site,
+        service,
+        env,
+        majorVersion,
+        version,
+        trackUserInteractions,
+        trackResources,
+        trackLongTask,
+        defaultPrivacyLevel,
+        sessionSampleRate,
+        sessionReplaySampleRate,
+        remoteConfigurationId
+    );
 
     String jsonPayload = injectorConfig.jsonPayload();
     assertTrue(jsonPayload.contains(applicationId));
@@ -159,7 +159,7 @@ class RumInjectorConfigTest {
   @ParameterizedTest
   @CsvSource(
       value = {
-        // spotless:off
+      // spotless:off
       // Invalid application ID
       "null  | token | datadoghq.com | null | null | 6 | null | true | true | true | null | null  | null  | remote-config-id",
       "''    | token | datadoghq.com | null | null | 6 | null | true | true | true | null | null  | null  | remote-config-id",
@@ -186,7 +186,8 @@ class RumInjectorConfigTest {
       // spotless:on
       },
       delimiterString = "|",
-      nullValues = "null")
+      nullValues = "null"
+  )
   void testInvalidConfig(
       String applicationId,
       String clientToken,
@@ -201,24 +202,23 @@ class RumInjectorConfigTest {
       PrivacyLevel defaultPrivacyLevel,
       Float sessionSampleRate,
       Float sessionReplaySampleRate,
-      String remoteConfigurationId) {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new RumInjectorConfig(
-                applicationId,
-                clientToken,
-                site,
-                service,
-                env,
-                majorVersion,
-                version,
-                trackUserInteractions,
-                trackResources,
-                trackLongTask,
-                defaultPrivacyLevel,
-                sessionSampleRate,
-                sessionReplaySampleRate,
-                remoteConfigurationId));
+      String remoteConfigurationId
+  ) {
+    assertThrows(IllegalArgumentException.class, () -> new RumInjectorConfig(
+        applicationId,
+        clientToken,
+        site,
+        service,
+        env,
+        majorVersion,
+        version,
+        trackUserInteractions,
+        trackResources,
+        trackLongTask,
+        defaultPrivacyLevel,
+        sessionSampleRate,
+        sessionReplaySampleRate,
+        remoteConfigurationId
+    ));
   }
 }

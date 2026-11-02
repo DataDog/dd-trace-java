@@ -12,10 +12,8 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
  * null}.
  */
 public class IastConstantConverter implements ArgumentConverter {
-
-  private static final Class<?>[] CLASSES = {
-    VulnerabilityTypes.class, SourceTypes.class, Tag.class
-  };
+  private static final Class<?>[] CLASSES =
+      {VulnerabilityTypes.class, SourceTypes.class, Tag.class};
 
   @Override
   public Object convert(Object source, ParameterContext context) {

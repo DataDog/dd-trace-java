@@ -8,7 +8,6 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
 public class BuildModuleLayout implements Serializable {
-
   private final List<SourceSet> sourceSets;
 
   public BuildModuleLayout(@Nonnull Collection<SourceSet> sourceSets) {

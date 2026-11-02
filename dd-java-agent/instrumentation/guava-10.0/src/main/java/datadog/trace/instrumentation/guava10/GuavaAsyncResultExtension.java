@@ -32,19 +32,17 @@ public class GuavaAsyncResultExtension implements AsyncResultExtension, EagerHel
     if (result instanceof ListenableFuture) {
       ListenableFuture<?> listenableFuture = (ListenableFuture<?>) result;
       if (!listenableFuture.isDone() && !listenableFuture.isCancelled()) {
-        listenableFuture.addListener(
-            () -> {
-              // Get value to check for execution exception
-              try {
-                listenableFuture.get();
-              } catch (ExecutionException e) {
-                span.addThrowable(e.getCause());
-              } catch (CancellationException | InterruptedException e) {
-                // Ignored
-              }
-              span.finish();
-            },
-            Runnable::run);
+        listenableFuture.addListener(() -> {
+          // Get value to check for execution exception
+          try {
+            listenableFuture.get();
+          } catch (ExecutionException e) {
+            span.addThrowable(e.getCause());
+          } catch (CancellationException | InterruptedException e) {
+            // Ignored
+          }
+          span.finish();
+        }, Runnable::run);
         return result;
       }
     }

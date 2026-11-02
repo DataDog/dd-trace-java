@@ -3,13 +3,15 @@ package datadog.trace.core.otlp.logs;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexSpanId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexTraceId;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
-
 import datadog.json.JsonWriter;
 import datadog.trace.bootstrap.otlp.logs.OtlpLogRecord;
 
-/** Provides writers for OpenTelemetry's "logs.proto" JSON encoding. */
+/**
+ * Provides writers for OpenTelemetry's "logs.proto" JSON encoding.
+ */
 public final class OtlpLogsJson {
-  private OtlpLogsJson() {}
+  private OtlpLogsJson() {
+  }
 
   /**
    * Writes a log record's non-attribute fields into the currently open {@code LogRecord} object.

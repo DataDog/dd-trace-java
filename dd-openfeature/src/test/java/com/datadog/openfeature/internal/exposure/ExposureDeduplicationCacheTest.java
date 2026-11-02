@@ -3,12 +3,10 @@ package com.datadog.openfeature.internal.exposure;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class ExposureDeduplicationCacheTest {
-
   @Test
   void recordsANewExposure() {
     final ExposureDeduplicationCache cache = new ExposureDeduplicationCache(5);
@@ -55,8 +53,7 @@ class ExposureDeduplicationCacheTest {
     final ExposureDeduplicationCache cache = new ExposureDeduplicationCache(5);
     cache.recordIfChanged("flag", "subject", "allocation", "variant", first);
 
-    assertEquals(
-        changed, cache.recordIfChanged("flag", "subject", "allocation", "variant", second));
+    assertEquals(changed, cache.recordIfChanged("flag", "subject", "allocation", "variant", second));
   }
 
   @Test

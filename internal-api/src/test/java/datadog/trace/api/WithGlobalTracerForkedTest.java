@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.TestMethodOrder;
 // both tests register a global tracer, which can only happen once per JVM: keep Spock's order
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class WithGlobalTracerForkedTest {
-
   @Test
   @Order(1)
   void shouldCallTheCallbackAtTheRightTime() {
@@ -44,10 +42,9 @@ class WithGlobalTracerForkedTest {
     Tracer tracer = mock(Tracer.class);
     WithGlobalTracer.Callback callback = ignored -> {};
 
-    assertDoesNotThrow(
-        () -> {
-          WithGlobalTracer.registerOrExecute(callback);
-          GlobalTracer.registerIfAbsent(tracer);
-        });
+    assertDoesNotThrow(() -> {
+      WithGlobalTracer.registerOrExecute(callback);
+      GlobalTracer.registerIfAbsent(tracer);
+    });
   }
 }

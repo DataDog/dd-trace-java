@@ -1,15 +1,17 @@
 package datadog.trace.test.junit.utils.assertions;
 
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
-
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
-/** This class is a utility class to create generic matchers. */
+/**
+ * This class is a utility class to create generic matchers.
+ */
 public final class Matchers {
-  private Matchers() {}
+  private Matchers() {
+  }
 
   /**
    * Creates a matcher that checks if the provided value is equal to the expected value.
@@ -113,14 +115,17 @@ public final class Matchers {
    * @param <T> The type of the value being tested.
    */
   public static <T> void assertValue(
-      @Nullable Matcher<T> matcher, @Nullable T value, String message) {
+      @Nullable Matcher<T> matcher,
+      @Nullable T value,
+      String message
+  ) {
     if (matcher != null && !matcher.test(value)) {
       Optional<T> expected = matcher.expected();
       assertionFailure()
-          .message(message + ". " + matcher.failureReason())
-          .expected(expected.orElse(null))
-          .actual(value)
-          .buildAndThrow();
+        .message(message + ". " + matcher.failureReason())
+        .expected(expected.orElse(null))
+        .actual(value)
+        .buildAndThrow();
     }
   }
 }

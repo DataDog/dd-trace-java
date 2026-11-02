@@ -16,7 +16,6 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.datadog.openfeature.internal.ConfigurationService;
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
 import com.datadog.openfeature.internal.RuntimeServices;
@@ -90,25 +89,23 @@ class EvaluationTelemetryOptOutTest {
   private static final String PARAMETER = "dd_evaluation_telemetry_opt_out";
   private static final String SYSTEM_PROPERTY =
       "dd.feature.flags.evaluation.telemetry.per.subject.opt.out.enabled";
-
   private final List<FlagEvalEvent> events = new CopyOnWriteArrayList<>();
   private final List<String> spans = new CopyOnWriteArrayList<>();
   private final List<ExposureEvent> exposures = new CopyOnWriteArrayList<>();
   private final List<ExposureHook.Evaluation> customerEvaluations = new CopyOnWriteArrayList<>();
   private final AtomicInteger metrics = new AtomicInteger();
   private final ExposureDeduplicationCache exposureCache = new ExposureDeduplicationCache();
-  private final SpanEnricher spanEnricher =
-      new SpanEnricher() {
-        @Override
-        public void serialId(final int serialId, final boolean doLog, final String targetingKey) {
-          EvaluationTelemetryOptOutTest.this.spans.add("serial-id:" + targetingKey);
-        }
+  private final SpanEnricher spanEnricher = new SpanEnricher() {
+    @Override
+    public void serialId(final int serialId, final boolean doLog, final String targetingKey) {
+      EvaluationTelemetryOptOutTest.this.spans.add("serial-id:" + targetingKey);
+    }
 
-        @Override
-        public void runtimeDefault(final String flagKey, final Object defaultValue) {
-          EvaluationTelemetryOptOutTest.this.spans.add("runtime-default:" + flagKey);
-        }
-      };
+    @Override
+    public void runtimeDefault(final String flagKey, final Object defaultValue) {
+      EvaluationTelemetryOptOutTest.this.spans.add("runtime-default:" + flagKey);
+    }
+  };
   private final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
   private String previousProperty;
   private FeatureFlagsRuntime runtime;
@@ -123,17 +120,19 @@ class EvaluationTelemetryOptOutTest {
     GlobalOpenTelemetry.resetForTest();
     final OpenTelemetry otel = mock(OpenTelemetry.class, RETURNS_DEEP_STUBS);
     final LongCounter counter = mock(LongCounter.class);
-    when(otel.getMeterProvider()
-            .meterBuilder("ddtrace.openfeature")
-            .build()
-            .counterBuilder("feature_flag.evaluations")
-            .setUnit("{evaluation}")
-            .setDescription("Number of feature flag evaluations")
-            .build())
-        .thenReturn(counter);
+    when(otel
+      .getMeterProvider()
+      .meterBuilder("ddtrace.openfeature")
+      .build()
+      .counterBuilder("feature_flag.evaluations")
+      .setUnit("{evaluation}")
+      .setDescription("Number of feature flag evaluations")
+      .build()
+    )
+      .thenReturn(counter);
     doAnswer(invocation -> this.metrics.incrementAndGet())
-        .when(counter)
-        .add(eq(1L), any(Attributes.class));
+      .when(counter)
+      .add(eq(1L), any(Attributes.class));
     GlobalOpenTelemetry.set(otel);
     this.runtime = capturingRuntime(new CapturingPipeline(this.events));
     this.api.addHooks(new ExposureHook(this.customerEvaluations::add));
@@ -253,7 +252,10 @@ class EvaluationTelemetryOptOutTest {
         assertEquals("targeted", details.getVariant());
       }
       assertEquals(
-          previousExposures + 3, this.exposures.size(), "normal exposure deduplication applies");
+          previousExposures + 3,
+          this.exposures.size(),
+          "normal exposure deduplication applies"
+      );
       assertEquals(false, exposureAttribute(previousExposures));
       assertEquals(true, exposureAttribute(previousExposures + 1));
       assertEquals("true", exposureAttribute(previousExposures + 2));
@@ -302,7 +304,8 @@ class EvaluationTelemetryOptOutTest {
         Arguments.of(new Value(false)),
         Arguments.of(new Value("true")),
         Arguments.of(new Value(1)),
-        Arguments.of(new Value(singletonList(new Value(true)))));
+        Arguments.of(new Value(singletonList(new Value(true))))
+    );
   }
 
   @Test
@@ -323,8 +326,9 @@ class EvaluationTelemetryOptOutTest {
         "flag",
         0,
         new MutableContext("subject-1")
-            .add("dd_telemetry_opt_out", true)
-            .add("ddEvaluationTelemetryOptOut", true));
+          .add("dd_telemetry_opt_out", true)
+          .add("ddEvaluationTelemetryOptOut", true)
+    );
 
     assertTelemetryCounts(1);
   }
@@ -393,14 +397,15 @@ class EvaluationTelemetryOptOutTest {
   @Test
   void applicationBeforeHooksCanSupplyTheOptOutDecision() throws Exception {
     start();
-    this.api.addHooks(
-        new Hook<Object>() {
-          @Override
-          public Optional<EvaluationContext> before(
-              final HookContext<Object> context, final Map<String, Object> hints) {
-            return Optional.of(new ImmutableContext(singletonMap(PARAMETER, new Value(true))));
-          }
-        });
+    this.api.addHooks(new Hook<Object>() {
+      @Override
+      public Optional<EvaluationContext> before(
+          final HookContext<Object> context,
+          final Map<String, Object> hints
+      ) {
+        return Optional.of(new ImmutableContext(singletonMap(PARAMETER, new Value(true))));
+      }
+    });
 
     evaluate("subject-1", new Value(false));
 
@@ -412,16 +417,16 @@ class EvaluationTelemetryOptOutTest {
   void applicationAfterHooksCannotUndoTheEvaluationDecision() throws Exception {
     start();
     final MutableContext invocationContext = new MutableContext("subject-1").add(PARAMETER, true);
-    this.api.addHooks(
-        new Hook<Object>() {
-          @Override
-          public void after(
-              final HookContext<Object> context,
-              final FlagEvaluationDetails<Object> details,
-              final Map<String, Object> hints) {
-            invocationContext.add(PARAMETER, false);
-          }
-        });
+    this.api.addHooks(new Hook<Object>() {
+      @Override
+      public void after(
+          final HookContext<Object> context,
+          final FlagEvaluationDetails<Object> details,
+          final Map<String, Object> hints
+      ) {
+        invocationContext.add(PARAMETER, false);
+      }
+    });
 
     final FlagEvaluationDetails<Integer> details =
         this.client.getIntegerDetails("flag", 0, invocationContext);
@@ -435,16 +440,16 @@ class EvaluationTelemetryOptOutTest {
   void optingOutInAnAfterHookStopsTelemetryBeforeEmission() throws Exception {
     start();
     final MutableContext invocationContext = new MutableContext("subject-1").add(PARAMETER, false);
-    this.api.addHooks(
-        new Hook<Object>() {
-          @Override
-          public void after(
-              final HookContext<Object> context,
-              final FlagEvaluationDetails<Object> details,
-              final Map<String, Object> hints) {
-            invocationContext.add(PARAMETER, true);
-          }
-        });
+    this.api.addHooks(new Hook<Object>() {
+      @Override
+      public void after(
+          final HookContext<Object> context,
+          final FlagEvaluationDetails<Object> details,
+          final Map<String, Object> hints
+      ) {
+        invocationContext.add(PARAMETER, true);
+      }
+    });
 
     final FlagEvaluationDetails<Integer> details =
         this.client.getIntegerDetails("flag", 0, invocationContext);
@@ -458,22 +463,24 @@ class EvaluationTelemetryOptOutTest {
   void aFailingBeforeHookDoesNotLeakErrorTelemetry() throws Exception {
     start();
     final MutableContext invocationContext = new MutableContext("subject-1").add(PARAMETER, true);
-    this.api.addHooks(
-        new Hook<Object>() {
-          @Override
-          public Optional<EvaluationContext> before(
-              final HookContext<Object> context, final Map<String, Object> hints) {
-            throw new IllegalStateException("application hook failed");
-          }
+    this.api.addHooks(new Hook<Object>() {
+      @Override
+      public Optional<EvaluationContext> before(
+          final HookContext<Object> context,
+          final Map<String, Object> hints
+      ) {
+        throw new IllegalStateException("application hook failed");
+      }
 
-          @Override
-          public void error(
-              final HookContext<Object> context,
-              final Exception error,
-              final Map<String, Object> hints) {
-            invocationContext.add(PARAMETER, false);
-          }
-        });
+      @Override
+      public void error(
+          final HookContext<Object> context,
+          final Exception error,
+          final Map<String, Object> hints
+      ) {
+        invocationContext.add(PARAMETER, false);
+      }
+    });
 
     final FlagEvaluationDetails<Integer> details =
         this.client.getIntegerDetails("flag", 0, invocationContext);
@@ -488,18 +495,18 @@ class EvaluationTelemetryOptOutTest {
   @Test
   void nestedEvaluationsKeepIndependentDecisions() throws Exception {
     start();
-    this.api.addHooks(
-        new Hook<Object>() {
-          @Override
-          public void after(
-              final HookContext<Object> context,
-              final FlagEvaluationDetails<Object> details,
-              final Map<String, Object> hints) {
-            if ("outer".equals(context.getCtx().getTargetingKey())) {
-              assertEquals(1, evaluate("inner", new Value(false)).getValue());
-            }
-          }
-        });
+    this.api.addHooks(new Hook<Object>() {
+      @Override
+      public void after(
+          final HookContext<Object> context,
+          final FlagEvaluationDetails<Object> details,
+          final Map<String, Object> hints
+      ) {
+        if ("outer".equals(context.getCtx().getTargetingKey())) {
+          assertEquals(1, evaluate("inner", new Value(false)).getValue());
+        }
+      }
+    });
 
     assertEquals(1, evaluate("outer", new Value(true)).getValue());
 
@@ -514,24 +521,24 @@ class EvaluationTelemetryOptOutTest {
     start();
     final CountDownLatch optedOutEvaluated = new CountDownLatch(1);
     final CountDownLatch allowOptedOutToFinish = new CountDownLatch(1);
-    this.api.addHooks(
-        new Hook<Object>() {
-          @Override
-          public void after(
-              final HookContext<Object> context,
-              final FlagEvaluationDetails<Object> details,
-              final Map<String, Object> hints) {
-            if ("opted-out".equals(context.getCtx().getTargetingKey())) {
-              optedOutEvaluated.countDown();
-              try {
-                assertTrue(allowOptedOutToFinish.await(10, SECONDS));
-              } catch (final InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException(e);
-              }
-            }
+    this.api.addHooks(new Hook<Object>() {
+      @Override
+      public void after(
+          final HookContext<Object> context,
+          final FlagEvaluationDetails<Object> details,
+          final Map<String, Object> hints
+      ) {
+        if ("opted-out".equals(context.getCtx().getTargetingKey())) {
+          optedOutEvaluated.countDown();
+          try {
+            assertTrue(allowOptedOutToFinish.await(10, SECONDS));
+          } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
           }
-        });
+        }
+      }
+    });
     final ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
       final Future<FlagEvaluationDetails<Integer>> pending =
@@ -555,12 +562,13 @@ class EvaluationTelemetryOptOutTest {
     start();
     this.api.setProviderAndWait(
         "unrestricted",
-        provider(new Provider.Options(), new CapturingEvaluator(defaultConfiguration())));
+        provider(new Provider.Options(), new CapturingEvaluator(defaultConfiguration()))
+    );
 
     evaluate("opted-out", new Value(true));
     this.api
-        .getClient("unrestricted")
-        .getIntegerDetails("flag", 0, context("unrestricted-subject", new Value(true)));
+      .getClient("unrestricted")
+      .getIntegerDetails("flag", 0, context("unrestricted-subject", new Value(true)));
 
     assertTelemetryCounts(1);
     assertEquals("unrestricted-subject", this.events.get(0).targetingKey);
@@ -575,7 +583,11 @@ class EvaluationTelemetryOptOutTest {
             singletonList(
                 provider(
                     new Provider.Options().enableEvaluationTelemetryOptOutParameter(true),
-                    new CapturingEvaluator(defaultConfiguration())))));
+                    new CapturingEvaluator(defaultConfiguration())
+                )
+            )
+        )
+    );
 
     assertEquals(1, evaluate("opted-out", new Value(true)).getValue());
     assertTelemetryCounts(0);
@@ -612,26 +624,29 @@ class EvaluationTelemetryOptOutTest {
   void experimentationAndEvaluationTelemetryControlsRemainIndependent(
       final ExperimentationOptOutMode mode,
       final boolean excludeExperimentation,
-      final boolean suppressTelemetry)
-      throws Exception {
-    this.evaluator =
-        new CapturingEvaluator(
-            experimentationConfiguration("2026-10-19T11:59:59.999999999Z"), mode);
+      final boolean suppressTelemetry
+  ) throws Exception {
+    this.evaluator = new CapturingEvaluator(
+        experimentationConfiguration("2026-10-19T11:59:59.999999999Z"),
+        mode
+    );
     this.api.setProviderAndWait(
         provider(
             new Provider.Options()
-                .experimentationOptOutMode(mode)
-                .enableEvaluationTelemetryOptOutParameter(suppressTelemetry),
-            this.evaluator));
-    final FlagEvaluationDetails<Integer> details =
-        this.api
-            .getClient()
-            .getIntegerDetails(
-                "flag",
-                0,
-                new MutableContext("subject-1")
-                    .add(PARAMETER, true)
-                    .add("dd_experimentation_opt_out_at", "2026-10-19T12:00:00Z"));
+              .experimentationOptOutMode(mode)
+              .enableEvaluationTelemetryOptOutParameter(suppressTelemetry),
+            this.evaluator
+        )
+    );
+    final FlagEvaluationDetails<Integer> details = this.api
+      .getClient()
+      .getIntegerDetails(
+          "flag",
+          0,
+          new MutableContext("subject-1")
+            .add(PARAMETER, true)
+            .add("dd_experimentation_opt_out_at", "2026-10-19T12:00:00Z")
+      );
 
     assertNull(details.getErrorCode());
     assertEquals(excludeExperimentation ? 2 : 1, details.getValue());
@@ -647,11 +662,14 @@ class EvaluationTelemetryOptOutTest {
     "FUTURE_EXPERIMENTS_ONLY | 2026-10-19T11:59:59Z | false   "
   })
   void optOutDoesNotConsumeOrClearExposureDeduplication(
-      final ExperimentationOptOutMode mode, final String activation, final boolean excluded)
-      throws Exception {
+      final ExperimentationOptOutMode mode,
+      final String activation,
+      final boolean excluded
+  ) throws Exception {
     this.evaluator = new CapturingEvaluator(experimentationConfiguration(activation), mode);
     this.api.setProviderAndWait(
-        provider(new Provider.Options().experimentationOptOutMode(mode), this.evaluator));
+        provider(new Provider.Options().experimentationOptOutMode(mode), this.evaluator)
+    );
     final Client client = this.api.getClient();
     final MutableContext optedOut =
         new MutableContext("subject").add("dd_experimentation_opt_out_at", "2026-10-19T12:00:00Z");
@@ -669,23 +687,23 @@ class EvaluationTelemetryOptOutTest {
     final ServerConfiguration configuration = defaultConfiguration();
     final Flag flag = configuration.flags.get("flag");
     final Allocation original = flag.allocations.get(0);
-    final Allocation experiment =
-        new Allocation(
-            original.key,
-            original.rules,
-            original.startAt,
-            original.endAt,
-            original.splits,
-            original.doLog,
-            java.time.Instant.parse(activation));
-    final Allocation ordinary =
-        new Allocation(
-            "ordinary",
-            null,
-            null,
-            null,
-            singletonList(new Split(emptyList(), "off", emptyMap(), 8)),
-            false);
+    final Allocation experiment = new Allocation(
+        original.key,
+        original.rules,
+        original.startAt,
+        original.endAt,
+        original.splits,
+        original.doLog,
+        java.time.Instant.parse(activation)
+    );
+    final Allocation ordinary = new Allocation(
+        "ordinary",
+        null,
+        null,
+        null,
+        singletonList(new Split(emptyList(), "off", emptyMap(), 8)),
+        false
+    );
     final Map<String, Variant> variants = new HashMap<>(flag.variations);
     variants.put("off", new Variant("off", 2));
     final Flag withFallback =
@@ -716,65 +734,74 @@ class EvaluationTelemetryOptOutTest {
     return provider;
   }
 
-  /** Creates a runtime only holding a flag evaluation pipeline, without starting it. */
+  /**
+   * Creates a runtime only holding a flag evaluation pipeline, without starting it.
+   */
   private static FeatureFlagsRuntime capturingRuntime(final FlagEvaluationPipeline evaluations)
       throws ReflectiveOperationException {
-    final Constructor<FeatureFlagsRuntime> constructor =
-        FeatureFlagsRuntime.class.getDeclaredConstructor(
-            ConfigurationService.class, ExposurePipeline.class, FlagEvaluationPipeline.class);
+    final Constructor<FeatureFlagsRuntime> constructor = FeatureFlagsRuntime.class
+      .getDeclaredConstructor(
+          ConfigurationService.class,
+          ExposurePipeline.class,
+          FlagEvaluationPipeline.class
+      );
     constructor.setAccessible(true);
     return constructor.newInstance(mock(ConfigurationService.class), null, evaluations);
   }
 
   private static ServerConfiguration defaultConfiguration() {
-    final Allocation allocation =
-        new Allocation(
-            "allocation",
-            null,
-            null,
-            null,
-            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
-            true);
-    final Flag flag =
-        new Flag(
-            "flag",
-            true,
-            ValueType.INTEGER,
-            singletonMap("on", new Variant("on", 1)),
-            singletonList(allocation));
+    final Allocation allocation = new Allocation(
+        "allocation",
+        null,
+        null,
+        null,
+        singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+        true
+    );
+    final Flag flag = new Flag(
+        "flag",
+        true,
+        ValueType.INTEGER,
+        singletonMap("on", new Variant("on", 1)),
+        singletonList(allocation)
+    );
     return new ServerConfiguration("", "", false, null, singletonMap("flag", flag));
   }
 
-  private static ServerConfiguration targetingConfiguration(
-      final boolean observeFullEvaluationData) {
-    final Rule rule =
-        new Rule(
-            singletonList(
-                new ConditionConfiguration(
-                    ConditionOperator.ONE_OF, PARAMETER, singletonList(true))));
-    final Allocation targeted =
-        new Allocation(
-            "targeted",
-            singletonList(rule),
-            null,
-            null,
-            singletonList(new Split(emptyList(), "targeted", emptyMap(), 7)),
-            true);
-    final Allocation fallback =
-        new Allocation(
-            "fallback",
-            null,
-            null,
-            null,
-            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
-            true);
+  private static ServerConfiguration targetingConfiguration(final boolean observeFullEvaluationData) {
+    final Rule rule = new Rule(
+        singletonList(
+            new ConditionConfiguration(ConditionOperator.ONE_OF, PARAMETER, singletonList(true))
+        )
+    );
+    final Allocation targeted = new Allocation(
+        "targeted",
+        singletonList(rule),
+        null,
+        null,
+        singletonList(new Split(emptyList(), "targeted", emptyMap(), 7)),
+        true
+    );
+    final Allocation fallback = new Allocation(
+        "fallback",
+        null,
+        null,
+        null,
+        singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+        true
+    );
     final Map<String, Variant> variants = new HashMap<>();
     variants.put("on", new Variant("on", 1));
     variants.put("targeted", new Variant("targeted", 2));
     final Flag flag =
         new Flag("flag", true, ValueType.INTEGER, variants, asList(targeted, fallback));
     return new ServerConfiguration(
-        "", "", observeFullEvaluationData, null, singletonMap("flag", flag));
+        "",
+        "",
+        observeFullEvaluationData,
+        null,
+        singletonMap("flag", flag)
+    );
   }
 
   private FlagEvaluationDetails<Integer> evaluate(final String subject, final Value optOut) {
@@ -783,7 +810,9 @@ class EvaluationTelemetryOptOutTest {
 
   private static EvaluationContext context(final String subject, final Value optOut) {
     return new MutableContext(
-        subject, optOut == null ? emptyMap() : singletonMap(PARAMETER, optOut));
+        subject,
+        optOut == null ? emptyMap() : singletonMap(PARAMETER, optOut)
+    );
   }
 
   private Object exposureAttribute(final int index) {
@@ -791,10 +820,11 @@ class EvaluationTelemetryOptOutTest {
   }
 
   private void assertTelemetryCounts(final int expected) {
-    assertAll(
-        () -> assertEquals(expected, this.events.size(), "evaluation EVP enqueue count"),
-        () -> assertEquals(expected, this.metrics.get(), "OTel evaluation count"),
-        () -> assertEquals(expected, this.spans.size(), "automatic span enrichment count"));
+    assertAll(() -> assertEquals(expected, this.events.size(), "evaluation EVP enqueue count"), () -> assertEquals(
+        expected,
+        this.metrics.get(),
+        "OTel evaluation count"
+    ), () -> assertEquals(expected, this.spans.size(), "automatic span enrichment count"));
   }
 
   /**
@@ -807,18 +837,24 @@ class EvaluationTelemetryOptOutTest {
     }
 
     CapturingEvaluator(
-        final ServerConfiguration configuration, final ExperimentationOptOutMode mode) {
+        final ServerConfiguration configuration,
+        final ExperimentationOptOutMode mode
+    ) {
       super(
-          () -> {},
+            () -> {},
           AgentBridge.NONE,
           TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"),
-          mode);
+          mode
+      );
       accept(configuration);
     }
 
     @Override
     public boolean initialize(
-        final long timeout, final TimeUnit unit, final EvaluationContext context) {
+        final long timeout,
+        final TimeUnit unit,
+        final EvaluationContext context
+    ) {
       return hasConfiguration();
     }
 
@@ -843,13 +879,21 @@ class EvaluationTelemetryOptOutTest {
     }
   }
 
-  /** A flag evaluation pipeline capturing enqueued events, never started. */
+  /**
+   * A flag evaluation pipeline capturing enqueued events, never started.
+   */
   private static final class CapturingPipeline extends FlagEvaluationPipeline {
     private final List<FlagEvalEvent> events;
 
     CapturingPipeline(final List<FlagEvalEvent> events) {
       super(
-          1, 1, SECONDS, (route, json) -> {}, emptyMap(), new RuntimeServices(HealthMetrics.NOOP));
+          1,
+          1,
+          SECONDS,
+            (route, json) -> {},
+          emptyMap(),
+          new RuntimeServices(HealthMetrics.NOOP)
+      );
       this.events = events;
     }
 

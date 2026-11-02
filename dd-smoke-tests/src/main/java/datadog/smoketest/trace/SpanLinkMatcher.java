@@ -3,7 +3,6 @@ package datadog.smoketest.trace;
 import static datadog.trace.test.junit.utils.assertions.Matchers.assertValue;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static java.util.Collections.emptyMap;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
@@ -24,7 +23,6 @@ import java.util.Map;
  */
 public final class SpanLinkMatcher {
   private static final int NO_SPAN_INDEX = -1;
-
   private final Matcher<Long> traceIdMatcher;
   private final Matcher<Long> spanIdMatcher;
   private final int targetSpanIndex;
@@ -33,7 +31,10 @@ public final class SpanLinkMatcher {
   private Matcher<Map<String, String>> attributesMatcher;
 
   private SpanLinkMatcher(
-      Matcher<Long> traceIdMatcher, Matcher<Long> spanIdMatcher, int targetSpanIndex) {
+      Matcher<Long> traceIdMatcher,
+      Matcher<Long> spanIdMatcher,
+      int targetSpanIndex
+  ) {
     this.targetSpanIndex = targetSpanIndex;
     this.traceIdMatcher = traceIdMatcher;
     this.spanIdMatcher = spanIdMatcher;
@@ -89,9 +90,9 @@ public final class SpanLinkMatcher {
    */
   public static SpanLinkMatcher any() {
     return new SpanLinkMatcher(Matchers.any(), Matchers.any(), NO_SPAN_INDEX)
-        .traceFlags(Matchers.any())
-        .traceState(Matchers.any())
-        .attributes(Matchers.any());
+      .traceFlags(Matchers.any())
+      .traceState(Matchers.any())
+      .attributes(Matchers.any());
   }
 
   /**
@@ -163,13 +164,22 @@ public final class SpanLinkMatcher {
   void assertLink(List<DecodedSpan> trace, DecodedSpanLink link, int linkIndex) {
     String at = " (link #" + linkIndex + ")";
     assertValue(
-        traceIdMatcher(trace), link.getTraceId(), "Unexpected span link trace identifier" + at);
+        traceIdMatcher(trace),
+        link.getTraceId(),
+        "Unexpected span link trace identifier" + at
+    );
     assertValue(spanIdMatcher(trace), link.getSpanId(), "Unexpected span link identifier" + at);
     assertValue(this.traceFlagsMatcher, link.getTraceFlags(), "Unexpected span link flags" + at);
     assertValue(
-        this.traceStateMatcher, link.getTraceState(), "Unexpected span link trace state" + at);
+        this.traceStateMatcher,
+        link.getTraceState(),
+        "Unexpected span link trace state" + at
+    );
     assertValue(
-        this.attributesMatcher, link.getAttributes(), "Unexpected span link attributes" + at);
+        this.attributesMatcher,
+        link.getAttributes(),
+        "Unexpected span link attributes" + at
+    );
   }
 
   private Matcher<Long> traceIdMatcher(List<DecodedSpan> trace) {
@@ -184,10 +194,11 @@ public final class SpanLinkMatcher {
     if (this.targetSpanIndex >= trace.size()) {
       throw new IllegalStateException(
           "Cannot link to span #"
-              + this.targetSpanIndex
-              + ": the trace holds only "
-              + trace.size()
-              + " span(s)");
+          + this.targetSpanIndex
+          + ": the trace holds only "
+          + trace.size()
+          + " span(s)"
+      );
     }
     return trace.get(this.targetSpanIndex);
   }

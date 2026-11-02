@@ -1,15 +1,12 @@
 package datadog.trace.common.writer.ddagent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
 
 class TraceMapperV0_4RecalibrateTest {
-
   @Test
   void recalibratesOncePerInterval() {
     final long interval = TraceMapperV0_4.RECALIBRATE_SPAN_INTERVAL;
-
     // shouldRecalibrate() advances a shared counter, so assert a property that holds regardless of
     // the starting value: any window of 2*interval consecutive spans crosses exactly two interval
     // boundaries.

@@ -10,10 +10,11 @@ import java.util.Objects;
  */
 public final class ExposureDeduplicationCache {
   static final int CAPACITY = 1 << 16;
-
   private final Map<Key, Sent> entries;
 
-  /** Creates a cache remembering up to 65536 subjects, evicting the least recently used ones. */
+  /**
+   * Creates a cache remembering up to 65536 subjects, evicting the least recently used ones.
+   */
   public ExposureDeduplicationCache() {
     this(CAPACITY);
   }
@@ -37,7 +38,8 @@ public final class ExposureDeduplicationCache {
       final String subject,
       final String allocation,
       final String variant,
-      final Integer serialId) {
+      final Integer serialId
+  ) {
     return new Sent(allocation, variant, serialId).equals(this.entries.get(new Key(flag, subject)));
   }
 
@@ -56,7 +58,8 @@ public final class ExposureDeduplicationCache {
       final String subject,
       final String allocation,
       final String variant,
-      final Integer serialId) {
+      final Integer serialId
+  ) {
     final Sent sent = new Sent(allocation, variant, serialId);
     return !sent.equals(this.entries.put(new Key(flag, subject), sent));
   }
@@ -70,7 +73,9 @@ public final class ExposureDeduplicationCache {
     return this.entries.size();
   }
 
-  /** Forgets every recorded exposure. */
+  /**
+   * Forgets every recorded exposure.
+   */
   public synchronized void clear() {
     this.entries.clear();
   }

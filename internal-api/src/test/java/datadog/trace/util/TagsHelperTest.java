@@ -2,12 +2,10 @@ package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 public class TagsHelperTest {
-
   @Test
   public void validTagDoesNotChange() {
     String keyValue = "key:value";
@@ -35,7 +33,7 @@ public class TagsHelperTest {
   @Test
   public void invalidCharsConvertedToUnderscore() {
     assertEquals("my_email.com", TagsHelper.sanitize("my@email.com"));
-    assertEquals("smile_and__", TagsHelper.sanitize("smile and \u1234"));
+    assertEquals("smile_and__", TagsHelper.sanitize("smile and ሴ"));
   }
 
   @Test
@@ -52,7 +50,7 @@ public class TagsHelperTest {
   public void tagTrimmedToMaxLengthWorkWithUnicode() {
     StringBuilder tag = new StringBuilder(401);
     for (int i = 0; i < 400; i++) {
-      tag.append("\u1234");
+      tag.append("ሴ");
     }
     assertEquals(200, TagsHelper.sanitize(tag.toString()).length());
     assertEquals(200, TagsHelper.sanitize(tag.toString()).getBytes(StandardCharsets.UTF_8).length);

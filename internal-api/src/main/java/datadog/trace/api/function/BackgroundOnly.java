@@ -30,4 +30,5 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.TYPE, ElementType.METHOD})
-public @interface BackgroundOnly {}
+public @interface BackgroundOnly {
+}

@@ -1,6 +1,8 @@
 package datadog.trace.agent.tooling;
 
-/** Carries advice and target context for a failed advice transformation. */
+/**
+ * Carries advice and target context for a failed advice transformation.
+ */
 final class AdviceTransformationException extends RuntimeException {
   private final String instrumentationClass;
   private final String adviceClass;
@@ -12,7 +14,8 @@ final class AdviceTransformationException extends RuntimeException {
       String adviceClass,
       String targetClass,
       String targetMethod,
-      Throwable cause) {
+      Throwable cause
+  ) {
     super("Advice transformation failed for " + targetClass + '.' + targetMethod, cause);
     this.instrumentationClass = instrumentationClass;
     this.adviceClass = adviceClass;

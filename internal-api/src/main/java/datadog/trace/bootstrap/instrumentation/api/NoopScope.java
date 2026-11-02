@@ -6,7 +6,8 @@ import datadog.context.ContextScope;
 public final class NoopScope implements ContextScope {
   public static final NoopScope INSTANCE = new NoopScope();
 
-  private NoopScope() {}
+  private NoopScope() {
+  }
 
   @Override
   public Context context() {

@@ -18,16 +18,13 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 final class ScopeContinuation implements ContextContinuation {
   private static final AtomicIntegerFieldUpdater<ScopeContinuation> COUNT =
       AtomicIntegerFieldUpdater.newUpdater(ScopeContinuation.class, "count");
-
   // these boundaries were selected to allow for speculative counting and fuzzy checks
   private static final int CANCELLED = Integer.MIN_VALUE >> 1;
   private static final int HELD = (Integer.MAX_VALUE >> 1) + 1;
-
   final ContinuableScopeManager scopeManager;
   final Context context;
   final byte source;
   final AgentTraceCollector traceCollector;
-
   /**
    * When positive this reflects the number of outstanding activations as well as whether there is
    * an active hold on the continuation:
@@ -53,7 +50,8 @@ final class ScopeContinuation implements ContextContinuation {
       final ContinuableScopeManager scopeManager,
       final Context context,
       final byte source,
-      final AgentTraceCollector traceCollector) {
+      final AgentTraceCollector traceCollector
+  ) {
     this.scopeManager = scopeManager;
     this.context = context;
     this.source = source;
@@ -118,7 +116,8 @@ final class ScopeContinuation implements ContextContinuation {
     } else if (COUNT.decrementAndGet(this) == 0) {
       // slow path: multiple activations, all have now closed (no hold)
       release();
-    } /* else there are outstanding activations or hold is in place */
+    }
+    /* else there are outstanding activations or hold is in place */
   }
 
   @Override

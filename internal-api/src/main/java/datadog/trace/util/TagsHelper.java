@@ -2,7 +2,9 @@ package datadog.trace.util;
 
 import java.util.Locale;
 
-/** Helper class for handling tags */
+/**
+ * Helper class for handling tags
+ */
 public final class TagsHelper {
   private static final int MAX_LENGTH = 200;
 
@@ -81,6 +83,7 @@ public final class TagsHelper {
       sb.append(tag);
       sb.append(',');
     }
-    return sb.substring(0, sb.length() - 1); // Remove last comma
+    // Remove last comma
+    return sb.substring(0, sb.length() - 1);
   }
 }

@@ -5,7 +5,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 public class SystemTimeSource implements TimeSource {
   public static final TimeSource INSTANCE = new SystemTimeSource();
 
-  private SystemTimeSource() {}
+  private SystemTimeSource() {
+  }
 
   @Override
   public long getNanoTicks() {

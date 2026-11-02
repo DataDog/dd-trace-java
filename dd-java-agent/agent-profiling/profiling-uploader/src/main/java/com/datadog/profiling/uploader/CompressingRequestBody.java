@@ -24,7 +24,6 @@ import okio.Source;
  * data.
  */
 final class CompressingRequestBody extends RequestBody {
-
   /*
    * LZ4 is not available in native image.
    * LZ4Factory is using reflection heavily and since we are shading the lz4 classes for the usage in profiler
@@ -43,13 +42,17 @@ final class CompressingRequestBody extends RequestBody {
     }
   }
 
-  /** A simple functional supplier throwing an {@linkplain IOException} */
+  /**
+   * A simple functional supplier throwing an {@linkplain IOException}
+   */
   @FunctionalInterface
   interface InputStreamSupplier {
     RecordingInputStream get() throws IOException;
   }
 
-  /** A simple functional mapper allowing to throw {@linkplain IOException} */
+  /**
+   * A simple functional mapper allowing to throw {@linkplain IOException}
+   */
   @FunctionalInterface
   interface OutputStreamMappingFunction {
     OutputStream apply(OutputStream param) throws IOException;
@@ -82,18 +85,15 @@ final class CompressingRequestBody extends RequestBody {
   }
 
   static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
-
   // https://github.com/lz4/lz4/blob/dev/doc/lz4_Frame_format.md#general-structure-of-lz4-frame-format
   private static final int[] LZ4_MAGIC = new int[] {0x04, 0x22, 0x4D, 0x18};
   private static final int[] ZIP_MAGIC = new int[] {80, 75, 3, 4};
   private static final int[] GZ_MAGIC = new int[] {31, 139};
   private static final int[] ZSTD_MAGIC = new int[] {0x28, 0xB5, 0x2F, 0xFD};
-
   private final InputStreamSupplier inputStreamSupplier;
   private final OutputStreamMappingFunction outputStreamMapper;
   private final RetryPolicy retryPolicy;
   private final RetryBackoff retryBackoff;
-
   private long readBytes = 0;
   private long writtenBytes = 0;
 
@@ -104,7 +104,9 @@ final class CompressingRequestBody extends RequestBody {
    * @param inputStreamSupplier supplier of the data input stream
    */
   CompressingRequestBody(
-      @Nonnull CompressionType compressionType, @Nonnull InputStreamSupplier inputStreamSupplier) {
+      @Nonnull CompressionType compressionType,
+      @Nonnull InputStreamSupplier inputStreamSupplier
+  ) {
     this(compressionType, inputStreamSupplier, r -> r <= 1, r -> 10);
   }
 
@@ -118,7 +120,8 @@ final class CompressingRequestBody extends RequestBody {
   CompressingRequestBody(
       @Nonnull CompressionType compressionType,
       @Nonnull InputStreamSupplier inputStreamSupplier,
-      @Nonnull RetryPolicy retryPolicy) {
+      @Nonnull RetryPolicy retryPolicy
+  ) {
     this(compressionType, inputStreamSupplier, retryPolicy, r -> 10);
   }
 
@@ -134,7 +137,8 @@ final class CompressingRequestBody extends RequestBody {
       @Nonnull CompressionType compressionType,
       @Nonnull InputStreamSupplier inputStreamSupplier,
       @Nonnull RetryPolicy retryPolicy,
-      @Nonnull RetryBackoff retryBackoff) {
+      @Nonnull RetryBackoff retryBackoff
+  ) {
     this.inputStreamSupplier = inputStreamSupplier;
     this.outputStreamMapper = getOutputStreamMapper(compressionType);
     this.retryPolicy = retryPolicy;
@@ -229,29 +233,28 @@ final class CompressingRequestBody extends RequestBody {
 
   private void attemptWrite(@Nonnull InputStream inputStream, @Nonnull OutputStream outputStream)
       throws IOException {
-    try (OutputStream sinkStream =
-        isCompressed(inputStream)
-            ? new BufferedOutputStream(outputStream) {
+    try (OutputStream sinkStream = isCompressed(inputStream)
+        ? new BufferedOutputStream(outputStream) {
+      @Override
+      public void close() throws IOException {
+        // Do not propagate close; call 'flush()' instead.
+        // Compression streams must be 'closed' because they finalize the
+        // compression
+        // in that method.
+        flush();
+      }
+    }
+        : new BufferedOutputStream(outputStreamMapper.apply(
+            new BufferedOutputStream(outputStream) {
               @Override
               public void close() throws IOException {
                 // Do not propagate close; call 'flush()' instead.
                 // Compression streams must be 'closed' because they finalize the
-                // compression
-                // in that method.
+                // compression in that method.
                 flush();
               }
             }
-            : new BufferedOutputStream(
-                outputStreamMapper.apply(
-                    new BufferedOutputStream(outputStream) {
-                      @Override
-                      public void close() throws IOException {
-                        // Do not propagate close; call 'flush()' instead.
-                        // Compression streams must be 'closed' because they finalize the
-                        // compression in that method.
-                        flush();
-                      }
-                    }))) {
+    ))) {
       BufferedSink sink = Okio.buffer(Okio.sink(sinkStream));
       try (Source source = Okio.buffer(Okio.source(inputStream))) {
         sink.writeAll(source);
@@ -349,7 +352,8 @@ final class CompressingRequestBody extends RequestBody {
   }
 
   private static OutputStreamMappingFunction getOutputStreamMapper(
-      @Nonnull CompressionType compressionType) {
+      @Nonnull CompressionType compressionType
+  ) {
     // Handle native image compatibility
     if (Platform.isNativeImage() && compressionType != CompressionType.OFF) {
       compressionType = CompressionType.GZIP;
@@ -391,7 +395,8 @@ final class CompressingRequestBody extends RequestBody {
         LZ4_FACTORY.fastCompressor(),
         XXHASH_FACTORY.hash32(),
         // copy of the default flag(s) used by LZ4FrameOutputStream
-        LZ4FrameOutputStream.FLG.Bits.BLOCK_INDEPENDENCE);
+        LZ4FrameOutputStream.FLG.Bits.BLOCK_INDEPENDENCE
+    );
   }
 
   private static boolean hasMagic(InputStream is, int[] magic) throws IOException {

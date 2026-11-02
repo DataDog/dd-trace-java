@@ -2,14 +2,12 @@ package datadog.trace.core.util;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.time.ControllableTimeSource;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class SimpleRateLimiterTest {
-
   @ParameterizedTest
   @ValueSource(ints = {10, 100, 1000})
   void initialRateAvailableAtCreation(int rate) {

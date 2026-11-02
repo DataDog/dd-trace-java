@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.nio.ByteBuffer;
 import org.apache.kafka.common.header.Headers;
 

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.gradle.legacy;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,8 +13,9 @@ import org.gradle.invocation.DefaultGradle;
 
 @AutoService(InstrumenterModule.class)
 public class GradleBuildListenerInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public GradleBuildListenerInstrumentation() {
     super("gradle", "gradle-build-listener");
   }

@@ -6,7 +6,6 @@ import datadog.context.ContextContinuation;
 public class FiberContext {
   private Context context;
   private final ContextContinuation continuation;
-
   private Context originalContext;
 
   public FiberContext() {

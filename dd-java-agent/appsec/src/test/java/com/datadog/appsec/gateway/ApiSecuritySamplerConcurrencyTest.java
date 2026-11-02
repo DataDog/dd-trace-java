@@ -5,7 +5,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.appsec.api.security.ApiSecuritySamplerImpl;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.test.junit.utils.config.WithConfig;
@@ -33,17 +32,16 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
   void cleanupDiscardsOrphanWithoutLosingTheNewEntry() throws Exception {
     ControllableTimeSource time = new ControllableTimeSource();
     ApiSecuritySamplerImpl sampler = new ApiSecuritySamplerImpl(8, EXPIRATION_MS, time);
-    Deque<Long> entries =
-        new ArrayDeque<Long>() {
-          private int peeks;
+    Deque<Long> entries = new ArrayDeque<Long>() {
+      private int peeks;
 
-          @Override
-          public Long peekFirst() {
-            // Fail a non-progressing loop directly rather than leave a spinning test thread.
-            assertTrue(++peeks <= 16, "Cleanup must advance past the orphan");
-            return super.peekFirst();
-          }
-        };
+      @Override
+      public Long peekFirst() {
+        // Fail a non-progressing loop directly rather than leave a spinning test thread.
+        assertTrue(++peeks <= 16, "Cleanup must advance past the orphan");
+        return super.peekFirst();
+      }
+    };
     entries.addLast(42L);
     Field dequeField = ApiSecuritySamplerImpl.class.getDeclaredField("accessDeque");
     dequeField.setAccessible(true);
@@ -70,29 +68,26 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
       // Hold the update lock until all requests pass the preliminary check and acquire a permit.
       synchronized (field(sampler, "accessLock")) {
         for (int i = 0; i < WORKERS; i++) {
-          AppSecRequestContext ctx =
-              new AppSecRequestContext() {
-                @Override
-                public void setKeepOpenForApiSecurityPostProcessing(boolean flag) {
-                  super.setKeepOpenForApiSecurityPostProcessing(flag);
-                  if (flag) {
-                    acquired.countDown();
-                  }
-                }
-              };
+          AppSecRequestContext ctx = new AppSecRequestContext() {
+            @Override
+            public void setKeepOpenForApiSecurityPostProcessing(boolean flag) {
+              super.setKeepOpenForApiSecurityPostProcessing(flag);
+              if (flag) {
+                acquired.countDown();
+              }
+            }
+          };
           ctx.setRoute("same-endpoint");
           ctx.setMethod("GET");
           ctx.setResponseStatus(200);
           contexts.add(ctx);
-          decisions.add(
-              executor.submit(
-                  () -> {
-                    boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
-                    if (selected) {
-                      sampler.releaseOne();
-                    }
-                    return selected;
-                  }));
+          decisions.add(executor.submit(() -> {
+            boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
+            if (selected) {
+              sampler.releaseOne();
+            }
+            return selected;
+          }));
         }
         assertTrue(acquired.await(5, SECONDS));
       }
@@ -106,7 +101,6 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
         }
       }
       assertEquals(1, selected);
-
       // Rejected requests have no post-processing callback. All four permits must still be usable.
       for (int i = 0; i < WORKERS; i++) {
         assertTrue(sampler.preSampleRequest(context("available-" + i), FRAMEWORK));
@@ -132,24 +126,22 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
         CountDownLatch start = new CountDownLatch(1);
         List<Future<Boolean>> decisions = new ArrayList<>();
         for (int worker = 0; worker < WORKERS; worker++) {
-          decisions.add(
-              executor.submit(
-                  () -> {
-                    ready.countDown();
-                    assertTrue(start.await(5, SECONDS));
-                    AppSecRequestContext ctx = context("same-endpoint");
-                    boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
-                    try {
-                      if (!selected) {
-                        assertFalse(ctx.isKeepOpenForApiSecurityPostProcessing());
-                      }
-                      return selected;
-                    } finally {
-                      if (selected) {
-                        sampler.releaseOne();
-                      }
-                    }
-                  }));
+          decisions.add(executor.submit(() -> {
+            ready.countDown();
+            assertTrue(start.await(5, SECONDS));
+            AppSecRequestContext ctx = context("same-endpoint");
+            boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
+            try {
+              if (!selected) {
+                assertFalse(ctx.isKeepOpenForApiSecurityPostProcessing());
+              }
+              return selected;
+            } finally {
+              if (selected) {
+                sampler.releaseOne();
+              }
+            }
+          }));
         }
         assertTrue(ready.await(5, SECONDS));
         start.countDown();
@@ -181,25 +173,23 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
         List<Future<?>> tasks = new ArrayList<>();
         for (int worker = 0; worker < WORKERS; worker++) {
           final int offset = worker;
-          tasks.add(
-              executor.submit(
-                  () -> {
-                    assertTrue(start.await(5, SECONDS));
-                    for (int request = 0; request < 100; request++) {
-                      AppSecRequestContext ctx = context("endpoint-" + ((request + offset) % 16));
-                      boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
-                      try {
-                        if (!selected) {
-                          assertFalse(ctx.isKeepOpenForApiSecurityPostProcessing());
-                        }
-                      } finally {
-                        if (selected) {
-                          sampler.releaseOne();
-                        }
-                      }
-                    }
-                    return null;
-                  }));
+          tasks.add(executor.submit(() -> {
+            assertTrue(start.await(5, SECONDS));
+            for (int request = 0; request < 100; request++) {
+              AppSecRequestContext ctx = context("endpoint-" + ((request + offset) % 16));
+              boolean selected = sampler.preSampleRequest(ctx, FRAMEWORK);
+              try {
+                if (!selected) {
+                  assertFalse(ctx.isKeepOpenForApiSecurityPostProcessing());
+                }
+              } finally {
+                if (selected) {
+                  sampler.releaseOne();
+                }
+              }
+            }
+            return null;
+          }));
         }
         start.countDown();
         for (Future<?> task : tasks) {
@@ -242,14 +232,16 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
     assertFalse(map(sampler).containsKey(second.getApiSecurityEndpointHash()));
     assertEquals(
         asList(first.getApiSecurityEndpointHash(), third.getApiSecurityEndpointHash()),
-        new ArrayList<>(deque(sampler)));
+        new ArrayList<>(deque(sampler))
+    );
 
     AppSecRequestContext fourth = context("fourth");
     sample(sampler, fourth);
     assertFalse(map(sampler).containsKey(first.getApiSecurityEndpointHash()));
     assertEquals(
         asList(third.getApiSecurityEndpointHash(), fourth.getApiSecurityEndpointHash()),
-        new ArrayList<>(deque(sampler)));
+        new ArrayList<>(deque(sampler))
+    );
     assertFalse(sampler.preSampleRequest(context("third"), FRAMEWORK));
     assertConsistent(sampler, 2);
   }
@@ -281,13 +273,11 @@ class ApiSecuritySamplerConcurrencyTest extends DDJavaSpecification {
   }
 
   private static ExecutorService executor(int threads) {
-    return Executors.newFixedThreadPool(
-        threads,
-        task -> {
-          Thread thread = new Thread(task, "api-security-sampler-test");
-          thread.setDaemon(true);
-          return thread;
-        });
+    return Executors.newFixedThreadPool(threads, task -> {
+      Thread thread = new Thread(task, "api-security-sampler-test");
+      thread.setDaemon(true);
+      return thread;
+    });
   }
 
   @SuppressWarnings("unchecked")

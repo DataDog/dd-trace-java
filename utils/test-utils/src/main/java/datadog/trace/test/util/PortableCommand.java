@@ -21,11 +21,13 @@ import java.util.List;
 public final class PortableCommand {
   private static final String MIN_HEAP = "-Xms8m";
   private static final String MAX_HEAP = "-Xmx16m";
-
-  /** Windows has no usable native equivalent for any of these commands. */
+  /**
+   * Windows has no usable native equivalent for any of these commands.
+   */
   private static final boolean EMULATED = OperatingSystem.isWindows();
 
-  private PortableCommand() {}
+  private PortableCommand() {
+  }
 
   public static String[] echo(String value) {
     return echo(value, EMULATED);
@@ -108,7 +110,9 @@ public final class PortableCommand {
       return Paths.get(source.getLocation().toURI());
     } catch (Exception e) {
       throw new IllegalStateException(
-          "Cannot determine the classpath of " + PortableCommand.class.getName(), e);
+          "Cannot determine the classpath of " + PortableCommand.class.getName(),
+          e
+      );
     }
   }
 }

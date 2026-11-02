@@ -2,7 +2,6 @@ package utils;
 
 import static utils.TestHelper.getFixtureContent;
 import static utils.TestHelper.getFixtureLines;
-
 import com.datadog.debugger.agent.CapturedSnapshotTest;
 import datadog.instrument.classinject.ClassInjector;
 import datadog.trace.agent.tooling.AgentInstaller;
@@ -35,30 +34,34 @@ public class InstrumentationTestHelper {
   }
 
   public static Class<?> compileAndLoadClass(String className)
-      throws IOException, URISyntaxException {
+      throws IOException,
+      URISyntaxException {
     Map<String, byte[]> classFileBuffers = compile(className);
     return loadClass(className, classFileBuffers);
   }
 
   public static Class<?> compileAndLoadClass(String className, String version)
-      throws IOException, URISyntaxException {
+      throws IOException,
+      URISyntaxException {
     Map<String, byte[]> classFileBuffers = compile(className, version);
     return loadClass(className, classFileBuffers);
   }
 
-  public static Map<String, byte[]> compile(String className)
-      throws IOException, URISyntaxException {
+  public static Map<String, byte[]> compile(String className) throws IOException, URISyntaxException {
     return compile(className, SourceCompiler.DebugInfo.ALL, "8");
   }
 
   public static Map<String, byte[]> compile(String className, String version)
-      throws IOException, URISyntaxException {
+      throws IOException,
+      URISyntaxException {
     return compile(className, SourceCompiler.DebugInfo.ALL, version);
   }
 
   public static Map<String, byte[]> compile(
-      String className, SourceCompiler.DebugInfo debugInfo, String version)
-      throws IOException, URISyntaxException {
+      String className,
+      SourceCompiler.DebugInfo debugInfo,
+      String version
+  ) throws IOException, URISyntaxException {
     return compile(className, debugInfo, version, Collections.emptyList());
   }
 
@@ -66,8 +69,8 @@ public class InstrumentationTestHelper {
       String className,
       SourceCompiler.DebugInfo debugInfo,
       String version,
-      List<String> additionalOptions)
-      throws IOException, URISyntaxException {
+      List<String> additionalOptions
+  ) throws IOException, URISyntaxException {
     String classSource = getFixtureContent("/" + className.replace('.', '/') + ".java");
     return SourceCompiler.compile(className, classSource, debugInfo, version, additionalOptions);
   }
@@ -80,7 +83,8 @@ public class InstrumentationTestHelper {
   }
 
   public static Class<?> loadClassFromJar(String className, String jarFileName)
-      throws ClassNotFoundException, MalformedURLException {
+      throws ClassNotFoundException,
+      MalformedURLException {
     URLClassLoader jarClassLoader =
         new URLClassLoader(new URL[] {new URL("file://" + jarFileName)});
     return jarClassLoader.loadClass(className);
@@ -100,7 +104,10 @@ public class InstrumentationTestHelper {
   public static ClassFileTransformer installTracerInstrumentation(Instrumentation instr) {
     ClassInjector.enableClassInjection(instr);
     return AgentInstaller.installBytebuddyAgent(
-        instr, false, EnumSet.of(InstrumenterModule.TargetSystem.TRACING));
+        instr,
+        false,
+        EnumSet.of(InstrumenterModule.TargetSystem.TRACING)
+    );
   }
 
   public static int getLineForLineProbe(String className, String ext, ProbeId lineProbeId) {

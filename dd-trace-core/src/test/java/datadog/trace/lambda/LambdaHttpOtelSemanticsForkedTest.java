@@ -8,7 +8,6 @@ import static datadog.trace.core.MetadataConsumer.NO_OP;
 import static datadog.trace.lambda.LambdaEventParser.parseEvent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -42,14 +41,18 @@ class LambdaHttpOtelSemanticsForkedTest {
   @Test
   void lambdaQueryIsObfuscatedWithDefaultPattern() {
     assertSanitizedLambdaQuery(
-        "https://api.example.com/orders?<redacted>&view=full", "<redacted>&view=full");
+        "https://api.example.com/orders?<redacted>&view=full",
+        "<redacted>&view=full"
+    );
   }
 
   @Test
   @WithConfig(key = OBFUSCATION_QUERY_STRING_REGEXP, value = "token=[^&]+")
   void lambdaQueryIsObfuscatedWithCustomPattern() {
     assertSanitizedLambdaQuery(
-        "https://api.example.com/orders?<redacted>&view=full", "<redacted>&view=full");
+        "https://api.example.com/orders?<redacted>&view=full",
+        "<redacted>&view=full"
+    );
   }
 
   @Test
@@ -80,16 +83,19 @@ class LambdaHttpOtelSemanticsForkedTest {
   }
 
   private TagContext lambdaHttpContext() {
-    LambdaRequestData request =
-        parseEvent(
-            "{\"version\":\"2.0\",\"rawPath\":\"/orders\","
-                + "\"rawQueryString\":\"token=secret&view=full\","
-                + "\"headers\":{\"host\":\"api.example.com\"},"
-                + "\"requestContext\":{\"domainName\":\"api.example.com\","
-                + "\"http\":{\"method\":\"GET\",\"path\":\"/orders\"}}}");
+    LambdaRequestData request = parseEvent(
+        "{\"version\":\"2.0\",\"rawPath\":\"/orders\","
+        + "\"rawQueryString\":\"token=secret&view=full\","
+        + "\"headers\":{\"host\":\"api.example.com\"},"
+        + "\"requestContext\":{\"domainName\":\"api.example.com\","
+        + "\"http\":{\"method\":\"GET\",\"path\":\"/orders\"}}}"
+    );
     TagContext parent = new TagContext();
     LambdaAppSecHandler.applyHttpTags(
-        parent, request, new LambdaURIDataAdapter(request.rawUri, request.headers, request.host));
+        parent,
+        request,
+        new LambdaURIDataAdapter(request.rawUri, request.headers, request.host)
+    );
     return parent;
   }
 }

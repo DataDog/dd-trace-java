@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.internal.TraceSegment;
@@ -26,7 +25,6 @@ import org.junit.jupiter.api.Test;
  * leaves {@link TraceSegment#effectivelyBlocked()} to the implementation.
  */
 class BlockResponseFunctionTest {
-
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
 
@@ -35,9 +33,12 @@ class BlockResponseFunctionTest {
     Map<String, String> extraHeaders = new HashMap<>();
     extraHeaders.put("X-Custom", "custom-value");
     extraHeaders.put("Location", "https://example.com/blocked");
-    Flow.Action.RequestBlockingAction rba =
-        new Flow.Action.RequestBlockingAction(
-            418, BlockingContentType.HTML, extraHeaders, "security-response-id");
+    Flow.Action.RequestBlockingAction rba = new Flow.Action.RequestBlockingAction(
+        418,
+        BlockingContentType.HTML,
+        extraHeaders,
+        "security-response-id"
+    );
     TraceSegment segment = TraceSegment.NoOp.INSTANCE;
     TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
 
@@ -53,9 +54,11 @@ class BlockResponseFunctionTest {
 
   @Test
   void segmentOverloadForwardsRedirectActionFields() {
-    Flow.Action.RequestBlockingAction rba =
-        Flow.Action.RequestBlockingAction.forRedirect(
-            302, "https://example.com/redirect", "redirect-response-id");
+    Flow.Action.RequestBlockingAction rba = Flow.Action.RequestBlockingAction.forRedirect(
+        302,
+        "https://example.com/redirect",
+        "redirect-response-id"
+    );
     TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
 
     assertTrue(brf.tryCommitBlockingResponse(TraceSegment.NoOp.INSTANCE, rba));
@@ -120,7 +123,6 @@ class BlockResponseFunctionTest {
     TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
 
     assertTrue(brf.tryCommitBlockingResponse(ctx, RBA));
-
     // the implementation, not the default method, owns effectivelyBlocked()
     assertEquals(0, traceSegment.effectivelyBlockedCalls);
   }
@@ -241,7 +243,8 @@ class BlockResponseFunctionTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       this.lastSegment = segment;
       this.lastStatusCode = statusCode;
       this.lastTemplateType = templateType;
@@ -265,13 +268,16 @@ class BlockResponseFunctionTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       throw new UnsupportedOperationException("the RequestContext overload is scheduled instead");
     }
 
     @Override
     public boolean tryCommitBlockingResponse(
-        RequestContext ctx, Flow.Action.RequestBlockingAction action) {
+        RequestContext ctx,
+        Flow.Action.RequestBlockingAction action
+    ) {
       this.scheduledCtx = ctx;
       return true;
     }

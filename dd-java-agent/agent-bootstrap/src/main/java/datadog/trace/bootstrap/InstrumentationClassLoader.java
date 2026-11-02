@@ -3,7 +3,9 @@ package datadog.trace.bootstrap;
 import java.security.CodeSource;
 import java.security.SecureClassLoader;
 
-/** Holds Muzzle and Instrumentation classes, so they can be unloaded separately to the agent. */
+/**
+ * Holds Muzzle and Instrumentation classes, so they can be unloaded separately to the agent.
+ */
 final class InstrumentationClassLoader extends SecureClassLoader {
   static {
     ClassLoader.registerAsParallelCapable();

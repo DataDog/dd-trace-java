@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.aws.v2.sqs;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 
 public final class SqsReceiveResponseInternalAccess {
-
-  private SqsReceiveResponseInternalAccess() {}
+  private SqsReceiveResponseInternalAccess() {
+  }
 
   public static void enter() {
     CallDepthThreadLocalMap.incrementCallDepth(SqsReceiveResponseInternalAccess.class);

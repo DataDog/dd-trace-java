@@ -37,7 +37,10 @@ public class InjectingPipeOutputStream extends OutputStream {
    * @param contentToInject the content to inject once before the marker if found.
    */
   public InjectingPipeOutputStream(
-      final OutputStream downstream, final byte[] marker, final byte[] contentToInject) {
+      final OutputStream downstream,
+      final byte[] marker,
+      final byte[] contentToInject
+  ) {
     this(downstream, marker, contentToInject, null, null, null);
   }
 
@@ -58,7 +61,8 @@ public class InjectingPipeOutputStream extends OutputStream {
       final byte[] contentToInject,
       final Runnable onContentInjected,
       final LongConsumer onBytesWritten,
-      final LongConsumer onInjectionTime) {
+      final LongConsumer onInjectionTime
+  ) {
     this.downstream = downstream;
     this.marker = marker;
     this.lookbehind = new byte[marker.length];
@@ -139,7 +143,6 @@ public class InjectingPipeOutputStream extends OutputStream {
         write(array, off + pendingMatchLength, len - pendingMatchLength);
         return;
       }
-
       // if the content is large enough, we can bulk write everything but the N trail and tail.
       // This because the buffer can already contain some byte from a previous single write.
       // Also we need to fill the buffer with the tail since we don't know about the next write.
@@ -171,7 +174,6 @@ public class InjectingPipeOutputStream extends OutputStream {
         }
         drain();
         boolean wasFiltering = filter;
-
         // will be reset if no errors after the following write
         filter = false;
         int bytesToWrite = len - bulkWriteThreshold;

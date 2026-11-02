@@ -13,9 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PackageResolverImpl implements PackageResolver {
-
   private static final Logger log = LoggerFactory.getLogger(PackageResolverImpl.class);
-
   private static final String PACKAGE_KEYWORD = "package";
   private final FileSystem fileSystem;
 
@@ -64,7 +62,8 @@ public class PackageResolverImpl implements PackageResolver {
 
         int packageNameEnd = line.indexOf(';', packageNameStart);
         if (packageNameEnd == -1) {
-          packageNameEnd = lineLength; // possible if this is a non-Java (e.g. Groovy, Scala) file
+          // possible if this is a non-Java (e.g. Groovy, Scala) file
+          packageNameEnd = lineLength;
         }
 
         String packageName = line.substring(packageNameStart, packageNameEnd);
@@ -75,7 +74,6 @@ public class PackageResolverImpl implements PackageResolver {
           log.debug("Invalid package {} found for source file {}", packageName, sourceFile, e);
           continue;
         }
-
         // we only do the "sanity check" for Java, as with the other languages
         // it is possible to have package that does not correspond to folder
         if (language != Language.JAVA || folder.endsWith(packagePath)) {
@@ -83,7 +81,6 @@ public class PackageResolverImpl implements PackageResolver {
         }
       }
     }
-
     // apparently there is no package declaration - class is located in the default package
     return null;
   }

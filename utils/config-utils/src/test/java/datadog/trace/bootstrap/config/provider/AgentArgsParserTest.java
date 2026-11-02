@@ -3,12 +3,10 @@ package datadog.trace.bootstrap.config.provider;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import java.util.Map;
 import org.tabletest.junit.TableTest;
 
 public class AgentArgsParserTest {
-
   @TableTest({
     "scenario             | args                    | size | key  | expectedValue    ",
     "single argument      | key1=value1             | 1    | key1 | value1           ",

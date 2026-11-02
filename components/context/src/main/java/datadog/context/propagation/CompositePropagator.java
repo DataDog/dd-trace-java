@@ -32,7 +32,9 @@ class CompositePropagator implements Propagator {
   }
 
   static class CarrierCache implements BiConsumer<String, String>, CarrierVisitor<CarrierCache> {
-    /** Cached key/values from carrier (even indexes are keys, odd indexes are values). */
+    /**
+     * Cached key/values from carrier (even indexes are keys, odd indexes are values).
+     */
     private final List<String> keysAndValues;
 
     public CarrierCache() {

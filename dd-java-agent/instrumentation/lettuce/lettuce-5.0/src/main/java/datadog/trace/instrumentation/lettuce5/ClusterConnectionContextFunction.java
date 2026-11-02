@@ -9,14 +9,15 @@ import java.net.SocketAddress;
 import java.util.function.Function;
 
 public class ClusterConnectionContextFunction<T extends StatefulConnection>
-    implements Function<T, T> {
-
+    implements Function<T, T>
+{
   private final ConnectionFuture<? extends StatefulConnection> connectionFuture;
   private final ContextStore<StatefulConnection, RedisURI> contextStore;
 
   public ClusterConnectionContextFunction(
       final ConnectionFuture<? extends StatefulConnection> connectionFuture,
-      final ContextStore<StatefulConnection, RedisURI> contextStore) {
+      final ContextStore<StatefulConnection, RedisURI> contextStore
+  ) {
     this.connectionFuture = connectionFuture;
     this.contextStore = contextStore;
   }

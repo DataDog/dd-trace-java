@@ -4,12 +4,10 @@ import static datadog.telemetry.dependency.DependencyTestHelper.getJar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class DependencyResolverQueueTest {
-
   private DependencyResolverQueue resolverQueue = new DependencyResolverQueue();
 
   @Test
@@ -41,7 +39,6 @@ class DependencyResolverQueueTest {
 
     List<Dependency> deps = resolverQueue.pollDependency();
     assertTrue(deps.isEmpty());
-
     // a repeated dependency is added: it has no effect
     resolverQueue.queueURI(getJar("junit-4.12.jar").toURI());
     deps = resolverQueue.pollDependency();

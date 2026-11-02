@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.grizzly;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import org.glassfish.grizzly.http.util.MimeHeaders;
 
@@ -16,14 +15,17 @@ public abstract class ExtractAdapter<T> implements AgentPropagation.ContextVisit
     }
     for (int i = 0; i < mimeHeaders.size(); ++i) {
       if (!classifier.accept(
-          mimeHeaders.getName(i).toString(UTF_8), mimeHeaders.getValue(i).toString(UTF_8))) {
+          mimeHeaders.getName(i).toString(UTF_8),
+          mimeHeaders.getValue(i).toString(UTF_8)
+      )) {
         return;
       }
     }
   }
 
   public static final class Request
-      extends ExtractAdapter<org.glassfish.grizzly.http.server.Request> {
+      extends ExtractAdapter<org.glassfish.grizzly.http.server.Request>
+  {
     public static final Request GETTER = new Request();
 
     @Override
@@ -33,7 +35,8 @@ public abstract class ExtractAdapter<T> implements AgentPropagation.ContextVisit
   }
 
   public static final class Response
-      extends ExtractAdapter<org.glassfish.grizzly.http.server.Response> {
+      extends ExtractAdapter<org.glassfish.grizzly.http.server.Response>
+  {
     public static final Response GETTER = new Response();
 
     @Override

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,7 +18,9 @@ import net.bytebuddy.asm.Advice;
 // HttpServerRequestInstrumentation/BlockingExceptionHandler
 @AutoService(InstrumenterModule.class)
 public class VertxHandlerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public VertxHandlerInstrumentation() {
     super("vertx", "vertx-4.0");
   }
@@ -38,11 +39,12 @@ public class VertxHandlerInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(named("exceptionCaught"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("io.netty.channel.ChannelHandlerContext")))
-            .and(takesArgument(1, Throwable.class)),
-        VertxHandlerInstrumentation.class.getName() + "$ExceptionCaughtAdvice");
+          .and(named("exceptionCaught"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("io.netty.channel.ChannelHandlerContext")))
+          .and(takesArgument(1, Throwable.class)),
+        VertxHandlerInstrumentation.class.getName() + "$ExceptionCaughtAdvice"
+    );
   }
 
   static class ExceptionCaughtAdvice {

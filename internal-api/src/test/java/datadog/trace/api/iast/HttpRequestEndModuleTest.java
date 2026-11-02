@@ -1,11 +1,9 @@
 package datadog.trace.api.iast;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.tabletest.junit.TableTest;
 
 class HttpRequestEndModuleTest {
-
   @TableTest({
     "scenario           | htmlValue             | expected",
     "html               | text/html             | true    ",

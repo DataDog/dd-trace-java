@@ -6,9 +6,12 @@ import java.io.InputStream;
 import java.net.http.HttpResponse;
 import java.util.zip.GZIPInputStream;
 
-/** Gzip decoding, as the JDK HTTP client does not handle content encoding. */
+/**
+ * Gzip decoding, as the JDK HTTP client does not handle content encoding.
+ */
 final class Gzip {
-  private Gzip() {}
+  private Gzip() {
+  }
 
   /**
    * Decodes a response body according to its {@code Content-Encoding} header.
@@ -20,10 +23,10 @@ final class Gzip {
   static byte[] decode(final HttpResponse<byte[]> response) throws IOException {
     final boolean gzipped =
         response
-            .headers()
-            .firstValue("Content-Encoding")
-            .map("gzip"::equalsIgnoreCase)
-            .orElse(false);
+      .headers()
+      .firstValue("Content-Encoding")
+      .map("gzip"::equalsIgnoreCase)
+      .orElse(false);
     if (!gzipped) {
       return response.body();
     }

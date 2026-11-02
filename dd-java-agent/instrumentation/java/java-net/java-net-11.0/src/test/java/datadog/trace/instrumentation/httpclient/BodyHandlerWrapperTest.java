@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.httpclient;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
@@ -20,7 +19,6 @@ import java.util.concurrent.Flow;
 import org.junit.jupiter.api.Test;
 
 class BodyHandlerWrapperTest {
-
   @Test
   void holdsContextAcrossCallbacksUntilCompletion() {
     Context original = Context.current();
@@ -41,7 +39,6 @@ class BodyHandlerWrapperTest {
       wrapper.onComplete();
       assertSame(captured, subscriber.callbackContexts.get(2));
       assertSame(original, Context.current());
-
       // A released continuation must no longer reactivate the captured context.
       try (ContextScope ignored = continuation.resume()) {
         assertSame(original, Context.current());
@@ -58,8 +55,7 @@ class BodyHandlerWrapperTest {
     subscriber.throwOnSubscribe = true;
     BodySubscriber<Void> wrapper = wrap(subscriber, continuation);
 
-    assertThrows(
-        IllegalStateException.class, () -> wrapper.onSubscribe(new RecordingSubscription()));
+    assertThrows(IllegalStateException.class, () -> wrapper.onSubscribe(new RecordingSubscription()));
     assertEquals(1, continuation.released);
     wrapper.onComplete();
 
@@ -98,18 +94,18 @@ class BodyHandlerWrapperTest {
   }
 
   private static BodySubscriber<Void> wrap(
-      RecordingSubscriber subscriber, ContextContinuation continuation) {
-    AgentSpan span =
-        (AgentSpan)
-            Proxy.newProxyInstance(
-                AgentSpan.class.getClassLoader(),
-                new Class<?>[] {AgentSpan.class},
-                (proxy, method, args) -> continuation);
+      RecordingSubscriber subscriber,
+      ContextContinuation continuation
+  ) {
+    AgentSpan span = (AgentSpan) Proxy.newProxyInstance(AgentSpan.class.getClassLoader(), new Class<?>[] {
+        AgentSpan.class
+    }, (proxy, method, args) -> continuation);
     return new BodyHandlerWrapper<>(ignored -> subscriber, span).apply(null);
   }
 
   private static final class RecordingSubscriber
-      implements java.net.http.HttpResponse.BodySubscriber<Void> {
+      implements java.net.http.HttpResponse.BodySubscriber<Void>
+  {
     private final CompletableFuture<Void> body = new CompletableFuture<>();
     private final List<Context> callbackContexts = new ArrayList<>();
     private Flow.Subscription subscription;

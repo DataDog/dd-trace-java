@@ -11,7 +11,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.api.appsec.AppSecContext;
@@ -47,7 +46,6 @@ import org.junit.jupiter.api.Test;
  * reflectively (the same style already used in {@code dd-smoke-tests/crashtracking}).
  */
 class TomcatBlockingHelperTest {
-
   private static final Field FIELD;
   private static final MethodHandle ORIGINAL_VALUE;
   private static final Object UNSAFE;
@@ -67,8 +65,9 @@ class TomcatBlockingHelperTest {
       theUnsafe.setAccessible(true);
       UNSAFE = theUnsafe.get(null);
       STATIC_BASE = unsafeClass.getMethod("staticFieldBase", Field.class).invoke(UNSAFE, FIELD);
-      STATIC_OFFSET =
-          (Long) unsafeClass.getMethod("staticFieldOffset", Field.class).invoke(UNSAFE, FIELD);
+      STATIC_OFFSET = (Long) unsafeClass
+        .getMethod("staticFieldOffset", Field.class)
+        .invoke(UNSAFE, FIELD);
       PUT_OBJECT = unsafeClass.getMethod("putObject", Object.class, long.class, Object.class);
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);
@@ -161,7 +160,6 @@ class TomcatBlockingHelperTest {
     Request request = mock(Request.class);
 
     assertFalse(commitBlockingResponse(mock(TraceSegment.class), request));
-
     // the early return happens before any status/header/attribute mutation
     verify(request, never()).setAttribute(any(), any());
   }
@@ -217,8 +215,7 @@ class TomcatBlockingHelperTest {
   }
 
   @Test
-  void commitBlockingResponse_writeSucceeds_doesNotReportAndMarksSegmentBlocked()
-      throws IOException {
+  void commitBlockingResponse_writeSucceeds_doesNotReportAndMarksSegmentBlocked() throws IOException {
     AppSecContext appSecCtx = mock(AppSecContext.class);
     RequestContext reqCtx = mock(RequestContext.class);
     when(reqCtx.getData(RequestContextSlot.APPSEC)).thenReturn(appSecCtx);
@@ -253,13 +250,30 @@ class TomcatBlockingHelperTest {
   private static boolean commitBlockingResponse(TraceSegment segment, Request request) {
     // the response is never touched on this path, hence null
     return TomcatBlockingHelper.commitBlockingResponse(
-        segment, request, null, 403, BlockingContentType.AUTO, emptyMap(), null);
+        segment,
+        request,
+        null,
+        403,
+        BlockingContentType.AUTO,
+        emptyMap(),
+        null
+    );
   }
 
   private static boolean commitBlockingResponse(
-      TraceSegment segment, Request request, Response resp) {
+      TraceSegment segment,
+      Request request,
+      Response resp
+  ) {
     return TomcatBlockingHelper.commitBlockingResponse(
-        segment, request, resp, 403, BlockingContentType.AUTO, emptyMap(), null);
+        segment,
+        request,
+        resp,
+        403,
+        BlockingContentType.AUTO,
+        emptyMap(),
+        null
+    );
   }
 
   private static AgentSpan mockSpan(RequestContext reqCtx) {

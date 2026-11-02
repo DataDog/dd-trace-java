@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -33,8 +32,9 @@ import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public JUnit5ExecutionInstrumentation() {
     super("ci-visibility", "junit-5", "test-retry");
   }
@@ -59,11 +59,13 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
     List<Reference> additionalReferences = new ArrayList<>();
     additionalReferences.addAll(TestDescriptorHandle.MuzzleHelper.compileReferences());
     additionalReferences.addAll(TestTaskHandle.MuzzleHelper.compileReferences());
-    additionalReferences.add(
-        new Reference.Builder("org.junit.platform.engine.support.hierarchical.NodeTestTask")
-            .withMethod(new String[0], 0, "prepare", "V")
-            .withMethod(new String[0], 0, "execute", "V")
-            .build());
+    additionalReferences.add(new Reference.Builder(
+        "org.junit.platform.engine.support.hierarchical.NodeTestTask"
+    )
+      .withMethod(new String[0], 0, "prepare", "V")
+      .withMethod(new String[0], 0, "execute", "V")
+      .build()
+    );
     return additionalReferences.toArray(new Reference[0]);
   }
 
@@ -71,22 +73,25 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArgument(
-                    3,
-                    named(
-                        "org.junit.platform.engine.support.hierarchical.ThrowableCollector.Factory"))),
-        JUnit5ExecutionInstrumentation.class.getName() + "$BeforeTaskConstructor");
+          .and(
+              takesArgument(
+                  3,
+                  named("org.junit.platform.engine.support.hierarchical.ThrowableCollector.Factory")
+              )
+          ),
+        JUnit5ExecutionInstrumentation.class.getName() + "$BeforeTaskConstructor"
+    );
     transformer.applyAdvice(
         named("execute").and(takesNoArguments()),
-        JUnit5ExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
+        JUnit5ExecutionInstrumentation.class.getName() + "$ExecutionAdvice"
+    );
   }
 
   public static class BeforeTaskConstructor {
     @Advice.OnMethodEnter
     public static void replaceThrowableCollectorFactory(
-        @Advice.Argument(value = 3, readOnly = false)
-            ThrowableCollector.Factory throwableCollectorFactory) {
+        @Advice.Argument(value = 3, readOnly = false) ThrowableCollector.Factory throwableCollectorFactory
+    ) {
       throwableCollectorFactory = new ThrowableCollectorFactoryWrapper(throwableCollectorFactory);
     }
   }
@@ -95,9 +100,7 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodEnter(skipOn = Boolean.class)
     public static Boolean execute(@Advice.This HierarchicalTestExecutorService.TestTask testTask) {
-
-      if (CallDepthThreadLocalMap.getCallDepth(HierarchicalTestExecutorService.TestTask.class)
-          != 0) {
+      if (CallDepthThreadLocalMap.getCallDepth(HierarchicalTestExecutorService.TestTask.class) != 0) {
         // nested call
         return null;
       }
@@ -129,10 +132,9 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
       TestIdentifier testIdentifier = TestDataFactory.createTestIdentifier(testDescriptor);
       TestSourceData testSource = TestDataFactory.createTestSourceData(testDescriptor);
       Collection<String> testTags = JUnitPlatformUtils.getTags(testDescriptor);
-      TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.HANDLERS
-              .get(framework)
-              .executionPolicy(testIdentifier, testSource, testTags);
+      TestExecutionPolicy executionPolicy = TestEventsHandlerHolder.HANDLERS
+        .get(framework)
+        .executionPolicy(testIdentifier, testSource, testTags);
       if (!executionPolicy.applicable()) {
         return null;
       }
@@ -152,31 +154,31 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
         CallDepthThreadLocalMap.incrementCallDepth(HierarchicalTestExecutorService.TestTask.class);
         currentTask.execute();
         CallDepthThreadLocalMap.decrementCallDepth(HierarchicalTestExecutorService.TestTask.class);
-
-        factory.setSuppressFailures(false); // restore default behavior
+        // restore default behavior
+        factory.setSuppressFailures(false);
 
         if (!executionPolicy.applicable()) {
           break;
         }
-
         /*
          * Some event listeners (notably the one used by Gradle)
          * require every test execution to have a distinct unique ID.
          * Rerunning a test with the ID that was executed previously will cause errors.
          */
-        Map<String, Object> suffix =
-            Collections.singletonMap(
-                JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX, String.valueOf(++retryAttemptIdx));
+        Map<String, Object> suffix = Collections.singletonMap(
+            JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX,
+            String.valueOf(++retryAttemptIdx)
+        );
 
         TestDescriptor retryDescriptor = descriptorHandle.withIdSuffix(suffix);
         taskHandle.getListener().dynamicTestRegistered(retryDescriptor);
         TestEventsHandlerHolder.setExecutionTracker(retryDescriptor, executionPolicy);
-
         // build a fresh task for the retry and reuse the original parent context, since execution
         // overwrites it with null
         currentTask = taskHandle.createRetryTask(retryDescriptor, parentContext);
       }
-      return Boolean.TRUE; // skip original method execution
+      // skip original method execution
+      return Boolean.TRUE;
     }
   }
 }

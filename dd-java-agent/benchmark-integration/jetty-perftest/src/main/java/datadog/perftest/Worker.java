@@ -6,10 +6,11 @@ import io.opentracing.util.GlobalTracer;
 import java.util.concurrent.TimeUnit;
 
 public class Worker {
-
   @Trace
-  /** Simulate work for the give number of milliseconds. */
-  public static void doWork(final long workTimeMS) {
+  public static /**
+   * Simulate work for the give number of milliseconds.
+   */
+  void doWork(final long workTimeMS) {
     final Span span = GlobalTracer.get().activeSpan();
     if (span != null) {
       span.setTag("work-time", workTimeMS);

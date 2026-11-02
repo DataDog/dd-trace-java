@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.Metric;
 import datadog.trace.api.iast.SourceTypes;
@@ -21,9 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class IastMetricPeriodicActionTest {
-
   private static final IastMetricCollector ORIGINAL_COLLECTOR = IastMetricCollector.get();
-
   private final IastMetricPeriodicAction action = new IastMetricPeriodicAction();
   private final TelemetryService telemetryService = mock(TelemetryService.class);
 
@@ -72,7 +69,8 @@ class IastMetricPeriodicActionTest {
         captor.getValue(),
         iastMetric,
         value,
-        Arrays.asList(iastMetric.getTag().getName() + ":" + tagString));
+        Arrays.asList(iastMetric.getTag().getName() + ":" + tagString)
+    );
   }
 
   @Test

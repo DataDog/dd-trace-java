@@ -3,7 +3,6 @@ package datadog.trace.civisibility.ci;
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -12,7 +11,6 @@ import datadog.trace.civisibility.ci.env.CiEnvironment;
 import javax.annotation.Nonnull;
 
 class BuddyInfo implements CIProviderInfo {
-
   // https://buddy.works/docs/pipelines/environment-variables
   public static final String BUDDY = "BUDDY";
   public static final String BUDDY_PROVIDER_NAME = "buddy";
@@ -29,7 +27,6 @@ class BuddyInfo implements CIProviderInfo {
   public static final String BUDDY_GIT_COMMIT_EMAIL = "BUDDY_EXECUTION_REVISION_COMMITTER_EMAIL";
   public static final String BUDDY_RUN_PR_BASE_BRANCH = "BUDDY_RUN_PR_BASE_BRANCH";
   public static final String BUDDY_RUN_PR_NUMBER = "BUDDY_RUN_PR_NO";
-
   private final CiEnvironment environment;
 
   BuddyInfo(CiEnvironment environment) {
@@ -46,19 +43,22 @@ class BuddyInfo implements CIProviderInfo {
             environment.get(BUDDY_GIT_COMMIT),
             PersonInfo.NOOP,
             buildGitCommiter(),
-            environment.get(BUDDY_GIT_COMMIT_MESSAGE)));
+            environment.get(BUDDY_GIT_COMMIT_MESSAGE)
+        )
+    );
   }
 
   @Override
   public CIInfo buildCIInfo() {
     String pipelineNumber = environment.get(BUDDY_PIPELINE_EXECUTION_ID);
-    return CIInfo.builder(environment)
-        .ciProviderName(BUDDY_PROVIDER_NAME)
-        .ciPipelineId(getPipelineId(pipelineNumber))
-        .ciPipelineName(environment.get(BUDDY_PIPELINE_NAME))
-        .ciPipelineNumber(pipelineNumber)
-        .ciPipelineUrl(environment.get(BUDDY_PIPELINE_EXECUTION_URL))
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(BUDDY_PROVIDER_NAME)
+      .ciPipelineId(getPipelineId(pipelineNumber))
+      .ciPipelineName(environment.get(BUDDY_PIPELINE_NAME))
+      .ciPipelineNumber(pipelineNumber)
+      .ciPipelineUrl(environment.get(BUDDY_PIPELINE_EXECUTION_URL))
+      .build();
   }
 
   @Nonnull
@@ -69,7 +69,8 @@ class BuddyInfo implements CIProviderInfo {
         null,
         null,
         CommitInfo.NOOP,
-        environment.get(BUDDY_RUN_PR_NUMBER));
+        environment.get(BUDDY_RUN_PR_NUMBER)
+    );
   }
 
   private String getPipelineId(String pipelineNumber) {
@@ -85,7 +86,9 @@ class BuddyInfo implements CIProviderInfo {
 
   private PersonInfo buildGitCommiter() {
     return new PersonInfo(
-        environment.get(BUDDY_GIT_COMMIT_AUTHOR), environment.get(BUDDY_GIT_COMMIT_EMAIL));
+        environment.get(BUDDY_GIT_COMMIT_AUTHOR),
+        environment.get(BUDDY_GIT_COMMIT_EMAIL)
+    );
   }
 
   @Override

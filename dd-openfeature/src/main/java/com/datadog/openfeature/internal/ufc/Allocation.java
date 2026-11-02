@@ -10,11 +10,13 @@ public final class Allocation {
   public final Instant endAt;
   public final List<Split> splits;
   public final Boolean doLog;
-
-  /** First activation of this allocation's randomization; null means unknown or malformed. */
+  /**
+   * First activation of this allocation's randomization; null means unknown or malformed.
+   */
   public final Instant randomizationActivatedAt;
-
-  /** Distinguishes malformed activation from missing/null for future-mode evaluation errors. */
+  /**
+   * Distinguishes malformed activation from missing/null for future-mode evaluation errors.
+   */
   public final boolean invalidRandomizationActivation;
 
   public Allocation(
@@ -23,7 +25,8 @@ public final class Allocation {
       final Instant startAt,
       final Instant endAt,
       final List<Split> splits,
-      final Boolean doLog) {
+      final Boolean doLog
+  ) {
     this(key, rules, startAt, endAt, splits, doLog, null);
   }
 
@@ -34,7 +37,8 @@ public final class Allocation {
       final Instant endAt,
       final List<Split> splits,
       final Boolean doLog,
-      final Instant randomizationActivatedAt) {
+      final Instant randomizationActivatedAt
+  ) {
     this(key, rules, startAt, endAt, splits, doLog, randomizationActivatedAt, false);
   }
 
@@ -46,7 +50,8 @@ public final class Allocation {
       final List<Split> splits,
       final Boolean doLog,
       final Instant randomizationActivatedAt,
-      final boolean invalidRandomizationActivation) {
+      final boolean invalidRandomizationActivation
+  ) {
     this.key = key;
     this.rules = rules;
     this.startAt = startAt;

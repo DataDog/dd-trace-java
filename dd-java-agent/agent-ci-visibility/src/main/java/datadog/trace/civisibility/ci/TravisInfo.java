@@ -3,7 +3,6 @@ package datadog.trace.civisibility.ci;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -12,7 +11,6 @@ import datadog.trace.civisibility.ci.env.CiEnvironment;
 import javax.annotation.Nonnull;
 
 class TravisInfo implements CIProviderInfo {
-
   // https://docs.travis-ci.com/user/environment-variables/#default-environment-variables
   public static final String TRAVIS = "TRAVIS";
   public static final String TRAVIS_PROVIDER_NAME = "travisci";
@@ -31,7 +29,6 @@ class TravisInfo implements CIProviderInfo {
   public static final String TRAVIS_PR_NUMBER = "TRAVIS_PULL_REQUEST";
   public static final String TRAVIS_PR_HEAD_SHA = "TRAVIS_PULL_REQUEST_SHA";
   public static final String TRAVIS_EVENT_TYPE = "TRAVIS_EVENT_TYPE";
-
   private final CiEnvironment environment;
 
   TravisInfo(CiEnvironment environment) {
@@ -48,20 +45,23 @@ class TravisInfo implements CIProviderInfo {
             environment.get(TRAVIS_GIT_COMMIT),
             PersonInfo.NOOP,
             PersonInfo.NOOP,
-            environment.get(TRAVIS_GIT_COMMIT_MESSAGE)));
+            environment.get(TRAVIS_GIT_COMMIT_MESSAGE)
+        )
+    );
   }
 
   @Override
   public CIInfo buildCIInfo() {
-    return CIInfo.builder(environment)
-        .ciProviderName(TRAVIS_PROVIDER_NAME)
-        .ciPipelineId(environment.get(TRAVIS_PIPELINE_ID))
-        .ciPipelineName(buildCiPipelineName())
-        .ciPipelineNumber(environment.get(TRAVIS_PIPELINE_NUMBER))
-        .ciPipelineUrl(environment.get(TRAVIS_PIPELINE_URL))
-        .ciJobUrl(environment.get(TRAVIS_JOB_URL))
-        .ciWorkspace(expandTilde(environment.get(TRAVIS_WORKSPACE_PATH)))
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(TRAVIS_PROVIDER_NAME)
+      .ciPipelineId(environment.get(TRAVIS_PIPELINE_ID))
+      .ciPipelineName(buildCiPipelineName())
+      .ciPipelineNumber(environment.get(TRAVIS_PIPELINE_NUMBER))
+      .ciPipelineUrl(environment.get(TRAVIS_PIPELINE_URL))
+      .ciJobUrl(environment.get(TRAVIS_JOB_URL))
+      .ciWorkspace(expandTilde(environment.get(TRAVIS_WORKSPACE_PATH)))
+      .build();
   }
 
   @Nonnull
@@ -73,7 +73,8 @@ class TravisInfo implements CIProviderInfo {
           null,
           null,
           new CommitInfo(environment.get(TRAVIS_PR_HEAD_SHA)),
-          environment.get(TRAVIS_PR_NUMBER));
+          environment.get(TRAVIS_PR_NUMBER)
+      );
     }
     return PullRequestInfo.EMPTY;
   }

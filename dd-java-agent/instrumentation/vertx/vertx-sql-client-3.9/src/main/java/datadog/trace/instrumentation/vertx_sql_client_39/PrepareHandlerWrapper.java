@@ -16,7 +16,8 @@ public class PrepareHandlerWrapper implements Handler<AsyncResult<PreparedStatem
   public PrepareHandlerWrapper(
       Handler<AsyncResult<PreparedStatement>> handler,
       ContextStore<PreparedStatement, Pair> contextStore,
-      Pair<DBInfo, DBQueryInfo> queryInfo) {
+      Pair<DBInfo, DBQueryInfo> queryInfo
+  ) {
     this.handler = handler;
     this.contextStore = contextStore;
     this.queryInfo = queryInfo;

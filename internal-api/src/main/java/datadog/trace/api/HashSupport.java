@@ -18,15 +18,20 @@ import java.util.function.Consumer;
  * map keeps its own count. Read-through to a parent map and its tombstones stay with the map.
  */
 final class HashSupport {
-  private HashSupport() {}
+  private HashSupport() {
+  }
 
-  /** A fresh bucket array; its length must be a power of 2 for bucket masking. */
+  /**
+   * A fresh bucket array; its length must be a power of 2 for bucket masking.
+   */
   static Object[] newBuckets() {
     // needs to be a power of 2 for bucket masking calculation to work as intended
     return new Object[1 << 4];
   }
 
-  /** The entry for {@code (hash, tag)} in {@code buckets}, or null. */
+  /**
+   * The entry for {@code (hash, tag)} in {@code buckets}, or null.
+   */
   static Entry find(Object[] buckets, int hash, String tag) {
     return findInBucket(buckets[hash & (buckets.length - 1)], hash, tag);
   }
@@ -44,7 +49,9 @@ final class HashSupport {
     return null;
   }
 
-  /** Inserts or replaces {@code newEntry}, returning the entry it replaced, or null if it added. */
+  /**
+   * Inserts or replaces {@code newEntry}, returning the entry it replaced, or null if it added.
+   */
   static Entry put(Object[] buckets, Entry newEntry) {
     Object[] thisBuckets = buckets;
 
@@ -60,12 +67,15 @@ final class HashSupport {
       Entry existingEntry = (Entry) bucket;
       if (existingEntry.matches(newEntry.tag)) {
         thisBuckets[bucketIndex] = newEntry;
-
         // replaced existing entry - no size change
         return existingEntry;
       } else {
-        thisBuckets[bucketIndex] =
-            new BucketGroup(existingEntry.hash(), existingEntry, newHash, newEntry);
+        thisBuckets[bucketIndex] = new BucketGroup(
+            existingEntry.hash(),
+            existingEntry,
+            newHash,
+            newEntry
+        );
 
         return null;
       }
@@ -83,12 +93,13 @@ final class HashSupport {
       }
       return null;
     }
-
     // unreachable
     return null;
   }
 
-  /** Removes the entry for {@code (hash, tag)}, returning it, or null if there was none. */
+  /**
+   * Removes the entry for {@code (hash, tag)}, returning it, or null if there was none.
+   */
   static Entry remove(Object[] buckets, int hash, String tag) {
     Object[] thisBuckets = buckets;
 
@@ -132,7 +143,6 @@ final class HashSupport {
     // elimination
     for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
       Object thatBucket = thatBuckets[i];
-
       // faster to explicitly null check first, then do instanceof
       if (thatBucket == null) {
         // do nothing
@@ -141,7 +151,8 @@ final class HashSupport {
         BucketGroup thatGroup = (BucketGroup) thatBucket;
 
         thisBuckets[i] = thatGroup.cloneChain();
-      } else { // if ( thatBucket instanceof Entry )
+      } else {
+        // if ( thatBucket instanceof Entry )
         thisBuckets[i] = thatBucket;
       }
     }
@@ -153,21 +164,20 @@ final class HashSupport {
    */
   static int merge(Object[] thisBuckets, Object[] thatBuckets) {
     int added = 0;
-
     // Since TagMap-s don't support expansion, buckets are perfectly aligned
     // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check
     // elimination
     for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
       Object thatBucket = thatBuckets[i];
-
       // if nothing incoming, nothing to do
-      if (thatBucket == null) continue;
+      if (thatBucket == null) {
+        continue;
+      }
 
       Object thisBucket = thisBuckets[i];
       if (thisBucket == null) {
         // This bucket is null, easy case
         // Either copy over the sole entry or clone the BucketGroup chain
-
         if (thatBucket instanceof Entry) {
           thisBuckets[i] = thatBucket;
           added += 1;
@@ -183,7 +193,6 @@ final class HashSupport {
         // If other side is an Entry - just merge the entries into a bucket
         // If other side is a BucketGroup - then clone the group and insert the entry normally into
         // the cloned group
-
         Entry thisEntry = (Entry) thisBucket;
         int thisHash = thisEntry.hash();
 
@@ -195,15 +204,11 @@ final class HashSupport {
             thisBuckets[i] = thatEntry;
             // replacing entry, no size change
           } else {
-            thisBuckets[i] =
-                new BucketGroup(
-                    thisHash, thisEntry,
-                    thatHash, thatEntry);
+            thisBuckets[i] = new BucketGroup(thisHash, thisEntry, thatHash, thatEntry);
             added += 1;
           }
         } else if (thatBucket instanceof BucketGroup) {
           BucketGroup thatGroup = (BucketGroup) thatBucket;
-
           // Clone the other group, then place this entry into that group
           BucketGroup thisNewGroup = thatGroup.cloneChain();
           int thisNewGroupSize = thisNewGroup.sizeInChain();
@@ -213,19 +218,16 @@ final class HashSupport {
             // there's already an entry w/ the same tag from the incoming TagMap
             // incoming entry clobbers the existing try, so we're done
             thisBuckets[i] = thisNewGroup;
-
             // overlapping group - subtract one for clobbered existing entry
             added += thisNewGroupSize - 1;
           } else if (thisNewGroup.insertInChain(thisHash, thisEntry)) {
             // able to add thisEntry into the existing groups
             thisBuckets[i] = thisNewGroup;
-
             // non overlapping group - existing entry already accounted for in this.size
             added += thisNewGroupSize;
           } else {
             // unable to add into the existing groups
             thisBuckets[i] = new BucketGroup(thisHash, thisEntry, thisNewGroup);
-
             // non overlapping group - existing entry already accounted for in this.size
             added += thisNewGroupSize;
           }
@@ -250,7 +252,6 @@ final class HashSupport {
         } else if (thatBucket instanceof BucketGroup) {
           // Most complicated case - need to walk that bucket group chain and update this chain
           BucketGroup thatGroup = (BucketGroup) thatBucket;
-
           // Taking the easy / expensive way out for updating size
           int thisPrevGroupSize = thisGroup.sizeInChain();
 
@@ -265,7 +266,9 @@ final class HashSupport {
     return added;
   }
 
-  /** Visits every entry in {@code buckets}. */
+  /**
+   * Visits every entry in {@code buckets}.
+   */
   static void forEach(Object[] buckets, Consumer<? super EntryReader> consumer) {
     Object[] thisBuckets = buckets;
 
@@ -284,9 +287,10 @@ final class HashSupport {
     }
   }
 
-  /** {@link #forEach(Object[], Consumer)} with a context object for a non-capturing consumer. */
-  static <T> void forEach(
-      Object[] buckets, T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+  /**
+   * {@link #forEach(Object[], Consumer)} with a context object for a non-capturing consumer.
+   */
+  static <T> void forEach(Object[] buckets, T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
     Object[] thisBuckets = buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -304,9 +308,15 @@ final class HashSupport {
     }
   }
 
-  /** {@link #forEach(Object[], Consumer)} with two context objects. */
+  /**
+   * {@link #forEach(Object[], Consumer)} with two context objects.
+   */
   static <T, U> void forEach(
-      Object[] buckets, T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+      Object[] buckets,
+      T thisObj,
+      U otherObj,
+      TriConsumer<T, U, ? super EntryReader> consumer
+  ) {
     Object[] thisBuckets = buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -324,7 +334,9 @@ final class HashSupport {
     }
   }
 
-  /** Puts every entry in {@code buckets} into {@code map}, by tag, as its object value. */
+  /**
+   * Puts every entry in {@code buckets} into {@code map}, by tag, as its object value.
+   */
   static void fillMap(Object[] buckets, Map<? super String, Object> map) {
     Object[] thisBuckets = buckets;
 
@@ -343,7 +355,9 @@ final class HashSupport {
     }
   }
 
-  /** Puts every entry in {@code buckets} into {@code stringMap}, by tag, as its string value. */
+  /**
+   * Puts every entry in {@code buckets} into {@code stringMap}, by tag, as its string value.
+   */
   static void fillStringMap(Object[] buckets, Map<? super String, ? super String> stringMap) {
     Object[] thisBuckets = buckets;
 
@@ -362,7 +376,9 @@ final class HashSupport {
     }
   }
 
-  /** The number of entries in {@code buckets}, counted. */
+  /**
+   * The number of entries in {@code buckets}, counted.
+   */
   static int count(Object[] buckets) {
     Object[] thisBuckets = buckets;
 
@@ -380,7 +396,9 @@ final class HashSupport {
     return size;
   }
 
-  /** Whether {@code buckets} holds no entry, checked bucket by bucket. */
+  /**
+   * Whether {@code buckets} holds no entry, checked bucket by bucket.
+   */
   static boolean isEmpty(Object[] buckets) {
     Object[] thisBuckets = buckets;
 
@@ -391,14 +409,18 @@ final class HashSupport {
         return false;
       } else if (curBucket instanceof BucketGroup) {
         BucketGroup curGroup = (BucketGroup) curBucket;
-        if (!curGroup.isEmptyChain()) return false;
+        if (!curGroup.isEmptyChain()) {
+          return false;
+        }
       }
     }
 
     return true;
   }
 
-  /** Checks that every entry in {@code buckets} sits in the bucket its hash selects. */
+  /**
+   * Checks that every entry in {@code buckets} sits in the bucket its hash selects.
+   */
   static void checkBuckets(Object[] buckets) {
     Object[] thisBuckets = buckets;
 
@@ -419,7 +441,9 @@ final class HashSupport {
         for (BucketGroup curGroup = thisGroup; curGroup != null; curGroup = curGroup.prev) {
           for (int j = 0; j < BucketGroup.LEN; ++j) {
             Entry thisEntry = curGroup._entryAt(i);
-            if (thisEntry == null) continue;
+            if (thisEntry == null) {
+              continue;
+            }
 
             int thisHash = thisEntry.hash();
             assert curGroup._hashAt(i) == thisHash;
@@ -434,7 +458,9 @@ final class HashSupport {
     }
   }
 
-  /** The buckets' internal structure, for deep debugging. */
+  /**
+   * The buckets' internal structure, for deep debugging.
+   */
   static String toInternalString(Object[] buckets) {
     Object[] thisBuckets = buckets;
 
@@ -448,9 +474,7 @@ final class HashSupport {
       } else if (thisBucket instanceof Entry) {
         ledger.append('{').append(thisBucket).append('}');
       } else if (thisBucket instanceof BucketGroup) {
-        for (BucketGroup curGroup = (BucketGroup) thisBucket;
-            curGroup != null;
-            curGroup = curGroup.prev) {
+        for (BucketGroup curGroup = (BucketGroup) thisBucket; curGroup != null; curGroup = curGroup.prev) {
           ledger.append(curGroup).append(" -> ");
         }
       }

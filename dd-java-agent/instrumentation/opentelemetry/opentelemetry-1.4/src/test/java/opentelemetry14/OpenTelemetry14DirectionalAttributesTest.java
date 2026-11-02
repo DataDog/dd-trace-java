@@ -6,7 +6,6 @@ import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
-
 import datadog.opentelemetry.shim.trace.OtelConventions;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
@@ -19,7 +18,6 @@ import org.tabletest.junit.TableTest;
  * client span. The shim resolves them by the kind, so the tracer core only sees Datadog names.
  */
 public class OpenTelemetry14DirectionalAttributesTest extends AbstractOpenTelemetry14Test {
-
   @TableTest({
     "scenario                        | kind     | when        | attribute      | tag           ",
     "client address, kind first      | CLIENT   | after kind  | server.address | peer.hostname ",
@@ -32,7 +30,11 @@ public class OpenTelemetry14DirectionalAttributesTest extends AbstractOpenTeleme
     "internal address stays as is    | INTERNAL | after kind  | server.address | server.address"
   })
   void aDirectionScopedAttributeIsStoredAsTheTagItDenotes(
-      String kind, String when, String attribute, String tag) {
+      String kind,
+      String when,
+      String attribute,
+      String tag
+  ) {
     SpanBuilder builder = this.otelTracer.spanBuilder("some-name");
     if ("before kind".equals(when)) {
       builder.setAttribute(attribute, "example.com");
@@ -48,13 +50,15 @@ public class OpenTelemetry14DirectionalAttributesTest extends AbstractOpenTeleme
     span.end();
 
     assertTraces(
-        trace(
-            span()
-                .root()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(OtelConventions.toSpanKindTagValue(SpanKind.valueOf(kind)))),
-                    tag(tag, is("example.com")))));
+        trace(span()
+          .root()
+          .tags(
+              defaultTags(),
+              tag(SPAN_KIND, is(OtelConventions.toSpanKindTagValue(SpanKind.valueOf(kind)))),
+              tag(tag, is("example.com"))
+          )
+        )
+    );
   }
 
   @TableTest({
@@ -63,23 +67,24 @@ public class OpenTelemetry14DirectionalAttributesTest extends AbstractOpenTeleme
     "server   | SERVER | http.hostname"
   })
   void aWriteAfterTheKindWinsOverOneHeldBeforeIt(String kind, String tag) {
-    Span span =
-        this.otelTracer
-            .spanBuilder("some-name")
-            .setAttribute("server.address", "old.example.com")
-            .setSpanKind(SpanKind.valueOf(kind))
-            .setAttribute("server.address", "new.example.com")
-            .startSpan();
+    Span span = this.otelTracer
+      .spanBuilder("some-name")
+      .setAttribute("server.address", "old.example.com")
+      .setSpanKind(SpanKind.valueOf(kind))
+      .setAttribute("server.address", "new.example.com")
+      .startSpan();
     span.end();
 
     assertTraces(
-        trace(
-            span()
-                .root()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(OtelConventions.toSpanKindTagValue(SpanKind.valueOf(kind)))),
-                    tag(tag, is("new.example.com")))));
+        trace(span()
+          .root()
+          .tags(
+              defaultTags(),
+              tag(SPAN_KIND, is(OtelConventions.toSpanKindTagValue(SpanKind.valueOf(kind)))),
+              tag(tag, is("new.example.com"))
+          )
+        )
+    );
   }
 
   @TableTest({
@@ -103,20 +108,19 @@ public class OpenTelemetry14DirectionalAttributesTest extends AbstractOpenTeleme
 
     SpanKind spanKind = kind == null ? SpanKind.INTERNAL : SpanKind.valueOf(kind);
     assertTraces(
-        trace(
-            span()
-                .root()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(OtelConventions.toSpanKindTagValue(spanKind))))));
+        trace(span()
+          .root()
+          .tags(defaultTags(), tag(SPAN_KIND, is(OtelConventions.toSpanKindTagValue(spanKind))))
+        )
+    );
   }
 
   private static void setNullKeyAttributes(SpanBuilder builder) {
     builder
-        .setAttribute((String) null, "value")
-        .setAttribute((String) null, 1L)
-        .setAttribute((String) null, 1.0)
-        .setAttribute((String) null, true);
+      .setAttribute((String) null, "value")
+      .setAttribute((String) null, 1L)
+      .setAttribute((String) null, 1.0)
+      .setAttribute((String) null, true);
   }
 
   @TableTest({
@@ -125,21 +129,22 @@ public class OpenTelemetry14DirectionalAttributesTest extends AbstractOpenTeleme
     "server server.port | SERVER | server.port"
   })
   void serverPortIsThePeerPortOnClientSpansOnly(String kind, String tag) {
-    Span span =
-        this.otelTracer
-            .spanBuilder("some-name")
-            .setAttribute("server.port", 8443L)
-            .setSpanKind(SpanKind.valueOf(kind))
-            .startSpan();
+    Span span = this.otelTracer
+      .spanBuilder("some-name")
+      .setAttribute("server.port", 8443L)
+      .setSpanKind(SpanKind.valueOf(kind))
+      .startSpan();
     span.end();
 
     assertTraces(
-        trace(
-            span()
-                .root()
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(OtelConventions.toSpanKindTagValue(SpanKind.valueOf(kind)))),
-                    tag(tag, is(8443L)))));
+        trace(span()
+          .root()
+          .tags(
+              defaultTags(),
+              tag(SPAN_KIND, is(OtelConventions.toSpanKindTagValue(SpanKind.valueOf(kind)))),
+              tag(tag, is(8443L))
+          )
+        )
+    );
   }
 }

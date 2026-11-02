@@ -24,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -67,7 +66,6 @@ import org.tabletest.junit.TableTest;
 
 @ExtendWith(WithConfigExtension.class)
 class TraceMapperV05PayloadTest {
-
   // Keep the ProcessTags static in sync with the (per-test rebuilt) Config, the way DDSpecification
   // did for the original Spock tests. Runs after WithConfigExtension has rebuilt Config.
   @BeforeEach
@@ -94,25 +92,26 @@ class TraceMapperV05PayloadTest {
     // enough space for two traces with distinct string values, plus the header
     int dictionarySize = dictionarySpacePerTrace * 2 + 5;
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize);
-    List<PojoSpan> repeatedTrace =
-        Collections.singletonList(
-            new PojoSpan(
-                UUID.randomUUID().toString(),
-                UUID.randomUUID().toString(),
-                UUID.randomUUID().toString(),
-                DDTraceId.ZERO,
-                DDSpanId.ZERO,
-                DDSpanId.ZERO,
-                10000,
-                100,
-                0,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                UUID.randomUUID().toString(),
-                false,
-                PrioritySampling.UNSET,
-                0,
-                null));
+    List<PojoSpan> repeatedTrace = Collections.singletonList(
+        new PojoSpan(
+            UUID.randomUUID().toString(),
+            UUID.randomUUID().toString(),
+            UUID.randomUUID().toString(),
+            DDTraceId.ZERO,
+            DDSpanId.ZERO,
+            DDSpanId.ZERO,
+            10000,
+            100,
+            0,
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            UUID.randomUUID().toString(),
+            false,
+            PrioritySampling.UNSET,
+            0,
+            null
+        )
+    );
     // The first trace of a payload is larger: it carries the payload-scoped _dd.sdk.otlp_export
     // marker on its first span. Size both cases so the overflow point is exact.
     int firstTraceSize = calculateSize(repeatedTrace, true);
@@ -141,7 +140,11 @@ class TraceMapperV05PayloadTest {
   @ParameterizedTest(name = "buffer={0} dict={1} traces={2} lowCardinality={3}")
   @MethodSource("dictionaryCompressedTracesWrittenCorrectlyArguments")
   void dictionaryCompressedTracesWrittenCorrectly(
-      int bufferSize, int dictionarySize, int traceCount, boolean lowCardinality) {
+      int bufferSize,
+      int dictionarySize,
+      int traceCount,
+      boolean lowCardinality
+  ) {
     List<List<PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality);
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize);
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
@@ -188,7 +191,8 @@ class TraceMapperV05PayloadTest {
         arguments(100 << 10, 10 << 10, 100, false),
         arguments(100 << 10, 100 << 10, 1, false),
         arguments(100 << 10, 100 << 10, 10, false),
-        arguments(100 << 10, 100 << 10, 1000, false));
+        arguments(100 << 10, 100 << 10, 1000, false)
+    );
   }
 
   @TableTest({
@@ -206,19 +210,16 @@ class TraceMapperV05PayloadTest {
     List<List<PojoSpan>> traces = new ArrayList<>();
     for (int i = 0; i < 20; i++) {
       traces.add(
-          singletonList(
-              spanWithValue(i + 1, field, repeated('a', 128) + (repeatedValue ? "" : i))));
+          singletonList(spanWithValue(i + 1, field, repeated('a', 128) + (repeatedValue ? "" : i)))
+      );
     }
     PayloadVerifier verifier = new PayloadVerifier(traces, mapper);
     AtomicInteger payloadCount = new AtomicInteger();
     MsgPackWriter packer =
-        new MsgPackWriter(
-            new FlushingBuffer(
-                mapper.messageBufferSize(),
-                (count, buffer) -> {
-                  payloadCount.incrementAndGet();
-                  verifier.accept(count, buffer);
-                }));
+        new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), (count, buffer) -> {
+      payloadCount.incrementAndGet();
+      verifier.accept(count, buffer);
+    }));
 
     for (List<PojoSpan> trace : traces) {
       assertTrue(packer.format(trace, mapper));
@@ -246,14 +247,19 @@ class TraceMapperV05PayloadTest {
     "many tag values         | tag      | false          | 8         | 128         | a        ",
     "many baggage values     | baggage  | false          | 8         | 128         | a        ",
     "many values after flush | resource | true           | 8         | 128         | a        ",
-    "UTF-8 resource          | resource | false          | 1         | 256         | \u20ac   ",
-    "UTF-8 tag               | tag      | false          | 1         | 256         | \u20ac   ",
-    "UTF-8 baggage           | baggage  | false          | 1         | 256         | \u20ac   ",
-    "UTF-8 after flush       | resource | true           | 1         | 256         | \u20ac   "
+    "UTF-8 resource          | resource | false          | 1         | 256         | €        ",
+    "UTF-8 tag               | tag      | false          | 1         | 256         | €        ",
+    "UTF-8 baggage           | baggage  | false          | 1         | 256         | €        ",
+    "UTF-8 after flush       | resource | true           | 1         | 256         | €        "
   })
   @Timeout(5)
   void oversizedTraceIsDroppedAndNextTraceSucceeds(
-      String field, boolean precedingTrace, int spanCount, int valueLength, char character) {
+      String field,
+      boolean precedingTrace,
+      int spanCount,
+      int valueLength,
+      char character
+  ) {
     int dictionarySize = 512;
     TraceMapperV0_5 mapper = new TraceMapperV0_5(dictionarySize, 4096);
     List<PojoSpan> first = singletonList(plainSpan(1));
@@ -296,28 +302,31 @@ class TraceMapperV05PayloadTest {
   }
 
   @TableTest({
-    "scenario             | characters   | extraBytes | fits ",
-    "ASCII below          | a            | -1         | false",
-    "ASCII exact          | a            | 0          | true ",
-    "ASCII above          | a            | 1          | true ",
-    "two-byte below       | \u00e9       | -1         | false",
-    "two-byte exact       | \u00e9       | 0          | true ",
-    "two-byte above       | \u00e9       | 1          | true ",
-    "CJK below            | \u4e2d       | -1         | false",
-    "CJK exact            | \u4e2d       | 0          | true ",
-    "CJK above            | \u4e2d       | 1          | true ",
-    "surrogate pair below | \ud83d\ude00 | -1         | false",
-    "surrogate pair exact | \ud83d\ude00 | 0          | true ",
-    "surrogate pair above | \ud83d\ude00 | 1          | true ",
-    "high surrogate below | \ud800       | -1         | false",
-    "high surrogate exact | \ud800       | 0          | true ",
-    "high surrogate above | \ud800       | 1          | true ",
-    "low surrogate below  | \udc00       | -1         | false",
-    "low surrogate exact  | \udc00       | 0          | true ",
-    "low surrogate above  | \udc00       | 1          | true "
+    "scenario             | characters | extraBytes | fits ",
+    "ASCII below          | a          | -1         | false",
+    "ASCII exact          | a          | 0          | true ",
+    "ASCII above          | a          | 1          | true ",
+    "two-byte below       | é          | -1         | false",
+    "two-byte exact       | é          | 0          | true ",
+    "two-byte above       | é          | 1          | true ",
+    "CJK below            | 中         | -1         | false",
+    "CJK exact            | 中         | 0          | true ",
+    "CJK above            | 中         | 1          | true ",
+    "surrogate pair below | 😀         | -1         | false",
+    "surrogate pair exact | 😀         | 0          | true ",
+    "surrogate pair above | 😀         | 1          | true ",
+    "high surrogate below | \uD800     | -1         | false",
+    "high surrogate exact | \uD800     | 0          | true ",
+    "high surrogate above | \uD800     | 1          | true ",
+    "low surrogate below  | \uDC00     | -1         | false",
+    "low surrogate exact  | \uDC00     | 0          | true ",
+    "low surrogate above  | \uDC00     | 1          | true "
   })
   void dictionaryLimitIncludesEncodedStringsAndHeaders(
-      String characters, int extraBytes, boolean fits) {
+      String characters,
+      int extraBytes,
+      boolean fits
+  ) {
     String value = repeated(characters, 128);
     List<PojoSpan> trace = singletonList(spanWithValue(1, "resource", value));
     TraceMapperV0_5 measuringMapper = new TraceMapperV0_5(4096, 4096);
@@ -343,20 +352,23 @@ class TraceMapperV05PayloadTest {
   }
 
   @TableTest({
-    "scenario        | characters   | repetitions | dictionarySize",
-    "CJK             | \u4e2d       | 256         | 512           ",
-    "surrogate pairs | \ud83d\ude00 | 128         | 512           ",
-    "fixstr header   | a            | 15          | 15            ",
-    "STR8 start      | a            | 16          | 17            ",
-    "STR8 end        | a            | 255         | 256           ",
-    "STR16 start     | a            | 256         | 258           ",
-    "STR16 end       | a            | 65535       | 65537         ",
-    "STR32 start     | a            | 65536       | 65540         ",
-    "CJK STR8 end    | \u4e2d       | 85          | 256           ",
-    "surrogate STR16 | \ud83d\ude00 | 64          | 258           "
+    "scenario        | characters | repetitions | dictionarySize",
+    "CJK             | 中         | 256         | 512           ",
+    "surrogate pairs | 😀         | 128         | 512           ",
+    "fixstr header   | a          | 15          | 15            ",
+    "STR8 start      | a          | 16          | 17            ",
+    "STR8 end        | a          | 255         | 256           ",
+    "STR16 start     | a          | 256         | 258           ",
+    "STR16 end       | a          | 65535       | 65537         ",
+    "STR32 start     | a          | 65536       | 65540         ",
+    "CJK STR8 end    | 中         | 85          | 256           ",
+    "surrogate STR16 | 😀         | 64          | 258           "
   })
   void oversizedUtf8ValueIsRejectedBeforeEncoding(
-      String characters, int repetitions, int dictionarySize) throws ReflectiveOperationException {
+      String characters,
+      int repetitions,
+      int dictionarySize
+  ) throws ReflectiveOperationException {
     UTF8BytesString value = UTF8BytesString.create(repeated(characters, repetitions));
     Field encodedBytes = UTF8BytesString.class.getDeclaredField("utf8Bytes");
     encodedBytes.setAccessible(true);
@@ -403,7 +415,8 @@ class TraceMapperV05PayloadTest {
         spanId,
         "resource".equals(field) ? (CharSequence) value : "resource",
         "baggage".equals(field) ? singletonMap("baggage", (String) value) : emptyMap(),
-        "tag".equals(field) ? singletonMap("tag", value) : emptyMap());
+        "tag".equals(field) ? singletonMap("tag", value) : emptyMap()
+    );
   }
 
   @Test
@@ -431,11 +444,11 @@ class TraceMapperV05PayloadTest {
    */
   @Test
   void otlpExportMarkerOnlyOnFirstSpanOfFirstNonEmptyChunk() {
-    List<List<PojoSpan>> traces =
-        Arrays.asList(
-            Collections.emptyList(),
-            Arrays.asList(plainSpan(1), plainSpan(2)),
-            Collections.singletonList(plainSpan(3)));
+    List<List<PojoSpan>> traces = Arrays.asList(
+        Collections.emptyList(),
+        Arrays.asList(plainSpan(1), plainSpan(2)),
+        Collections.singletonList(plainSpan(3))
+    );
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(200 << 10, verifier));
@@ -455,10 +468,10 @@ class TraceMapperV05PayloadTest {
   @Test
   @WithConfig(
       key = WRITER_TYPE,
-      value = MULTI_WRITER_TYPE + ":" + OTLP_WRITER_TYPE + ",DDAgentWriter")
+      value = MULTI_WRITER_TYPE + ":" + OTLP_WRITER_TYPE + ",DDAgentWriter"
+  )
   void otlpExportMarkerIsTrueWhenAlsoExportingOverOtlp() {
-    List<List<PojoSpan>> traces =
-        Collections.singletonList(Collections.singletonList(plainSpan(1)));
+    List<List<PojoSpan>> traces = Collections.singletonList(Collections.singletonList(plainSpan(1)));
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper).expectOtlpExport("true");
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(200 << 10, verifier));
@@ -478,7 +491,8 @@ class TraceMapperV05PayloadTest {
       long spanId,
       CharSequence resourceName,
       Map<String, String> baggage,
-      Map<String, Object> tags) {
+      Map<String, Object> tags
+  ) {
     return new PojoSpan(
         "service",
         "operation",
@@ -495,20 +509,19 @@ class TraceMapperV05PayloadTest {
         false,
         0,
         0,
-        "origin");
+        "origin"
+    );
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer {
-
     private final List<List<PojoSpan>> expectedTraces;
     private final TraceMapperV0_5 mapper;
     private final PayloadVerifiers.CapturingChannel channel;
-
     private int position = 0;
-
-    /** Expected value of the payload-scoped {@code _dd.sdk.otlp_export} marker. */
+    /**
+     * Expected value of the payload-scoped {@code _dd.sdk.otlp_export} marker.
+     */
     private String expectedOtlpExport = "false";
-
     /**
      * Payload-spanning index of the chunk the marker was last seen on, or {@code -1} if it was
      * never seen. The span index within that chunk is not tracked: {@link #accept} already asserts
@@ -526,7 +539,9 @@ class TraceMapperV05PayloadTest {
       this.channel = new PayloadVerifiers.CapturingChannel(size);
     }
 
-    /** Sets the expected {@code _dd.sdk.otlp_export} value (defaults to {@code "false"}). */
+    /**
+     * Sets the expected {@code _dd.sdk.otlp_export} value (defaults to {@code "false"}).
+     */
     PayloadVerifier expectOtlpExport(String value) {
       this.expectedOtlpExport = value;
       return this;
@@ -625,7 +640,8 @@ class TraceMapperV05PayloadTest {
               Number n = unpackNumber(unpacker, key);
               if (DD_MEASURED.toString().equals(key)) {
                 assertTrue(
-                    (n.intValue() == 1 && expectedSpan.isMeasured()) || !expectedSpan.isMeasured());
+                    (n.intValue() == 1 && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
+                );
               } else if (DDSpanContext.PRIORITY_SAMPLING_KEY.equals(key)) {
                 // check that priority sampling is only on first and last span
                 if (k == 0 || k == spanCount - 1) {
@@ -643,14 +659,16 @@ class TraceMapperV05PayloadTest {
                     ((Number) expectedSpan.getTag(metric.getKey())).doubleValue(),
                     metric.getValue().doubleValue(),
                     0.001,
-                    metric.getKey());
+                    metric.getKey()
+                );
               } else {
                 // Integer-typed metrics round-trip through msgpack's minimal encoding, so a Long
                 // tag can come back as an Integer (and vice versa). Compare numerically.
                 assertEquals(
                     ((Number) expectedSpan.getTag(metric.getKey())).longValue(),
                     metric.getValue().longValue(),
-                    metric.getKey());
+                    metric.getKey()
+                );
               }
             }
             String type = dictionary[unpacker.unpackInt()];
@@ -658,7 +676,9 @@ class TraceMapperV05PayloadTest {
           }
         }
         assertFalse(
-            unpacker.hasNext(), "payload must contain only complete dictionary entries and traces");
+            unpacker.hasNext(),
+            "payload must contain only complete dictionary entries and traces"
+        );
       } catch (IOException e) {
         fail(e.getMessage());
       } finally {
@@ -667,7 +687,9 @@ class TraceMapperV05PayloadTest {
         mapper.reset();
         channel.resetForWriting();
         assertEquals(
-            Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0, processTagsCount);
+            Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0,
+            processTagsCount
+        );
         // exactly one _dd.sdk.otlp_export per payload, never per span
         assertEquals(1, otlpExportCount);
       }
@@ -684,16 +706,12 @@ class TraceMapperV05PayloadTest {
    */
   private static int calculateSize(List<PojoSpan> trace, boolean firstInPayload) {
     AtomicInteger size = new AtomicInteger();
-    MsgPackWriter packer =
-        new MsgPackWriter(
-            new FlushingBuffer(
-                1024,
-                new ByteBufferConsumer() {
-                  @Override
-                  public void accept(int messageCount, ByteBuffer buffer) {
-                    size.set(buffer.limit() - buffer.position());
-                  }
-                }));
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, new ByteBufferConsumer() {
+      @Override
+      public void accept(int messageCount, ByteBuffer buffer) {
+        size.set(buffer.limit() - buffer.position());
+      }
+    }));
     TraceMapperV0_5 mapper = new TraceMapperV0_5(1024);
     if (!firstInPayload) {
       // burn the payload-scoped markers on a throwaway trace

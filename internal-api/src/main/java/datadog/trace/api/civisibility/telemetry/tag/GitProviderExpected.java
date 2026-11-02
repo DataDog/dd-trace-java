@@ -8,7 +8,6 @@ public enum GitProviderExpected implements TagValue {
   LOCAL_GIT,
   GIT_CLIENT,
   EMBEDDED;
-
   @Override
   public String asString() {
     return "expected_provider:" + name().toLowerCase();

@@ -17,12 +17,9 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 public class FileProbes implements CoverageProbes {
-
   private final CiVisibilityMetricCollector metrics;
-
   private final Map<Class<?>, Class<?>> coveredClasses;
   private final Map<String, String> nonCodeResources;
-
   private Class<?> lastCoveredClass;
 
   FileProbes(CiVisibilityMetricCollector metrics, boolean isTestThread) {
@@ -43,7 +40,6 @@ public class FileProbes implements CoverageProbes {
         // optimization to avoid map lookup when reporting same class several times in a row
         coveredClasses.put(lastCoveredClass = clazz, clazz);
       }
-
     } catch (Exception e) {
       metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.RECORD);
       throw e;

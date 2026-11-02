@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeHasSuperTypeMatcher.safeGetSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.hasSignature;
-
 import java.util.HashSet;
 import java.util.Set;
 import net.bytebuddy.description.method.MethodDescription;
@@ -12,8 +11,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 // TODO: add javadoc
 class HasSuperMethodMatcher<T extends MethodDescription>
-    extends ElementMatcher.Junction.ForNonNullValues<T> {
-
+    extends ElementMatcher.Junction.ForNonNullValues<T>
+{
   private final ElementMatcher<? super MethodDescription> matcher;
 
   public HasSuperMethodMatcher(final ElementMatcher<? super MethodDescription> matcher) {
@@ -46,7 +45,8 @@ class HasSuperMethodMatcher<T extends MethodDescription>
   private boolean matchesInterface(
       final TypeList.Generic interfaces,
       final Junction<MethodDescription> signatureMatcher,
-      final Set<TypeDefinition> checkedInterfaces) {
+      final Set<TypeDefinition> checkedInterfaces
+  ) {
     for (final TypeDefinition type : interfaces) {
       if (checkedInterfaces.add(type)) {
         for (final MethodDescription methodDescription : type.getDeclaredMethods()) {

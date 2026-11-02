@@ -3,7 +3,6 @@ package datadog.communication;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
@@ -23,7 +22,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.tabletest.junit.TableTest;
 
-/** Pins send-once on the clients that BackendApiFactory builds, for both EVP routes. */
+/**
+ * Pins send-once on the clients that BackendApiFactory builds, for both EVP routes.
+ */
 class SendOnceTransportTest extends DDJavaSpecification {
   private MockWebServer server;
   private OkHttpClient agentClient;
@@ -36,22 +37,19 @@ class SendOnceTransportTest extends DDJavaSpecification {
     agentClient = new OkHttpClient();
     // Direct URLs are fixed to https://event-platform-intake.<site>/. Send them to the local
     // server.
-    intakeClient =
-        new OkHttpClient.Builder()
-            .addInterceptor(
-                chain -> {
-                  final Request original = chain.request();
-                  final HttpUrl local =
-                      original
-                          .url()
-                          .newBuilder()
-                          .scheme("http")
-                          .host(server.getHostName())
-                          .port(server.getPort())
-                          .build();
-                  return chain.proceed(original.newBuilder().url(local).build());
-                })
-            .build();
+    intakeClient = new OkHttpClient.Builder()
+      .addInterceptor(chain -> {
+        final Request original = chain.request();
+        final HttpUrl local = original
+          .url()
+          .newBuilder()
+          .scheme("http")
+          .host(server.getHostName())
+          .port(server.getPort())
+          .build();
+        return chain.proceed(original.newBuilder().url(local).build());
+      })
+      .build();
   }
 
   @AfterEach
@@ -72,21 +70,24 @@ class SendOnceTransportTest extends DDJavaSpecification {
     "direct control   | direct | false     | 3        | false            "
   })
   void doesNotReplayAPostAfterThePooledConnectionDrops(
-      final String route, final boolean sendOnce, final int requests, final boolean secondPostFails)
-      throws Exception {
+      final String route,
+      final boolean sendOnce,
+      final int requests,
+      final boolean secondPostFails
+  ) throws Exception {
     // The first call leaves a pooled connection. The server drops it during the second call.
     server.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
     server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST));
     server.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
     final BackendApiFactory factory = factory(sendOnce);
-    final BackendApi api =
-        route.equals("proxy")
-            ? factory.createEvpProxyApiForEndpoint(
-                Intake.EVENT_PLATFORM,
-                false,
-                HttpRetryPolicy.Factory.NEVER_RETRY,
-                V4_EVP_PROXY_ENDPOINT)
-            : factory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false);
+    final BackendApi api = route.equals("proxy")
+        ? factory.createEvpProxyApiForEndpoint(
+            Intake.EVENT_PLATFORM,
+            false,
+            HttpRetryPolicy.Factory.NEVER_RETRY,
+            V4_EVP_PROXY_ENDPOINT
+    )
+        : factory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false);
 
     post(api);
     if (secondPostFails) {
@@ -99,13 +100,12 @@ class SendOnceTransportTest extends DDJavaSpecification {
   }
 
   private BackendApiFactory factory(final boolean sendOnce) {
-    final SharedCommunicationObjects sco =
-        new SharedCommunicationObjects() {
-          @Override
-          public OkHttpClient getIntakeHttpClient() {
-            return intakeClient;
-          }
-        };
+    final SharedCommunicationObjects sco = new SharedCommunicationObjects() {
+      @Override
+      public OkHttpClient getIntakeHttpClient() {
+        return intakeClient;
+      }
+    };
     sco.agentUrl = server.url("/");
     sco.agentHttpClient = agentClient;
     return new BackendApiFactory(Config.get(), sco, sendOnce);
@@ -117,6 +117,7 @@ class SendOnceTransportTest extends DDJavaSpecification {
         RequestBody.create(MediaType.parse("application/json"), "{}"),
         stream -> null,
         null,
-        false);
+        false
+    );
   }
 }

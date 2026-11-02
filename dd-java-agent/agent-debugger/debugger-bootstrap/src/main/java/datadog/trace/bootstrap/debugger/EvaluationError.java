@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.debugger;
 
-/** Store evaluation errors from expressions (probe conditions, log template, metric values, ...) */
+/**
+ * Store evaluation errors from expressions (probe conditions, log template, metric values, ...)
+ */
 public class EvaluationError {
   private final String expr;
   private final String message;

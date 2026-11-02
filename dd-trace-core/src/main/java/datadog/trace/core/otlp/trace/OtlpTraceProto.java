@@ -40,7 +40,6 @@ import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.SPAN_TYPE;
 import static datadog.trace.core.otlp.trace.OtlpSpanAttributes.isExportedTagKey;
 import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
@@ -60,18 +59,22 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import java.util.Map;
 
-/** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
+/**
+ * Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol.
+ */
 public final class OtlpTraceProto {
+  private OtlpTraceProto() {
+  }
 
-  private OtlpTraceProto() {}
-
-  /** Records a scoped spans message after its nested span messages have been recorded. */
+  /**
+   * Records a scoped spans message after its nested span messages have been recorded.
+   */
   public static int recordScopedSpansMessage(
       GrowableBuffer buf,
       OtelInstrumentationScope scope,
       int nestedSpanBytes,
-      OtlpProtoBuffer protobuf) {
-
+      OtlpProtoBuffer protobuf
+  ) {
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeInstrumentationScope(buf, scope);
     if (scope.getSchemaUrl() != null) {
@@ -82,13 +85,16 @@ public final class OtlpTraceProto {
     return protobuf.recordMessage(buf, 2, nestedSpanBytes);
   }
 
-  /** Records a span message after its nested span-link messages have been recorded. */
+  /**
+   * Records a span message after its nested span-link messages have been recorded.
+   */
   public static int recordSpanMessage(
       GrowableBuffer buf,
       DDSpan span,
       MetaWriter metaWriter,
       int nestedSpanLinkBytes,
-      OtlpProtoBuffer protobuf) {
+      OtlpProtoBuffer protobuf
+  ) {
     PropagationTags propagationTags = span.spanContext().getPropagationTags();
     SamplingState samplingState = propagationTags.samplingState();
 
@@ -146,11 +152,12 @@ public final class OtlpTraceProto {
     if (span.getSpanType() != null) {
       writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
     }
-
     // Export root propagation tags on the span selected by the collector for sampling tags,
     // including when the exported trace contains no local root span.
     span.processTagsAndBaggage(
-        metaWriter, metaWriter.includeSamplingTags ? ROOT_PROPAGATION_TAGS : 0);
+        metaWriter,
+        metaWriter.includeSamplingTags ? ROOT_PROPAGATION_TAGS : 0
+    );
 
     if (span.isError()) {
       int stateSize = 2;
@@ -173,10 +180,14 @@ public final class OtlpTraceProto {
     return protobuf.recordMessage(buf, 2, nestedSpanLinkBytes);
   }
 
-  /** Records a span-link message. */
+  /**
+   * Records a span-link message.
+   */
   public static int recordSpanLinkMessage(
-      GrowableBuffer buf, AgentSpanLink spanLink, OtlpProtoBuffer protobuf) {
-
+      GrowableBuffer buf,
+      AgentSpanLink spanLink,
+      OtlpProtoBuffer protobuf
+  ) {
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, spanLink.traceId());
 
@@ -189,13 +200,12 @@ public final class OtlpTraceProto {
     }
 
     spanLink
-        .attributes()
-        .asMap()
-        .forEach(
-            (key, value) -> {
-              writeTag(buf, 4, LEN_WIRE_TYPE);
-              writeAttribute(buf, STRING_ATTRIBUTE, key, value);
-            });
+      .attributes()
+      .asMap()
+      .forEach((key, value) -> {
+        writeTag(buf, 4, LEN_WIRE_TYPE);
+        writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+      });
 
     writeTag(buf, 6, I32_WIRE_TYPE);
     writeI32(buf, spanLink.traceFlags() & 0xff);
@@ -215,16 +225,18 @@ public final class OtlpTraceProto {
   }
 
   private static void writeSpanTag(
-      StreamingBuffer buf, Integer direction, TagMap.EntryReader tagEntry) {
+      StreamingBuffer buf,
+      Integer direction,
+      TagMap.EntryReader tagEntry
+  ) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
     // OTLP is the OpenTelemetry wire format, but the rename itself is opt-in: emit the
     // OpenTelemetry-namespace name only when OTel semantics are enabled, else the entry's own
     // (Datadog) name, so existing consumers keep seeing Datadog names until they opt in. A few
     // OpenTelemetry names depend on the span's direction (peer.port is server.port on a client).
-    String key =
-        Config.get().isTraceOtelSemanticsEnabled()
-            ? tagEntry.openTelemetryTag(direction)
-            : tagEntry.tag();
+    String key = Config.get().isTraceOtelSemanticsEnabled()
+        ? tagEntry.openTelemetryTag(direction)
+        : tagEntry.tag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
         writeAttribute(buf, BOOLEAN_ATTRIBUTE, key, tagEntry.objectValue());
@@ -242,8 +254,7 @@ public final class OtlpTraceProto {
     }
   }
 
-  private static void writeSpanTag(
-      StreamingBuffer buf, UTF8BytesString key, UTF8BytesString value) {
+  private static void writeSpanTag(StreamingBuffer buf, UTF8BytesString key, UTF8BytesString value) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
     writeAttribute(buf, key, value);
   }
@@ -265,7 +276,6 @@ public final class OtlpTraceProto {
   public static class MetaWriter implements MetadataConsumer {
     private final StreamingBuffer buf;
     private final OtlpSpanAttributes.Writer<StreamingBuffer> spanTags;
-
     private boolean includeProcessTags;
     private boolean includeSamplingTags;
 
@@ -274,12 +284,16 @@ public final class OtlpTraceProto {
       this.spanTags = new OtlpSpanAttributes.Writer<>(buf, OtlpTraceProto::writeSpanTag);
     }
 
-    /** Call this to ensure process tags are written out for the next span. */
+    /**
+     * Call this to ensure process tags are written out for the next span.
+     */
     public void includeProcessTags() {
       includeProcessTags = true;
     }
 
-    /** Call this to ensure sampling tags are written out for the next span. */
+    /**
+     * Call this to ensure sampling tags are written out for the next span.
+     */
     public void includeSamplingTags() {
       includeSamplingTags = true;
     }
@@ -309,10 +323,9 @@ public final class OtlpTraceProto {
       if (metadata.getHttpStatusCode() != UNSET_STATUS) {
         writeSpanTag(
             buf,
-            Config.get().isTraceOtelSemanticsEnabled()
-                ? HTTP_STATUS_CODE_KEY
-                : HTTP_STATUS_CODE_KEY_DD,
-            metadata.getHttpStatusCode());
+            Config.get().isTraceOtelSemanticsEnabled() ? HTTP_STATUS_CODE_KEY : HTTP_STATUS_CODE_KEY_DD,
+            metadata.getHttpStatusCode()
+        );
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(buf, ORIGIN_KEY, metadata.getOrigin());
@@ -325,7 +338,6 @@ public final class OtlpTraceProto {
       // The direction is computed once per span; boxing -1..2 hits the Integer cache.
       Integer direction = KnownTagCodec.directionOf(tags);
       boolean otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
-
       // Baggage carries the propagation tags (e.g. the _dd.p.dm sampling decision maker) and any
       // baggage items injected as tags, as in the Datadog mappers. Span tags and the attributes
       // written directly above win when they are exported under the same key, which keeps OTLP
@@ -338,10 +350,8 @@ public final class OtlpTraceProto {
         writeTag(buf, 9, LEN_WIRE_TYPE);
         writeAttribute(buf, STRING_ATTRIBUTE, entry.getKey(), entry.getValue());
       }
-
       // global tags are left to the resource
       spanTags.write(metadata, direction);
-
       // reset for next span
       includeProcessTags = false;
       includeSamplingTags = false;

@@ -16,6 +16,7 @@ public class ChatCompletionModule extends InstrumenterModule.Tracing {
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
         new ChatCompletionServiceAsyncInstrumentation(),
-        new ChatCompletionServiceInstrumentation());
+        new ChatCompletionServiceInstrumentation()
+    );
   }
 }

@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.profiling.controller.ControllerContext;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.InputStream;
@@ -34,8 +33,10 @@ class OracleJdkControllerTest {
 
   @Test
   void createRecordingInvalid() {
-    assertThrows(
-        Throwable.class, () -> instance.createRecording(null, new ControllerContext().snapshot()));
+    assertThrows(Throwable.class, () -> instance.createRecording(
+        null,
+        new ControllerContext().snapshot()
+    ));
   }
 
   @Test
@@ -45,7 +46,6 @@ class OracleJdkControllerTest {
     try (OracleJdkOngoingRecording recording =
         instance.createRecording(recordingName, new ControllerContext().snapshot())) {
       assertNotNull(recording);
-
       // sleep a while to allow a few events to be collected
       Thread.sleep(300);
       Instant end = Instant.now();
@@ -59,7 +59,6 @@ class OracleJdkControllerTest {
 
       try (InputStream is = snapshot.getStream()) {
         assertNotNull(is);
-
         // make sure the stream can be read in whole and that it produces non-zero amount of data
         assertTrue(is.available() > 0);
         int len = 0;
@@ -89,7 +88,6 @@ class OracleJdkControllerTest {
     try (OracleJdkOngoingRecording recording =
         instance.createRecording(recordingName, new ControllerContext().snapshot())) {
       assertNotNull(recording);
-
       // sleep a while to allow a few events to be collected
       Thread.sleep(300);
       OracleJdkRecordingData snapshot = recording.stop();
@@ -99,7 +97,6 @@ class OracleJdkControllerTest {
 
       try (InputStream is = snapshot.getStream()) {
         assertNotNull(is);
-
         // make sure the stream can be read in whole and that it produces non-zero amount of data
         assertTrue(is.available() > 0);
         int len = 0;
@@ -119,7 +116,6 @@ class OracleJdkControllerTest {
     try (OracleJdkOngoingRecording recording =
         instance.createRecording(recordingName, new ControllerContext().snapshot())) {
       assertNotNull(recording);
-
       // sleep a while to allow a few events to be collected
       Thread.sleep(300);
       OracleJdkRecordingData snapshot = recording.stop();

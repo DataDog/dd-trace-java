@@ -14,7 +14,8 @@ public interface UsmExtractor {
 
     @SuppressFBWarnings(
         value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-        justification = "Agent-internal holder; Class lock does not escape to application code")
+        justification = "Agent-internal holder; Class lock does not escape to application code"
+    )
     public static synchronized void registerIfAbsent(UsmExtractor supplier) {
       if (SUPPLIER == null) {
         SUPPLIER = supplier;

@@ -23,7 +23,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadog.appsec.ddwaf.WafInitialization;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.KnownAddresses;
@@ -69,12 +68,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class AppSecRequestContextTest {
-
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
-
+  private static final JsonAdapter<Map<String, Object>> ADAPTER = new Moshi.Builder()
+    .build()
+    .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
   private final AppSecRequestContext ctx = new AppSecRequestContext();
   private WafBuilder wafBuilder;
 
@@ -92,7 +88,9 @@ class AppSecRequestContextTest {
     assertEquals(1, ctx.size());
     assertEquals("/a", ctx.get(KnownAddresses.REQUEST_URI_RAW));
     assertEquals(
-        singletonList(KnownAddresses.REQUEST_URI_RAW), new ArrayList<>(ctx.getAllAddresses()));
+        singletonList(KnownAddresses.REQUEST_URI_RAW),
+        new ArrayList<>(ctx.getAllAddresses())
+    );
     assertTrue(ctx.hasAddress(KnownAddresses.REQUEST_URI_RAW));
 
     Iterator<Map.Entry<Address<?>, Object>> iterator = ctx.iterator();
@@ -108,7 +106,6 @@ class AppSecRequestContextTest {
   @Test
   void itIsCloseable() {
     assertInstanceOf(Closeable.class, ctx);
-
     // close() on a context that was never used must not throw.
     ctx.close();
   }
@@ -119,8 +116,9 @@ class AppSecRequestContextTest {
 
     assertTrue(ctx.isFinishedRequestHeaders());
     assertThrows(IllegalStateException.class, () -> ctx.addRequestHeader("a", "b"));
-    assertThrows(
-        IllegalStateException.class, () -> ctx.addCookies(singletonMap("a", singletonList("b"))));
+    assertThrows(IllegalStateException.class, () -> ctx.addCookies(
+        singletonMap("a", singletonList("b"))
+    ));
   }
 
   @Test
@@ -206,16 +204,20 @@ class AppSecRequestContextTest {
       assertEquals(
           header.toLowerCase(Locale.ROOT),
           header,
-          "REASON: Allow header name \"" + header + "\" MUST be lowercase");
+          "REASON: Allow header name \"" + header + "\" MUST be lowercase"
+      );
     }
   }
 
   private static Stream<Arguments> headersAllowListShouldContainOnlyLowercaseNamesArguments() {
     return Stream.of(
         arguments(
-            "Default request headers", AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST),
+            "Default request headers",
+            AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST
+        ),
         arguments("Request headers", AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST),
-        arguments("Response headers", AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST));
+        arguments("Response headers", AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST)
+    );
   }
 
   @Test
@@ -273,7 +275,6 @@ class AppSecRequestContextTest {
     WafContext wafContext = createWafContext(ctx);
 
     ctx.close();
-
     // isWafContextClosed() is the public witness for the nulled wafContext field.
     assertTrue(ctx.isWafContextClosed());
     assertFalse(wafContext.isOnline());
@@ -284,12 +285,10 @@ class AppSecRequestContextTest {
     RateLimiter rateLimiter = mock(RateLimiter.class);
     when(rateLimiter.isThrottled()).thenReturn(true);
     AppSecRequestContext appSecRequestContext = new AppSecRequestContext();
-
     // rate limiter is called and throttled is set
     boolean result = appSecRequestContext.isThrottled(rateLimiter);
 
     assertTrue(result);
-
     // rate limiter is not called more than once per appsec context, returns first result
     boolean secondResult = appSecRequestContext.isThrottled(rateLimiter);
 
@@ -314,7 +313,6 @@ class AppSecRequestContextTest {
     assertFalse(wafContext.isOnline());
     // Check that derivatives AtomicReference contains null after close
     assertNull(derivativesField(context).get());
-
     // Field access, not the getter: it null-coalesces, so emptiness would prove nothing.
     assertNull(requestHeadersField(context));
     assertNull(responseHeadersField(context));
@@ -382,7 +380,6 @@ class AppSecRequestContextTest {
     context.setResponseStatus(200);
     context.addRequestHeader("user-agent", "TestAgent/1.0");
     context.addRequestHeader("content-type", "application/json");
-
     // Test data for attributes
     Map<String, Object> attributes = new HashMap<>();
     attributes.put("_dd.appsec.s.res.headers", literalValue("literal-header-value"));
@@ -410,7 +407,6 @@ class AppSecRequestContextTest {
 
     context.reportDerivatives(attributes);
     Set<String> keys = context.getDerivativeKeys();
-
     // No attributes should be added for unknown addresses
     assertTrue(keys.isEmpty());
   }
@@ -424,7 +420,6 @@ class AppSecRequestContextTest {
 
     context.reportDerivatives(attributes);
     Set<String> keys = context.getDerivativeKeys();
-
     // No attributes should be added for invalid key paths
     assertTrue(keys.isEmpty());
   }
@@ -459,7 +454,6 @@ class AppSecRequestContextTest {
     TraceSegment traceSegment = mock(TraceSegment.class);
     // Capture what setTagTop is being called with
     Map<String, Object> committedTags = captureCommittedTags(traceSegment);
-
     // Set up derivatives with different types
     Map<String, Object> derivatives = new HashMap<>();
     derivatives.put("numeric_int", literalValue(42));
@@ -476,33 +470,27 @@ class AppSecRequestContextTest {
 
     assertTrue(result);
     assertEquals(8, committedTags.size());
-
     // Verify numeric values are preserved as numbers
     assertEquals(42, committedTags.get("numeric_int"));
     assertInstanceOf(Integer.class, committedTags.get("numeric_int"));
-
     // Unlike Groovy, where 3.14 is a BigDecimal, Java gives a Double - both are Numbers
     assertEquals(3.14, committedTags.get("numeric_double"));
     assertInstanceOf(Number.class, committedTags.get("numeric_double"));
-
     // Verify strings are handled correctly
     assertEquals("test_string", committedTags.get("string_value"));
     assertInstanceOf(String.class, committedTags.get("string_value"));
-
     // Verify booleans are preserved
     assertEquals(true, committedTags.get("boolean_true"));
     assertInstanceOf(Boolean.class, committedTags.get("boolean_true"));
 
     assertEquals(false, committedTags.get("boolean_false"));
     assertInstanceOf(Boolean.class, committedTags.get("boolean_false"));
-
     // Verify numeric strings are converted to numbers
     assertEquals(100L, committedTags.get("numeric_string"));
     assertInstanceOf(Long.class, committedTags.get("numeric_string"));
 
     assertEquals(99.5, committedTags.get("double_string"));
     assertInstanceOf(Number.class, committedTags.get("double_string"));
-
     // Verify non-numeric strings remain strings
     assertEquals("not_a_number", committedTags.get("non_numeric_string"));
     assertInstanceOf(String.class, committedTags.get("non_numeric_string"));
@@ -521,7 +509,6 @@ class AppSecRequestContextTest {
     assertEquals(2, context.getDerivativeKeys().size());
 
     context.commitDerivatives(traceSegment);
-
     // Derivatives should be cleared after commit
     assertTrue(context.getDerivativeKeys().isEmpty());
     assertNull(derivativesField(context).get());
@@ -537,7 +524,6 @@ class AppSecRequestContextTest {
   @Test
   void testMultipleReportDerivativesCallsAccumulateValues() {
     AppSecRequestContext context = new AppSecRequestContext();
-
     // First report
     Map<String, Object> firstReport = new HashMap<>();
     firstReport.put("attr1", literalValue("value1"));
@@ -545,7 +531,6 @@ class AppSecRequestContextTest {
     context.reportDerivatives(firstReport);
 
     assertEquals(new HashSet<>(asList("attr1", "attr2")), context.getDerivativeKeys());
-
     // Second report - should accumulate
     Map<String, Object> secondReport = new HashMap<>();
     secondReport.put("attr3", literalValue("value3"));
@@ -553,7 +538,9 @@ class AppSecRequestContextTest {
     context.reportDerivatives(secondReport);
 
     assertEquals(
-        new HashSet<>(asList("attr1", "attr2", "attr3", "attr4")), context.getDerivativeKeys());
+        new HashSet<>(asList("attr1", "attr2", "attr3", "attr4")),
+        context.getDerivativeKeys()
+    );
   }
 
   @Test
@@ -561,7 +548,6 @@ class AppSecRequestContextTest {
     AppSecRequestContext context = new AppSecRequestContext();
     TraceSegment traceSegment = mock(TraceSegment.class);
     Map<String, Object> committedTags = captureCommittedTags(traceSegment);
-
     // First report
     context.reportDerivatives(singletonMap("attr1", literalValue("first_value")));
     // Second report with same key - should overwrite
@@ -576,31 +562,29 @@ class AppSecRequestContextTest {
     AppSecRequestContext context = new AppSecRequestContext();
     int numThreads = 3;
     CountDownLatch startLatch = new CountDownLatch(1);
-
     // Simulate concurrent updates from multiple threads
     ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
     List<Future<?>> futures = new ArrayList<>();
     try {
       for (int thread = 0; thread < numThreads; thread++) {
         int firstAttribute = thread * 2 + 1;
-        futures.add(
-            executorService.submit(
-                () -> {
-                  startLatch.await(); // Wait for all threads to be ready
-                  context.reportDerivatives(
-                      singletonMap(
-                          "attr" + firstAttribute, literalValue("value" + firstAttribute)));
-                  context.reportDerivatives(
-                      singletonMap(
-                          "attr" + (firstAttribute + 1),
-                          literalValue("value" + (firstAttribute + 1))));
-                  return null;
-                }));
+        futures.add(executorService.submit(() -> {
+          // Wait for all threads to be ready
+          startLatch.await();
+          context.reportDerivatives(
+              singletonMap("attr" + firstAttribute, literalValue("value" + firstAttribute))
+          );
+          context.reportDerivatives(
+              singletonMap(
+                  "attr" + (firstAttribute + 1),
+                  literalValue("value" + (firstAttribute + 1))
+              )
+          );
+          return null;
+        }));
       }
-
       // Release all threads at once to maximize concurrent execution
       startLatch.countDown();
-
       // Wait for all tasks to complete using the futures
       for (Future<?> future : futures) {
         future.get();
@@ -608,7 +592,6 @@ class AppSecRequestContextTest {
     } finally {
       executorService.shutdown();
     }
-
     // Verify all attributes were added despite concurrent access
     Set<String> keys = context.getDerivativeKeys();
     // At least the 6 we explicitly added
@@ -621,18 +604,19 @@ class AppSecRequestContextTest {
   @ParameterizedTest(name = "numeric conversion with edge cases: {0}")
   @MethodSource("testNumericConversionWithEdgeCasesArguments")
   void testNumericConversionWithEdgeCases(
-      String description, String inputValue, Object expectedValue) {
+      String description,
+      String inputValue,
+      Object expectedValue
+  ) {
     AppSecRequestContext context = new AppSecRequestContext();
     TraceSegment traceSegment = mock(TraceSegment.class);
     Map<String, Object> committedTags = captureCommittedTags(traceSegment);
 
     context.reportDerivatives(singletonMap("test_attr", literalValue(inputValue)));
     context.commitDerivatives(traceSegment);
-
     // When conversion fails (expectedValue is null), the original string value should be preserved
     // When conversion succeeds, the converted numeric value should be used
-    assertEquals(
-        expectedValue != null ? expectedValue : inputValue, committedTags.get("test_attr"));
+    assertEquals(expectedValue != null ? expectedValue : inputValue, committedTags.get("test_attr"));
   }
 
   private static Stream<Arguments> testNumericConversionWithEdgeCasesArguments() {
@@ -644,44 +628,37 @@ class AppSecRequestContextTest {
         arguments("integer with plus sign", "+999", 999L),
         arguments("large valid long", "9223372036854775807", 9223372036854775807L),
         arguments("large negative long", "-9223372036854775808", -9223372036854775808L),
-
         // Valid decimals
         arguments("simple decimal", "3.14", 3.14d),
         arguments("negative decimal", "-0.5", -0.5d),
         arguments("decimal with plus sign", "+99.99", 99.99d),
         arguments("zero decimal", "0.0", 0.0d),
         arguments("decimal with many digits", "123.456789", 123.456789d),
-
         // Whitespace handling (should now parse after trim - issue #10494 fix)
         arguments("leading whitespace integer", " 42", 42L),
         arguments("trailing whitespace integer", "42 ", 42L),
         arguments("both whitespace integer", " 42 ", 42L),
         arguments("tab and newline whitespace", "\t100\n", 100L),
         arguments("multiple spaces decimal", "  -3.14  ", -3.14d),
-
         // Empty and null
         arguments("null value", null, null),
         arguments("empty string", "", null),
         arguments("whitespace only", "   ", null),
         arguments("tab only", "\t", null),
-
         // Invalid formats (should return null, original string preserved)
         arguments("alphabetic string", "abc", null),
         arguments("alphanumeric string", "12x34", null),
         arguments("multiple decimals", "3.14.15", null),
         arguments("multiple signs", "+-5", null),
         arguments("sign in middle", "12-34", null),
-
         // Sign-only strings
         arguments("plus sign only", "+", null),
         arguments("minus sign only", "-", null),
         arguments("plus with whitespace", " + ", null),
-
         // Overflow cases (should return null gracefully)
         arguments("long overflow positive", "9223372036854775808", null),
         arguments("long overflow negative", "-9223372036854775809", null),
         arguments("very large number", "99999999999999999999999", null),
-
         // Scientific notation (now supported for backward compatibility)
         arguments("scientific notation lowercase", "1e10", 1.0e10d),
         arguments("scientific notation uppercase", "1E10", 1.0E10d),
@@ -689,33 +666,29 @@ class AppSecRequestContextTest {
         arguments("scientific negative exponent", "3.5E-7", 3.5E-7d),
         arguments("scientific with sign", "-2.5e+3", -2.5e+3d),
         arguments("scientific integer base", "5e3", 5000.0d),
-
         // Exotic number formats (not supported)
         arguments("hexadecimal", "0x10", null),
         arguments("binary", "0b1010", null),
         arguments("octal", "0777", 777L),
-
         // Edge decimal cases (note: .5 and 5. are valid Java double literals)
         arguments("decimal starts with dot", ".5", 0.5d),
         arguments("decimal ends with dot", "5.", 5.0d),
         arguments("dot only", ".", null),
         arguments("multiple dots", "...", null),
-
         // Regression - ensure existing valid formats still work
         arguments("regression valid integer", "100", 100L),
         arguments("regression valid decimal", "99.5", 99.5d),
         arguments("regression negative", "-50", -50L),
-
         // Special characters
         arguments("comma separator", "1,000", null),
         arguments("underscore separator", "1_000", null),
         arguments("currency symbol", "$100", null),
         arguments("percentage", "50%", null),
-
         // Edge cases with zeros
         arguments("zero with plus", "+0", 0L),
         arguments("zero with minus", "-0", 0L),
-        arguments("decimal zero variations", "0.00", 0.0d));
+        arguments("decimal zero variations", "0.00", 0.0d)
+    );
   }
 
   @Test
@@ -756,12 +729,16 @@ class AppSecRequestContextTest {
     assertEquals(new HashSet<>(asList("ua_lowercase", "ua_uppercase")), keys);
   }
 
-  /** A derivative schema holding a literal value, reported as-is. */
+  /**
+   * A derivative schema holding a literal value, reported as-is.
+   */
   private static Map<String, Object> literalValue(Object value) {
     return singletonMap("value", value);
   }
 
-  /** A derivative schema extracting the whole value stored at the given address. */
+  /**
+   * A derivative schema extracting the whole value stored at the given address.
+   */
   private static Map<String, Object> addressValue(String address) {
     return singletonMap("address", address);
   }
@@ -781,16 +758,15 @@ class AppSecRequestContextTest {
     return schema;
   }
 
-  /** Records every {@code setTagTop} call on the mock into the returned map. */
+  /**
+   * Records every {@code setTagTop} call on the mock into the returned map.
+   */
   private static Map<String, Object> captureCommittedTags(TraceSegment traceSegment) {
     Map<String, Object> committedTags = new HashMap<>();
-    doAnswer(
-            invocation -> {
-              committedTags.put(invocation.getArgument(0), invocation.getArgument(1));
-              return null;
-            })
-        .when(traceSegment)
-        .setTagTop(anyString(), any());
+    doAnswer(invocation -> {
+      committedTags.put(invocation.getArgument(0), invocation.getArgument(1));
+      return null;
+    }).when(traceSegment).setTagTop(anyString(), any());
     return committedTags;
   }
 
@@ -806,7 +782,6 @@ class AppSecRequestContextTest {
    */
   @Nested
   class ReleaseOnClose {
-
     @Test
     void closeDoesNotMutateThePublishedDerivativesMap() {
       AppSecRequestContext context = new AppSecRequestContext();
@@ -815,7 +790,6 @@ class AppSecRequestContextTest {
       assertEquals(singleton("test_attr"), published.keySet());
 
       context.close();
-
       // The reference is detached, but the instance a concurrent reader holds is untouched.
       assertNull(derivativesField(context).get());
       assertEquals(singleton("test_attr"), published.keySet());
@@ -831,11 +805,9 @@ class AppSecRequestContextTest {
       Map<String, List<String>> responseHeaders = context.getResponseHeaders();
 
       context.close();
-
       // Readers holding these maps (e.g. async schema extraction) still see their contents.
       assertEquals(singletonMap("accept", singletonList("*")), requestHeaders);
       assertEquals(singletonMap("content-type", singletonList("text/plain")), responseHeaders);
-
       // The context dropped its own reference, so the contents are collectable.
       assertNull(requestHeadersField(context));
       assertNull(responseHeadersField(context));
@@ -844,7 +816,6 @@ class AppSecRequestContextTest {
     @Test
     void closeReleasesTheHeaderMapsWithoutAllocatingReplacements() {
       AppSecRequestContext context = new AppSecRequestContext();
-
       // An untouched context holds no header maps at all.
       assertNull(requestHeadersField(context));
       assertNull(responseHeadersField(context));
@@ -867,11 +838,10 @@ class AppSecRequestContextTest {
       AppSecRequestContext context = new AppSecRequestContext();
       context.addRequestHeader("user-agent", "foo");
       context.close();
-
       // A late WAF result extracts an attribute from a header address.
       context.reportDerivatives(
-          singletonMap("_dd.appsec.s.res.user_agent", headerValue("user-agent", null)));
-
+          singletonMap("_dd.appsec.s.res.user_agent", headerValue("user-agent", null))
+      );
       // The address lookup read the released field instead of allocating a new map.
       assertNull(requestHeadersField(context));
       assertSame(emptyMap(), context.getRequestHeaders());
@@ -882,7 +852,6 @@ class AppSecRequestContextTest {
     void headersCanStillBeRecordedAfterClose() {
       AppSecRequestContext context = new AppSecRequestContext();
       context.close();
-
       // A late header arrives after the maps were released; it is accepted, as it was when close()
       // cleared the maps in place.
       context.addRequestHeader("accept", "*");
@@ -890,7 +859,9 @@ class AppSecRequestContextTest {
 
       assertEquals(singletonMap("accept", singletonList("*")), context.getRequestHeaders());
       assertEquals(
-          singletonMap("content-type", singletonList("text/plain")), context.getResponseHeaders());
+          singletonMap("content-type", singletonList("text/plain")),
+          context.getResponseHeaders()
+      );
     }
 
     @Test
@@ -919,7 +890,10 @@ class AppSecRequestContextTest {
     @ParameterizedTest(name = "hasDerivativeKeyStartingWith: {0}")
     @MethodSource("com.datadog.appsec.gateway.AppSecRequestContextTest#derivativePrefixScenarios")
     void hasDerivativeKeyStartingWith(
-        String scenario, Map<String, Object> derivatives, boolean expected) {
+        String scenario,
+        Map<String, Object> derivatives,
+        boolean expected
+    ) {
       AppSecRequestContext context = new AppSecRequestContext();
       context.reportDerivatives(derivatives);
 
@@ -936,7 +910,9 @@ class AppSecRequestContextTest {
     }
   }
 
-  /** Declared on the outer class: {@code @MethodSource} factories must be static. */
+  /**
+   * Declared on the outer class: {@code @MethodSource} factories must be static.
+   */
   private static Stream<Arguments> derivativePrefixScenarios() {
     Map<String, Object> severalKeys = new HashMap<>();
     severalKeys.put("_dd.appsec.fp.http.header", literalValue("x"));
@@ -947,8 +923,10 @@ class AppSecRequestContextTest {
         arguments(
             "non-matching key",
             singletonMap("_dd.appsec.fp.http.header", literalValue("x")),
-            false),
-        arguments("one of several matches", severalKeys, true));
+            false
+        ),
+        arguments("one of several matches", severalKeys, true)
+    );
   }
 
   @SuppressWarnings("unchecked")
@@ -962,8 +940,7 @@ class AppSecRequestContextTest {
   }
 
   @SuppressWarnings("unchecked")
-  private static AtomicReference<Map<String, Object>> derivativesField(
-      AppSecRequestContext context) {
+  private static AtomicReference<Map<String, Object>> derivativesField(AppSecRequestContext context) {
     return (AtomicReference<Map<String, Object>>) readField(context, "derivatives");
   }
 

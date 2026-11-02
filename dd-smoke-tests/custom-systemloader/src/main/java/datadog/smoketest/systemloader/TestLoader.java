@@ -3,7 +3,6 @@ package datadog.smoketest.systemloader;
 import java.net.URLClassLoader;
 
 public class TestLoader extends URLClassLoader {
-
   public TestLoader(ClassLoader parent) {
     super(TestHelper.classPath(), parent);
     try {
@@ -25,10 +24,12 @@ public class TestLoader extends URLClassLoader {
         || name.startsWith("com.ibm")
         || name.startsWith("openj9")) {
       System.out.println("Loading " + name + " from JDK");
-      return super.loadClass(name, resolve); // delegate JDK classes to boot-class-path
+      // delegate JDK classes to boot-class-path
+      return super.loadClass(name, resolve);
     } else {
       System.out.println("Loading " + name + " from TestLoader");
-      return loadLocalClass(name, resolve); // otherwise only look locally for the type
+      // otherwise only look locally for the type
+      return loadLocalClass(name, resolve);
     }
   }
 

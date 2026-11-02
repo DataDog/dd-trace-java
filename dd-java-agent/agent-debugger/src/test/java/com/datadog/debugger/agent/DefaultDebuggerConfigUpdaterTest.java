@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.environment.JavaVirtualMachine;
@@ -16,7 +15,6 @@ import java.lang.instrument.Instrumentation;
 import org.junit.jupiter.api.Test;
 
 class DefaultDebuggerConfigUpdaterTest {
-
   @Test
   public void enableDisable() {
     SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);

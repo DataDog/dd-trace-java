@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import com.zaxxer.hikari.HikariDataSource;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,8 +16,9 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class HikariDataSourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private static final Logger log = LoggerFactory.getLogger(HikariDataSourceInstrumentation.class);
 
   public HikariDataSourceInstrumentation() {
@@ -39,13 +39,13 @@ public final class HikariDataSourceInstrumentation extends InstrumenterModule.Tr
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getConnection"),
-        HikariDataSourceInstrumentation.class.getName() + "$HikariGetConnectionAdvice");
+        HikariDataSourceInstrumentation.class.getName() + "$HikariGetConnectionAdvice"
+    );
   }
 
   public static class HikariGetConnectionAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void start(
-        @Advice.This final HikariDataSource ds, @Advice.Return Connection con) {
+    public static void start(@Advice.This final HikariDataSource ds, @Advice.Return Connection con) {
       if (con == null) {
         // Exception was probably thrown.
         return;

@@ -2,7 +2,6 @@ package datadog.trace.llmobs.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.GenAiApmTags;
@@ -17,10 +16,11 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-/** Covers the {@code gen_ai.*} attributes a manual LLM Observability span emits at finish. */
+/**
+ * Covers the {@code gen_ai.*} attributes a manual LLM Observability span emits at finish.
+ */
 class DDLLMObsSpanGenAiApmTagsTest {
   private static final Field SPAN_FIELD;
-
   private static CoreTracer tracer;
 
   static {

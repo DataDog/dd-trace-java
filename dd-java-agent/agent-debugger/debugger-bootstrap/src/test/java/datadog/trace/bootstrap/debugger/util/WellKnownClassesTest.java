@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.debugger.util;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -18,7 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
 
 class WellKnownClassesTest {
-
   @Test
   public void synchronizedWrappersAreNotSafe() {
     assertFalse(WellKnownClasses.isSafe(new Vector<>()));

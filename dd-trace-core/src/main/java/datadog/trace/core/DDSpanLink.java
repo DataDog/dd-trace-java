@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static datadog.trace.bootstrap.instrumentation.api.SpanAttributes.EMPTY;
-
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -18,11 +17,14 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** This class holds helper methods to encode span links into span context. */
+/**
+ * This class holds helper methods to encode span links into span context.
+ */
 public class DDSpanLink extends SpanLink {
   private static final Logger LOGGER = LoggerFactory.getLogger(DDSpanLink.class);
-
-  /** The maximum of characters a span tag value can hold. */
+  /**
+   * The maximum of characters a span tag value can hold.
+   */
   private static final int TAG_MAX_LENGTH = 25_000;
 
   protected DDSpanLink(
@@ -30,7 +32,8 @@ public class DDSpanLink extends SpanLink {
       long spanId,
       byte traceFlags,
       String traceState,
-      SpanAttributes attributes) {
+      SpanAttributes attributes
+  ) {
     super(traceId, spanId, traceFlags, traceState, attributes);
   }
 
@@ -55,12 +58,16 @@ public class DDSpanLink extends SpanLink {
    */
   public static SpanLink from(ExtractedContext context, SpanAttributes attributes) {
     byte traceFlags = context.getSamplingPriority() > 0 ? SAMPLED_FLAG : DEFAULT_FLAGS;
-    String traceState =
-        context.getPropagationTags() == null
-            ? ""
-            : context.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    String traceState = context.getPropagationTags() == null
+        ? ""
+        : context.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
     return new DDSpanLink(
-        context.getTraceId(), context.getSpanId(), traceFlags, traceState, attributes);
+        context.getTraceId(),
+        context.getSpanId(),
+        traceFlags,
+        traceState,
+        attributes
+    );
   }
 
   /**
@@ -78,7 +85,8 @@ public class DDSpanLink extends SpanLink {
     int index = 0;
     while (index < links.size()) {
       String linkAsJson = getEncoder().toJson(links.get(index));
-      int arrayCharsNeeded = index == 0 ? 1 : 2; // Closing bracket and comma separator if needed
+      // Closing bracket and comma separator if needed
+      int arrayCharsNeeded = index == 0 ? 1 : 2;
       if (linkAsJson.length() + builder.length() + arrayCharsNeeded >= TAG_MAX_LENGTH) {
         // No more links fit in the span tag; stop adding.
         break;
@@ -137,7 +145,8 @@ public class DDSpanLink extends SpanLink {
           DDSpanId.fromHex(json.span_id),
           json.flags,
           json.tracestate,
-          SpanAttributes.fromMap(json.attributes));
+          SpanAttributes.fromMap(json.attributes)
+      );
     }
   }
 

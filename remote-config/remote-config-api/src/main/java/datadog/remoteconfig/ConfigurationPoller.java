@@ -8,7 +8,8 @@ public interface ConfigurationPoller {
   <T> void addListener(
       Product product,
       ConfigurationDeserializer<T> deserializer,
-      ConfigurationChangesTypedListener<T> listener);
+      ConfigurationChangesTypedListener<T> listener
+  );
 
   void addListener(Product product, String configKey, ProductListener listener);
 
@@ -16,7 +17,8 @@ public interface ConfigurationPoller {
       Product product,
       String configKey,
       ConfigurationDeserializer<T> deserializer,
-      ConfigurationChangesTypedListener<T> listener);
+      ConfigurationChangesTypedListener<T> listener
+  );
 
   void addListener(Product product, ConfigurationChangesListener configurationChangesListener);
 

@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -34,7 +33,9 @@ import org.apache.pekko.http.scaladsl.model.HttpRequest;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public HttpHeaderSubclassesInstrumentation() {
     super("pekko-http");
   }
@@ -47,15 +48,16 @@ public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("org.apache.pekko.http.scaladsl.model.")
-        .and(not(named(hierarchyMarkerType())))
-        .and(extendsClass(named(hierarchyMarkerType())));
+      .and(not(named(hierarchyMarkerType())))
+      .and(extendsClass(named(hierarchyMarkerType())));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("value")).and(takesArguments(0)).and(returns(String.class)),
-        HttpHeaderSubclassesInstrumentation.class.getName() + "$HttpHeaderSubclassesAdvice");
+        HttpHeaderSubclassesInstrumentation.class.getName() + "$HttpHeaderSubclassesAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -65,8 +67,8 @@ public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
     static void onExit(
         @Advice.This HttpHeader h,
         @Advice.Return String retVal,
-        @ActiveRequestContext RequestContext reqCtx) {
-
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null) {
         return;

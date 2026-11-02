@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -14,7 +13,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 class NumbersTest {
-
   @TableTest({
     "scenario               | input                | expected            ",
     "zero                   | 0                    | 0                   ",
@@ -78,7 +76,8 @@ class NumbersTest {
         arguments("trailing whitespace", "42 ", 42L),
         arguments("both whitespace", " 42 ", 42L),
         arguments("tab and newline", "\t100\n", 100L),
-        arguments("multiple spaces decimal", "  -3.14  ", -3.14d));
+        arguments("multiple spaces decimal", "  -3.14  ", -3.14d)
+    );
   }
 
   @TableTest({
@@ -118,11 +117,9 @@ class NumbersTest {
     // Integers return Long
     assertInstanceOf(Long.class, parseNumber("42"));
     assertInstanceOf(Long.class, parseNumber("-100"));
-
     // Decimals return Double
     assertInstanceOf(Double.class, parseNumber("3.14"));
     assertInstanceOf(Double.class, parseNumber(".5"));
-
     // Scientific notation returns Double
     assertInstanceOf(Double.class, parseNumber("1e10"));
     assertInstanceOf(Double.class, parseNumber("5E-3"));
@@ -133,12 +130,10 @@ class NumbersTest {
     Number intResult = parseNumber("42");
     Number doubleResult = parseNumber("3.14");
     Number sciResult = parseNumber("1e10");
-
     // Can extract values with proper casting
     assertEquals(Long.valueOf(42L), intResult);
     assertEquals(Double.valueOf(3.14d), doubleResult);
     assertEquals(Double.valueOf(1.0e10d), sciResult);
-
     // Check types
     assertInstanceOf(Long.class, intResult);
     assertInstanceOf(Double.class, doubleResult);

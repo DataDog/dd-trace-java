@@ -10,12 +10,14 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 
-/** Generates a {@code $Muzzle} side class from resolved references. */
+/**
+ * Generates a {@code $Muzzle} side class from resolved references.
+ */
 final class MuzzleGenerator {
-  private MuzzleGenerator() {}
+  private MuzzleGenerator() {
+  }
 
-  static void generate(
-      File targetDirectory, InstrumenterModule module, List<Reference> references) {
+  static void generate(File targetDirectory, InstrumenterModule module, List<Reference> references) {
     File muzzleClass =
         new File(targetDirectory, Type.getInternalName(module.getClass()) + "$Muzzle.class");
     try {
@@ -23,7 +25,9 @@ final class MuzzleGenerator {
       Files.write(muzzleClass.toPath(), generateMuzzleClass(module, references));
     } catch (IOException error) {
       throw new IllegalStateException(
-          "Cannot write muzzle class for " + module.getClass().getName(), error);
+          "Cannot write muzzle class for " + module.getClass().getName(),
+          error
+      );
     }
   }
 
@@ -35,15 +39,16 @@ final class MuzzleGenerator {
         Type.getInternalName(module.getClass()) + "$Muzzle",
         null,
         "java/lang/Object",
-        null);
+        null
+    );
 
-    MethodVisitor mv =
-        cw.visitMethod(
-            Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-            "create",
-            "()Ldatadog/trace/agent/tooling/muzzle/ReferenceMatcher;",
-            null,
-            null);
+    MethodVisitor mv = cw.visitMethod(
+        Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+        "create",
+        "()Ldatadog/trace/agent/tooling/muzzle/ReferenceMatcher;",
+        null,
+        null
+    );
     mv.visitCode();
 
     mv.visitTypeInsn(Opcodes.NEW, "datadog/trace/agent/tooling/muzzle/ReferenceMatcher");
@@ -65,7 +70,8 @@ final class MuzzleGenerator {
         "datadog/trace/agent/tooling/muzzle/ReferenceMatcher",
         "<init>",
         "([Ldatadog/trace/agent/tooling/muzzle/Reference;)V",
-        false);
+        false
+    );
     mv.visitInsn(Opcodes.ARETURN);
 
     mv.visitMaxs(0, 0);
@@ -100,9 +106,10 @@ final class MuzzleGenerator {
         "datadog/trace/agent/tooling/muzzle/Reference",
         "<init>",
         "([Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;[Ljava/lang/String;"
-            + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Field;"
-            + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Method;)V",
-        false);
+        + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Field;"
+        + "[Ldatadog/trace/agent/tooling/muzzle/Reference$Method;)V",
+        false
+    );
 
     if (reference instanceof OrReference) {
       Reference[] ors = ((OrReference) reference).ors;
@@ -123,8 +130,9 @@ final class MuzzleGenerator {
           "datadog/trace/agent/tooling/muzzle/OrReference",
           "<init>",
           "(Ldatadog/trace/agent/tooling/muzzle/Reference;"
-              + "[Ldatadog/trace/agent/tooling/muzzle/Reference;)V",
-          false);
+          + "[Ldatadog/trace/agent/tooling/muzzle/Reference;)V",
+          false
+      );
     }
   }
 
@@ -158,7 +166,8 @@ final class MuzzleGenerator {
           "datadog/trace/agent/tooling/muzzle/Reference$Field",
           "<init>",
           "([Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V",
-          false);
+          false
+      );
       mv.visitInsn(Opcodes.AASTORE);
     }
   }
@@ -181,7 +190,8 @@ final class MuzzleGenerator {
           "datadog/trace/agent/tooling/muzzle/Reference$Method",
           "<init>",
           "([Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V",
-          false);
+          false
+      );
       mv.visitInsn(Opcodes.AASTORE);
     }
   }

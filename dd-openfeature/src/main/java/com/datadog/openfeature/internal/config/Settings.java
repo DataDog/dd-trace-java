@@ -15,13 +15,12 @@ import org.slf4j.LoggerFactory;
  */
 public final class Settings {
   private static final Logger LOGGER = LoggerFactory.getLogger(Settings.class);
-
-  /** The setting sources: bridge, system properties, then environment variables. */
+  /**
+   * The setting sources: bridge, system properties, then environment variables.
+   */
   private static final int SOURCE_COUNT = 3;
-
   public static final String CONFIGURATION_SOURCE_AGENTLESS = "agentless";
   public static final String CONFIGURATION_SOURCE_REMOTE_CONFIG = "remote_config";
-
   static final String FEATURE_FLAGS_ENABLED = "feature.flags.enabled";
   static final String FEATURE_FLAGS_CONFIGURATION_SOURCE = "feature.flags.configuration.source";
   static final String EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED =
@@ -45,11 +44,9 @@ public final class Settings {
   static final String ENV = "env";
   static final String SERVICE = "service";
   static final String VERSION = "version";
-
   static final String DEFAULT_SITE = "datadoghq.com";
   static final int DEFAULT_POLL_INTERVAL_SECONDS = 30;
   static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 5;
-
   private final AgentBridge bridge;
   private final UnaryOperator<String> systemProperties;
   private final UnaryOperator<String> environment;
@@ -57,7 +54,8 @@ public final class Settings {
   Settings(
       final AgentBridge bridge,
       final UnaryOperator<String> systemProperties,
-      final UnaryOperator<String> environment) {
+      final UnaryOperator<String> environment
+  ) {
     this.bridge = bridge;
     this.systemProperties = systemProperties;
     this.environment = environment;
@@ -176,7 +174,9 @@ public final class Settings {
     return Boolean.TRUE.equals(getBoolean(EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED));
   }
 
-  /** Returns the configured experimentation opt-out mode, disabled by default. */
+  /**
+   * Returns the configured experimentation opt-out mode, disabled by default.
+   */
   public String experimentationOptOutMode() {
     final String mode = get(EXPERIMENTATION_OPT_OUT_MODE);
     return mode == null ? "disabled" : mode;
@@ -232,7 +232,9 @@ public final class Settings {
     return nonBlank(get(VERSION));
   }
 
-  /** Reads the first non-blank value, in source priority order, like the agent. */
+  /**
+   * Reads the first non-blank value, in source priority order, like the agent.
+   */
   @Nullable
   String get(final String key) {
     for (int source = 0; source < SOURCE_COUNT; source++) {
@@ -279,7 +281,9 @@ public final class Settings {
     return Boolean.FALSE;
   }
 
-  /** Reads the first value that parses, in source priority order, like the agent. */
+  /**
+   * Reads the first value that parses, in source priority order, like the agent.
+   */
   private int getPositiveInt(final String key, final int defaultValue) {
     for (int source = 0; source < SOURCE_COUNT; source++) {
       final String value = value(key, source);

@@ -19,6 +19,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE})
 public @interface Restricted {
-  /** Package prefixes allowed to use the member, such as {@code datadog.trace.core}. */
+  /**
+   * Package prefixes allowed to use the member, such as {@code datadog.trace.core}.
+   */
   String[] allowedIn();
 }

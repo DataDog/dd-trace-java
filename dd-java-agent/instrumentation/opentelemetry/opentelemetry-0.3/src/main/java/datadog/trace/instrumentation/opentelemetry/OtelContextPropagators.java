@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.opentelemetry;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -19,7 +18,8 @@ import java.util.List;
 public class OtelContextPropagators implements ContextPropagators {
   public static final OtelContextPropagators INSTANCE = new OtelContextPropagators();
 
-  private OtelContextPropagators() {}
+  private OtelContextPropagators() {
+  }
 
   @Override
   public HttpTextFormat getHttpTextFormat() {
@@ -28,7 +28,6 @@ public class OtelContextPropagators implements ContextPropagators {
 
   private static class OtelHttpTextFormat implements HttpTextFormat {
     private static final OtelHttpTextFormat INSTANCE = new OtelHttpTextFormat();
-
     private final AgentTracer.TracerAPI tracer = AgentTracer.get();
     private final TypeConverter converter = new TypeConverter();
 
@@ -54,7 +53,9 @@ public class OtelContextPropagators implements ContextPropagators {
       final AgentSpanContext agentContext =
           extractContextAndGetSpanContext(carrier, new OtelGetter<>(getter));
       return TracingContextUtils.withSpan(
-          DefaultSpan.create(converter.toSpanContext(agentContext)), context);
+          DefaultSpan.create(converter.toSpanContext(agentContext)),
+          context
+      );
     }
   }
 
@@ -63,28 +64,24 @@ public class OtelContextPropagators implements ContextPropagators {
     private static final String DD_SPAN_ID_KEY = "x-datadog-parent-id";
     private static final String DD_SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
     private static final String DD_ORIGIN_KEY = "x-datadog-origin";
-
     private static final String B3_TRACE_ID_KEY = "X-B3-TraceId";
     private static final String B3_SPAN_ID_KEY = "X-B3-SpanId";
     private static final String B3_SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
-
     private static final String HAYSTACK_TRACE_ID_KEY = "Trace-ID";
     private static final String HAYSTACK_SPAN_ID_KEY = "Span-ID";
     private static final String HAYSTACK_PARENT_ID_KEY = "Parent_ID";
-
-    private static final List<String> KEYS =
-        Arrays.asList(
-            DD_TRACE_ID_KEY,
-            DD_SPAN_ID_KEY,
-            DD_SAMPLING_PRIORITY_KEY,
-            DD_ORIGIN_KEY,
-            B3_TRACE_ID_KEY,
-            B3_SPAN_ID_KEY,
-            B3_SAMPLING_PRIORITY_KEY,
-            HAYSTACK_TRACE_ID_KEY,
-            HAYSTACK_SPAN_ID_KEY,
-            HAYSTACK_PARENT_ID_KEY);
-
+    private static final List<String> KEYS = Arrays.asList(
+        DD_TRACE_ID_KEY,
+        DD_SPAN_ID_KEY,
+        DD_SAMPLING_PRIORITY_KEY,
+        DD_ORIGIN_KEY,
+        B3_TRACE_ID_KEY,
+        B3_SPAN_ID_KEY,
+        B3_SAMPLING_PRIORITY_KEY,
+        HAYSTACK_TRACE_ID_KEY,
+        HAYSTACK_SPAN_ID_KEY,
+        HAYSTACK_PARENT_ID_KEY
+    );
     private final HttpTextFormat.Getter<C> getter;
 
     private OtelGetter(final HttpTextFormat.Getter<C> getter) {

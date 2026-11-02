@@ -11,7 +11,6 @@ import static datadog.trace.api.intake.Intake.EVENT_PLATFORM;
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.concurrent.TimeUnit.MINUTES;
-
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.HttpResponseException;
@@ -47,22 +46,23 @@ class EventProxy {
   private static final MediaType JSON = MediaType.parse("application/json");
   static final String EXPOSURES_ROUTE = "exposures";
   static final long RECOVERY_INTERVAL_NANOS = MINUTES.toNanos(1);
-
-  /** Identifies the library sending the events, on every proxy request. */
+  /**
+   * Identifies the library sending the events, on every proxy request.
+   */
   static final Map<String, String> IDENTITY_HEADERS = identityHeaders();
-
-  /** The headers a discovered proxy endpoint must forward to keep the event identity. */
+  /**
+   * The headers a discovered proxy endpoint must forward to keep the event identity.
+   */
   static final List<String> IDENTITY_HEADER_NAMES = asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER);
-
-  /** Retries connection refusal only; automatic retries and redirects remain disabled. */
-  static final HttpRetryPolicy.Factory PRE_SEND_RETRY =
-      new HttpRetryPolicy.Factory(3, 100, 2.0) {
-        @Override
-        public HttpRetryPolicy create() {
-          return new PreSendRetryPolicy();
-        }
-      };
-
+  /**
+   * Retries connection refusal only; automatic retries and redirects remain disabled.
+   */
+  static final HttpRetryPolicy.Factory PRE_SEND_RETRY = new HttpRetryPolicy.Factory(3, 100, 2.0) {
+    @Override
+    public HttpRetryPolicy create() {
+      return new PreSendRetryPolicy();
+    }
+  };
   private final BackendApiFactory backendApiFactory;
   private final boolean agentless;
   private final boolean directFallbackAvailable;
@@ -81,7 +81,8 @@ class EventProxy {
   EventProxy(
       final BackendApiFactory backendApiFactory,
       final boolean agentless,
-      final boolean directFallbackAvailable) {
+      final boolean directFallbackAvailable
+  ) {
     this(backendApiFactory, agentless, directFallbackAvailable, System::nanoTime);
   }
 
@@ -89,7 +90,8 @@ class EventProxy {
       final BackendApiFactory backendApiFactory,
       final boolean agentless,
       final boolean directFallbackAvailable,
-      final LongSupplier nanoTime) {
+      final LongSupplier nanoTime
+  ) {
     this.backendApiFactory = backendApiFactory;
     this.agentless = agentless;
     this.directFallbackAvailable = directFallbackAvailable;
@@ -146,8 +148,9 @@ class EventProxy {
     synchronized (this) {
       if (!this.discovered) {
         this.discovered = true;
-        this.clients =
-            this.agentless ? discover(false) : clients(PRE_SEND_RETRY, V2_EVP_PROXY_ENDPOINT);
+        this.clients = this.agentless
+            ? discover(false)
+            : clients(PRE_SEND_RETRY, V2_EVP_PROXY_ENDPOINT);
         if (this.clients == null) {
           onUnavailable();
         }
@@ -182,14 +185,17 @@ class EventProxy {
     }
   }
 
-  /** Waits for a new proxy endpoint when it is the only route. Runs once per outage. */
+  /**
+   * Waits for a new proxy endpoint when it is the only route. Runs once per outage.
+   */
   private void onUnavailable() {
     if (!this.directFallbackAvailable) {
       scheduleDiscovery();
       LOGGER.warn(
           "Feature Flags events are being dropped because no local EVP proxy or direct intake"
-              + " route is available. Make the Agent reachable, or configure DD_API_KEY and a"
-              + " valid DD_SITE.");
+          + " route is available. Make the Agent reachable, or configure DD_API_KEY and a"
+          + " valid DD_SITE."
+      );
     }
   }
 
@@ -212,9 +218,18 @@ class EventProxy {
   private Clients clients(final HttpRetryPolicy.Factory retryPolicy, final String endpoint) {
     return new Clients(
         this.backendApiFactory.createEvpProxyApiForEndpoint(
-            EVENT_PLATFORM, EXPOSURE.responseCompressionEnabled(), retryPolicy, endpoint),
+            EVENT_PLATFORM,
+            EXPOSURE.responseCompressionEnabled(),
+            retryPolicy,
+            endpoint
+        ),
         this.backendApiFactory.createEvpProxyApiForEndpoint(
-            EVENT_PLATFORM, FLAG_EVALUATION.responseCompressionEnabled(), retryPolicy, endpoint));
+            EVENT_PLATFORM,
+            FLAG_EVALUATION.responseCompressionEnabled(),
+            retryPolicy,
+            endpoint
+        )
+    );
   }
 
   private static Map<String, String> identityHeaders() {
@@ -242,7 +257,9 @@ class EventProxy {
     return false;
   }
 
-  /** The proxy clients of both routes, for one endpoint. */
+  /**
+   * The proxy clients of both routes, for one endpoint.
+   */
   private static final class Clients {
     final BackendApi exposures;
     final BackendApi flagEvaluations;

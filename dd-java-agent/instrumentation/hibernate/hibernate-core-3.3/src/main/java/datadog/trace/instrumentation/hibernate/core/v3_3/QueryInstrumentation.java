@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
@@ -24,10 +23,10 @@ public final class QueryInstrumentation extends AbstractHibernateInstrumentation
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.hibernate.impl.AbstractQueryImpl",
-      "org.hibernate.impl.CollectionFilterImpl",
-      "org.hibernate.impl.QueryImpl",
-      "org.hibernate.impl.SQLQueryImpl"
+        "org.hibernate.impl.AbstractQueryImpl",
+        "org.hibernate.impl.CollectionFilterImpl",
+        "org.hibernate.impl.QueryImpl",
+        "org.hibernate.impl.SQLQueryImpl"
     };
   }
 
@@ -45,19 +44,18 @@ public final class QueryInstrumentation extends AbstractHibernateInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(namedOneOf("list", "executeUpdate", "uniqueResult", "scroll")),
-        QueryInstrumentation.class.getName() + "$QueryMethodAdvice");
+        QueryInstrumentation.class.getName() + "$QueryMethodAdvice"
+    );
   }
 
   public static class QueryMethodAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(
         @Advice.This final Query query,
-        @Advice.Origin("hibernate.query.#m") final String operationName) {
-
+        @Advice.Origin("hibernate.query.#m") final String operationName
+    ) {
       final ContextStore<Query, SessionState> contextStore =
           InstrumentationContext.get(Query.class, SessionState.class);
-
       // Note: We don't know what the entity is until the method is returning.
       final SessionState state =
           SessionMethodUtils.startScopeFrom(contextStore, query, operationName, null, true);
@@ -72,8 +70,8 @@ public final class QueryInstrumentation extends AbstractHibernateInstrumentation
         @Advice.This final Query query,
         @Advice.Enter final SessionState state,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object returned) {
-
+        @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object returned
+    ) {
       Object entity = returned;
       if (returned == null || query instanceof SQLQuery) {
         // Not a method that returns results, or the query returns a table rather than an ORM
@@ -92,7 +90,8 @@ public final class QueryInstrumentation extends AbstractHibernateInstrumentation
         // Not in 4.0
         final Validatable validatable,
         // Not before 3.3.0.GA
-        final JBossTransactionManagerLookup lookup) {
+        final JBossTransactionManagerLookup lookup
+    ) {
       validatable.validate();
       lookup.getUserTransactionName();
     }

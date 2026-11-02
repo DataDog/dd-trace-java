@@ -2,7 +2,6 @@ package datadog.trace.api.git;
 
 import static datadog.trace.api.git.RawParseUtils.decode;
 import static datadog.trace.api.git.RawParseUtils.nextLF;
-
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -17,32 +16,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class GitUtils {
-
   private static final Pattern ORIGIN_PATTERN = Pattern.compile("origin/", Pattern.LITERAL);
   private static final Pattern REFS_HEADS_PATTERN = Pattern.compile("refs/heads/", Pattern.LITERAL);
   private static final Pattern REFS_TAGS_PATTERN = Pattern.compile("refs/tags/", Pattern.LITERAL);
   private static final Pattern TAGS_PATTERN = Pattern.compile("tags/", Pattern.LITERAL);
   // Based on https://git-scm.com/docs/git-check-ref-format
-  private static final Pattern INVALID_REF_PATTERN =
-      Pattern.compile(
-          "^/" // starts with /
-              + "|//" // contains //
-              + "|\\.\\." // contains ..
-              + "|@\\{" // contains @{
-              + "|\\.$" // ends with a dot
-              + "|\\.lock(/|$)" // ends with .lock in any path component
-              + "|(?:^|/)\\." // any component starts with a dot
-              + "|\\s" // contains space
-              + "|[~^:?*\\[\\\\]" // contains ~ ^ : ? * [ \
-              + "|^@$" // is only @
-              + "|/$" // ends with slash
-          );
+  private static final Pattern INVALID_REF_PATTERN = Pattern.compile(
+      "^/" // starts with /
+      + "|//" // contains //
+      + "|\\.\\." // contains ..
+      + "|@\\{" // contains @{
+      + "|\\.$" // ends with a dot
+      + "|\\.lock(/|$)" // ends with .lock in any path component
+      + "|(?:^|/)\\." // any component starts with a dot
+      + "|\\s" // contains space
+      + "|[~^:?*\\[\\\\]" // contains ~ ^ : ? * [ \
+      + "|^@$" // is only @
+      + "|/$" // ends with slash
+
+  );
   private static final Pattern PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9_./-]+$");
   private static final Pattern SHELL_METACHAR_PATTERN = Pattern.compile(".*[`$&|;<>\n\r#].*");
-
   private static final int SHORT_SHA_LENGTH = 7;
   private static final int FULL_SHA_LENGTH = 40;
-
   private static final Logger log = LoggerFactory.getLogger(GitUtils.class);
 
   /**
@@ -145,7 +141,6 @@ public class GitUtils {
 
     final byte[] raw = rawAuthor.getBytes(StandardCharsets.UTF_8);
     final int nameB = 0;
-
     // First, we find the index where the email starts and ends:
     final int emailB = nextLF(raw, nameB, '<');
     final int emailE = nextLF(raw, emailB, '>');
@@ -154,15 +149,12 @@ public class GitUtils {
         || (emailE >= raw.length - 1 && raw[emailE - 1] != '>')) {
       return PersonInfo.NOOP;
     }
-
     // We need to find which is the index where the name ends,
     // using the relative position where the email starts.
     final int nameEnd = emailB - 2 >= nameB && raw[emailB - 2] == ' ' ? emailB - 2 : emailB - 1;
-
     // Once we have the indexes where the name starts and ends
     // we can extract the name.
     final String name = decode(raw, nameB, nameEnd);
-
     // Same approach to extract the email, using the indexes
     // where the email starts and ends.
     final String email = decode(raw, emailB, emailE - 1);
@@ -183,7 +175,6 @@ public class GitUtils {
    */
   public static byte[] inflate(final byte[] bytes) throws DataFormatException {
     try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-
       // Git objects are compressed with ZLib.
       // We need to decompress it using Inflater.
       final Inflater ifr = new Inflater();
@@ -198,7 +189,8 @@ public class GitUtils {
             // Inflater can return !finished but 0 bytes inflated.
             if (ifr.needsDictionary()) {
               logErrorInflating(
-                  "The data was compressed using a preset dictionary. We cannot decompress it.");
+                  "The data was compressed using a preset dictionary. We cannot decompress it."
+              );
               return null;
             } else if (ifr.needsInput()) {
               logErrorInflating("The provided data is not enough. It might be corrupted");
@@ -264,7 +256,9 @@ public class GitUtils {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
   }
 
-  /** Checks if a string that will be used as a Git command argument is valid and safe */
+  /**
+   * Checks if a string that will be used as a Git command argument is valid and safe
+   */
   static boolean isValidArg(@Nullable String arg) {
     if (Strings.isBlank(arg)) {
       return false;
@@ -272,14 +266,18 @@ public class GitUtils {
     return !SHELL_METACHAR_PATTERN.matcher(arg).find();
   }
 
-  /** Checks if the provided string is a valid Git reference (branch, tag, etc.) */
+  /**
+   * Checks if the provided string is a valid Git reference (branch, tag, etc.)
+   */
   public static boolean isValidRef(@Nullable String ref) {
     if (Strings.isBlank(ref)) {
       return false;
     }
 
     for (char c : ref.toCharArray()) {
-      if (c < 32 || c == 127) return false;
+      if (c < 32 || c == 127) {
+        return false;
+      }
     }
 
     if (INVALID_REF_PATTERN.matcher(ref).find()) {
@@ -288,7 +286,9 @@ public class GitUtils {
     return isValidArg(ref);
   }
 
-  /** Checks if the provided string is a valid system path for Git operations */
+  /**
+   * Checks if the provided string is a valid system path for Git operations
+   */
   public static boolean isValidPath(@Nonnull String path) {
     if (!PATH_PATTERN.matcher(path).matches()) {
       return false;
@@ -297,7 +297,9 @@ public class GitUtils {
     return !path.contains("..");
   }
 
-  /** Checks if the provided string is neither a valid commit SHA nor a valid Git reference */
+  /**
+   * Checks if the provided string is neither a valid commit SHA nor a valid Git reference
+   */
   public static boolean isNotValidCommit(@Nullable String commit) {
     return !isValidCommitSha(commit) && !isValidRef(commit);
   }

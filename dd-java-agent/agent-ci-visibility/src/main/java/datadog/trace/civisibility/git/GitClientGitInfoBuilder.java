@@ -13,9 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class GitClientGitInfoBuilder implements GitInfoBuilder {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(GitClientGitInfoBuilder.class);
-
   private final Config config;
   private final GitClient.Factory gitClientFactory;
 
@@ -40,7 +38,6 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
 
       CommitInfo commitInfo = gitClient.getCommitInfo(GitClient.HEAD, false);
       return new GitInfo(remoteUrl, branch, tag, commitInfo);
-
     } catch (Exception e) {
       LOGGER.debug("Error while getting Git data from {}", repositoryPath, e);
       LOGGER.warn("Error while getting Git data by executing shell commands");

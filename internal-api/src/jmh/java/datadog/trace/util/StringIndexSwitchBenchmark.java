@@ -69,17 +69,31 @@ import org.openjdk.jmh.annotations.Warmup;
  * <p>So the {@code const} arm is the control: it exposes the switch's "fast" as a single-key
  * specialization artifact — drop the constant and the switch is ~half StringIndex's throughput.
  */
-@Fork(5) // matches the documented @Fork(5) numbers; the switch's const-key arm is profile-bimodal
+// matches the documented @Fork(5) numbers; the switch's const-key arm is profile-bimodal
+@Fork(5)
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
 @State(Scope.Benchmark)
 public class StringIndexSwitchBenchmark {
   static final String[] KEYS = {
-    "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
-    "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa"
+      "alpha",
+      "bravo",
+      "charlie",
+      "delta",
+      "echo",
+      "foxtrot",
+      "golf",
+      "hotel",
+      "india",
+      "juliet",
+      "kilo",
+      "lima",
+      "mike",
+      "november",
+      "oscar",
+      "papa"
   };
-
   // A compile-time-constant hit key. javac inlines it, so the JIT can constant-propagate it into an
   // inlined switch and fold the whole switch away -- the switch's theoretical ceiling. The const_*
   // arms pair this with INLINE vs DONT_INLINE to show that ceiling only materializes when the call
@@ -87,8 +101,9 @@ public class StringIndexSwitchBenchmark {
   // in full. TagInterceptor's real regime is a runtime tag through a non-inlined call -- neither
   // holds -- which is why StringIndex wins where it counts.
   static final String CONST_KEY = "mike";
-
-  /** Distinct String instances that are never present, for the miss path. */
+  /**
+   * Distinct String instances that are never present, for the miss path.
+   */
   static final String[] MISSES = newMisses();
 
   static String[] newMisses() {
@@ -112,12 +127,14 @@ public class StringIndexSwitchBenchmark {
     NAMES = data.names;
     IDS = new int[HASHES.length];
     for (int i = 0; i < KEYS.length; ++i) {
-      IDS[StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, KEYS[i])] =
-          i + 1; // 1-based; 0 = not found
+      // 1-based; 0 = not found
+      IDS[StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, KEYS[i])] = i + 1;
     }
   }
 
-  /** Per-thread cursors so threads don't contend on a shared index under {@code @Threads(8)}. */
+  /**
+   * Per-thread cursors so threads don't contend on a shared index under {@code @Threads(8)}.
+   */
   @State(Scope.Thread)
   public static class Cursor {
     int hit = 0;
@@ -277,7 +294,6 @@ public class StringIndexSwitchBenchmark {
 
   // --- constant key: the switch's best case (const-propagated). Inlined -> folds away; not-inlined
   // -> the constant can't cross the boundary, so the switch runs in full. ---
-
   @Benchmark
   public int switch_const_inlined() {
     return switchInline(CONST_KEY);

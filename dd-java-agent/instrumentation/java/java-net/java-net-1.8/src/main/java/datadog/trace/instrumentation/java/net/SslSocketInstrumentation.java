@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -26,9 +25,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class SslSocketInstrumentation extends InstrumenterModule.Usm
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public SslSocketInstrumentation() {
     super("sslsocket");
   }
@@ -47,26 +46,29 @@ public final class SslSocketInstrumentation extends InstrumenterModule.Usm
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("close").and(takesArguments(0))),
-        SslSocketInstrumentation.class.getName() + "$CloseAdvice");
+        SslSocketInstrumentation.class.getName() + "$CloseAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getInputStream")),
-        SslSocketInstrumentation.class.getName() + "$GetInputStreamAdvice");
+        SslSocketInstrumentation.class.getName() + "$GetInputStreamAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getOutputStream")),
-        SslSocketInstrumentation.class.getName() + "$GetOutputStreamAdvice");
+        SslSocketInstrumentation.class.getName() + "$GetOutputStreamAdvice"
+    );
   }
 
   public static final class CloseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void close(@Advice.This final SSLSocket socket) {
       boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-      UsmConnection connection =
-          new UsmConnection(
-              socket.getLocalAddress(),
-              socket.getLocalPort(),
-              socket.getInetAddress(),
-              socket.getPort(),
-              isIPv6);
+      UsmConnection connection = new UsmConnection(
+          socket.getLocalAddress(),
+          socket.getLocalPort(),
+          socket.getInetAddress(),
+          socket.getPort(),
+          isIPv6
+      );
       UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(connection);
       UsmExtractor.Supplier.send(message);
     }
@@ -76,7 +78,8 @@ public final class SslSocketInstrumentation extends InstrumenterModule.Usm
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getOutputStream(
         @Advice.This final SSLSocket socket,
-        @Advice.Return(readOnly = false) OutputStream retValue) {
+        @Advice.Return(readOnly = false) OutputStream retValue
+    ) {
       retValue = new UsmFilterOutputStream(retValue, socket);
     }
   }
@@ -85,7 +88,8 @@ public final class SslSocketInstrumentation extends InstrumenterModule.Usm
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getInputStream(
         @Advice.This final SSLSocket socket,
-        @Advice.Return(readOnly = false) InputStream retValue) {
+        @Advice.Return(readOnly = false) InputStream retValue
+    ) {
       retValue = new UsmFilterInputStream(retValue, socket);
     }
   }

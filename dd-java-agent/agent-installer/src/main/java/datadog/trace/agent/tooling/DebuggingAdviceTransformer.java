@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling;
 
 import static net.bytebuddy.utility.OpenedClassReader.ASM_API;
-
 import java.security.ProtectionDomain;
 import java.util.List;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -20,13 +19,18 @@ import net.bytebuddy.jar.asm.TypePath;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
-/** Adds method and advice context to Byte Buddy advice application failures in debug mode. */
+/**
+ * Adds method and advice context to Byte Buddy advice application failures in debug mode.
+ */
 final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvice {
   private final String instrumentationClass;
   private final String adviceClass;
 
   DebuggingAdviceTransformer(
-      Advice.WithCustomMapping advice, String instrumentationClass, String adviceClass) {
+      Advice.WithCustomMapping advice,
+      String instrumentationClass,
+      String adviceClass
+  ) {
     super(advice);
     this.instrumentationClass = instrumentationClass;
     this.adviceClass = adviceClass;
@@ -42,7 +46,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
       List<AgentBuilder.Transformer.ForAdvice.Entry> entries,
       List<String> auxiliaries,
       String instrumentationClass,
-      String adviceClass) {
+      String adviceClass
+  ) {
     super(
         advice,
         exceptionHandler,
@@ -51,7 +56,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         poolStrategy,
         locationStrategy,
         entries,
-        auxiliaries);
+        auxiliaries
+    );
     this.instrumentationClass = instrumentationClass;
     this.adviceClass = adviceClass;
   }
@@ -65,7 +71,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
       AgentBuilder.PoolStrategy poolStrategy,
       AgentBuilder.LocationStrategy locationStrategy,
       List<AgentBuilder.Transformer.ForAdvice.Entry> entries,
-      List<String> auxiliaries) {
+      List<String> auxiliaries
+  ) {
     return new DebuggingAdviceTransformer(
         advice,
         exceptionHandler,
@@ -76,7 +83,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         entries,
         auxiliaries,
         instrumentationClass,
-        adviceClass);
+        adviceClass
+    );
   }
 
   @Override
@@ -85,22 +93,26 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
       ClassLoader classLoader,
       JavaModule module,
       ProtectionDomain protectionDomain,
-      Advice advice) {
+      Advice advice
+  ) {
     return wrap(
         super.wrap(target, classLoader, module, protectionDomain, advice),
         instrumentationClass,
-        adviceClass);
+        adviceClass
+    );
   }
 
   static AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper wrap(
       AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate,
       String instrumentationClass,
-      String adviceClass) {
+      String adviceClass
+  ) {
     return new DebuggingMethodVisitorWrapper(delegate, instrumentationClass, adviceClass);
   }
 
   private static final class DebuggingMethodVisitorWrapper
-      implements AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper {
+      implements AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper
+  {
     private final AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate;
     private final String instrumentationClass;
     private final String adviceClass;
@@ -108,7 +120,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     private DebuggingMethodVisitorWrapper(
         AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate,
         String instrumentationClass,
-        String adviceClass) {
+        String adviceClass
+    ) {
       this.delegate = delegate;
       this.instrumentationClass = instrumentationClass;
       this.adviceClass = adviceClass;
@@ -122,18 +135,19 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         Implementation.Context implementationContext,
         TypePool typePool,
         int writerFlags,
-        int readerFlags) {
+        int readerFlags
+    ) {
       DownstreamMethodVisitor downstreamVisitor = new DownstreamMethodVisitor(methodVisitor);
       try {
-        MethodVisitor adviceVisitor =
-            delegate.wrap(
-                instrumentedType,
-                instrumentedMethod,
-                downstreamVisitor,
-                implementationContext,
-                typePool,
-                writerFlags,
-                readerFlags);
+        MethodVisitor adviceVisitor = delegate.wrap(
+            instrumentedType,
+            instrumentedMethod,
+            downstreamVisitor,
+            implementationContext,
+            typePool,
+            writerFlags,
+            readerFlags
+        );
         return adviceVisitor == null
             ? null
             : new DebuggingMethodVisitor(
@@ -142,7 +156,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
                 adviceClass,
                 instrumentedType,
                 instrumentedMethod,
-                downstreamVisitor);
+                downstreamVisitor
+        );
       } catch (RuntimeException | LinkageError failure) {
         throw recordAdviceFailure(
             instrumentationClass,
@@ -150,7 +165,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
             instrumentedType,
             instrumentedMethod,
             downstreamVisitor,
-            failure);
+            failure
+        );
       }
     }
   }
@@ -161,12 +177,18 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
       TypeDescription instrumentedType,
       MethodDescription instrumentedMethod,
       DownstreamMethodVisitor downstreamVisitor,
-      Throwable failure) {
+      Throwable failure
+  ) {
     if (downstreamVisitor.isDownstreamFailure(failure)) {
       return propagate(failure);
     }
     return wrapAdviceFailure(
-        instrumentationClass, adviceClass, instrumentedType, instrumentedMethod, failure);
+        instrumentationClass,
+        adviceClass,
+        instrumentedType,
+        instrumentedMethod,
+        failure
+    );
   }
 
   private static AdviceTransformationException wrapAdviceFailure(
@@ -174,7 +196,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
       String adviceClass,
       TypeDescription instrumentedType,
       MethodDescription instrumentedMethod,
-      Throwable failure) {
+      Throwable failure
+  ) {
     if (failure instanceof AdviceTransformationException) {
       return (AdviceTransformationException) failure;
     }
@@ -183,7 +206,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         adviceClass,
         instrumentedType.getName(),
         instrumentedMethod.getInternalName() + instrumentedMethod.getDescriptor(),
-        failure);
+        failure
+    );
   }
 
   private static RuntimeException propagate(Throwable failure) {
@@ -193,7 +217,9 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     throw (Error) failure;
   }
 
-  /** Marks failures crossing the visitor boundary below advice so they keep their attribution. */
+  /**
+   * Marks failures crossing the visitor boundary below advice so they keep their attribution.
+   */
   private static final class DownstreamMethodVisitor extends FailureTrackingMethodVisitor {
     private Throwable failure;
 
@@ -207,7 +233,9 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
       return propagate(failure);
     }
 
-    /** Returns whether the same failure came from downstream, then clears the recorded failure. */
+    /**
+     * Returns whether the same failure came from downstream, then clears the recorded failure.
+     */
     private boolean isDownstreamFailure(Throwable failure) {
       Throwable downstreamFailure = this.failure;
       this.failure = null;
@@ -232,7 +260,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         String adviceClass,
         TypeDescription instrumentedType,
         MethodDescription instrumentedMethod,
-        DownstreamMethodVisitor downstreamVisitor) {
+        DownstreamMethodVisitor downstreamVisitor
+    ) {
       super(delegate);
       this.instrumentationClass = instrumentationClass;
       this.adviceClass = adviceClass;
@@ -249,13 +278,15 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
           instrumentedType,
           instrumentedMethod,
           downstreamVisitor,
-          failure);
+          failure
+      );
     }
   }
 
-  /** Tracks callbacks where Byte Buddy binds, emits, or adjusts advice. */
+  /**
+   * Tracks callbacks where Byte Buddy binds, emits, or adjusts advice.
+   */
   private abstract static class FailureTrackingMethodVisitor extends MethodVisitor {
-
     private FailureTrackingMethodVisitor(MethodVisitor delegate) {
       super(ASM_API, delegate);
     }
@@ -318,7 +349,12 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
 
     @Override
     public void visitMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
+        int opcode,
+        String owner,
+        String name,
+        String descriptor,
+        boolean isInterface
+    ) {
       try {
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       } catch (RuntimeException | LinkageError failure) {
@@ -328,7 +364,11 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
 
     @Override
     public void visitInvokeDynamicInsn(
-        String name, String descriptor, Handle bootstrapMethodHandle, Object... arguments) {
+        String name,
+        String descriptor,
+        Handle bootstrapMethodHandle,
+        Object... arguments
+    ) {
       try {
         super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, arguments);
       } catch (RuntimeException | LinkageError failure) {
@@ -401,7 +441,13 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
 
     @Override
     public void visitLocalVariable(
-        String name, String descriptor, String signature, Label start, Label end, int index) {
+        String name,
+        String descriptor,
+        String signature,
+        Label start,
+        Label end,
+        int index
+    ) {
       try {
         super.visitLocalVariable(name, descriptor, signature, start, end, index);
       } catch (RuntimeException | LinkageError failure) {
@@ -417,10 +463,18 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         Label[] end,
         int[] index,
         String descriptor,
-        boolean visible) {
+        boolean visible
+    ) {
       try {
         return super.visitLocalVariableAnnotation(
-            typeRef, typePath, start, end, index, descriptor, visible);
+            typeRef,
+            typePath,
+            start,
+            end,
+            index,
+            descriptor,
+            visible
+        );
       } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }

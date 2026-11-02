@@ -6,10 +6,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.Contract;
 
-/** Utilities to work with {@link TaintedObject} */
+/**
+ * Utilities to work with {@link TaintedObject}
+ */
 public final class Tainteds {
-
-  private Tainteds() {}
+  private Tainteds() {
+  }
 
   @Contract("null -> false")
   public static boolean canBeTainted(@Nullable final CharSequence s) {
@@ -59,7 +61,9 @@ public final class Tainteds {
 
   @Nullable
   public static TaintedObject getTainted(
-      @Nonnull final TaintedObjects to, @Nullable final Object value) {
+      @Nonnull final TaintedObjects to,
+      @Nullable final Object value
+  ) {
     return value == null ? null : to.get(value);
   }
 }

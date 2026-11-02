@@ -5,7 +5,6 @@ import static java.lang.System.nanoTime;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
@@ -41,19 +40,25 @@ import java.util.concurrent.Future;
  * </ul>
  */
 public class Application {
-  /** The minimum application run time. */
+  /**
+   * The minimum application run time.
+   */
   private static final int MIN_RUNTIME_SECONDS = 5;
-
-  /** The number of shards the batch fans out to, one span each. */
+  /**
+   * The number of shards the batch fans out to, one span each.
+   */
   private static final int SHARD_COUNT = 3;
-
-  /** The work each shard simulates, so shard spans have a non-zero duration. */
+  /**
+   * The work each shard simulates, so shard spans have a non-zero duration.
+   */
   private static final long SHARD_WORK_MILLIS = 100;
-
-  /** How long to wait for the fan-out pool to wind down before giving up. */
+  /**
+   * How long to wait for the fan-out pool to wind down before giving up.
+   */
   private static final long POOL_SHUTDOWN_TIMEOUT_SECONDS = 30;
-
-  /** OpenTelemetry tracer. */
+  /**
+   * OpenTelemetry tracer.
+   */
   private static final Tracer TRACER =
       GlobalOpenTelemetry.getTracerProvider().tracerBuilder("smoke-app").build();
 
@@ -64,7 +69,9 @@ public class Application {
     stayAliveFor(MIN_RUNTIME_SECONDS, startTime);
   }
 
-  /** Runs the batch job: split the work, fan it out over a thread pool, then merge the results. */
+  /**
+   * Runs the batch job: split the work, fan it out over a thread pool, then merge the results.
+   */
   private static void runBatch() throws Exception {
     Span batch = TRACER.spanBuilder("batch-job").setSpanKind(SERVER).startSpan();
     try (Scope scope = batch.makeCurrent()) {

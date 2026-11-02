@@ -14,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryClient {
-
   public enum Result {
     SUCCESS,
     FAILURE,
@@ -23,14 +22,19 @@ public class TelemetryClient {
   }
 
   public static TelemetryClient buildAgentClient(
-      OkHttpClient okHttpClient, HttpUrl agentUrl, HttpRetryPolicy.Factory httpRetryPolicy) {
+      OkHttpClient okHttpClient,
+      HttpUrl agentUrl,
+      HttpRetryPolicy.Factory httpRetryPolicy
+  ) {
     HttpUrl agentTelemetryUrl =
         agentUrl.newBuilder().addPathSegments(AGENT_TELEMETRY_API_ENDPOINT).build();
     return new TelemetryClient(okHttpClient, httpRetryPolicy, agentTelemetryUrl, null);
   }
 
   public static TelemetryClient buildIntakeClient(
-      Config config, HttpRetryPolicy.Factory httpRetryPolicy) {
+      Config config,
+      HttpRetryPolicy.Factory httpRetryPolicy
+  ) {
     String apiKey = config.getApiKey();
     if (apiKey == null) {
       log.debug("Cannot create Telemetry Intake because DD_API_KEY unspecified.");
@@ -62,10 +66,8 @@ public class TelemetryClient {
   }
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryClient.class);
-
   private static final String AGENT_TELEMETRY_API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
   private static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
-
   private final OkHttpClient okHttpClient;
   private final HttpRetryPolicy.Factory httpRetryPolicy;
   private final HttpUrl url;
@@ -75,7 +77,8 @@ public class TelemetryClient {
       OkHttpClient okHttpClient,
       HttpRetryPolicy.Factory httpRetryPolicy,
       HttpUrl url,
-      String apiKey) {
+      String apiKey
+  ) {
     this.okHttpClient = okHttpClient;
     this.httpRetryPolicy = httpRetryPolicy;
     this.url = url;
@@ -106,13 +109,13 @@ public class TelemetryClient {
             "Telemetry message {} failed with: {} {}.",
             requestType,
             response.code(),
-            response.message());
+            response.message()
+        );
         return Result.FAILURE;
       }
     } catch (InterruptedIOException e) {
       log.debug("Telemetry message {} sending interrupted: {}.", requestType, e.toString());
       return Result.INTERRUPTED;
-
     } catch (IOException e) {
       log.debug("Telemetry message {} failed with exception: {}.", requestType, e.toString());
       return Result.FAILURE;

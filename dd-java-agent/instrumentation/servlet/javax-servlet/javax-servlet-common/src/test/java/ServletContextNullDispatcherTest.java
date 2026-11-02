@@ -1,5 +1,4 @@
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import java.io.InputStream;
 import java.net.URL;
@@ -16,7 +15,6 @@ import org.junit.jupiter.api.Test;
  * {@code null} key. Instrumentation errors fail the test via {@link AbstractInstrumentationTest}.
  */
 class ServletContextNullDispatcherTest extends AbstractInstrumentationTest {
-
   @Test
   void getRequestDispatcherReturningNull() {
     assertNull(new NullDispatcherContext().getRequestDispatcher("unknown"));
@@ -27,7 +25,9 @@ class ServletContextNullDispatcherTest extends AbstractInstrumentationTest {
     assertNull(new NullDispatcherContext().getNamedDispatcher("unknown"));
   }
 
-  /** {@link ServletContext} that has no dispatchers, like Tomcat for an unknown target. */
+  /**
+   * {@link ServletContext} that has no dispatchers, like Tomcat for an unknown target.
+   */
   static class NullDispatcherContext implements ServletContext {
     @Override
     public RequestDispatcher getRequestDispatcher(String path) {

@@ -16,7 +16,9 @@ public class WebController {
     return sayHello();
   }
 
-  /** DD_TRACE_METHOD="datadog.smoketest.springboot.controller.WebController[sayHello]" */
+  /**
+   * DD_TRACE_METHOD="datadog.smoketest.springboot.controller.WebController[sayHello]"
+   */
   private String sayHello() {
     return "Hello world";
   }

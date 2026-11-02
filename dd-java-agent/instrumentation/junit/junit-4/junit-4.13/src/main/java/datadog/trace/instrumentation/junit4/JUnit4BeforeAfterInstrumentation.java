@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,8 +13,9 @@ import org.junit.runners.model.FrameworkMethod;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public JUnit4BeforeAfterInstrumentation() {
     super("ci-visibility", "junit-4", "setup-teardown");
   }
@@ -23,19 +23,21 @@ public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisib
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.junit.internal.runners.statements.RunBefores",
-      "org.junit.internal.runners.statements.RunAfters",
-      "org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters$RunBeforeParams",
-      "org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters$RunAfterParams",
+        "org.junit.internal.runners.statements.RunBefores",
+        "org.junit.internal.runners.statements.RunAfters",
+        "org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters$RunBeforeParams",
+        "org.junit.runners.parameterized.BlockJUnit4ClassRunnerWithParameters$RunAfterParams"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("invokeMethod")
-            .and(takesArgument(0, named("org.junit.runners.model.FrameworkMethod"))),
-        JUnit4BeforeAfterInstrumentation.class.getName() + "$RunBeforesAftersAdvice");
+        named("invokeMethod").and(
+            takesArgument(0, named("org.junit.runners.model.FrameworkMethod"))
+        ),
+        JUnit4BeforeAfterInstrumentation.class.getName() + "$RunBeforesAftersAdvice"
+    );
   }
 
   public static class RunBeforesAftersAdvice {
@@ -46,7 +48,9 @@ public class JUnit4BeforeAfterInstrumentation extends InstrumenterModule.CiVisib
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishCallSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       JUnit4BeforeAfterOperationsTracer.endTrace(scope, throwable);
     }
 

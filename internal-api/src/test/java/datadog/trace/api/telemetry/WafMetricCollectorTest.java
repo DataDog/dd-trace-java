@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Named.named;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.telemetry.WafMetricCollector.AIGuardError;
 import datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction;
@@ -64,19 +63,18 @@ import org.tabletest.junit.TableTest;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class WafMetricCollectorTest extends DDJavaSpecification {
-
   /**
    * Call-path tags every ai_guard metric carries. Both are constant while a direct SDK call is the
    * only way to reach an evaluation in this tracer.
    */
   private static final List<String> CALL_PATH = asList("source:sdk", "integration:none");
-
   private static final int DD_WAF_RUN_INTERNAL_ERROR = WafErrorCode.INTERNAL_ERROR.getCode();
   private static final int DD_WAF_RUN_INVALID_OBJECT_ERROR = WafErrorCode.INVALID_OBJECT.getCode();
-
   private final WafMetricCollector collector = WafMetricCollector.get();
 
-  /** Flushes metrics left over by previous tests, as the collector state is static. */
+  /**
+   * Flushes metrics left over by previous tests, as the collector state is static.
+   */
   @BeforeEach
   void drainPendingMetrics() {
     do {
@@ -88,7 +86,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   void noMetricsDrainEmptyList() {
     // when
     collector.prepareMetrics();
-
     // then
     assertTrue(collector.drain().isEmpty());
   }
@@ -111,7 +108,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     collector.raspRuleSkipped(SQL_INJECTION);
 
     collector.prepareMetrics();
-
     // then
     List<WafMetric> metrics = new ArrayList<>(collector.drain());
 
@@ -120,42 +116,48 @@ class WafMetricCollectorTest extends DDJavaSpecification {
         metrics.get(0),
         "waf.init",
         1,
-        tagSet("waf_version:waf_ver1", "event_rules_version:rules.1", "success:true"));
+        tagSet("waf_version:waf_ver1", "event_rules_version:rules.1", "success:true")
+    );
 
     assertAppSecCount(
         WafUpdatesRawMetric.class,
         metrics.get(1),
         "waf.updates",
         1,
-        tagSet("waf_version:waf_ver1", "event_rules_version:rules.2", "success:true"));
+        tagSet("waf_version:waf_ver1", "event_rules_version:rules.2", "success:true")
+    );
 
     assertAppSecCount(
         WafUpdatesRawMetric.class,
         metrics.get(2),
         "waf.updates",
         1,
-        tagSet("waf_version:waf_ver1", "event_rules_version:rules.3", "success:false"));
+        tagSet("waf_version:waf_ver1", "event_rules_version:rules.3", "success:false")
+    );
 
     assertAppSecCount(
         RaspRuleEval.class,
         metrics.get(3),
         "rasp.rule.eval",
         3,
-        tagSet("rule_type:sql_injection", "waf_version:waf_ver1"));
+        tagSet("rule_type:sql_injection", "waf_version:waf_ver1")
+    );
 
     assertAppSecCount(
         RaspRuleMatch.class,
         metrics.get(4),
         "rasp.rule.match",
         1,
-        tagSet("rule_type:sql_injection", "waf_version:waf_ver1", "block:false"));
+        tagSet("rule_type:sql_injection", "waf_version:waf_ver1", "block:false")
+    );
 
     assertAppSecCount(
         RaspTimeout.class,
         metrics.get(5),
         "rasp.timeout",
         1,
-        tagSet("rule_type:sql_injection", "waf_version:waf_ver1"));
+        tagSet("rule_type:sql_injection", "waf_version:waf_ver1")
+    );
 
     assertAppSecCount(
         RaspError.class,
@@ -165,7 +167,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
         tagSet(
             "rule_type:sql_injection",
             "waf_version:waf_ver1",
-            "waf_error:" + DD_WAF_RUN_INVALID_OBJECT_ERROR));
+            "waf_error:" + DD_WAF_RUN_INVALID_OBJECT_ERROR
+        )
+    );
 
     assertAppSecCount(
         RaspError.class,
@@ -177,7 +181,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
             "rule_type:command_injection",
             "rule_variant:shell",
             "event_rules_version:rules.3",
-            "waf_error:" + DD_WAF_RUN_INTERNAL_ERROR));
+            "waf_error:" + DD_WAF_RUN_INTERNAL_ERROR
+        )
+    );
 
     assertAppSecCount(
         WafError.class,
@@ -187,7 +193,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
         tagSet(
             "waf_version:waf_ver1",
             "event_rules_version:rules.3",
-            "waf_error:" + DD_WAF_RUN_INVALID_OBJECT_ERROR));
+            "waf_error:" + DD_WAF_RUN_INVALID_OBJECT_ERROR
+        )
+    );
 
     assertAppSecCount(
         WafError.class,
@@ -197,58 +205,49 @@ class WafMetricCollectorTest extends DDJavaSpecification {
         tagSet(
             "waf_version:waf_ver1",
             "event_rules_version:rules.3",
-            "waf_error:" + DD_WAF_RUN_INTERNAL_ERROR));
+            "waf_error:" + DD_WAF_RUN_INTERNAL_ERROR
+        )
+    );
 
     assertAppSecCount(
         AfterRequestRaspRuleSkipped.class,
         metrics.get(10),
         "rasp.rule.skipped",
         1,
-        tagSet("rule_type:sql_injection", "reason:after-request"));
+        tagSet("rule_type:sql_injection", "reason:after-request")
+    );
   }
 
   @Test
   void overflowingWafMetricCollectorDoesNotCrash() {
     // given
     int limit = 1024;
-
     // when
-    assertDoesNotThrow(
-        () -> {
-          for (int index = 0; index <= limit * 2; index++) {
-            collector.wafInit("foo", "bar", true);
-          }
-        });
-
+    assertDoesNotThrow(() -> {
+      for (int index = 0; index <= limit * 2; index++) {
+        collector.wafInit("foo", "bar", true);
+      }
+    });
     // then
     assertEquals(limit, collector.drain().size());
-
     // when
-    assertDoesNotThrow(
-        () -> {
-          for (int index = 0; index <= limit * 2; index++) {
-            collector.wafUpdates("bar", true);
-          }
-        });
-
+    assertDoesNotThrow(() -> {
+      for (int index = 0; index <= limit * 2; index++) {
+        collector.wafUpdates("bar", true);
+      }
+    });
     // then
     assertEquals(limit, collector.drain().size());
-
     // when
     assertDoesNotThrow(() -> raspRuleEvalAndPrepare(limit));
-
     // then
     assertEquals(limit, collector.drain().size());
-
     // when
     assertDoesNotThrow(() -> raspRuleEvalAndPrepare(limit));
-
     // then
     assertEquals(limit, collector.drain().size());
-
     // when
     assertDoesNotThrow(() -> raspRuleEvalAndPrepare(limit));
-
     // then
     assertEquals(limit, collector.drain().size());
   }
@@ -261,7 +260,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     int signupCount = 2;
     CountDownLatch latch = new CountDownLatch(1);
     ExecutorService executors = Executors.newFixedThreadPool(4);
-
     // when
     submitMissingUserLogin(executors, latch, LOGIN_SUCCESS, loginSuccessCount);
     submitMissingUserLogin(executors, latch, LOGIN_FAILURE, loginFailureCount);
@@ -270,7 +268,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     latch.countDown();
     executors.shutdown();
     boolean finished = executors.awaitTermination(5, SECONDS);
-
     // then
     assertTrue(finished);
     collector.prepareMetrics();
@@ -299,21 +296,18 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     int count = 6;
     CountDownLatch latch = new CountDownLatch(1);
     ExecutorService executors = Executors.newFixedThreadPool(4);
-
     // when
     for (int index = 0; index < count; index++) {
-      executors.submit(
-          () -> {
-            latch.await();
-            collector.missingUserId(SPRING_SECURITY);
-            return null;
-          });
+      executors.submit(() -> {
+        latch.await();
+        collector.missingUserId(SPRING_SECURITY);
+        return null;
+      });
     }
 
     latch.countDown();
     executors.shutdown();
     boolean finished = executors.awaitTermination(5, SECONDS);
-
     // then
     assertTrue(finished);
     collector.prepareMetrics();
@@ -346,7 +340,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     collector.wafErrorCode(DD_WAF_RUN_INTERNAL_ERROR);
     collector.raspRuleSkipped(ruleType);
     collector.prepareMetrics();
-
     // then
     List<WafMetric> metrics = new ArrayList<>(collector.drain());
 
@@ -359,7 +352,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
             "rule_type:command_injection",
             "rule_variant:" + ruleType.variant,
             "waf_version:waf_ver1",
-            "event_rules_version:rules.1"));
+            "event_rules_version:rules.1"
+        )
+    );
 
     assertAppSecCount(
         RaspRuleMatch.class,
@@ -371,7 +366,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
             "rule_variant:" + ruleType.variant,
             "waf_version:waf_ver1",
             "event_rules_version:rules.1",
-            "block:false"));
+            "block:false"
+        )
+    );
 
     assertAppSecCount(
         RaspTimeout.class,
@@ -382,7 +379,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
             "rule_type:command_injection",
             "rule_variant:" + ruleType.variant,
             "waf_version:waf_ver1",
-            "event_rules_version:rules.1"));
+            "event_rules_version:rules.1"
+        )
+    );
 
     assertAppSecCount(
         RaspError.class,
@@ -394,7 +393,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
             "rule_type:command_injection",
             "rule_variant:" + ruleType.variant,
             "event_rules_version:rules.1",
-            "waf_error:" + DD_WAF_RUN_INTERNAL_ERROR));
+            "waf_error:" + DD_WAF_RUN_INTERNAL_ERROR
+        )
+    );
 
     assertAppSecCount(
         WafError.class,
@@ -404,7 +405,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
         tagSet(
             "waf_version:waf_ver1",
             "event_rules_version:rules.1",
-            "waf_error:" + DD_WAF_RUN_INTERNAL_ERROR));
+            "waf_error:" + DD_WAF_RUN_INTERNAL_ERROR
+        )
+    );
 
     assertAppSecCount(
         AfterRequestRaspRuleSkipped.class,
@@ -414,7 +417,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
         tagSet(
             "rule_type:command_injection",
             "rule_variant:" + ruleType.variant,
-            "reason:after-request"));
+            "reason:after-request"
+        )
+    );
   }
 
   @Test
@@ -422,7 +427,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     // when
     collector.appSecSdkEvent(LOGIN_SUCCESS, V1);
     collector.appSecSdkEvent(LOGIN_FAILURE, V2);
-
     // then
     collector.prepareMetrics();
     List<WafMetric> sdkEvents = metricsNamed(collector.drain(), "sdk.event");
@@ -452,10 +456,10 @@ class WafMetricCollectorTest extends DDJavaSpecification {
       boolean blockFailure,
       boolean rateLimited,
       boolean inputTruncated,
-      boolean requestExcluded) {
+      boolean requestExcluded
+  ) {
     // given
     collector.wafInit("waf_ver1", "rules.1", true);
-
     // when
     collector.wafRequest(
         triggered,
@@ -465,8 +469,8 @@ class WafMetricCollectorTest extends DDJavaSpecification {
         blockFailure,
         rateLimited,
         inputTruncated,
-        requestExcluded);
-
+        requestExcluded
+    );
     // then
     collector.prepareMetrics();
     List<WafMetric> requestMetrics = metricsNamed(collector.drain(), "waf.requests");
@@ -488,8 +492,10 @@ class WafMetricCollectorTest extends DDJavaSpecification {
             "block_failure:" + blockFailure,
             "rate_limited:" + rateLimited,
             "input_truncated:" + inputTruncated,
-            "request_excluded:" + (requestExcluded ? "full" : "none")),
-        metric.tags);
+            "request_excluded:" + (requestExcluded ? "full" : "none")
+        ),
+        metric.tags
+    );
   }
 
   static Stream<Arguments> testWafRequestMetricsArguments() {
@@ -499,15 +505,18 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   @ParameterizedTest
   @MethodSource("testWafInputTruncatedMetricsArguments")
   void testWafInputTruncatedMetrics(
-      boolean stringTooLong, boolean listMapTooLarge, boolean objectTooDeep) {
+      boolean stringTooLong,
+      boolean listMapTooLarge,
+      boolean objectTooDeep
+  ) {
     // given
-    int bitField =
-        WafMetricCollector.computeWafInputTruncatedIndex(
-            stringTooLong, listMapTooLarge, objectTooDeep);
-
+    int bitField = WafMetricCollector.computeWafInputTruncatedIndex(
+        stringTooLong,
+        listMapTooLarge,
+        objectTooDeep
+    );
     // when
     collector.wafInputTruncated(stringTooLong, listMapTooLarge, objectTooDeep);
-
     // then
     collector.prepareMetrics();
     List<WafMetric> inputTruncatedMetrics = metricsNamed(collector.drain(), "waf.input_truncated");
@@ -530,7 +539,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     collector.addWafConfigError(5);
     collector.addWafConfigError(3);
     collector.prepareMetrics();
-
     // then
     List<WafMetric> configErrorMetrics = metricsNamed(collector.drain(), "waf.config_errors");
 
@@ -540,7 +548,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     assertEquals("appsec", metric.namespace);
     assertEquals(8, metric.value.longValue());
     assertEquals(
-        tagSet("waf_version:waf_ver1", "event_rules_version:rules.1"), new HashSet<>(metric.tags));
+        tagSet("waf_version:waf_ver1", "event_rules_version:rules.1"),
+        new HashSet<>(metric.tags)
+    );
   }
 
   @TableTest({
@@ -555,7 +565,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   void testAiGuardRequest(AIGuard.Action action, boolean block) {
     // when
     collector.aiGuardRequest(action, block, NOT_APPLIED);
-
     // then
     collector.prepareMetrics();
     List<WafMetric> requestMetrics = metricsNamed(collector.drain(), "requests");
@@ -567,8 +576,10 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     assertEquals(1, metric.value.longValue());
     assertEquals(
         withCallPath(
-            asList("action:" + action.name(), "block:" + block, "error:false", "redacted:false")),
-        new HashSet<>(metric.tags));
+            asList("action:" + action.name(), "block:" + block, "error:false", "redacted:false")
+        ),
+        new HashSet<>(metric.tags)
+    );
   }
 
   @TableTest({
@@ -581,7 +592,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   void testAiGuardRedactionTelemetryTag(AIGuardRedaction redaction, List<String> expectedTags) {
     // when
     collector.aiGuardRequest(ALLOW, false, redaction);
-
     // then
     collector.prepareMetrics();
     WafMetric metric = findMetric(collector.drain(), it -> "requests".equals(it.metricName));
@@ -598,17 +608,14 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   void testAiGuardError(AIGuardError type) {
     // when
     collector.aiGuardError(type);
-
     // then
     collector.prepareMetrics();
     Collection<WafMetric> metrics = collector.drain();
-
     // a failed evaluation keeps the request count complete...
     WafMetric request = findMetric(metrics, it -> "requests".equals(it.metricName));
     assertEquals("ai_guard", request.namespace);
     assertEquals(1, request.value.longValue());
     assertEquals(withCallPath(singletonList("error:true")), new HashSet<>(request.tags));
-
     // ...and is classified under its own metric
     WafMetric error = findMetric(metrics, it -> "error".equals(it.metricName));
     assertEquals("count", error.type);
@@ -621,7 +628,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   void testAiGuardRedactionErrors() {
     // when
     collector.aiGuardRedactionErrors(3);
-
     // then
     collector.prepareMetrics();
     Collection<WafMetric> metrics = collector.drain();
@@ -631,9 +637,10 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     // one count per replacement that could not be applied
     assertEquals(3, error.value.longValue());
     assertEquals(withCallPath(singletonList("type:redaction_error")), new HashSet<>(error.tags));
-
     // redaction never fails the evaluation it rode in on, so no request is counted as failed
-    assertTrue(metrics.stream().noneMatch(it -> "requests".equals(it.metricName)));
+    assertTrue(metrics
+      .stream()
+      .noneMatch(it -> "requests".equals(it.metricName)));
   }
 
   @TableTest({
@@ -644,7 +651,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   void testAiGuardTruncated(AIGuardTruncationType type) {
     // when
     collector.aiGuardTruncated(type);
-
     // then
     collector.prepareMetrics();
     List<WafMetric> truncatedMetrics = metricsNamed(collector.drain(), "truncated");
@@ -675,10 +681,8 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   void testRaspRuleMatchBlockTag(RuleType ruleType, boolean blocked) {
     // given
     collector.wafInit("waf_ver1", "rules.1", true);
-
     // when
     collector.raspRuleMatch(ruleType, blocked);
-
     // then
     collector.prepareMetrics();
     List<WafMetric> matchMetrics = metricsNamed(collector.drain(), "rasp.rule.match");
@@ -688,15 +692,15 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     assertEquals("count", metric.type);
     assertEquals(1, metric.value.longValue());
     assertEquals("appsec", metric.namespace);
-    Set<String> expectedTags =
-        ruleType.variant != null
-            ? tagSet(
-                "rule_type:" + ruleType.type,
-                "rule_variant:" + ruleType.variant,
-                "waf_version:waf_ver1",
-                "event_rules_version:rules.1",
-                "block:" + blocked)
-            : tagSet("rule_type:" + ruleType.type, "waf_version:waf_ver1", "block:" + blocked);
+    Set<String> expectedTags = ruleType.variant != null
+        ? tagSet(
+            "rule_type:" + ruleType.type,
+            "rule_variant:" + ruleType.variant,
+            "waf_version:waf_ver1",
+            "event_rules_version:rules.1",
+            "block:" + blocked
+    )
+        : tagSet("rule_type:" + ruleType.type, "waf_version:waf_ver1", "block:" + blocked);
     assertEquals(expectedTags, new HashSet<>(metric.tags));
   }
 
@@ -704,27 +708,28 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   void testRaspRuleMatchDrainsBlockedAndNonBlockedAsSeparateMetrics() {
     // given
     collector.wafInit("waf_ver1", "rules.1", true);
-
     // when
     collector.raspRuleMatch(SQL_INJECTION, true);
     collector.raspRuleMatch(SQL_INJECTION, false);
-
     // then
     collector.prepareMetrics();
     List<WafMetric> matchMetrics = metricsNamed(collector.drain(), "rasp.rule.match");
 
     assertEquals(2, matchMetrics.size());
     assertEquals(
-        1, findMetric(matchMetrics, it -> it.tags.contains("block:true")).value.longValue());
+        1,
+        findMetric(matchMetrics, it -> it.tags.contains("block:true")).value.longValue()
+    );
     assertEquals(
-        1, findMetric(matchMetrics, it -> it.tags.contains("block:false")).value.longValue());
+        1,
+        findMetric(matchMetrics, it -> it.tags.contains("block:false")).value.longValue()
+    );
   }
 
   @Test
   void testApiSecurityMissingRouteMetric() {
     // when
     collector.apiSecurityMissingRoute("netty");
-
     // then
     collector.prepareMetrics();
     List<WafMetric> metrics = metricsNamed(collector.drain(), "api_security.missing_route");
@@ -746,19 +751,20 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     collector.apiSecurityMissingRoute("tomcat");
     collector.prepareMetrics();
     List<WafMetric> metrics = metricsNamed(collector.drain(), "api_security.missing_route");
-
     // then: one aggregated metric per framework is emitted, not one per call
     assertEquals(2, metrics.size());
     assertEquals(
-        2, findMetric(metrics, it -> it.tags.contains("framework:netty")).value.longValue());
+        2,
+        findMetric(metrics, it -> it.tags.contains("framework:netty")).value.longValue()
+    );
     assertEquals(
-        1, findMetric(metrics, it -> it.tags.contains("framework:tomcat")).value.longValue());
-
+        1,
+        findMetric(metrics, it -> it.tags.contains("framework:tomcat")).value.longValue()
+    );
     // when: a further drain cycle happens with no new calls
     collector.prepareMetrics();
     List<WafMetric> secondDrainMetrics =
         metricsNamed(collector.drain(), "api_security.missing_route");
-
     // then: the per-framework counters were reset and nothing is re-emitted
     assertTrue(secondDrainMetrics.isEmpty());
   }
@@ -776,19 +782,17 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     }
     collector.prepareMetrics();
     List<WafMetric> metrics = metricsNamed(collector.drain(), "api_security.missing_route");
-
     // then: the number of distinct framework tags emitted never exceeds the cap
     assertTrue(metrics.size() <= 64);
     assertTrue(
-        findMetric(metrics, it -> it.tags.contains("framework:unknown")).value.longValue()
-            >= 100 - 64);
+        findMetric(metrics, it -> it.tags.contains("framework:unknown")).value.longValue() >= 100 - 64
+    );
   }
 
   @Test
   void testApiSecurityRequestSchemaMetric() {
     // when
     collector.apiSecurityRequestSchema("netty");
-
     // then
     collector.prepareMetrics();
     List<WafMetric> metrics = metricsNamed(collector.drain(), "api_security.request.schema");
@@ -806,7 +810,6 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   void testApiSecurityRequestNoSchemaMetric() {
     // when
     collector.apiSecurityRequestNoSchema("netty");
-
     // then
     collector.prepareMetrics();
     List<WafMetric> metrics = metricsNamed(collector.drain(), "api_security.request.no_schema");
@@ -838,7 +841,8 @@ class WafMetricCollectorTest extends DDJavaSpecification {
 
   static Stream<Arguments> testNormalizeFrameworkArguments() {
     return Stream.of(
-        arguments(named("framework over 200 chars", repeat('a', 300)), repeat('a', 200)));
+        arguments(named("framework over 200 chars", repeat('a', 300)), repeat('a', 200))
+    );
   }
 
   private void raspRuleEvalAndPrepare(int limit) {
@@ -849,14 +853,17 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   }
 
   private void submitMissingUserLogin(
-      ExecutorService executors, CountDownLatch latch, LoginEvent event, int count) {
+      ExecutorService executors,
+      CountDownLatch latch,
+      LoginEvent event,
+      int count
+  ) {
     for (int index = 0; index < count; index++) {
-      executors.submit(
-          () -> {
-            latch.await();
-            collector.missingUserLogin(SPRING_SECURITY, event);
-            return null;
-          });
+      executors.submit(() -> {
+        latch.await();
+        collector.missingUserLogin(SPRING_SECURITY, event);
+        return null;
+      });
     }
   }
 
@@ -865,7 +872,8 @@ class WafMetricCollectorTest extends DDJavaSpecification {
       WafMetric metric,
       String metricName,
       long value,
-      Set<String> tags) {
+      Set<String> tags
+  ) {
     assertInstanceOf(expectedType, metric);
     assertEquals("count", metric.type);
     assertEquals(value, metric.value.longValue());
@@ -875,13 +883,13 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   }
 
   private static List<WafMetric> metricsNamed(Collection<WafMetric> metrics, String metricName) {
-    return metrics.stream()
-        .filter(metric -> metricName.equals(metric.metricName))
-        .collect(Collectors.toList());
+    return metrics
+      .stream()
+      .filter(metric -> metricName.equals(metric.metricName))
+      .collect(Collectors.toList());
   }
 
-  private static WafMetric findMetric(
-      Collection<WafMetric> metrics, Predicate<WafMetric> predicate) {
+  private static WafMetric findMetric(Collection<WafMetric> metrics, Predicate<WafMetric> predicate) {
     WafMetric found = metrics.stream().filter(predicate).findFirst().orElse(null);
     assertNotNull(found);
     return found;
@@ -912,7 +920,9 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     return new String(chars);
   }
 
-  /** Generates all combinations of n boolean values. */
+  /**
+   * Generates all combinations of n boolean values.
+   */
   private static Stream<Arguments> allBooleanCombinations(int n) {
     int total = 1 << n;
     List<Arguments> combinations = new ArrayList<>();

@@ -12,12 +12,15 @@ public final class DurableFunctionsDecorator extends BaseDecorator {
   public static final String ORCHESTRATION_TRIGGER = "DurableOrchestration";
   public static final DurableFunctionsDecorator DECORATE = new DurableFunctionsDecorator();
   public static final CharSequence AZURE_FUNCTIONS_REQUEST =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().cloud().operationForFaas("azure"));
-
+      UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .cloud()
+    .operationForFaas("azure"));
   private static final CharSequence AZURE_FUNCTIONS = UTF8BytesString.create("azure-functions");
 
-  private DurableFunctionsDecorator() {}
+  private DurableFunctionsDecorator() {
+  }
 
   @Override
   protected String[] instrumentationNames() {

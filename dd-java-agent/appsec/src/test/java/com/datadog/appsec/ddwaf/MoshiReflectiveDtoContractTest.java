@@ -1,7 +1,6 @@
 package com.datadog.appsec.ddwaf;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import java.util.Arrays;
@@ -17,29 +16,29 @@ import org.junit.jupiter.api.Test;
  * from inside a running JVM, so this asserts the contract directly instead.
  */
 class MoshiReflectiveDtoContractTest {
-
   /**
    * Every class reached by the reflective adapters in {@code WAFModule} and {@code
    * AppSecEventWrapper}.
    */
-  private static final List<Class<?>> REFLECTIVELY_INSTANTIATED =
-      Arrays.asList(
-          WAFResultData.class,
-          WAFResultData.Rule.class,
-          WAFResultData.RuleMatch.class,
-          WAFResultData.Parameter.class,
-          WAFResultData.MatchInfo.class,
-          AppSecEventWrapper.class,
-          AppSecEvent.class);
+  private static final List<Class<?>> REFLECTIVELY_INSTANTIATED = Arrays.asList(
+      WAFResultData.class,
+      WAFResultData.Rule.class,
+      WAFResultData.RuleMatch.class,
+      WAFResultData.Parameter.class,
+      WAFResultData.MatchInfo.class,
+      AppSecEventWrapper.class,
+      AppSecEvent.class
+  );
 
   @Test
   void everyReflectivelyBoundDtoDeclaresANoArgConstructor() {
     for (Class<?> clazz : REFLECTIVELY_INSTANTIATED) {
       assertDoesNotThrow(
-          () -> {
-            clazz.getDeclaredConstructor();
-          },
-          clazz.getName() + " must declare a no-arg constructor for Moshi");
+            () -> {
+              clazz.getDeclaredConstructor();
+            },
+          clazz.getName() + " must declare a no-arg constructor for Moshi"
+      );
     }
   }
 }

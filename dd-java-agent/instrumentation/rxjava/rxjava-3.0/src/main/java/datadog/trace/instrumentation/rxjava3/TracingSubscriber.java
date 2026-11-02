@@ -6,13 +6,17 @@ import io.reactivex.rxjava3.core.FlowableSubscriber;
 import javax.annotation.Nonnull;
 import org.reactivestreams.Subscription;
 
-/** Wrapper that makes sure spans from subscriber events treat the captured span as their parent. */
+/**
+ * Wrapper that makes sure spans from subscriber events treat the captured span as their parent.
+ */
 public final class TracingSubscriber<T> implements FlowableSubscriber<T> {
   private final FlowableSubscriber<T> subscriber;
   private final Context parentContext;
 
   public TracingSubscriber(
-      @Nonnull final FlowableSubscriber<T> subscriber, @Nonnull final Context parentContext) {
+      @Nonnull final FlowableSubscriber<T> subscriber,
+      @Nonnull final Context parentContext
+  ) {
     this.subscriber = subscriber;
     this.parentContext = parentContext;
   }

@@ -25,7 +25,6 @@ import javax.ws.rs.core.Response.Status;
 
 @Path("/hello")
 public class Resource {
-
   @GET
   @Produces(MediaType.TEXT_PLAIN)
   public String hello() {

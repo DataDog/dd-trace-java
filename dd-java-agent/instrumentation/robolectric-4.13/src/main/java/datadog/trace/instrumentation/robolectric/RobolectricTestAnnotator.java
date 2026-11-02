@@ -16,11 +16,13 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 
 public final class RobolectricTestAnnotator {
-
-  /** Matches the version in a {@code robolectric-<version>.jar} file name. */
+  /**
+   * Matches the version in a {@code robolectric-<version>.jar} file name.
+   */
   private static final Pattern ROBOLECTRIC_JAR = Pattern.compile("^robolectric-(.+)\\.jar$");
 
-  private RobolectricTestAnnotator() {}
+  private RobolectricTestAnnotator() {
+  }
 
   public static void annotate() {
     int apiLevel = RuntimeEnvironment.getApiLevel();

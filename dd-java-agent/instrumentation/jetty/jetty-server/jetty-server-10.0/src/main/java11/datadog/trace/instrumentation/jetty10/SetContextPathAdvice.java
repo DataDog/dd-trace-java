@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DD_CONTEXT_PATH_ATTRIBUTE;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -18,7 +17,9 @@ import org.eclipse.jetty.server.Request;
 public class SetContextPathAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void updateContextPath(
-      @Advice.This final Request req, @Advice.Argument(0) final String contextPath) {
+      @Advice.This final Request req,
+      @Advice.Argument(0) final String contextPath
+  ) {
     if (contextPath != null) {
       Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
       // Don't want to update while being dispatched to new servlet

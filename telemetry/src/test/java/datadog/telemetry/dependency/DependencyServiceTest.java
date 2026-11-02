@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -27,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class DependencyServiceTest {
-
   private final DependencyService depService = new DependencyService();
 
   @Test
@@ -55,9 +53,10 @@ class DependencyServiceTest {
   @Test
   void addMissingJarUrlDependency() throws MalformedURLException {
     // this URI comes from a spring-boot application
-    URL url =
-        new URL(
-            "jar:file:/tmp//spring-petclinic-2.1.0.BUILD-SNAPSHOT.jar!/BOOT-INF/lib/spring-boot-2.1.0.BUILD-SNAPSHOT.jar!//");
+    URL url = new URL(
+        "jar:file:/tmp//spring-petclinic-2.1.0.BUILD-SNAPSHOT.jar!/BOOT-INF/lib/spring-"
+        + "boot-2.1.0.BUILD-SNAPSHOT.jar!//"
+    );
     depService.addURL(url);
     depService.resolveOneDependency();
 
@@ -88,23 +87,26 @@ class DependencyServiceTest {
 
   @Test
   void convertToURIWorksWithASpacedURL() throws MalformedURLException {
-    URI uri =
-        depService.convertToURI(
-            new URL(
-                "file:/C:/Program Files/IBM/WebSphere/AppServer_1/plugins/com.ibm.cds_2.1.0.jar"));
+    URI uri = depService.convertToURI(
+        new URL("file:/C:/Program Files/IBM/WebSphere/AppServer_1/plugins/com.ibm.cds_2.1.0.jar")
+    );
 
     assertEquals(
-        "/C:/Program Files/IBM/WebSphere/AppServer_1/plugins/com.ibm.cds_2.1.0.jar", uri.getPath());
+        "/C:/Program Files/IBM/WebSphere/AppServer_1/plugins/com.ibm.cds_2.1.0.jar",
+        uri.getPath()
+    );
   }
 
   @Test
   void convertToURIWorksWithANestedURL() throws MalformedURLException {
-    URI uri =
-        depService.convertToURI(
-            new URL("jar:file:/Users/test/spring-petclinic.jar!/BOOT-INF/classes!/"));
+    URI uri = depService.convertToURI(
+        new URL("jar:file:/Users/test/spring-petclinic.jar!/BOOT-INF/classes!/")
+    );
 
     assertEquals(
-        "file:/Users/test/spring-petclinic.jar!/BOOT-INF/classes!/", uri.getSchemeSpecificPart());
+        "file:/Users/test/spring-petclinic.jar!/BOOT-INF/classes!/",
+        uri.getSchemeSpecificPart()
+    );
   }
 
   @Test
@@ -157,19 +159,16 @@ class DependencyServiceTest {
     verify(instrumentation).addTransformer(transformerCaptor.capture());
     ClassFileTransformer transformer = transformerCaptor.getValue();
     assertNotNull(transformer);
-
     // null protection domain
     transformer.transform(null, null, null, null, null);
     depService.resolveOneDependency();
     assertTrue(depService.drainDeterminedDependencies().isEmpty());
-
     // null code source
     ProtectionDomain protectionDomainWithoutCodeSource =
         new ProtectionDomain(null, null, null, null);
     transformer.transform(null, null, null, protectionDomainWithoutCodeSource, null);
     depService.resolveOneDependency();
     assertTrue(depService.drainDeterminedDependencies().isEmpty());
-
     // null code source location
     CodeSource codeSourceWithoutLocation = new CodeSource(null, (CodeSigner[]) null);
     ProtectionDomain protectionDomainWithoutLocation =
@@ -178,9 +177,9 @@ class DependencyServiceTest {
     depService.resolveOneDependency();
     assertNull(codeSourceWithoutLocation.getLocation());
     assertTrue(depService.drainDeterminedDependencies().isEmpty());
-
     // null or invalid URI syntax
-    URL invalidUrl = new URL("http:// "); // this url is known to not be a valid URI
+    // this url is known to not be a valid URI
+    URL invalidUrl = new URL("http:// ");
     CodeSource codeSourceWithInvalidUrl = new CodeSource(invalidUrl, (CodeSigner[]) null);
     ProtectionDomain protectionDomainWithInvalidUrl =
         new ProtectionDomain(codeSourceWithInvalidUrl, null, null, null);

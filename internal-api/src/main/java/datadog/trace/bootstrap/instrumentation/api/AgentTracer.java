@@ -32,7 +32,6 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 public class AgentTracer {
-
   /**
    * @see TracerAPI#startSpan(String, CharSequence)
    */
@@ -44,7 +43,10 @@ public class AgentTracer {
    * @see TracerAPI#startSpan(String, CharSequence, long)
    */
   public static AgentSpan startSpan(
-      final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
+      final String instrumentationName,
+      final CharSequence spanName,
+      final long startTimeMicros
+  ) {
     return get().startSpan(instrumentationName, spanName, startTimeMicros);
   }
 
@@ -54,7 +56,8 @@ public class AgentTracer {
   public static AgentSpan startSpan(
       final String instrumentationName,
       final CharSequence spanName,
-      final AgentSpanContext parent) {
+      final AgentSpanContext parent
+  ) {
     return get().startSpan(instrumentationName, spanName, parent);
   }
 
@@ -65,7 +68,8 @@ public class AgentTracer {
       final String instrumentationName,
       final CharSequence spanName,
       final AgentSpanContext parent,
-      final long startTimeMicros) {
+      final long startTimeMicros
+  ) {
     return get().startSpan(instrumentationName, spanName, parent, startTimeMicros);
   }
 
@@ -73,7 +77,9 @@ public class AgentTracer {
    * @see TracerAPI#startSpan(SpanPrototype, CharSequence)
    */
   public static AgentSpan startSpan(
-      @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+      @Nonnull final SpanPrototype prototype,
+      final CharSequence operationName
+  ) {
     return get().startSpan(prototype, operationName);
   }
 
@@ -207,7 +213,6 @@ public class AgentTracer {
   }
 
   public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
-
   private static volatile TracerAPI provider = NOOP_TRACER;
 
   public static boolean isRegistered() {
@@ -216,7 +221,8 @@ public class AgentTracer {
 
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Agent-internal static holder; class lock guards private static provider")
+      justification = "Agent-internal static holder; class lock guards private static provider"
+  )
   public static synchronized void registerIfAbsent(final TracerAPI tracer) {
     if (tracer != null && tracer != NOOP_TRACER) {
       provider = tracer;
@@ -225,7 +231,8 @@ public class AgentTracer {
 
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Agent-internal static holder; class lock guards private static provider")
+      justification = "Agent-internal static holder; class lock guards private static provider"
+  )
   public static synchronized void forceRegister(TracerAPI tracer) {
     if (tracer == null) {
       throw new IllegalArgumentException("tracer must not be null, use NOOP_TRACER instead");
@@ -238,11 +245,14 @@ public class AgentTracer {
   }
 
   // Not intended to be constructed.
-  private AgentTracer() {}
+  private AgentTracer() {
+  }
 
   public interface TracerAPI
-      extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer {
-
+      extends datadog.trace.api.Tracer,
+      InternalTracer,
+      EndpointCheckpointer
+  {
     /**
      * Create and start a new span.
      *
@@ -285,15 +295,22 @@ public class AgentTracer {
         String instrumentationName,
         CharSequence spanName,
         AgentSpanContext parent,
-        long startTimeMicros);
+        long startTimeMicros
+    );
 
-    /** Activate a span from inside auto-instrumentation. */
+    /**
+     * Activate a span from inside auto-instrumentation.
+     */
     ContextScope activateSpan(AgentSpan span);
 
-    /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
+    /**
+     * Activate a span from outside auto-instrumentation, i.e. a manual or custom span.
+     */
     ContextScope activateManualSpan(AgentSpan span);
 
-    /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
+    /**
+     * Activate a span which will be closed by {@link #closeActive()} instead of a scope.
+     */
     void activateSpanWithoutScope(AgentSpan span);
 
     @Override
@@ -342,7 +359,8 @@ public class AgentTracer {
     default SpanBuilder buildSpan(@Nonnull SpanPrototype prototype, CharSequence operationName) {
       return buildSpan(
           prototype.instrumentationName(),
-          operationName != null ? operationName : prototype.operationName());
+          operationName != null ? operationName : prototype.operationName()
+      );
     }
 
     /**
@@ -402,7 +420,6 @@ public class AgentTracer {
     void addShutdownListener(Runnable listener);
 
     // these methods are only used for legacy context manager migration
-
     @Deprecated
     Context currentContext();
 
@@ -449,8 +466,8 @@ public class AgentTracer {
   }
 
   static class NoopTracerAPI implements TracerAPI {
-
-    protected NoopTracerAPI() {}
+    protected NoopTracerAPI() {
+    }
 
     @Override
     public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
@@ -459,14 +476,10 @@ public class AgentTracer {
 
     @Override
     public AgentSpan startSpan(
-        @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+        @Nonnull final SpanPrototype prototype,
+        final CharSequence operationName
+    ) {
       // The default routes through buildSpan(String,...), which is null on the noop tracer -> NPE.
-      return NoopSpan.INSTANCE;
-    }
-
-    @Override
-    public AgentSpan startSpan(
-        final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
       return NoopSpan.INSTANCE;
     }
 
@@ -474,7 +487,17 @@ public class AgentTracer {
     public AgentSpan startSpan(
         final String instrumentationName,
         final CharSequence spanName,
-        final AgentSpanContext parent) {
+        final long startTimeMicros
+    ) {
+      return NoopSpan.INSTANCE;
+    }
+
+    @Override
+    public AgentSpan startSpan(
+        final String instrumentationName,
+        final CharSequence spanName,
+        final AgentSpanContext parent
+    ) {
       return NoopSpan.INSTANCE;
     }
 
@@ -483,7 +506,8 @@ public class AgentTracer {
         final String instrumentationName,
         final CharSequence spanName,
         final AgentSpanContext parent,
-        final long startTimeMicros) {
+        final long startTimeMicros
+    ) {
       return NoopSpan.INSTANCE;
     }
 
@@ -532,7 +556,8 @@ public class AgentTracer {
 
     @Override
     public AgentSpan blackholeSpan() {
-      return NoopSpan.INSTANCE; // no-op tracer stays no-op
+      // no-op tracer stays no-op
+      return NoopSpan.INSTANCE;
     }
 
     @Override
@@ -542,7 +567,9 @@ public class AgentTracer {
 
     @Override
     public SpanBuilder buildSpan(
-        @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+        @Nonnull final SpanPrototype prototype,
+        final CharSequence operationName
+    ) {
       // Mirrors buildSpan(String,...): the noop tracer returns a null builder. Callers that need a
       // noop-safe entry point use startSpan(...), which is overridden above. A chainable
       // NoopSpanBuilder would fix the null-vs-NoopSpan asymmetry, but that is a separate PR.
@@ -551,7 +578,9 @@ public class AgentTracer {
 
     @Override
     public SpanBuilder singleSpanBuilder(
-        final String instrumentationName, final CharSequence spanName) {
+        final String instrumentationName,
+        final CharSequence spanName
+    ) {
       return null;
     }
 
@@ -560,7 +589,9 @@ public class AgentTracer {
 
     @Override
     public void addScopeListener(
-        Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {}
+        Runnable afterScopeActivatedCallback,
+        Runnable afterScopeClosedCallback
+    ) {}
 
     @Override
     public void flush() {}
@@ -652,7 +683,11 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(
-        AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
+        AgentSpan span,
+        Object result,
+        boolean isError,
+        String lambdaRequestId
+    ) {}
 
     @Override
     public void notifyAppSecEnd(AgentSpan span, Object result) {}
@@ -703,7 +738,9 @@ public class AgentTracer {
     public void removeContinuation(final ContextContinuation continuation) {}
   }
 
-  /** TraceConfig when there is no tracer; this is not the same as a default config. */
+  /**
+   * TraceConfig when there is no tracer; this is not the same as a default config.
+   */
   public static final class NoopTraceConfig implements TraceConfig {
     public static final NoopTraceConfig INSTANCE = new NoopTraceConfig();
 
@@ -784,7 +821,8 @@ public class AgentTracer {
    * <p>Must be called ahead of instrumentation, before any use of the Context API.
    */
   public static void maybeInstallLegacyContextManager() {
-    installLegacyContextManager(); // install everywhere to begin with
+    // install everywhere to begin with
+    installLegacyContextManager();
   }
 
   /**
@@ -796,7 +834,9 @@ public class AgentTracer {
     ContextManager.register(LegacyContextManager.INSTANCE);
   }
 
-  /** Shim mapping new Context API to legacy scope manager. */
+  /**
+   * Shim mapping new Context API to legacy scope manager.
+   */
   static final class LegacyContextManager implements ContextManager {
     static final LegacyContextManager INSTANCE = new LegacyContextManager();
 
@@ -826,7 +866,9 @@ public class AgentTracer {
     }
   }
 
-  /** Adapts a {@link ContextContinuation} to the deprecated {@link TraceScope.Continuation} SPI. */
+  /**
+   * Adapts a {@link ContextContinuation} to the deprecated {@link TraceScope.Continuation} SPI.
+   */
   private static final class TraceScopeContinuationWrapper implements TraceScope.Continuation {
     private final ContextContinuation continuation;
 

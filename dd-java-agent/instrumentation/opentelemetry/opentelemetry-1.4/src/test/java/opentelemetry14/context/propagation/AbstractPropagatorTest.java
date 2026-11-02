@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import io.opentelemetry.api.trace.Span;
@@ -23,16 +22,23 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 abstract class AbstractPropagatorTest extends AbstractOpenTelemetry14Test {
-
   abstract TextMapPropagator propagator();
 
   abstract void assertInjectedHeaders(
-      Map<String, String> headers, String traceId, String spanId, byte sampling);
+      Map<String, String> headers,
+      String traceId,
+      String spanId,
+      byte sampling
+  );
 
   @ParameterizedTest
   @MethodSource("values")
   void testContextExtractionAndInjection(
-      Map<String, String> headers, String traceId, String spanId, byte sampling) {
+      Map<String, String> headers,
+      String traceId,
+      String spanId,
+      byte sampling
+  ) {
     TextMapPropagator propagator = propagator();
     boolean expectedSampled = sampling == SAMPLER_KEEP;
 
@@ -49,12 +55,13 @@ abstract class AbstractPropagatorTest extends AbstractOpenTelemetry14Test {
     localSpan.end();
 
     assertTraces(
-        trace(
-            span()
-                .traceId((DDTraceId) expectedTraceId(traceId))
-                .childOf(DDSpanId.fromHex(spanId))
-                .operationName("internal")
-                .resourceName("some-name")));
+        trace(span()
+          .traceId((DDTraceId) expectedTraceId(traceId))
+          .childOf(DDSpanId.fromHex(spanId))
+          .operationName("internal")
+          .resourceName("some-name")
+        )
+    );
     assertEquals(expectedSampled, spanSampled);
     assertInjectedHeaders(injectedHeaders, traceId, localSpanId, sampling);
   }

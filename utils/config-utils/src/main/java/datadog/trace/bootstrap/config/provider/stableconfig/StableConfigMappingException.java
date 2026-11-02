@@ -15,7 +15,9 @@ public class StableConfigMappingException extends RuntimeException {
    * @return a string representation of the object, truncated if necessary
    */
   static String safeToString(Object value) {
-    if (value == null) return "null";
+    if (value == null) {
+      return "null";
+    }
     String str = value.toString();
     if (str.length() > MAX_LEN) {
       int partLen = MAX_LEN / 2;

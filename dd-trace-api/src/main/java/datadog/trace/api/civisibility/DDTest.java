@@ -7,7 +7,6 @@ import javax.annotation.Nullable;
  * that contains the test logic.
  */
 public interface DDTest {
-
   /**
    * Adds an arbitrary tag to the test
    *

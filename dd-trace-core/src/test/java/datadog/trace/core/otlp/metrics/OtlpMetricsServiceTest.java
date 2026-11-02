@@ -18,7 +18,6 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
@@ -144,16 +143,14 @@ class OtlpMetricsServiceTest {
     AtomicInteger maximum = new AtomicInteger();
     CountDownLatch firstEntered = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
-    when(test.collector.collectMetrics())
-        .thenAnswer(
-            ignored -> {
-              int count = active.incrementAndGet();
-              maximum.accumulateAndGet(count, Math::max);
-              firstEntered.countDown();
-              assertTrue(release.await(5, SECONDS));
-              active.decrementAndGet();
-              return PAYLOAD;
-            });
+    when(test.collector.collectMetrics()).thenAnswer(ignored -> {
+      int count = active.incrementAndGet();
+      maximum.accumulateAndGet(count, Math::max);
+      firstEntered.countDown();
+      assertTrue(release.await(5, SECONDS));
+      active.decrementAndGet();
+      return PAYLOAD;
+    });
     when(test.sender.send(PAYLOAD)).thenReturn(success(200));
 
     test.service.flush();
@@ -254,13 +251,11 @@ class OtlpMetricsServiceTest {
 
   private TestService blockingService() {
     TestService test = service(PAYLOAD);
-    when(test.sender.send(PAYLOAD))
-        .thenAnswer(
-            ignored -> {
-              test.sendEntered.countDown();
-              assertTrue(test.releaseSend.await(5, SECONDS));
-              return success(200);
-            });
+    when(test.sender.send(PAYLOAD)).thenAnswer(ignored -> {
+      test.sendEntered.countDown();
+      assertTrue(test.releaseSend.await(5, SECONDS));
+      return success(200);
+    });
     return test;
   }
 
@@ -298,7 +293,8 @@ class OtlpMetricsServiceTest {
         OtlpMetricsService service,
         AgentTaskScheduler scheduler,
         OtlpMetricsCollector collector,
-        OtlpSender sender) {
+        OtlpSender sender
+    ) {
       this.service = service;
       this.scheduler = scheduler;
       this.collector = collector;

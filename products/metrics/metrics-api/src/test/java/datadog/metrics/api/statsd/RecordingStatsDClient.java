@@ -3,9 +3,10 @@ package datadog.metrics.api.statsd;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Test fake that records every {@link #count} call for assertion. */
+/**
+ * Test fake that records every {@link #count} call for assertion.
+ */
 final class RecordingStatsDClient implements StatsDClient {
-
   static final class Count {
     final String metricName;
     final long delta;
@@ -47,8 +48,7 @@ final class RecordingStatsDClient implements StatsDClient {
   public void distribution(String metricName, double value, String... tags) {}
 
   @Override
-  public void serviceCheck(
-      String serviceCheckName, String status, String message, String... tags) {}
+  public void serviceCheck(String serviceCheckName, String status, String message, String... tags) {}
 
   @Override
   public void error(Exception error) {}

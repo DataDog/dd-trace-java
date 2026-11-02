@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.advice;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import java.util.Collection;
@@ -12,7 +11,8 @@ final class AdviceScanningHelper {
   static final class Dependency {
     static String field;
 
-    Dependency() {}
+    Dependency() {
+    }
 
     String method(String value) {
       return value;
@@ -49,11 +49,13 @@ final class AdviceScanningHelper {
   }
 
   static Class<?> localClass() {
-    class Local {}
+    class Local {
+    }
     return Local.class;
   }
 
   static Class<?> anonymousClass() {
-    return new Object() {}.getClass();
+    return new Object() {
+    }.getClass();
   }
 }

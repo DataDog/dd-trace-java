@@ -5,7 +5,8 @@ import java.util.concurrent.ExecutionException;
 import net.spy.memcached.internal.OperationFuture;
 
 public class OperationCompletionListener extends CompletionListener<OperationFuture<?>>
-    implements net.spy.memcached.internal.OperationCompletionListener {
+    implements net.spy.memcached.internal.OperationCompletionListener
+{
   public OperationCompletionListener(final AgentSpan span, final String methodName) {
     super(span, methodName);
   }
@@ -17,7 +18,8 @@ public class OperationCompletionListener extends CompletionListener<OperationFut
 
   @Override
   protected void processResult(final AgentSpan span, final OperationFuture<?> future)
-      throws ExecutionException, InterruptedException {
+      throws ExecutionException,
+      InterruptedException {
     future.get();
   }
 }

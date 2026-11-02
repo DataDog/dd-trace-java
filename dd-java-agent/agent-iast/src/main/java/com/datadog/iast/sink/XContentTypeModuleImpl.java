@@ -40,8 +40,8 @@ public class XContentTypeModuleImpl extends SinkModuleBase implements XContentTy
         final AgentSpan span = (AgentSpan) igSpanInfo;
         report(
             span,
-            new Vulnerability(
-                VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, Location.forSpan(span)));
+            new Vulnerability(VulnerabilityType.XCONTENTTYPE_HEADER_MISSING, Location.forSpan(span))
+        );
       }
     } catch (Throwable e) {
       LOGGER.debug("Exception while checking for missing X Content type options header", e);

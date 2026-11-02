@@ -6,9 +6,13 @@ package com.datadog.openfeature;
  * @see Provider.Options#experimentationOptOutMode(ExperimentationOptOutMode)
  */
 public enum ExperimentationOptOutMode {
-  /** Reads DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE, which defaults to disabled. */
+  /**
+   * Reads DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE, which defaults to disabled.
+   */
   DEFAULT,
-  /** Ignores dd_experimentation_opt_out_at, overriding the environment setting. */
+  /**
+   * Ignores dd_experimentation_opt_out_at, overriding the environment setting.
+   */
   DISABLED,
   /**
    * Skips exposure-logging allocations when dd_experimentation_opt_out_at is a timestamp String

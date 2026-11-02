@@ -1,7 +1,6 @@
 package datadog.trace.api.http;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -13,7 +12,8 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 public class StoredBodyFactories {
-  private StoredBodyFactories() {}
+  private StoredBodyFactories() {
+  }
 
   public static StoredByteBody maybeCreateForByte(Charset charset, Object contentLengthHeader) {
     AgentSpan agentSpan = AgentTracer.activeSpan();
@@ -25,7 +25,10 @@ public class StoredBodyFactories {
 
   @SuppressWarnings("Duplicates")
   public static StoredByteBody maybeCreateForByte(
-      Charset charset, AgentSpan agentSpan, Object contentLengthHeader) {
+      Charset charset,
+      AgentSpan agentSpan,
+      Object contentLengthHeader
+  ) {
     RequestContext requestContext = agentSpan.getRequestContext();
     if (requestContext == null) {
       return null;
@@ -47,7 +50,9 @@ public class StoredBodyFactories {
 
   @SuppressWarnings("Duplicates")
   public static Flow<Void> maybeDeliverBodyInOneGo(
-      Supplier<CharSequence> supplier, RequestContext requestContext) {
+      Supplier<CharSequence> supplier,
+      RequestContext requestContext
+  ) {
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
         cbp.getCallback(EVENTS.requestBodyStart());

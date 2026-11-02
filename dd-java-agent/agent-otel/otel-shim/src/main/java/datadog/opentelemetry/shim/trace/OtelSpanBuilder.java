@@ -12,7 +12,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;
-
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -33,31 +32,27 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class OtelSpanBuilder implements SpanBuilder {
   private final AgentTracer.SpanBuilder delegate;
   private boolean spanKindSet;
-
-  /** The direction of the span's kind once set; it decides direction-scoped attribute names. */
+  /**
+   * The direction of the span's kind once set; it decides direction-scoped attribute names.
+   */
   private int direction = DIRECTION_UNKNOWN;
-
   /**
    * Direction-scoped attributes ({@code server.address}) set before the span kind, as name/value
    * pairs, stored once the kind is known ({@code null} if none).
    */
   private List<Object> heldUntilKind;
-
   private boolean ignoreActiveSpan;
-
   /**
    * Operation name overridden value by {@link OtelConventions#OPERATION_NAME_SPECIFIC_ATTRIBUTE}
    * reserved attribute ({@code null} if not set).
    */
   private String overriddenOperationName;
-
   /**
    * Analytics sample rate metric value from {@link
    * OtelConventions#ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES} reserved attribute ({@code -1} if not
    * set).
    */
   private int overriddenAnalyticsSampleRate;
-
   /**
    * HTTP status code overridden value by {@link
    * OtelConventions#HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE} reserved attribute ({@code -1} if not

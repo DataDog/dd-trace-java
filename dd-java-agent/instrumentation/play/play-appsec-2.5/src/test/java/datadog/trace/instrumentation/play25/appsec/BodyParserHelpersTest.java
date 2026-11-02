@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -36,10 +35,8 @@ import play.api.mvc.MultipartFormData;
 import scala.collection.JavaConverters;
 
 class BodyParserHelpersTest {
-
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
-
   private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
 
   @AfterEach
@@ -111,8 +108,7 @@ class BodyParserHelpersTest {
   @Test
   @SuppressWarnings("unchecked")
   void jsValueToJavaObject_nestedObject() {
-    Object result =
-        BodyParserHelpers.jsValueToJavaObject(parse("{\"outer\":{\"inner\":\"deep\"}}"));
+    Object result = BodyParserHelpers.jsValueToJavaObject(parse("{\"outer\":{\"inner\":\"deep\"}}"));
     assertTrue(result instanceof Map);
     Map<String, Object> outer = (Map<String, Object>) result;
     assertTrue(outer.get("outer") instanceof Map);
@@ -137,7 +133,6 @@ class BodyParserHelpersTest {
   }
 
   // --- collectFilenames tests ---
-
   @Test
   void collectFilenames_emptyIterator() {
     List<String> result = BodyParserHelpers.collectFilenames(Collections.emptyIterator());
@@ -146,43 +141,45 @@ class BodyParserHelpersTest {
 
   @Test
   void collectFilenames_nullFilenameExcluded() throws Exception {
-    List<String> result =
-        BodyParserHelpers.collectFilenames(
-            Collections.<Object>singletonList(filePart("f", null)).iterator());
+    List<String> result = BodyParserHelpers.collectFilenames(Collections
+      .<Object>singletonList(filePart("f", null))
+      .iterator()
+    );
     assertTrue(result.isEmpty());
   }
 
   @Test
   void collectFilenames_emptyFilenameExcluded() throws Exception {
-    List<String> result =
-        BodyParserHelpers.collectFilenames(
-            Collections.<Object>singletonList(filePart("f", "")).iterator());
+    List<String> result = BodyParserHelpers.collectFilenames(Collections
+      .<Object>singletonList(filePart("f", ""))
+      .iterator()
+    );
     assertTrue(result.isEmpty());
   }
 
   @Test
   void collectFilenames_validFilenameIncluded() throws Exception {
-    List<String> result =
-        BodyParserHelpers.collectFilenames(
-            Collections.<Object>singletonList(filePart("f", "evil.php")).iterator());
+    List<String> result = BodyParserHelpers.collectFilenames(Collections
+      .<Object>singletonList(filePart("f", "evil.php"))
+      .iterator()
+    );
     assertEquals(Collections.singletonList("evil.php"), result);
   }
 
   @Test
   void collectFilenames_mixedPartsFiltered() throws Exception {
-    List<Object> parts =
-        Arrays.<Object>asList(
-            filePart("f1", "a.pdf"),
-            filePart("f2", null),
-            filePart("f3", ""),
-            filePart("f4", "b.jpg"));
+    List<Object> parts = Arrays.<Object>asList(
+        filePart("f1", "a.pdf"),
+        filePart("f2", null),
+        filePart("f3", ""),
+        filePart("f4", "b.jpg")
+    );
     List<String> result = BodyParserHelpers.collectFilenames(parts.iterator());
     assertEquals(Arrays.asList("a.pdf", "b.jpg"), result);
   }
 
   // --- blocking tests: pin that a RequestBlockingAction returned by the AppSec callback is
   // honored (commit attempted, BlockingException thrown only if the commit succeeds) ---
-
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   void multipartFilenamesCallbackBlocks(boolean commitResult) throws Exception {
@@ -193,10 +190,9 @@ class BodyParserHelpersTest {
     MultipartFormData<Object> data = multipartFormData(filePart("f", "evil.php"));
 
     if (commitResult) {
-      BlockingException ex =
-          assertThrows(
-              BlockingException.class,
-              () -> BodyParserHelpers.getHandleMultipartFormDataF().apply(data));
+      BlockingException ex = assertThrows(BlockingException.class, () -> BodyParserHelpers
+        .getHandleMultipartFormDataF()
+        .apply(data));
       assertEquals("Blocked request (multipart file upload)", ex.getMessage());
       // files content inspection is skipped once a block is pending
       assertEquals(0, fx.contentCallbackInvocations);
@@ -217,10 +213,9 @@ class BodyParserHelpersTest {
     MultipartFormData<Object> data = multipartFormData(filePart("f", "evil.php"));
 
     if (commitResult) {
-      BlockingException ex =
-          assertThrows(
-              BlockingException.class,
-              () -> BodyParserHelpers.getHandleMultipartFormDataF().apply(data));
+      BlockingException ex = assertThrows(BlockingException.class, () -> BodyParserHelpers
+        .getHandleMultipartFormDataF()
+        .apply(data));
       assertEquals("Blocked request (multipart file upload content)", ex.getMessage());
     } else {
       assertSame(data, BodyParserHelpers.getHandleMultipartFormDataF().apply(data));
@@ -243,8 +238,9 @@ class BodyParserHelpersTest {
 
     if (commitResult) {
       BlockingException ex =
-          assertThrows(
-              BlockingException.class, () -> BodyParserHelpers.getHandleJsonF().apply(json));
+          assertThrows(BlockingException.class, () -> BodyParserHelpers
+        .getHandleJsonF()
+        .apply(json));
       assertEquals("Blocked request (for json)", ex.getMessage());
     } else {
       assertSame(json, BodyParserHelpers.getHandleJsonF().apply(json));
@@ -269,16 +265,20 @@ class BodyParserHelpersTest {
   @SafeVarargs
   @SuppressWarnings("unchecked")
   private static MultipartFormData<Object> multipartFormData(
-      MultipartFormData.FilePart<Object>... files) {
+      MultipartFormData.FilePart<Object>... files
+  ) {
     return new MultipartFormData<>(
-        (scala.collection.immutable.Map<String, scala.collection.Seq<String>>)
-            (Object) scala.collection.immutable.Map$.MODULE$.empty(),
+        (scala.collection.immutable.Map<String, scala.collection.Seq<String>>) (Object) scala.collection.immutable.Map$.MODULE$.empty(),
         JavaConverters.asScalaBufferConverter(Arrays.asList(files)).asScala(),
-        JavaConverters.asScalaBufferConverter(Collections.<MultipartFormData.BadPart>emptyList())
-            .asScala());
+        JavaConverters
+          .asScalaBufferConverter(Collections.<MultipartFormData.BadPart>emptyList())
+          .asScala()
+    );
   }
 
-  /** Wires an active span with AppSec request data and stubs the AppSec gateway callbacks. */
+  /**
+   * Wires an active span with AppSec request data and stubs the AppSec gateway callbacks.
+   */
   private static final class AppSecFixture {
     final TraceSegment segment = mock(TraceSegment.class);
     final RecordingBlockResponseFunction brf;
@@ -320,7 +320,9 @@ class BodyParserHelpersTest {
     }
   }
 
-  /** Fake implementing only the abstract 5-arg method, so any default overload routes here. */
+  /**
+   * Fake implementing only the abstract 5-arg method, so any default overload routes here.
+   */
   private static final class RecordingBlockResponseFunction implements BlockResponseFunction {
     private final boolean commitResult;
     private int invocations;
@@ -338,7 +340,8 @@ class BodyParserHelpersTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       invocations++;
       this.segment = segment;
       this.statusCode = statusCode;
@@ -363,8 +366,13 @@ class BodyParserHelpersTest {
     Object companion = companionClass.getField("MODULE$").get(null);
     for (Method m : companionClass.getMethods()) {
       if ("apply".equals(m.getName()) && m.getParameterCount() == 4) {
-        return (MultipartFormData.FilePart<Object>)
-            m.invoke(companion, key, filename, scala.None$.MODULE$, new Object());
+        return (MultipartFormData.FilePart<Object>) m.invoke(
+            companion,
+            key,
+            filename,
+            scala.None$.MODULE$,
+            new Object()
+        );
       }
     }
     throw new IllegalStateException("FilePart.apply(4 params) not found");

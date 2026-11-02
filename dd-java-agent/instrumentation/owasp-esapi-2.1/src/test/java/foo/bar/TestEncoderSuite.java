@@ -4,7 +4,6 @@ import org.owasp.esapi.Encoder;
 import org.owasp.esapi.codecs.Codec;
 
 public class TestEncoderSuite {
-
   private Encoder encoder;
 
   TestEncoderSuite(Encoder encoder) {

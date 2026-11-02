@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.java.lang.jdk22;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;

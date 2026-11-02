@@ -12,7 +12,6 @@ import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.P
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientHelpers.OnCompleteHandler;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientHelpers.PekkoHttpHeaders;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -27,7 +26,9 @@ import scala.concurrent.Future;
 
 @AutoService(InstrumenterModule.class)
 public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public PekkoHttpSingleRequestInstrumentation() {
     super("pekko-http", "pekko-http-client");
   }
@@ -40,11 +41,11 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PekkoHttpClientHelpers",
-      packageName + ".PekkoHttpClientHelpers$OnCompleteHandler",
-      packageName + ".PekkoHttpClientHelpers$PekkoHttpHeaders",
-      packageName + ".PekkoHttpClientHelpers$HasSpanHeader",
-      packageName + ".PekkoHttpClientDecorator",
+        packageName + ".PekkoHttpClientHelpers",
+        packageName + ".PekkoHttpClientHelpers$OnCompleteHandler",
+        packageName + ".PekkoHttpClientHelpers$PekkoHttpHeaders",
+        packageName + ".PekkoHttpClientHelpers$HasSpanHeader",
+        packageName + ".PekkoHttpClientDecorator"
     };
   }
 
@@ -53,23 +54,24 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
     // This is mainly for compatibility with 10.0
     transformer.applyAdvices(
         named("singleRequest")
-            .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.HttpRequest"))),
+          .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.HttpRequest"))),
         PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
-        PekkoHttpSingleRequestInstrumentation.class.getName()
-            + "$SingleRequestContextPropagationAdvice");
+        PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestContextPropagationAdvice"
+    );
     // This is for 10.1+
     transformer.applyAdvices(
         named("singleRequestImpl")
-            .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.HttpRequest"))),
+          .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.HttpRequest"))),
         PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
-        PekkoHttpSingleRequestInstrumentation.class.getName()
-            + "$SingleRequestContextPropagationAdvice");
+        PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestContextPropagationAdvice"
+    );
   }
 
   public static class SingleRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope methodEnter(
-        @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+        @Advice.Argument(value = 0, readOnly = false) HttpRequest request
+    ) {
       /*
       Versions 10.0 and 10.1 have slightly different structure that is hard to distinguish so here
       we cast 'wider net' and avoid instrumenting twice.
@@ -92,7 +94,8 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
         @Advice.This final HttpExt thiz,
         @Advice.Return final Future<HttpResponse> responseFuture,
         @Advice.Enter final ContextScope scope,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }
@@ -115,7 +118,8 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
   public static class SingleRequestContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(
-        @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+        @Advice.Argument(value = 0, readOnly = false) HttpRequest request
+    ) {
       if (request == null) {
         return;
       }

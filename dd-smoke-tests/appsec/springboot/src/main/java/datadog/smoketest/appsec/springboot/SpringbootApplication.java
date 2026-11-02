@@ -8,7 +8,6 @@ import org.springframework.boot.autoconfigure.web.servlet.MultipartAutoConfigura
 
 @SpringBootApplication(exclude = MultipartAutoConfiguration.class)
 public class SpringbootApplication {
-
   public static void main(final String[] args) {
     if (!Boolean.getBoolean("smoketest.skipAppSecActivation")) {
       try {

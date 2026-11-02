@@ -4,7 +4,9 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-/** Factory class providing the various HTTP client class implementations. */
+/**
+ * Factory class providing the various HTTP client class implementations.
+ */
 public abstract class HttpProvider {
   public abstract HttpClient.Builder newClientBuilder();
 

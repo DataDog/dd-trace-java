@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.Metric;
 import datadog.trace.api.metrics.SpanMetricRegistry;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class CoreMetricsPeriodicActionTest {
-
   private final TelemetryService telemetryService = mock(TelemetryService.class);
   private final CoreMetricsPeriodicAction action = new CoreMetricsPeriodicAction();
   private final SpanMetricRegistry spanMetricRegistry = SpanMetricRegistry.getInstance();
@@ -135,15 +133,22 @@ class CoreMetricsPeriodicActionTest {
    * by capture position.
    */
   private void assertMetric(
-      List<Metric> metrics, String metricName, String instrumentationName, long count) {
+      List<Metric> metrics,
+      String metricName,
+      String instrumentationName,
+      long count
+  ) {
     List<String> expectedTags = Arrays.asList("integration_name:" + instrumentationName);
-    List<Metric> matches =
-        metrics.stream()
-            .filter(metric -> metric.getMetric().equals(metricName))
-            .filter(metric -> expectedTags.equals(metric.getTags()))
-            .collect(Collectors.toList());
+    List<Metric> matches = metrics
+      .stream()
+      .filter(metric -> metric.getMetric().equals(metricName))
+      .filter(metric -> expectedTags.equals(metric.getTags()))
+      .collect(Collectors.toList());
     assertEquals(
-        1, matches.size(), "expected exactly one match for " + metricName + " " + expectedTags);
+        1,
+        matches.size(),
+        "expected exactly one match for " + metricName + " " + expectedTags
+    );
 
     Metric metric = matches.get(0);
     assertEquals("tracers", metric.getNamespace());

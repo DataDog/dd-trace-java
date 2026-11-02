@@ -1,6 +1,8 @@
 package datadog.context;
 
-/** {@link ContextContinuation} that has no effect on execution units. */
+/**
+ * {@link ContextContinuation} that has no effect on execution units.
+ */
 final class NoopContextContinuation implements ContextContinuation, ContextScope {
   private final Context context;
 
@@ -20,7 +22,8 @@ final class NoopContextContinuation implements ContextContinuation, ContextScope
 
   @Override
   public ContextScope resume() {
-    return this; // acts as no-op scope, avoiding allocation
+    // acts as no-op scope, avoiding allocation
+    return this;
   }
 
   @Override

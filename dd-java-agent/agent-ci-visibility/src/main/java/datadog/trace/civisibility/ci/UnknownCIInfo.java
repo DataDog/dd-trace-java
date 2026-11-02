@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.ci;
 
 import static datadog.trace.civisibility.utils.FileUtils.findParentPathBackwards;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
@@ -25,11 +24,8 @@ import org.slf4j.LoggerFactory;
  * and calculate the git information properly.
  */
 class UnknownCIInfo implements CIProviderInfo {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(UnknownCIInfo.class);
-
   public static final String UNKNOWN_PROVIDER_NAME = "unknown";
-
   private final CiEnvironment environment;
   private final String targetFolder;
   private final Path currentPath;

@@ -2,7 +2,6 @@ package datadog.trace.common.writer.ddagent;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.communication.serialization.ChunkedStreamingBuffer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.MessageFormatter;
@@ -43,12 +42,9 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 2)
 @SuppressForbidden
 public class PayloadBufferBenchmark {
-
   private static final int BUFFER_SIZE = 5 << 20;
-
   @Param({"flushing", "chunked"})
   String buffer;
-
   private TraceMapper mapper;
   private MessageFormatter writer;
   private List<DDSpan> trace;
@@ -59,22 +55,16 @@ public class PayloadBufferBenchmark {
     StreamingBuffer streamingBuffer;
     switch (buffer) {
       case "flushing":
-        streamingBuffer =
-            new FlushingBuffer(
-                BUFFER_SIZE,
-                (messageCount, body) -> {
-                  blackhole.consume(body);
-                  mapper.reset();
-                });
+        streamingBuffer = new FlushingBuffer(BUFFER_SIZE, (messageCount, body) -> {
+          blackhole.consume(body);
+          mapper.reset();
+        });
         break;
       case "chunked":
-        streamingBuffer =
-            new ChunkedStreamingBuffer(
-                BUFFER_SIZE,
-                (messageCount, chunks) -> {
-                  blackhole.consume(chunks);
-                  mapper.reset();
-                });
+        streamingBuffer = new ChunkedStreamingBuffer(BUFFER_SIZE, (messageCount, chunks) -> {
+          blackhole.consume(chunks);
+          mapper.reset();
+        });
         break;
       default:
         throw new IllegalArgumentException("Illegal buffer type " + buffer + ".");

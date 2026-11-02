@@ -21,10 +21,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Generic class storing common probe definition */
+/**
+ * Generic class storing common probe definition
+ */
 public abstract class ProbeDefinition implements ProbeImplementation {
   protected static final String LANGUAGE = "java";
-
   protected final String language;
   protected final String id;
   protected final int version;
@@ -36,12 +37,22 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   protected transient ProbeLocation location;
 
   protected ProbeDefinition(
-      String language, ProbeId probeId, String[] tagStrs, Where where, MethodLocation evaluateAt) {
+      String language,
+      ProbeId probeId,
+      String[] tagStrs,
+      Where where,
+      MethodLocation evaluateAt
+  ) {
     this(language, probeId, Tag.fromStrings(tagStrs), where, evaluateAt);
   }
 
   protected ProbeDefinition(
-      String language, ProbeId probeId, Tag[] tags, Where where, MethodLocation evaluateAt) {
+      String language,
+      ProbeId probeId,
+      Tag[] tags,
+      Where where,
+      MethodLocation evaluateAt
+  ) {
     this.language = language;
     this.id = probeId != null ? probeId.getId() : null;
     this.version = probeId != null ? probeId.getVersion() : 0;
@@ -128,7 +139,10 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   }
 
   public abstract InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices);
+      MethodInfo methodInfo,
+      List<DiagnosticMessage> diagnostics,
+      List<Integer> probeIndices
+  );
 
   @Override
   public ProbeLocation getLocation() {
@@ -140,15 +154,19 @@ public abstract class ProbeDefinition implements ProbeImplementation {
       CapturedContext context,
       CapturedContext.Status status,
       MethodLocation methodLocation,
-      boolean singleProbe) {}
+      boolean singleProbe
+  ) {}
 
   @Override
   public void commit(
       CapturedContext entryContext,
       CapturedContext exitContext,
-      List<CapturedContext.CapturedThrowable> caughtExceptions) {}
+      List<CapturedContext.CapturedThrowable> caughtExceptions
+  ) {}
 
-  /** Commit snapshot based on line context and the current probe This is for line probes */
+  /**
+   * Commit snapshot based on line context and the current probe This is for line probes
+   */
   @Override
   public void commit(CapturedContext lineContext, int line) {}
 
@@ -222,18 +240,27 @@ public abstract class ProbeDefinition implements ProbeImplementation {
               null,
               null,
               new Where.SourceLine[] {new Where.SourceLine(lineFrom, lineTill)},
-              sourceFile));
+              sourceFile
+          )
+      );
     }
 
     public T where(
-        String typeName, String methodName, String signature, int codeLine, String source) {
+        String typeName,
+        String methodName,
+        String signature,
+        int codeLine,
+        String source
+    ) {
       return where(
           new Where(
               typeName,
               methodName,
               signature,
               new Where.SourceLine[] {new Where.SourceLine(codeLine)},
-              source));
+              source
+          )
+      );
     }
 
     public T where(
@@ -242,14 +269,17 @@ public abstract class ProbeDefinition implements ProbeImplementation {
         String signature,
         int codeLineFrom,
         int codeLineTill,
-        String source) {
+        String source
+    ) {
       return where(
           new Where(
               typeName,
               methodName,
               signature,
               new Where.SourceLine[] {new Where.SourceLine(codeLineFrom, codeLineTill)},
-              source));
+              source
+          )
+      );
     }
   }
 
@@ -312,8 +342,12 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     @Generated
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       Tag tag = (Tag) o;
       return Objects.equals(key, tag.key) && Objects.equals(value, tag.value);
     }

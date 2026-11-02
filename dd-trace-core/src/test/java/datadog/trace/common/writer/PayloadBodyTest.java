@@ -2,7 +2,6 @@ package datadog.trace.common.writer;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -12,7 +11,6 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 class PayloadBodyTest {
-
   // msgpack array header for 2 traces, then the two body parts
   private static final byte[] EXPECTED = {(byte) 0x92, (byte) 0x91, 1, (byte) 0x91, 2};
 
@@ -29,12 +27,14 @@ class PayloadBodyTest {
 
   private static Payload newPayload() {
     return new TraceMapperV0_4()
-        .newPayload()
-        .withBody(
-            2,
-            Arrays.asList(
-                ByteBuffer.wrap(new byte[] {(byte) 0x91, 1}),
-                ByteBuffer.wrap(new byte[] {(byte) 0x91, 2})));
+      .newPayload()
+      .withBody(
+          2,
+          Arrays.asList(
+              ByteBuffer.wrap(new byte[] {(byte) 0x91, 1}),
+              ByteBuffer.wrap(new byte[] {(byte) 0x91, 2})
+          )
+      );
   }
 
   private static byte[] writeTo(Payload payload) throws IOException {

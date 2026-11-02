@@ -6,7 +6,6 @@ import org.springframework.web.filter.DelegatingFilterProxy;
 import org.springframework.web.filter.ServletRequestPathFilter;
 
 public class OrderedServletPathRequestFilter extends DelegatingFilterProxy implements Ordered {
-
   @Override
   public int getOrder() {
     return Ordered.HIGHEST_PRECEDENCE;

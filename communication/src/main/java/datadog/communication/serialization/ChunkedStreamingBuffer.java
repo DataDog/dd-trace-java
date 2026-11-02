@@ -11,7 +11,6 @@ import java.nio.BufferOverflowException;
  * overflow has to stop {@code Mapper.map} before it updates per-payload state such as event counts.
  */
 public final class ChunkedStreamingBuffer extends ChunkedBuffer implements StreamingBuffer {
-
   private final ChunkedBufferConsumer consumer;
 
   public ChunkedStreamingBuffer(int maxBytes, ChunkedBufferConsumer consumer) {

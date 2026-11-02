@@ -6,7 +6,9 @@ import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
 import java.util.List;
 import java.util.Map;
 
-/** Snapshot of dynamic configuration; valid for the duration of a trace. */
+/**
+ * Snapshot of dynamic configuration; valid for the duration of a trace.
+ */
 public interface TraceConfig {
   boolean isTraceEnabled();
 

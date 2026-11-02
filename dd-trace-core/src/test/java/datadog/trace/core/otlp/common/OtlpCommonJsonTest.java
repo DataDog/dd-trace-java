@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTR
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.json.JsonMapper;
 import datadog.json.JsonWriter;
 import datadog.trace.api.DD128bTraceId;
@@ -19,7 +18,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class OtlpCommonJsonTest {
-
   @Test
   void hexTraceIdEncodesHighAndLowOrderBytes() {
     DD128bTraceId traceId = DD128bTraceId.from(0x0123456789abcdefL, 0xfedcba9876543210L);

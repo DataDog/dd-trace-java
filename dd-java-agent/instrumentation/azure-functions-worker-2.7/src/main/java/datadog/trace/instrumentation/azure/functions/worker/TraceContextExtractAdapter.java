@@ -4,13 +4,14 @@ import com.microsoft.azure.functions.TraceContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 
 public final class TraceContextExtractAdapter
-    implements AgentPropagation.ContextVisitor<TraceContext> {
+    implements AgentPropagation.ContextVisitor<TraceContext>
+{
   public static final TraceContextExtractAdapter GETTER = new TraceContextExtractAdapter();
-
   private static final String TRACEPARENT = "traceparent";
   private static final String TRACESTATE = "tracestate";
 
-  private TraceContextExtractAdapter() {}
+  private TraceContextExtractAdapter() {
+  }
 
   @Override
   public void forEachKey(TraceContext carrier, AgentPropagation.KeyClassifier classifier) {

@@ -24,7 +24,6 @@ import java.util.Map;
 
 @Path("/hello")
 public class Resource {
-
   @GET
   @Produces(MediaType.TEXT_PLAIN)
   public String hello() {

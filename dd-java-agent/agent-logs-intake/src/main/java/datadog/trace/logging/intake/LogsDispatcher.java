@@ -16,21 +16,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LogsDispatcher {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(LogsDispatcher.class);
-
   private static final MediaType JSON = MediaType.get("application/json");
   private static final IOThrowingFunction<InputStream, Object> IGNORE_RESPONSE = is -> null;
-
   // Maximum array size if sending multiple logs in an array: 1000 entries
   static final int MAX_BATCH_RECORDS = 1000;
-
   // Maximum content size per payload (uncompressed): 5MB
   static final int MAX_BATCH_BYTES = 5 * 1024 * 1024;
-
   // Maximum size for a single log: 1MB
   static final int MAX_MESSAGE_BYTES = 1024 * 1024;
-
   private final BackendApi backendApi;
   private final JsonAdapter<Map> jsonAdapter;
   private final int maxBatchRecords;
@@ -41,8 +35,7 @@ public class LogsDispatcher {
     this(backendApi, MAX_BATCH_RECORDS, MAX_BATCH_BYTES, MAX_MESSAGE_BYTES);
   }
 
-  LogsDispatcher(
-      BackendApi backendApi, int maxBatchRecords, int maxBatchBytes, int maxMessageBytes) {
+  LogsDispatcher(BackendApi backendApi, int maxBatchRecords, int maxBatchBytes, int maxMessageBytes) {
     this.backendApi = backendApi;
 
     Moshi moshi = new Moshi.Builder().build();

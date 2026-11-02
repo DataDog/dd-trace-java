@@ -9,7 +9,12 @@ import java.time.Duration;
 
 public class ValueScriptHelper {
   public static void serializeValue(
-      StringBuilder sb, String expr, Object value, CapturedContext.Status status, Limits limits) {
+      StringBuilder sb,
+      String expr,
+      Object value,
+      CapturedContext.Status status,
+      Limits limits
+  ) {
     Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
     TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
     SerializerWithLimits serializer =
@@ -18,7 +23,8 @@ public class ValueScriptHelper {
       serializer.serialize(
           value,
           value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
-          limits);
+          limits
+      );
     } catch (Exception ex) {
       status.addError(new EvaluationError(expr, ex.getMessage()));
     }

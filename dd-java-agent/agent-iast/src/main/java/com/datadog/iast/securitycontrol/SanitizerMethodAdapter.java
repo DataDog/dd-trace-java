@@ -6,12 +6,12 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
 public class SanitizerMethodAdapter extends AbstractMethodAdapter {
-
   public SanitizerMethodAdapter(
       final MethodVisitor mv,
       final SecurityControl securityControl,
       final int accessFlags,
-      final Type method) {
+      final Type method
+  ) {
     super(mv, securityControl, accessFlags, method);
   }
 

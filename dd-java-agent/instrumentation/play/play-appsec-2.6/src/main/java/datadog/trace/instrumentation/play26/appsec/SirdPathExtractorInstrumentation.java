@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -25,7 +24,9 @@ import scala.collection.immutable.List;
  */
 @AutoService(InstrumenterModule.class)
 public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public SirdPathExtractorInstrumentation() {
     super("play");
   }
@@ -37,7 +38,8 @@ public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_26_PLUS; // force failure in <2.6
+    // force failure in <2.6
+    return MuzzleReferences.PLAY_26_PLUS;
   }
 
   @Override
@@ -49,17 +51,16 @@ public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("extract")
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class))
-            .and(returns(named("scala.Option"))),
-        SirdPathExtractorInstrumentation.class.getName() + "$ExtractAdvice");
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class))
+          .and(returns(named("scala.Option"))),
+        SirdPathExtractorInstrumentation.class.getName() + "$ExtractAdvice"
+    );
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
-    };
+    return new String[] {"datadog.trace.instrumentation.play.appsec.PathExtractionHelpers"};
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -68,7 +69,8 @@ public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.Return scala.Option<scala.collection.immutable.List<String>> ret,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (ret.isEmpty() || t != null) {
         return;
       }
@@ -79,9 +81,11 @@ public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
         conv.put(Integer.toString(i), stringList.apply(i));
       }
 
-      t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              reqCtx, conv, "sird.PathExtractor#extract");
+      t = PathExtractionHelpers.callRequestPathParamsCallback(
+          reqCtx,
+          conv,
+          "sird.PathExtractor#extract"
+      );
     }
   }
 }

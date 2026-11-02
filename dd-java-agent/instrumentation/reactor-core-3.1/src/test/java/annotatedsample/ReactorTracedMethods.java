@@ -1,7 +1,6 @@
 package annotatedsample;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.concurrent.CountDownLatch;
 import org.reactivestreams.Subscriber;
@@ -12,39 +11,35 @@ import reactor.core.publisher.Mono;
 public class ReactorTracedMethods {
   @WithSpan
   public static Mono<String> traceAsyncMono(CountDownLatch latch) {
-    return Mono.fromCallable(
-        () -> {
-          await(latch);
-          return "hello";
-        });
+    return Mono.fromCallable(() -> {
+      await(latch);
+      return "hello";
+    });
   }
 
   @WithSpan
   public static Mono<String> traceAsyncFailingMono(CountDownLatch latch, Exception exception) {
-    return Mono.fromCallable(
-        () -> {
-          await(latch);
-          throw exception;
-        });
+    return Mono.fromCallable(() -> {
+      await(latch);
+      throw exception;
+    });
   }
 
   @WithSpan
   public static Flux<String> traceAsyncFlux(CountDownLatch latch) {
-    return Flux.create(
-        emitter -> {
-          await(latch);
-          emitter.next("hello");
-          emitter.complete();
-        });
+    return Flux.create(emitter -> {
+      await(latch);
+      emitter.next("hello");
+      emitter.complete();
+    });
   }
 
   @WithSpan
   public static Flux<String> traceAsyncFailingFlux(CountDownLatch latch, Exception exception) {
-    return Flux.create(
-        emitter -> {
-          await(latch);
-          emitter.error(exception);
-        });
+    return Flux.create(emitter -> {
+      await(latch);
+      emitter.error(exception);
+    });
   }
 
   private static void await(CountDownLatch latch) {

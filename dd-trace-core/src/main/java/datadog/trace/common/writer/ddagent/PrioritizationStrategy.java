@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public interface PrioritizationStrategy {
-
   enum PublishResult {
     ENQUEUED_FOR_SERIALIZATION,
     ENQUEUED_FOR_SINGLE_SPAN_SAMPLING,

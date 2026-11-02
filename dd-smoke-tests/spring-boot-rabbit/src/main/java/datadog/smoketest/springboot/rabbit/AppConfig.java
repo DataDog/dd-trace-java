@@ -18,7 +18,6 @@ public class AppConfig {
 
   @Value("${rabbit.receiver.queue}")
   private String receiverQueueName;
-
   @Value("${rabbit.receiver.forward}")
   private boolean receiverForwardEnabled;
 

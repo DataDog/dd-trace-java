@@ -4,7 +4,6 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 public final class Pair<T, U> {
-
   public static <T, U> Pair<T, U> of(T left, U right) {
     return new Pair<>(left, right);
   }
@@ -37,7 +36,9 @@ public final class Pair<T, U> {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
+    if (this == o) {
+      return true;
+    }
     if (o instanceof Pair) {
       Pair<?, ?> pair = (Pair<?, ?>) o;
       return Objects.equals(left, pair.left) && Objects.equals(right, pair.right);

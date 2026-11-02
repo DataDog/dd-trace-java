@@ -2,7 +2,6 @@ package datadog.trace.common;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.atomic.LongAdder;
 import org.jctools.counters.CountersFactory;

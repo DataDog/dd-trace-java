@@ -33,17 +33,14 @@ import java.util.TreeSet;
  * </ul>
  */
 final class SpanEnrichmentAccumulator {
-
   static final int MAX_SERIAL_IDS = 200;
   static final int MAX_SUBJECTS = 10;
   static final int MAX_EXPERIMENTS_PER_SUBJECT = 20;
   static final int MAX_DEFAULTS = 5;
   static final int MAX_DEFAULT_VALUE_LENGTH = 64;
-
   static final String TAG_FLAGS_ENC = "ffe_flags_enc";
   static final String TAG_SUBJECTS_ENC = "ffe_subjects_enc";
   static final String TAG_RUNTIME_DEFAULTS = "ffe_runtime_defaults";
-
   // dedupe is structural (a Set); sorted for deterministic encoding.
   private final TreeSet<Integer> serialIds = new TreeSet<>();
   // sha256hex(targetingKey) -> serial ids. LinkedHashMap for stable iteration order.
@@ -51,7 +48,9 @@ final class SpanEnrichmentAccumulator {
   // flagKey -> value string (first-wins, truncated to MAX_DEFAULT_VALUE_LENGTH).
   private final Map<String, String> defaults = new LinkedHashMap<>();
 
-  /** Adds a serial id, dropping silently once {@link #MAX_SERIAL_IDS} is reached. */
+  /**
+   * Adds a serial id, dropping silently once {@link #MAX_SERIAL_IDS} is reached.
+   */
   synchronized void addSerialId(final int id) {
     if (serialIds.size() >= MAX_SERIAL_IDS && !serialIds.contains(id)) {
       return;
@@ -95,7 +94,8 @@ final class SpanEnrichmentAccumulator {
       return;
     }
     if (defaults.containsKey(flagKey)) {
-      return; // first-wins
+      // first-wins
+      return;
     }
     if (defaults.size() >= MAX_DEFAULTS) {
       return;
@@ -143,7 +143,6 @@ final class SpanEnrichmentAccumulator {
   }
 
   // ---- helpers (visible for tests) ----
-
   /**
    * Mirrors the Node {@code (typeof value === 'object' && value !== null) ? JSON.stringify(value) :
    * String(value)} rule: structured values (Map/List/array) are JSON-stringified; scalars use their
@@ -168,14 +167,17 @@ final class SpanEnrichmentAccumulator {
     return String.valueOf(value);
   }
 
-  /** UTF-8-safe truncation: never split a surrogate pair at the {@code maxChars} boundary. */
+  /**
+   * UTF-8-safe truncation: never split a surrogate pair at the {@code maxChars} boundary.
+   */
   static String utf8SafeTruncate(final String value, final int maxChars) {
     if (value.length() <= maxChars) {
       return value;
     }
     int end = maxChars;
     if (Character.isHighSurrogate(value.charAt(end - 1))) {
-      end--; // drop the dangling high surrogate rather than emit a broken pair
+      // drop the dangling high surrogate rather than emit a broken pair
+      end--;
     }
     return value.substring(0, end);
   }
@@ -242,7 +244,6 @@ final class SpanEnrichmentAccumulator {
   }
 
   // ---- test-only accessors ----
-
   synchronized Set<Integer> serialIdsView() {
     return new TreeSet<>(serialIds);
   }

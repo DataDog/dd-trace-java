@@ -1,7 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
@@ -28,11 +27,15 @@ public final class IsEmptyExpression implements BooleanExpression {
     Value<?> value = valueExpression.evaluate(evalContext);
     if (value.isUndefined()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for undefined value",
+          PrettyPrintVisitor.print(this)
+      );
     }
     if (value.isNull()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for null value",
+          PrettyPrintVisitor.print(this)
+      );
     }
     boolean result = false;
     if (value instanceof CollectionValue) {
@@ -56,7 +59,9 @@ public final class IsEmptyExpression implements BooleanExpression {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     IsEmptyExpression that = (IsEmptyExpression) o;
     return Objects.equals(valueExpression, that.valueExpression);
   }

@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
-
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
@@ -89,16 +88,18 @@ class CanonicalFixtureTest {
   }
 
   private void evaluateCanonicalFixture(
-      final FixtureCase testCase, final ExperimentationOptOutMode mode) throws IOException {
-    final DDEvaluator evaluator =
-        new DDEvaluator(
-            mock(Runnable.class),
-            AgentBridge.NONE,
-            TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"),
-            mode);
-    evaluator.accept(
-        UniversalFlagConfigParser.parse(
-            Files.readAllBytes(fixtureRoot().resolve("ufc-config.json"))));
+      final FixtureCase testCase,
+      final ExperimentationOptOutMode mode
+  ) throws IOException {
+    final DDEvaluator evaluator = new DDEvaluator(
+        mock(Runnable.class),
+        AgentBridge.NONE,
+        TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"),
+        mode
+    );
+    evaluator.accept(UniversalFlagConfigParser.parse(Files.readAllBytes(fixtureRoot()
+      .resolve("ufc-config.json")
+    )));
 
     final Class<?> targetType = targetType(testCase.variationType);
     final Object defaultValue = fixtureValue(targetType, testCase.defaultValue);
@@ -139,7 +140,8 @@ class CanonicalFixtureTest {
     if (testCase.resultAllocationKey != null) {
       assertThat(
           details.getFlagMetadata().getString("allocationKey"),
-          equalTo(testCase.resultAllocationKey));
+          equalTo(testCase.resultAllocationKey)
+      );
     }
   }
 
@@ -164,7 +166,8 @@ class CanonicalFixtureTest {
       final Class<?> targetType,
       final String flag,
       final Object defaultValue,
-      final EvaluationContext context) {
+      final EvaluationContext context
+  ) {
     if (targetType == Boolean.class) {
       return provider.getBooleanEvaluation(flag, (Boolean) defaultValue, context);
     }
@@ -185,11 +188,10 @@ class CanonicalFixtureTest {
     final Path evaluationCases = fixtureRoot().resolve("evaluation-cases");
     final List<FixtureCase> result = new ArrayList<>();
     try (Stream<Path> paths = Files.list(evaluationCases)) {
-      final List<Path> files =
-          paths
-              .filter(path -> path.getFileName().toString().endsWith(".json"))
-              .sorted()
-              .collect(Collectors.toList());
+      final List<Path> files = paths
+        .filter(path -> path.getFileName().toString().endsWith(".json"))
+        .sorted()
+        .collect(Collectors.toList());
       for (final Path file : files) {
         final List<Object> testCases = (List<Object>) JsonReading.read(Files.readAllBytes(file));
         for (int index = 0; index < testCases.size(); index++) {
@@ -197,7 +199,9 @@ class CanonicalFixtureTest {
               new FixtureCase(
                   file.getFileName().toString(),
                   index,
-                  (Map<String, Object>) testCases.get(index)));
+                  (Map<String, Object>) testCases.get(index)
+              )
+          );
         }
       }
     }
@@ -244,7 +248,9 @@ class CanonicalFixtureTest {
     }
   }
 
-  /** Normalizes the integral numbers read as Long to Double, as the UFC parser does. */
+  /**
+   * Normalizes the integral numbers read as Long to Double, as the UFC parser does.
+   */
   private static Object normalize(final Object value) {
     if (value instanceof Long) {
       return ((Long) value).doubleValue();

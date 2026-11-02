@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.netty41.server;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.PARENT_CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
@@ -27,10 +26,12 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     if (!(msg instanceof HttpRequest)) {
       final Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
       if (storedContext == null) {
-        ctx.fireChannelRead(msg); // superclass does not throw
+        // superclass does not throw
+        ctx.fireChannelRead(msg);
       } else {
         try (final ContextScope scope = storedContext.attach()) {
-          ctx.fireChannelRead(msg); // superclass does not throw
+          // superclass does not throw
+          ctx.fireChannelRead(msg);
         }
       }
       return;
@@ -64,12 +65,17 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        ctx.pipeline()
-            .addAfter(
-                ctx.name(),
-                BlockingResponseHandler.HANDLER_NAME,
-                new BlockingResponseHandler(
-                    span.getRequestContext().getTraceSegment(), rba, serverContext));
+        ctx
+          .pipeline()
+          .addAfter(
+              ctx.name(),
+              BlockingResponseHandler.HANDLER_NAME,
+              new BlockingResponseHandler(
+                  span.getRequestContext().getTraceSegment(),
+                  rba,
+                  serverContext
+              )
+          );
       }
 
       try {
@@ -83,7 +89,8 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
          */
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(ignored.context());
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        // Finish the span manually since finishSpanOnClose was false
+        span.finish();
         ServerRequestContext.remove(ctx.channel(), serverContext);
         throw throwable;
       }

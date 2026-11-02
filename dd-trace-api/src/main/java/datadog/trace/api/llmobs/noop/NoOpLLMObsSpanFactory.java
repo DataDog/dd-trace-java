@@ -12,12 +12,16 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
       String modelName,
       String modelProvider,
       @Nullable String mlApp,
-      @Nullable String sessionId) {
+      @Nullable String sessionId
+  ) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startAgentSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId
+  ) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
@@ -25,22 +29,32 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
       String spanName,
       @Nullable String mlApp,
       @Nullable String sessionId,
-      @Nullable String version) {
+      @Nullable String version
+  ) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startToolSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId
+  ) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startTaskSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId
+  ) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startWorkflowSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId
+  ) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
@@ -49,12 +63,16 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
       @Nullable String mlApp,
       @Nullable String modelProvider,
       @Nullable String modelName,
-      @Nullable String sessionId) {
+      @Nullable String sessionId
+  ) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startRetrievalSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId
+  ) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 }

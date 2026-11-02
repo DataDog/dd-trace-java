@@ -2,12 +2,10 @@ package datadog.trace.common.writer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.core.DDCoreJavaSpecification;
 import org.tabletest.junit.TableTest;
 
 public class TraceStructureWriterTest extends DDCoreJavaSpecification {
-
   @TableTest({
     "scenario                           | windows | cli                           | path         ",
     "windows path                       | true    | C:/tmp/file                   | C:/tmp/file  ",

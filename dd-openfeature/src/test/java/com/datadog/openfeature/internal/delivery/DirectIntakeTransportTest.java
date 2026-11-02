@@ -11,7 +11,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.config.SdkVersion;
 import com.datadog.openfeature.internal.config.TestSettings;
@@ -50,11 +49,12 @@ public class DirectIntakeTransportTest {
 
   @Test
   void rejectsInvalidSite() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            DirectIntakeTransport.create(
-                TestSettings.of("api-key", "secret", "site", "datadoghq.com@other.example")));
+    assertThrows(IllegalArgumentException.class, () -> DirectIntakeTransport.create(TestSettings.of(
+        "api-key",
+        "secret",
+        "site",
+        "datadoghq.com@other.example"
+    )));
   }
 
   @Test
@@ -143,6 +143,9 @@ public class DirectIntakeTransportTest {
 
   private DirectIntakeTransport transport() {
     return new DirectIntakeTransport(
-        this.server.uri("/api/v2/"), "secret", HttpClient.newHttpClient());
+        this.server.uri("/api/v2/"),
+        "secret",
+        HttpClient.newHttpClient()
+    );
   }
 }

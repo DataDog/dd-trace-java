@@ -2,7 +2,6 @@ package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.smoketest.backend.AgentBackend;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -14,24 +13,25 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * explicitly.
  */
 class ErrorLogSmokeTest {
-
   @RegisterExtension
-  static final SmokeServerApp app =
-      SmokeServerApp.named("error-logger")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
-          .backend(AgentBackend.mockAgent())
-          .noAgent()
-          .skipErrorLogCheck()
-          .build();
+  static final SmokeServerApp app = SmokeServerApp
+    .named("error-logger")
+    .mainClass("datadog.smoketest.TestServerApp")
+    .args("--server.port=${app.httpPort}")
+    .backend(AgentBackend.mockAgent())
+    .noAgent()
+    .skipErrorLogCheck()
+    .build();
 
   @Test
   void detectsErrorLinesInTheLog() {
     app.get("/hello");
-    app.assertNoErrorLogs(); // no error logged yet
-
-    app.get("/error"); // the app logs "ERROR simulated application error"
-    app.waitForLogLine(line -> line.contains("ERROR simulated")); // ensure it reached the log file
+    // no error logged yet
+    app.assertNoErrorLogs();
+    // the app logs "ERROR simulated application error"
+    app.get("/error");
+    // ensure it reached the log file
+    app.waitForLogLine(line -> line.contains("ERROR simulated"));
 
     AssertionError failure = assertThrows(AssertionError.class, app::assertNoErrorLogs);
     assertTrue(failure.getMessage().contains("ERROR simulated"), failure.getMessage());

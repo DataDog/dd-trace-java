@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.testng;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,7 +18,9 @@ import org.testng.annotations.DataProvider;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public TestNGSkipInstrumentation() {
     super("testng", "testng-itr");
   }
@@ -28,14 +29,14 @@ public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
   public boolean isEnabled() {
     return super.isEnabled()
         && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
+        || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.testng.internal.MethodInvocationHelper",
-      "org.testng.internal.invokers.MethodInvocationHelper"
+        "org.testng.internal.MethodInvocationHelper",
+        "org.testng.internal.invokers.MethodInvocationHelper"
     };
   }
 
@@ -43,11 +44,12 @@ public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("invokeMethod")
-            .and(takesArguments(3))
-            .and(takesArgument(0, Method.class))
-            .and(takesArgument(1, Object.class))
-            .and(takesArgument(2, Object[].class)),
-        TestNGSkipInstrumentation.class.getName() + "$InvokeMethodAdvice");
+          .and(takesArguments(3))
+          .and(takesArgument(0, Method.class))
+          .and(takesArgument(1, Object.class))
+          .and(takesArgument(2, Object[].class)),
+        TestNGSkipInstrumentation.class.getName() + "$InvokeMethodAdvice"
+    );
   }
 
   public static class InvokeMethodAdvice {
@@ -55,10 +57,10 @@ public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
     public static void invokeMethod(
         @Advice.Argument(0) final Method method,
         @Advice.Argument(1) final Object instance,
-        @Advice.Argument(2) final Object[] parameters) {
+        @Advice.Argument(2) final Object[] parameters
+    ) {
       TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(method, instance, parameters);
-      SkipReason skipReason =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(testIdentifier);
+      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(testIdentifier);
       if (skipReason == null) {
         return;
       }

@@ -45,7 +45,8 @@ public class SpringBasedIntegrationTest extends BaseIntegrationTest {
         logFilePath,
         "datadog.smoketest.debugger.SpringBootTestApplication - Started SpringBootTestApplication",
         Duration.ofMillis(100),
-        Duration.ofSeconds(30));
+        Duration.ofSeconds(30)
+    );
     return httpPort;
   }
 
@@ -61,18 +62,21 @@ public class SpringBasedIntegrationTest extends BaseIntegrationTest {
   }
 
   protected static void waitForSpecificLogLine(
-      Path logFilePath, String line, Duration sleep, Duration timeout) throws IOException {
+      Path logFilePath,
+      String line,
+      Duration sleep,
+      Duration timeout
+  ) throws IOException {
     boolean[] result = new boolean[] {false};
     long total = sleep.toNanos() == 0 ? 0 : timeout.toNanos() / sleep.toNanos();
     int i = 0;
     while (i < total && !result[0]) {
       try (Stream<String> lines = Files.lines(logFilePath)) {
-        lines.forEach(
-            it -> {
-              if (it.contains(line)) {
-                result[0] = true;
-              }
-            });
+        lines.forEach(it -> {
+          if (it.contains(line)) {
+            result[0] = true;
+          }
+        });
       }
       LockSupport.parkNanos(sleep.toNanos());
       i++;

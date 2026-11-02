@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -22,14 +21,12 @@ class RequestCompletionTest {
   void finishesOnceAfterBothEvents(boolean responseFirst) {
     AgentSpan span = mock(AgentSpan.class);
     AtomicInteger completion = new AtomicInteger();
-    Runnable first =
-        responseFirst
-            ? () -> SprayHelper.responseComplete(span, completion)
-            : () -> SprayHelper.scopeClosed(span, completion);
-    Runnable second =
-        responseFirst
-            ? () -> SprayHelper.scopeClosed(span, completion)
-            : () -> SprayHelper.responseComplete(span, completion);
+    Runnable first = responseFirst
+        ? () -> SprayHelper.responseComplete(span, completion)
+        : () -> SprayHelper.scopeClosed(span, completion);
+    Runnable second = responseFirst
+        ? () -> SprayHelper.scopeClosed(span, completion)
+        : () -> SprayHelper.responseComplete(span, completion);
 
     first.run();
     first.run();
@@ -50,22 +47,18 @@ class RequestCompletionTest {
         AtomicInteger completion = new AtomicInteger();
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
-        Future<?> response =
-            executor.submit(
-                () -> {
-                  ready.countDown();
-                  assertTrue(start.await(5, TimeUnit.SECONDS));
-                  SprayHelper.responseComplete(span, completion);
-                  return null;
-                });
-        Future<?> route =
-            executor.submit(
-                () -> {
-                  ready.countDown();
-                  assertTrue(start.await(5, TimeUnit.SECONDS));
-                  SprayHelper.scopeClosed(span, completion);
-                  return null;
-                });
+        Future<?> response = executor.submit(() -> {
+          ready.countDown();
+          assertTrue(start.await(5, TimeUnit.SECONDS));
+          SprayHelper.responseComplete(span, completion);
+          return null;
+        });
+        Future<?> route = executor.submit(() -> {
+          ready.countDown();
+          assertTrue(start.await(5, TimeUnit.SECONDS));
+          SprayHelper.scopeClosed(span, completion);
+          return null;
+        });
         try {
           assertTrue(ready.await(5, TimeUnit.SECONDS));
         } finally {

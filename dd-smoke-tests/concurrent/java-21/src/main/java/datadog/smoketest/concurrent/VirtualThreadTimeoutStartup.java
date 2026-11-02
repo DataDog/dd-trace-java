@@ -5,8 +5,7 @@ import java.util.concurrent.locks.LockSupport;
 
 public class VirtualThreadTimeoutStartup {
   public static void main(String[] args) throws InterruptedException {
-    Thread thread =
-        Thread.startVirtualThread(() -> LockSupport.parkNanos(TimeUnit.DAYS.toNanos(1)));
+    Thread thread = Thread.startVirtualThread(() -> LockSupport.parkNanos(TimeUnit.DAYS.toNanos(1)));
 
     awaitTimedWaiting(thread);
     LockSupport.unpark(thread);

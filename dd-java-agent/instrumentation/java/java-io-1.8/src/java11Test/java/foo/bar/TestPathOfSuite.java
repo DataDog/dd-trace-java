@@ -4,7 +4,6 @@ import java.net.URI;
 import java.nio.file.Path;
 
 public class TestPathOfSuite {
-
   public static Path of(final String first, final String... more) {
     return Path.of(first, more);
   }

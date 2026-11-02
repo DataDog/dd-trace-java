@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -33,33 +32,39 @@ import net.bytebuddy.implementation.FixedValue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-/** Exercises diagnostics against continuations created by a real {@link CoreTracer}. */
+/**
+ * Exercises diagnostics against continuations created by a real {@link CoreTracer}.
+ */
 class ScopeDiagnosticsIntegrationTest {
+  @TrackScopeContinuations(
+      disabledChecks = {
+      ScopeDiagnosticsCheck.LEAKED,
+      ScopeDiagnosticsCheck.DOUBLE_FINISH,
+      ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+      ScopeDiagnosticsCheck.NEVER_CLOSED
+      },
+      reason = "test recording without enforcement"
+  )
+  private static class AdvisoryOnly {
+  }
 
   @TrackScopeContinuations(
       disabledChecks = {
-        ScopeDiagnosticsCheck.LEAKED,
-        ScopeDiagnosticsCheck.DOUBLE_FINISH,
-        ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
-        ScopeDiagnosticsCheck.NEVER_CLOSED
+      ScopeDiagnosticsCheck.LEAKED,
+      ScopeDiagnosticsCheck.LATE_FINISH,
+      ScopeDiagnosticsCheck.DOUBLE_FINISH,
+      ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+      ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD,
+      ScopeDiagnosticsCheck.NEVER_CLOSED
       },
-      reason = "test recording without enforcement")
-  private static class AdvisoryOnly {}
-
-  @TrackScopeContinuations(
-      disabledChecks = {
-        ScopeDiagnosticsCheck.LEAKED,
-        ScopeDiagnosticsCheck.LATE_FINISH,
-        ScopeDiagnosticsCheck.DOUBLE_FINISH,
-        ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
-        ScopeDiagnosticsCheck.CLOSE_WRONG_THREAD,
-        ScopeDiagnosticsCheck.NEVER_CLOSED
-      },
-      reason = "test recording without enforcement")
-  private static class AllExcluded {}
+      reason = "test recording without enforcement"
+  )
+  private static class AllExcluded {
+  }
 
   @TrackScopeContinuations(enabled = false, reason = "test full recording opt-out")
-  private static class Disabled {}
+  private static class Disabled {
+  }
 
   private CoreTracer tracer;
 
@@ -77,37 +82,37 @@ class ScopeDiagnosticsIntegrationTest {
     ScopeDiagnostics.startRecording();
     Instrumentation instrumentation = ByteBuddyAgent.getInstrumentation();
     AtomicReference<byte[]> observed = new AtomicReference<>();
-    ClassFileTransformer observer =
-        new ClassFileTransformer() {
-          @Override
-          public byte[] transform(
-              ClassLoader loader,
-              String name,
-              Class<?> redefining,
-              ProtectionDomain protectionDomain,
-              byte[] bytes) {
-            if ("datadog/trace/core/scopemanager/ScopeContinuation".equals(name)
-                && loader != ScopeContinuationTransformer.class.getClassLoader()) {
-              observed.set(bytes.clone());
-            }
-            return null;
-          }
-        };
+    ClassFileTransformer observer = new ClassFileTransformer() {
+      @Override
+      public byte[] transform(
+          ClassLoader loader,
+          String name,
+          Class<?> redefining,
+          ProtectionDomain protectionDomain,
+          byte[] bytes
+      ) {
+        if ("datadog/trace/core/scopemanager/ScopeContinuation".equals(name)
+            && loader != ScopeContinuationTransformer.class.getClassLoader()) {
+          observed.set(bytes.clone());
+        }
+        return null;
+      }
+    };
     instrumentation.addTransformer(observer, true);
     try {
-      DynamicType.Unloaded<?> duplicate =
-          new ByteBuddy()
-              .subclass(Object.class)
-              .name("datadog.trace.core.scopemanager.ScopeContinuation")
-              .defineMethod("register", TargetType.class, Visibility.PUBLIC)
-              .intercept(FixedValue.self())
-              .make();
+      DynamicType.Unloaded<?> duplicate = new ByteBuddy()
+        .subclass(Object.class)
+        .name("datadog.trace.core.scopemanager.ScopeContinuation")
+        .defineMethod("register", TargetType.class, Visibility.PUBLIC)
+        .intercept(FixedValue.self())
+        .make();
       duplicate.load(null, ClassLoadingStrategy.Default.WRAPPER);
       assertNotNull(observed.get());
       assertArrayEquals(
           duplicate.getBytes(),
           observed.get(),
-          "Isolated classes must not acquire probe references");
+          "Isolated classes must not acquire probe references"
+      );
     } finally {
       instrumentation.removeTransformer(observer);
     }
@@ -190,11 +195,13 @@ class ScopeDiagnosticsIntegrationTest {
     assertNotNull(record.terminal());
     assertTrue(
         record.resumes().get(0).nanos <= record.terminal().nanos,
-        "resume must be timestamped before its nested resolution");
+        "resume must be timestamped before its nested resolution"
+    );
     assertEquals(
         0,
         report.activateAfterResolveCount(),
-        "a same-span re-activation resolved during activate() is not activate-after-resolve");
+        "a same-span re-activation resolved during activate() is not activate-after-resolve"
+    );
     assertEquals(0, report.leakCount());
     assertFalse(report.hasViolations());
   }
@@ -355,16 +362,14 @@ class ScopeDiagnosticsIntegrationTest {
     ContextContinuation continuation = tracer.capture(span);
     CountDownLatch scopeOpened = new CountDownLatch(1);
     CountDownLatch closeScope = new CountDownLatch(1);
-    Thread worker =
-        new Thread(
-            () -> {
-              try (ContextScope ignored = continuation.resume()) {
-                scopeOpened.countDown();
-                closeScope.await();
-              } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-              }
-            });
+    Thread worker = new Thread(() -> {
+      try (ContextScope ignored = continuation.resume()) {
+        scopeOpened.countDown();
+        closeScope.await();
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+      }
+    });
     worker.start();
 
     assertTrue(scopeOpened.await(5, TimeUnit.SECONDS));
@@ -487,11 +492,12 @@ class ScopeDiagnosticsIntegrationTest {
       }
       ScopeDiagnosticsReport report = ScopeDiagnostics.report();
       assertEquals(1, report.closeWrongThreadCount());
-      ScopeRecord record =
-          report.scopeRecords().stream()
-              .filter(scope -> scope.spanId == outerSpan.getSpanId())
-              .findFirst()
-              .orElseThrow(() -> new AssertionError("outer scope was not recorded"));
+      ScopeRecord record = report
+        .scopeRecords()
+        .stream()
+        .filter(scope -> scope.spanId == outerSpan.getSpanId())
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("outer scope was not recorded"));
       assertEquals(1, record.wrongThreadCloses().size());
       assertEquals(closingThread, record.wrongThreadCloses().get(0).threadName);
       assertFalse(record.closed(), "owner stack has not unwound yet");

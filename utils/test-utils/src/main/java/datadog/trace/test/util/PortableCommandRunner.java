@@ -1,7 +1,6 @@
 package datadog.trace.test.util;
 
 import static java.nio.charset.Charset.defaultCharset;
-
 import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
@@ -13,7 +12,8 @@ import java.io.OutputStream;
  * no usable native equivalent. Spawned as a child process; not meant to be called directly.
  */
 public final class PortableCommandRunner {
-  private PortableCommandRunner() {}
+  private PortableCommandRunner() {
+  }
 
   @SuppressForbidden
   public static void main(String[] arguments) throws IOException, InterruptedException {
@@ -23,7 +23,8 @@ public final class PortableCommandRunner {
 
   @VisibleForTesting
   static void execute(String[] arguments, InputStream input, OutputStream output)
-      throws IOException, InterruptedException {
+      throws IOException,
+      InterruptedException {
     if (arguments.length == 0) {
       throw new IllegalArgumentException("Missing command");
     }

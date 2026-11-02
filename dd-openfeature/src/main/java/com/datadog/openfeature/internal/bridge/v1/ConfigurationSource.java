@@ -2,7 +2,9 @@ package com.datadog.openfeature.internal.bridge.v1;
 
 import java.util.function.Consumer;
 
-/** A source of Universal Flag Configuration (UFC) documents. */
+/**
+ * A source of Universal Flag Configuration (UFC) documents.
+ */
 public interface ConfigurationSource {
   /**
    * Subscribes to configuration updates.

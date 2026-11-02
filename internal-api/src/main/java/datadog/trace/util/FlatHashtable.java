@@ -79,7 +79,8 @@ import javax.annotation.Nullable;
  * #tryGetOrCreate} (so hits stay a single probe and the create path is warmup-rare).
  */
 public final class FlatHashtable {
-  private FlatHashtable() {}
+  private FlatHashtable() {
+  }
 
   /**
    * Optional structure-free entry base carrying only a cached {@code hash} — an
@@ -168,7 +169,8 @@ public final class FlatHashtable {
     private final float loadFactor;
     private TEntry[] table;
     private int size;
-    private int limit; // grow trigger when growable; hard cap when fixed
+    // grow trigger when growable; hard cap when fixed
+    private int limit;
 
     private D1(TEntry[] table, float loadFactor, boolean growable, int limit) {
       this.growable = growable;
@@ -184,13 +186,18 @@ public final class FlatHashtable {
      */
     @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(
-        @Nonnull Class<E> type, int maxCapacity) {
+        @Nonnull Class<E> type,
+        int maxCapacity
+    ) {
       return createFixed(type, maxCapacity, DEFAULT_LOAD_FACTOR);
     }
 
     @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(
-        @Nonnull Class<E> type, int maxCapacity, float loadFactor) {
+        @Nonnull Class<E> type,
+        int maxCapacity,
+        float loadFactor
+    ) {
       return new D1<>(create(type, maxCapacity, loadFactor), loadFactor, false, maxCapacity);
     }
 
@@ -200,13 +207,18 @@ public final class FlatHashtable {
      */
     @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createGrowable(
-        @Nonnull Class<E> type, int initialCapacity) {
+        @Nonnull Class<E> type,
+        int initialCapacity
+    ) {
       return createGrowable(type, initialCapacity, DEFAULT_LOAD_FACTOR);
     }
 
     @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createGrowable(
-        @Nonnull Class<E> type, int initialCapacity, float loadFactor) {
+        @Nonnull Class<E> type,
+        int initialCapacity,
+        float loadFactor
+    ) {
       E[] table = create(type, initialCapacity, loadFactor);
       return new D1<>(table, loadFactor, true, (int) (table.length * loadFactor));
     }
@@ -215,7 +227,9 @@ public final class FlatHashtable {
       return size;
     }
 
-    /** Existing entry for {@code key}, or {@code null}. Read-only — never creates. */
+    /**
+     * Existing entry for {@code key}, or {@code null}. Read-only — never creates.
+     */
     @Nullable
     public TEntry get(@Nullable K key) {
       final long keyHash = Entry.hash(key);
@@ -226,14 +240,16 @@ public final class FlatHashtable {
       for (; ; ) {
         final TEntry e = table[i];
         if (e == null) {
-          return null; // empty slot terminates the probe (no tombstones)
+          // empty slot terminates the probe (no tombstones)
+          return null;
         }
         if (e.hash == keyHash && e.matches(key)) {
           return e;
         }
         i = (i + 1) & mask;
         if (i == start) {
-          return null; // wrapped ⇒ absent (can't happen once growth keeps a free slot)
+          // wrapped ⇒ absent (can't happen once growth keeps a free slot)
+          return null;
         }
       }
     }
@@ -252,7 +268,9 @@ public final class FlatHashtable {
      */
     @Nonnull
     public Maybe<TEntry> tryGetOrCreate(
-        @Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
+        @Nullable K key,
+        @Nonnull CreateStrategy<TEntry, K> createStrat
+    ) {
       return Maybe.of(tryGetOrCreateOrNull(key, createStrat));
     }
 
@@ -267,19 +285,23 @@ public final class FlatHashtable {
     @StrategyConsumer
     @Nullable
     public TEntry tryGetOrCreateOrNull(
-        @Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
+        @Nullable K key,
+        @Nonnull CreateStrategy<TEntry, K> createStrat
+    ) {
       final TEntry existing = get(key);
       if (existing != null) {
         return existing;
       }
       if (size >= limit) {
         if (!growable) {
-          return null; // fixed table full ⇒ caller supplies the overflow default
+          // fixed table full ⇒ caller supplies the overflow default
+          return null;
         }
         grow();
       }
       final TEntry created = createStrat.create(key);
-      FlatHashtable.insert(table, created); // fits: cap/growth keeps a free slot
+      // fits: cap/growth keeps a free slot
+      FlatHashtable.insert(table, created);
       size++;
       return created;
     }
@@ -292,7 +314,8 @@ public final class FlatHashtable {
     public boolean insert(@Nonnull TEntry entry) {
       if (size >= limit) {
         if (!growable) {
-          return false; // fixed table full
+          // fixed table full
+          return false;
         }
         grow();
       }
@@ -380,7 +403,8 @@ public final class FlatHashtable {
     private final float loadFactor;
     private TEntry[] table;
     private int size;
-    private int limit; // grow trigger when growable; hard cap when fixed
+    // grow trigger when growable; hard cap when fixed
+    private int limit;
 
     private D2(TEntry[] table, float loadFactor, boolean growable, int limit) {
       this.growable = growable;
@@ -396,13 +420,18 @@ public final class FlatHashtable {
      */
     @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createFixed(
-        @Nonnull Class<E> type, int maxCapacity) {
+        @Nonnull Class<E> type,
+        int maxCapacity
+    ) {
       return createFixed(type, maxCapacity, DEFAULT_LOAD_FACTOR);
     }
 
     @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createFixed(
-        @Nonnull Class<E> type, int maxCapacity, float loadFactor) {
+        @Nonnull Class<E> type,
+        int maxCapacity,
+        float loadFactor
+    ) {
       return new D2<>(create(type, maxCapacity, loadFactor), loadFactor, false, maxCapacity);
     }
 
@@ -412,13 +441,18 @@ public final class FlatHashtable {
      */
     @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createGrowable(
-        @Nonnull Class<E> type, int initialCapacity) {
+        @Nonnull Class<E> type,
+        int initialCapacity
+    ) {
       return createGrowable(type, initialCapacity, DEFAULT_LOAD_FACTOR);
     }
 
     @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createGrowable(
-        @Nonnull Class<E> type, int initialCapacity, float loadFactor) {
+        @Nonnull Class<E> type,
+        int initialCapacity,
+        float loadFactor
+    ) {
       E[] table = create(type, initialCapacity, loadFactor);
       return new D2<>(table, loadFactor, true, (int) (table.length * loadFactor));
     }
@@ -427,7 +461,9 @@ public final class FlatHashtable {
       return size;
     }
 
-    /** Existing entry for {@code (key1, key2)}, or {@code null}. Read-only — never creates. */
+    /**
+     * Existing entry for {@code (key1, key2)}, or {@code null}. Read-only — never creates.
+     */
     @Nullable
     public TEntry get(@Nullable K1 key1, @Nullable K2 key2) {
       final long keyHash = Entry.hash(key1, key2);
@@ -466,7 +502,8 @@ public final class FlatHashtable {
     public Maybe<TEntry> tryGetOrCreate(
         @Nullable K1 key1,
         @Nullable K2 key2,
-        @Nonnull CreateStrategy2<TEntry, K1, K2> createStrat) {
+        @Nonnull CreateStrategy2<TEntry, K1, K2> createStrat
+    ) {
       return Maybe.of(tryGetOrCreateOrNull(key1, key2, createStrat));
     }
 
@@ -485,14 +522,16 @@ public final class FlatHashtable {
     public TEntry tryGetOrCreateOrNull(
         @Nullable K1 key1,
         @Nullable K2 key2,
-        @Nonnull CreateStrategy2<TEntry, K1, K2> createStrat) {
+        @Nonnull CreateStrategy2<TEntry, K1, K2> createStrat
+    ) {
       final TEntry existing = get(key1, key2);
       if (existing != null) {
         return existing;
       }
       if (size >= limit) {
         if (!growable) {
-          return null; // fixed table full ⇒ caller supplies the overflow default
+          // fixed table full ⇒ caller supplies the overflow default
+          return null;
         }
         grow();
       }
@@ -510,7 +549,8 @@ public final class FlatHashtable {
     public boolean insert(@Nonnull TEntry entry) {
       if (size >= limit) {
         if (!growable) {
-          return false; // fixed table full
+          // fixed table full
+          return false;
         }
         grow();
       }
@@ -588,7 +628,9 @@ public final class FlatHashtable {
   @Strategy
   @FunctionalInterface
   public interface MatchingStrategy<E, K> {
-    /** Whether the stored {@code entry} is the one for {@code key}. */
+    /**
+     * Whether the stored {@code entry} is the one for {@code key}.
+     */
     boolean matches(@Nonnull E entry, K key);
 
     /**
@@ -616,7 +658,10 @@ public final class FlatHashtable {
    */
   @Strategy
   public abstract static class EntryStrategy<E, K>
-      implements HashStrategy<E>, MatchingStrategy<E, K> {}
+      implements HashStrategy<E>,
+      MatchingStrategy<E, K>
+  {
+  }
 
   /**
    * {@link EntryStrategy} for {@code String} keys compared case-insensitively: seals {@link
@@ -630,7 +675,8 @@ public final class FlatHashtable {
   public abstract static class CaseInsensitiveStringStrategy<E> extends EntryStrategy<E, String> {
     @Override
     public final long hashKey(String key) {
-      return Strings.caseInsensitiveHashCode(key); // raw; the table spreads before masking
+      // raw; the table spreads before masking
+      return Strings.caseInsensitiveHashCode(key);
     }
   }
 
@@ -658,7 +704,6 @@ public final class FlatHashtable {
    * spot.
    */
   public static final float DEFAULT_LOAD_FACTOR = 0.5f;
-
   /**
    * Sparse load factor — target fill {@code <= 0.25} ({@code >= 4x} capacity): ~1.2 probes on a
    * hit, ~1.4 on a miss. For miss-heavy hot paths (membership checks) where the extra empty slots
@@ -668,7 +713,9 @@ public final class FlatHashtable {
    */
   public static final float LOW_LOAD_FACTOR = 0.25f;
 
-  /** Power-of-two capacity for a cardinality budget at the {@link #DEFAULT_LOAD_FACTOR}. */
+  /**
+   * Power-of-two capacity for a cardinality budget at the {@link #DEFAULT_LOAD_FACTOR}.
+   */
   public static int capacityFor(int cardinalityLimit) {
     return capacityFor(cardinalityLimit, DEFAULT_LOAD_FACTOR);
   }
@@ -691,10 +738,11 @@ public final class FlatHashtable {
     if (capacity <= 0) {
       throw new IllegalArgumentException(
           "cardinalityLimit "
-              + cardinalityLimit
-              + " at loadFactor "
-              + loadFactor
-              + " requires a capacity larger than Integer.MAX_VALUE");
+          + cardinalityLimit
+          + " at loadFactor "
+          + loadFactor
+          + " requires a capacity larger than Integer.MAX_VALUE"
+      );
     }
     return capacity;
   }
@@ -729,22 +777,23 @@ public final class FlatHashtable {
    */
   @StrategyConsumer
   @Nullable
-  public static <E, K> E get(
-      @Nonnull E[] table, K key, @Nonnull MatchingStrategy<E, K> matchStrat) {
+  public static <E, K> E get(@Nonnull E[] table, K key, @Nonnull MatchingStrategy<E, K> matchStrat) {
     final int mask = table.length - 1;
     final int start = home(matchStrat.hashKey(key), mask);
     int i = start;
     for (; ; ) {
       final E e = table[i];
       if (e == null) {
-        return null; // empty slot terminates the probe (no tombstones)
+        // empty slot terminates the probe (no tombstones)
+        return null;
       }
       if (matchStrat.matches(e, key)) {
         return e;
       }
       i = (i + 1) & mask;
       if (i == start) {
-        return null; // wrapped ⇒ full, absent
+        // wrapped ⇒ full, absent
+        return null;
       }
     }
   }
@@ -761,7 +810,8 @@ public final class FlatHashtable {
       @Nonnull E[] table,
       K key,
       @Nonnull MatchingStrategy<E, K> matchStrat,
-      @Nonnull CreateStrategy<E, K> createStrat) {
+      @Nonnull CreateStrategy<E, K> createStrat
+  ) {
     final int mask = table.length - 1;
     final int start = home(matchStrat.hashKey(key), mask);
     int i = start;
@@ -769,7 +819,8 @@ public final class FlatHashtable {
       final E e = table[i];
       if (e == null) {
         final E created = createStrat.create(key);
-        table[i] = created; // single-reference publish; benign clobber (see class doc)
+        // single-reference publish; benign clobber (see class doc)
+        table[i] = created;
         return created;
       }
       if (matchStrat.matches(e, key)) {
@@ -777,7 +828,8 @@ public final class FlatHashtable {
       }
       i = (i + 1) & mask;
       if (i == start) {
-        return null; // wrapped ⇒ full
+        // wrapped ⇒ full
+        return null;
       }
     }
   }
@@ -803,7 +855,10 @@ public final class FlatHashtable {
    */
   @StrategyConsumer
   public static <E> boolean insert(
-      @Nonnull E[] table, @Nonnull E entry, @Nonnull HashStrategy<E> hashStrat) {
+      @Nonnull E[] table,
+      @Nonnull E entry,
+      @Nonnull HashStrategy<E> hashStrat
+  ) {
     return placeAt(table, entry, hashStrat.hashOf(entry));
   }
 
@@ -816,12 +871,14 @@ public final class FlatHashtable {
     int i = start;
     for (; ; ) {
       if (table[i] == null) {
-        table[i] = entry; // single-reference publish (see class doc)
+        // single-reference publish (see class doc)
+        table[i] = entry;
         return true;
       }
       i = (i + 1) & mask;
       if (i == start) {
-        return false; // wrapped ⇒ full
+        // wrapped ⇒ full
+        return false;
       }
     }
   }
@@ -834,8 +891,10 @@ public final class FlatHashtable {
    * Package-private so tests can predict slots.
    */
   static int home(long hash, int mask) {
-    long z = hash * 0x9E3779B97F4A7C15L; // 2^64 / golden ratio; odd ⇒ a bijection (loses no bits)
-    z ^= z >>> 32; // fold the well-mixed high half down into the low bits the mask keeps
+    // 2^64 / golden ratio; odd ⇒ a bijection (loses no bits)
+    long z = hash * 0x9E3779B97F4A7C15L;
+    // fold the well-mixed high half down into the low bits the mask keeps
+    z ^= z >>> 32;
     return (int) z & mask;
   }
 
@@ -892,7 +951,8 @@ public final class FlatHashtable {
     int grownLength = currentLength << 1;
     if (grownLength <= 0) {
       throw new IllegalStateException(
-          "cannot grow a table of length " + currentLength + " past Integer.MAX_VALUE");
+          "cannot grow a table of length " + currentLength + " past Integer.MAX_VALUE"
+      );
     }
     return grownLength;
   }
@@ -927,7 +987,8 @@ public final class FlatHashtable {
   public static <E extends Entry> E[] resizingInsert(@Nonnull E[] table, @Nonnull E entry) {
     E[] t = table;
     while (!insert(t, entry)) {
-      t = resize(t); // one doubling always suffices; the loop is belt-and-braces
+      // one doubling always suffices; the loop is belt-and-braces
+      t = resize(t);
     }
     return t;
   }
@@ -939,7 +1000,10 @@ public final class FlatHashtable {
   @StrategyConsumer
   @Nonnull
   public static <E> E[] resizingInsert(
-      @Nonnull E[] table, @Nonnull E entry, @Nonnull HashStrategy<E> hashStrat) {
+      @Nonnull E[] table,
+      @Nonnull E entry,
+      @Nonnull HashStrategy<E> hashStrat
+  ) {
     E[] t = table;
     while (!insert(t, entry, hashStrat)) {
       t = resize(t, hashStrat);
@@ -947,7 +1011,9 @@ public final class FlatHashtable {
     return t;
   }
 
-  /** Applies {@code consumer} to every entry in {@code table} (skipping empty slots); any order. */
+  /**
+   * Applies {@code consumer} to every entry in {@code table} (skipping empty slots); any order.
+   */
   public static <E> void forEach(@Nonnull E[] table, @Nonnull Consumer<? super E> consumer) {
     for (final E e : table) {
       if (e != null) {
@@ -961,7 +1027,10 @@ public final class FlatHashtable {
    * (typically a {@code static final}) with side-band {@code context} to avoid a per-call closure.
    */
   public static <C, E> void forEach(
-      @Nonnull E[] table, C context, @Nonnull BiConsumer<? super C, ? super E> consumer) {
+      @Nonnull E[] table,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super E> consumer
+  ) {
     for (final E e : table) {
       if (e != null) {
         consumer.accept(context, e);
@@ -981,7 +1050,10 @@ public final class FlatHashtable {
    */
   @Nonnull
   public static <E> Iterator<E> iterator(
-      @Nonnull E[] table, long hash, @Nonnull HashStrategy<E> hashStrat) {
+      @Nonnull E[] table,
+      long hash,
+      @Nonnull HashStrategy<E> hashStrat
+  ) {
     return new StrategyHashIterator<>(table, hash, hashStrat);
   }
 
@@ -1038,7 +1110,8 @@ public final class FlatHashtable {
       for (; ; ) {
         final E e = table[i];
         if (e == null) {
-          done = true; // probe run ends at the first empty slot
+          // probe run ends at the first empty slot
+          done = true;
           return;
         }
         final boolean match = hashStrat.hashOf(e) == hash;
@@ -1050,7 +1123,8 @@ public final class FlatHashtable {
           return;
         }
         if (wrapped) {
-          done = true; // walked the whole table without an empty slot
+          // walked the whole table without an empty slot
+          done = true;
           return;
         }
       }
@@ -1076,7 +1150,9 @@ public final class FlatHashtable {
     public abstract E next();
   }
 
-  /** General iterator: strategy held in a field, so {@code hashOf} stays a virtual call. */
+  /**
+   * General iterator: strategy held in a field, so {@code hashOf} stays a virtual call.
+   */
   private static final class StrategyHashIterator<E> extends HashIterator<E> {
     // Dynamic dispatch on purpose: general iterator fallback partner to EntryHashIterator
     // (see Strategy's Checker contract).
@@ -1085,7 +1161,8 @@ public final class FlatHashtable {
     StrategyHashIterator(E[] table, long hash, HashStrategy<E> hashStrat) {
       super(table, hash);
       this.hashStrat = hashStrat;
-      advanceWith(hashStrat); // prime
+      // prime
+      advanceWith(hashStrat);
     }
 
     @Override
@@ -1101,7 +1178,8 @@ public final class FlatHashtable {
   private static final class EntryHashIterator<E extends Entry> extends HashIterator<E> {
     EntryHashIterator(E[] table, long hash) {
       super(table, hash);
-      advanceWith(entryHash()); // prime with the constant
+      // prime with the constant
+      advanceWith(entryHash());
     }
 
     @Override
@@ -1118,6 +1196,7 @@ public final class FlatHashtable {
 
   @SuppressWarnings("unchecked")
   private static <E> HashStrategy<E> entryHash() {
-    return (HashStrategy<E>) ENTRY_HASH; // safe: hashOf only reads Entry.hash, present on all E
+    // safe: hashOf only reads Entry.hash, present on all E
+    return (HashStrategy<E>) ENTRY_HASH;
   }
 }

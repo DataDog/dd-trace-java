@@ -2,13 +2,11 @@ package datadog.trace.instrumentation.tomcat;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import org.junit.jupiter.api.Test;
 
 class TomcatServerInstrumentationTest {
-
   private static final class RecordingScope implements ContextScope {
     private boolean closed;
 

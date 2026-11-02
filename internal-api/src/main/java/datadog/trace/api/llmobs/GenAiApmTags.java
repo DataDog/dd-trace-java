@@ -1,7 +1,6 @@
 package datadog.trace.api.llmobs;
 
 import static java.util.Collections.unmodifiableMap;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
@@ -19,7 +18,6 @@ public final class GenAiApmTags {
   public static final String PROVIDER_NAME = "gen_ai.provider.name";
   public static final String APPLICATION_NAME = "gen_ai.application.name";
   public static final String CONVERSATION_ID = "gen_ai.conversation.id";
-
   public static final String USAGE_INPUT_TOKENS = "gen_ai.usage.input_tokens";
   public static final String USAGE_OUTPUT_TOKENS = "gen_ai.usage.output_tokens";
   public static final String USAGE_TOTAL_TOKENS = "gen_ai.usage.total_tokens";
@@ -27,27 +25,26 @@ public final class GenAiApmTags {
   public static final String USAGE_CACHE_WRITE_INPUT_TOKENS =
       "gen_ai.usage.cache_write_input_tokens";
   public static final String USAGE_REASONING_OUTPUT_TOKENS = "gen_ai.usage.reasoning_output_tokens";
-
   /**
    * Marks the {@code gen_ai.*} attributes as written by the tracer rather than by the user. Without
    * it, the backend processor treats the attributes as a user annotation and creates a duplicate
    * LLM Observability span.
    */
   public static final String ARTIFICIAL_TAGS = "_dd.llmobs.artificial_gen_ai_tags";
-
   private static final String LLMOBS_TAG_PREFIX = "_ml_obs_tag.";
   private static final String LLMOBS_METRIC_PREFIX = "_ml_obs_metric.";
-
   private static final String SPAN_KIND_TAG = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
   private static final String MODEL_NAME_TAG = LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_NAME;
   private static final String MODEL_PROVIDER_TAG = LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_PROVIDER;
   private static final String ML_APP_TAG = LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP;
   private static final String SESSION_ID_TAG = LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
-
-  /** Matches the fallback the LLM Observability event uses. */
+  /**
+   * Matches the fallback the LLM Observability event uses.
+   */
   private static final String DEFAULT_MODEL = "custom";
-
-  /** LLM Observability metric name mapped to the {@code gen_ai.usage.*} key it feeds. */
+  /**
+   * LLM Observability metric name mapped to the {@code gen_ai.usage.*} key it feeds.
+   */
   private static final Map<String, String> USAGE_KEYS;
 
   static {
@@ -81,9 +78,8 @@ public final class GenAiApmTags {
     }
     span.setTag(OPERATION_NAME, operation);
 
-    boolean modelBacked =
-        Tags.LLMOBS_LLM_SPAN_KIND.equals(operation)
-            || Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(operation);
+    boolean modelBacked = Tags.LLMOBS_LLM_SPAN_KIND.equals(operation)
+        || Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(operation);
 
     String model = firstNonEmpty(modelName, stringTag(span, MODEL_NAME_TAG));
     if (model != null || modelBacked) {
@@ -92,7 +88,9 @@ public final class GenAiApmTags {
     String provider = stringTag(span, MODEL_PROVIDER_TAG);
     if (provider != null || modelBacked) {
       span.setTag(
-          PROVIDER_NAME, (provider == null ? DEFAULT_MODEL : provider).toLowerCase(Locale.ROOT));
+          PROVIDER_NAME,
+          (provider == null ? DEFAULT_MODEL : provider).toLowerCase(Locale.ROOT)
+      );
     }
     String application = firstNonEmpty(mlApp, stringTag(span, ML_APP_TAG));
     if (application != null) {
@@ -102,7 +100,6 @@ public final class GenAiApmTags {
     if (sessionId != null) {
       span.setTag(CONVERSATION_ID, sessionId);
     }
-
     // Other kinds carry unrelated metrics that a gen_ai.usage.* key would misrepresent.
     if (modelBacked) {
       for (Map.Entry<String, String> metric : USAGE_KEYS.entrySet()) {
@@ -131,7 +128,9 @@ public final class GenAiApmTags {
     }
   }
 
-  /** The value of {@code key} as a non-empty string, or null. */
+  /**
+   * The value of {@code key} as a non-empty string, or null.
+   */
   public static String stringTag(AgentSpan span, String key) {
     Object value = span.getTag(key);
     if (value == null) {
@@ -145,5 +144,6 @@ public final class GenAiApmTags {
     return preferred == null || preferred.isEmpty() ? fallback : preferred;
   }
 
-  private GenAiApmTags() {}
+  private GenAiApmTags() {
+  }
 }

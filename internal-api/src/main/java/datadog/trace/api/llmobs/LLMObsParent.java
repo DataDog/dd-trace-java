@@ -24,58 +24,71 @@ import javax.annotation.Nullable;
  * reports.
  */
 public final class LLMObsParent {
-
-  /** Where the inherited values came from. */
+  /**
+   * Where the inherited values came from.
+   */
   public enum Source {
-    /** The active in-process LLMObs context on the same trace. */
+    /**
+     * The active in-process LLMObs context on the same trace.
+     */
     IN_PROCESS,
-    /** The LLMObs context that arrived on the inbound request. */
+    /**
+     * The LLMObs context that arrived on the inbound request.
+     */
     PROPAGATED,
-    /** Neither: the span is the root of its own LLMObs trace. */
+    /**
+     * Neither: the span is the root of its own LLMObs trace.
+     */
     NONE
   }
 
-  private static final LLMObsParent ROOT =
-      new LLMObsParent(
-          Source.NONE,
-          LLMObsContext.ROOT_SPAN_ID,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null);
-
+  private static final LLMObsParent ROOT = new LLMObsParent(
+      Source.NONE,
+      LLMObsContext.ROOT_SPAN_ID,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+  );
   public final Source source;
-
-  /** The parent's span id, or {@link LLMObsContext#ROOT_SPAN_ID} when there is none. */
+  /**
+   * The parent's span id, or {@link LLMObsContext#ROOT_SPAN_ID} when there is none.
+   */
   public final String parentId;
-
   /**
    * The LLMObs trace id in its stored form (hex above 2^64, decimal below), or {@code null} when
    * there is none to inherit and the caller seeds it from the APM trace id.
    */
-  @Nullable public final String traceId;
-
-  @Nullable public final String mlApp;
-  @Nullable public final String sessionId;
-
-  /** Only ever inherited in-process; it is not propagated across services. */
-  @Nullable public final String agentVersion;
-
-  @Nullable public final String parentAgentSpanId;
-  @Nullable public final String parentAgentName;
-  @Nullable public final String sampleRate;
-  @Nullable public final String samplingDecision;
-
+  @Nullable
+  public final String traceId;
+  @Nullable
+  public final String mlApp;
+  @Nullable
+  public final String sessionId;
+  /**
+   * Only ever inherited in-process; it is not propagated across services.
+   */
+  @Nullable
+  public final String agentVersion;
+  @Nullable
+  public final String parentAgentSpanId;
+  @Nullable
+  public final String parentAgentName;
+  @Nullable
+  public final String sampleRate;
+  @Nullable
+  public final String samplingDecision;
   /**
    * The in-process context that was active but ignored because it belongs to another trace, or
    * {@code null} if there was none. Exposed so a caller can report it.
    */
-  @Nullable public final AgentSpanContext ignoredContext;
+  @Nullable
+  public final AgentSpanContext ignoredContext;
 
   private LLMObsParent(
       Source source,
@@ -88,7 +101,8 @@ public final class LLMObsParent {
       @Nullable String parentAgentName,
       @Nullable String sampleRate,
       @Nullable String samplingDecision,
-      @Nullable AgentSpanContext ignoredContext) {
+      @Nullable AgentSpanContext ignoredContext
+  ) {
     this.source = source;
     this.parentId = parentId;
     this.traceId = traceId;
@@ -102,7 +116,9 @@ public final class LLMObsParent {
     this.ignoredContext = ignoredContext;
   }
 
-  /** Resolves the LLMObs parent of a span that has just started. */
+  /**
+   * Resolves the LLMObs parent of a span that has just started.
+   */
   public static LLMObsParent resolve(AgentSpan span) {
     AgentSpanContext active = LLMObsContext.current();
     AgentSpanContext ignored = null;
@@ -119,7 +135,8 @@ public final class LLMObsParent {
             emptyToNull(LLMObsContext.currentParentAgentName()),
             emptyToNull(LLMObsContext.currentSampleRate()),
             emptyToNull(LLMObsContext.currentSamplingDecision()),
-            null);
+            null
+        );
       }
       ignored = active;
     }
@@ -137,13 +154,14 @@ public final class LLMObsParent {
       // a lone decision would be read against this service's rate rather than the one behind it.
       boolean hasVerdict =
           emptyToNull(propagated.sampleRate) != null
-              && emptyToNull(propagated.samplingDecision) != null;
+          && emptyToNull(propagated.samplingDecision) != null;
       return new LLMObsParent(
           Source.PROPAGATED,
           propagated.parentId,
-          // Adopt the caller's LLMObs trace id so the trace stays whole across the boundary. It
-          // arrives as decimal and is stored as hex.
-          LLMObsTraceId.fromWire(propagated.traceId),
+          LLMObsTraceId
+            // Adopt the caller's LLMObs trace id so the trace stays whole across the boundary. It
+            // arrives as decimal and is stored as hex.
+            .fromWire(propagated.traceId),
           emptyToNull(propagated.mlApp),
           emptyToNull(propagated.sessionId),
           null,
@@ -151,7 +169,8 @@ public final class LLMObsParent {
           parentAgentSpanId != null ? emptyToNull(propagated.parentAgentName) : null,
           hasVerdict ? propagated.sampleRate : null,
           hasVerdict ? propagated.samplingDecision : null,
-          ignored);
+          ignored
+      );
     }
 
     if (ignored == null) {
@@ -168,7 +187,8 @@ public final class LLMObsParent {
         null,
         null,
         null,
-        ignored);
+        ignored
+    );
   }
 
   /**

@@ -31,20 +31,27 @@ public final class NativeLoader {
     private PathLocator pathLocator;
     private List<LibraryLoadingListener> listeners = new ArrayList<>();
 
-    Builder() {}
+    Builder() {
+    }
 
-    /** Sets the default {@link PlatformSpec} used by the {@link NativeLoader} */
+    /**
+     * Sets the default {@link PlatformSpec} used by the {@link NativeLoader}
+     */
     public Builder platformSpec(PlatformSpec platform) {
       this.platformSpec = platform;
       return this;
     }
 
-    /** Uses a nested directory layout -- {@link LibraryResolvers#nestedDirs()} */
+    /**
+     * Uses a nested directory layout -- {@link LibraryResolvers#nestedDirs()}
+     */
     public Builder nestedLayout() {
       return this.libResolver(LibraryResolvers.nestedDirs());
     }
 
-    /** Uses a flat directory layout -- {@link LibraryResolvers#flatDirs()} */
+    /**
+     * Uses a flat directory layout -- {@link LibraryResolvers#flatDirs()}
+     */
     public Builder flatLayout() {
       return this.libResolver(LibraryResolvers.flatDirs());
     }
@@ -68,7 +75,9 @@ public final class NativeLoader {
       return this;
     }
 
-    /** Searches for the native libraries in the provided {@link ClassLoader} */
+    /**
+     * Searches for the native libraries in the provided {@link ClassLoader}
+     */
     public Builder fromClassLoader(ClassLoader classLoader) {
       return this.pathLocator(PathLocators.fromClassLoader(classLoader));
     }
@@ -81,37 +90,51 @@ public final class NativeLoader {
       return this.pathLocator(PathLocators.fromClassLoader(classLoader, baseResource));
     }
 
-    /** Searches for the native libraries in the specified directory */
+    /**
+     * Searches for the native libraries in the specified directory
+     */
     public Builder fromDir(String includeDir) {
       return this.pathLocator(PathLocators.fromLibDirs(includeDir));
     }
 
-    /** Searches for the native libraries in the specified directories */
+    /**
+     * Searches for the native libraries in the specified directories
+     */
     public Builder fromDirs(String... includeDirs) {
       return this.pathLocator(PathLocators.fromLibDirs(includeDirs));
     }
 
-    /** Searches for the native libraries in the specified directory */
+    /**
+     * Searches for the native libraries in the specified directory
+     */
     public Builder fromDir(File includeDir) {
       return this.pathLocator(PathLocators.fromLibDirs(includeDir));
     }
 
-    /** Searches for the native libraries in the specified directories */
+    /**
+     * Searches for the native libraries in the specified directories
+     */
     public Builder fromDirs(File... includeDirs) {
       return this.pathLocator(PathLocators.fromLibDirs(includeDirs));
     }
 
-    /** Searches for the native libraries in the specified directory */
+    /**
+     * Searches for the native libraries in the specified directory
+     */
     public Builder fromDir(Path includeDir) {
       return this.pathLocator(PathLocators.fromLibDirs(includeDir));
     }
 
-    /** Searches for the native libraries in the specified directories */
+    /**
+     * Searches for the native libraries in the specified directories
+     */
     public Builder fromDirs(Path... paths) {
       return this.pathLocator(PathLocators.fromLibDirs(paths));
     }
 
-    /** Searches for the native libraries using the provided {@link PathLocator} */
+    /**
+     * Searches for the native libraries using the provided {@link PathLocator}
+     */
     public Builder pathLocator(PathLocator pathLocator) {
       this.pathLocator = pathLocator;
       return this;
@@ -152,7 +175,9 @@ public final class NativeLoader {
       return this;
     }
 
-    /** Constructs and returns the {@link NativeLoader} */
+    /**
+     * Constructs and returns the {@link NativeLoader}
+     */
     public NativeLoader build() {
       return new NativeLoader(this);
     }
@@ -192,7 +217,6 @@ public final class NativeLoader {
   private static final URL NO_URL = null;
   private static final Throwable NO_CAUSE = null;
   private static final LibraryLoadingListener[] EMPTY_LISTENERS = {};
-
   private final PlatformSpec defaultPlatformSpec;
   private final LibraryResolver libResolver;
   private final PathLocator pathResolver;
@@ -208,22 +232,32 @@ public final class NativeLoader {
   }
 
   public boolean isPlatformSupported() {
-    if (this.defaultPlatformSpec.isUnknownOs()) return false;
-    if (this.defaultPlatformSpec.isUnknownArch()) return false;
+    if (this.defaultPlatformSpec.isUnknownOs()) {
+      return false;
+    }
+    if (this.defaultPlatformSpec.isUnknownArch()) {
+      return false;
+    }
     return true;
   }
 
-  /** Indicates if a library is considered "pre-loaded" */
+  /**
+   * Indicates if a library is considered "pre-loaded"
+   */
   public boolean isPreloaded(String libName) {
     return this.libResolver.isPreloaded(this.defaultPlatformSpec, libName);
   }
 
-  /** Indicates if a library is considered "pre-loaded" for the specified {@link PlatformSpec} */
+  /**
+   * Indicates if a library is considered "pre-loaded" for the specified {@link PlatformSpec}
+   */
   public boolean isPreloaded(PlatformSpec platformSpec, String libName) {
     return this.libResolver.isPreloaded(platformSpec, libName);
   }
 
-  /** Loads a library */
+  /**
+   * Loads a library
+   */
   public void load(String libName) throws LibraryLoadException {
     this.loadImpl(null, libName, EMPTY_LISTENERS);
   }
@@ -233,7 +267,9 @@ public final class NativeLoader {
     this.loadImpl(null, libName, scopedListeners);
   }
 
-  /** Loads a library associated with an associated component */
+  /**
+   * Loads a library associated with an associated component
+   */
   public void load(String component, String libName) throws LibraryLoadException {
     this.loadImpl(component, libName, EMPTY_LISTENERS);
   }
@@ -245,7 +281,6 @@ public final class NativeLoader {
 
   private void loadImpl(String component, String libName, LibraryLoadingListener... scopedListeners)
       throws LibraryLoadException {
-
     // scopedListeners are attached to the LibFile by resolveDynamicImpl
     try (LibFile libFile =
         this.resolveDynamicImpl(this.defaultPlatformSpec, component, libName, scopedListeners)) {
@@ -253,7 +288,9 @@ public final class NativeLoader {
     }
   }
 
-  /** Resolves a library to a LibFile - creating a temporary file if necessary */
+  /**
+   * Resolves a library to a LibFile - creating a temporary file if necessary
+   */
   public LibFile resolveDynamic(String libName) throws LibraryLoadException {
     return this.resolveDynamicImpl(this.defaultPlatformSpec, null, libName, EMPTY_LISTENERS);
   }
@@ -263,7 +300,9 @@ public final class NativeLoader {
     return this.resolveDynamicImpl(this.defaultPlatformSpec, null, libName, scopedListeners);
   }
 
-  /** Resolves a library with an associated component */
+  /**
+   * Resolves a library with an associated component
+   */
   public LibFile resolveDynamic(String component, String libName) throws LibraryLoadException {
     return this.resolveDynamicImpl(this.defaultPlatformSpec, component, libName, EMPTY_LISTENERS);
   }
@@ -278,8 +317,10 @@ public final class NativeLoader {
   }
 
   public LibFile resolveDynamic(
-      PlatformSpec platformSpec, String libName, LibraryLoadingListener... scopedListeners)
-      throws LibraryLoadException {
+      PlatformSpec platformSpec,
+      String libName,
+      LibraryLoadingListener... scopedListeners
+  ) throws LibraryLoadException {
     return this.resolveDynamicImpl(platformSpec, null, libName, scopedListeners);
   }
 
@@ -296,14 +337,13 @@ public final class NativeLoader {
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      LibraryLoadingListener[] scopedListeners)
-      throws LibraryLoadException {
-    SafeLibraryLoadingListener allListeners =
-        (scopedListeners == null
-                || scopedListeners == EMPTY_LISTENERS
-                || scopedListeners.length == 0)
-            ? this.listeners
-            : this.listeners.join(scopedListeners);
+      LibraryLoadingListener[] scopedListeners
+  ) throws LibraryLoadException {
+    SafeLibraryLoadingListener allListeners = (scopedListeners == null
+        || scopedListeners == EMPTY_LISTENERS
+        || scopedListeners.length == 0)
+        ? this.listeners
+        : this.listeners.join(scopedListeners);
 
     if (platformSpec.isUnknownOs() || platformSpec.isUnknownArch()) {
       allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, NO_CAUSE);
@@ -332,7 +372,6 @@ public final class NativeLoader {
       allListeners.onResolveDynamicFailure(platformSpec, optionalComponent, libName, NO_CAUSE);
       throw new LibraryLoadException(libName);
     }
-
     // For listener purposes - at this point resolution completed successfully
     // Although, the resolveDynamic method can still fail if we need a temp file and cannot create
     // it
@@ -340,7 +379,12 @@ public final class NativeLoader {
 
     if (url.getProtocol().equals("file")) {
       return LibFile.fromFile(
-          platformSpec, optionalComponent, libName, new File(url.getPath()), allListeners);
+          platformSpec,
+          optionalComponent,
+          libName,
+          new File(url.getPath()),
+          allListeners
+      );
     } else {
       Path tempFile;
       try {
@@ -348,10 +392,21 @@ public final class NativeLoader {
         allListeners.onTempFileCreated(platformSpec, optionalComponent, libName, tempFile);
 
         return LibFile.fromTempFile(
-            platformSpec, optionalComponent, libName, tempFile.toFile(), allListeners);
+            platformSpec,
+            optionalComponent,
+            libName,
+            tempFile.toFile(),
+            allListeners
+        );
       } catch (Throwable t) {
         allListeners.onTempFileCreationFailure(
-            platformSpec, optionalComponent, libName, this.tempDir, libName, t);
+            platformSpec,
+            optionalComponent,
+            libName,
+            this.tempDir,
+            libName,
+            t
+        );
 
         throw new LibraryLoadException(libName, t);
       }
@@ -359,7 +414,11 @@ public final class NativeLoader {
   }
 
   private static Path createTempFile(
-      Path tempDir, PlatformSpec platformSpec, String libName, URL url) throws IOException {
+      Path tempDir,
+      PlatformSpec platformSpec,
+      String libName,
+      URL url
+  ) throws IOException {
     String libExt = PathUtils.dynamicLibExtension(platformSpec);
 
     Path tempFile = TempFileHelper.createTempFile(tempDir, libName, libExt);
@@ -375,10 +434,12 @@ public final class NativeLoader {
   }
 
   static final class TempFileHelper {
-    private TempFileHelper() {}
+    private TempFileHelper() {
+    }
 
     static Path createTempFile(Path tempDir, String libname, String libExt)
-        throws IOException, SecurityException {
+        throws IOException,
+        SecurityException {
       FileAttribute<Set<PosixFilePermission>> permAttrs =
           PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
 
@@ -387,7 +448,8 @@ public final class NativeLoader {
       } else {
         Files.createDirectories(
             tempDir,
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+        );
 
         return Files.createTempFile(tempDir, libname, "." + libExt, permAttrs);
       }
@@ -395,7 +457,9 @@ public final class NativeLoader {
 
     static boolean delete(File tempFile) {
       boolean deleted = tempFile.delete();
-      if (!deleted) tempFile.deleteOnExit();
+      if (!deleted) {
+        tempFile.deleteOnExit();
+      }
       return deleted;
     }
   }

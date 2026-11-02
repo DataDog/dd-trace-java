@@ -3,10 +3,8 @@ package datadog.communication.serialization;
 import java.nio.ByteBuffer;
 
 public final class FlushingBuffer implements StreamingBuffer {
-
   private final ByteBuffer buffer;
   private final ByteBufferConsumer consumer;
-
   private int messageCount;
   private int mark;
 
@@ -20,7 +18,9 @@ public final class FlushingBuffer implements StreamingBuffer {
     return buffer.capacity();
   }
 
-  /** Returns a view of complete messages, excluding any unfinished message. */
+  /**
+   * Returns a view of complete messages, excluding any unfinished message.
+   */
   public ByteBuffer completedMessages() {
     ByteBuffer slice = buffer.duplicate();
     slice.position(0);

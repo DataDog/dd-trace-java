@@ -37,12 +37,14 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public final class Accumulator<E extends Enum<E>> {
-  /** One full cache line of {@code long}s (64 bytes), used to pad each stripe row. */
+  /**
+   * One full cache line of {@code long}s (64 bytes), used to pad each stripe row.
+   */
   private static final int CACHE_LINE_LONGS = 8;
-
-  /** Upper bound on {@link #stripeCount()}, regardless of core count. */
+  /**
+   * Upper bound on {@link #stripeCount()}, regardless of core count.
+   */
   private static final int MAX_STRIPES = 64;
-
   private final AtomicLongArray[] data;
   private final int width;
   private final E[] keys;
@@ -68,12 +70,16 @@ public final class Accumulator<E extends Enum<E>> {
     return new Accumulator<>(data, width, keys);
   }
 
-  /** Increments the counter named by {@code key} in the calling thread's stripe by one. */
+  /**
+   * Increments the counter named by {@code key} in the calling thread's stripe by one.
+   */
   public void inc(E key) {
     add(key, 1L);
   }
 
-  /** Adds {@code delta} to the counter named by {@code key} in the calling thread's stripe. */
+  /**
+   * Adds {@code delta} to the counter named by {@code key} in the calling thread's stripe.
+   */
   public void add(E key, long delta) {
     stripeOf(data).getAndAdd(key.ordinal(), delta);
   }
@@ -138,7 +144,9 @@ public final class Accumulator<E extends Enum<E>> {
       return new Counts<>(new long[keys.length], keys);
     }
 
-    /** The counter named by {@code key}. */
+    /**
+     * The counter named by {@code key}.
+     */
     public long get(E key) {
       return counts[key.ordinal()];
     }
@@ -280,7 +288,9 @@ public final class Accumulator<E extends Enum<E>> {
     return Math.min(MAX_STRIPES, Math.max(4, 2 * Integer.highestOneBit(Math.max(1, cpus))));
   }
 
-  /** Rounds {@code width} up to a whole number of cache lines, plus one full trailing line. */
+  /**
+   * Rounds {@code width} up to a whole number of cache lines, plus one full trailing line.
+   */
   private static int paddedWidth(int width) {
     int wholeLines = ((width + CACHE_LINE_LONGS - 1) / CACHE_LINE_LONGS) * CACHE_LINE_LONGS;
     return wholeLines + CACHE_LINE_LONGS;

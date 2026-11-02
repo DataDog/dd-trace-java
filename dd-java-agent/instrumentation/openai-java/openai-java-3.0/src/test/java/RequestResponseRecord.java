@@ -20,7 +20,6 @@ public class RequestResponseRecord {
    * changed. This is useful for identifying unused records when changing tests.
    */
   public static final boolean SET_RECORD_FILE_ATTR_ON_READ = false;
-
   private static final String RECORD_FILE_HASH_ALG = "MD5";
   private static final String METHOD = "method: ";
   private static final String PATH = "path: ";
@@ -33,7 +32,6 @@ public class RequestResponseRecord {
   private static final String END_RESPONSE_BODY = "-- end response body --";
   private static final String KEY_VALUE_SEP = ": ";
   private static final char LINE_SEP = '\n';
-
   public final int status;
   public final Map<String, String> headers;
   public final byte[] body;
@@ -90,13 +88,15 @@ public class RequestResponseRecord {
   }
 
   public static void dump(
-      Path recordsDir, HttpRequest request, HttpResponse response, byte[] responseBody)
-      throws IOException {
+      Path recordsDir,
+      HttpRequest request,
+      HttpResponse response,
+      byte[] responseBody
+  ) throws IOException {
     ByteArrayOutputStream requestBodyBytes = readRequestBody(request);
     Path targetDir = recordSubpath(recordsDir, request);
     Files.createDirectories(targetDir);
-    String filename =
-        requestToFileName(request.method().toString(), requestBodyBytes.toByteArray());
+    String filename = requestToFileName(request.method().toString(), requestBodyBytes.toByteArray());
     Path filePath = targetDir.resolve(filename);
 
     try (BufferedWriter out = Files.newBufferedWriter(filePath.toFile().toPath())) {

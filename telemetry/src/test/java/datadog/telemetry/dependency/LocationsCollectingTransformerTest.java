@@ -10,7 +10,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -30,7 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 class LocationsCollectingTransformerTest {
-
   private final DependencyService depService = new DependencyService();
   private final LocationsCollectingTransformer transformer =
       new LocationsCollectingTransformer(depService);
@@ -138,16 +136,14 @@ class LocationsCollectingTransformerTest {
 
       List<Future<?>> futures = new ArrayList<>();
       for (int i = 0; i < threads; i++) {
-        futures.add(
-            executor.submit(
-                () -> {
-                  latch.countDown();
-                  awaitUninterruptibly(latch);
-                  ProtectionDomain domain;
-                  while ((domain = domains.poll()) != null) {
-                    mockTransformer.transform(null, null, null, domain, null);
-                  }
-                }));
+        futures.add(executor.submit(() -> {
+          latch.countDown();
+          awaitUninterruptibly(latch);
+          ProtectionDomain domain;
+          while ((domain = domains.poll()) != null) {
+            mockTransformer.transform(null, null, null, domain, null);
+          }
+        }));
       }
       for (Future<?> future : futures) {
         future.get();
@@ -177,20 +173,17 @@ class LocationsCollectingTransformerTest {
 
       List<Future<?>> futures = new ArrayList<>();
       for (int i = 0; i < threads; i++) {
-        futures.add(
-            executor.submit(
-                () -> {
-                  latch.countDown();
-                  awaitUninterruptibly(latch);
-                  for (int j = 0; j < iterationsPerThread; j++) {
-                    mockTransformer.transform(null, null, null, domain, null);
-                  }
-                }));
+        futures.add(executor.submit(() -> {
+          latch.countDown();
+          awaitUninterruptibly(latch);
+          for (int j = 0; j < iterationsPerThread; j++) {
+            mockTransformer.transform(null, null, null, domain, null);
+          }
+        }));
       }
       for (Future<?> future : futures) {
         future.get();
       }
-
       // the shared protection domain is cached, so addURL should be called only once, but the
       // cache population race allows up to one call per racing thread
       verify(mockDepService, atLeastOnce()).addURL(any(URL.class));

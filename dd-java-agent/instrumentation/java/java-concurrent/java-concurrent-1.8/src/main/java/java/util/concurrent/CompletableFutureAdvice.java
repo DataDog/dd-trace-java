@@ -3,7 +3,6 @@ package java.util.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static java.util.concurrent.CompletableFuture.ASYNC;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
@@ -14,7 +13,6 @@ import net.bytebuddy.asm.Advice;
 
 // This class is put into java.util.concurrent to allow access to package private classes.
 public final class CompletableFutureAdvice {
-
   public static final class UniConstructor {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This UniCompletion zis) {
@@ -37,7 +35,8 @@ public final class CompletableFutureAdvice {
         @Advice.This UniCompletion zis,
         @Advice.Local("hadExecutor") boolean hadExecutor,
         @Advice.Local("wasClaimed") boolean wasClaimed,
-        @Advice.Local("wasLive") boolean wasLive) {
+        @Advice.Local("wasLive") boolean wasLive
+    ) {
       hadExecutor = zis.executor != null;
       wasClaimed = zis.getForkJoinTaskTag() == 1;
       wasLive = zis.isLive();
@@ -58,7 +57,8 @@ public final class CompletableFutureAdvice {
         @Advice.Argument(0) int mode,
         @Advice.Local("hadExecutor") boolean hadExecutor,
         @Advice.Local("wasClaimed") boolean wasClaimed,
-        @Advice.Local("wasLive") boolean wasLive) {
+        @Advice.Local("wasLive") boolean wasLive
+    ) {
       // If it wasn't live when we entered, then do nothing
       if (!wasLive) {
         return;

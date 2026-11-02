@@ -81,7 +81,12 @@ public class DelayLoadsMethodVisitor extends MethodVisitor {
 
   @Override
   public void visitMethodInsn(
-      int opcode, String owner, String name, String descriptor, boolean isInterface) {
+      int opcode,
+      String owner,
+      String name,
+      String descriptor,
+      boolean isInterface
+  ) {
     commitLoads();
     super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
   }
@@ -91,7 +96,8 @@ public class DelayLoadsMethodVisitor extends MethodVisitor {
       String name,
       String descriptor,
       Handle bootstrapMethodHandle,
-      Object... bootstrapMethodArguments) {
+      Object... bootstrapMethodArguments
+  ) {
     commitLoads();
     super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
   }
@@ -140,7 +146,11 @@ public class DelayLoadsMethodVisitor extends MethodVisitor {
 
   @Override
   public AnnotationVisitor visitInsnAnnotation(
-      int typeRef, TypePath typePath, String descriptor, boolean visible) {
+      int typeRef,
+      TypePath typePath,
+      String descriptor,
+      boolean visible
+  ) {
     commitLoads();
     return super.visitInsnAnnotation(typeRef, typePath, descriptor, visible);
   }
@@ -153,14 +163,24 @@ public class DelayLoadsMethodVisitor extends MethodVisitor {
 
   @Override
   public AnnotationVisitor visitTryCatchAnnotation(
-      int typeRef, TypePath typePath, String descriptor, boolean visible) {
+      int typeRef,
+      TypePath typePath,
+      String descriptor,
+      boolean visible
+  ) {
     commitLoads();
     return super.visitTryCatchAnnotation(typeRef, typePath, descriptor, visible);
   }
 
   @Override
   public void visitLocalVariable(
-      String name, String descriptor, String signature, Label start, Label end, int index) {
+      String name,
+      String descriptor,
+      String signature,
+      Label start,
+      Label end,
+      int index
+  ) {
     commitLoads();
     super.visitLocalVariable(name, descriptor, signature, start, end, index);
   }
@@ -173,10 +193,18 @@ public class DelayLoadsMethodVisitor extends MethodVisitor {
       Label[] end,
       int[] index,
       String descriptor,
-      boolean visible) {
+      boolean visible
+  ) {
     commitLoads();
     return super.visitLocalVariableAnnotation(
-        typeRef, typePath, start, end, index, descriptor, visible);
+        typeRef,
+        typePath,
+        start,
+        end,
+        index,
+        descriptor,
+        visible
+    );
   }
 
   @Override

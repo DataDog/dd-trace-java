@@ -2,7 +2,9 @@ package com.datadog.openfeature.internal.ufc;
 
 import java.util.List;
 
-/** A UFC shard. {@code totalShards} holds an unsigned 32-bit wire value. */
+/**
+ * A UFC shard. {@code totalShards} holds an unsigned 32-bit wire value.
+ */
 public final class Shard {
   public final String salt;
   public final List<ShardRange> ranges;

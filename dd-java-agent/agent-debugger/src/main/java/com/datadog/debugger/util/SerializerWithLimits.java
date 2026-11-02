@@ -1,7 +1,6 @@
 package com.datadog.debugger.util;
 
 import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
-
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
@@ -19,7 +18,9 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** serialize Java Object value with applied {@link Limits} and following references */
+/**
+ * serialize Java Object value with applied {@link Limits} and following references
+ */
 public class SerializerWithLimits {
   private static final Logger LOG = LoggerFactory.getLogger(SerializerWithLimits.class);
 
@@ -182,9 +183,12 @@ public class SerializerWithLimits {
     int size = 0;
     try {
       map = (Map<?, ?>) value;
-      size = map.size(); // /!\ alien call /!\
-      Set<? extends Map.Entry<?, ?>> entries = map.entrySet(); // /!\ alien call /!\
-      isComplete = serializeMapEntries(entries, limits); // /!\ contains alien calls /!\
+      // /!\ alien call /!\
+      size = map.size();
+      // /!\ alien call /!\
+      Set<? extends Map.Entry<?, ?>> entries = map.entrySet();
+      // /!\ contains alien calls /!\
+      isComplete = serializeMapEntries(entries, limits);
       tokenWriter.mapEpilogue(isComplete, size);
     } catch (Exception ex) {
       tokenWriter.mapEpilogue(isComplete, size);
@@ -199,8 +203,10 @@ public class SerializerWithLimits {
     int size = 0;
     try {
       col = (Collection<?>) value;
-      size = col.size(); // /!\ alien call /!\
-      isComplete = serializeCollection(col, limits); // /!\ contains alien calls /!\
+      // /!\ alien call /!\
+      size = col.size();
+      // /!\ contains alien calls /!\
+      isComplete = serializeCollection(col, limits);
       tokenWriter.collectionEpilogue(value, isComplete, size);
     } catch (Exception ex) {
       tokenWriter.collectionEpilogue(value, isComplete, size);
@@ -266,8 +272,7 @@ public class SerializerWithLimits {
     Class<?> currentClass = value.getClass();
     int processedFieldCount = 0;
     NotCapturedReason reason = null;
-    classLoop:
-    do {
+    classLoop: do {
       Field[] fields = currentClass.getDeclaredFields();
       for (Field field : fields) {
         try {
@@ -315,8 +320,8 @@ public class SerializerWithLimits {
   private void onSpecialField(
       Function<Object, CapturedContext.CapturedValue> specialFieldAccess,
       Object value,
-      Limits limits)
-      throws Exception {
+      Limits limits
+  ) throws Exception {
     CapturedContext.CapturedValue field = specialFieldAccess.apply(value);
     internalOnField(field.getName(), field.getType(), field.getValue(), limits);
   }
@@ -336,10 +341,11 @@ public class SerializerWithLimits {
     }
     serialize(
         value instanceof CapturedContext.CapturedValue
-            ? ((CapturedContext.CapturedValue) value).getValue()
-            : value,
+        ? ((CapturedContext.CapturedValue) value).getValue()
+        : value,
         typeName,
-        newLimits);
+        newLimits
+    );
   }
 
   private boolean serializeLongArray(long[] longArray, int maxSize) throws Exception {
@@ -445,7 +451,10 @@ public class SerializerWithLimits {
     while (i < maxSize) {
       Object val = objArray[i];
       serialize(
-          val, val != null ? val.getClass().getTypeName() : Object.class.getTypeName(), newLimits);
+          val,
+          val != null ? val.getClass().getTypeName() : Object.class.getTypeName(),
+          newLimits
+      );
       i++;
     }
     return maxSize == objArray.length;
@@ -453,15 +462,22 @@ public class SerializerWithLimits {
 
   private boolean serializeCollection(Collection<?> collection, Limits limits) throws Exception {
     // /!\ here we assume that Collection#Size is O(1) /!\
-    int colSize = collection.size(); // /!\ alien call /!\
+    // /!\ alien call /!\
+    int colSize = collection.size();
     int maxSize = Math.min(colSize, limits.maxCollectionSize);
     Limits newLimits = Limits.decDepthLimits(limits);
     int i = 0;
-    Iterator<?> it = collection.iterator(); // /!\ alien call /!\
-    while (i < maxSize && it.hasNext()) { // /!\ alien call /!\
-      Object val = it.next(); // /!\ alien call /!\
+    // /!\ alien call /!\
+    Iterator<?> it = collection.iterator();
+    while (i < maxSize && it.hasNext()) {
+      // /!\ alien call /!\
+      // /!\ alien call /!\
+      Object val = it.next();
       serialize(
-          val, val != null ? val.getClass().getTypeName() : Object.class.getTypeName(), newLimits);
+          val,
+          val != null ? val.getClass().getTypeName() : Object.class.getTypeName(),
+          newLimits
+      );
       i++;
     }
     return maxSize == colSize;
@@ -469,29 +485,37 @@ public class SerializerWithLimits {
 
   private boolean serializeMapEntries(Set<? extends Map.Entry<?, ?>> entries, Limits limits)
       throws Exception {
-    int mapSize = entries.size(); // /!\ alien call /!\
+    // /!\ alien call /!\
+    int mapSize = entries.size();
     int maxSize = Math.min(mapSize, limits.maxCollectionSize);
     Limits newLimits = Limits.decDepthLimits(limits);
     int i = 0;
-    Iterator<?> it = entries.iterator(); // /!\ alien call /!\
-    while (i < maxSize && it.hasNext()) { // /!\ alien call /!\
-      Map.Entry<?, ?> entry = (Map.Entry<?, ?>) it.next(); // /!\ alien call /!\
+    // /!\ alien call /!\
+    Iterator<?> it = entries.iterator();
+    while (i < maxSize && it.hasNext()) {
+      // /!\ alien call /!\
+      // /!\ alien call /!\
+      Map.Entry<?, ?> entry = (Map.Entry<?, ?>) it.next();
       tokenWriter.mapEntryPrologue(entry);
-      Object keyObj = entry.getKey(); // /!\ alien call /!\
+      // /!\ alien call /!\
+      Object keyObj = entry.getKey();
       Object valObj;
       if (keyObj instanceof String && Redaction.isRedactedKeyword((String) keyObj)) {
         valObj = REDACTED_VALUE;
       } else {
-        valObj = entry.getValue(); // /!\ alien call /!\
+        // /!\ alien call /!\
+        valObj = entry.getValue();
       }
       serialize(
           keyObj,
           keyObj != null ? keyObj.getClass().getTypeName() : Object.class.getTypeName(),
-          newLimits);
+          newLimits
+      );
       serialize(
           valObj,
           valObj != null ? valObj.getClass().getTypeName() : Object.class.getTypeName(),
-          newLimits);
+          newLimits
+      );
       tokenWriter.mapEntryEpilogue(entry);
       i++;
     }

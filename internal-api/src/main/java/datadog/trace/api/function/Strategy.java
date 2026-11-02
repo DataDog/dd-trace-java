@@ -139,4 +139,5 @@ import java.lang.annotation.Target;
 @PerfContract
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.PARAMETER})
-public @interface Strategy {}
+public @interface Strategy {
+}

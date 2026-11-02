@@ -10,11 +10,11 @@ import org.hibernate.annotations.NamedQuery;
 @Table
 @NamedQuery(name = "TestNamedQuery", query = "from Value")
 public class Value {
-
   private Long id;
   private String name;
 
-  public Value() {}
+  public Value() {
+  }
 
   public Value(final String name) {
     this.name = name;

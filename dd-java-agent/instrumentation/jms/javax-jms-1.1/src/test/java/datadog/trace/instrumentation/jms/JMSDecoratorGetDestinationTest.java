@@ -4,7 +4,6 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.Test;
  * ({@code <=1.1}) or legitimately unbound (an anonymous producer).
  */
 class JMSDecoratorGetDestinationTest {
-
   interface GetDestinationAnswer {
     Destination get() throws Throwable;
   }
@@ -33,43 +31,46 @@ class JMSDecoratorGetDestinationTest {
    * latch is keyed on: every instance of one driver class has the same defect.
    */
   private static MessageProducer producer(
-      Class<?>[] interfaces, AtomicInteger calls, GetDestinationAnswer answer, Object fallback) {
+      Class<?>[] interfaces,
+      AtomicInteger calls,
+      GetDestinationAnswer answer,
+      Object fallback
+  ) {
     InvocationHandler handler =
         (proxy, method, args) -> {
-          switch (method.getName()) {
-            case "getDestination":
-              calls.incrementAndGet();
-              return answer.get();
-            case "getQueue":
-            case "getTopic":
-              return fallback;
-            default:
-              return null;
-          }
-        };
-    return (MessageProducer)
-        Proxy.newProxyInstance(
-            JMSDecoratorGetDestinationTest.class.getClassLoader(), interfaces, handler);
+      switch (method.getName()) {
+        case "getDestination":
+          calls.incrementAndGet();
+          return answer.get();
+        case "getQueue":
+        case "getTopic":
+          return fallback;
+        default:
+          return null;
+      }
+    };
+    return (MessageProducer) Proxy.newProxyInstance(
+        JMSDecoratorGetDestinationTest.class.getClassLoader(),
+        interfaces,
+        handler
+    );
   }
 
   private static AbstractMethodError unimplemented(Object target) {
     // the exact HotSpot message format `isNamedIn` attributes to the receiver class
     return new AbstractMethodError(
         "Receiver class "
-            + target.getClass().getName()
-            + " does not define or inherit an implementation of the resolved method 'abstract"
-            + " javax.jms.Destination getDestination()' of interface javax.jms.MessageProducer.");
+        + target.getClass().getName()
+        + " does not define or inherit an implementation of the resolved method 'abstract"
+        + " javax.jms.Destination getDestination()' of interface javax.jms.MessageProducer."
+    );
   }
 
   @Test
   void returnsTheRealDestinationWhenAvailable() throws Exception {
     AtomicInteger calls = new AtomicInteger();
-    Queue queue =
-        (Queue)
-            Proxy.newProxyInstance(
-                JMSDecoratorGetDestinationTest.class.getClassLoader(),
-                new Class<?>[] {Queue.class},
-                (proxy, method, args) -> null);
+    Queue queue = (Queue) Proxy.newProxyInstance(JMSDecoratorGetDestinationTest.class
+      .getClassLoader(), new Class<?>[] {Queue.class}, (proxy, method, args) -> null);
     MessageProducer producer =
         producer(new Class<?>[] {MessageProducer.class}, calls, () -> queue, null);
 
@@ -92,26 +93,16 @@ class JMSDecoratorGetDestinationTest {
   @Test
   void fallsBackToGetQueueAndLatchesTheClass() throws Exception {
     AtomicInteger calls = new AtomicInteger();
-    Queue queue =
-        (Queue)
-            Proxy.newProxyInstance(
-                JMSDecoratorGetDestinationTest.class.getClassLoader(),
-                new Class<?>[] {Queue.class},
-                (proxy, method, args) -> null);
+    Queue queue = (Queue) Proxy.newProxyInstance(JMSDecoratorGetDestinationTest.class
+      .getClassLoader(), new Class<?>[] {Queue.class}, (proxy, method, args) -> null);
     AtomicReference<MessageProducer> self = new AtomicReference<>();
-    MessageProducer sender =
-        producer(
-            new Class<?>[] {QueueSender.class},
-            calls,
-            () -> {
-              throw unimplemented(self.get());
-            },
-            queue);
+    MessageProducer sender = producer(new Class<?>[] {QueueSender.class}, calls, () -> {
+      throw unimplemented(self.get());
+    }, queue);
     self.set(sender);
 
     assertSame(queue, PRODUCER_DECORATE.getDestination(sender));
     assertEquals(1, calls.get());
-
     // a second call on the same class is skipped by the latch, not re-attempted
     assertSame(queue, PRODUCER_DECORATE.getDestination(sender));
     assertEquals(1, calls.get());
@@ -122,20 +113,12 @@ class JMSDecoratorGetDestinationTest {
     // e.g. a wrapper whose delegate lacks getDestination: the error names the delegate, so the
     // wrapper's class is not latched, but the <=1.1 fallback is still the right answer
     AtomicInteger calls = new AtomicInteger();
-    Queue queue =
-        (Queue)
-            Proxy.newProxyInstance(
-                JMSDecoratorGetDestinationTest.class.getClassLoader(),
-                new Class<?>[] {Queue.class},
-                (proxy, method, args) -> null);
+    Queue queue = (Queue) Proxy.newProxyInstance(JMSDecoratorGetDestinationTest.class
+      .getClassLoader(), new Class<?>[] {Queue.class}, (proxy, method, args) -> null);
     MessageProducer sender =
-        producer(
-            new Class<?>[] {QueueSender.class, Runnable.class},
-            calls,
-            () -> {
-              throw unimplemented(queue);
-            },
-            queue);
+        producer(new Class<?>[] {QueueSender.class, Runnable.class}, calls, () -> {
+      throw unimplemented(queue);
+    }, queue);
 
     assertSame(queue, PRODUCER_DECORATE.getDestination(sender));
     assertSame(queue, PRODUCER_DECORATE.getDestination(sender));
@@ -145,21 +128,13 @@ class JMSDecoratorGetDestinationTest {
   @Test
   void fallsBackToGetTopicForATopicPublisher() throws Exception {
     AtomicInteger calls = new AtomicInteger();
-    Topic topic =
-        (Topic)
-            Proxy.newProxyInstance(
-                JMSDecoratorGetDestinationTest.class.getClassLoader(),
-                new Class<?>[] {Topic.class},
-                (proxy, method, args) -> null);
+    Topic topic = (Topic) Proxy.newProxyInstance(JMSDecoratorGetDestinationTest.class
+      .getClassLoader(), new Class<?>[] {Topic.class}, (proxy, method, args) -> null);
     AtomicReference<MessageProducer> self = new AtomicReference<>();
     MessageProducer publisher =
-        producer(
-            new Class<?>[] {TopicPublisher.class},
-            calls,
-            () -> {
-              throw unimplemented(self.get());
-            },
-            topic);
+        producer(new Class<?>[] {TopicPublisher.class}, calls, () -> {
+      throw unimplemented(self.get());
+    }, topic);
     self.set(publisher);
 
     assertSame(topic, PRODUCER_DECORATE.getDestination(publisher));
@@ -171,24 +146,19 @@ class JMSDecoratorGetDestinationTest {
     // latch one QueueSender class -- Cloneable keeps it distinct from the proxy class latched in
     // fallsBackToGetQueueAndLatchesTheClass, so the two tests don't depend on run order
     AtomicInteger latchedCalls = new AtomicInteger();
-    Queue queue =
-        (Queue)
-            Proxy.newProxyInstance(
-                JMSDecoratorGetDestinationTest.class.getClassLoader(),
-                new Class<?>[] {Queue.class},
-                (proxy, method, args) -> null);
+    Queue queue = (Queue) Proxy.newProxyInstance(JMSDecoratorGetDestinationTest.class
+      .getClassLoader(), new Class<?>[] {Queue.class}, (proxy, method, args) -> null);
     AtomicReference<MessageProducer> latched = new AtomicReference<>();
-    MessageProducer latchedProducer =
-        producer(
-            new Class<?>[] {QueueSender.class, Cloneable.class},
-            latchedCalls,
-            () -> {
-              throw unimplemented(latched.get());
-            },
-            queue);
+    MessageProducer latchedProducer = producer(
+        new Class<?>[] {QueueSender.class, Cloneable.class},
+        latchedCalls,
+          () -> {
+            throw unimplemented(latched.get());
+          },
+        queue
+    );
     latched.set(latchedProducer);
     PRODUCER_DECORATE.getDestination(latchedProducer);
-
     // a differently-shaped proxy class (plain MessageProducer) still calls through normally
     AtomicInteger otherCalls = new AtomicInteger();
     MessageProducer other =

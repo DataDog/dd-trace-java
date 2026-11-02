@@ -10,11 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CodeownersProvider {
-
   private static final Logger log = LoggerFactory.getLogger(CodeownersProvider.class);
-
   static final String CODEOWNERS_FILE_NAME = "CODEOWNERS";
-
   private final FileSystem fileSystem;
 
   public CodeownersProvider() {
@@ -30,7 +27,8 @@ public class CodeownersProvider {
         fileSystem.getPath(repoRoot, CODEOWNERS_FILE_NAME),
         fileSystem.getPath(repoRoot, ".github", CODEOWNERS_FILE_NAME),
         fileSystem.getPath(repoRoot, ".gitlab", CODEOWNERS_FILE_NAME),
-        fileSystem.getPath(repoRoot, "docs", CODEOWNERS_FILE_NAME));
+        fileSystem.getPath(repoRoot, "docs", CODEOWNERS_FILE_NAME)
+    );
   }
 
   private Codeowners find(Path... possiblePaths) {

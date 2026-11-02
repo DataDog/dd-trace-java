@@ -20,21 +20,19 @@ import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
 
 public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<SessionKey> {
-
   private final ConcurrentMap<SessionKey, BuildSystemSession> inProgressTestSessions =
       new ConcurrentHashMap<>();
-
   private final ConcurrentMap<BuildTaskDescriptor<SessionKey>, AgentSpan> inProgressBuildTasks =
       new ConcurrentHashMap<>();
-
-  private final ConcurrentMap<BuildTaskDescriptor<SessionKey>, BuildSystemModule>
-      inProgressTestModules = new ConcurrentHashMap<>();
-
+  private final ConcurrentMap<BuildTaskDescriptor<SessionKey>, BuildSystemModule> inProgressTestModules =
+      new ConcurrentHashMap<>();
   private final BuildSystemSession.Factory sessionFactory;
   private final JvmInfoFactory jvmInfoFactory;
 
   public BuildEventsHandlerImpl(
-      BuildSystemSession.Factory sessionFactory, JvmInfoFactory jvmInfoFactory) {
+      BuildSystemSession.Factory sessionFactory,
+      JvmInfoFactory jvmInfoFactory
+  ) {
     this.sessionFactory = sessionFactory;
     this.jvmInfoFactory = jvmInfoFactory;
   }
@@ -47,7 +45,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
       final String startCommand,
       final String buildSystemName,
       final String buildSystemVersion,
-      Map<String, Object> additionalTags) {
+      Map<String, Object> additionalTags
+  ) {
     BuildSystemSession testSession =
         sessionFactory.startSession(projectName, projectRoot, startCommand, buildSystemName, null);
 
@@ -85,7 +84,10 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
 
   @Override
   public void onBuildTaskStart(
-      SessionKey sessionKey, String taskName, Map<String, Object> additionalTags) {
+      SessionKey sessionKey,
+      String taskName,
+      Map<String, Object> additionalTags
+  ) {
     BuildSystemSession testSession = inProgressTestSessions.get(sessionKey);
     if (testSession == null) {
       throw new IllegalStateException("Could not find session span for key: " + sessionKey);
@@ -102,10 +104,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
     AgentSpan buildTask = inProgressBuildTasks.get(new BuildTaskDescriptor<>(sessionKey, taskName));
     if (buildTask == null) {
       throw new IllegalStateException(
-          "Could not find build task span for session key "
-              + sessionKey
-              + " and task name "
-              + taskName);
+          "Could not find build task span for session key " + sessionKey + " and task name " + taskName
+      );
     }
     buildTask.setError(true);
     buildTask.addThrowable(throwable);
@@ -116,10 +116,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
     AgentSpan buildTask = inProgressBuildTasks.get(new BuildTaskDescriptor<>(sessionKey, taskName));
     if (buildTask == null) {
       throw new IllegalStateException(
-          "Could not find build task span for session key "
-              + sessionKey
-              + " and task name "
-              + taskName);
+          "Could not find build task span for session key " + sessionKey + " and task name " + taskName
+      );
     }
     buildTask.finish();
   }
@@ -132,13 +130,12 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
       @Nullable Path jvmExecutable,
       @Nullable Collection<Path> classpath,
       @Nullable JavaAgent jacocoAgent,
-      @Nullable Map<String, Object> additionalTags) {
-
+      @Nullable Map<String, Object> additionalTags
+  ) {
     BuildSystemSession testSession = inProgressTestSessions.get(sessionKey);
     JvmInfo jvmInfo = jvmInfoFactory.getJvmInfo(jvmExecutable);
     BuildSystemModule testModule =
-        testSession.testModuleStart(
-            moduleName, null, moduleLayout, jvmInfo, classpath, jacocoAgent);
+        testSession.testModuleStart(moduleName, null, moduleLayout, jvmInfo, classpath, jacocoAgent);
     testModule.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
     if (additionalTags != null) {
@@ -158,14 +155,20 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
 
   @Override
   public void onTestModuleSkip(
-      final SessionKey sessionKey, final String moduleName, final String reason) {
+      final SessionKey sessionKey,
+      final String moduleName,
+      final String reason
+  ) {
     BuildSystemModule testModule = getTestModule(sessionKey, moduleName);
     testModule.setSkipReason(reason);
   }
 
   @Override
   public void onTestModuleFail(
-      final SessionKey sessionKey, final String moduleName, final Throwable throwable) {
+      final SessionKey sessionKey,
+      final String moduleName,
+      final Throwable throwable
+  ) {
     BuildSystemModule testModule = getTestModule(sessionKey, moduleName);
     testModule.setErrorInfo(throwable);
   }
@@ -176,7 +179,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
     BuildSystemModule testModule = inProgressTestModules.get(testModuleDescriptor);
     if (testModule == null) {
       throw new IllegalStateException(
-          "Could not find module for session key " + sessionKey + " and module name " + moduleName);
+          "Could not find module for session key " + sessionKey + " and module name " + moduleName
+      );
     }
     return testModule;
   }
@@ -188,10 +192,8 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
     BuildSystemModule testModule = inProgressTestModules.remove(testModuleDescriptor);
     if (testModule == null) {
       throw new IllegalStateException(
-          "Could not find module span for session key "
-              + sessionKey
-              + " and module name "
-              + moduleName);
+          "Could not find module span for session key " + sessionKey + " and module name " + moduleName
+      );
     }
     testModule.end(null);
   }

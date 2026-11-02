@@ -2,13 +2,11 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Properties;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class TraceStatsAdditionalTagsTest {
-
   private static Config configWith(String experimentalFeatures, String additionalTags) {
     Properties props = new Properties();
     if (experimentalFeatures != null) {

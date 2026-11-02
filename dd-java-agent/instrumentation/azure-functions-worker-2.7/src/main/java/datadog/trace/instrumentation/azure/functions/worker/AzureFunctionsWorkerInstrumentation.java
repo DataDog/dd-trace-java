@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareContext;
 import datadog.context.ContextScope;
@@ -20,8 +19,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public AzureFunctionsWorkerInstrumentation() {
     super("azure-functions");
   }
@@ -35,20 +35,23 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("invoke"))
-            .and(takesArguments(2))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "com.microsoft.azure.functions.internal.spi.middleware.MiddlewareContext")))
-            .and(
-                takesArgument(
-                    1,
-                    named(
-                        "com.microsoft.azure.functions.internal.spi.middleware.MiddlewareChain"))),
-        AzureFunctionsWorkerInstrumentation.class.getName() + "$InvokeAdvice");
+          .and(isPublic())
+          .and(named("invoke"))
+          .and(takesArguments(2))
+          .and(
+              takesArgument(
+                  0,
+                  named("com.microsoft.azure.functions.internal.spi.middleware.MiddlewareContext")
+              )
+          )
+          .and(
+              takesArgument(
+                  1,
+                  named("com.microsoft.azure.functions.internal.spi.middleware.MiddlewareChain")
+              )
+          ),
+        AzureFunctionsWorkerInstrumentation.class.getName() + "$InvokeAdvice"
+    );
   }
 
   public static class InvokeAdvice {
@@ -57,7 +60,8 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
         @Advice.Argument(0) MiddlewareContext context,
         @Advice.Local("trigger") String trigger,
         @Advice.Local("orchestrationSpan") AgentSpan orchestrationSpan,
-        @Advice.Local("startTimeMicros") long startTimeMicros) {
+        @Advice.Local("startTimeMicros") long startTimeMicros
+    ) {
       trigger = DurableFunctionsUtils.getTrigger(context);
       if (trigger == null) {
         return null;
@@ -80,7 +84,8 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
         @Advice.Local("trigger") String trigger,
         @Advice.Local("orchestrationSpan") AgentSpan orchestrationSpan,
         @Advice.Local("startTimeMicros") long startTimeMicros,
-        @Advice.Thrown Throwable throwable) {
+        @Advice.Thrown Throwable throwable
+    ) {
       if (orchestrationSpan != null) {
         if (throwable != null && !DurableFunctionsUtils.isReplayControlFlow(throwable)) {
           DECORATE.onInvocationError(orchestrationSpan, throwable);

@@ -15,7 +15,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -73,10 +72,11 @@ class FeatureFlaggingSystemTest {
   @WithConfig(key = TRACE_ENABLED, value = "false")
   void stopsFromAShutdownHookOnceTheSdkSubscribesWhenTracingIsDisabled() {
     FeatureFlaggingSystem.start(mock(SharedCommunicationObjects.class));
-    assertFalse(
-        FeatureFlaggingSystem.isShutdownHookRegistered(), "no hook while the SDK is unused");
+    assertFalse(FeatureFlaggingSystem.isShutdownHookRegistered(), "no hook while the SDK is unused");
 
-    FeatureFlaggingGateway.backend().subscribeShutdown(() -> {});
+    FeatureFlaggingGateway
+      .backend()
+      .subscribeShutdown(() -> {});
     assertTrue(FeatureFlaggingSystem.isShutdownHookRegistered());
 
     FeatureFlaggingSystem.stop();
@@ -121,7 +121,9 @@ class FeatureFlaggingSystemTest {
   void keepsAShutdownHookWhenTracingIsEnabled() {
     // The tracing shutdown instrumentation can be disabled on its own.
     FeatureFlaggingSystem.start(mock(SharedCommunicationObjects.class));
-    FeatureFlaggingGateway.backend().subscribeShutdown(() -> {});
+    FeatureFlaggingGateway
+      .backend()
+      .subscribeShutdown(() -> {});
     assertTrue(FeatureFlaggingSystem.isShutdownHookRegistered());
   }
 

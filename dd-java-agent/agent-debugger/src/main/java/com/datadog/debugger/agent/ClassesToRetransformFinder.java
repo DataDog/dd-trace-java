@@ -5,7 +5,6 @@ import static com.datadog.debugger.agent.TypeNameHelper.extractSimpleName;
 import static com.datadog.debugger.util.ClassFileHelper.normalizeFilePath;
 import static com.datadog.debugger.util.ClassFileHelper.removeExtension;
 import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
-
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.ProbeDefinition;
 import java.util.ArrayList;
@@ -22,24 +21,23 @@ import org.slf4j.LoggerFactory;
 public class ClassesToRetransformFinder {
   private static final Logger LOGGER = LoggerFactory.getLogger(ClassesToRetransformFinder.class);
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
-
   private final ConcurrentMap<String, String> classNamesBySourceFile = new ConcurrentHashMap<>();
 
   public void register(String sourceFile, String className) {
     // store only the class name that are different from SourceFile name
     // (Inner or non-public Top-Level classes)
-    classNamesBySourceFile.compute(
-        sourceFile,
-        (key, classNames) -> {
-          if (classNames == null) {
-            return className;
-          }
-          return classNames + "," + className;
-        });
+    classNamesBySourceFile.compute(sourceFile, (key, classNames) -> {
+      if (classNames == null) {
+        return className;
+      }
+      return classNames + "," + className;
+    });
   }
 
   public List<Class<?>> getAllLoadedChangedClasses(
-      Class<?>[] allLoadedClasses, ConfigurationComparer comparer) {
+      Class<?>[] allLoadedClasses,
+      ConfigurationComparer comparer
+  ) {
     List<Class<?>> classesToBeTransformed = new ArrayList<>();
     Trie changedClasses = getAllChangedClasses(comparer);
     for (Class<?> clazz : allLoadedClasses) {
@@ -60,10 +58,9 @@ public class ClassesToRetransformFinder {
   }
 
   Trie getAllChangedClasses(ConfigurationComparer comparer) {
-    List<ProbeDefinition> changedDefinitions =
-        Stream.concat(
-                comparer.getRemovedDefinitions().stream(), comparer.getAddedDefinitions().stream())
-            .collect(Collectors.toList());
+    List<ProbeDefinition> changedDefinitions = Stream
+      .concat(comparer.getRemovedDefinitions().stream(), comparer.getAddedDefinitions().stream())
+      .collect(Collectors.toList());
     Trie changedClasses = new Trie();
     for (ProbeDefinition definition : changedDefinitions) {
       InstrumentationResult instrumentationResult =

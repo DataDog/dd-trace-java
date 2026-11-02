@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,8 +18,9 @@ import org.junit.runner.notification.RunNotifier;
 
 @AutoService(InstrumenterModule.class)
 public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public MUnitInstrumentation() {
     super("ci-visibility", "junit-4", "junit-4-munit");
   }
@@ -33,35 +33,37 @@ public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".MUnitUtils",
-      packageName + ".TracingListener",
-      packageName + ".MUnitTracingListener",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".SkippedByDatadog",
+        packageName + ".JUnit4Utils",
+        packageName + ".MUnitUtils",
+        packageName + ".TracingListener",
+        packageName + ".MUnitTracingListener"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestExecutionTracker.class.getName());
+        "org.junit.runner.Description",
+        TestExecutionTracker.class.getName()
+    );
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
-        MUnitInstrumentation.class.getName() + "$MUnitAdvice");
+        MUnitInstrumentation.class.getName() + "$MUnitAdvice"
+    );
   }
 
   public static class MUnitAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addTracingListener(
-        @Advice.Argument(value = 0, readOnly = false) RunNotifier runNotifier) {
-
+        @Advice.Argument(value = 0, readOnly = false) RunNotifier runNotifier
+    ) {
       RunNotifier replacedNotifier = new RunNotifier();
-
       // copy listeners to new notifier
       List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners != null) {
@@ -77,8 +79,11 @@ public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
       TestEventsHandlerHolder.start(TestFrameworkInstrumentation.MUNIT, MUnitUtils.CAPABILITIES);
 
       replacedNotifier.addListener(
-          new MUnitTracingListener(
-              InstrumentationContext.get(Description.class, TestExecutionTracker.class)));
+          new MUnitTracingListener(InstrumentationContext.get(
+              Description.class,
+              TestExecutionTracker.class
+          ))
+      );
       runNotifier = replacedNotifier;
     }
   }

@@ -9,7 +9,6 @@ import javax.annotation.Nullable;
  * inputs, making it suitable for high-throughput scenarios where non-numeric strings are common.
  */
 public final class Numbers {
-
   private Numbers() {
     // Utility class - prevent instantiation
   }
@@ -46,13 +45,11 @@ public final class Numbers {
     if (value == null || value.isEmpty()) {
       return null;
     }
-
     // Trim whitespace to handle common cases like " 42 " or "\t100\n"
     String trimmed = value.trim();
     if (trimmed.isEmpty()) {
       return null;
     }
-
     // Fast-path validation: check if the string looks like a valid number
     // before attempting to parse, to avoid expensive NumberFormatException throws
     // Supports: integers, decimals, and scientific notation (e.g., "1.5e10", "-3E-7")
@@ -60,7 +57,6 @@ public final class Numbers {
     boolean hasExponent = false;
     int startIdx = 0;
     int length = trimmed.length();
-
     // Handle optional leading sign
     char firstChar = trimmed.charAt(0);
     if (firstChar == '+' || firstChar == '-') {
@@ -70,7 +66,6 @@ public final class Numbers {
         return null;
       }
     }
-
     // Validate characters: digits, optional decimal point, optional exponent
     boolean hasDigits = false;
     for (int i = startIdx; i < length; i++) {
@@ -91,7 +86,8 @@ public final class Numbers {
         if (i + 1 < length) {
           char next = trimmed.charAt(i + 1);
           if (next == '+' || next == '-') {
-            i++; // Skip the sign after exponent
+            // Skip the sign after exponent
+            i++;
             // Must have at least one digit after exponent sign
             if (i + 1 >= length) {
               return null;
@@ -108,12 +104,10 @@ public final class Numbers {
         return null;
       }
     }
-
     // Must have at least one digit (reject strings like ".", "+.", "e10")
     if (!hasDigits) {
       return null;
     }
-
     // Now attempt parsing - the try-catch remains as a fallback for overflow cases
     // (e.g., Long.MAX_VALUE+1) or other edge cases that passed pre-validation
     try {

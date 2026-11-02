@@ -2,9 +2,12 @@ package datadog.trace.test.junit.utils.assertions;
 
 import java.util.Optional;
 
-/** A {@link Matcher} implementation that checks if a given boolean value is {@code false}. */
+/**
+ * A {@link Matcher} implementation that checks if a given boolean value is {@code false}.
+ */
 public class IsFalse implements Matcher<Boolean> {
-  IsFalse() {}
+  IsFalse() {
+  }
 
   @Override
   public Optional<Boolean> expected() {

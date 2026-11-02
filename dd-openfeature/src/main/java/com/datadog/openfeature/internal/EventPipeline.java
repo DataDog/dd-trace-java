@@ -8,10 +8,14 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  * budget: every pipeline is first asked to flush, then each one is awaited until the same deadline.
  */
 public interface EventPipeline extends AutoCloseable {
-  /** The time the pipelines get to flush their pending events when stopping. */
+  /**
+   * The time the pipelines get to flush their pending events when stopping.
+   */
   long SHUTDOWN_TIMEOUT_MILLIS = 800;
 
-  /** Stops accepting events and asks the worker to flush the pending ones, without waiting. */
+  /**
+   * Stops accepting events and asks the worker to flush the pending ones, without waiting.
+   */
   void requestShutdown();
 
   /**
@@ -21,7 +25,9 @@ public interface EventPipeline extends AutoCloseable {
    */
   void awaitTermination(long deadlineNanos);
 
-  /** Stops the pipeline, waiting at most {@link #SHUTDOWN_TIMEOUT_MILLIS} for the final flush. */
+  /**
+   * Stops the pipeline, waiting at most {@link #SHUTDOWN_TIMEOUT_MILLIS} for the final flush.
+   */
   @Override
   default void close() {
     final long deadline = shutdownDeadline();

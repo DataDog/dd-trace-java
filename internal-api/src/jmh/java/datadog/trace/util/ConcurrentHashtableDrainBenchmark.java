@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -57,10 +56,8 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(MICROSECONDS)
 public class ConcurrentHashtableDrainBenchmark {
-
   static final int N_KEYS = 32;
   static final int CAPACITY = 64;
-
   static final long[] KEY_HASHES = new long[N_KEYS];
 
   static {
@@ -87,7 +84,8 @@ public class ConcurrentHashtableDrainBenchmark {
    */
   private static <TEntry extends ConcurrentHashtable.Entry<TEntry>> void drainWholeSweepLock(
       @Nonnull ConcurrentHashtable.State<TEntry> state,
-      @Nonnull Consumer<? super TEntry> drainedEntryConsumer) {
+      @Nonnull Consumer<? super TEntry> drainedEntryConsumer
+  ) {
     ReentrantLock lock = ConcurrentHashtable.getTableWriteLock(state);
     AtomicReferenceArray<TEntry> buckets = state.buckets;
     lock.lock();
@@ -103,7 +101,8 @@ public class ConcurrentHashtableDrainBenchmark {
           drainedEntryConsumer.accept(e);
         }
       }
-      state.sizeManager.release(0); // full sweep: reset the scan position
+      // full sweep: reset the scan position
+      state.sizeManager.release(0);
     } finally {
       lock.unlock();
     }
@@ -133,7 +132,8 @@ public class ConcurrentHashtableDrainBenchmark {
   private static void write(ConcurrentHashtable.State<DrainEntry> table, WriterState w) {
     long keyHash = KEY_HASHES[w.next()];
     for (DrainEntry entry : ConcurrentHashtable.hashIterable(table, keyHash)) {
-      return; // lock-free hit, mirroring LogCollector.find()
+      // lock-free hit, mirroring LogCollector.find()
+      return;
     }
     try (ConcurrentHashtable.Reservation<DrainEntry> r =
         ConcurrentHashtable.tryReserve(table, keyHash)) {

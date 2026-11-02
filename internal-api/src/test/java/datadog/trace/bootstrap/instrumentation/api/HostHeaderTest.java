@@ -2,12 +2,10 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class HostHeaderTest {
-
   @TableTest({
     "scenario         | header                  | host        | port",
     "host only        | example.com             | example.com | 0   ",

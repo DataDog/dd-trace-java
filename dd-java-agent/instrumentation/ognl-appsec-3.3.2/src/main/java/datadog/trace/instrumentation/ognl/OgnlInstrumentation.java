@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,8 +14,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class OgnlInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public OgnlInstrumentation() {
     super("ognl");
   }
@@ -30,7 +30,8 @@ public class OgnlInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("parseExpression")).and(isStatic()).and(takesArguments(String.class)),
-        OgnlInstrumentation.class.getName() + "$OgnlParseExpressionAdvice");
+        OgnlInstrumentation.class.getName() + "$OgnlParseExpressionAdvice"
+    );
   }
 
   static class OgnlParseExpressionAdvice {

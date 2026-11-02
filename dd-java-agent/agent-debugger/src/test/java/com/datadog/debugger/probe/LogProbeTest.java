@@ -43,7 +43,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadog.debugger.agent.DebuggerAgentHelper;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.EvaluationTimeOutException;
@@ -123,37 +122,46 @@ public class LogProbeTest {
         valueExpression("map['key']", () -> index(ref("map"), value("key"))),
         valueExpression("len(list)", () -> len(ref("list"))),
         valueExpression("substring(str, 0, 2)", () -> subString(ref("str"), 0, 2)),
-        valueExpression(
-            "filter(list, {len(@it) > 0})",
-            () -> filter(ref("list"), gt(len(ref("@it")), value(0)))),
-        valueExpression(
-            "any(list, {@it == 1})", () -> bool(DSL.any(ref("list"), eq(ref("@it"), value(1))))),
-        valueExpression(
-            "all(list, {@it == 1})", () -> bool(DSL.all(ref("list"), eq(ref("@it"), value(1))))),
+        valueExpression("filter(list, {len(@it) > 0})", () -> filter(
+            ref("list"),
+            gt(len(ref("@it")), value(0))
+        )),
+        valueExpression("any(list, {@it == 1})", () -> bool(DSL.any(
+            ref("list"),
+            eq(ref("@it"), value(1))
+        ))),
+        valueExpression("all(list, {@it == 1})", () -> bool(DSL.all(
+            ref("list"),
+            eq(ref("@it"), value(1))
+        ))),
         valueExpression("isEmpty(list)", () -> bool(isEmpty(ref("list")))),
         valueExpression("isDefined(field)", () -> bool(isDefined(ref("field")))),
-        valueExpression(
-            "startsWith(str, 'foo')", () -> bool(startsWith(ref("str"), new StringValue("foo")))),
-        valueExpression(
-            "endsWith(str, 'foo')", () -> bool(endsWith(ref("str"), new StringValue("foo")))),
-        valueExpression(
-            "matches(str, '[a-z]+')", () -> bool(matches(ref("str"), new StringValue("[a-z]+")))),
+        valueExpression("startsWith(str, 'foo')", () -> bool(
+            startsWith(ref("str"), new StringValue("foo"))
+        )),
+        valueExpression("endsWith(str, 'foo')", () -> bool(
+            endsWith(ref("str"), new StringValue("foo"))
+        )),
+        valueExpression("matches(str, '[a-z]+')", () -> bool(
+            matches(ref("str"), new StringValue("[a-z]+"))
+        )),
         valueExpression("contains(str, 'foo')", () -> bool(contains(ref("str"), value("foo")))),
-        valueExpression(
-            "instanceof(obj, 'java.lang.String')",
-            () -> bool(instanceOf(ref("obj"), value("java.lang.String")))),
+        valueExpression("instanceof(obj, 'java.lang.String')", () -> bool(
+            instanceOf(ref("obj"), value("java.lang.String"))
+        )),
         valueExpression("field == 1", () -> bool(eq(ref("field"), value(1)))),
         valueExpression("field > 1", () -> bool(gt(ref("field"), value(1)))),
         valueExpression("field >= 1", () -> bool(ge(ref("field"), value(1)))),
         valueExpression("field < 1", () -> bool(lt(ref("field"), value(1)))),
         valueExpression("field <= 1", () -> bool(le(ref("field"), value(1)))),
         valueExpression("not(isEmpty(list))", () -> bool(not(isEmpty(ref("list"))))),
-        valueExpression(
-            "isEmpty(list) && isDefined(field)",
-            () -> bool(and(isEmpty(ref("list")), isDefined(ref("field"))))),
-        valueExpression(
-            "isEmpty(list) || isDefined(field)",
-            () -> bool(or(isEmpty(ref("list")), isDefined(ref("field"))))));
+        valueExpression("isEmpty(list) && isDefined(field)", () -> bool(
+            and(isEmpty(ref("list")), isDefined(ref("field")))
+        )),
+        valueExpression("isEmpty(list) || isDefined(field)", () -> bool(
+            or(isEmpty(ref("list")), isDefined(ref("field")))
+        ))
+    );
   }
 
   private static Arguments valueExpression(String dsl, Supplier<ValueExpression<?>> expr) {
@@ -186,88 +194,119 @@ public class LogProbeTest {
         Arguments.of("len", len(ref("list1")), len(ref("list2"))),
         Arguments.of("substring start", subString(ref("str"), 0, 2), subString(ref("str"), 1, 2)),
         Arguments.of("substring end", subString(ref("str"), 0, 2), subString(ref("str"), 0, 3)),
-        Arguments.of(
-            "substring source", subString(ref("str1"), 0, 2), subString(ref("str2"), 0, 2)),
+        Arguments.of("substring source", subString(ref("str1"), 0, 2), subString(ref("str2"), 0, 2)),
         Arguments.of(
             "filter predicate",
             filter(ref("list"), gt(len(ref("@it")), value(0))),
-            filter(ref("list"), gt(len(ref("@it")), value(1)))),
+            filter(ref("list"), gt(len(ref("@it")), value(1)))
+        ),
         Arguments.of(
             "filter source",
             filter(ref("list1"), gt(len(ref("@it")), value(0))),
-            filter(ref("list2"), gt(len(ref("@it")), value(0)))),
+            filter(ref("list2"), gt(len(ref("@it")), value(0)))
+        ),
         Arguments.of(
             "any vs all",
             bool(DSL.any(ref("list"), eq(ref("@it"), value(1)))),
-            bool(DSL.all(ref("list"), eq(ref("@it"), value(1))))),
+            bool(DSL.all(ref("list"), eq(ref("@it"), value(1))))
+        ),
         Arguments.of(
             "any predicate",
             bool(DSL.any(ref("list"), eq(ref("@it"), value(1)))),
-            bool(DSL.any(ref("list"), eq(ref("@it"), value(2))))),
+            bool(DSL.any(ref("list"), eq(ref("@it"), value(2))))
+        ),
         Arguments.of("isEmpty", bool(isEmpty(ref("list1"))), bool(isEmpty(ref("list2")))),
         Arguments.of("isDefined", bool(isDefined(ref("field1"))), bool(isDefined(ref("field2")))),
         Arguments.of(
             "startsWith vs endsWith",
             bool(startsWith(ref("str"), new StringValue("foo"))),
-            bool(endsWith(ref("str"), new StringValue("foo")))),
+            bool(endsWith(ref("str"), new StringValue("foo")))
+        ),
         Arguments.of(
             "startsWith str",
             bool(startsWith(ref("str"), new StringValue("foo"))),
-            bool(startsWith(ref("str"), new StringValue("bar")))),
+            bool(startsWith(ref("str"), new StringValue("bar")))
+        ),
         Arguments.of(
             "matches pattern",
             bool(matches(ref("str"), new StringValue("[a-z]+"))),
-            bool(matches(ref("str"), new StringValue("[0-9]+")))),
+            bool(matches(ref("str"), new StringValue("[0-9]+")))
+        ),
         Arguments.of(
             "contains value",
             bool(contains(ref("str"), value("foo"))),
-            bool(contains(ref("str"), value("bar")))),
+            bool(contains(ref("str"), value("bar")))
+        ),
         Arguments.of(
             "instanceof",
             bool(instanceOf(ref("obj"), value("java.lang.String"))),
-            bool(instanceOf(ref("obj"), value("java.lang.Integer")))),
+            bool(instanceOf(ref("obj"), value("java.lang.Integer")))
+        ),
         Arguments.of(
             "comparison operator",
             bool(gt(ref("field"), value(1))),
-            bool(ge(ref("field"), value(1)))),
+            bool(ge(ref("field"), value(1)))
+        ),
         Arguments.of(
             "comparison left",
             bool(eq(ref("field1"), value(1))),
-            bool(eq(ref("field2"), value(1)))),
+            bool(eq(ref("field2"), value(1)))
+        ),
         Arguments.of(
-            "comparison right", bool(eq(ref("field"), value(1))), bool(eq(ref("field"), value(2)))),
+            "comparison right",
+            bool(eq(ref("field"), value(1))),
+            bool(eq(ref("field"), value(2)))
+        ),
         Arguments.of("not", bool(not(isEmpty(ref("list1")))), bool(not(isEmpty(ref("list2"))))),
         Arguments.of(
             "and vs or",
             bool(and(isEmpty(ref("list")), isDefined(ref("field")))),
-            bool(or(isEmpty(ref("list")), isDefined(ref("field"))))),
+            bool(or(isEmpty(ref("list")), isDefined(ref("field"))))
+        ),
         Arguments.of(
             "binary left",
             bool(and(isEmpty(ref("list1")), isDefined(ref("field")))),
-            bool(and(isEmpty(ref("list2")), isDefined(ref("field"))))),
+            bool(and(isEmpty(ref("list2")), isDefined(ref("field"))))
+        ),
         Arguments.of(
             "binary right",
             bool(and(isEmpty(ref("list")), isDefined(ref("field1")))),
-            bool(and(isEmpty(ref("list")), isDefined(ref("field2"))))));
+            bool(and(isEmpty(ref("list")), isDefined(ref("field2"))))
+        )
+    );
   }
 
   @Test
   public void notEqualsCaptureExpression() {
-    LogProbe.CaptureExpression base =
-        new LogProbe.CaptureExpression(
-            "expr", new ValueScript(ref("field"), "field"), new LogProbe.Capture(1, 2, 3, 4));
+    LogProbe.CaptureExpression base = new LogProbe.CaptureExpression(
+        "expr",
+        new ValueScript(ref("field"), "field"),
+        new LogProbe.Capture(1, 2, 3, 4)
+    );
     assertNotEquals(
         base,
         new LogProbe.CaptureExpression(
-            "other", new ValueScript(ref("field"), "field"), new LogProbe.Capture(1, 2, 3, 4)));
+            "other",
+            new ValueScript(ref("field"), "field"),
+            new LogProbe.Capture(1, 2, 3, 4)
+        )
+    );
     assertNotEquals(
         base,
         new LogProbe.CaptureExpression(
-            "expr", new ValueScript(ref("other"), "field"), new LogProbe.Capture(1, 2, 3, 4)));
+            "expr",
+            new ValueScript(ref("other"), "field"),
+            new LogProbe.Capture(1, 2, 3, 4)
+        )
+    );
     assertNotEquals(
         base,
         new LogProbe.CaptureExpression(
-            "expr", new ValueScript(ref("field"), "field"), new LogProbe.Capture(5, 2, 3, 4)));
+            "expr",
+            new ValueScript(ref("field"), "field"),
+            new LogProbe.Capture(5, 2, 3, 4)
+        )
+    );
   }
 
   @ParameterizedTest(name = "{0}")
@@ -287,9 +326,14 @@ public class LogProbeTest {
   }
 
   private static LogProbe.CaptureExpression createCaptureExpression(
-      String dsl, Supplier<ValueExpression<?>> exprSupplier) {
+      String dsl,
+      Supplier<ValueExpression<?>> exprSupplier
+  ) {
     return new LogProbe.CaptureExpression(
-        "expr", new ValueScript(exprSupplier.get(), dsl), new LogProbe.Capture(1, 2, 3, 4));
+        "expr",
+        new ValueScript(exprSupplier.get(), dsl),
+        new LogProbe.Capture(1, 2, 3, 4)
+    );
   }
 
   @Test
@@ -309,7 +353,10 @@ public class LogProbeTest {
         LogProbe probe = createFullProbe1();
         Object otherValue = field.get(other);
         assertNotEquals(
-            field.get(probe), otherValue, "field " + field.getName() + " must differ in test data");
+            field.get(probe),
+            otherValue,
+            "field " + field.getName() + " must differ in test data"
+        );
         field.set(probe, otherValue);
         if (probe.equals(createFullProbe1())) {
           uncoveredFields.add(clazz.getSimpleName() + "." + field.getName());
@@ -320,41 +367,53 @@ public class LogProbeTest {
   }
 
   private static LogProbe createFullProbe1() {
-    return LogProbe.builder()
-        .language(LANGUAGE)
-        .probeId("probe-id-1", 1)
-        .tags("tag1:value1")
-        .where("Class1", "method1")
-        .evaluateAt(MethodLocation.ENTRY)
-        .template("{arg1}", parseTemplate("{arg1}"))
-        .captureSnapshot(true)
-        .when(new ProbeCondition(DSL.when(DSL.TRUE), "true"))
-        .capture(1, 2, 3, 4)
-        .sampling(1.0)
-        .captureExpressions(
-            singletonList(
-                new LogProbe.CaptureExpression(
-                    "expr1", new ValueScript(DSL.ref("arg1"), "arg1"), null)))
-        .build();
+    return LogProbe
+      .builder()
+      .language(LANGUAGE)
+      .probeId("probe-id-1", 1)
+      .tags("tag1:value1")
+      .where("Class1", "method1")
+      .evaluateAt(MethodLocation.ENTRY)
+      .template("{arg1}", parseTemplate("{arg1}"))
+      .captureSnapshot(true)
+      .when(new ProbeCondition(DSL.when(DSL.TRUE), "true"))
+      .capture(1, 2, 3, 4)
+      .sampling(1.0)
+      .captureExpressions(
+          singletonList(
+              new LogProbe.CaptureExpression(
+                  "expr1",
+                  new ValueScript(DSL.ref("arg1"), "arg1"),
+                  null
+              )
+          )
+      )
+      .build();
   }
 
   private static LogProbe createFullProbe2() {
-    return LogProbe.builder()
-        .language("other")
-        .probeId("probe-id-2", 2)
-        .tags("tag2:value2")
-        .where("Class2", "method2")
-        .evaluateAt(MethodLocation.EXIT)
-        .template("{arg2}", parseTemplate("{arg2}"))
-        .captureSnapshot(false)
-        .when(new ProbeCondition(DSL.when(DSL.FALSE), "false"))
-        .capture(5, 6, 7, 8)
-        .sampling(2.0)
-        .captureExpressions(
-            singletonList(
-                new LogProbe.CaptureExpression(
-                    "expr2", new ValueScript(DSL.ref("arg2"), "arg2"), null)))
-        .build();
+    return LogProbe
+      .builder()
+      .language("other")
+      .probeId("probe-id-2", 2)
+      .tags("tag2:value2")
+      .where("Class2", "method2")
+      .evaluateAt(MethodLocation.EXIT)
+      .template("{arg2}", parseTemplate("{arg2}"))
+      .captureSnapshot(false)
+      .when(new ProbeCondition(DSL.when(DSL.FALSE), "false"))
+      .capture(5, 6, 7, 8)
+      .sampling(2.0)
+      .captureExpressions(
+          singletonList(
+              new LogProbe.CaptureExpression(
+                  "expr2",
+                  new ValueScript(DSL.ref("arg2"), "arg2"),
+                  null
+              )
+          )
+      )
+      .build();
   }
 
   @Test
@@ -363,7 +422,11 @@ public class LogProbeTest {
         new LogProbe.CoordinatedSamplingState(LogProbe.CoordinatedSamplingState.Status.EMIT);
 
     long emitted =
-        IntStream.range(0, 1_000).parallel().filter(i -> state.tryEmit("probe-id")).count();
+        IntStream
+      .range(0, 1_000)
+      .parallel()
+      .filter(i -> state.tryEmit("probe-id"))
+      .count();
 
     assertEquals(1, emitted);
   }
@@ -372,21 +435,24 @@ public class LogProbeTest {
   public void debugSessionActive() {
     assertTrue(
         fillSnapshot(DebugSessionStatus.ACTIVE),
-        "Session is active so snapshots should get filled.");
+        "Session is active so snapshots should get filled."
+    );
   }
 
   @Test
   public void debugSessionDisabled() {
     Assertions.assertFalse(
         fillSnapshot(DebugSessionStatus.DISABLED),
-        "Session is disabled so snapshots should not get filled.");
+        "Session is disabled so snapshots should not get filled."
+    );
   }
 
   @Test
   public void noDebugSession() {
     assertTrue(
         fillSnapshot(DebugSessionStatus.NONE),
-        "With no debug sessions, snapshots should get filled.");
+        "With no debug sessions, snapshots should get filled."
+    );
   }
 
   @Test
@@ -394,9 +460,10 @@ public class LogProbeTest {
     try {
       ProbeRateLimiter.setGlobalSnapshotRate(-1);
       TracerAPI tracer =
-          CoreTracer.builder()
-              .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
-              .build();
+          CoreTracer
+        .builder()
+        .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
+        .build();
       AgentTracer.registerIfAbsent(tracer);
       String sessionId = "12345";
 
@@ -405,7 +472,6 @@ public class LogProbeTest {
 
       result = getResult(tracer, sessionId, false, null);
       assertEquals(BUDGET_RUNS * LogProbe.NON_CAPTURING_PROBE_BUDGET, result.sink.highRate);
-
       // run without a session
       result = getResult(tracer, null, true, 100);
       assertEquals(result.count, result.sink.captures);
@@ -419,7 +485,11 @@ public class LogProbeTest {
 
   @Nonnull
   private Result getResult(
-      TracerAPI tracer, String sessionId, boolean captureSnapshot, Integer line) {
+      TracerAPI tracer,
+      String sessionId,
+      boolean captureSnapshot,
+      Integer line
+  ) {
     BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(sink);
     int count = 0;
@@ -458,10 +528,9 @@ public class LogProbeTest {
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
-      int budget =
-          logProbe.isCaptureSnapshot()
-              ? LogProbe.CAPTURING_PROBE_BUDGET
-              : LogProbe.NON_CAPTURING_PROBE_BUDGET;
+      int budget = logProbe.isCaptureSnapshot()
+          ? LogProbe.CAPTURING_PROBE_BUDGET
+          : LogProbe.NON_CAPTURING_PROBE_BUDGET;
       int runs = budget + 20;
 
       for (int i = 0; i < runs; i++) {
@@ -473,7 +542,9 @@ public class LogProbeTest {
       }
       if (sessionId != null) {
         assertEquals(
-            runs, span.getLocalRootSpan().getTag(format("_dd.ld.probe_id.%s", logProbe.id)));
+            runs,
+            span.getLocalRootSpan().getTag(format("_dd.ld.probe_id.%s", logProbe.id))
+        );
       }
       return runs;
     }
@@ -482,7 +553,10 @@ public class LogProbeTest {
   private boolean fillSnapshot(DebugSessionStatus status) {
     DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
     TracerAPI tracer =
-        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+        CoreTracer
+      .builder()
+      .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
+      .build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("log probe debug session testing", "test span");
     try (ContextScope scope = tracer.activateManualSpan(span)) {
@@ -505,15 +579,27 @@ public class LogProbeTest {
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
       return logProbe.fillSnapshot(
-          entryContext, exitContext, emptyList(), new Snapshot(currentThread(), logProbe, 3));
+          entryContext,
+          exitContext,
+          emptyList(),
+          new Snapshot(currentThread(), logProbe, 3)
+      );
     }
   }
 
   private static CapturedContext capturedContext(
-      AgentSpan span, ProbeDefinition probeDefinition, MethodLocation methodLocation) {
+      AgentSpan span,
+      ProbeDefinition probeDefinition,
+      MethodLocation methodLocation
+  ) {
     CapturedContext context = new CapturedContext();
     context.evaluate(
-        probeDefinition, "Log Probe test", System.currentTimeMillis(), methodLocation, false);
+        probeDefinition,
+        "Log Probe test",
+        System.currentTimeMillis(),
+        methodLocation,
+        false
+    );
     return context;
   }
 
@@ -551,9 +637,11 @@ public class LogProbeTest {
     CapturedContext entryContext = new CapturedContext();
     CapturedContext exitContext = new CapturedContext();
     LogStatus logEntryStatus = prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
-    logEntryStatus.setSampled(true); // force sampled to avoid rate limiting executing tests!
+    // force sampled to avoid rate limiting executing tests!
+    logEntryStatus.setSampled(true);
     LogStatus logExitStatus = prepareContext(exitContext, logProbe, MethodLocation.EXIT);
-    logExitStatus.setSampled(true); // force sampled to avoid rate limiting executing tests!
+    // force sampled to avoid rate limiting executing tests!
+    logExitStatus.setSampled(true);
     Snapshot snapshot = new Snapshot(currentThread(), logProbe, 10);
     assertTrue(logProbe.fillSnapshot(entryContext, exitContext, null, snapshot));
   }
@@ -565,7 +653,8 @@ public class LogProbeTest {
       boolean condition,
       boolean conditionErrors,
       boolean logTemplateErrors,
-      boolean shouldCommit) {
+      boolean shouldCommit
+  ) {
     LogProbe logProbe = createLog(null).evaluateAt(MethodLocation.EXIT).build();
     CapturedContext entryContext = new CapturedContext();
     CapturedContext exitContext = new CapturedContext();
@@ -582,7 +671,8 @@ public class LogProbeTest {
       boolean sampled,
       boolean condition,
       boolean conditionErrors,
-      boolean logTemplateErrors) {
+      boolean logTemplateErrors
+  ) {
     entryStatus.setSampled(sampled);
     entryStatus.setCondition(condition);
     entryStatus.setConditionErrors(conditionErrors);
@@ -591,15 +681,19 @@ public class LogProbeTest {
   }
 
   private LogStatus prepareContext(
-      CapturedContext context, LogProbe logProbe, MethodLocation methodLocation) {
+      CapturedContext context,
+      LogProbe logProbe,
+      MethodLocation methodLocation
+  ) {
     context.evaluate(logProbe, "", 0, methodLocation, false);
     return (LogStatus) context.getStatus(PROBE_ID.getEncodedId());
   }
 
   private static Stream<Arguments> statusValues() {
     return Stream.of(
-        // sampled, condition, conditionErrors, logTemplateErrors, shouldCommit
-        Arguments.of(true, true, false, false, true),
+        Arguments
+          // sampled, condition, conditionErrors, logTemplateErrors, shouldCommit
+          .of(true, true, false, false, true),
         Arguments.of(true, false, false, false, false),
         Arguments.of(true, false, true, false, true),
         Arguments.of(true, false, true, true, true),
@@ -609,7 +703,8 @@ public class LogProbeTest {
         Arguments.of(false, false, true, false, false),
         Arguments.of(false, false, false, true, false),
         Arguments.of(false, false, true, true, false),
-        Arguments.of(false, true, true, true, false));
+        Arguments.of(false, true, true, true, false)
+    );
   }
 
   @Test
@@ -642,33 +737,44 @@ public class LogProbeTest {
     assertEquals("msg1", snapshot.getEvaluationErrors().get(0).getMessage());
     assertEquals("msg2", snapshot.getEvaluationErrors().get(1).getMessage());
     assertEquals(
-        "errorEntry", snapshot.getCaptures().getEntry().getCapturedThrowable().getMessage());
+        "errorEntry",
+        snapshot.getCaptures().getEntry().getCapturedThrowable().getMessage()
+    );
     assertEquals(
-        "errorExit", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+        "errorExit",
+        snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage()
+    );
   }
 
   @Test
   public void captureExpressionsInActiveDebugSession() {
     DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
     TracerAPI tracer =
-        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+        CoreTracer
+      .builder()
+      .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
+      .build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("log probe capture expression testing", "test span");
     try (ContextScope scope = tracer.activateManualSpan(span)) {
       span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       // the probe sampler always rejects: the active session decision must still win
       ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
-      LogProbe logProbe =
-          createLog("log line")
-              .probeId(ProbeId.newId())
-              .evaluateAt(MethodLocation.EXIT)
-              .tags(format("session_id:%s", DEBUG_SESSION_ID))
-              .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(1))), "1 == 1"))
-              .captureExpressions(
-                  singletonList(
-                      new LogProbe.CaptureExpression(
-                          "greeting", new ValueScript(DSL.value("hello"), "'hello'"), null)))
-              .build();
+      LogProbe logProbe = createLog("log line")
+        .probeId(ProbeId.newId())
+        .evaluateAt(MethodLocation.EXIT)
+        .tags(format("session_id:%s", DEBUG_SESSION_ID))
+        .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(1))), "1 == 1"))
+        .captureExpressions(
+            singletonList(
+                new LogProbe.CaptureExpression(
+                    "greeting",
+                    new ValueScript(DSL.value("hello"), "'hello'"),
+                    null
+                )
+            )
+        )
+        .build();
       logProbe.initSamplers();
       CapturedContext entryContext = capturedContext(span, logProbe, MethodLocation.ENTRY);
       CapturedContext exitContext = capturedContext(span, logProbe, MethodLocation.EXIT);
@@ -679,12 +785,13 @@ public class LogProbeTest {
       assertEquals(
           "hello",
           snapshot
-              .getCaptures()
-              .getReturn()
-              .getCaptureExpressions()
-              .get("greeting")
-              .getValue()
-              .toString());
+            .getCaptures()
+            .getReturn()
+            .getCaptureExpressions()
+            .get("greeting")
+            .getValue()
+            .toString()
+      );
     } finally {
       ProbeRateLimiter.setSamplerSupplier(null);
     }
@@ -694,7 +801,10 @@ public class LogProbeTest {
   public void coordinatedSamplingActiveSessionOverridesCachedDrop() {
     DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
     TracerAPI tracer =
-        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+        CoreTracer
+      .builder()
+      .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
+      .build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("coordinated sampling debug session testing", "test span");
     try (ContextScope scope = tracer.activateManualSpan(span)) {
@@ -702,36 +812,31 @@ public class LogProbeTest {
       // decision for the whole trace before any debug session is active.
       ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
 
-      LogProbe ordinaryProbeBefore =
-          createLog(null)
-              .probeId(ProbeId.newId())
-              .captureSnapshot(true)
-              .evaluateAt(MethodLocation.EXIT)
-              .build();
+      LogProbe ordinaryProbeBefore = createLog(null)
+        .probeId(ProbeId.newId())
+        .captureSnapshot(true)
+        .evaluateAt(MethodLocation.EXIT)
+        .build();
       LogStatus statusBefore = evaluateOnce(ordinaryProbeBefore, MethodLocation.EXIT);
       Assertions.assertFalse(statusBefore.isSampled());
-
       // the debug session becomes active: a probe belonging to it must emit unconditionally...
       span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
-      LogProbe activeSessionProbe =
-          createLog(null)
-              .probeId(ProbeId.newId())
-              .captureSnapshot(true)
-              .evaluateAt(MethodLocation.EXIT)
-              .tags(format("session_id:%s", DEBUG_SESSION_ID))
-              .build();
+      LogProbe activeSessionProbe = createLog(null)
+        .probeId(ProbeId.newId())
+        .captureSnapshot(true)
+        .evaluateAt(MethodLocation.EXIT)
+        .tags(format("session_id:%s", DEBUG_SESSION_ID))
+        .build();
       LogStatus activeStatus = evaluateOnce(activeSessionProbe, MethodLocation.EXIT);
       assertTrue(activeStatus.isSampled());
       assertTrue(activeStatus.shouldSend());
-
       // ...and must not leave the earlier cached DROP in place, or every ordinary full-snapshot
       // probe evaluated afterwards on this trace would keep being suppressed by it.
-      LogProbe ordinaryProbeAfter =
-          createLog(null)
-              .probeId(ProbeId.newId())
-              .captureSnapshot(true)
-              .evaluateAt(MethodLocation.EXIT)
-              .build();
+      LogProbe ordinaryProbeAfter = createLog(null)
+        .probeId(ProbeId.newId())
+        .captureSnapshot(true)
+        .evaluateAt(MethodLocation.EXIT)
+        .build();
       LogStatus statusAfter = evaluateOnce(ordinaryProbeAfter, MethodLocation.EXIT);
       assertTrue(statusAfter.isSampled());
     } finally {
@@ -766,12 +871,11 @@ public class LogProbeTest {
     DebuggerAgentHelper.injectSink(sink);
     ProbeCondition timingOutCondition = mock(ProbeCondition.class);
     when(timingOutCondition.execute(any(), any()))
-        .thenThrow(new EvaluationTimeOutException("timeout after 100ms", "slow.expr"));
+      .thenThrow(new EvaluationTimeOutException("timeout after 100ms", "slow.expr"));
     LogProbe logProbe =
         createLog(null).evaluateAt(MethodLocation.EXIT).when(timingOutCondition).build();
     CapturedContext context = new CapturedContext();
     LogStatus status = new LogStatus(logProbe);
-
     // methodLocation (ENTRY) intentionally differs from evaluateAt (EXIT) so that sample() is a
     // no-op here, isolating the skipSnapshot call to evaluateCondition()'s timeout handling.
     logProbe.evaluate(context, status, MethodLocation.ENTRY, false);
@@ -789,11 +893,10 @@ public class LogProbeTest {
   public void evaluateConditionFalseDoesNotSkipSnapshot() {
     DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
     DebuggerAgentHelper.injectSink(sink);
-    LogProbe logProbe =
-        createLog(null)
-            .evaluateAt(MethodLocation.EXIT)
-            .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(2))), "1 == 2"))
-            .build();
+    LogProbe logProbe = createLog(null)
+      .evaluateAt(MethodLocation.EXIT)
+      .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(2))), "1 == 2"))
+      .build();
     CapturedContext context = new CapturedContext();
     LogStatus status = new LogStatus(logProbe);
 
@@ -805,17 +908,16 @@ public class LogProbeTest {
   }
 
   private Builder createLog(String template) {
-    return LogProbe.builder()
-        .language(LANGUAGE)
-        .probeId(PROBE_ID)
-        .where("String.java", 42)
-        .template(template, parseTemplate(template));
+    return LogProbe
+      .builder()
+      .language(LANGUAGE)
+      .probeId(PROBE_ID)
+      .where("String.java", 42)
+      .template(template, parseTemplate(template));
   }
 
   private static class BudgetSink extends DebuggerSink {
-
     public int captures;
-
     public int highRate;
 
     public BudgetSink(Config config, ProbeStatusSink probeStatusSink) {

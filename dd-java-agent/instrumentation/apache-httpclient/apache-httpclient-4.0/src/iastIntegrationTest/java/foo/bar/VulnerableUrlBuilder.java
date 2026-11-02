@@ -2,10 +2,12 @@ package foo.bar;
 
 import javax.servlet.http.HttpServletRequest;
 
-/** Class to be instrumented by IAST call sites containing methods to work with urls */
+/**
+ * Class to be instrumented by IAST call sites containing methods to work with urls
+ */
 public abstract class VulnerableUrlBuilder {
-
-  private VulnerableUrlBuilder() {}
+  private VulnerableUrlBuilder() {
+  }
 
   public static String url(HttpServletRequest request) {
     final String url = request.getParameter("url");

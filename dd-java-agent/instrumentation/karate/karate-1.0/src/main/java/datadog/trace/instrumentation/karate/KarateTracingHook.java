@@ -29,11 +29,9 @@ import java.util.Collection;
 import java.util.List;
 
 public class KarateTracingHook implements RuntimeHook {
-
   private static final String FRAMEWORK_NAME = "karate";
   public static final String FRAMEWORK_VERSION = KarateUtils.getKarateVersion();
   public static final String KARATE_STEP_SPAN_NAME = "karate.step";
-
   private final ContextStore<FeatureRuntime, Boolean> manualFeatureHooks;
 
   public KarateTracingHook(ContextStore<FeatureRuntime, Boolean> manualFeatureHooks) {
@@ -57,7 +55,8 @@ public class KarateTracingHook implements RuntimeHook {
         KarateUtils.getCategories(feature.getTags()),
         suite.parallel,
         TestFrameworkInstrumentation.KARATE,
-        null);
+        null
+    );
 
     if (!isFeatureContainingScenarios(fr)) {
       // Karate will not trigger the afterFeature hook if suite has no scenarios
@@ -97,7 +96,6 @@ public class KarateTracingHook implements RuntimeHook {
       return true;
     }
     Scenario scenario = sr.scenario;
-
     // There are cases when Karate does not call "beforeFeature" hooks,
     // for example when using built-in retries
     boolean beforeFeatureHookExecuted = KarateUtils.isBeforeHookExecuted(sr.featureRuntime);
@@ -119,10 +117,11 @@ public class KarateTracingHook implements RuntimeHook {
 
       if (skipReason != null
           && !(skipReason == SkipReason.ITR
-              && categories.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG))) {
+          && categories.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG))) {
         TestExecutionTracker executionTracker =
-            (TestExecutionTracker)
-                sr.magicVariables.get(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE);
+            (TestExecutionTracker) sr.magicVariables.get(
+                KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE
+        );
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             suiteDescriptor,
             testDescriptor,
@@ -133,7 +132,8 @@ public class KarateTracingHook implements RuntimeHook {
             categories,
             TestSourceData.UNKNOWN,
             skipReason.getDescription(),
-            executionTracker);
+            executionTracker
+        );
         return false;
       }
     }
@@ -148,7 +148,8 @@ public class KarateTracingHook implements RuntimeHook {
         categories,
         TestSourceData.UNKNOWN,
         null,
-        (TestExecutionTracker) sr.magicVariables.get(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE));
+        (TestExecutionTracker) sr.magicVariables.get(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE)
+    );
     return true;
   }
 
@@ -168,8 +169,7 @@ public class KarateTracingHook implements RuntimeHook {
 
     TestExecutionTracker executionTracker =
         (TestExecutionTracker) sr.magicVariables.get(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testDescriptor, null, executionTracker);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null, executionTracker);
 
     Boolean runHooksManually = manualFeatureHooks.remove(sr.featureRuntime);
     if (runHooksManually != null && runHooksManually) {
@@ -243,6 +243,6 @@ public class KarateTracingHook implements RuntimeHook {
     AgentSpan activeSpan = AgentTracer.activeSpan();
     return activeSpan == null
         || (!KARATE_STEP_SPAN_NAME.contentEquals(activeSpan.getSpanName())
-            && !Tags.SPAN_KIND_TEST.contentEquals(activeSpan.getSpanType()));
+        && !Tags.SPAN_KIND_TEST.contentEquals(activeSpan.getSpanType()));
   }
 }

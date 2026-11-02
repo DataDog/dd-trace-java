@@ -1,19 +1,20 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
-
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import java.util.Map;
 
 public class MessageAttributeInjector implements CarrierSetter<Map<String, MessageAttributeValue>> {
-
   public static final MessageAttributeInjector SETTER = new MessageAttributeInjector();
 
   @Override
   public void set(
-      final Map<String, MessageAttributeValue> carrier, final String key, final String value) {
+      final Map<String, MessageAttributeValue> carrier,
+      final String key,
+      final String value
+  ) {
     if (!Config.get().isSqsInjectDatadogAttributeEnabled()) {
       return;
     }
@@ -27,8 +28,9 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
       carrier.put(
           DATADOG_KEY,
           new MessageAttributeValue()
-              .withDataType("String")
-              .withStringValue("{\"" + key + "\": \"" + value + "\"}"));
+            .withDataType("String")
+            .withStringValue("{\"" + key + "\": \"" + value + "\"}")
+      );
     } else {
       // _datadog was created by an earlier set() call in this same inject session; append to it.
       String existing = carrier.get(DATADOG_KEY).getStringValue();
@@ -37,22 +39,20 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
       }
       int closingBrace = existing.lastIndexOf('}');
       if (closingBrace >= 0) {
-        String updated =
-            new StringBuilder(
-                    closingBrace
-                        + String.valueOf(key).length()
-                        + String.valueOf(value).length()
-                        + 9)
-                .append(existing, 0, closingBrace)
-                .append(", \"")
-                .append(key)
-                .append("\": \"")
-                .append(value)
-                .append("\"}")
-                .toString();
+        String updated = new StringBuilder(
+            closingBrace + String.valueOf(key).length() + String.valueOf(value).length() + 9
+        )
+          .append(existing, 0, closingBrace)
+          .append(", \"")
+          .append(key)
+          .append("\": \"")
+          .append(value)
+          .append("\"}")
+          .toString();
         carrier.put(
             DATADOG_KEY,
-            new MessageAttributeValue().withDataType("String").withStringValue(updated));
+            new MessageAttributeValue().withDataType("String").withStringValue(updated)
+        );
       }
     }
   }

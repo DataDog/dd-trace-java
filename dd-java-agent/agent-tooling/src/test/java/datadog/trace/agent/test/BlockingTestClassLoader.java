@@ -11,7 +11,6 @@ import java.net.URLClassLoader;
  * current classloader, and loads everything else from the supplied classpath.
  */
 final class BlockingTestClassLoader extends URLClassLoader {
-
   BlockingTestClassLoader(URL[] classpath) {
     super(classpath, null, null);
   }

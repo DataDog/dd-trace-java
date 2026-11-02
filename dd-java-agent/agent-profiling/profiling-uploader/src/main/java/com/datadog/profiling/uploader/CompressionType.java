@@ -5,17 +5,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 enum CompressionType {
-  /** No compression */
+  /**
+   * No compression
+   */
   OFF,
-  /** Default compression */
+  /**
+   * Default compression
+   */
   ON,
-  /** Lower compression ratio with less CPU overhead * */
+  /**
+   * Lower compression ratio with less CPU overhead *
+   */
   LZ4,
-  /** Better compression ratio for the price of higher CPU usage * */
+  /**
+   * Better compression ratio for the price of higher CPU usage *
+   */
   GZIP,
-  /** High compression ratio with reasonable CPU usage * */
+  /**
+   * High compression ratio with reasonable CPU usage *
+   */
   ZSTD;
-
   private static final Logger log = LoggerFactory.getLogger(CompressionType.class);
 
   static CompressionType of(String type) {

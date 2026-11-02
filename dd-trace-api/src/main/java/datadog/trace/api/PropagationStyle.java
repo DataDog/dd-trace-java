@@ -14,7 +14,6 @@ public enum PropagationStyle {
   B3(TracePropagationStyle.B3SINGLE, TracePropagationStyle.B3MULTI),
   HAYSTACK(TracePropagationStyle.HAYSTACK),
   XRAY(TracePropagationStyle.XRAY);
-
   private final List<TracePropagationStyle> newStyles;
 
   PropagationStyle(TracePropagationStyle... newStyles) {

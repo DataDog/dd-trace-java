@@ -1,12 +1,10 @@
 package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.time.ControllableTimeSource;
 import org.junit.jupiter.api.Test;
 
 class ControllableTimeSourceTest {
-
   @Test
   void timeSourceChanges() {
     ControllableTimeSource timeSource = new ControllableTimeSource();

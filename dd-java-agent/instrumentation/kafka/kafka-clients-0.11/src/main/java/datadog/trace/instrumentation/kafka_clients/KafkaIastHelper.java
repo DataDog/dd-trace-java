@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.api.iast.SourceTypes.KAFKA_MESSAGE_KEY;
 import static datadog.trace.api.iast.SourceTypes.KAFKA_MESSAGE_VALUE;
-
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -13,11 +12,11 @@ import org.apache.kafka.common.serialization.Deserializer;
 
 @SuppressWarnings("rawtypes")
 public class KafkaIastHelper {
-
   public static void configure(
       final ContextStore<Deserializer, Boolean> store,
       final Deserializer<?> deserializer,
-      final boolean isKey) {
+      final boolean isKey
+  ) {
     if (store != null) {
       store.put(deserializer, isKey);
     }
@@ -26,7 +25,8 @@ public class KafkaIastHelper {
   public static IastContext beforeDeserialize(
       final ContextStore<Deserializer, Boolean> store,
       final Deserializer<?> deserializer,
-      final Object data) {
+      final Object data
+  ) {
     CallDepthThreadLocalMap.incrementCallDepth(Deserializer.class);
     if (data == null) {
       return null;
@@ -40,7 +40,8 @@ public class KafkaIastHelper {
       return null;
     }
     if (module.isTainted(ctx, data)) {
-      return ctx; // prevent double tainting on reentrant calls
+      // prevent double tainting on reentrant calls
+      return ctx;
     }
     final byte source = getSource(store, deserializer);
     if (data instanceof String) {
@@ -54,7 +55,8 @@ public class KafkaIastHelper {
   public static IastContext beforeDeserialize(
       final ContextStore<Deserializer, Boolean> store,
       final Deserializer<?> deserializer,
-      final ByteBuffer data) {
+      final ByteBuffer data
+  ) {
     CallDepthThreadLocalMap.incrementCallDepth(Deserializer.class);
     if (data == null || data.remaining() == 0) {
       return null;
@@ -68,7 +70,8 @@ public class KafkaIastHelper {
       return null;
     }
     if (module.isTainted(ctx, data)) {
-      return ctx; // prevent double tainting on reentrant calls
+      // prevent double tainting on reentrant calls
+      return ctx;
     }
     final byte source = getSource(store, deserializer);
     int start = data.position();
@@ -83,7 +86,8 @@ public class KafkaIastHelper {
       final IastContext ctx,
       final ContextStore<Deserializer, Boolean> store,
       final Deserializer<?> deserializer,
-      final Object result) {
+      final Object result
+  ) {
     // final exit of the method
     if (CallDepthThreadLocalMap.decrementCallDepth(Deserializer.class) != 0) {
       return;
@@ -101,7 +105,9 @@ public class KafkaIastHelper {
   }
 
   private static byte getSource(
-      final ContextStore<Deserializer, Boolean> store, final Deserializer<?> deserializer) {
+      final ContextStore<Deserializer, Boolean> store,
+      final Deserializer<?> deserializer
+  ) {
     if (store == null) {
       return KAFKA_MESSAGE_VALUE;
     }

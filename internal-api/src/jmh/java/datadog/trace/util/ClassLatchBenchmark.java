@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static java.util.Collections.singletonList;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandle;
@@ -127,17 +126,16 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(1)
 @State(Scope.Benchmark)
 public class ClassLatchBenchmark {
-
   @Param({"0", "50"})
   int depth;
-
   private Path dir;
   private URLClassLoader loader;
   private Object impl;
   private Object full;
   private Object wrapper;
-
-  /** Set in {@link #setup}; every arm and latch calls through it. */
+  /**
+   * Set in {@link #setup}; every arm and latch calls through it.
+   */
   private static MethodHandle handle;
 
   private static Object invokeHandle(Object target) {
@@ -152,27 +150,25 @@ public class ClassLatchBenchmark {
 
   private static final ClassLatch<Object, Object, RuntimeException> MISSING =
       new ClassLatch<Object, Object, RuntimeException>() {
-        @Override
-        protected Object apply(Object target) {
-          return handleAbstractMethod(target, "b", ClassLatchBenchmark::invokeHandle);
-        }
-      };
-
+    @Override
+    protected Object apply(Object target) {
+      return handleAbstractMethod(target, "b", ClassLatchBenchmark::invokeHandle);
+    }
+  };
   private static final ClassLatch<Object, Object, RuntimeException> WRAPPER =
       new ClassLatch<Object, Object, RuntimeException>() {
-        @Override
-        protected Object apply(Object target) {
-          return handleAbstractMethod(target, "b", ClassLatchBenchmark::invokeHandle);
-        }
-      };
-
+    @Override
+    protected Object apply(Object target) {
+      return handleAbstractMethod(target, "b", ClassLatchBenchmark::invokeHandle);
+    }
+  };
   private static final ClassLatch<Object, Object, RuntimeException> PRESENT =
       new ClassLatch<Object, Object, RuntimeException>() {
-        @Override
-        protected Object apply(Object target) {
-          return handleAbstractMethod(target, "b", ClassLatchBenchmark::invokeHandle);
-        }
-      };
+    @Override
+    protected Object apply(Object target) {
+      return handleAbstractMethod(target, "b", ClassLatchBenchmark::invokeHandle);
+    }
+  };
 
   // the policy as a reusable subclass, for comparison only
   private abstract static class SubclassStyle extends ClassLatch<Object, Object, RuntimeException> {
@@ -191,21 +187,18 @@ public class ClassLatchBenchmark {
     }
   }
 
-  private static final SubclassStyle SUBCLASS_MISSING =
-      new SubclassStyle() {
-        @Override
-        protected Object invoke(Object target) {
-          return invokeHandle(target);
-        }
-      };
-
-  private static final SubclassStyle SUBCLASS_PRESENT =
-      new SubclassStyle() {
-        @Override
-        protected Object invoke(Object target) {
-          return invokeHandle(target);
-        }
-      };
+  private static final SubclassStyle SUBCLASS_MISSING = new SubclassStyle() {
+    @Override
+    protected Object invoke(Object target) {
+      return invokeHandle(target);
+    }
+  };
+  private static final SubclassStyle SUBCLASS_PRESENT = new SubclassStyle() {
+    @Override
+    protected Object invoke(Object target) {
+      return invokeHandle(target);
+    }
+  };
 
   @Setup
   public void setup() throws Throwable {
@@ -223,7 +216,8 @@ public class ClassLatchBenchmark {
         oldDir,
         oldDir,
         "Impl",
-        "public class Impl implements I { public String a() { return \"a\"; } }");
+        "public class Impl implements I { public String a() { return \"a\"; } }"
+    );
 
     compile(compiler, newDir, null, "I", "public interface I { String a(); String b(); }");
     compile(
@@ -232,39 +226,39 @@ public class ClassLatchBenchmark {
         newDir,
         "Full",
         "public class Full implements I {"
-            + " public String a() { return \"a\"; } public String b() { return \"b\"; } }");
+        + " public String a() { return \"a\"; } public String b() { return \"b\"; } }"
+    );
     compile(
         compiler,
         newDir,
         newDir,
         "Wrapper",
         "public class Wrapper implements I { private final I delegate;"
-            + " public Wrapper(I delegate) { this.delegate = delegate; }"
-            + " public String a() { return delegate.a(); }"
-            + " public String b() { return delegate.b(); } }");
+        + " public Wrapper(I delegate) { this.delegate = delegate; }"
+        + " public String a() { return delegate.a(); }"
+        + " public String b() { return delegate.b(); } }"
+    );
     compile(
         compiler,
         newDir,
         newDir,
         "Caller",
-        "public class Caller { public static String call(I i) { return i.b(); } }");
-
+        "public class Caller { public static String call(I i) { return i.b(); } }"
+    );
     // the new interface shadows the old one; Impl was built against the old one
-    loader =
-        new URLClassLoader(
-            new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
-            ClassLatchBenchmark.class.getClassLoader());
+    loader = new URLClassLoader(
+        new URL[] {newDir.toUri().toURL(), oldDir.toUri().toURL()},
+        ClassLatchBenchmark.class.getClassLoader()
+    );
     Class<?> iface = loader.loadClass("I");
     impl = loader.loadClass("Impl").getDeclaredConstructor().newInstance();
     full = loader.loadClass("Full").getDeclaredConstructor().newInstance();
     wrapper = loader.loadClass("Wrapper").getDeclaredConstructor(iface).newInstance(impl);
 
-    handle =
-        MethodHandles.publicLookup()
-            .findStatic(
-                loader.loadClass("Caller"), "call", MethodType.methodType(String.class, iface))
-            .asType(MethodType.methodType(Object.class, Object.class));
-
+    handle = MethodHandles
+      .publicLookup()
+      .findStatic(loader.loadClass("Caller"), "call", MethodType.methodType(String.class, iface))
+      .asType(MethodType.methodType(Object.class, Object.class));
     // reach the steady state: the latch has already met the deficient class
     MISSING.tryApply(impl);
     if (!MISSING.isLatched(impl)) {
@@ -277,7 +271,8 @@ public class ClassLatchBenchmark {
     SUBCLASS_MISSING.tryApply(impl);
     if (!SUBCLASS_MISSING.isLatched(impl)) {
       throw new IllegalStateException(
-          "expected the subclass-style latch to latch " + impl.getClass());
+          "expected the subclass-style latch to latch " + impl.getClass()
+      );
     }
   }
 
@@ -322,7 +317,6 @@ public class ClassLatchBenchmark {
   }
 
   // Each arm descends on its own so that a throw has a realistic amount of stack to fill in.
-
   private Object unguardedMissing(int remaining) {
     if (remaining > 0) {
       return unguardedMissing(remaining - 1);
@@ -359,22 +353,26 @@ public class ClassLatchBenchmark {
   }
 
   private static void compile(
-      JavaCompiler compiler, Path out, Path classpath, String name, String source)
-      throws IOException {
+      JavaCompiler compiler,
+      Path out,
+      Path classpath,
+      String name,
+      String source
+  ) throws IOException {
     Path file = out.resolve(name + ".java");
     Files.write(file, singletonList(source), StandardCharsets.UTF_8);
-    int result =
-        classpath == null
-            ? compiler.run(null, null, null, "-d", out.toString(), file.toString())
-            : compiler.run(
-                null,
-                null,
-                null,
-                "-cp",
-                classpath.toString() + File.pathSeparator,
-                "-d",
-                out.toString(),
-                file.toString());
+    int result = classpath == null
+        ? compiler.run(null, null, null, "-d", out.toString(), file.toString())
+        : compiler.run(
+            null,
+            null,
+            null,
+            "-cp",
+            classpath.toString() + File.pathSeparator,
+            "-d",
+            out.toString(),
+            file.toString()
+    );
     if (result != 0) {
       throw new IllegalStateException("compiling " + name + " failed");
     }

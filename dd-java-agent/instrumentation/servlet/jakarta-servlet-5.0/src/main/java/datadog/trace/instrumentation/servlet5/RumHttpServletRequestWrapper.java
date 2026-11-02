@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.servlet5;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
-
 import datadog.trace.bootstrap.instrumentation.rum.RumControllableResponse;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ServletRequest;
@@ -11,11 +10,12 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
 public class RumHttpServletRequestWrapper extends HttpServletRequestWrapper {
-
   private final HttpServletResponse response;
 
   public RumHttpServletRequestWrapper(
-      final HttpServletRequest request, final HttpServletResponse response) {
+      final HttpServletRequest request,
+      final HttpServletResponse response
+  ) {
     super(request);
     this.response = response;
   }
@@ -38,8 +38,10 @@ public class RumHttpServletRequestWrapper extends HttpServletRequestWrapper {
     ServletResponse actualResponse = servletResponse;
     // rewrap it
     if (servletResponse instanceof HttpServletResponse) {
-      actualResponse =
-          new RumHttpServletResponseWrapper(this, (HttpServletResponse) servletResponse);
+      actualResponse = new RumHttpServletResponseWrapper(
+          this,
+          (HttpServletResponse) servletResponse
+      );
       servletRequest.setAttribute(DD_RUM_INJECTED, actualResponse);
     }
     return super.startAsync(servletRequest, actualResponse);

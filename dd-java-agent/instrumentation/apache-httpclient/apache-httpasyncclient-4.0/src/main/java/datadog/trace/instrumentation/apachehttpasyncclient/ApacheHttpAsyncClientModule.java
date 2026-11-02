@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.apachehttpasyncclient;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,7 +17,9 @@ public class ApacheHttpAsyncClientModule extends InstrumenterModule.Tracing {
   @Override
   public Map<String, String> contextStore() {
     return singletonMap(
-        "org.apache.http.concurrent.BasicFuture", "org.apache.http.concurrent.FutureCallback");
+        "org.apache.http.concurrent.BasicFuture",
+        "org.apache.http.concurrent.FutureCallback"
+    );
   }
 
   @Override
@@ -26,6 +27,7 @@ public class ApacheHttpAsyncClientModule extends InstrumenterModule.Tracing {
     return asList(
         new ApacheHttpAsyncClientInstrumentation(),
         new ApacheHttpClientRedirectInstrumentation(),
-        new BasicFutureInstrumentation());
+        new BasicFutureInstrumentation()
+    );
   }
 }

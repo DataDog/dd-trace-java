@@ -3,7 +3,6 @@ package datadog.trace.plugin.csi;
 import static datadog.trace.plugin.csi.impl.CallSiteFactory.adviceGenerator;
 import static datadog.trace.plugin.csi.impl.CallSiteFactory.specificationBuilder;
 import static datadog.trace.plugin.csi.impl.CallSiteFactory.typeResolver;
-
 import datadog.trace.plugin.csi.AdviceGenerator.CallSiteResult;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification;
 import datadog.trace.plugin.csi.util.CallSiteUtils;
@@ -25,7 +24,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class PluginApplication {
-
   public static void main(final String[] args) {
     try {
       final Path parameters = getParameters(args);
@@ -43,30 +41,35 @@ public class PluginApplication {
   }
 
   private static Function<CallSiteSpecification, CallSiteResult> generateAdviceClosure(
-      final Configuration configuration) {
+      final Configuration configuration
+  ) {
     final AdviceGenerator adviceGenerator = getAdviceGenerator(configuration);
     return spec -> {
       final CallSiteResult result = adviceGenerator.generate(spec);
       if (result.isSuccess()) {
-        Extension.EXTENSIONS.stream()
-            .filter(ext -> ext.appliesTo(spec))
-            .forEach(
-                ext -> {
-                  try {
-                    ext.apply(configuration, result);
-                  } catch (final Throwable e) {
-                    result.addError(e, ErrorCode.EXTENSION_ERROR, ext.getClass());
-                  }
-                });
+        Extension.EXTENSIONS
+          .stream()
+          .filter(ext -> ext.appliesTo(spec))
+          .forEach(ext -> {
+            try {
+              ext.apply(configuration, result);
+            } catch (final Throwable e) {
+              result.addError(e, ErrorCode.EXTENSION_ERROR, ext.getClass());
+            }
+          });
       }
       return result;
     };
   }
 
   private static void printReport(
-      final Configuration configuration, final List<CallSiteResult> result, final boolean failed) {
-    CallSiteReporter.getReporter(configuration)
-        .forEach(reporter -> reporter.report(result, failed));
+      final Configuration configuration,
+      final List<CallSiteResult> result,
+      final boolean failed
+  ) {
+    CallSiteReporter
+      .getReporter(configuration)
+      .forEach(reporter -> reporter.report(result, failed));
   }
 
   private static List<CallSiteSpecification> searchForCallSites(final Configuration configuration) {
@@ -74,17 +77,15 @@ public class PluginApplication {
       final SpecificationBuilder builder = specificationBuilder();
       final List<CallSiteSpecification> result = new ArrayList<>();
       final Pattern pattern = Pattern.compile(".*" + configuration.suffix + "\\.class$");
-      Files.walkFileTree(
-          configuration.classesFolder,
-          new SimpleFileVisitor<Path>() {
-            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
-              if (Files.isRegularFile(file)
-                  && pattern.matcher(file.getFileName().toString()).matches()) {
-                builder.build(file.toFile()).ifPresent(result::add);
-              }
-              return FileVisitResult.CONTINUE;
-            }
-          });
+      Files.walkFileTree(configuration.classesFolder, new SimpleFileVisitor<Path>() {
+        public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
+          if (Files.isRegularFile(file)
+              && pattern.matcher(file.getFileName().toString()).matches()) {
+            builder.build(file.toFile()).ifPresent(result::add);
+          }
+          return FileVisitResult.CONTINUE;
+        }
+      });
       return result;
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -110,7 +111,13 @@ public class PluginApplication {
       final List<Path> classPaths =
           lines.stream().skip(5).map(Paths::get).collect(Collectors.toList());
       return new Configuration(
-          projectFolder, classesFolder, targetFolder, classPaths, suffix, reporters);
+          projectFolder,
+          classesFolder,
+          targetFolder,
+          classPaths,
+          suffix,
+          reporters
+      );
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -119,7 +126,8 @@ public class PluginApplication {
   private static Path getParameters(final String[] args) {
     if (args.length != 1) {
       throw new IllegalArgumentException(
-          "The application expected a single parameter with the configuration");
+          "The application expected a single parameter with the configuration"
+      );
     }
     final Path parameters = Paths.get(args[0]);
     if (!Files.exists(parameters)) {
@@ -142,7 +150,8 @@ public class PluginApplication {
         final Path targetFolder,
         final List<Path> classPath,
         final String suffix,
-        final List<String> reporters) {
+        final List<String> reporters
+    ) {
       this.srcFolder = srcFolder;
       this.classesFolder = classesFolder;
       this.targetFolder = targetFolder;

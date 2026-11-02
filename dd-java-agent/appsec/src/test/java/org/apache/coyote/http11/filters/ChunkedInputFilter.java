@@ -4,6 +4,5 @@ package org.apache.coyote.http11.filters;
 // CVEs.
 // Preserves the method signature used by ScaRealLibraryBytecodeTest.
 public class ChunkedInputFilter {
-
   public void parseChunkHeader() {}
 }

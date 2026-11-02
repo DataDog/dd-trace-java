@@ -8,10 +8,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** Groups the instrumentations for AWS SQS SDK 2.0+. */
+/**
+ * Groups the instrumentations for AWS SQS SDK 2.0+.
+ */
 @AutoService(InstrumenterModule.class)
 public final class SqsModule extends InstrumenterModule.Tracing {
-
   public SqsModule() {
     super("sqs", "aws-sdk");
   }
@@ -20,10 +21,13 @@ public final class SqsModule extends InstrumenterModule.Tracing {
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new java.util.HashMap<>();
     contextStore.put(
-        "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");
+        "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse",
+        "java.lang.String"
+    );
     contextStore.put(
         "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse$BuilderImpl",
-        "java.lang.String");
+        "java.lang.String"
+    );
     return contextStore;
   }
 

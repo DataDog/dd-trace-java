@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.debugger.util;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.Config;
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -11,7 +10,6 @@ import java.util.HashSet;
 import org.junit.jupiter.api.Test;
 
 class RedactionTest {
-
   @Test
   public void basic() {
     assertFalse(Redaction.isRedactedKeyword(null));
@@ -43,7 +41,10 @@ class RedactionTest {
   public void userDefinedTypes() {
     Config config = Config.get();
     setFieldInConfig(
-        config, "dynamicInstrumentationRedactedTypes", "java.security.Security,javax.security.*");
+        config,
+        "dynamicInstrumentationRedactedTypes",
+        "java.security.Security,javax.security.*"
+    );
     try {
       Redaction.addUserDefinedTypes(Config.get());
       assertTrue(Redaction.isRedactedType("java.security.Security"));
@@ -59,14 +60,18 @@ class RedactionTest {
     setFieldInConfig(
         config,
         "dynamicInstrumentationRedactionExcludedIdentifiers",
-        new HashSet<>(Arrays.asList("password", "_2FA")));
+        new HashSet<>(Arrays.asList("password", "_2FA"))
+    );
     Redaction.initKeywords();
     try {
       assertFalse(Redaction.isRedactedKeyword("password"));
       assertFalse(Redaction.isRedactedKeyword("_2fa"));
     } finally {
       setFieldInConfig(
-          config, "dynamicInstrumentationRedactionExcludedIdentifiers", Collections.emptySet());
+          config,
+          "dynamicInstrumentationRedactionExcludedIdentifiers",
+          Collections.emptySet()
+      );
       Redaction.initKeywords();
     }
   }
@@ -75,7 +80,8 @@ class RedactionTest {
     try {
       Field field = config.getClass().getDeclaredField(fieldName);
       field.setAccessible(true);
-      field.set(config, value); // TODO: JEP 500 - avoid mutating final fields
+      // TODO: JEP 500 - avoid mutating final fields
+      field.set(config, value);
     } catch (Throwable e) {
       e.printStackTrace();
     }

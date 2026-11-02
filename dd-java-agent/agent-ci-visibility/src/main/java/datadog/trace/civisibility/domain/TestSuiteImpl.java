@@ -3,7 +3,6 @@ package datadog.trace.civisibility.domain;
 import static datadog.json.JsonMapper.toJson;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.LibraryCapability;
@@ -33,9 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestSuiteImpl implements DDTestSuite {
-
   private static final Logger log = LoggerFactory.getLogger(TestSuiteImpl.class);
-
   private final AgentSpanContext moduleSpanContext;
   private final AgentSpan span;
   private final String moduleName;
@@ -80,7 +77,8 @@ public class TestSuiteImpl implements DDTestSuite {
       ExecutionResults executionResults,
       @Nonnull ConfigurationErrors configurationErrors,
       @Nonnull Collection<LibraryCapability> capabilities,
-      Consumer<AgentSpan> onSpanFinish) {
+      Consumer<AgentSpan> onSpanFinish
+  ) {
     this.moduleSpanContext = moduleSpanContext;
     this.moduleName = moduleName;
     this.testSuiteName = testSuiteName;
@@ -101,11 +99,10 @@ public class TestSuiteImpl implements DDTestSuite {
     this.capabilities = capabilities;
     this.onSpanFinish = onSpanFinish;
 
-    AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get()
-            .buildSpan(
-                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_suite")
-            .asChildOf(moduleSpanContext);
+    AgentTracer.SpanBuilder spanBuilder = AgentTracer
+      .get()
+      .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_suite")
+      .asChildOf(moduleSpanContext);
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
@@ -124,7 +121,6 @@ public class TestSuiteImpl implements DDTestSuite {
     span.setTag(Tags.TEST_SUITE_ID, span.getSpanId());
     span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
     span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
-
     // setting status to skip initially,
     // as we do not know in advance whether the suite will have any children
     span.setTag(Tags.TEST_STATUS, TestStatus.skip);
@@ -158,7 +154,8 @@ public class TestSuiteImpl implements DDTestSuite {
       AgentSpan span,
       Class<?> testClass,
       SourcePathResolver sourcePathResolver,
-      Codeowners codeowners) {
+      Codeowners codeowners
+  ) {
     if (testClass == null) {
       return;
     }
@@ -210,19 +207,21 @@ public class TestSuiteImpl implements DDTestSuite {
       final AgentSpan activeSpan = AgentTracer.activeSpan();
       if (activeSpan == null) {
         throw new IllegalStateException(
-            "No active span present, it is possible that end() was called multiple times");
+            "No active span present, it is possible that end() was called multiple times"
+        );
       }
 
       if (activeSpan != this.span) {
         throw new IllegalStateException(
             "Active span does not correspond to the finished suite, "
-                + "it is possible that end() was called multiple times "
-                + "or an operation that was started by the suite is still in progress; "
-                + "active span is: "
-                + activeSpan
-                + "; "
-                + "expected span is: "
-                + this.span);
+            + "it is possible that end() was called multiple times "
+            + "or an operation that was started by the suite is still in progress; "
+            + "active span is: "
+            + activeSpan
+            + "; "
+            + "expected span is: "
+            + this.span
+        );
       }
 
       AgentTracer.closeActive();
@@ -236,13 +235,11 @@ public class TestSuiteImpl implements DDTestSuite {
       span.finish();
     }
 
-    metricCollector.add(
-        CiVisibilityCountMetric.EVENT_FINISHED, 1, instrumentation, EventType.SUITE);
+    metricCollector.add(CiVisibilityCountMetric.EVENT_FINISHED, 1, instrumentation, EventType.SUITE);
   }
 
   @Override
-  public TestImpl testStart(
-      String testName, @Nullable Method testMethod, @Nullable Long startTime) {
+  public TestImpl testStart(String testName, @Nullable Method testMethod, @Nullable Long startTime) {
     return testStart(testName, null, testMethod, startTime);
   }
 
@@ -250,7 +247,8 @@ public class TestSuiteImpl implements DDTestSuite {
       String testName,
       @Nullable String testParameters,
       @Nullable Method testMethod,
-      @Nullable Long startTime) {
+      @Nullable Long startTime
+  ) {
     return new TestImpl(
         moduleSpanContext,
         span.getSpanId(),
@@ -275,6 +273,7 @@ public class TestSuiteImpl implements DDTestSuite {
         executionResults,
         configurationErrors,
         capabilities,
-        tagsPropagator::propagateStatus);
+        tagsPropagator::propagateStatus
+    );
   }
 }

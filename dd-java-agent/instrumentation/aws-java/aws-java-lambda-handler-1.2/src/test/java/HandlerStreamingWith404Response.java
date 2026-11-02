@@ -12,13 +12,14 @@ public class HandlerStreamingWith404Response implements RequestStreamHandler {
   @Override
   public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
       throws IOException {
-    PrintWriter writer =
-        new PrintWriter(
-            new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8)));
+    PrintWriter writer = new PrintWriter(
+        new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8))
+    );
     writer.write(
         "{\"statusCode\": 404, "
-            + "\"headers\": {\"content-type\": \"text/html\"}, "
-            + "\"body\": \"Not Found\"}");
+        + "\"headers\": {\"content-type\": \"text/html\"}, "
+        + "\"body\": \"Not Found\"}"
+    );
     writer.close();
   }
 }

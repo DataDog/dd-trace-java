@@ -18,12 +18,9 @@ import okio.Okio;
 
 public final class TracerFlarePoller {
   private static final String FLARE_LOG_LEVEL = "flare-log-level";
-
   private Runnable stopPreparer;
   private Runnable stopSubmitter;
-
   private TracerFlareService tracerFlareService;
-
   private final Map<String, String> configAction = new HashMap<>();
   private static TracerFlarePoller INSTANCE;
 
@@ -77,9 +74,9 @@ public final class TracerFlarePoller {
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter)
         throws IOException {
-      AgentConfigLayer agentConfigLayer =
-          AGENT_CONFIG_LAYER_ADAPTER.fromJson(
-              Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      AgentConfigLayer agentConfigLayer = AGENT_CONFIG_LAYER_ADAPTER.fromJson(Okio.buffer(Okio.source(
+          new ByteArrayInputStream(content)
+      )));
       if (null != agentConfigLayer
           && null != agentConfigLayer.config
           && null != agentConfigLayer.config.logLevel) {
@@ -154,7 +151,6 @@ public final class TracerFlarePoller {
   static final class AgentConfigLayer {
     @Json(name = "name")
     public String name;
-
     @Json(name = "config")
     public AgentConfig config;
   }
@@ -167,7 +163,6 @@ public final class TracerFlarePoller {
   static final class AgentTask {
     @Json(name = "task_type")
     public String taskType;
-
     @Json(name = "args")
     public AgentTaskArgs args;
   }
@@ -175,10 +170,8 @@ public final class TracerFlarePoller {
   static final class AgentTaskArgs {
     @Json(name = "case_id")
     public String caseId;
-
     @Json(name = "user_handle")
     public String userHandle;
-
     @Json(name = "hostname")
     public String hostname;
   }

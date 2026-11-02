@@ -17,10 +17,14 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
    */
   default void onStart() {}
 
-  /** Invoked when a trace first propagates to a thread */
+  /**
+   * Invoked when a trace first propagates to a thread
+   */
   default void onAttach() {}
 
-  /** Invoked when a thread exits */
+  /**
+   * Invoked when a thread exits
+   */
   default void onDetach() {}
 
   /**
@@ -34,7 +38,9 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
    */
   default void setContext(Context context) {}
 
-  /** Whether profiler context must be rebound when a virtual thread changes carrier threads. */
+  /**
+   * Whether profiler context must be rebound when a virtual thread changes carrier threads.
+   */
   default boolean isThreadContextBindingRequired() {
     return false;
   }
@@ -66,7 +72,6 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   }
 
   final class NoOp implements ProfilingContextIntegration {
-
     public static final ProfilingContextIntegration INSTANCE =
         new ProfilingContextIntegration.NoOp();
 

@@ -3,12 +3,10 @@ package datadog.trace.api.datastreams;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.Context;
 import org.junit.jupiter.api.Test;
 
 class DataStreamsContextTest {
-
   @Test
   void testConstructor() {
     DataStreamsTags tags = DataStreamsTags.EMPTY;

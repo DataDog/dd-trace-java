@@ -6,7 +6,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -29,7 +28,9 @@ import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(InstrumenterModule.class)
 public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public ExtLogRecordInstrumentation() {
     super("jboss-logmanager");
   }
@@ -53,11 +54,13 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("getMdc")).and(takesArgument(0, String.class)),
-        ExtLogRecordInstrumentation.class.getName() + "$GetMdcAdvice");
+        ExtLogRecordInstrumentation.class.getName() + "$GetMdcAdvice"
+    );
 
     transformer.applyAdvice(
         isMethod().and(named("getMdcCopy")).and(takesArguments(0)),
-        ExtLogRecordInstrumentation.class.getName() + "$GetMdcCopyAdvice");
+        ExtLogRecordInstrumentation.class.getName() + "$GetMdcCopyAdvice"
+    );
   }
 
   public static class GetMdcAdvice {
@@ -65,8 +68,8 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
     public static void getMdcValue(
         @Advice.This ExtLogRecord record,
         @Advice.Argument(0) String key,
-        @Advice.Return(readOnly = false) String value) {
-
+        @Advice.Return(readOnly = false) String value
+    ) {
       // if the mdc had a value for the key, or the key is null (invalid for a switch)
       // just return
       if (value != null || key == null) {
@@ -75,7 +78,6 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
 
       AgentSpanContext context =
           InstrumentationContext.get(ExtLogRecord.class, AgentSpanContext.class).get(record);
-
       // Nothing to add so return early
       if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
         return;
@@ -124,16 +126,14 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.This ExtLogRecord record,
-        @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false)
-            Map<String, String> mdc) {
-
+        @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Map<String, String> mdc
+    ) {
       if (mdc instanceof UnionMap) {
         return;
       }
 
       AgentSpanContext context =
           InstrumentationContext.get(ExtLogRecord.class, AgentSpanContext.class).get(record);
-
       // Nothing to add so return early
       if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
         return;
@@ -143,13 +143,15 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
 
       if (context != null) {
         DDTraceId traceId = context.getTraceId();
-        String traceIdValue =
-            Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
-                ? traceId.toHexString()
-                : traceId.toString();
+        String traceIdValue = Config.get().isLogs128bitTraceIdEnabled()
+            && traceId.toHighOrderLong() != 0
+            ? traceId.toHexString()
+            : traceId.toString();
         correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
         correlationValues.put(
-            CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
+            CorrelationIdentifier.getSpanIdKey(),
+            DDSpanId.toString(context.getSpanId())
+        );
       }
 
       String serviceName = Config.get().getServiceName();

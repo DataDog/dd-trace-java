@@ -5,7 +5,6 @@ import datadog.trace.api.Config;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ApiSecurityDownstreamSamplerImpl implements ApiSecurityDownstreamSampler {
-
   private static final long KNUTH_FACTOR = 1111111111111111111L;
   private final AtomicLong globalRequestCount;
   private final double threshold;

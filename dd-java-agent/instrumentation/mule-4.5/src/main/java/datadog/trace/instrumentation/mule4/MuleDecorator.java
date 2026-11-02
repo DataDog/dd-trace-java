@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.mule4;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MULE_CORRELATION_ID;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MULE_LOCATION;
-
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -29,12 +28,12 @@ public class MuleDecorator extends BaseDecorator {
       DDCaches.newFixedSizeCache(1014);
   private static final Function<Component, String> COMPONENT_DOC_ADDER =
       component -> {
-        final Object ret = component.getAnnotation(Component.Annotations.NAME_ANNOTATION_KEY);
-        if (ret != null) {
-          return ret.toString();
-        }
-        return null;
-      };
+    final Object ret = component.getAnnotation(Component.Annotations.NAME_ANNOTATION_KEY);
+    if (ret != null) {
+      return ret.toString();
+    }
+    return null;
+  };
 
   @Override
   protected String[] instrumentationNames() {
@@ -52,14 +51,18 @@ public class MuleDecorator extends BaseDecorator {
   }
 
   @Override
-  protected void doAfterStart(final @Nonnull AgentSpan span) {
+  protected void doAfterStart(@Nonnull final AgentSpan span) {
     span.setMeasured(true);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
     super.doAfterStart(span);
   }
 
   public AgentSpan startMuleSpan(
-      AgentSpan parentSpan, InitialSpanInfo spanInfo, CoreEvent event, Component component) {
+      AgentSpan parentSpan,
+      InitialSpanInfo spanInfo,
+      CoreEvent event,
+      Component component
+  ) {
     // we stick with the same level of detail of OTEL exporter.
     // if not exportable we're not going to create a real span but we still need to track those
     // spans to keep a correct hierarchy.

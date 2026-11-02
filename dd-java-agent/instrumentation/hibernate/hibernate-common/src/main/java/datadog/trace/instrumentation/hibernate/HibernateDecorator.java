@@ -13,17 +13,14 @@ public class HibernateDecorator extends OrmClientDecorator {
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("hibernate");
   public static final HibernateDecorator DECORATOR = new HibernateDecorator();
-
-  private static final ClassValue<String> ENTITY_NAMES =
-      GenericClassValue.of(
-          type -> {
-            for (Annotation annotation : type.getDeclaredAnnotations()) {
-              if ("javax.persistence.Entity".equals(annotation.annotationType().getName())) {
-                return type.getName();
-              }
-            }
-            return null;
-          });
+  private static final ClassValue<String> ENTITY_NAMES = GenericClassValue.of(type -> {
+    for (Annotation annotation : type.getDeclaredAnnotations()) {
+      if ("javax.persistence.Entity".equals(annotation.annotationType().getName())) {
+        return type.getName();
+      }
+    }
+    return null;
+  });
 
   @Override
   protected String service() {

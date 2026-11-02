@@ -48,7 +48,8 @@ class SLCompatHelper extends LoggerHelper {
       long startTimeMillis,
       long timeMillis,
       String message,
-      Throwable t) {
+      Throwable t
+  ) {
     String threadName = null;
     if (settings.showThreadName) {
       threadName = Thread.currentThread().getName();
@@ -63,7 +64,8 @@ class SLCompatHelper extends LoggerHelper {
       long timeMillis,
       String threadName,
       String message,
-      Throwable t) {
+      Throwable t
+  ) {
     StringBuilder buf = new StringBuilder(32);
 
     if (timeMillis >= 0 && settings.showDateTime) {
@@ -126,7 +128,8 @@ class SLCompatHelper extends LoggerHelper {
       long startTimeMillis,
       long timeMillis,
       String message,
-      Throwable t) {
+      Throwable t
+  ) {
     String threadName = null;
     if (settings.showThreadName) {
       threadName = Thread.currentThread().getName();
@@ -141,8 +144,8 @@ class SLCompatHelper extends LoggerHelper {
       long timeMillis,
       String threadName,
       String message,
-      Throwable t) {
-
+      Throwable t
+  ) {
     JsonWriter writer = new JsonWriter();
     writer.beginObject();
     writer.name("origin").value("dd.trace");

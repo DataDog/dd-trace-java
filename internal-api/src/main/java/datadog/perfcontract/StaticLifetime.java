@@ -68,4 +68,5 @@ import java.lang.annotation.Target;
 @ImpliedFor(ClassValue.class)
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.FIELD)
-public @interface StaticLifetime {}
+public @interface StaticLifetime {
+}

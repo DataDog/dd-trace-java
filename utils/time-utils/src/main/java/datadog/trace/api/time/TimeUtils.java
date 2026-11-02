@@ -5,8 +5,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class TimeUtils {
-
-  /** Number followed by an optional time unit of hours (h), minutes (m), or seconds (s). */
+  /**
+   * Number followed by an optional time unit of hours (h), minutes (m), or seconds (s).
+   */
   private static final Pattern SIMPLE_DELAY_PATTERN = Pattern.compile("(\\d+)([HhMmSs]?)");
 
   /**
@@ -26,12 +27,15 @@ public abstract class TimeUtils {
         } else if ("M".equalsIgnoreCase(unit)) {
           return TimeUnit.MINUTES.toSeconds(delay);
         } else {
-          return delay; // already in seconds
+          // already in seconds
+          return delay;
         }
       }
     }
-    return -1; // unrecognized
+    // unrecognized
+    return -1;
   }
 
-  private TimeUtils() {}
+  private TimeUtils() {
+  }
 }

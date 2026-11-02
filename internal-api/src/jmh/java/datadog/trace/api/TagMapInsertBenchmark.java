@@ -39,37 +39,34 @@ import org.openjdk.jmh.annotations.Warmup;
 public class TagMapInsertBenchmark {
   // Per-span tags a client or server decorator typically sets.
   static final String[] KNOWN_NAMES = {
-    KnownTags.COMPONENT_NAME,
-    KnownTags.SPAN_KIND_NAME,
-    KnownTags.HTTP_METHOD_NAME,
-    KnownTags.HTTP_URL_NAME,
-    KnownTags.HTTP_ROUTE_NAME,
-    KnownTags.HTTP_HOSTNAME_NAME,
-    KnownTags.HTTP_USERAGENT_NAME,
-    KnownTags.HTTP_CLIENT_IP_NAME,
-    KnownTags.PEER_HOSTNAME_NAME,
-    KnownTags.PEER_IPV4_NAME,
-    KnownTags.PEER_IPV6_NAME,
-    KnownTags.DD_INTEGRATION_NAME,
+      KnownTags.COMPONENT_NAME,
+      KnownTags.SPAN_KIND_NAME,
+      KnownTags.HTTP_METHOD_NAME,
+      KnownTags.HTTP_URL_NAME,
+      KnownTags.HTTP_ROUTE_NAME,
+      KnownTags.HTTP_HOSTNAME_NAME,
+      KnownTags.HTTP_USERAGENT_NAME,
+      KnownTags.HTTP_CLIENT_IP_NAME,
+      KnownTags.PEER_HOSTNAME_NAME,
+      KnownTags.PEER_IPV4_NAME,
+      KnownTags.PEER_IPV6_NAME,
+      KnownTags.DD_INTEGRATION_NAME
   };
-
   static final long[] KNOWN_IDS = {
-    KnownTags.COMPONENT_ID,
-    KnownTags.SPAN_KIND_ID,
-    KnownTags.HTTP_METHOD_ID,
-    KnownTags.HTTP_URL_ID,
-    KnownTags.HTTP_ROUTE_ID,
-    KnownTags.HTTP_HOSTNAME_ID,
-    KnownTags.HTTP_USERAGENT_ID,
-    KnownTags.HTTP_CLIENT_IP_ID,
-    KnownTags.PEER_HOSTNAME_ID,
-    KnownTags.PEER_IPV4_ID,
-    KnownTags.PEER_IPV6_ID,
-    KnownTags.DD_INTEGRATION_ID,
+      KnownTags.COMPONENT_ID,
+      KnownTags.SPAN_KIND_ID,
+      KnownTags.HTTP_METHOD_ID,
+      KnownTags.HTTP_URL_ID,
+      KnownTags.HTTP_ROUTE_ID,
+      KnownTags.HTTP_HOSTNAME_ID,
+      KnownTags.HTTP_USERAGENT_ID,
+      KnownTags.HTTP_CLIENT_IP_ID,
+      KnownTags.PEER_HOSTNAME_ID,
+      KnownTags.PEER_IPV4_ID,
+      KnownTags.PEER_IPV6_ID,
+      KnownTags.DD_INTEGRATION_ID
   };
-
   static final String[] CUSTOM_NAMES = new String[KNOWN_NAMES.length];
-
   static final Object[] VALUES = new Object[KNOWN_NAMES.length];
 
   static {

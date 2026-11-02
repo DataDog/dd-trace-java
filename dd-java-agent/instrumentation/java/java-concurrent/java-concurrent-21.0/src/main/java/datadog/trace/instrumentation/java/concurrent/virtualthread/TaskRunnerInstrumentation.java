@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.environment.JavaVirtualMachine;
@@ -27,7 +26,10 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public final class TaskRunnerInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public TaskRunnerInstrumentation() {
     super("java_concurrent", "task-runner");
   }

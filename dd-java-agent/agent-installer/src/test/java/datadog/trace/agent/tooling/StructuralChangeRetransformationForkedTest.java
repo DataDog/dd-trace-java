@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
@@ -32,7 +31,6 @@ import net.bytebuddy.utility.OpenedClassReader;
 import org.junit.jupiter.api.Test;
 
 class StructuralChangeRetransformationForkedTest {
-
   private static final String TARGET_CLASS_NAME =
       "datadog.trace.agent.tooling.GeneratedStructuralChangeTarget";
 
@@ -79,21 +77,23 @@ class StructuralChangeRetransformationForkedTest {
   }
 
   private ClassFileTransformer installTransformer(
-      Instrumentation instrumentation, StructuralChangeInstrumentation structuralChange) {
+      Instrumentation instrumentation,
+      StructuralChangeInstrumentation structuralChange
+  ) {
     TypePoolFacade.registerAsSupplier();
     MemoizedMatchers.registerAsSupplier();
 
     InstrumenterIndex instrumenterIndex = InstrumenterIndex.readIndex();
     InstrumenterState.initialize(instrumenterIndex.instrumentationCount());
-    CombiningTransformerBuilder transformerBuilder =
-        new CombiningTransformerBuilder(
-            new AgentBuilder.Default()
-                .disableClassFormatChanges()
-                .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-                .ignore(none()),
-            instrumenterIndex,
-            EnumSet.of(InstrumenterModule.TargetSystem.TRACING),
-            false);
+    CombiningTransformerBuilder transformerBuilder = new CombiningTransformerBuilder(
+        new AgentBuilder.Default()
+          .disableClassFormatChanges()
+          .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+          .ignore(none()),
+        instrumenterIndex,
+        EnumSet.of(InstrumenterModule.TargetSystem.TRACING),
+        false
+    );
     transformerBuilder.applyInstrumentation(structuralChange);
     InstrumenterState.resetDefaultState();
 
@@ -104,20 +104,21 @@ class StructuralChangeRetransformationForkedTest {
 
   private Class<?> loadTargetClass() {
     return new ByteBuddy()
-        .subclass(Object.class)
-        .name(TARGET_CLASS_NAME)
-        .make()
-        .load(getClass().getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
-        .getLoaded();
+      .subclass(Object.class)
+      .name(TARGET_CLASS_NAME)
+      .make()
+      .load(getClass().getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
+      .getLoaded();
   }
 
-  public interface StructuralChangeMarker {}
+  public interface StructuralChangeMarker {
+  }
 
   private static final class StructuralChangeInstrumentation extends InstrumenterModule.Tracing
       implements Instrumenter.ForSingleType,
-          Instrumenter.WithStructuralChange,
-          Instrumenter.HasMethodAdvice {
-
+      Instrumenter.WithStructuralChange,
+      Instrumenter.HasMethodAdvice
+  {
     private final AtomicInteger transformations = new AtomicInteger();
 
     private StructuralChangeInstrumentation() {
@@ -131,11 +132,10 @@ class StructuralChangeRetransformationForkedTest {
 
     @Override
     public void typeAdvice(TypeTransformer transformer) {
-      transformer.applyAdvice(
-          (builder, typeDescription, classLoader, module, protectionDomain) -> {
-            transformations.incrementAndGet();
-            return builder.visit(new AddStructuralMarkerVisitor());
-          });
+      transformer.applyAdvice((builder, typeDescription, classLoader, module, protectionDomain) -> {
+        transformations.incrementAndGet();
+        return builder.visit(new AddStructuralMarkerVisitor());
+      });
     }
 
     @Override
@@ -154,7 +154,6 @@ class StructuralChangeRetransformationForkedTest {
   }
 
   private static final class AddStructuralMarkerVisitor implements AsmVisitorWrapper {
-
     private static final String MARKER_NAME = Type.getInternalName(StructuralChangeMarker.class);
 
     @Override
@@ -176,7 +175,8 @@ class StructuralChangeRetransformationForkedTest {
         FieldList<FieldDescription.InDefinedShape> fields,
         MethodList<?> methods,
         int writerFlags,
-        int readerFlags) {
+        int readerFlags
+    ) {
       return new ClassVisitor(OpenedClassReader.ASM_API, classVisitor) {
         @Override
         public void visit(
@@ -185,7 +185,8 @@ class StructuralChangeRetransformationForkedTest {
             String name,
             String signature,
             String superName,
-            String[] interfaces) {
+            String[] interfaces
+        ) {
           if (!arrayContains(interfaces, MARKER_NAME)) {
             interfaces = appendToArray(interfaces, MARKER_NAME);
           }

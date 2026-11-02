@@ -6,11 +6,12 @@ import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 
-/** Extracts the Datadog URL tags from a captured HTTP server URL. */
+/**
+ * Extracts the Datadog URL tags from a captured HTTP server URL.
+ */
 public final class DatadogServerUrl implements TagExtractor<HttpServerUrl> {
   public static final DatadogServerUrl INSTANCE = new DatadogServerUrl(false);
   public static final DatadogServerUrl URL_ONLY = new DatadogServerUrl(true);
-
   private final boolean urlOnly;
 
   private DatadogServerUrl(boolean urlOnly) {

@@ -5,7 +5,6 @@ import datadog.trace.api.git.GitInfo;
 import javax.annotation.Nonnull;
 
 public interface CIProviderInfo {
-
   GitInfo buildCIGitInfo();
 
   CIInfo buildCIInfo();

@@ -1,7 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
@@ -27,11 +26,15 @@ public class SubStringExpression implements ValueExpression<Value<String>> {
     Value<?> sourceValue = source != null ? source.evaluate(evalContext) : Value.nullValue();
     if (sourceValue.isUndefined()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for undefined value",
+          PrettyPrintVisitor.print(this)
+      );
     }
     if (sourceValue.isNull()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for null value",
+          PrettyPrintVisitor.print(this)
+      );
     }
     if (sourceValue.getValue() instanceof String) {
       String sourceStr = (String) sourceValue.getValue();
@@ -70,7 +73,9 @@ public class SubStringExpression implements ValueExpression<Value<String>> {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     SubStringExpression that = (SubStringExpression) o;
     return startIndex == that.startIndex
         && endIndex == that.endIndex

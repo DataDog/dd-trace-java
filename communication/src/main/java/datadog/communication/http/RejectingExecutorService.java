@@ -7,7 +7,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
-/** {@link ExecutorService} that always rejects requests. */
+/**
+ * {@link ExecutorService} that always rejects requests.
+ */
 public final class RejectingExecutorService extends AbstractExecutorService {
   public static final RejectingExecutorService INSTANCE = new RejectingExecutorService();
 

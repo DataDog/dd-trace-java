@@ -3,7 +3,6 @@ package datadog.trace.civisibility.source;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.civisibility.source.LinesResolver.Lines;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -12,7 +11,6 @@ import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 
 class ByteCodeLinesResolverTest {
-
   @Test
   void testMethodLinesResolution() throws NoSuchMethodException {
     Method aTestMethod = NestedClass.class.getDeclaredMethod("aTestMethod");
@@ -45,7 +43,9 @@ class ByteCodeLinesResolverTest {
 
   @Test
   void testReturnsEmptyMethodLinesWhenClassCannotBeLoaded()
-      throws IOException, ClassNotFoundException, NoSuchMethodException {
+      throws IOException,
+      ClassNotFoundException,
+      NoSuchMethodException {
     MisbehavingClassLoader misbehavingClassLoader = new MisbehavingClassLoader();
 
     try (InputStream stream = Utils.getClassStream(NestedClass.class)) {
@@ -69,7 +69,8 @@ class ByteCodeLinesResolverTest {
 
   @Test
   void testReturnsEmptyMethodLinesWhenClassResourceIsMissing()
-      throws IOException, ClassNotFoundException {
+      throws IOException,
+      ClassNotFoundException {
     // regression test: Utils.getClassStream() returns null (rather than throwing) for
     // classes whose bytecode resource cannot be located (e.g. certain generated/proxy classes).
     // Calls ClassMethodLines.parse() directly rather than going through

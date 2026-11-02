@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.Exc
  * initial load event where we need to add the context-store fields.
  */
 public final class RunnableWrapper implements Runnable {
-
   private final Runnable runnable;
 
   public RunnableWrapper(final Runnable runnable) {

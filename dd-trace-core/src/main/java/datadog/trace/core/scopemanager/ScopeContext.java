@@ -5,7 +5,9 @@ import datadog.context.ContextKey;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import javax.annotation.Nullable;
 
-/** Wraps a {@link ScopeStack} as a {@link Context} so it can be swapped back later. */
+/**
+ * Wraps a {@link ScopeStack} as a {@link Context} so it can be swapped back later.
+ */
 final class ScopeContext implements Context {
   private final Thread originalThread = Thread.currentThread();
   private final ScopeStack scopeStack;

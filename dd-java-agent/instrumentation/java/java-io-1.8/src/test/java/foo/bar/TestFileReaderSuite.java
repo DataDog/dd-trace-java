@@ -5,7 +5,6 @@ import java.io.FileReader;
 import java.io.IOException;
 
 public class TestFileReaderSuite {
-
   public static FileReader newFileReader(final String path) throws IOException {
     return new FileReader(path);
   }

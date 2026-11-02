@@ -45,16 +45,13 @@ import org.slf4j.LoggerFactory;
  * <p>All work is wrapped in try/catch — enrichment must NEVER break trace finish.
  */
 final class SpanEnrichmentInterceptor implements TraceInterceptor {
-
   private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentInterceptor.class);
-
   /**
    * Unique priority in the "trace data enrichment" band, after {@code GIT_METADATA} (3) and before
    * the custom-sampling band ({@code Integer.MAX_VALUE - 2}). Distinct from every value in {@code
    * AbstractTraceInterceptor.Priority} and from the CI Visibility interceptors.
    */
   static final int PRIORITY = 4;
-
   private final SpanEnrichmentStates states;
 
   SpanEnrichmentInterceptor(final SpanEnrichmentStates states) {
@@ -63,7 +60,8 @@ final class SpanEnrichmentInterceptor implements TraceInterceptor {
 
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
-      final Collection<? extends MutableSpan> trace) {
+      final Collection<? extends MutableSpan> trace
+  ) {
     try {
       // Fast path: no accumulated state at all → skip the per-flush scan + lock entirely. This is
       // the common case for services that never evaluate a flag on a given trace.
@@ -75,7 +73,8 @@ final class SpanEnrichmentInterceptor implements TraceInterceptor {
       // the final write" — keep the accumulator and bail.
       final MutableSpan localRoot = findLocalRootInFragment(trace);
       if (!(localRoot instanceof AgentSpan)) {
-        return trace; // partial flush, or no resolvable in-fragment root: keep state untouched
+        // partial flush, or no resolvable in-fragment root: keep state untouched
+        return trace;
       }
       // Key by the local-root span object to match the capture-side keying.
       final SpanEnrichmentAccumulator state = states.remove((AgentSpan) localRoot);
@@ -102,8 +101,7 @@ final class SpanEnrichmentInterceptor implements TraceInterceptor {
    * local root, we accept it only after confirming that exact object is in the fragment; otherwise
    * we look for a span that is provably its own local root and present.
    */
-  private static MutableSpan findLocalRootInFragment(
-      final Collection<? extends MutableSpan> trace) {
+  private static MutableSpan findLocalRootInFragment(final Collection<? extends MutableSpan> trace) {
     final MutableSpan first = trace.iterator().next();
     final MutableSpan candidate = first.getLocalRootSpan();
     if (candidate != null) {
@@ -114,7 +112,8 @@ final class SpanEnrichmentInterceptor implements TraceInterceptor {
           return candidate;
         }
       }
-      return null; // root excluded from this fragment → partial flush, do not flush/remove
+      // root excluded from this fragment → partial flush, do not flush/remove
+      return null;
     }
     // Local root unknown for the first span: only accept a span that is provably its own local root
     // and present here. Never fall back to an arbitrary span.

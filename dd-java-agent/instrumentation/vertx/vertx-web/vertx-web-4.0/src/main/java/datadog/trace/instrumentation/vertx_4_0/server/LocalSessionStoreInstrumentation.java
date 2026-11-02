@@ -9,17 +9,20 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 
-/** Keeps session-store maintenance timers from retaining an unrelated request's continuation. */
+/**
+ * Keeps session-store maintenance timers from retaining an unrelated request's continuation.
+ */
 @AutoService(InstrumenterModule.class)
 public final class LocalSessionStoreInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public LocalSessionStoreInstrumentation() {
     super("vertx");
   }
@@ -40,14 +43,16 @@ public final class LocalSessionStoreInstrumentation extends InstrumenterModule.C
     // Initialization also starts the PRNG refresh timer; neither timer belongs to a request.
     transformer.applyAdvice(
         named("init")
-            .and(isPublic())
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("io.vertx.core.Vertx")))
-            .and(takesArgument(1, named("io.vertx.core.json.JsonObject"))),
-        getClass().getName() + "$DisablePropagationAdvice");
+          .and(isPublic())
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("io.vertx.core.Vertx")))
+          .and(takesArgument(1, named("io.vertx.core.json.JsonObject"))),
+        getClass().getName() + "$DisablePropagationAdvice"
+    );
     transformer.applyAdvice(
         named("setTimer").and(isPrivate()).and(takesNoArguments()).and(returns(void.class)),
-        getClass().getName() + "$DisablePropagationAdvice");
+        getClass().getName() + "$DisablePropagationAdvice"
+    );
   }
 
   public static final class DisablePropagationAdvice {

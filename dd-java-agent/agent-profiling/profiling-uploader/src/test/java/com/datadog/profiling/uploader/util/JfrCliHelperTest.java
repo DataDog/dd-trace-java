@@ -8,7 +8,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
 import datadog.logging.IOLogger;
@@ -35,15 +34,13 @@ import org.mockito.stubbing.Answer;
 
 @ExtendWith(MockitoExtension.class)
 public class JfrCliHelperTest {
-
   private static final String RECORDING_RESOURCE = "/test-recording.jfr";
   private static final String RECODING_NAME_PREFIX = "test-recording-";
-
   private static final int SEQUENCE_NUMBER = 123;
   private static final int PROFILE_START = 1000;
   private static final int PROFILE_END = 1100;
-
-  @Mock private IOLogger ioLogger;
+  @Mock
+  private IOLogger ioLogger;
 
   @Test
   public void testInvokeOn() throws Exception {
@@ -67,11 +64,9 @@ public class JfrCliHelperTest {
       messages.add("Event: jdk.ActiveSetting, size = 48732, count = 1470");
       messages.add("Event: jdk.JavaMonitorWait, size = 35170, count = 1232");
       messages.add("Event: jdk.InitialSystemProperty, size = 31164, count = 81");
-
       // tried using `messages.remove(message)` to guarantee we are not duplicating
       // the calls but Mockito complained for some reasons
-      verify(ioLogger, times(messages.size()))
-          .error(argThat(message -> messages.contains(message)));
+      verify(ioLogger, times(messages.size())).error(argThat(message -> messages.contains(message)));
     }
   }
 
@@ -86,9 +81,9 @@ public class JfrCliHelperTest {
   private RecordingData mockRecordingData(boolean zip) throws IOException {
     final RecordingData recordingData = mock(RecordingData.class, withSettings().lenient());
     when(recordingData.getStream())
-        .then(
-            (Answer<InputStream>)
-                invocation -> spy(new RecordingInputStream(recordingStream(zip))));
+      .then(
+          (Answer<InputStream>) invocation -> spy(new RecordingInputStream(recordingStream(zip)))
+      );
     when(recordingData.getName()).thenReturn(RECODING_NAME_PREFIX + SEQUENCE_NUMBER);
     when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(PROFILE_START));
     when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(PROFILE_END));

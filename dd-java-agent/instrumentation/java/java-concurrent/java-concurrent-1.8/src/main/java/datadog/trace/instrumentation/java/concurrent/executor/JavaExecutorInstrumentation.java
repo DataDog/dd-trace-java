@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.cu
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -20,14 +19,13 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("execute").and(takesArgument(0, Runnable.class)).and(takesArguments(1)),
-        JavaExecutorInstrumentation.class.getName() + "$SetExecuteRunnableStateAdvice");
+        JavaExecutorInstrumentation.class.getName() + "$SetExecuteRunnableStateAdvice"
+    );
   }
 
   public static class SetExecuteRunnableStateAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static State enterJobSubmit(
-        @Advice.Argument(value = 0, readOnly = false) Runnable task) {
+    public static State enterJobSubmit(@Advice.Argument(value = 0, readOnly = false) Runnable task) {
       if (task instanceof RunnableFuture) {
         return null;
       }
@@ -51,7 +49,9 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exitJobSubmit(
-        @Advice.Enter final State state, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final State state,
+        @Advice.Thrown final Throwable throwable
+    ) {
       ExecutorInstrumentationUtils.cleanUpOnMethodExit(state, throwable);
     }
   }

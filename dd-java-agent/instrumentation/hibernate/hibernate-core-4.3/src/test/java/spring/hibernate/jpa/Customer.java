@@ -7,15 +7,14 @@ import javax.persistence.Id;
 
 @Entity
 public class Customer {
-
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
   private Long id;
-
   private String firstName;
   private String lastName;
 
-  protected Customer() {}
+  protected Customer() {
+  }
 
   public Customer(final String firstName, final String lastName) {
     this.firstName = firstName;

@@ -4,7 +4,6 @@ import static datadog.trace.instrumentation.netty40.AttributeKeys.CHANNEL_ID;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -39,29 +38,31 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
         span.setHttpStatusCode(500);
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        // Finish the span manually since finishSpanOnClose was false
+        span.finish();
         ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
         throw throwable;
       }
-      final boolean isWebsocketUpgrade =
-          response.getStatus() == HttpResponseStatus.SWITCHING_PROTOCOLS
-              && "websocket".equals(response.headers().get(UPGRADE_HEADER));
+      final boolean isWebsocketUpgrade = response.getStatus() == HttpResponseStatus.SWITCHING_PROTOCOLS
+          && "websocket".equals(response.headers().get(UPGRADE_HEADER));
       if (isWebsocketUpgrade) {
-        String channelId =
-            ctx.channel()
-                .attr(CHANNEL_ID)
-                .setIfAbsent(RandomUtils.randomUUID().toString().substring(0, 8));
-        ctx.channel()
-            .attr(WEBSOCKET_SENDER_HANDLER_CONTEXT)
-            .set(new HandlerContext.Sender(span, channelId));
+        String channelId = ctx
+          .channel()
+          .attr(CHANNEL_ID)
+          .setIfAbsent(RandomUtils.randomUUID().toString().substring(0, 8));
+        ctx
+          .channel()
+          .attr(WEBSOCKET_SENDER_HANDLER_CONTEXT)
+          .set(new HandlerContext.Sender(span, channelId));
       }
       if (response.getStatus() != HttpResponseStatus.CONTINUE
           && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS
-              || isWebsocketUpgrade)) {
+          || isWebsocketUpgrade)) {
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(scope.context());
         ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        // Finish the span manually since finishSpanOnClose was false
+        span.finish();
       }
     }
   }

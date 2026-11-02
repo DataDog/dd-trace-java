@@ -3,7 +3,6 @@ package datadog.trace.common.metrics;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -59,7 +58,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @Fork(1)
 public class AdversarialMetricsBenchmark {
-
   private ClientStatsAggregator aggregator;
   private CountingHealthMetrics health;
 
@@ -71,18 +69,20 @@ public class AdversarialMetricsBenchmark {
   @Setup
   public void setup() {
     this.health = new CountingHealthMetrics();
-    this.aggregator =
-        new ClientStatsAggregator(
-            new WellKnownTags("", "", "", "", "", ""),
-            Collections.emptySet(),
-            AdditionalTagsSchema.EMPTY,
-            new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
-                Collections.singleton("peer.hostname"), Collections.emptySet()),
-            this.health,
-            new ClientStatsAggregatorBenchmark.NullSink(),
-            2048,
-            2048,
-            false);
+    this.aggregator = new ClientStatsAggregator(
+        new WellKnownTags("", "", "", "", "", ""),
+        Collections.emptySet(),
+        AdditionalTagsSchema.EMPTY,
+        new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+            Collections.singleton("peer.hostname"),
+            Collections.emptySet()
+        ),
+        this.health,
+        new ClientStatsAggregatorBenchmark.NullSink(),
+        2048,
+        2048,
+        false
+    );
     this.aggregator.start();
   }
 
@@ -93,26 +93,29 @@ public class AdversarialMetricsBenchmark {
     // Counters accumulate across the trial (warmup + measurement iterations), since the
     // CountingHealthMetrics instance is created once in @Setup and never reset.
     System.err.println(
-        "[ADVERSARIAL] drops over the trial (8 threads, warmup + measurement combined):");
+        "[ADVERSARIAL] drops over the trial (8 threads, warmup + measurement combined):"
+    );
     System.err.println(
         "  onStatsInboxFull         = "
-            + health.inboxFull.sum()
-            + "   (snapshots dropped because the MPSC inbox was full)");
+        + health.inboxFull.sum()
+        + "   (snapshots dropped because the MPSC inbox was full)"
+    );
     System.err.println(
         "  onStatsAggregateDropped  = "
-            + health.aggregateDropped.sum()
-            + "   (snapshots dropped because the aggregate cache was full with no stale entry)");
+        + health.aggregateDropped.sum()
+        + "   (snapshots dropped because the aggregate cache was full with no stale entry)"
+    );
   }
 
   @Benchmark
   public void publish(ThreadState ts, Blackhole blackhole) {
     int idx = ts.cursor++;
     ThreadLocalRandom rng = ThreadLocalRandom.current();
-
     // Mix indices so labels don't fall into linear order. Distinct labels exceed every reasonable
     // working-set bound, so the aggregate cache evicts continuously and most ops force a fresh
     // MetricKey construction on the consumer thread.
-    int scrambled = idx * 0x9E3779B1; // golden ratio multiplier
+    // golden ratio multiplier
+    int scrambled = idx * 0x9E3779B1;
     String service = "svc-" + (scrambled & 0xFFFF);
     String operation = "op-" + ((scrambled >>> 8) & 0x3FFFF);
     String resource = "res-" + ((scrambled ^ 0x5A5A5A) & 0xFFFFF);
@@ -120,11 +123,21 @@ public class AdversarialMetricsBenchmark {
     boolean error = (idx & 7) == 0;
     boolean topLevel = (idx & 3) == 0;
     // Wide duration spread forces histogram bins to populate broadly.
-    long durationNanos = 1L + (rng.nextLong() & 0x3FFFFFFFL); // 1 ns .. ~1.07 s
+    // 1 ns .. ~1.07 s
+    long durationNanos = 1L + (rng.nextLong() & 0x3FFFFFFFL);
 
-    SimpleSpan span =
-        new SimpleSpan(
-            service, operation, resource, "web", true, topLevel, error, 0, durationNanos, 200);
+    SimpleSpan span = new SimpleSpan(
+        service,
+        operation,
+        resource,
+        "web",
+        true,
+        topLevel,
+        error,
+        0,
+        durationNanos,
+        200
+    );
     span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
     span.setTag("peer.hostname", hostname);
 

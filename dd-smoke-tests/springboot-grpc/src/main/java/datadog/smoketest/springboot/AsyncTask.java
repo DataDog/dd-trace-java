@@ -5,7 +5,6 @@ import java.util.concurrent.CompletableFuture;
 import org.springframework.scheduling.annotation.Async;
 
 public class AsyncTask {
-
   private final AsynchronousGreeter greeter;
 
   public AsyncTask(AsynchronousGreeter greeter) {

@@ -38,7 +38,9 @@ public class DatadogSpark212Listener extends AbstractDatadogSparkListener {
   @Override
   protected ArrayList<Integer> getSparkJobStageIds(SparkListenerJobStart jobStart) {
     ArrayList<Integer> javaIds = new ArrayList<>(jobStart.stageInfos().length());
-    jobStart.stageInfos().foreach(stage -> javaIds.add(stage.stageId()));
+    jobStart
+      .stageInfos()
+      .foreach(stage -> javaIds.add(stage.stageId()));
     return javaIds;
   }
 
@@ -83,14 +85,13 @@ public class DatadogSpark212Listener extends AbstractDatadogSparkListener {
       return null;
     }
 
-    Function1 lambda =
-        (Function1<ArrayBuffer<AccumulatorV2>, List<AccumulatorV2>>)
-            accumulators -> JavaConverters.seqAsJavaList(accumulators);
+    Function1 lambda = (Function1<ArrayBuffer<AccumulatorV2>, List<AccumulatorV2>>) accumulators -> JavaConverters.seqAsJavaList(
+        accumulators
+    );
     List<AccumulatorV2> res = methodLoader.invoke(withExternalAccums, metrics, lambda);
     if (res != null) {
       return res;
     }
-
     // withExternalAccums didn't work, try the legacy method
     // Use Seq (not ArrayBuffer) since some Spark distributions (e.g. Amazon EMR) return a
     // JListWrapper which implements Seq but cannot be cast to ArrayBuffer

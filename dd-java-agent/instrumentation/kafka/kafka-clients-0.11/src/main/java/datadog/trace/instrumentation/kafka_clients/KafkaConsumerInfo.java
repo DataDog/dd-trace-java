@@ -50,8 +50,12 @@ public class KafkaConsumerInfo {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     KafkaConsumerInfo consumerInfo = (KafkaConsumerInfo) o;
     return Objects.equals(consumerGroup, consumerInfo.consumerGroup)
         && Objects.equals(clientMetadata, consumerInfo.clientMetadata);

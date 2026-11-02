@@ -3,7 +3,6 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static com.datadog.iast.util.ObjectVisitor.State.EXIT;
 import static datadog.trace.api.iast.VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK;
-
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.Reporter;
 import com.datadog.iast.model.Evidence;
@@ -37,12 +36,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.Contract;
 
-/** Base class with utility methods for with sinks */
+/**
+ * Base class with utility methods for with sinks
+ */
 @SuppressWarnings({"UnusedReturnValue", "SameParameterValue"})
 public abstract class SinkModuleBase {
-
   private static final int MAX_EVIDENCE_LENGTH = Config.get().getIastTruncationMaxValueLength();
-
   protected final OverheadController overheadController;
   protected final Reporter reporter;
   protected final StackWalker stackWalker;
@@ -59,7 +58,10 @@ public abstract class SinkModuleBase {
 
   protected void report(@Nullable final AgentSpan span, final Vulnerability vulnerability) {
     if (!overheadController.consumeQuota(
-        Operations.REPORT_VULNERABILITY, span, vulnerability.getType())) {
+        Operations.REPORT_VULNERABILITY,
+        span,
+        vulnerability.getType()
+    )) {
       return;
     }
     reporter.report(span, vulnerability);
@@ -70,12 +72,14 @@ public abstract class SinkModuleBase {
   }
 
   protected void report(
-      @Nullable final AgentSpan span, final VulnerabilityType type, final Evidence evidence) {
+      @Nullable final AgentSpan span,
+      final VulnerabilityType type,
+      final Evidence evidence
+  ) {
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, type)) {
       return;
     }
-    final Vulnerability vulnerability =
-        new Vulnerability(type, buildLocation(span, null), evidence);
+    final Vulnerability vulnerability = new Vulnerability(type, buildLocation(span, null), evidence);
     reporter.report(span, vulnerability);
   }
 
@@ -86,13 +90,19 @@ public abstract class SinkModuleBase {
 
   @Nullable
   protected final Evidence checkInjection(
-      final VulnerabilityType type, final Object value, final LocationSupplier locationSupplier) {
+      final VulnerabilityType type,
+      final Object value,
+      final LocationSupplier locationSupplier
+  ) {
     return checkInjection(type, value, null, locationSupplier);
   }
 
   @Nullable
   protected final Evidence checkInjection(
-      final VulnerabilityType type, final Object value, final EvidenceBuilder evidenceBuilder) {
+      final VulnerabilityType type,
+      final Object value,
+      final EvidenceBuilder evidenceBuilder
+  ) {
     return checkInjection(type, value, evidenceBuilder, null);
   }
 
@@ -101,7 +111,8 @@ public abstract class SinkModuleBase {
       final VulnerabilityType type,
       final Object value,
       @Nullable final EvidenceBuilder evidenceBuilder,
-      @Nullable final LocationSupplier locationSupplier) {
+      @Nullable final LocationSupplier locationSupplier
+  ) {
     final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return null;
@@ -116,8 +127,8 @@ public abstract class SinkModuleBase {
       final VulnerabilityType type,
       Object value,
       @Nullable final EvidenceBuilder evidenceBuilder,
-      @Nullable final LocationSupplier locationSupplier) {
-
+      @Nullable final LocationSupplier locationSupplier
+  ) {
     final TaintedObjects to = ctx.getTaintedObjects();
     final Range[] valueRanges;
     if (value instanceof Taintable) {
@@ -148,7 +159,6 @@ public abstract class SinkModuleBase {
     if (valueRanges == null || valueRanges.length == 0) {
       return null;
     }
-
     // filter excluded ranges
     final Range[] filteredRanges;
     if (!type.excludedSources().isEmpty()) {
@@ -164,7 +174,6 @@ public abstract class SinkModuleBase {
     final StringBuilder evidence = new StringBuilder();
     final RangeBuilder ranges = new RangeBuilder();
     addToEvidence(type, evidence, ranges, value, filteredRanges, evidenceBuilder);
-
     // check if finally we have an injection
     if (ranges.isEmpty()) {
       return null;
@@ -182,10 +191,10 @@ public abstract class SinkModuleBase {
       @Nonnull final IastContext ctx,
       @Nullable final Range[] valueRanges,
       @Nonnull final Range[] taintedRanges,
-      @Nonnull final VulnerabilityType type) {
-    if ((valueRanges != null
-            && valueRanges.length
-                != 0) // ranges without the vulnerability mark implies vulnerability
+      @Nonnull final VulnerabilityType type
+  ) {
+    if ((valueRanges != null // ranges without the vulnerability mark implies vulnerability
+        && valueRanges.length != 0)
         || taintedRanges.length == 0 // no tainted ranges
     ) {
       return;
@@ -206,7 +215,8 @@ public abstract class SinkModuleBase {
   protected final Evidence checkInjection(
       final VulnerabilityType type,
       final Iterator<?> items,
-      final LocationSupplier locationSupplier) {
+      final LocationSupplier locationSupplier
+  ) {
     return checkInjection(type, items, null, locationSupplier);
   }
 
@@ -214,7 +224,8 @@ public abstract class SinkModuleBase {
   protected final Evidence checkInjection(
       final VulnerabilityType type,
       final Iterator<?> items,
-      final EvidenceBuilder evidenceBuilder) {
+      final EvidenceBuilder evidenceBuilder
+  ) {
     return checkInjection(type, items, evidenceBuilder, null);
   }
 
@@ -223,7 +234,8 @@ public abstract class SinkModuleBase {
       final VulnerabilityType type,
       final Iterator<?> items,
       @Nullable final EvidenceBuilder evidenceBuilder,
-      @Nullable final LocationSupplier locationSupplier) {
+      @Nullable final LocationSupplier locationSupplier
+  ) {
     final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return null;
@@ -247,7 +259,6 @@ public abstract class SinkModuleBase {
         addSecurityControlMetrics(ctx, valueRanges, tainted.getRanges(), type);
       }
       addToEvidence(type, evidence, ranges, value, valueRanges, evidenceBuilder);
-
       // in case we have an injection let's check if we can report it and exit early if not
       if (!spanFetched && valueRanges != null && valueRanges.length > 0) {
         span = AgentTracer.activeSpan();
@@ -266,7 +277,10 @@ public abstract class SinkModuleBase {
 
   @Nullable
   protected Evidence checkInjectionDeeply(
-      final VulnerabilityType type, final Object value, final Predicate<Class<?>> filter) {
+      final VulnerabilityType type,
+      final Object value,
+      final Predicate<Class<?>> filter
+  ) {
     return checkInjectionDeeply(type, value, filter, null, null);
   }
 
@@ -276,7 +290,8 @@ public abstract class SinkModuleBase {
       final VulnerabilityType type,
       final Object value,
       final Predicate<Class<?>> filter,
-      @Nullable final EvidenceBuilder evidenceBuilder) {
+      @Nullable final EvidenceBuilder evidenceBuilder
+  ) {
     return checkInjectionDeeply(type, value, filter, evidenceBuilder, null);
   }
 
@@ -286,7 +301,8 @@ public abstract class SinkModuleBase {
       final VulnerabilityType type,
       final Object value,
       final Predicate<Class<?>> filter,
-      @Nullable final LocationSupplier locationSupplier) {
+      @Nullable final LocationSupplier locationSupplier
+  ) {
     return checkInjectionDeeply(type, value, filter, null, locationSupplier);
   }
 
@@ -296,7 +312,8 @@ public abstract class SinkModuleBase {
       final Object value,
       final Predicate<Class<?>> filter,
       @Nullable final EvidenceBuilder evidenceBuilder,
-      @Nullable final LocationSupplier locationSupplier) {
+      @Nullable final LocationSupplier locationSupplier
+  ) {
     final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return null;
@@ -314,7 +331,8 @@ public abstract class SinkModuleBase {
       final VulnerabilityType type,
       final StringBuilder evidenceString,
       final RangeBuilder ranges,
-      @Nullable final LocationSupplier locationSupplier) {
+      @Nullable final LocationSupplier locationSupplier
+  ) {
     if (ranges.isEmpty()) {
       return null;
     }
@@ -331,7 +349,8 @@ public abstract class SinkModuleBase {
       final RangeBuilder ranges,
       final Object value,
       @Nullable final Range[] valueRanges,
-      @Nullable final EvidenceBuilder evidenceBuilder) {
+      @Nullable final EvidenceBuilder evidenceBuilder
+  ) {
     if (evidenceBuilder != null) {
       if (isTainted(valueRanges)) {
         evidenceBuilder.tainted(evidence, ranges, value, valueRanges);
@@ -359,7 +378,9 @@ public abstract class SinkModuleBase {
   }
 
   protected Location buildLocation(
-      @Nullable final AgentSpan span, @Nullable final LocationSupplier supplier) {
+      @Nullable final AgentSpan span,
+      @Nullable final LocationSupplier supplier
+  ) {
     if (supplier != null) {
       return supplier.build(span);
     }
@@ -372,30 +393,32 @@ public abstract class SinkModuleBase {
     // If the source mapper is enabled, we should try to map the stack trace element to the original
     // source file
     if (SourceMapperImpl.INSTANCE != null) {
-      Pair<String, Integer> pair =
-          SourceMapperImpl.INSTANCE.getFileAndLine(
-              stackTraceElement.getClassName(), stackTraceElement.getLineNumber());
+      Pair<String, Integer> pair = SourceMapperImpl.INSTANCE.getFileAndLine(
+          stackTraceElement.getClassName(),
+          stackTraceElement.getLineNumber()
+      );
       if (pair != null && pair.getLeft() != null && pair.getRight() != null) {
         return new StackTraceElement(
-            pair.getLeft(), stackTraceElement.getMethodName(), pair.getLeft(), pair.getRight());
+            pair.getLeft(),
+            stackTraceElement.getMethodName(),
+            pair.getLeft(),
+            pair.getRight()
+        );
       }
     }
     return stackTraceElement;
   }
 
   static StackTraceElement findValidPackageForVulnerability(
-      @Nonnull final Stream<StackTraceElement> stream) {
+      @Nonnull final Stream<StackTraceElement> stream
+  ) {
     final StackTraceElement[] first = new StackTraceElement[1];
-    return stream
-        .filter(
-            stack -> {
-              if (first[0] == null) {
-                first[0] = stack;
-              }
-              return IastExclusionTrie.apply(stack.getClassName()) < 1;
-            })
-        .findFirst()
-        .orElse(first[0]);
+    return stream.filter(stack -> {
+      if (first[0] == null) {
+        first[0] = stack;
+      }
+      return IastExclusionTrie.apply(stack.getClassName()) < 1;
+    }).findFirst().orElse(first[0]);
   }
 
   @Contract("null -> false")
@@ -412,7 +435,9 @@ public abstract class SinkModuleBase {
     Location build(@Nullable AgentSpan span);
   }
 
-  /** Builder instance to construct the final evidence of a vulnerability */
+  /**
+   * Builder instance to construct the final evidence of a vulnerability
+   */
   public interface EvidenceBuilder {
     void tainted(StringBuilder evidence, RangeBuilder ranges, Object value, Range[] valueRanges);
 
@@ -422,18 +447,21 @@ public abstract class SinkModuleBase {
   }
 
   private class InjectionVisitor implements ObjectVisitor.Visitor {
-
     private final IastContext ctx;
     private final VulnerabilityType type;
-    @Nullable private final EvidenceBuilder evidenceBuilder;
-    @Nullable private final LocationSupplier locationSupplier;
-    @Nullable private Evidence evidence;
+    @Nullable
+    private final EvidenceBuilder evidenceBuilder;
+    @Nullable
+    private final LocationSupplier locationSupplier;
+    @Nullable
+    private Evidence evidence;
 
     private InjectionVisitor(
         final IastContext ctx,
         final VulnerabilityType type,
         @Nullable final EvidenceBuilder evidenceBuilder,
-        @Nullable final LocationSupplier locationSupplier) {
+        @Nullable final LocationSupplier locationSupplier
+    ) {
       this.ctx = ctx;
       this.type = type;
       this.evidenceBuilder = evidenceBuilder;
@@ -444,7 +472,8 @@ public abstract class SinkModuleBase {
     @Override
     public ObjectVisitor.State visit(@Nonnull final String path, @Nonnull final Object value) {
       evidence = checkInjection(ctx, type, value, evidenceBuilder, locationSupplier);
-      return evidence != null ? EXIT : CONTINUE; // report first tainted value only
+      // report first tainted value only
+      return evidence != null ? EXIT : CONTINUE;
     }
   }
 }

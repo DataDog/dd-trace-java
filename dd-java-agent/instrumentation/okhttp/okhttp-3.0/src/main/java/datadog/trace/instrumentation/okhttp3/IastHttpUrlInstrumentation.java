@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,9 +18,9 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class IastHttpUrlInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice
+{
   private final String className = IastHttpUrlInstrumentation.class.getName();
 
   public IastHttpUrlInstrumentation() {
@@ -42,32 +41,37 @@ public class IastHttpUrlInstrumentation extends InstrumenterModule.TaintableIast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isStatic())
-            .and(named("parse"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class)),
-        className + "$ParseAdvice");
+          .and(isStatic())
+          .and(named("parse"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class)),
+        className + "$ParseAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isStatic())
-            .and(named("get"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, URL.class)),
-        className + "$ParseAdvice");
+          .and(isStatic())
+          .and(named("get"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, URL.class)),
+        className + "$ParseAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isStatic())
-            .and(named("get"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class)),
-        className + "$ParseAdvice");
+          .and(isStatic())
+          .and(named("get"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class)),
+        className + "$ParseAdvice"
+    );
   }
 
   public static class ParseAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void onParse(
-        @Advice.Argument(0) final Object arg, @Advice.Return final Object result) {
+        @Advice.Argument(0) final Object arg,
+        @Advice.Return final Object result
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         module.taintObjectIfTainted(result, arg);

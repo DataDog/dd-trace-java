@@ -3,7 +3,9 @@ package com.datadog.openfeature.internal;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import javax.annotation.Nullable;
 
-/** Thread creation and health metrics shared by the runtime components. */
+/**
+ * Thread creation and health metrics shared by the runtime components.
+ */
 public final class RuntimeServices {
   private final HealthMetrics healthMetrics;
 

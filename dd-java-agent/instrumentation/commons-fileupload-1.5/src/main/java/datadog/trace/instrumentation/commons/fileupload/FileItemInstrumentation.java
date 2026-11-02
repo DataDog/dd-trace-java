@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -20,8 +19,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.commons.fileupload.FileItem;
 
 public class FileItemInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
     return "org.apache.commons.fileupload.FileItem";
@@ -36,7 +36,8 @@ public class FileItemInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getInputStream").and(isPublic()).and(takesArguments(0)),
-        getClass().getName() + "$GetInputStreamAdvice");
+        getClass().getName() + "$GetInputStreamAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -45,7 +46,8 @@ public class FileItemInstrumentation
     public static void onExit(
         @Advice.Return final InputStream inputStream,
         @Advice.This final FileItem self,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);

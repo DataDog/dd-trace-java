@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 public class JacocoChildProcessCoverageReporter implements ChildProcessCoverageReporter {
-
   private final Supplier<byte[]> coverageDataSupplier;
 
   public JacocoChildProcessCoverageReporter(Supplier<byte[]> coverageDataSupplier) {

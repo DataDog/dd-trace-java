@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.akkahttp.appsec;
 
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
-
 import akka.http.javadsl.model.HttpHeader;
 import akka.http.javadsl.model.headers.RawHeader;
 import akka.http.scaladsl.model.ContentTypes;
@@ -23,21 +22,26 @@ import java.util.Optional;
 import scala.collection.immutable.List;
 
 public class BlockingResponseHelper {
-  private BlockingResponseHelper() {}
+  private BlockingResponseHelper() {
+  }
 
   public static HttpResponse handleFinishForWaf(final AgentSpan span, final HttpResponse response) {
     RequestContext requestContext = span.getRequestContext();
     BlockResponseFunction brf = requestContext.getBlockResponseFunction();
     if (brf instanceof AkkaBlockResponseFunction) {
-      HttpResponse altResponse = ((AkkaBlockResponseFunction) brf).maybeCreateAlternativeResponse();
+      HttpResponse altResponse = ((AkkaBlockResponseFunction) brf)
+        .maybeCreateAlternativeResponse();
       if (altResponse != null) {
         // we already blocked during the request
         return altResponse;
       }
     }
-    Flow<Void> flow =
-        DECORATE.callIGCallbackResponseAndHeaders(
-            span, response, response.status().intValue(), AkkaHttpServerHeaders.responseGetter());
+    Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+        span,
+        response,
+        response.status().intValue(),
+        AkkaHttpServerHeaders.responseGetter()
+    );
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
@@ -59,7 +63,9 @@ public class BlockingResponseHelper {
   }
 
   public static HttpResponse maybeCreateBlockingResponse(
-      Flow.Action.RequestBlockingAction rba, HttpRequest request) {
+      Flow.Action.RequestBlockingAction rba,
+      HttpRequest request
+  ) {
     if (rba == null) {
       return null;
     }
@@ -72,25 +78,27 @@ public class BlockingResponseHelper {
           BlockingActionHelper.determineTemplateType(bct, accept.map(h -> h.value()).orElse(null));
       byte[] template = BlockingActionHelper.getTemplate(tt, rba.getSecurityResponseId());
       if (tt == BlockingActionHelper.TemplateType.HTML) {
-        entity =
-            HttpEntity$.MODULE$.apply(
-                ContentTypes.text$divhtml$u0028UTF$minus8$u0029(), ByteString.fromArray(template));
-      } else { // json
-        entity =
-            HttpEntity$.MODULE$.apply(
-                ContentTypes.application$divjson(), ByteString.fromArray(template));
+        entity = HttpEntity$.MODULE$.apply(
+            ContentTypes.text$divhtml$u0028UTF$minus8$u0029(),
+            ByteString.fromArray(template)
+        );
+      } else {
+        // json
+        entity = HttpEntity$.MODULE$.apply(
+            ContentTypes.application$divjson(),
+            ByteString.fromArray(template)
+        );
       }
     } else {
       entity = HttpEntity$.MODULE$.Empty();
     }
 
-    List<akka.http.scaladsl.model.HttpHeader> headersList =
-        rba.getExtraHeaders().entrySet().stream()
-            .map(
-                e ->
-                    (akka.http.scaladsl.model.HttpHeader)
-                        RawHeader.create(e.getKey(), e.getValue()))
-            .collect(ScalaListCollector.toScalaList());
+    List<akka.http.scaladsl.model.HttpHeader> headersList = rba
+      .getExtraHeaders()
+      .entrySet()
+      .stream()
+      .map(e -> (akka.http.scaladsl.model.HttpHeader) RawHeader.create(e.getKey(), e.getValue()))
+      .collect(ScalaListCollector.toScalaList());
 
     StatusCode code;
     try {

@@ -6,7 +6,6 @@ import org.jboss.netty.handler.codec.http.HttpHeaders;
 
 @ParametersAreNonnullByDefault
 public class NettyResponseInjectAdapter implements CarrierSetter<HttpHeaders> {
-
   public static final NettyResponseInjectAdapter SETTER = new NettyResponseInjectAdapter();
 
   @Override

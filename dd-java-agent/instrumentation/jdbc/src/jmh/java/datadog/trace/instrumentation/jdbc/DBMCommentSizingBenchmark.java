@@ -34,12 +34,13 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(
     value = 3,
     jvmArgsAppend = {
-      "-Xms512m",
-      "-Xmx512m",
-      "-Ddd.service=orders",
-      "-Ddd.env=prod",
-      "-Ddd.version=1.2.3"
-    })
+    "-Xms512m",
+    "-Xmx512m",
+    "-Ddd.service=orders",
+    "-Ddd.env=prod",
+    "-Ddd.version=1.2.3"
+    }
+)
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 4, time = 1)
 @Threads(1)
@@ -47,12 +48,8 @@ import org.openjdk.jmh.annotations.Warmup;
 public class DBMCommentSizingBenchmark {
   @Param({"short_service", "short_full", "long_full", "escaped_full"})
   public String scenario;
-
-  String[] services = new String[32],
-      hosts = new String[32],
-      databases = new String[32],
-      parents = new String[32],
-      queries = new String[32];
+  String[] services = new String[32], hosts = new String[32], databases = new String[32], parents =
+      new String[32], queries = new String[32];
   int index;
 
   @Setup
@@ -61,14 +58,13 @@ public class DBMCommentSizingBenchmark {
       services[i] = "orders-db-" + i;
       hosts[i] = "db-" + i + ".internal";
       databases[i] = "orders_" + i;
-      parents[i] =
-          scenario.equals("short_service")
-              ? null
-              : "00-12345678901234567890123456789012"
-                  + String.format("%02x", i)
-                  + "-98765432109876"
-                  + String.format("%02x", i)
-                  + "-01";
+      parents[i] = scenario.equals("short_service")
+          ? null
+          : "00-12345678901234567890123456789012"
+          + String.format("%02x", i)
+          + "-98765432109876"
+          + String.format("%02x", i)
+          + "-01";
       if (scenario.equals("long_full")) {
         services[i] = repeat("service", 80) + i;
         hosts[i] = repeat("hostname", 30) + i;
@@ -78,17 +74,18 @@ public class DBMCommentSizingBenchmark {
         services[i] = repeat("café 東京 &/", 16) + i;
         databases[i] = repeat("orders '€'", 16) + i;
       }
-      queries[i] =
-          "SELECT * FROM orders WHERE customer_id = "
-              + i
-              + (scenario.equals("long_full") ? " /* " + repeat("query padding ", 280) + " */" : "")
-              + ";";
+      queries[i] = "SELECT * FROM orders WHERE customer_id = "
+          + i
+          + (scenario.equals("long_full") ? " /* " + repeat("query padding ", 280) + " */" : "")
+          + ";";
     }
   }
 
   static String repeat(String s, int n) {
     StringBuilder b = new StringBuilder();
-    for (int i = 0; i < n; i++) b.append(s);
+    for (int i = 0; i < n; i++) {
+      b.append(s);
+    }
     return b.toString();
   }
 
@@ -100,13 +97,25 @@ public class DBMCommentSizingBenchmark {
   public String buildComment() {
     int i = next();
     return SharedDBCommenter.buildComment(
-        services[i], "postgresql", hosts[i], databases[i], parents[i]);
+        services[i],
+        "postgresql",
+        hosts[i],
+        databases[i],
+        parents[i]
+    );
   }
 
   @Benchmark
   public String injectSql() {
     int i = next();
     return SQLCommenter.inject(
-        queries[i], services[i], "postgresql", hosts[i], databases[i], parents[i], false);
+        queries[i],
+        services[i],
+        "postgresql",
+        hosts[i],
+        databases[i],
+        parents[i],
+        false
+    );
   }
 }

@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.codeowners.matcher;
 
 public class RangeMatcher implements Matcher {
-
   public static final class Range {
     private final char from;
     private final char to;

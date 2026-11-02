@@ -1,7 +1,6 @@
 package datadog.trace.api.iast;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import org.junit.jupiter.api.extension.ParameterContext;
@@ -11,14 +10,15 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class IastDetectionModeTest {
-
   @TableTest({
     "scenario | mode    | expected                            ",
     "FULL     | FULL    | UNLIMITED                           ",
     "DEFAULT  | DEFAULT | DEFAULT_IAST_MAX_CONCURRENT_REQUESTS"
   })
   void testMaxConcurrentRequests(
-      IastDetectionMode mode, @ConvertWith(ConstantConverter.class) int expected) {
+      IastDetectionMode mode,
+      @ConvertWith(ConstantConverter.class) int expected
+  ) {
     ConfigProvider config = ConfigProvider.getInstance();
 
     int result = mode.getIastMaxConcurrentRequests(config);
@@ -32,7 +32,9 @@ class IastDetectionModeTest {
     "DEFAULT  | DEFAULT | DEFAULT_IAST_VULNERABILITIES_PER_REQUEST"
   })
   void testVulnerabilitiesPerRequests(
-      IastDetectionMode mode, @ConvertWith(ConstantConverter.class) int expected) {
+      IastDetectionMode mode,
+      @ConvertWith(ConstantConverter.class) int expected
+  ) {
     ConfigProvider config = ConfigProvider.getInstance();
 
     int result = mode.getIastVulnerabilitiesPerRequest(config);
@@ -59,7 +61,9 @@ class IastDetectionModeTest {
     "DEFAULT  | DEFAULT | DEFAULT_IAST_DEDUPLICATION_ENABLED"
   })
   void testDeduplication(
-      IastDetectionMode mode, @ConvertWith(ConstantConverter.class) boolean expected) {
+      IastDetectionMode mode,
+      @ConvertWith(ConstantConverter.class) boolean expected
+  ) {
     ConfigProvider config = ConfigProvider.getInstance();
 
     boolean result = mode.isIastDeduplicationEnabled(config);

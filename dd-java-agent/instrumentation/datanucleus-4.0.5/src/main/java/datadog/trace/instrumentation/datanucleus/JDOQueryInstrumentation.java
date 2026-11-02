@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DAT
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DECORATE;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.JAVA_DATANUCLEUS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -19,8 +18,9 @@ import org.datanucleus.api.jdo.JDOQuery;
 import org.datanucleus.store.query.Query;
 
 public class JDOQueryInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "org.datanucleus.api.jdo.JDOQuery";
@@ -33,19 +33,22 @@ public class JDOQueryInstrumentation
     // *Internal() to futureproof the instrumentation
     transformer.applyAdvice(
         isMethod()
-            .and(
-                namedOneOf(
-                    "execute",
-                    "executeInternal",
-                    "executeList",
-                    "executeResultList",
-                    "executeResultUnique",
-                    "executeUnique",
-                    "executeWithArray",
-                    "executeWithMap",
-                    "deletePersistentAll",
-                    "deletePersistentInternal")),
-        JDOQueryInstrumentation.class.getName() + "$QueryAdvice");
+          .and(
+              namedOneOf(
+                  "execute",
+                  "executeInternal",
+                  "executeList",
+                  "executeResultList",
+                  "executeResultUnique",
+                  "executeUnique",
+                  "executeWithArray",
+                  "executeWithMap",
+                  "deletePersistentAll",
+                  "deletePersistentInternal"
+              )
+          ),
+        JDOQueryInstrumentation.class.getName() + "$QueryAdvice"
+    );
   }
 
   public static class QueryAdvice {
@@ -56,10 +59,9 @@ public class JDOQueryInstrumentation
         return null;
       }
 
-      final AgentSpan span =
-          methodName.startsWith("execute")
-              ? startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_QUERY_EXECUTE)
-              : startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_QUERY_DELETE);
+      final AgentSpan span = methodName.startsWith("execute")
+          ? startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_QUERY_EXECUTE)
+          : startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_QUERY_DELETE);
 
       DECORATE.afterStart(span);
 
@@ -70,8 +72,8 @@ public class JDOQueryInstrumentation
     public static void endExecute(
         @Advice.Enter final ContextScope scope,
         @Advice.FieldValue("query") Query internalQuery,
-        @Advice.Thrown final Throwable throwable) {
-
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }
@@ -79,12 +81,10 @@ public class JDOQueryInstrumentation
       CallDepthThreadLocalMap.reset(JDOQuery.class);
 
       AgentSpan span = spanFromScope(scope);
-
       // candidateClass is set internally and is not always in sync with candidateClassName
-      String candidateClassName =
-          internalQuery.getCandidateClass() != null
-              ? internalQuery.getCandidateClass().getName()
-              : internalQuery.getCandidateClassName();
+      String candidateClassName = internalQuery.getCandidateClass() != null
+          ? internalQuery.getCandidateClass().getName()
+          : internalQuery.getCandidateClassName();
 
       DECORATE.setResourceFromIdOrClass(span, null, candidateClassName);
       DECORATE.onError(span, throwable);

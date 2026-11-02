@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,15 +13,17 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ConsumerCoordinatorInstrumentation() {
     super("kafka", "kafka-3.8");
   }
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
+    // since 3.8
+    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy");
   }
 
   @Override
@@ -30,10 +31,12 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
     Map<String, String> contextStores = new HashMap<>(2);
     contextStores.put(
         "org.apache.kafka.clients.Metadata",
-        "datadog.trace.instrumentation.kafka_common.MetadataState");
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
+    );
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",
-        KafkaConsumerInfo.class.getName());
+        KafkaConsumerInfo.class.getName()
+    );
     return contextStores;
   }
 
@@ -45,10 +48,10 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaConsumerInfo",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.PendingConfig",
-      "datadog.trace.instrumentation.kafka_common.MetadataState",
+        packageName + ".KafkaConsumerInfo",
+        "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+        "datadog.trace.instrumentation.kafka_common.PendingConfig",
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
     };
   }
 
@@ -56,9 +59,11 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("sendOffsetCommitRequest")).and(takesArguments(1)),
-        packageName + ".ConsumerCoordinatorAdvice");
+        packageName + ".ConsumerCoordinatorAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("onJoinComplete")).and(takesArguments(4)),
-        packageName + ".JoinGroupAdvice");
+        packageName + ".JoinGroupAdvice"
+    );
   }
 }

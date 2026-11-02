@@ -19,7 +19,6 @@ import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEn
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import org.junit.jupiter.api.Disabled;
@@ -30,13 +29,15 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 @ExtendWith(WithConfigExtension.class)
 class OtelEnvironmentConfigSourceTest {
-
   private static final String REQUEST_HEADER_TAGS_VALUE =
-      "content-type:http.request.header.content-type,custom-header:http.request.header.custom-header";
+      "content-type:http.request.header.content-type,custom-header:http.request.header."
+      + "custom-header";
   private static final String RESPONSE_HEADER_TAGS_VALUE =
-      "content-length:http.response.header.content-length,another-header:http.response.header.another-header";
+      "content-length:http.response.header.content-length,another-header:http.response."
+      + "header.another-header";
   private static final String TAGS_VALUE =
-      "key1:one,key2:two,key3:three,key4:four,key5:five,key6:six,key7:seven,key8:eight,key9:nine,key10:ten,key11:eleven,key12:twelve";
+      "key1:one,key2:two,key3:three,key4:four,key5:five,key6:six,key7:seven,key8:eight,"
+      + "key9:nine,key10:ten,key11:eleven,key12:twelve";
 
   // ignore this test when we enable the OpenTelemetry integration by default
   @Test
@@ -50,27 +51,33 @@ class OtelEnvironmentConfigSourceTest {
   @WithConfig(
       key = "otel.resource.attributes",
       value = "service.name=DEV_SERVICE",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.client.capture-request-headers",
       value = "content-type",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.client.capture-response-headers",
       value = "content-length",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.server.capture-request-headers",
       value = "custom-header",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.server.capture-response-headers",
       value = "another-header",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.javaagent.extensions",
       value = "/opt/opentelemetry/extensions",
-      addPrefix = false)
+      addPrefix = false
+  )
   void noOtelSystemPropertiesAreMappedByDefault() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
@@ -87,7 +94,8 @@ class OtelEnvironmentConfigSourceTest {
       key = "OTEL_TRACES_SAMPLER",
       value = "parentbased_traceidratio",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(key = "OTEL_TRACES_SAMPLER_ARG", value = "0.5", env = true, addPrefix = false)
   @WithConfig(key = "OTEL_TRACES_EXPORTER", value = "none", env = true, addPrefix = false)
   @WithConfig(key = "OTEL_METRICS_EXPORTER", value = "none", env = true, addPrefix = false)
@@ -96,32 +104,38 @@ class OtelEnvironmentConfigSourceTest {
       key = "OTEL_RESOURCE_ATTRIBUTES",
       value = "service.name=DEV_SERVICE",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_CLIENT_CAPTURE_REQUEST_HEADERS",
       value = "content-type",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_CLIENT_CAPTURE_RESPONSE_HEADERS",
       value = "content-length",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_HEADERS",
       value = "custom-header",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_RESPONSE_HEADERS",
       value = "another-header",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_JAVAAGENT_EXTENSIONS",
       value = "/opt/opentelemetry/extensions",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   void noOtelEnvironmentVariablesAreMappedByDefault() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
@@ -142,27 +156,33 @@ class OtelEnvironmentConfigSourceTest {
   @WithConfig(
       key = "otel.resource.attributes",
       value = "service.name=DEV_SERVICE",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.client.capture-request-headers",
       value = "content-type",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.client.capture-response-headers",
       value = "content-length",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.server.capture-request-headers",
       value = "custom-header",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.server.capture-response-headers",
       value = "another-header",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.javaagent.extensions",
       value = "/opt/opentelemetry/extensions",
-      addPrefix = false)
+      addPrefix = false
+  )
   void disablingOtelWithSystemPropertyDisablesOtelIntegration() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
@@ -180,7 +200,8 @@ class OtelEnvironmentConfigSourceTest {
       key = "OTEL_TRACES_SAMPLER",
       value = "parentbased_traceidratio",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(key = "OTEL_TRACES_SAMPLER_ARG", value = "0.5", env = true, addPrefix = false)
   @WithConfig(key = "OTEL_TRACES_EXPORTER", value = "none", env = true, addPrefix = false)
   @WithConfig(key = "OTEL_METRICS_EXPORTER", value = "none", env = true, addPrefix = false)
@@ -189,32 +210,38 @@ class OtelEnvironmentConfigSourceTest {
       key = "OTEL_RESOURCE_ATTRIBUTES",
       value = "service.name=DEV_SERVICE",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_CLIENT_CAPTURE_REQUEST_HEADERS",
       value = "content-type",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_CLIENT_CAPTURE_RESPONSE_HEADERS",
       value = "content-length",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_HEADERS",
       value = "custom-header",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_RESPONSE_HEADERS",
       value = "another-header",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_JAVAAGENT_EXTENSIONS",
       value = "/opt/opentelemetry/extensions",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   void disablingOtelWithEnvironmentVariableDisablesOtelIntegration() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
@@ -234,30 +261,35 @@ class OtelEnvironmentConfigSourceTest {
   @WithConfig(
       key = "otel.resource.attributes",
       value = "service.name=DEV_SERVICE",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.client.capture-request-headers",
       value = "content-type",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.client.capture-response-headers",
       value = "content-length",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.server.capture-request-headers",
       value = "custom-header",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.instrumentation.http.server.capture-response-headers",
       value = "another-header",
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "otel.javaagent.extensions",
       value = "/opt/opentelemetry/extensions",
-      addPrefix = false)
+      addPrefix = false
+  )
   void otelSystemPropertiesAreMappedWhenOtelIsEnabled() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
-
     // value from otel.service.name overrides the one from otel.resource.attributes
     assertEquals("TEST_SERVICE", source.get(SERVICE_NAME));
     assertEquals("xray,b3single,datadog", source.get(TRACE_PROPAGATION_STYLE));
@@ -278,7 +310,8 @@ class OtelEnvironmentConfigSourceTest {
       key = "OTEL_TRACES_SAMPLER",
       value = "parentbased_traceidratio",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(key = "OTEL_TRACES_SAMPLER_ARG", value = "0.5", env = true, addPrefix = false)
   @WithConfig(key = "OTEL_TRACES_EXPORTER", value = "none", env = true, addPrefix = false)
   @WithConfig(key = "OTEL_METRICS_EXPORTER", value = "none", env = true, addPrefix = false)
@@ -287,32 +320,38 @@ class OtelEnvironmentConfigSourceTest {
       key = "OTEL_RESOURCE_ATTRIBUTES",
       value = "service.name=DEV_SERVICE",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_CLIENT_CAPTURE_REQUEST_HEADERS",
       value = "content-type",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_CLIENT_CAPTURE_RESPONSE_HEADERS",
       value = "content-length",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_HEADERS",
       value = "custom-header",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_RESPONSE_HEADERS",
       value = "another-header",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   @WithConfig(
       key = "OTEL_JAVAAGENT_EXTENSIONS",
       value = "/opt/opentelemetry/extensions",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   void otelEnvironmentVariablesAreMappedWhenOtelIsEnabled() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
@@ -392,23 +431,23 @@ class OtelEnvironmentConfigSourceTest {
   @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   @WithConfig(
       key = "otel.resource.attributes",
-      value =
-          "key1=one,"
-              + "key2=two,"
-              + "key3=three,"
-              + "service.name=DEV_SERVICE,"
-              + "key4=four,"
-              + "key5=five,"
-              + "key6=six,"
-              + "deployment.environment.name=staging,"
-              + "key7=seven,"
-              + "key8=eight,"
-              + "key9=nine,"
-              + "service.version=42,"
-              + "key10=ten,"
-              + "key11=eleven,"
-              + "key12=twelve",
-      addPrefix = false)
+      value = "key1=one,"
+      + "key2=two,"
+      + "key3=three,"
+      + "service.name=DEV_SERVICE,"
+      + "key4=four,"
+      + "key5=five,"
+      + "key6=six,"
+      + "deployment.environment.name=staging,"
+      + "key7=seven,"
+      + "key8=eight,"
+      + "key9=nine,"
+      + "service.version=42,"
+      + "key10=ten,"
+      + "key11=eleven,"
+      + "key12=twelve",
+      addPrefix = false
+  )
   void otelResourceAttributesSystemPropertyIsMapped() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
@@ -422,24 +461,24 @@ class OtelEnvironmentConfigSourceTest {
   @WithConfig(key = "DD_TRACE_OTEL_ENABLED", value = "true", env = true, addPrefix = false)
   @WithConfig(
       key = "OTEL_RESOURCE_ATTRIBUTES",
-      value =
-          "key1=one,"
-              + "key2=two,"
-              + "key3=three,"
-              + "service.name=DEV_SERVICE,"
-              + "key4=four,"
-              + "key5=five,"
-              + "key6=six,"
-              + "deployment.environment=staging,"
-              + "key7=seven,"
-              + "key8=eight,"
-              + "key9=nine,"
-              + "service.version=42,"
-              + "key10=ten,"
-              + "key11=eleven,"
-              + "key12=twelve",
+      value = "key1=one,"
+      + "key2=two,"
+      + "key3=three,"
+      + "service.name=DEV_SERVICE,"
+      + "key4=four,"
+      + "key5=five,"
+      + "key6=six,"
+      + "deployment.environment=staging,"
+      + "key7=seven,"
+      + "key8=eight,"
+      + "key9=nine,"
+      + "service.version=42,"
+      + "key10=ten,"
+      + "key11=eleven,"
+      + "key12=twelve",
       env = true,
-      addPrefix = false)
+      addPrefix = false
+  )
   void otelResourceAttributesEnvironmentVariableIsMapped() {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
@@ -450,11 +489,10 @@ class OtelEnvironmentConfigSourceTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "deployment.environment.name=production,deployment.environment=staging",
-        "deployment.environment=staging,deployment.environment.name=production"
-      })
+  @ValueSource(strings = {
+      "deployment.environment.name=production,deployment.environment=staging",
+      "deployment.environment=staging,deployment.environment.name=production"
+  })
   @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   void namedDeploymentEnvironmentTakesPrecedenceOverLegacyAttribute(String resourceAttributes) {
     injectSysConfig("otel.resource.attributes", resourceAttributes, false);

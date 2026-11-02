@@ -8,8 +8,8 @@ public enum TrackType {
   CITESTCOV(Endpoint.CODE_COVERAGE),
   LLMOBS(Endpoint.LLMOBS),
   NOOP(null);
-
-  @Nullable public final Endpoint endpoint;
+  @Nullable
+  public final Endpoint endpoint;
 
   TrackType(Endpoint endpoint) {
     this.endpoint = endpoint;

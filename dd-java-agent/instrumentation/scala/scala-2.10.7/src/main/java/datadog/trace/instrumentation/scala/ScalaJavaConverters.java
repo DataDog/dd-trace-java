@@ -5,7 +5,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class ScalaJavaConverters {
-
   public static <E> Iterable<E> toIterable(@Nonnull final scala.collection.Iterable<E> iterable) {
     return new JavaIterable<>(iterable);
   }
@@ -24,7 +23,6 @@ public class ScalaJavaConverters {
   }
 
   public static class JavaIterable<E> implements Iterable<E> {
-
     private final scala.collection.Iterable<E> iterable;
 
     private JavaIterable(final scala.collection.Iterable<E> iterable) {
@@ -39,7 +37,6 @@ public class ScalaJavaConverters {
   }
 
   public static class JavaIterator<E> implements Iterator<E> {
-
     private final scala.collection.Iterator<E> iterator;
 
     private JavaIterator(final scala.collection.Iterator<E> iterator) {

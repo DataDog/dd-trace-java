@@ -4,7 +4,9 @@ import com.datadog.debugger.el.Literal;
 import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 
-/** Constant boolean value */
+/**
+ * Constant boolean value
+ */
 public final class BooleanValue extends Literal<Boolean> {
   public static final BooleanValue TRUE = new BooleanValue(true, ValueType.BOOLEAN);
   public static final BooleanValue FALSE = new BooleanValue(false, ValueType.BOOLEAN);

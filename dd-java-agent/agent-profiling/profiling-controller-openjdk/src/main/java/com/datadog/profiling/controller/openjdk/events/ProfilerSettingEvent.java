@@ -15,10 +15,8 @@ import jdk.jfr.StackTrace;
 public class ProfilerSettingEvent extends Event {
   @Label("Setting Name")
   private final String name;
-
   @Label("Setting Value")
   private final String value;
-
   @Label("Setting Unit")
   private final String unit;
 

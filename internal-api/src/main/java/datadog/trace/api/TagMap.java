@@ -49,24 +49,29 @@ import javax.annotation.Nullable;
  * </ul>
  */
 public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryReader>, TagStore {
-  /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
+  /**
+   * Immutable empty TagMap - similar to {@link Collections#emptyMap()}
+   */
   // Frozen view over a length-1 array: bucket masking needs a power-of-two array length (size 0
   // would fail with ArrayIndexOutOfBoundsException, size 1 works), and the private constructor
   // reads no statics, so this is safe to build directly during TagMap's <clinit>.
   public static final TagMap EMPTY = new TagMap(new Object[1], 0);
-
   // Sentinel for an ID not yet resolved by the reused EntryReadingHelper. Zero denotes an unknown
   // tag, so it cannot represent "not computed".
   static final long TAG_ID_NOT_COMPUTED = Long.MIN_VALUE;
 
-  /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
+  /**
+   * Creates a new mutable TagMap that contains the contents of <code>map</code>
+   */
   public static final TagMap fromMap(@Nonnull Map<String, ?> map) {
     TagMap tagMap = TagMap.create(map.size());
     tagMap.putAll(map);
     return tagMap;
   }
 
-  /** Creates a new immutable TagMap that contains the contents of <code>map</code> */
+  /**
+   * Creates a new immutable TagMap that contains the contents of <code>map</code>
+   */
   public static final TagMap fromMapImmutable(@Nonnull Map<String, ?> map) {
     if (map.isEmpty()) {
       return TagMap.EMPTY;
@@ -113,12 +118,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return new TagMap(parent);
   }
 
-  /** Creates a new TagMap.Ledger */
+  /**
+   * Creates a new TagMap.Ledger
+   */
   public static final Ledger ledger() {
     return new Ledger();
   }
 
-  /** Creates a new TagMap.Ledger which handles <code>size</code> modifications before expansion */
+  /**
+   * Creates a new TagMap.Ledger which handles <code>size</code> modifications before expansion
+   */
   public static final Ledger ledger(int size) {
     return new Ledger(size);
   }
@@ -160,13 +169,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public interface EntryReader {
     public static final byte OBJECT = 1;
-
     /*
      * Non-numeric primitive types
      */
     public static final byte BOOLEAN = 2;
     static final byte CHAR_RESERVED = 3;
-
     /*
      * Numeric constants - deliberately arranged to allow for checking by using type >= BYTE
      */
@@ -179,7 +186,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     String tag();
 
-    /** Returns the known ID for {@link #tag()}, or {@code 0L} for an unknown tag. */
+    /**
+     * Returns the known ID for {@link #tag()}, or {@code 0L} for an unknown tag.
+     */
     long tagId();
 
     /**
@@ -237,7 +246,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public static final class Entry extends EntryChange
-      implements Map.Entry<String, Object>, EntryReader {
+      implements Map.Entry<String, Object>,
+      EntryReader
+  {
     /*
      * Special value used for Objects that haven't been type checked yet.
      * These objects might be primitive box objects.
@@ -265,7 +276,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return isEmptyValue(value) ? null : TagMap.anyEntryFor(tag, value);
     }
 
-    /** If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null */
+    /**
+     * If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null
+     */
     @Nullable
     public static final Entry create(@Nonnull String tag, CharSequence value) {
       // NOTE: From the static typing, we know that value is not a primitive box
@@ -297,14 +310,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      * null or empty value yields no entry), without the name lookup. An id that names no known tag
      * is rejected.
      */
-
-    /** Entry for a known tag id, or null when {@code value} is null or an empty CharSequence. */
+    /**
+     * Entry for a known tag id, or null when {@code value} is null or an empty CharSequence.
+     */
     @Nullable
     public static final Entry create(long tagId, Object value) {
       return isEmptyValue(value) ? null : TagMap.Entry.newAnyEntry(tagId, value);
     }
 
-    /** Entry for a known tag id, or null when {@code value} is null or empty. */
+    /**
+     * Entry for a known tag id, or null when {@code value} is null or empty.
+     */
     @Nullable
     public static final Entry create(long tagId, CharSequence value) {
       return isEmptyValue(value) ? null : TagMap.Entry.newObjectEntry(tagId, value);
@@ -337,7 +353,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     static Entry newAnyEntry(String tag, Object value) {
       // DQH - To keep entry creation (e.g. map changes) as fast as possible,
       // the entry construction is kept as simple as possible.
-
       // Prior versions of this code did type detection on value to
       // recognize box types but that proved expensive.  So now,
       // the type is recorded as an ANY which is an indicator to do
@@ -426,7 +441,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      * tagId() is a field read. See tagHashOf.
      */
     final long tagHash;
-
     // To optimize construction of Entry around boxed primitives and Object entries,
     // no type checks are done during construction.
     // Any Object entries are initially marked as type ANY, prim set to 0, and the Object put into
@@ -434,17 +448,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     // If an ANY entry is later type checked or requested as a primitive, then the ANY will be
     // resolved
     // to the correct type.
-
     // From the outside perspective, this object remains functionally immutable.
     // However, internally, it is important to remember that this type must be thread safe.
     // That includes multiple threads racing to resolve an ANY entry at the same time.
-
     // Type and prim cannot use the same trick as hash because during ANY resolution the order of
     // writes is important
     volatile byte rawType;
     volatile long rawPrim;
     volatile Object rawObj;
-
     volatile String strCache = null;
 
     /**
@@ -467,7 +478,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.rawObj = obj;
     }
 
-    /** {@code tagId} is a known id, or 0 for the custom tag {@code customTag}. */
+    /**
+     * {@code tagId} is a known id, or 0 for the custom tag {@code customTag}.
+     */
     Entry(long tagId, String customTag, byte type, long prim, Object obj) {
       super(tagId != 0 ? KnownTagCodec.nameOf(tagId) : customTag);
       this.tagHash = tagId != 0 ? tagId : customHash(customTag);
@@ -485,13 +498,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return name;
     }
 
-    /** The tag hash a name maps to: its id when known, else its {@link #customHash}. */
+    /**
+     * The tag hash a name maps to: its id when known, else its {@link #customHash}.
+     */
     static long tagHashOf(String tag) {
       long tagId = KnownTagCodec.keyOf(tag);
       return tagId != 0 ? tagId : customHash(tag);
     }
 
-    /** A custom tag's hash: the name hash in the low 32 bits, never colliding with a tag id. */
+    /**
+     * A custom tag's hash: the name hash in the low 32 bits, never colliding with a tag id.
+     */
     static long customHash(String tag) {
       return _hash(tag) & 0xFFFFFFFFL;
     }
@@ -515,7 +532,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     static int bucketHash(long tagHash) {
       int slot = (int) (tagHash >>> 32) & 0xFFFF;
       if ((tagHash >>> 32) != 0 && slot != KnownTagCodec.NO_SLOT) {
-        int level = (int) (tagHash & KnownTagCodec.LEVEL_TRACE) << 1; // trace-level: flip bit 3
+        // trace-level: flip bit 3
+        int level = (int) (tagHash & KnownTagCodec.LEVEL_TRACE) << 1;
         return ((int) (tagHash >>> 48) << 16) | (slot ^ level);
       }
       int hash = (int) (tagHash >>> 48) ^ (int) tagHash;
@@ -583,7 +601,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     private byte resolveAny() {
       byte curType = this.rawType;
-      if (curType != ANY) return curType;
+      if (curType != ANY) {
+        return curType;
+      }
 
       Object value = this.rawObj;
       long prim;
@@ -622,7 +642,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     private void _setPrim(byte type, long prim) {
       // Order is important here, the contract is that prim must be set properly *before*
       // type is set to a non-object type
-
       this.rawPrim = prim;
       this.rawType = type;
     }
@@ -641,31 +660,25 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       if (this.rawObj != null) {
         return this.rawObj;
       }
-
       // This code doesn't need to handle ANY-s.
       // An entry that starts as an ANY will always have this.obj set
       switch (this.rawType) {
         case BOOLEAN:
           this.rawObj = prim2Boolean(this.rawPrim);
           break;
-
         case INT:
           // Maybe use a wider cache that handles response code???
           this.rawObj = prim2Int(this.rawPrim);
           break;
-
         case LONG:
           this.rawObj = prim2Long(this.rawPrim);
           break;
-
         case FLOAT:
           this.rawObj = prim2Float(this.rawPrim);
           break;
-
         case DOUBLE:
           this.rawObj = prim2Double(this.rawPrim);
           break;
-
         default:
           // DQH - satisfy spot bugs
           break;
@@ -685,7 +698,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         this._setPrim(BOOLEAN, boolean2Prim(boolValue));
         return boolValue;
       }
-
       // resolution will set prim if necessary
       byte resolvedType = this.resolveAny();
       long prim = this.rawPrim;
@@ -693,16 +705,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       switch (resolvedType) {
         case INT:
           return prim2Int(prim) != 0;
-
         case LONG:
           return prim2Long(prim) != 0L;
-
         case FLOAT:
           return prim2Float(prim) != 0F;
-
         case DOUBLE:
           return prim2Double(prim) != 0D;
-
         case OBJECT:
           return (this.rawObj != null);
       }
@@ -721,7 +729,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         this._setPrim(INT, int2Prim(intValue));
         return intValue;
       }
-
       // resolution will set prim if necessary
       byte resolvedType = this.resolveAny();
       long prim = this.rawPrim;
@@ -729,16 +736,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       switch (resolvedType) {
         case BOOLEAN:
           return prim2Boolean(prim) ? 1 : 0;
-
         case LONG:
           return (int) prim2Long(prim);
-
         case FLOAT:
           return (int) prim2Float(prim);
-
         case DOUBLE:
           return (int) prim2Double(prim);
-
         case OBJECT:
           return 0;
       }
@@ -757,7 +760,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         this._setPrim(LONG, long2Prim(longValue));
         return longValue;
       }
-
       // resolution will set prim if necessary
       byte resolvedType = this.resolveAny();
       long prim = this.rawPrim;
@@ -765,16 +767,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       switch (resolvedType) {
         case BOOLEAN:
           return prim2Boolean(prim) ? 1L : 0L;
-
         case INT:
           return prim2Int(prim);
-
         case FLOAT:
           return (long) prim2Float(prim);
-
         case DOUBLE:
           return (long) prim2Double(prim);
-
         case OBJECT:
           return 0;
       }
@@ -793,7 +791,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         this._setPrim(FLOAT, float2Prim(floatValue));
         return floatValue;
       }
-
       // resolution will set prim if necessary
       byte resolvedType = this.resolveAny();
       long prim = this.rawPrim;
@@ -801,16 +798,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       switch (resolvedType) {
         case BOOLEAN:
           return prim2Boolean(prim) ? 1F : 0F;
-
         case INT:
           return (float) prim2Int(prim);
-
         case LONG:
           return (float) prim2Long(prim);
-
         case DOUBLE:
           return (float) prim2Double(prim);
-
         case OBJECT:
           return 0F;
       }
@@ -829,7 +822,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         this._setPrim(DOUBLE, double2Prim(doubleValue));
         return doubleValue;
       }
-
       // resolution will set prim if necessary
       byte resolvedType = this.resolveAny();
       long prim = this.rawPrim;
@@ -837,16 +829,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       switch (resolvedType) {
         case BOOLEAN:
           return prim2Boolean(prim) ? 1D : 0D;
-
         case INT:
           return prim2Int(prim);
-
         case LONG:
           return (double) prim2Long(prim);
-
         case FLOAT:
           return prim2Float(prim);
-
         case OBJECT:
           return 0D;
       }
@@ -872,19 +860,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       switch (this.rawType) {
         case BOOLEAN:
           return Boolean.toString(prim2Boolean(this.rawPrim));
-
         case INT:
           return Integer.toString(prim2Int(this.rawPrim));
-
         case LONG:
           return Long.toString(prim2Long(this.rawPrim));
-
         case FLOAT:
           return Float.toString(prim2Float(this.rawPrim));
-
         case DOUBLE:
           return Double.toString(prim2Double(this.rawPrim));
-
         case OBJECT:
         case ANY:
           return this.rawObj.toString();
@@ -898,7 +881,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return this.tag() + '=' + this.stringValue();
     }
 
-    /** Deprecated in favor of{@link Entry#tag()} */
+    /**
+     * Deprecated in favor of{@link Entry#tag()}
+     */
     @Deprecated
     @Override
     public String getKey() {
@@ -934,7 +919,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     @Override
     public boolean equals(Object obj) {
-      if (!(obj instanceof TagMap.Entry)) return false;
+      if (!(obj instanceof TagMap.Entry)) {
+        return false;
+      }
 
       TagMap.Entry that = (TagMap.Entry) obj;
       return this.tag.equals(that.tag) && this.objectValue().equals(that.objectValue());
@@ -1091,11 +1078,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       String canonicalTag = KnownTagCodec.canonicalTagName(tag);
 
       EntryChange[] thisChanges = this.entryChanges;
-
       // min is to clamp, so bounds check elimination optimization works
       int lenClamp = Math.min(this.nextPos, thisChanges.length);
       for (int i = 0; i < lenClamp; ++i) {
-        if (thisChanges[i].matches(canonicalTag)) return true;
+        if (thisChanges[i].matches(canonicalTag)) {
+          return true;
+        }
       }
       return false;
     }
@@ -1106,12 +1094,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     Entry findLastEntry(String tag) {
       String canonicalTag = KnownTagCodec.canonicalTagName(tag);
       EntryChange[] thisChanges = this.entryChanges;
-
       // min is to clamp, so ArrayBoundsCheckElimination optimization works
       int clampLen = Math.min(this.nextPos, thisChanges.length) - 1;
       for (int i = clampLen; i >= 0; --i) {
         EntryChange thisChange = thisChanges[i];
-        if (!thisChange.isRemoval() && thisChange.matches(canonicalTag)) return (Entry) thisChange;
+        if (!thisChange.isRemoval() && thisChange.matches(canonicalTag)) {
+          return (Entry) thisChange;
+        }
       }
       return null;
     }
@@ -1158,7 +1147,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     static final class IteratorImpl implements Iterator<EntryChange> {
       private final EntryChange[] entryChanges;
       private final int size;
-
       private int pos;
 
       IteratorImpl(EntryChange[] entryChanges, int size) {
@@ -1175,7 +1163,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
       @Override
       public EntryChange next() {
-        if (!this.hasNext()) throw new NoSuchElementException("no next");
+        if (!this.hasNext()) {
+          throw new NoSuchElementException("no next");
+        }
 
         return this.entryChanges[++this.pos];
       }
@@ -1201,11 +1191,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be
    * removed from the collision chain.
    */
-
   final Object[] buckets;
   private int size;
   private boolean frozen;
-
   /**
    * Optional frozen parent for read-through. When non-null, reads that miss the local buckets fall
    * through to the parent chain, nearest-level-wins (a local entry shadows the parent's, a nearer
@@ -1214,8 +1202,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * final only so {@link #clear()} can detach it (to null); it is otherwise fixed at construction
    * and never re-pointed. Package-visible so same-package tests can assert attach/detach directly.
    */
-  @VisibleForTesting TagMap parent;
-
+  @VisibleForTesting
+  TagMap parent;
   /**
    * Parent keys removed locally (read-through tombstones). Lazily allocated on the first such
    * removal; {@code null} both means "no tombstones" and serves as the gate that keeps the hot
@@ -1243,7 +1231,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.parent = parent;
   }
 
-  /** Used for inexpensive immutable */
+  /**
+   * Used for inexpensive immutable
+   */
   private TagMap(Object[] buckets, int size) {
     this.buckets = buckets;
     this.size = size;
@@ -1269,14 +1259,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       for (int i = 0; i < parentBuckets.length; ++i) {
         Object parentBucket = parentBuckets[i];
         if (parentBucket instanceof Entry) {
-          if (parentEntryVisible((Entry) parentBucket, ancestor)) count++;
+          if (parentEntryVisible((Entry) parentBucket, ancestor)) {
+            count++;
+          }
         } else if (parentBucket instanceof BucketGroup) {
-          for (BucketGroup curGroup = (BucketGroup) parentBucket;
-              curGroup != null;
-              curGroup = curGroup.prev) {
+          for (BucketGroup curGroup = (BucketGroup) parentBucket; curGroup != null; curGroup = curGroup.prev) {
             for (int j = 0; j < BucketGroup.LEN; ++j) {
               Entry parentEntry = curGroup._entryAt(j);
-              if (parentEntry != null && parentEntryVisible(parentEntry, ancestor)) count++;
+              if (parentEntry != null && parentEntryVisible(parentEntry, ancestor)) {
+                count++;
+              }
             }
           }
         }
@@ -1328,25 +1320,30 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   @Deprecated
   @Override
   public Object get(Object tag) {
-    if (!(tag instanceof String)) return null;
+    if (!(tag instanceof String)) {
+      return null;
+    }
 
     return this.getObject((String) tag);
   }
 
-  /** Provides the corresponding entry value as an Object - boxing if necessary */
+  /**
+   * Provides the corresponding entry value as an Object - boxing if necessary
+   */
   public Object getObject(String tag) {
     Entry entry = this.getEntry(tag);
     return entry == null ? null : entry.objectValue();
   }
 
-  /** Provides the corresponding entry value as a String - calling toString if necessary */
+  /**
+   * Provides the corresponding entry value as a String - calling toString if necessary
+   */
   public String getString(String tag) {
     Entry entry = this.getEntry(tag);
     return entry == null ? null : entry.stringValue();
   }
 
   /* TagStore, for standalone maps handed to the pipeline: TagMap's own get and set. */
-
   @Override
   public Object load(String tag) {
     return this.getObject(tag);
@@ -1431,7 +1428,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   @Override
   public boolean containsKey(Object key) {
-    if (!(key instanceof String)) return false;
+    if (!(key instanceof String)) {
+      return false;
+    }
 
     return (this.getEntry((String) key) != null);
   }
@@ -1440,7 +1439,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public boolean containsValue(Object value) {
     // This could be optimized - but probably isn't called enough to be worth it
     for (EntryReader entryReader : this) {
-      if (entryReader.objectValue().equals(value)) return true;
+      if (entryReader.objectValue().equals(value)) {
+        return true;
+      }
     }
     return false;
   }
@@ -1477,7 +1478,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return this.getEntry(canonicalTag, tagHash);
   }
 
-  /** The entry for a known tag id, found by the id itself rather than by resolving a name. */
+  /**
+   * The entry for a known tag id, found by the id itself rather than by resolving a name.
+   */
   public Entry getEntry(long tagId) {
     return this.getEntry(Entry.requireKnownName(tagId), tagId);
   }
@@ -1496,12 +1499,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return null;
     }
     if (this.removedFromParent != null && this.removedFromParent.contains(canonicalTag)) {
-      return null; // tombstoned: removed locally, do not read through
+      // tombstoned: removed locally, do not read through
+      return null;
     }
     return parent.getEntry(canonicalTag, tagHash);
   }
 
-  /** Looks up an entry in this map's own buckets only — no read-through to the parent. */
+  /**
+   * Looks up an entry in this map's own buckets only — no read-through to the parent.
+   */
   private Entry getLocalEntry(String tag, long tagHash) {
     return HashSupport.find(this.buckets, Entry.bucketHash(tagHash), tag);
   }
@@ -1542,7 +1548,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return entry == null ? null : entry.objectValue();
   }
 
-  /** A null reader (or a reader with no entry) is a no-op. */
+  /**
+   * A null reader (or a reader with no entry) is a no-op.
+   */
   public void set(@Nullable TagMap.EntryReader newEntryReader) {
     if (newEntryReader == null) {
       return;
@@ -1592,7 +1600,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return tagId != 0 ? Entry.newDoubleEntry(tagId, value) : Entry.newDoubleEntry(tag, value);
   }
 
-  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  /**
+   * A null value removes the tag, as {@code setTag(tag, null)} does on a span.
+   */
   public void set(@Nonnull String tag, @Nullable Object value) {
     if (value == null) {
       this.getAndRemove(tag);
@@ -1606,7 +1616,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
-  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  /**
+   * A null value removes the tag, as {@code setTag(tag, null)} does on a span.
+   */
   public void set(@Nonnull String tag, @Nullable CharSequence value) {
     if (value == null) {
       this.getAndRemove(tag);
@@ -1706,7 +1718,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     public void setKnown(long tagId, boolean value) {
       this.map.putEntry(
           new Entry(
-              tagId, null, EntryReader.BOOLEAN, Entry.boolean2Prim(value), Boolean.valueOf(value)));
+              tagId,
+              null,
+              EntryReader.BOOLEAN,
+              Entry.boolean2Prim(value),
+              Boolean.valueOf(value)
+          )
+      );
     }
 
     public void setKnown(long tagId, int value) {
@@ -1726,7 +1744,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
-  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  /**
+   * A null value removes the tag, as {@code setTag(tag, null)} does on a span.
+   */
   public void set(long tagId, @Nullable Object value) {
     if (value == null) {
       this.getAndRemove(tagId);
@@ -1735,7 +1755,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.putEntry(Entry.newAnyEntry(tagId, value));
   }
 
-  /** A null value removes the tag, as {@code setTag(tag, null)} does on a span. */
+  /**
+   * A null value removes the tag, as {@code setTag(tag, null)} does on a span.
+   */
   public void set(long tagId, @Nullable CharSequence value) {
     if (value == null) {
       this.getAndRemove(tagId);
@@ -1781,7 +1803,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     Entry priorLocal = this.putEntry(newEntry);
     if (priorLocal != null) {
-      return priorLocal; // replaced a local entry -> that is the prior value
+      // replaced a local entry -> that is the prior value
+      return priorLocal;
     }
     // No local entry was replaced. The prior visible value, if any, was the parent's -- unless the
     // key was tombstoned (then it was not visible). set(...) skips this via putEntry (no prior).
@@ -1800,7 +1823,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    */
   Entry putEntry(@Nonnull Entry newEntry) {
     this.checkWriteAccess();
-
     // Re-setting a key clears any read-through tombstone for it (the new value overrides the
     // removal). Gated on the lazy field, so this is a no-op for the common no-tombstone case.
     if (this.removedFromParent != null) {
@@ -1924,7 +1946,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   @Override
   public Object remove(Object tag) {
-    if (!(tag instanceof String)) return null;
+    if (!(tag instanceof String)) {
+      return null;
+    }
 
     Entry entry = this.getAndRemove((String) tag);
     return entry == null ? null : entry.objectValue();
@@ -1936,7 +1960,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public Entry getAndRemove(String tag) {
     this.checkWriteAccess();
-
     // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
     // OpenTelemetry rename must canonicalize first to find (and tombstone) the right entry.
     long tagHash = Entry.tagHashOf(tag);
@@ -1944,7 +1967,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return this.getAndRemove(canonicalTag, tagHash);
   }
 
-  /** Removes the entry for a known tag id; see {@link #getEntry(long)}. */
+  /**
+   * Removes the entry for a known tag id; see {@link #getEntry(long)}.
+   */
   public Entry getAndRemove(long tagId) {
     this.checkWriteAccess();
 
@@ -1978,7 +2003,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return localRemoved;
   }
 
-  /** Removes an entry from this map's own buckets only — no parent/tombstone handling. */
+  /**
+   * Removes an entry from this map's own buckets only — no parent/tombstone handling.
+   */
   private Entry removeLocal(String tag, long tagHash) {
     Entry removed = HashSupport.remove(this.buckets, Entry.bucketHash(tagHash), tag);
     if (removed != null) {
@@ -2019,7 +2046,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   @Override
   public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
     HashSupport.forEach(this.buckets, consumer);
-
     // read-through: parent entries not shadowed locally or tombstoned. Kept out of line so the
     // common parent == null path stays byte-identical to before (small / inlinable).
     if (this.parent != null) {
@@ -2036,15 +2062,16 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         Object parentBucket = parentBuckets[i];
         if (parentBucket instanceof Entry) {
           Entry parentEntry = (Entry) parentBucket;
-          if (parentEntryVisible(parentEntry, ancestor)) consumer.accept(parentEntry);
+          if (parentEntryVisible(parentEntry, ancestor)) {
+            consumer.accept(parentEntry);
+          }
         } else if (parentBucket instanceof BucketGroup) {
-          for (BucketGroup curGroup = (BucketGroup) parentBucket;
-              curGroup != null;
-              curGroup = curGroup.prev) {
+          for (BucketGroup curGroup = (BucketGroup) parentBucket; curGroup != null; curGroup = curGroup.prev) {
             for (int j = 0; j < BucketGroup.LEN; ++j) {
               Entry parentEntry = curGroup._entryAt(j);
-              if (parentEntry != null && parentEntryVisible(parentEntry, ancestor))
+              if (parentEntry != null && parentEntryVisible(parentEntry, ancestor)) {
                 consumer.accept(parentEntry);
+              }
             }
           }
         }
@@ -2054,7 +2081,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
     HashSupport.forEach(this.buckets, thisObj, consumer);
-
     // read-through: parent entries not shadowed locally or tombstoned (kept out of line).
     if (this.parent != null) {
       this.forEachParent(thisObj, consumer);
@@ -2090,11 +2116,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         Object parentBucket = parentBuckets[i];
         if (parentBucket instanceof Entry) {
           Entry parentEntry = (Entry) parentBucket;
-          if (parentEntryVisible(parentEntry, ancestor)) consumer.accept(thisObj, parentEntry);
+          if (parentEntryVisible(parentEntry, ancestor)) {
+            consumer.accept(thisObj, parentEntry);
+          }
         } else if (parentBucket instanceof BucketGroup) {
-          for (BucketGroup curGroup = (BucketGroup) parentBucket;
-              curGroup != null;
-              curGroup = curGroup.prev) {
+          for (BucketGroup curGroup = (BucketGroup) parentBucket; curGroup != null; curGroup = curGroup.prev) {
             for (int j = 0; j < BucketGroup.LEN; ++j) {
               Entry parentEntry = curGroup._entryAt(j);
               if (parentEntry != null && parentEntryVisible(parentEntry, ancestor)) {
@@ -2108,9 +2134,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public <T, U> void forEach(
-      T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
+      T thisObj,
+      U otherObj,
+      TriConsumer<T, U, ? super TagMap.EntryReader> consumer
+  ) {
     HashSupport.forEach(this.buckets, thisObj, otherObj, consumer);
-
     // read-through: parent entries not shadowed locally or tombstoned (kept out of line).
     if (this.parent != null) {
       this.forEachParent(thisObj, otherObj, consumer);
@@ -2118,19 +2146,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   private <T, U> void forEachParent(
-      T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
+      T thisObj,
+      U otherObj,
+      TriConsumer<T, U, ? super TagMap.EntryReader> consumer
+  ) {
     for (TagMap ancestor = this.parent; ancestor != null; ancestor = ancestor.parent) {
       Object[] parentBuckets = ancestor.buckets;
       for (int i = 0; i < parentBuckets.length; ++i) {
         Object parentBucket = parentBuckets[i];
         if (parentBucket instanceof Entry) {
           Entry parentEntry = (Entry) parentBucket;
-          if (parentEntryVisible(parentEntry, ancestor))
+          if (parentEntryVisible(parentEntry, ancestor)) {
             consumer.accept(thisObj, otherObj, parentEntry);
+          }
         } else if (parentBucket instanceof BucketGroup) {
-          for (BucketGroup curGroup = (BucketGroup) parentBucket;
-              curGroup != null;
-              curGroup = curGroup.prev) {
+          for (BucketGroup curGroup = (BucketGroup) parentBucket; curGroup != null; curGroup = curGroup.prev) {
             for (int j = 0; j < BucketGroup.LEN; ++j) {
               Entry parentEntry = curGroup._entryAt(j);
               if (parentEntry != null && parentEntryVisible(parentEntry, ancestor)) {
@@ -2166,14 +2196,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public void checkWriteAccess() {
-    if (this.frozen) throw new IllegalStateException("TagMap frozen");
+    if (this.frozen) {
+      throw new IllegalStateException("TagMap frozen");
+    }
   }
 
   void checkIntegrity() {
     // Decided to use if ( cond ) throw new IllegalStateException rather than assert
     // That was done to avoid the extra static initialization needed for an assertion
     // While that's probably an unnecessary optimization, this method is only called in tests
-
     HashSupport.checkBuckets(this.buckets);
 
     if (this.size != this.computeSize()) {
@@ -2196,7 +2227,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   @Override
   public Object compute(
-      String key, BiFunction<? super String, ? super Object, ? extends Object> remappingFunction) {
+      String key,
+      BiFunction<? super String, ? super Object, ? extends Object> remappingFunction
+  ) {
     this.checkWriteAccess();
 
     return Map.super.compute(key, remappingFunction);
@@ -2204,7 +2237,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   @Override
   public Object computeIfAbsent(
-      String key, Function<? super String, ? extends Object> mappingFunction) {
+      String key,
+      Function<? super String, ? extends Object> mappingFunction
+  ) {
     this.checkWriteAccess();
 
     return Map.super.computeIfAbsent(key, mappingFunction);
@@ -2212,7 +2247,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   @Override
   public Object computeIfPresent(
-      String key, BiFunction<? super String, ? super Object, ? extends Object> remappingFunction) {
+      String key,
+      BiFunction<? super String, ? super Object, ? extends Object> remappingFunction
+  ) {
     this.checkWriteAccess();
 
     return Map.super.computeIfPresent(key, remappingFunction);
@@ -2254,16 +2291,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   abstract static class IteratorBase {
     private final TagMap map;
-
     // the level whose buckets are currently being walked: the leaf (map) first, then each ancestor
     // in turn (read-through union). map == level means we're on the leaf's own entries.
     private TagMap level;
     private Object[] buckets;
-
     private Entry nextEntry;
-
     private int bucketIndex = -1;
-
     private BucketGroup group = null;
     private int groupIndex = 0;
 
@@ -2274,7 +2307,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     public final boolean hasNext() {
-      if (this.nextEntry != null) return true;
+      if (this.nextEntry != null) {
+        return true;
+      }
 
       this.nextEntry = this.advance();
       return this.nextEntry != null;
@@ -2313,9 +2348,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
           if (this.level == this.map || this.map.parentEntryVisible(tagEntry, this.level)) {
             return tagEntry;
           }
-          continue; // ancestor entry shadowed/tombstoned -> skip
+          // ancestor entry shadowed/tombstoned -> skip
+          continue;
         }
-
         // current level exhausted; advance to the next ancestor's buckets (read-through union)
         if (this.level.parent != null) {
           this.level = this.level.parent;
@@ -2329,20 +2364,22 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       }
     }
 
-    /** Next raw entry in the current bucket array, ignoring shadowing/tombstones. */
+    /**
+     * Next raw entry in the current bucket array, ignoring shadowing/tombstones.
+     */
     private final Entry rawAdvance() {
       while (this.bucketIndex < this.buckets.length) {
         if (this.group != null) {
           for (++this.groupIndex; this.groupIndex < BucketGroup.LEN; ++this.groupIndex) {
             Entry tagEntry = this.group._entryAt(this.groupIndex);
-            if (tagEntry != null) return tagEntry;
+            if (tagEntry != null) {
+              return tagEntry;
+            }
           }
-
           // done processing - that group, go to next group
           this.group = this.group.prev;
           this.groupIndex = -1;
         }
-
         // if the group is null, then we've finished the current bucket - so advance the bucket
         if (this.group == null) {
           for (++this.bucketIndex; this.bucketIndex < this.buckets.length; ++this.bucketIndex) {
@@ -2387,7 +2424,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    */
   static final class BucketGroup {
     static final int LEN = 4;
-
     /*
      * To make search operations on BucketGroups fast, the hashes for each entry are held inside
      * the BucketGroup.  This avoids pointer chasing to inspect each Entry object.
@@ -2403,17 +2439,18 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     int hash1 = 0;
     int hash2 = 0;
     int hash3 = 0;
-
     Entry entry0 = null;
     Entry entry1 = null;
     Entry entry2 = null;
     Entry entry3 = null;
-
     BucketGroup prev = null;
 
-    BucketGroup() {}
+    BucketGroup() {
+    }
 
-    /** New group with an entry pointing to existing BucketGroup */
+    /**
+     * New group with an entry pointing to existing BucketGroup
+     */
     BucketGroup(int hash0, Entry entry0, BucketGroup prev) {
       this.hash0 = hash0;
       this.entry0 = entry0;
@@ -2421,7 +2458,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.prev = prev;
     }
 
-    /** New group composed of two entries */
+    /**
+     * New group composed of two entries
+     */
     BucketGroup(int hash0, Entry entry0, int hash1, Entry entry1) {
       this.hash0 = hash0;
       this.entry0 = entry0;
@@ -2430,7 +2469,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.entry1 = entry1;
     }
 
-    /** New group composed of 4 entries - used for cloning */
+    /**
+     * New group composed of 4 entries - used for cloning
+     */
     BucketGroup(
         int hash0,
         Entry entry0,
@@ -2439,7 +2480,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         int hash2,
         Entry entry2,
         int hash3,
-        Entry entry3) {
+        Entry entry3
+    ) {
       this.hash0 = hash0;
       this.entry0 = entry0;
 
@@ -2457,19 +2499,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       switch (index) {
         case 0:
           return this.entry0;
-
         case 1:
           return this.entry1;
-
         case 2:
           return this.entry2;
-
         case 3:
           return this.entry3;
-
-          // Do not use default case, that creates a 5% cost on entry handling
       }
-
+      // Do not use default case, that creates a 5% cost on entry handling
       return null;
     }
 
@@ -2477,19 +2514,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       switch (index) {
         case 0:
           return this.hash0;
-
         case 1:
           return this.hash1;
-
         case 2:
           return this.hash2;
-
         case 3:
           return this.hash3;
-
-          // Do not use default case, that creates a 5% cost on entry handling
       }
-
+      // Do not use default case, that creates a 5% cost on entry handling
       return 0;
     }
 
@@ -2510,7 +2542,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     boolean isEmptyChain() {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        if (!curGroup._isEmpty()) return false;
+        if (!curGroup._isEmpty()) {
+          return false;
+        }
       }
       return true;
     }
@@ -2521,7 +2555,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     BucketGroup findContainingGroupInChain(int hash, String tag) {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        if (curGroup._find(hash, tag) != null) return curGroup;
+        if (curGroup._find(hash, tag) != null) {
+          return curGroup;
+        }
       }
       return null;
     }
@@ -2529,14 +2565,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     Entry findInChain(int hash, String tag) {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
         Entry curEntry = curGroup._find(hash, tag);
-        if (curEntry != null) return curEntry;
+        if (curEntry != null) {
+          return curEntry;
+        }
       }
       return null;
     }
 
     Entry _find(int hash, String tag) {
       // if ( this._mayContain(hash) ) return null;
-
       if (this.hash0 == hash && this.entry0.matches(tag)) {
         return this.entry0;
       } else if (this.hash1 == hash && this.entry1.matches(tag)) {
@@ -2553,36 +2590,28 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       BucketGroup thisOrigHeadGroup = this;
       BucketGroup thisNewestHeadGroup = thisOrigHeadGroup;
 
-      for (BucketGroup thatCurGroup = thatHeadGroup;
+      for (
+          BucketGroup thatCurGroup = thatHeadGroup;
           thatCurGroup != null;
           thatCurGroup = thatCurGroup.prev) {
         // First phase - tries to replace or insert each entry in the existing bucket chain
         // Only need to search the original groups for replacements
         // The whole chain is eligible for insertions
-        boolean handled0 =
-            (thatCurGroup.hash0 == 0)
-                || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash0, thatCurGroup.entry0)
-                    != null)
-                || thisNewestHeadGroup.insertInChain(thatCurGroup.hash0, thatCurGroup.entry0);
+        boolean handled0 = (thatCurGroup.hash0 == 0)
+            || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash0, thatCurGroup.entry0) != null)
+            || thisNewestHeadGroup.insertInChain(thatCurGroup.hash0, thatCurGroup.entry0);
 
-        boolean handled1 =
-            (thatCurGroup.hash1 == 0)
-                || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash1, thatCurGroup.entry1)
-                    != null)
-                || thisNewestHeadGroup.insertInChain(thatCurGroup.hash1, thatCurGroup.entry1);
+        boolean handled1 = (thatCurGroup.hash1 == 0)
+            || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash1, thatCurGroup.entry1) != null)
+            || thisNewestHeadGroup.insertInChain(thatCurGroup.hash1, thatCurGroup.entry1);
 
-        boolean handled2 =
-            (thatCurGroup.hash2 == 0)
-                || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash2, thatCurGroup.entry2)
-                    != null)
-                || thisNewestHeadGroup.insertInChain(thatCurGroup.hash2, thatCurGroup.entry2);
+        boolean handled2 = (thatCurGroup.hash2 == 0)
+            || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash2, thatCurGroup.entry2) != null)
+            || thisNewestHeadGroup.insertInChain(thatCurGroup.hash2, thatCurGroup.entry2);
 
-        boolean handled3 =
-            (thatCurGroup.hash3 == 0)
-                || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash3, thatCurGroup.entry3)
-                    != null)
-                || thisNewestHeadGroup.insertInChain(thatCurGroup.hash3, thatCurGroup.entry3);
-
+        boolean handled3 = (thatCurGroup.hash3 == 0)
+            || (thisOrigHeadGroup.replaceInChain(thatCurGroup.hash3, thatCurGroup.entry3) != null)
+            || thisNewestHeadGroup.insertInChain(thatCurGroup.hash3, thatCurGroup.entry3);
         // Second phase - takes any entries that weren't handled by phase 1 and puts them
         // into a new BucketGroup.  Since BucketGroups are fixed size, we know that the
         // left over entries from one BucketGroup will fit in the new BucketGroup.
@@ -2621,14 +2650,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     Entry replaceInChain(int hash, Entry entry) {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
         Entry prevEntry = curGroup._replace(hash, entry);
-        if (prevEntry != null) return prevEntry;
+        if (prevEntry != null) {
+          return prevEntry;
+        }
       }
       return null;
     }
 
     Entry _replace(int hash, Entry entry) {
       // if ( this._mayContain(hash) ) return null;
-
       // first check to see if the item is already present
       Entry prevEntry = null;
       if (this.hash0 == hash && this.entry0.matches(entry.tag)) {
@@ -2650,7 +2680,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     boolean insertInChain(int hash, Entry entry) {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
-        if (curGroup._insert(hash, entry)) return true;
+        if (curGroup._insert(hash, entry)) {
+          return true;
+        }
       }
       return false;
     }
@@ -2687,7 +2719,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         return firstGroup.prev;
       }
 
-      for (BucketGroup priorGroup = firstGroup, curGroup = priorGroup.prev;
+      for (
+          BucketGroup priorGroup = firstGroup, curGroup = priorGroup.prev;
           curGroup != null;
           priorGroup = curGroup, curGroup = priorGroup.prev) {
         if (curGroup == removeGroup) {
@@ -2730,10 +2763,18 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     void _forEach(Consumer<? super EntryReader> consumer) {
-      if (this.entry0 != null) consumer.accept(this.entry0);
-      if (this.entry1 != null) consumer.accept(this.entry1);
-      if (this.entry2 != null) consumer.accept(this.entry2);
-      if (this.entry3 != null) consumer.accept(this.entry3);
+      if (this.entry0 != null) {
+        consumer.accept(this.entry0);
+      }
+      if (this.entry1 != null) {
+        consumer.accept(this.entry1);
+      }
+      if (this.entry2 != null) {
+        consumer.accept(this.entry2);
+      }
+      if (this.entry3 != null) {
+        consumer.accept(this.entry3);
+      }
     }
 
     <T> void forEachInChain(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
@@ -2743,24 +2784,43 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     <T> void _forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
-      if (this.entry0 != null) consumer.accept(thisObj, this.entry0);
-      if (this.entry1 != null) consumer.accept(thisObj, this.entry1);
-      if (this.entry2 != null) consumer.accept(thisObj, this.entry2);
-      if (this.entry3 != null) consumer.accept(thisObj, this.entry3);
+      if (this.entry0 != null) {
+        consumer.accept(thisObj, this.entry0);
+      }
+      if (this.entry1 != null) {
+        consumer.accept(thisObj, this.entry1);
+      }
+      if (this.entry2 != null) {
+        consumer.accept(thisObj, this.entry2);
+      }
+      if (this.entry3 != null) {
+        consumer.accept(thisObj, this.entry3);
+      }
     }
 
     <T, U> void forEachInChain(
-        T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+        T thisObj,
+        U otherObj,
+        TriConsumer<T, U, ? super EntryReader> consumer
+    ) {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
         curGroup._forEach(thisObj, otherObj, consumer);
       }
     }
 
     <T, U> void _forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
-      if (this.entry0 != null) consumer.accept(thisObj, otherObj, this.entry0);
-      if (this.entry1 != null) consumer.accept(thisObj, otherObj, this.entry1);
-      if (this.entry2 != null) consumer.accept(thisObj, otherObj, this.entry2);
-      if (this.entry3 != null) consumer.accept(thisObj, otherObj, this.entry3);
+      if (this.entry0 != null) {
+        consumer.accept(thisObj, otherObj, this.entry0);
+      }
+      if (this.entry1 != null) {
+        consumer.accept(thisObj, otherObj, this.entry1);
+      }
+      if (this.entry2 != null) {
+        consumer.accept(thisObj, otherObj, this.entry2);
+      }
+      if (this.entry3 != null) {
+        consumer.accept(thisObj, otherObj, this.entry3);
+      }
     }
 
     void fillMapFromChain(Map<? super String, ? super Object> map) {
@@ -2771,16 +2831,24 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     void _fillMap(Map<? super String, ? super Object> map) {
       Entry entry0 = this.entry0;
-      if (entry0 != null) map.put(entry0.tag, entry0.objectValue());
+      if (entry0 != null) {
+        map.put(entry0.tag, entry0.objectValue());
+      }
 
       Entry entry1 = this.entry1;
-      if (entry1 != null) map.put(entry1.tag, entry1.objectValue());
+      if (entry1 != null) {
+        map.put(entry1.tag, entry1.objectValue());
+      }
 
       Entry entry2 = this.entry2;
-      if (entry2 != null) map.put(entry2.tag, entry2.objectValue());
+      if (entry2 != null) {
+        map.put(entry2.tag, entry2.objectValue());
+      }
 
       Entry entry3 = this.entry3;
-      if (entry3 != null) map.put(entry3.tag, entry3.objectValue());
+      if (entry3 != null) {
+        map.put(entry3.tag, entry3.objectValue());
+      }
     }
 
     void fillStringMapFromChain(Map<? super String, ? super String> map) {
@@ -2791,16 +2859,24 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     void _fillStringMap(Map<? super String, ? super String> map) {
       Entry entry0 = this.entry0;
-      if (entry0 != null) map.put(entry0.tag, entry0.stringValue());
+      if (entry0 != null) {
+        map.put(entry0.tag, entry0.stringValue());
+      }
 
       Entry entry1 = this.entry1;
-      if (entry1 != null) map.put(entry1.tag, entry1.stringValue());
+      if (entry1 != null) {
+        map.put(entry1.tag, entry1.stringValue());
+      }
 
       Entry entry2 = this.entry2;
-      if (entry2 != null) map.put(entry2.tag, entry2.stringValue());
+      if (entry2 != null) {
+        map.put(entry2.tag, entry2.stringValue());
+      }
 
       Entry entry3 = this.entry3;
-      if (entry3 != null) map.put(entry3.tag, entry3.stringValue());
+      if (entry3 != null) {
+        map.put(entry3.tag, entry3.stringValue());
+      }
     }
 
     BucketGroup cloneChain() {
@@ -2819,10 +2895,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     BucketGroup _cloneEntries() {
       return new BucketGroup(
-          this.hash0, this.entry0,
-          this.hash1, this.entry1,
-          this.hash2, this.entry2,
-          this.hash3, this.entry3);
+          this.hash0,
+          this.entry0,
+          this.hash1,
+          this.entry1,
+          this.hash2,
+          this.entry2,
+          this.hash3,
+          this.entry3
+      );
     }
 
     @Override
@@ -2830,7 +2911,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       StringBuilder ledger = new StringBuilder(32);
       ledger.append('[');
       for (int i = 0; i < BucketGroup.LEN; ++i) {
-        if (i != 0) ledger.append(", ");
+        if (i != 0) {
+          ledger.append(", ");
+        }
 
         ledger.append(this._entryAt(i));
       }
@@ -2953,14 +3036,16 @@ final class EntryReadingHelper implements TagMap.EntryReader {
     this.mapEntry = null;
     this.tag = tag;
     this.value = value;
-    this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
+    // resolve lazily via keyOf on first tagId() access
+    this.tagId = TagMap.TAG_ID_NOT_COMPUTED;
   }
 
   void set(Map.Entry<String, Object> mapEntry) {
     this.mapEntry = mapEntry;
     this.tag = mapEntry.getKey();
     this.value = mapEntry.getValue();
-    this.tagId = TagMap.TAG_ID_NOT_COMPUTED; // resolve lazily via keyOf on first tagId() access
+    // resolve lazily via keyOf on first tagId() access
+    this.tagId = TagMap.TAG_ID_NOT_COMPUTED;
   }
 
   @Override
@@ -2971,7 +3056,9 @@ final class EntryReadingHelper implements TagMap.EntryReader {
   @Override
   public long tagId() {
     long id = this.tagId;
-    if (id != TagMap.TAG_ID_NOT_COMPUTED) return id;
+    if (id != TagMap.TAG_ID_NOT_COMPUTED) {
+      return id;
+    }
 
     id = KnownTagCodec.keyOf(this.tag);
     this.tagId = id;
@@ -3051,7 +3138,8 @@ final class EntryReadingHelper implements TagMap.EntryReader {
 }
 
 final class TagValueConversions {
-  TagValueConversions() {}
+  TagValueConversions() {
+  }
 
   static byte typeOf(Object value) {
     if (value instanceof Integer) {
@@ -3078,22 +3166,16 @@ final class TagValueConversions {
     switch (type) {
       case TagMap.EntryReader.BOOLEAN:
         return (value instanceof Boolean);
-
       case TagMap.EntryReader.INT:
         return (value instanceof Integer) || (value instanceof Short) || (value instanceof Byte);
-
       case TagMap.EntryReader.LONG:
         return (value instanceof Long);
-
       case TagMap.EntryReader.FLOAT:
         return (value instanceof Float);
-
       case TagMap.EntryReader.DOUBLE:
         return (value instanceof Double);
-
       case TagMap.EntryReader.OBJECT:
         return true;
-
       default:
         return false;
     }
@@ -3113,15 +3195,13 @@ final class TagValueConversions {
   }
 
   static boolean isObject(Object value) {
-    boolean isSupportedPrimitive =
-        (value instanceof Integer)
-            || (value instanceof Long)
-            || (value instanceof Double)
-            || (value instanceof Float)
-            || (value instanceof Boolean)
-            || (value instanceof Short)
-            || (value instanceof Byte);
-
+    boolean isSupportedPrimitive = (value instanceof Integer)
+        || (value instanceof Long)
+        || (value instanceof Double)
+        || (value instanceof Float)
+        || (value instanceof Boolean)
+        || (value instanceof Short)
+        || (value instanceof Byte);
     // NOTE: Character is just treated as Object
     return !isSupportedPrimitive;
   }
@@ -3137,7 +3217,6 @@ final class TagValueConversions {
       // NOTE: This cannot be intValue() because intValue of larger types is 0 when
       // the actual value would be less than Integer.MIN_VALUE or for floating point
       // types is very close to zero, so using doubleValue instead.
-
       // While this is a bit ugly, coerced toBoolean is uncommon
       return ((Number) value).doubleValue() != 0D;
     } else {

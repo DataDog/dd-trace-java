@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,8 +23,9 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public JUnit5Instrumentation() {
     super("ci-visibility", "junit-5");
   }
@@ -38,10 +38,10 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        // JUnit 4 has a dedicated instrumentation
-        .and(not(named("org.junit.vintage.engine.VintageTestEngine")))
-        // suites are only used to organize other test engines
-        .and(not(named("org.junit.platform.suite.engine.SuiteTestEngine")));
+      // JUnit 4 has a dedicated instrumentation
+      .and(not(named("org.junit.vintage.engine.VintageTestEngine")))
+      // suites are only used to organize other test engines
+      .and(not(named("org.junit.platform.suite.engine.SuiteTestEngine")));
   }
 
   @Override
@@ -53,13 +53,15 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("discover")
-            .and(
-                takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
-                    .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))),
-        JUnit5Instrumentation.class.getName() + "$ContextStoreAdvice");
+          .and(takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
+            .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))
+          ),
+        JUnit5Instrumentation.class.getName() + "$ContextStoreAdvice"
+    );
     transformer.applyAdvice(
         named("execute").and(takesArgument(0, named("org.junit.platform.engine.ExecutionRequest"))),
-        JUnit5Instrumentation.class.getName() + "$JUnit5Advice");
+        JUnit5Instrumentation.class.getName() + "$JUnit5Advice"
+    );
   }
 
   public static class ContextStoreAdvice {
@@ -68,7 +70,10 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
       ContextStore<TestDescriptor, Object> contextStore =
           InstrumentationContext.get(TestDescriptor.class, Object.class);
       TestEventsHandlerHolder.start(
-          testEngine, (ContextStore) contextStore, (ContextStore) contextStore);
+          testEngine,
+          (ContextStore) contextStore,
+          (ContextStore) contextStore
+      );
     }
   }
 
@@ -76,7 +81,8 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
     @Advice.OnMethodEnter
     public static void addTracingListener(
         @Advice.This TestEngine testEngine,
-        @Advice.Argument(value = 0, readOnly = false) ExecutionRequest executionRequest) {
+        @Advice.Argument(value = 0, readOnly = false) ExecutionRequest executionRequest
+    ) {
       if (JUnitPlatformUtils.engineToFramework(testEngine) != TestFrameworkInstrumentation.JUNIT5) {
         // Cucumber and Spock have dedicated instrumentations.
         // We can only filter out calls to their engines at runtime,
@@ -99,8 +105,10 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
       EngineExecutionListener originalListener = executionRequest.getEngineExecutionListener();
       EngineExecutionListener compositeListener =
           new CompositeEngineListener(tracingListener, originalListener);
-      executionRequest =
-          ExecutionRequestFactory.createExecutionRequest(executionRequest, compositeListener);
+      executionRequest = ExecutionRequestFactory.createExecutionRequest(
+          executionRequest,
+          compositeListener
+      );
     }
 
     // JUnit 5.3.0 and above

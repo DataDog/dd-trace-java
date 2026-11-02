@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.trace.api.EndpointTracker;
@@ -32,7 +31,6 @@ import org.junit.jupiter.api.Test;
  * synchronous construction, and process context registration ownership.
  */
 class DeferredProfilingContextIntegrationTest {
-
   @BeforeEach
   void reset() {
     FakeDatadogProfilingIntegration.constructions.set(0);
@@ -53,7 +51,6 @@ class DeferredProfilingContextIntegrationTest {
 
     ProfilingContextIntegration integration =
         Agent.deferDdprofContextIntegration(fakeProfilingClassLoader());
-
     // nothing was constructed synchronously on this (premain) thread
     assertNotNull(integration);
     assertEquals(0, FakeDatadogProfilingIntegration.constructions.get());
@@ -67,7 +64,8 @@ class DeferredProfilingContextIntegrationTest {
     FakeDatadogProfilingIntegration.gate.countDown();
     assertTrue(
         FakeProcessContext.registered.await(30, TimeUnit.SECONDS),
-        "deferred construction never ran");
+        "deferred construction never ran"
+    );
     // the deferred work happened, and it happened on another thread
     assertEquals(1, FakeDatadogProfilingIntegration.constructions.get());
     assertEquals(1, FakeProcessContext.registrations.get());
@@ -107,7 +105,6 @@ class DeferredProfilingContextIntegrationTest {
 
     assertSame(FakeDatadogProfilingIntegration.STATE, deferred.newScopeState(null));
     assertEquals("ddprof", deferred.name());
-
     // every other pass-through method must reach the swapped-in delegate too, not just
     // newScopeState/name: each is a distinct code path in DeferredProfilingContextIntegration.
     deferred.onAttach();
@@ -128,7 +125,6 @@ class DeferredProfilingContextIntegrationTest {
   void forwardsVirtualThreadContextBindingOnceInitialized() {
     DeferredProfilingContextIntegration deferred =
         new DeferredProfilingContextIntegration("ddprof", FakeDatadogProfilingIntegration::new);
-
     // before the swap the wrapper uses the interface defaults
     assertFalse(deferred.isThreadContextBindingRequired());
     deferred.setContext(Context.root());
@@ -145,11 +141,9 @@ class DeferredProfilingContextIntegrationTest {
   @Test
   void staysNoOpWhenTheDeferredConstructionFails() {
     DeferredProfilingContextIntegration deferred =
-        new DeferredProfilingContextIntegration(
-            "ddprof",
-            () -> {
-              throw new UnsatisfiedLinkError("no native library here");
-            });
+        new DeferredProfilingContextIntegration("ddprof", () -> {
+      throw new UnsatisfiedLinkError("no native library here");
+    });
 
     deferred.initialize();
 
@@ -186,7 +180,6 @@ class DeferredProfilingContextIntegrationTest {
 
     deferred.initialize();
     assertEquals(1, callbacks.get());
-
     // registering after the swap runs the callback straight away, without waiting for anything
     deferred.whenAvailable(callbacks::incrementAndGet);
     assertEquals(2, callbacks.get());
@@ -195,11 +188,9 @@ class DeferredProfilingContextIntegrationTest {
   @Test
   void availabilityCallbacksNeverRunWhenTheDeferredConstructionFails() {
     DeferredProfilingContextIntegration deferred =
-        new DeferredProfilingContextIntegration(
-            "ddprof",
-            () -> {
-              throw new UnsatisfiedLinkError("no native library here");
-            });
+        new DeferredProfilingContextIntegration("ddprof", () -> {
+      throw new UnsatisfiedLinkError("no native library here");
+    });
     AtomicInteger callbacks = new AtomicInteger();
 
     deferred.whenAvailable(callbacks::incrementAndGet);
@@ -234,15 +225,13 @@ class DeferredProfilingContextIntegrationTest {
   }
 
   public static final class FakeDatadogProfilingIntegration implements ProfilingContextIntegration {
-    static final Stateful STATE =
-        new Stateful() {
-          @Override
-          public void close() {}
+    static final Stateful STATE = new Stateful() {
+      @Override
+      public void close() {}
 
-          @Override
-          public void activate(final Object context) {}
-        };
-
+      @Override
+      public void activate(final Object context) {}
+    };
     static final AtomicInteger constructions = new AtomicInteger();
     static final AtomicReference<Thread> constructionThread = new AtomicReference<>();
     static volatile CountDownLatch gate = new CountDownLatch(0);

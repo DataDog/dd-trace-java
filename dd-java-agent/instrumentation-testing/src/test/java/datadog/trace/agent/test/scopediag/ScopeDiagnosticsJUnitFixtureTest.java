@@ -1,7 +1,6 @@
 package datadog.trace.agent.test.scopediag;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-
 import datadog.context.ContextContinuation;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class ScopeDiagnosticsJUnitFixtureTest extends AbstractInstrumentationTest {
-
   static {
     ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST);
   }
@@ -41,7 +39,8 @@ class ScopeDiagnosticsJUnitFixtureTest extends AbstractInstrumentationTest {
     ContextContinuation continuation = tracer.capture(span);
     assertFalse(
         ScopeDiagnostics.report().records().isEmpty(),
-        "suite fixture continuation should be recorded");
+        "suite fixture continuation should be recorded"
+    );
     continuation.release();
     span.finish();
   }

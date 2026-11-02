@@ -11,18 +11,23 @@ public class PrioritySampling {
    * <p>Internal value used when the priority sampling flag has not been set on the span context.
    */
   public static final int UNSET = Integer.MIN_VALUE;
-
-  /** The sampler has decided to drop the trace. */
+  /**
+   * The sampler has decided to drop the trace.
+   */
   public static final int SAMPLER_DROP = 0;
-
-  /** The sampler has decided to keep the trace. */
+  /**
+   * The sampler has decided to keep the trace.
+   */
   public static final int SAMPLER_KEEP = 1;
-
-  /** The user has decided to drop the trace. */
+  /**
+   * The user has decided to drop the trace.
+   */
   public static final int USER_DROP = -1;
-
-  /** The user has decided to keep the trace. */
+  /**
+   * The user has decided to keep the trace.
+   */
   public static final int USER_KEEP = 2;
 
-  private PrioritySampling() {}
+  private PrioritySampling() {
+  }
 }

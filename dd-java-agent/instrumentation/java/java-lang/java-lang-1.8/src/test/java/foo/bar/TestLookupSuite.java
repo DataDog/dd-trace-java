@@ -7,12 +7,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestLookupSuite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestLookupSuite.class);
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
   public static void findSetter(
-      final Class<?> clazz, final String method, final Class<?> fieldsType) {
+      final Class<?> clazz,
+      final String method,
+      final Class<?> fieldsType
+  ) {
     LOGGER.debug("Before findSetter");
     final MethodHandle result;
     try {
@@ -24,7 +26,10 @@ public class TestLookupSuite {
   }
 
   public static void findStaticSetter(
-      final Class<?> clazz, final String method, final Class<?> fieldsType) {
+      final Class<?> clazz,
+      final String method,
+      final Class<?> fieldsType
+  ) {
     LOGGER.debug("Before findStaticSetter");
     final MethodHandle result;
     try {
@@ -36,7 +41,10 @@ public class TestLookupSuite {
   }
 
   public static void findGetter(
-      final Class<?> clazz, final String method, final Class<?> fieldsType) {
+      final Class<?> clazz,
+      final String method,
+      final Class<?> fieldsType
+  ) {
     LOGGER.debug("Before findGetter");
     final MethodHandle result;
     try {
@@ -48,7 +56,10 @@ public class TestLookupSuite {
   }
 
   public static void findStaticGetter(
-      final Class<?> clazz, final String method, final Class<?> fieldsType) {
+      final Class<?> clazz,
+      final String method,
+      final Class<?> fieldsType
+  ) {
     LOGGER.debug("Before findStaticGetter");
     final MethodHandle result;
     try {
@@ -71,7 +82,10 @@ public class TestLookupSuite {
   }
 
   public static void findSpecial(
-      final Class<?> clazz, final String method, final MethodType methodType) {
+      final Class<?> clazz,
+      final String method,
+      final MethodType methodType
+  ) {
     LOGGER.debug("Before findSpecial");
     final MethodHandle result;
     try {
@@ -83,7 +97,10 @@ public class TestLookupSuite {
   }
 
   public static void findStatic(
-      final Class<?> clazz, final String method, final MethodType methodType) {
+      final Class<?> clazz,
+      final String method,
+      final MethodType methodType
+  ) {
     LOGGER.debug("Before findStatic");
     final MethodHandle result;
     try {
@@ -95,7 +112,10 @@ public class TestLookupSuite {
   }
 
   public static void findVirtual(
-      final Class<?> clazz, final String method, final MethodType methodType) {
+      final Class<?> clazz,
+      final String method,
+      final MethodType methodType
+  ) {
     LOGGER.debug("Before findVirtual");
     final MethodHandle result;
     try {

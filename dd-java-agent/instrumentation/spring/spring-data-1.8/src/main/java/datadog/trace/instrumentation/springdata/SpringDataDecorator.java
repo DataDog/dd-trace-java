@@ -1,10 +1,8 @@
 // This file includes software developed at SignalFx
-
 package datadog.trace.instrumentation.springdata;
 
 import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin;
 import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -39,7 +37,10 @@ public final class SpringDataDecorator extends ClientDecorator {
   }
 
   public void onOperation(
-      final AgentSpan span, final Method method, @Nullable final Class<?> repositoryIntf) {
+      final AgentSpan span,
+      final Method method,
+      @Nullable final Class<?> repositoryIntf
+  ) {
     assert span != null;
     assert method != null;
     if (repositoryIntf != null && Config.get().isSpringDataRepositoryInterfaceResourceName()) {

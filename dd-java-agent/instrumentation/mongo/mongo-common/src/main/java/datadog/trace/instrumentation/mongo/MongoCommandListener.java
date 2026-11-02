@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
 import com.mongodb.ServerAddress;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.event.CommandFailedEvent;
@@ -43,7 +42,6 @@ public final class MongoCommandListener implements CommandListener {
 
   private static final DDCache<String, UTF8BytesString> COMMAND_NAMES =
       DDCaches.newUnboundedCache(16);
-
   private final Map<Integer, SpanEntry> spanMap = new ConcurrentHashMap<>();
   private final ContextStore<BsonDocument, ByteBuf> byteBufAccessor;
   private final MongoDecorator decorator;
@@ -59,7 +57,8 @@ public final class MongoCommandListener implements CommandListener {
       int priority,
       MongoDecorator decorator,
       ContextStore<BsonDocument, ByteBuf> byteBufAccessor,
-      ContextStore<ConnectionDescription, CommandListener> listenerAccessor) {
+      ContextStore<ConnectionDescription, CommandListener> listenerAccessor
+  ) {
     this.priority = priority;
     this.decorator = decorator;
     this.byteBufAccessor = byteBufAccessor;
@@ -90,7 +89,9 @@ public final class MongoCommandListener implements CommandListener {
    * @return the registered instance or {@literal null}
    */
   public static MongoCommandListener tryRegister(
-      MongoCommandListener listener, List<CommandListener> listeners) {
+      MongoCommandListener listener,
+      List<CommandListener> listeners
+  ) {
     // Short circuit if the list is empty. Extra code > extra objects
     if (listeners.isEmpty()) {
       listeners.add(listener);
@@ -112,7 +113,6 @@ public final class MongoCommandListener implements CommandListener {
         }
       }
     }
-
     // This is the first MongoCommandListener so add it
     listeners.add(listener);
     return listener;
@@ -123,7 +123,6 @@ public final class MongoCommandListener implements CommandListener {
     if (listenerAccessor != null) {
       listenerAccessor.getOrPut(event.getConnectionDescription(), this);
     }
-
     // If DBM comment injection is enabled, the span is created on the connection instrumentation
     // this is required because the comment injection needs to happen before the command is sent
     AgentSpan span = activeSpan();
@@ -148,11 +147,13 @@ public final class MongoCommandListener implements CommandListener {
         // cannot use onPeerConnection because ServerAddress.getSocketAddress()
         // may do a DNS lookup
         ServerAddress serverAddress = event.getConnectionDescription().getServerAddress();
-        span.setTag(Tags.PEER_HOSTNAME, serverAddress.getHost())
-            .setTag(Tags.PEER_PORT, serverAddress.getPort())
-            .setTag(
-                Tags.DB_OPERATION,
-                COMMAND_NAMES.computeIfAbsent(event.getCommandName(), UTF8_ENCODE));
+        span
+          .setTag(Tags.PEER_HOSTNAME, serverAddress.getHost())
+          .setTag(Tags.PEER_PORT, serverAddress.getPort())
+          .setTag(
+              Tags.DB_OPERATION,
+              COMMAND_NAMES.computeIfAbsent(event.getCommandName(), UTF8_ENCODE)
+          );
       }
       decorator.onStatement(span, event.getCommand(), byteBufAccessor);
       spanMap.put(event.getRequestId(), new SpanEntry(span));

@@ -73,20 +73,19 @@ public class RequestHelper {
         } else if (COPY != null) {
           RequestHeader header = request;
           try {
-            newHeader =
-                (RequestHeader)
-                    COPY.invokeExact(
-                        header,
-                        header.id(),
-                        header.tags().updated(key, value),
-                        header.uri(),
-                        header.path(),
-                        header.method(),
-                        header.version(),
-                        header.queryString(),
-                        header.headers(),
-                        (Function0) SFunction0.from(header::remoteAddress),
-                        (Function0) SFunction0.from(header::secure));
+            newHeader = (RequestHeader) COPY.invokeExact(
+                header,
+                header.id(),
+                header.tags().updated(key, value),
+                header.uri(),
+                header.path(),
+                header.method(),
+                header.version(),
+                header.queryString(),
+                header.headers(),
+                (Function0) SFunction0.from(header::remoteAddress),
+                (Function0) SFunction0.from(header::secure)
+            );
           } catch (Throwable ignored1) {
           }
         }

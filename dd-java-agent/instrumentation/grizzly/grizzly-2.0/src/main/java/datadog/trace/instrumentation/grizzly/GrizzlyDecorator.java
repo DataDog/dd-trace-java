@@ -77,7 +77,6 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
 
   public static class GrizzlyBlockResponseFunction implements BlockResponseFunction {
     private static final Logger log = LoggerFactory.getLogger(GrizzlyBlockResponseFunction.class);
-
     private final Request request;
 
     public GrizzlyBlockResponseFunction(Request request) {
@@ -90,7 +89,8 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       AgentSpan agentSpan = AgentTracer.get().activeSpan();
       if (agentSpan == null) {
         log.warn("Can't block: no active span");
@@ -104,7 +104,8 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
           templateType,
           extraHeaders,
           securityResponseId,
-          agentSpan);
+          agentSpan
+      );
     }
   }
 }

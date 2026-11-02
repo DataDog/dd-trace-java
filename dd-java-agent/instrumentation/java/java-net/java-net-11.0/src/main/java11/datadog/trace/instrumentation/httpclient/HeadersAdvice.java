@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.
 import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
-
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import java.net.http.HttpHeaders;
 import java.util.List;

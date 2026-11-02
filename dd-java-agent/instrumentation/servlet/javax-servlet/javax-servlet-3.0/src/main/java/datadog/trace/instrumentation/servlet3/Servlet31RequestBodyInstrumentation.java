@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,7 +21,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class Servlet31RequestBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public Servlet31RequestBodyInstrumentation() {
     super("servlet-request-body");
   }
@@ -46,33 +47,35 @@ public class Servlet31RequestBodyInstrumentation extends InstrumenterModule.AppS
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        // ignore wrappers that ship with servlet-api
-        .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"))
-        .and(not(extendsClass(named("javax.servlet.http.HttpServletRequestWrapper"))));
+      // ignore wrappers that ship with servlet-api
+      .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"))
+      .and(not(extendsClass(named("javax.servlet.http.HttpServletRequestWrapper"))));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getInputStream")
-            .and(takesNoArguments())
-            .and(returns(named("javax.servlet.ServletInputStream")))
-            .and(isPublic()),
-        packageName + ".HttpServletGetInputStreamAdvice");
+          .and(takesNoArguments())
+          .and(returns(named("javax.servlet.ServletInputStream")))
+          .and(isPublic()),
+        packageName + ".HttpServletGetInputStreamAdvice"
+    );
     transformer.applyAdvice(
         named("getReader")
-            .and(takesNoArguments())
-            .and(returns(named("java.io.BufferedReader")))
-            .and(isPublic()),
-        packageName + ".HttpServletGetReaderAdvice");
+          .and(takesNoArguments())
+          .and(returns(named("java.io.BufferedReader")))
+          .and(isPublic()),
+        packageName + ".HttpServletGetReaderAdvice"
+    );
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.servlet.BufferedReaderWrapper",
-      "datadog.trace.instrumentation.servlet.AbstractServletInputStreamWrapper",
-      "datadog.trace.instrumentation.servlet3.Servlet31InputStreamWrapper"
+        "datadog.trace.instrumentation.servlet.BufferedReaderWrapper",
+        "datadog.trace.instrumentation.servlet.AbstractServletInputStreamWrapper",
+        "datadog.trace.instrumentation.servlet3.Servlet31InputStreamWrapper"
     };
   }
 

@@ -20,17 +20,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Stores status information of probes for a service */
+/**
+ * Stores status information of probes for a service
+ */
 public class ProbeStatus {
   @Json(name = "ddsource")
   private final String ddSource = "dd_debugger";
-
   private final String type = "diagnostic";
-
   private final String service;
   private final String message;
   private final long timestamp;
-
   @Json(name = "debugger")
   private final Diagnostics diagnostics;
 
@@ -76,8 +75,12 @@ public class ProbeStatus {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     ProbeStatus that = (ProbeStatus) o;
     return Objects.equals(ddSource, that.ddSource)
         && Objects.equals(service, that.service)
@@ -112,16 +115,14 @@ public class ProbeStatus {
         + '}';
   }
 
-  /** Stores status information for a probe */
+  /**
+   * Stores status information for a probe
+   */
   public static class Diagnostics {
-
     private final String probeId;
-
     private final int probeVersion;
-
     private final String runtimeId;
     private final Status status;
-
     private final ProbeException exception;
 
     public Diagnostics(String probeId, String runtimeId, Status status, ProbeException exception) {
@@ -155,8 +156,12 @@ public class ProbeStatus {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       Diagnostics that = (Diagnostics) o;
       return probeVersion == that.probeVersion
           && Objects.equals(probeId, that.probeId)
@@ -189,7 +194,9 @@ public class ProbeStatus {
     }
   }
 
-  /** Stores error information of a probe instrumentation */
+  /**
+   * Stores error information of a probe instrumentation
+   */
   public static class ProbeException {
     private final String type;
     private final String message;
@@ -216,8 +223,12 @@ public class ProbeStatus {
     @Generated
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       ProbeException that = (ProbeException) o;
       return type.equals(that.type)
           && Objects.equals(message, that.message)
@@ -246,7 +257,9 @@ public class ProbeStatus {
     }
   }
 
-  /** Defined the different statuses of a probe */
+  /**
+   * Defined the different statuses of a probe
+   */
   public enum Status {
     RECEIVED,
     INSTALLED,
@@ -256,9 +269,7 @@ public class ProbeStatus {
   }
 
   public static class Builder {
-
     private final String serviceName;
-
     private final String runtimeId;
 
     public Builder(Config config) {
@@ -270,28 +281,32 @@ public class ProbeStatus {
       return new ProbeStatus(
           this.serviceName,
           "Received probe " + probeId + ".",
-          new Diagnostics(probeId, runtimeId, Status.RECEIVED, null));
+          new Diagnostics(probeId, runtimeId, Status.RECEIVED, null)
+      );
     }
 
     public ProbeStatus installedMessage(ProbeId probeId) {
       return new ProbeStatus(
           this.serviceName,
           "Installed probe " + probeId + ".",
-          new Diagnostics(probeId, runtimeId, Status.INSTALLED, null));
+          new Diagnostics(probeId, runtimeId, Status.INSTALLED, null)
+      );
     }
 
     public ProbeStatus emittingMessage(String probeId) {
       return new ProbeStatus(
           this.serviceName,
           "Probe " + probeId + " is emitting.",
-          new Diagnostics(probeId, runtimeId, Status.EMITTING, null));
+          new Diagnostics(probeId, runtimeId, Status.EMITTING, null)
+      );
     }
 
     public ProbeStatus blockedMessage(ProbeId probeId) {
       return new ProbeStatus(
           this.serviceName,
           "Blocked probe " + probeId + ".",
-          new Diagnostics(probeId, runtimeId, Status.BLOCKED, null));
+          new Diagnostics(probeId, runtimeId, Status.BLOCKED, null)
+      );
     }
 
     public ProbeStatus errorMessage(ProbeId probeId, Throwable ex) {
@@ -305,9 +320,11 @@ public class ProbeStatus {
               new ProbeException(
                   ex.getClass().getTypeName(),
                   ex.getMessage(),
-                  Arrays.stream(ex.getStackTrace())
-                      .map(CapturedStackFrame::from)
-                      .collect(Collectors.toList()))));
+                  Arrays.stream(ex.getStackTrace()).map(CapturedStackFrame::from).collect(Collectors.toList()
+                  )
+              )
+          )
+      );
     }
 
     public ProbeStatus errorMessage(ProbeId probeId, String message) {
@@ -318,7 +335,9 @@ public class ProbeStatus {
               probeId,
               runtimeId,
               Status.ERROR,
-              new ProbeException("NO_TYPE", message, Collections.emptyList())));
+              new ProbeException("NO_TYPE", message, Collections.emptyList())
+          )
+      );
     }
   }
 
@@ -333,7 +352,9 @@ public class ProbeStatus {
     }
   }
 
-  /** Handles Json (de)serialization of Diagnostics */
+  /**
+   * Handles Json (de)serialization of Diagnostics
+   */
   static class DiagnosticsWrapperAdapter extends JsonAdapter<Diagnostics> {
     private final JsonAdapter<Diagnostics> delegate;
 

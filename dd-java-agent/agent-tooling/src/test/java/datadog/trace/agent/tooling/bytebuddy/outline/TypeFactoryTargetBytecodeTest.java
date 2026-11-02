@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy.outline;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -18,8 +17,8 @@ import org.objectweb.asm.Opcodes;
 
 class TypeFactoryTargetBytecodeTest {
   private static final String TYPE_NAME = "example.MultiReleaseType";
-
-  @TempDir Path resources;
+  @TempDir
+  Path resources;
 
   @AfterEach
   void clearTypes() {
@@ -39,7 +38,6 @@ class TypeFactoryTargetBytecodeTest {
       factory.beginTransform("example.OtherType", new byte[0]);
       assertEquals("java.util.ArrayList", resolveParent(factory, fullDescriptions));
       factory.endTransform();
-
       // Model a loader whose resource returns the base entry but defines the versioned entry.
       factory.switchContext(loader);
       factory.beginTransform(TYPE_NAME, classBytes("java/util/LinkedList"));

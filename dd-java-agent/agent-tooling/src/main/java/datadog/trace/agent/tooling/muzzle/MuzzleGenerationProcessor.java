@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.muzzle;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.addAll;
-
 import datadog.trace.agent.tooling.AdviceShader;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.advice.AdviceProcessor;

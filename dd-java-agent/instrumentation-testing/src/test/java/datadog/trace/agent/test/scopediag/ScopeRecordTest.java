@@ -3,7 +3,6 @@ package datadog.trace.agent.test.scopediag;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.DDTraceId;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -12,10 +11,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ScopeRecordTest {
-
-  private static final StackTraceElement[] STACK = {
-    new StackTraceElement("com.app.Worker", "run", "Worker.java", 7)
-  };
+  private static final StackTraceElement[] STACK =
+      {new StackTraceElement("com.app.Worker", "run", "Worker.java", 7)};
 
   private static ScopeEvent event(ScopeEvent.Type type, String thread, long nanos) {
     return new ScopeEvent(type, thread, nanos, STACK);
@@ -30,7 +27,8 @@ class ScopeRecordTest {
         (byte) 0,
         continuationSeq,
         false,
-        event(ScopeEvent.Type.SCOPE_OPEN, openThread, nanos));
+        event(ScopeEvent.Type.SCOPE_OPEN, openThread, nanos)
+    );
   }
 
   private static ScopeDiagnosticsReport report(ScopeRecord... scopes) {
@@ -52,14 +50,20 @@ class ScopeRecordTest {
     assertTrue(summary.contains("[CLOSE_WRONG_THREAD] scope#0"));
     assertTrue(summary.contains("[NEVER_CLOSED] scope#0"));
     assertTrue(
-        summary.indexOf("[CLOSE_WRONG_THREAD] scope#0")
-            > summary.indexOf("Advisory findings (not enforced)"));
+        summary.indexOf("[CLOSE_WRONG_THREAD] scope#0") > summary.indexOf(
+            "Advisory findings (not enforced)"
+        )
+    );
     assertTrue(
-        summary.indexOf("[CLOSE_WRONG_THREAD] scope#0")
-            < summary.indexOf("Excluded findings (not enforced)"));
+        summary.indexOf("[CLOSE_WRONG_THREAD] scope#0") < summary.indexOf(
+            "Excluded findings (not enforced)"
+        )
+    );
     assertTrue(
-        summary.indexOf("[NEVER_CLOSED] scope#0")
-            > summary.indexOf("Excluded findings (not enforced)"));
+        summary.indexOf("[NEVER_CLOSED] scope#0") > summary.indexOf(
+            "Excluded findings (not enforced)"
+        )
+    );
   }
 
   @Test
@@ -83,16 +87,20 @@ class ScopeRecordTest {
             "worker-one",
             2000,
             new StackTraceElement[] {
-              new StackTraceElement("com.app.First", "close", "First.java", 12)
-            }));
+            new StackTraceElement("com.app.First", "close", "First.java", 12)
+            }
+        )
+    );
     s.addWrongThreadClose(
         new ScopeEvent(
             ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD,
             "worker-two",
             3000,
             new StackTraceElement[] {
-              new StackTraceElement("com.app.Second", "close", "Second.java", 34)
-            }));
+            new StackTraceElement("com.app.Second", "close", "Second.java", 34)
+            }
+        )
+    );
     s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 4000));
 
     ScopeDiagnosticsReport report = report(s);
@@ -145,6 +153,7 @@ class ScopeRecordTest {
 
     ScopeDiagnosticsReport report = report(s);
     assertEquals(1, report.closeWrongThreadCount());
-    assertFalse(report.hasViolations()); // wrong-thread is report-only
+    // wrong-thread is report-only
+    assertFalse(report.hasViolations());
   }
 }

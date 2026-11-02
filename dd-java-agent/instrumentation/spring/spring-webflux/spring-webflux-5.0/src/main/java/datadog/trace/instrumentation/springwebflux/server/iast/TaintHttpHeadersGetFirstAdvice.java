@@ -22,8 +22,8 @@ class TaintHttpHeadersGetFirstAdvice {
       @Advice.This Object self,
       @Advice.Argument(0) String arg,
       @Advice.Return String value,
-      @ActiveRequestContext RequestContext reqCtx) {
-
+      @ActiveRequestContext RequestContext reqCtx
+  ) {
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null || arg == null || value == null) {
       return;

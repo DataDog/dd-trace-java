@@ -1,12 +1,10 @@
 package datadog.trace.test.util;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
-
 import java.lang.ref.WeakReference;
 import java.util.concurrent.TimeUnit;
 
 public abstract class GCUtils {
-
   public static void awaitGC() throws InterruptedException {
     Object obj = new Object();
     final WeakReference<Object> ref = new WeakReference<>(obj);

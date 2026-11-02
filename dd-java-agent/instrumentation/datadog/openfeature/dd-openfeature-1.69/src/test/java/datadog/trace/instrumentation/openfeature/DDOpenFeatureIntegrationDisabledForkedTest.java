@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.openfeature;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
-
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridges;
 import datadog.trace.agent.test.AbstractInstrumentationTest;

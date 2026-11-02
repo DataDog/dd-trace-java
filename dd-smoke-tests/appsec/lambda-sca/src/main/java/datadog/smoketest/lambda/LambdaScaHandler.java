@@ -1,5 +1,5 @@
+// spotless:off - Lambda SCA tests assert the reflective call's source line number.
 package datadog.smoketest.lambda;
-
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import java.io.File;
@@ -44,3 +44,4 @@ public final class LambdaScaHandler implements RequestStreamHandler {
     }
   }
 }
+// spotless:on

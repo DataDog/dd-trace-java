@@ -2,14 +2,12 @@ package datadog.trace.core.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class PercentEscaperTest {
-
   private final PercentEscaper escaper = PercentEscaper.create();
 
   @TableTest({
@@ -28,7 +26,9 @@ class PercentEscaperTest {
     assertEquals(expected, this.escaper.escapeValue(value).data);
   }
 
-  /** Keys use a separate, longer octet table than values, so cover that path too. */
+  /**
+   * Keys use a separate, longer octet table than values, so cover that path too.
+   */
   @TableTest({
     "scenario                        | key     | expected            ",
     "non-ascii at the start          | '你好'  | '%E4%BD%A0%E5%A5%BD'",

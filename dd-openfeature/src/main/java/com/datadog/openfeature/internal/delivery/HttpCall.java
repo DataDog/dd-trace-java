@@ -2,7 +2,6 @@ package com.datadog.openfeature.internal.delivery;
 
 import static java.lang.Math.max;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -17,7 +16,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Flow;
 import java.util.concurrent.TimeoutException;
 
-/** A cancellable HTTP attempt whose timeout includes response body consumption. */
+/**
+ * A cancellable HTTP attempt whose timeout includes response body consumption.
+ */
 final class HttpCall<T> {
   private final long startedNanos = System.nanoTime();
   private final long timeoutNanos;
@@ -28,10 +29,12 @@ final class HttpCall<T> {
   HttpCall(
       final HttpClient client,
       final HttpRequest request,
-      final HttpResponse.BodyHandler<T> bodyHandler) {
+      final HttpResponse.BodyHandler<T> bodyHandler
+  ) {
     this.timeoutNanos = request.timeout().orElseThrow().toNanos();
-    this.response =
-        client.sendAsync(request, info -> new CancellableBodySubscriber(bodyHandler.apply(info)));
+    this.response = client.sendAsync(request, info -> new CancellableBodySubscriber(bodyHandler.apply(
+        info
+    )));
   }
 
   /**
@@ -44,7 +47,9 @@ final class HttpCall<T> {
   HttpResponse<T> execute() throws IOException, InterruptedException {
     try {
       return this.response.get(
-          max(0, this.timeoutNanos - (System.nanoTime() - this.startedNanos)), NANOSECONDS);
+          max(0, this.timeoutNanos - (System.nanoTime() - this.startedNanos)),
+          NANOSECONDS
+      );
     } catch (final TimeoutException e) {
       cancel();
       throw new HttpTimeoutException("HTTP response timed out");
@@ -71,7 +76,9 @@ final class HttpCall<T> {
     }
   }
 
-  /** Cancels the active exchange and any response body subscription. */
+  /**
+   * Cancels the active exchange and any response body subscription.
+   */
   void cancel() {
     if (!this.cancelled && this.response.cancel(true)) {
       this.cancelled = true;

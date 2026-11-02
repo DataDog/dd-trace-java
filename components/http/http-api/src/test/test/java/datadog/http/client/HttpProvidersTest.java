@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.condition.JRE.JAVA_10;
 import static org.junit.jupiter.api.condition.JRE.JAVA_11;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import java.net.URI;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -35,7 +34,8 @@ abstract class HttpProvidersTest {
     return Stream.of(
         arguments("client", (Supplier<?>) HttpProviders::newClientBuilder),
         arguments("request", (Supplier<?>) HttpProviders::newRequestBuilder),
-        arguments("url", (Supplier<?>) HttpProviders::newUrlBuilder));
+        arguments("url", (Supplier<?>) HttpProviders::newUrlBuilder)
+    );
   }
 
   @Test
@@ -48,8 +48,7 @@ abstract class HttpProvidersTest {
   void testHttpUrlParseInvalidUrl() {
     // An invalid URL causes the underlying parse() to throw IllegalArgumentException,
     // wrapped as InvocationTargetException. HttpProviders unwraps and re-throws it.
-    assertThrows(
-        IllegalArgumentException.class, () -> HttpProviders.httpUrlParse("not a valid url"));
+    assertThrows(IllegalArgumentException.class, () -> HttpProviders.httpUrlParse("not a valid url"));
   }
 
   @Test
@@ -111,8 +110,7 @@ abstract class HttpProvidersTest {
     assertNotNull(HttpProviders.requestBodyOfString(CONTENT_EXAMPLE));
     assertNotNull(HttpProviders.requestBodyOfBytes(new byte[0]));
     assertNotNull(HttpProviders.requestBodyOfByteBuffers(emptyList()));
-    assertNotNull(
-        HttpProviders.requestBodyGzip(HttpProviders.requestBodyOfString(CONTENT_EXAMPLE)));
+    assertNotNull(HttpProviders.requestBodyGzip(HttpProviders.requestBodyOfString(CONTENT_EXAMPLE)));
     assertNotNull(HttpProviders.requestBodyMultipart());
   }
 

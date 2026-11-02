@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -17,11 +16,11 @@ import ratpack.jackson.JsonRender;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class JsonRendererAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static void enter(
       @Advice.Argument(1) final JsonRender render,
-      @ActiveRequestContext final RequestContext reqCtx) {
+      @ActiveRequestContext final RequestContext reqCtx
+  ) {
     Object obj = render == null ? null : render.getObject();
     if (obj == null) {
       return;
@@ -31,8 +30,7 @@ public class JsonRendererAdvice {
     if (cbp == null) {
       return;
     }
-    BiFunction<RequestContext, Object, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.responseBody());
+    BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.responseBody());
     if (callback == null) {
       return;
     }

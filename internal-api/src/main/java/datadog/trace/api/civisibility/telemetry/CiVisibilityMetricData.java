@@ -3,7 +3,6 @@ package datadog.trace.api.civisibility.telemetry;
 import datadog.trace.api.telemetry.MetricCollector;
 
 public class CiVisibilityMetricData extends MetricCollector.Metric {
-
   private static final String NAMESPACE = "civisibility";
 
   public CiVisibilityMetricData(String metricName, long counter, TagValue... tags) {

@@ -6,7 +6,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-/** The default implementation of {@link SpanMetrics} based on atomic counters. */
+/**
+ * The default implementation of {@link SpanMetrics} based on atomic counters.
+ */
 public class SpanMetricsImpl implements SpanMetrics {
   private final String instrumentationName;
   private final AtomicLong spanCreatedCounter;

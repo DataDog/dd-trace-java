@@ -17,12 +17,9 @@ import weaver.Result;
 import weaver.framework.SbtTask;
 
 public abstract class WeaverUtils {
-
   private static final Logger log = LoggerFactory.getLogger(WeaverUtils.class);
-
   private static final ClassLoader CLASS_LOADER = SbtTask.class.getClassLoader();
   public static final MethodHandles METHOD_HANDLES = new MethodHandles(CLASS_LOADER);
-
   // Reflection used due to changes in Weaver v0.11:
   // - Result.Cancelled was removed
   private static final String RESULT_CANCELLED_CLASS_NAME = "weaver.Result$Cancelled";
@@ -40,10 +37,10 @@ public abstract class WeaverUtils {
   private static final String EXPECTATION_FAILED_CLASS_NAME = "weaver.ExpectationFailed";
   private static final MethodHandle GET_EXPECTATION_FAILED_MESSAGE_HANDLE =
       METHOD_HANDLES.method(getClass(EXPECTATION_FAILED_CLASS_NAME), "message");
-
   public static final List<LibraryCapability> CAPABILITIES = Collections.emptyList();
 
-  private WeaverUtils() {}
+  private WeaverUtils() {
+  }
 
   public static @Nullable String getWeaverVersion() {
     try {

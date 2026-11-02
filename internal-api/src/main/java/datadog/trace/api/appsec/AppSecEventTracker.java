@@ -12,7 +12,6 @@ import static datadog.trace.api.telemetry.LoginVersion.V1;
 import static datadog.trace.api.telemetry.LoginVersion.V2;
 import static datadog.trace.util.Strings.toHexString;
 import static java.util.Collections.emptyMap;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.appsec.api.login.EventTrackerService;
 import datadog.appsec.api.login.EventTrackerV2;
@@ -44,12 +43,10 @@ import java.util.Map;
 import java.util.function.BiFunction;
 
 public class AppSecEventTracker extends EventTracker implements UserService {
-
-  private static final int HASH_SIZE_BYTES = 16; // 128 bits
+  // 128 bits
+  private static final int HASH_SIZE_BYTES = 16;
   private static final String ANON_PREFIX = "anon_";
-
   private static final Map<String, LoginEvent> EVENT_MAPPING;
-
   private static final String LOGIN_SUCCESS_EVENT = "users.login.success";
   private static final String LOGIN_FAILURE_EVENT = "users.login.failure";
   private static final String SIGNUP_EVENT = "users.signup";
@@ -76,39 +73,46 @@ public class AppSecEventTracker extends EventTracker implements UserService {
    * cannot tell which one the caller used; routing v2 calls through this adapter lets each API
    * report its own version to telemetry.
    */
-  private final EventTrackerService v2Service =
-      new EventTrackerService() {
-        @Override
-        public void trackUserLoginSuccess(
-            final String login, final String userId, final Map<String, String> metadata) {
-          if (login == null || login.isEmpty()) {
-            throw new IllegalArgumentException("login is null or empty");
-          }
-          WafMetricCollector.get().appSecSdkEvent(LOGIN_SUCCESS, V2);
-          if (handleLoginEvent(V2, LOGIN_SUCCESS_EVENT, SDK, login, userId, null, metadata)) {
-            throw new BlockingException("Blocked request (for login success)");
-          }
-        }
+  private final EventTrackerService v2Service = new EventTrackerService() {
+    @Override
+    public void trackUserLoginSuccess(
+        final String login,
+        final String userId,
+        final Map<String, String> metadata
+    ) {
+      if (login == null || login.isEmpty()) {
+        throw new IllegalArgumentException("login is null or empty");
+      }
+      WafMetricCollector.get().appSecSdkEvent(LOGIN_SUCCESS, V2);
+      if (handleLoginEvent(V2, LOGIN_SUCCESS_EVENT, SDK, login, userId, null, metadata)) {
+        throw new BlockingException("Blocked request (for login success)");
+      }
+    }
 
-        @Override
-        public void trackUserLoginFailure(
-            final String login, final boolean exists, final Map<String, String> metadata) {
-          if (login == null || login.isEmpty()) {
-            throw new IllegalArgumentException("login is null or empty");
-          }
-          WafMetricCollector.get().appSecSdkEvent(LOGIN_FAILURE, V2);
-          if (handleLoginEvent(V2, LOGIN_FAILURE_EVENT, SDK, login, null, exists, metadata)) {
-            throw new BlockingException("Blocked request (for login failure)");
-          }
-        }
+    @Override
+    public void trackUserLoginFailure(
+        final String login,
+        final boolean exists,
+        final Map<String, String> metadata
+    ) {
+      if (login == null || login.isEmpty()) {
+        throw new IllegalArgumentException("login is null or empty");
+      }
+      WafMetricCollector.get().appSecSdkEvent(LOGIN_FAILURE, V2);
+      if (handleLoginEvent(V2, LOGIN_FAILURE_EVENT, SDK, login, null, exists, metadata)) {
+        throw new BlockingException("Blocked request (for login failure)");
+      }
+    }
 
-        @Override
-        public void trackCustomEvent(final String eventName, final Map<String, String> metadata) {
-          AppSecEventTracker.this.trackCustomEvent(eventName, metadata, V2);
-        }
-      };
+    @Override
+    public void trackCustomEvent(final String eventName, final Map<String, String> metadata) {
+      AppSecEventTracker.this.trackCustomEvent(eventName, metadata, V2);
+    }
+  };
 
-  /** Returns the v2 SDK implementation to register with {@link EventTrackerV2}. */
+  /**
+   * Returns the v2 SDK implementation to register with {@link EventTrackerV2}.
+   */
   public final EventTrackerService v2EventTrackerService() {
     return v2Service;
   }
@@ -126,7 +130,10 @@ public class AppSecEventTracker extends EventTracker implements UserService {
 
   @Override
   public final void trackLoginFailureEvent(
-      String userId, boolean exists, Map<String, String> metadata) {
+      String userId,
+      boolean exists,
+      Map<String, String> metadata
+  ) {
     if (userId == null || userId.isEmpty()) {
       throw new IllegalArgumentException("userId is null or empty");
     }
@@ -143,7 +150,10 @@ public class AppSecEventTracker extends EventTracker implements UserService {
   }
 
   private void trackCustomEvent(
-      final String eventName, final Map<String, String> metadata, final LoginVersion version) {
+      final String eventName,
+      final Map<String, String> metadata,
+      final LoginVersion version
+  ) {
     if (eventName == null || eventName.isEmpty()) {
       throw new IllegalArgumentException("eventName is null or empty");
     }
@@ -168,7 +178,10 @@ public class AppSecEventTracker extends EventTracker implements UserService {
   }
 
   public void onUserEvent(
-      final UserIdCollectionMode mode, final String userId, final Map<String, String> metadata) {
+      final UserIdCollectionMode mode,
+      final String userId,
+      final Map<String, String> metadata
+  ) {
     if (handleUser(mode, userId, metadata)) {
       throw new BlockingException("Blocked request (for user)");
     }
@@ -181,7 +194,10 @@ public class AppSecEventTracker extends EventTracker implements UserService {
   }
 
   public void onSignupEvent(
-      final UserIdCollectionMode mode, final String login, final Map<String, String> metadata) {
+      final UserIdCollectionMode mode,
+      final String login,
+      final Map<String, String> metadata
+  ) {
     onSignupEvent(mode, login, null, metadata);
   }
 
@@ -189,14 +205,18 @@ public class AppSecEventTracker extends EventTracker implements UserService {
       final UserIdCollectionMode mode,
       final String login,
       final String userId,
-      final Map<String, String> metadata) {
+      final Map<String, String> metadata
+  ) {
     if (handleLoginEvent(AUTO, SIGNUP_EVENT, mode, login, userId, null, metadata)) {
       throw new BlockingException("Blocked request (for signup)");
     }
   }
 
   public void onLoginSuccessEvent(
-      final UserIdCollectionMode mode, final String login, final Map<String, String> metadata) {
+      final UserIdCollectionMode mode,
+      final String login,
+      final Map<String, String> metadata
+  ) {
     onLoginSuccessEvent(mode, login, null, metadata);
   }
 
@@ -204,7 +224,8 @@ public class AppSecEventTracker extends EventTracker implements UserService {
       final UserIdCollectionMode mode,
       final String login,
       final String user,
-      final Map<String, String> metadata) {
+      final Map<String, String> metadata
+  ) {
     if (handleLoginEvent(AUTO, LOGIN_SUCCESS_EVENT, mode, login, user, null, metadata)) {
       throw new BlockingException("Blocked request (for login success)");
     }
@@ -214,7 +235,8 @@ public class AppSecEventTracker extends EventTracker implements UserService {
       final UserIdCollectionMode mode,
       final String login,
       final Boolean exists,
-      final Map<String, String> metadata) {
+      final Map<String, String> metadata
+  ) {
     if (handleLoginEvent(AUTO, LOGIN_FAILURE_EVENT, mode, login, null, exists, metadata)) {
       throw new BlockingException("Blocked request (for login failure)");
     }
@@ -225,7 +247,10 @@ public class AppSecEventTracker extends EventTracker implements UserService {
    * blocking action
    */
   private boolean handleUser(
-      final UserIdCollectionMode mode, final String userId, final Map<String, String> metadata) {
+      final UserIdCollectionMode mode,
+      final String userId,
+      final Map<String, String> metadata
+  ) {
     if (!isEnabled(mode)) {
       return false;
     }
@@ -239,7 +264,8 @@ public class AppSecEventTracker extends EventTracker implements UserService {
     }
     final String finalUserId = anonymize(mode, userId);
     if (finalUserId == null) {
-      return false; // could not anonymize the user
+      // could not anonymize the user
+      return false;
     }
     if (mode != SDK) {
       segment.setTagTop("_dd.appsec.usr.id", finalUserId);
@@ -268,7 +294,8 @@ public class AppSecEventTracker extends EventTracker implements UserService {
       final String login,
       final String userId,
       final Boolean exists,
-      final Map<String, String> metadata) {
+      final Map<String, String> metadata
+  ) {
     if (!isEnabled(mode)) {
       return false;
     }
@@ -283,7 +310,8 @@ public class AppSecEventTracker extends EventTracker implements UserService {
     boolean block = false;
     final String finalLogin = anonymize(mode, login);
     if (finalLogin == null && login != null) {
-      return false; // could not anonymize the login
+      // could not anonymize the login
+      return false;
     }
     if (mode == SDK) {
       segment.setTagTop("_dd.appsec.events." + eventName + ".sdk", true, true);
@@ -309,8 +337,7 @@ public class AppSecEventTracker extends EventTracker implements UserService {
       segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
 
       if (finalLogin != null && event != null) {
-        block =
-            dispatch(tracer, EVENTS.loginEvent(), (ctx, cb) -> cb.apply(ctx, event, finalLogin));
+        block = dispatch(tracer, EVENTS.loginEvent(), (ctx, cb) -> cb.apply(ctx, event, finalLogin));
       }
     }
     if (userId != null) {
@@ -335,7 +362,10 @@ public class AppSecEventTracker extends EventTracker implements UserService {
   }
 
   private boolean isNewLoginEvent(
-      final UserIdCollectionMode mode, final TraceSegment segment, final String event) {
+      final UserIdCollectionMode mode,
+      final TraceSegment segment,
+      final String event
+  ) {
     if (mode == SDK) {
       return true;
     }
@@ -357,7 +387,8 @@ public class AppSecEventTracker extends EventTracker implements UserService {
   private <T> boolean dispatch(
       final AgentTracer.TracerAPI tracer,
       final EventType<T> event,
-      final BiFunction<RequestContext, T, Flow<Void>> consumer) {
+      final BiFunction<RequestContext, T, Flow<Void>> consumer
+  ) {
     if (tracer == null) {
       return false;
     }

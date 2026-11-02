@@ -4,7 +4,6 @@ import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrument
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.RUNNABLE_INSTRUMENTATION_NAME;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;

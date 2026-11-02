@@ -2,7 +2,6 @@ package datadog.trace.civisibility.interceptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Timeout;
 
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 public class CiVisibilityApmProtocolInterceptorTest extends DDCoreJavaSpecification {
-
   private ListWriter writer;
   private CoreTracer tracer;
 
@@ -41,15 +39,15 @@ public class CiVisibilityApmProtocolInterceptorTest extends DDCoreJavaSpecificat
     tracer.addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
 
     tracer
-        .buildSpan("datadog", "test-module")
-        .withSpanType(DDSpanTypes.TEST_MODULE_END)
-        .start()
-        .finish();
+      .buildSpan("datadog", "test-module")
+      .withSpanType(DDSpanTypes.TEST_MODULE_END)
+      .start()
+      .finish();
     tracer
-        .buildSpan("datadog", "test-suite")
-        .withSpanType(DDSpanTypes.TEST_SUITE_END)
-        .start()
-        .finish();
+      .buildSpan("datadog", "test-suite")
+      .withSpanType(DDSpanTypes.TEST_SUITE_END)
+      .start()
+      .finish();
     tracer.buildSpan("datadog", "test").withSpanType(DDSpanTypes.TEST).start().finish();
 
     writer.waitForTraces(1);
@@ -63,7 +61,8 @@ public class CiVisibilityApmProtocolInterceptorTest extends DDCoreJavaSpecificat
 
   @Test
   void testSessionTestModuleAndTestSuiteIdsAreNullified()
-      throws InterruptedException, TimeoutException {
+      throws InterruptedException,
+      TimeoutException {
     tracer.addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
 
     DDSpan testSpan =

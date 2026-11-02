@@ -17,7 +17,6 @@ import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.SQS_INBOUND_
 import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.SQS_TIME_IN_QUEUE_OPERATION;
 import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.TIME_IN_QUEUE_ENABLED;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
@@ -32,7 +31,6 @@ import software.amazon.awssdk.services.sqs.model.Message;
 
 public class TracingIterator<L extends Iterator<Message>> implements Iterator<Message> {
   private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
-
   protected final L delegate;
   private final String queueUrl;
   private final String queueName;
@@ -74,7 +72,8 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
     try {
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         closePrevious(true);
-      } else if (message == null) { // previous message span was the last
+      } else if (message == null) {
+        // previous message span was the last
         final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
         if (previousSpan != null) {
           previousSpan.finishWithEndToEnd();
@@ -84,20 +83,19 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         AgentSpan queueSpan = null;
         if (batchContext == null) {
           // first grab any incoming distributed context
-          AgentSpanContext spanContext =
-              Config.get().isSqsPropagationEnabled()
-                  ? extractContextAndGetSpanContext(message, GETTER)
-                  : null;
+          AgentSpanContext spanContext = Config.get().isSqsPropagationEnabled()
+              ? extractContextAndGetSpanContext(message, GETTER)
+              : null;
           // next add a time-in-queue span for non-legacy SQS traces
           if (TIME_IN_QUEUE_ENABLED) {
             long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
             if (timeInQueueStart > 0) {
-              queueSpan =
-                  startSpan(
-                      COMPONENT_NAME.toString(),
-                      SQS_TIME_IN_QUEUE_OPERATION,
-                      spanContext,
-                      MILLISECONDS.toMicros(timeInQueueStart));
+              queueSpan = startSpan(
+                  COMPONENT_NAME.toString(),
+                  SQS_TIME_IN_QUEUE_OPERATION,
+                  spanContext,
+                  MILLISECONDS.toMicros(timeInQueueStart)
+              );
               BROKER_DECORATE.afterStart(queueSpan);
               BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl, queueName, requestId);
               spanContext = queueSpan.spanContext();
@@ -109,7 +107,6 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           batchContext = spanContext;
         }
         AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, batchContext);
-
         // Only build the DSM tags and context when DSM is on: with it off the checkpoint is a
         // no-op, but the arguments were still built for every message.
         if (traceConfig().isDataStreamsEnabled()) {

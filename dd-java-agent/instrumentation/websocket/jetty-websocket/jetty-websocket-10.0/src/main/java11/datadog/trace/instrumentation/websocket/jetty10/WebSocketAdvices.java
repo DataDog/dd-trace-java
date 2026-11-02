@@ -21,8 +21,8 @@ public class WebSocketAdvices {
     public static void onEnter(
         @Advice.Argument(value = 2, readOnly = false) MethodHandle openHandle,
         @Advice.Argument(value = 3, readOnly = false) MethodHandle closeHandle,
-        @Advice.Argument(value = 1) final Object origin) {
-
+        @Advice.Argument(value = 1) final Object origin
+    ) {
       // we skip wrapping the method handle in case the origin is already an Enpoint since this will
       // be already handled by the jsr356 instrumentation
       if (origin == null || origin instanceof Endpoint) {
@@ -32,19 +32,19 @@ public class WebSocketAdvices {
       // and closed since jetty is directly calling them.
       // We also insert other arguments at the beginning in order to provide data we need. Inserting
       // at the beginning won't break bind and invoke jetty will do.
-      openHandle =
-          MethodHandles.insertArguments(
-              MethodHandleWrappers.OPEN_METHOD_HANDLE,
-              0,
-              openHandle,
-              InstrumentationContext.get(Session.class, HandlerContext.Sender.class),
-              InstrumentationContext.get(JavaxWebSocketSession.class, Boolean.class));
-      closeHandle =
-          MethodHandles.insertArguments(
-              MethodHandleWrappers.CLOSE_METHOD_HANDLE,
-              0,
-              closeHandle,
-              InstrumentationContext.get(Session.class, HandlerContext.Sender.class));
+      openHandle = MethodHandles.insertArguments(
+          MethodHandleWrappers.OPEN_METHOD_HANDLE,
+          0,
+          openHandle,
+          InstrumentationContext.get(Session.class, HandlerContext.Sender.class),
+          InstrumentationContext.get(JavaxWebSocketSession.class, Boolean.class)
+      );
+      closeHandle = MethodHandles.insertArguments(
+          MethodHandleWrappers.CLOSE_METHOD_HANDLE,
+          0,
+          closeHandle,
+          InstrumentationContext.get(Session.class, HandlerContext.Sender.class)
+      );
     }
   }
 
@@ -53,8 +53,8 @@ public class WebSocketAdvices {
     public static void onEnter(
         @Advice.Argument(value = 3, readOnly = false) MethodHandle openHandle,
         @Advice.Argument(value = 4, readOnly = false) MethodHandle closeHandle,
-        @Advice.Argument(value = 2) final Object origin) {
-
+        @Advice.Argument(value = 2) final Object origin
+    ) {
       // we skip wrapping the method handle in case the origin is already an Enpoint since this will
       // be already handled by the jsr356 instrumentation
       if (origin == null || origin instanceof Endpoint) {
@@ -64,19 +64,19 @@ public class WebSocketAdvices {
       // and closed since jetty is directly calling them.
       // We also insert other arguments at the beginning in order to provide data we need. Inserting
       // at the beginning won't break bind and invoke jetty will do.
-      openHandle =
-          MethodHandles.insertArguments(
-              MethodHandleWrappers.OPEN_METHOD_HANDLE,
-              0,
-              openHandle,
-              InstrumentationContext.get(Session.class, HandlerContext.Sender.class),
-              InstrumentationContext.get(JavaxWebSocketSession.class, Boolean.class));
-      closeHandle =
-          MethodHandles.insertArguments(
-              MethodHandleWrappers.CLOSE_METHOD_HANDLE,
-              0,
-              closeHandle,
-              InstrumentationContext.get(Session.class, HandlerContext.Sender.class));
+      openHandle = MethodHandles.insertArguments(
+          MethodHandleWrappers.OPEN_METHOD_HANDLE,
+          0,
+          openHandle,
+          InstrumentationContext.get(Session.class, HandlerContext.Sender.class),
+          InstrumentationContext.get(JavaxWebSocketSession.class, Boolean.class)
+      );
+      closeHandle = MethodHandles.insertArguments(
+          MethodHandleWrappers.CLOSE_METHOD_HANDLE,
+          0,
+          closeHandle,
+          InstrumentationContext.get(Session.class, HandlerContext.Sender.class)
+      );
     }
   }
 
@@ -84,7 +84,8 @@ public class WebSocketAdvices {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) final JavaxWebSocketSession session,
-        @Advice.Argument(1) final JavaxWebSocketMessageMetadata metadata) {
+        @Advice.Argument(1) final JavaxWebSocketMessageMetadata metadata
+    ) {
       if (metadata == null || metadata.getMethodHandle() == null) {
         return;
       }
@@ -100,15 +101,17 @@ public class WebSocketAdvices {
         // to collect arguments since we need to call the original and we cannot know which one will
         // be provided. In fact, it will depend on the data used (i.e. byte[], String, etc...) and
         // if partial delivery is handled (so it will also accept a boolean for the fin bit signal).
-        metadata.setMethodHandle(
-            MethodHandles.insertArguments(
-                    MethodHandleWrappers.MESSAGE_METHOD_HANDLE,
-                    0,
-                    metadata.getMethodHandle(),
-                    session,
-                    new HandlerContext.Receiver(current, session.getId()),
-                    InstrumentationContext.get(JavaxWebSocketSession.class, Boolean.class))
-                .asVarargsCollector(Object[].class));
+        metadata.setMethodHandle(MethodHandles
+          .insertArguments(
+              MethodHandleWrappers.MESSAGE_METHOD_HANDLE,
+              0,
+              metadata.getMethodHandle(),
+              session,
+              new HandlerContext.Receiver(current, session.getId()),
+              InstrumentationContext.get(JavaxWebSocketSession.class, Boolean.class)
+          )
+          .asVarargsCollector(Object[].class)
+        );
       } catch (Throwable t) {
         // log it
         ExceptionLogger.LOGGER.debug("Error while mutating MessageSink ", t);

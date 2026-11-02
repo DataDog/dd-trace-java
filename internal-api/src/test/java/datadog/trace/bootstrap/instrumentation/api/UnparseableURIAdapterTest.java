@@ -3,11 +3,9 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import org.junit.jupiter.api.Test;
 
 class UnparseableURIAdapterTest {
-
   @Test
   void shouldReturnRawUriOnly() {
     String uriStr = "http://myurl/path?query=value#fragment";

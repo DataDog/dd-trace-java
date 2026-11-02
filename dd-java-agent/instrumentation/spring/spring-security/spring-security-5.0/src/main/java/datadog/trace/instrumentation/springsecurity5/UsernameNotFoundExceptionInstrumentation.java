@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,8 +14,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class UsernameNotFoundExceptionInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public UsernameNotFoundExceptionInstrumentation() {
     super("spring-security");
   }
@@ -35,11 +35,11 @@ public class UsernameNotFoundExceptionInstrumentation extends InstrumenterModule
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArgument(0, named("java.lang.String"))).and(isPublic()),
-        getClass().getName() + "$UsernameNotFoundExceptionAdvice");
+        getClass().getName() + "$UsernameNotFoundExceptionAdvice"
+    );
   }
 
   public static class UsernameNotFoundExceptionAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter() {
       SpringSecurityUserEventDecorator.DECORATE.onUserNotFound();

@@ -17,9 +17,28 @@ import context.benchmark.workload.StoreKeys.S7;
 import context.benchmark.workload.StoreKeys.S8;
 import context.benchmark.workload.StoreKeys.S9;
 
-/** Key loaded before the agent is installed, so every store falls back to the weak map. */
+/**
+ * Key loaded before the agent is installed, so every store falls back to the weak map.
+ */
 public final class UninjectedKey
-    implements WorkloadKey, S0, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15 {
+    implements WorkloadKey,
+    S0,
+    S1,
+    S2,
+    S3,
+    S4,
+    S5,
+    S6,
+    S7,
+    S8,
+    S9,
+    S10,
+    S11,
+    S12,
+    S13,
+    S14,
+    S15
+{
   @Override
   public Object store(int storeIndex) {
     return null;

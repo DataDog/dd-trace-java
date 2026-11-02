@@ -5,7 +5,6 @@ import static datadog.context.Context.root;
 import static datadog.context.ContextTest.STRING_KEY;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -67,7 +66,8 @@ class ContextManagerTest extends ContextTestBase {
     Context context = root().with(STRING_KEY, "value");
     try (ContextScope outer = context.attach()) {
       try (ContextScope noop1 = context.attach();
-          ContextScope noop2 = context.attach()) {
+          ContextScope noop2 = context.attach()
+      ) {
         assertEquals(context, noop1.context());
         assertEquals(context, noop2.context());
       }
@@ -97,11 +97,14 @@ class ContextManagerTest extends ContextTestBase {
         try (ContextScope noop3 = context.attach()) {
           assertEquals(context, noop3.context());
         }
-        assertEquals(context, current()); // noop close: context remains active
+        // noop close: context remains active
+        assertEquals(context, current());
       }
-      assertEquals(context, current()); // still active after all noop closes
+      // still active after all noop closes
+      assertEquals(context, current());
     }
-    assertEquals(root(), current()); // only the original scope deactivates on close
+    // only the original scope deactivates on close
+    assertEquals(root(), current());
   }
 
   @Test
@@ -151,30 +154,27 @@ class ContextManagerTest extends ContextTestBase {
     try (ContextScope ignored = previous.attach()) {
       try (ContextScope scope = resumed ? context.capture().resume() : context.attach()) {
         executor
-            .submit(
-                () -> {
-                  try {
-                    try (ContextScope workerScope = unrelated.attach()) {
-                      // A foreign close must leave both threads' contexts intact.
-                      scope.close();
-                      assertEquals(unrelated, current());
-                    }
-                    assertEquals(root(), current());
-
-                    // Simulate restoring a coroutine's context on its new thread.
-                    context.swap();
-                    scope.close();
-                    assertEquals(previous, current());
-
-                    // Migrated scope stays closed, even if its context is restored again.
-                    context.swap();
-                    scope.close();
-                    assertEquals(context, current());
-                  } finally {
-                    root().swap();
-                  }
-                })
-            .get(10, TimeUnit.SECONDS);
+          .submit(() -> {
+            try {
+              try (ContextScope workerScope = unrelated.attach()) {
+                // A foreign close must leave both threads' contexts intact.
+                scope.close();
+                assertEquals(unrelated, current());
+              }
+              assertEquals(root(), current());
+              // Simulate restoring a coroutine's context on its new thread.
+              context.swap();
+              scope.close();
+              assertEquals(previous, current());
+              // Migrated scope stays closed, even if its context is restored again.
+              context.swap();
+              scope.close();
+              assertEquals(context, current());
+            } finally {
+              root().swap();
+            }
+          })
+          .get(10, TimeUnit.SECONDS);
         assertEquals(context, current());
       } finally {
         // Restore previous context here; the original scope was closed on the worker thread
@@ -198,60 +198,56 @@ class ContextManagerTest extends ContextTestBase {
     /*
      * Create first executor.
      */
-    Future<?> future1 =
-        executor.submit(
-            () -> {
-              try {
-                // Fist step: check empty context
-                phaser.arriveAndAwaitAdvance();
-                assertEquals(root(), current());
-                // Second step: set context on first executor
-                Context context1 = root().with(STRING_KEY, "executor1");
-                try (ContextScope ignored1 = context1.attach()) {
-                  phaser.arriveAndAwaitAdvance();
-                  assertEquals(context1, current());
-                  // Third step: set context on second executor
-                  phaser.arriveAndAwaitAdvance();
-                  assertEquals(context1, current());
-                  // Fourth step: set child context on first executor
-                  Context context11 = context1.with(STRING_KEY, "executor1.1");
-                  try (ContextScope ignored11 = context11.attach()) {
-                    phaser.arriveAndAwaitAdvance();
-                    assertEquals(context11, current());
-                  }
-                }
-              } finally {
-                // Complete the execution
-                phaser.arriveAndDeregister();
-              }
-            });
+    Future<?> future1 = executor.submit(() -> {
+      try {
+        // Fist step: check empty context
+        phaser.arriveAndAwaitAdvance();
+        assertEquals(root(), current());
+        // Second step: set context on first executor
+        Context context1 = root().with(STRING_KEY, "executor1");
+        try (ContextScope ignored1 = context1.attach()) {
+          phaser.arriveAndAwaitAdvance();
+          assertEquals(context1, current());
+          // Third step: set context on second executor
+          phaser.arriveAndAwaitAdvance();
+          assertEquals(context1, current());
+          // Fourth step: set child context on first executor
+          Context context11 = context1.with(STRING_KEY, "executor1.1");
+          try (ContextScope ignored11 = context11.attach()) {
+            phaser.arriveAndAwaitAdvance();
+            assertEquals(context11, current());
+          }
+        }
+      } finally {
+        // Complete the execution
+        phaser.arriveAndDeregister();
+      }
+    });
     /*
      * Create second executor.
      */
-    Future<?> future2 =
-        executor.submit(
-            () -> {
-              try {
-                // First step: check empty context
-                phaser.arriveAndAwaitAdvance();
-                assertEquals(root(), current());
-                // Second step: set context on first executor
-                phaser.arriveAndAwaitAdvance();
-                assertEquals(root(), current());
-                // Third step: set context on second executor
-                Context context2 = root().with(STRING_KEY, "executor2");
-                try (ContextScope ignored2 = context2.attach()) {
-                  phaser.arriveAndAwaitAdvance();
-                  assertEquals(context2, current());
-                  // Fourth step: set child context on first executor
-                  phaser.arriveAndAwaitAdvance();
-                  assertEquals(context2, current());
-                }
-              } finally {
-                // Complete the execution
-                phaser.arriveAndDeregister();
-              }
-            });
+    Future<?> future2 = executor.submit(() -> {
+      try {
+        // First step: check empty context
+        phaser.arriveAndAwaitAdvance();
+        assertEquals(root(), current());
+        // Second step: set context on first executor
+        phaser.arriveAndAwaitAdvance();
+        assertEquals(root(), current());
+        // Third step: set context on second executor
+        Context context2 = root().with(STRING_KEY, "executor2");
+        try (ContextScope ignored2 = context2.attach()) {
+          phaser.arriveAndAwaitAdvance();
+          assertEquals(context2, current());
+          // Fourth step: set child context on first executor
+          phaser.arriveAndAwaitAdvance();
+          assertEquals(context2, current());
+        }
+      } finally {
+        // Complete the execution
+        phaser.arriveAndDeregister();
+      }
+    });
     /*
      * Run main thread.
      */

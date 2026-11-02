@@ -5,9 +5,10 @@ import com.couchbase.client.core.msg.RequestContext;
 import java.time.Instant;
 import javax.annotation.Nonnull;
 
-/** RequestSpan, which delegates all calls to two other RequestSpans */
+/**
+ * RequestSpan, which delegates all calls to two other RequestSpans
+ */
 public class DelegatingRequestSpan implements RequestSpan {
-
   private final RequestSpan ddSpan;
   private final RequestSpan cncSpan;
 

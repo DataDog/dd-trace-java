@@ -8,9 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestRandomSuite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestRandomSuite.class);
-
   private final Random random;
 
   public TestRandomSuite(final Random random) {

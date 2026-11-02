@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.tibcobw5;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIBCO_NODE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIBCO_VERSION;
-
 import com.tibco.pe.PEVersion;
 import com.tibco.pe.core.JobPool;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,8 +18,7 @@ import org.slf4j.LoggerFactory;
 public class TibcoDecorator extends BaseDecorator {
   private static final CharSequence TIBCO_BW = UTF8BytesString.create("tibco_bw");
   private static final Logger LOGGER = LoggerFactory.getLogger(TibcoDecorator.class);
-  public static final CharSequence TIBCO_PROCESS_OPERATION =
-      UTF8BytesString.create("tibco.process");
+  public static final CharSequence TIBCO_PROCESS_OPERATION = UTF8BytesString.create("tibco.process");
   public static final CharSequence TIBCO_ACTIVITY_OPERATION =
       UTF8BytesString.create("tibco.activity");
   public static final TibcoDecorator DECORATE = new TibcoDecorator();
@@ -38,7 +36,9 @@ public class TibcoDecorator extends BaseDecorator {
       return matcher.group(1);
     }
     LOGGER.debug(
-        "Unable to extract the tibco businessworks version. The tag `tibco.version` will be missing from process spans");
+        "Unable to extract the tibco businessworks version. The tag `tibco.version` will "
+        + "be missing from process spans"
+    );
     return null;
   }
 
@@ -64,10 +64,11 @@ public class TibcoDecorator extends BaseDecorator {
   }
 
   public void onProcessStart(AgentSpan span, String processName) {
-    span.setResourceName(processName)
-        .setTag(TIBCO_NODE, JobPool.getName())
-        .setTag(TIBCO_VERSION, VERSION)
-        .setMeasured(true);
+    span
+      .setResourceName(processName)
+      .setTag(TIBCO_NODE, JobPool.getName())
+      .setTag(TIBCO_VERSION, VERSION)
+      .setMeasured(true);
   }
 
   public void onActivityStart(final AgentSpan span, String activityName) {

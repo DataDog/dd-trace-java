@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class CharacterMatcher implements Matcher {
-
   private final char character;
 
   private CharacterMatcher(char character) {

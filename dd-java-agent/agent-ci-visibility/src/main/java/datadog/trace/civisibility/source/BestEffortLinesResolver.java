@@ -4,7 +4,6 @@ import java.lang.reflect.Method;
 import javax.annotation.Nonnull;
 
 public class BestEffortLinesResolver implements LinesResolver {
-
   private final LinesResolver[] delegates;
 
   public BestEffortLinesResolver(LinesResolver... delegates) {

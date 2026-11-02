@@ -1,13 +1,16 @@
 package datadog.trace.api.civisibility.execution;
 
-/** Tracks the aggregate result of test executions. */
+/**
+ * Tracks the aggregate result of test executions.
+ */
 public enum ExecutionAggregation {
   NONE,
   ONLY_FAILED,
   ONLY_PASSED,
   MIXED;
-
-  /** Returns the new state after registering an execution with the given status. */
+  /**
+   * Returns the new state after registering an execution with the given status.
+   */
   public ExecutionAggregation withExecution(TestStatus status) {
     boolean failed = (status == TestStatus.fail);
     switch (this) {

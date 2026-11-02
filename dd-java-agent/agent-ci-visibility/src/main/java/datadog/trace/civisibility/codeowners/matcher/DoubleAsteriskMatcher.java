@@ -1,10 +1,10 @@
 package datadog.trace.civisibility.codeowners.matcher;
 
 public class DoubleAsteriskMatcher implements Matcher {
-
   public static final Matcher INSTANCE = new DoubleAsteriskMatcher();
 
-  private DoubleAsteriskMatcher() {}
+  private DoubleAsteriskMatcher() {
+  }
 
   @Override
   public int consume(String line, int offset) {
@@ -13,7 +13,8 @@ public class DoubleAsteriskMatcher implements Matcher {
     }
 
     int position = offset;
-    while (position < line.length() && line.charAt(position++) != '/') {}
+    while (position < line.length() && line.charAt(position++) != '/') {
+    }
     return position - offset;
   }
 

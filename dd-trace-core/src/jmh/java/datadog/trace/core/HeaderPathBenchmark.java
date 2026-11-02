@@ -3,7 +3,6 @@ package datadog.trace.core;
 import static datadog.context.Context.root;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.context.propagation.CarrierSetter;
@@ -63,39 +62,37 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
 public class HeaderPathBenchmark {
   static final int JDBC_SPANS = 3;
-
   static final String TRACE_ID_HEX = "66a0f6c800000000a3ce929d0e0e4736";
-  static final String TRACE_ID_LOW = "11803532876627986230"; // a3ce929d0e0e4736
-  static final String PARENT_ID = "67667974448284343"; // 00f067aa0ba902b7
+  // a3ce929d0e0e4736
+  static final String TRACE_ID_LOW = "11803532876627986230";
+  // 00f067aa0ba902b7
+  static final String PARENT_ID = "67667974448284343";
   static final String PARENT_ID_HEX = "00f067aa0ba902b7";
-
   static final String SERVER_INSTRUMENTATION = "tomcat-server";
   static final CharSequence SERVER_OPERATION = UTF8BytesString.create("servlet.request");
   static final String JDBC_INSTRUMENTATION = "java-jdbc-prepared_statement";
   static final CharSequence JDBC_OPERATION = UTF8BytesString.create("database.query");
   static final String CLIENT_INSTRUMENTATION = "okhttp";
   static final CharSequence CLIENT_OPERATION = UTF8BytesString.create("okhttp.request");
-
   static final CarrierVisitor<Map<String, String>> GETTER =
       new CarrierVisitor<Map<String, String>>() {
-        @Override
-        public void forEachKeyValue(
-            Map<String, String> carrier, BiConsumer<String, String> visitor) {
-          carrier.forEach(visitor);
-        }
-      };
+    @Override
+    public void forEachKeyValue(Map<String, String> carrier, BiConsumer<String, String> visitor) {
+      carrier.forEach(visitor);
+    }
+  };
   static final CarrierSetter<Map<String, String>> SETTER = Map::put;
-
   @Param({"none", "datadog", "tracecontext", "both", "bothBaggage"})
   String headers;
-
   CoreTracer tracer;
   Map<String, String> inbound;
   SpanPrototype serverProto;
   SpanPrototype jdbcProto;
   SpanPrototype clientProto;
 
-  /** One outbound carrier per thread, reused across requests. */
+  /**
+   * One outbound carrier per thread, reused across requests.
+   */
   @State(Scope.Thread)
   public static class Outbound {
     final Map<String, String> headers = new HashMap<>();
@@ -105,31 +102,31 @@ public class HeaderPathBenchmark {
   public void setup(Blackhole blackhole) {
     this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
     this.inbound = inboundHeaders(headers);
-    this.serverProto =
-        SpanPrototype.builder()
-            .initInstrumentationName(SERVER_INSTRUMENTATION)
-            .initOperationName(SERVER_OPERATION)
-            .initSpanType("web")
-            .initComponentAndIntegration("tomcat-server")
-            .initKind(Tags.SPAN_KIND_SERVER)
-            .initTag("language", "jvm")
-            .build();
-    this.jdbcProto =
-        SpanPrototype.builder()
-            .initInstrumentationName(JDBC_INSTRUMENTATION)
-            .initOperationName(JDBC_OPERATION)
-            .initSpanType("sql")
-            .initComponentAndIntegration("java-jdbc")
-            .initKind(Tags.SPAN_KIND_CLIENT)
-            .build();
-    this.clientProto =
-        SpanPrototype.builder()
-            .initInstrumentationName(CLIENT_INSTRUMENTATION)
-            .initOperationName(CLIENT_OPERATION)
-            .initSpanType("http")
-            .initComponentAndIntegration("okhttp")
-            .initKind(Tags.SPAN_KIND_CLIENT)
-            .build();
+    this.serverProto = SpanPrototype
+      .builder()
+      .initInstrumentationName(SERVER_INSTRUMENTATION)
+      .initOperationName(SERVER_OPERATION)
+      .initSpanType("web")
+      .initComponentAndIntegration("tomcat-server")
+      .initKind(Tags.SPAN_KIND_SERVER)
+      .initTag("language", "jvm")
+      .build();
+    this.jdbcProto = SpanPrototype
+      .builder()
+      .initInstrumentationName(JDBC_INSTRUMENTATION)
+      .initOperationName(JDBC_OPERATION)
+      .initSpanType("sql")
+      .initComponentAndIntegration("java-jdbc")
+      .initKind(Tags.SPAN_KIND_CLIENT)
+      .build();
+    this.clientProto = SpanPrototype
+      .builder()
+      .initInstrumentationName(CLIENT_INSTRUMENTATION)
+      .initOperationName(CLIENT_OPERATION)
+      .initSpanType("http")
+      .initComponentAndIntegration("okhttp")
+      .initKind(Tags.SPAN_KIND_CLIENT)
+      .build();
     checkPropagation();
   }
 
@@ -150,7 +147,8 @@ public class HeaderPathBenchmark {
     }
     if (!headers.equals("none") && !injectedTraceId.equals(TRACE_ID_LOW)) {
       throw new IllegalStateException(
-          "outbound call didn't continue the extracted trace: " + outbound.headers);
+          "outbound call didn't continue the extracted trace: " + outbound.headers
+      );
     }
   }
 
@@ -175,9 +173,10 @@ public class HeaderPathBenchmark {
       h.put(
           "tracestate",
           "dd=s:1;p:"
-              + PARENT_ID_HEX
-              + ";t.dm:-0;t.tid:66a0f6c800000000,"
-              + "ot=th:8;rv:9b8233f7e3a151,rojo=00f067aa0ba902b7");
+          + PARENT_ID_HEX
+          + ";t.dm:-0;t.tid:66a0f6c800000000,"
+          + "ot=th:8;rv:9b8233f7e3a151,rojo=00f067aa0ba902b7"
+      );
     }
     if (style.equals("bothBaggage")) {
       h.put("baggage", "userId=alice,serverNode=DF%2028,isProduction=false");
@@ -213,7 +212,6 @@ public class HeaderPathBenchmark {
         }
         jdbc.finish();
       }
-
       // the outbound call: start the client span, inject its headers, finish
       AgentSpan client = tracer.startSpan(CLIENT_INSTRUMENTATION, CLIENT_OPERATION);
       client.applyOverwriting(clientProto);
@@ -221,8 +219,9 @@ public class HeaderPathBenchmark {
       client.setTag(Tags.HTTP_URL, "http://inventory.internal/items/7");
       client.setTag(Tags.PEER_HOSTNAME, "inventory.internal");
       client.setTag(Tags.PEER_PORT, 8080);
-      Propagators.defaultPropagator()
-          .inject(tracer.currentContext().with(client), outbound.headers, SETTER);
+      Propagators
+        .defaultPropagator()
+        .inject(tracer.currentContext().with(client), outbound.headers, SETTER);
       client.setHttpStatusCode(200);
       client.finish();
     }

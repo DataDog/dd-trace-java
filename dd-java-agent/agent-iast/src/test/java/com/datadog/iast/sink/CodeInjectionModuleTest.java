@@ -13,7 +13,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastGlobalContext;
 import com.datadog.iast.IastRequestContext;
@@ -48,10 +47,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 
 class CodeInjectionModuleTest {
-
   private static final AgentTracer.TracerAPI ORIGINAL_TRACER = AgentTracer.get();
   private static final IastContext.Provider ORIGINAL_CONTEXT_PROVIDER = readContextProvider();
-
   private IastContext.Provider contextProvider;
   private IastRequestContext ctx;
   private AgentSpan span;
@@ -62,10 +59,9 @@ class CodeInjectionModuleTest {
 
   @BeforeEach
   void setup() {
-    contextProvider =
-        Config.get().getIastContextMode() == GLOBAL
-            ? new IastGlobalContext.Provider()
-            : new IastRequestContext.Provider();
+    contextProvider = Config.get().getIastContextMode() == GLOBAL
+        ? new IastGlobalContext.Provider()
+        : new IastRequestContext.Provider();
     ctx = (IastRequestContext) contextProvider.buildRequestContext();
 
     TraceSegment traceSegment = mock(TraceSegment.class);
@@ -87,13 +83,13 @@ class CodeInjectionModuleTest {
     when(overheadController.acquireRequest()).thenReturn(true);
     when(overheadController.consumeQuota(any(), any(), any())).thenReturn(true);
 
-    Dependencies dependencies =
-        new Dependencies(
-            Config.get(),
-            reporter,
-            overheadController,
-            StackWalkerFactory.INSTANCE,
-            contextProvider);
+    Dependencies dependencies = new Dependencies(
+        Config.get(),
+        reporter,
+        overheadController,
+        StackWalkerFactory.INSTANCE,
+        contextProvider
+    );
 
     AgentTracer.forceRegister(tracer);
     IastContext.Provider.register(contextProvider);
@@ -113,7 +109,6 @@ class CodeInjectionModuleTest {
   void nullOrEmptyScriptIsIgnored(String script) {
     // a String-typed argument selects the onEval(String) overload, no cast needed
     module.onEval(script);
-
     // mirrors the Groovy original's `0 * _`: nothing is touched on the early-return path
     verifyNoInteractions(reporter, overheadController, tracer);
   }
@@ -121,17 +116,14 @@ class CodeInjectionModuleTest {
   @Test
   void codeInjectionDetectionOnString() {
     String script = "2 + 2";
-
     // report is not called if the script is not tainted
     module.onEval(script);
     verify(reporter, never()).report(any(), any());
-
     // report is not called if no active span, even when the script is tainted
     taint(script);
     when(tracer.activeSpan()).thenReturn(null);
     module.onEval(script);
     verify(reporter, never()).report(any(), any());
-
     // report is called when the script is tainted and there is an active span
     when(tracer.activeSpan()).thenReturn(span);
     module.onEval(script);
@@ -141,11 +133,9 @@ class CodeInjectionModuleTest {
   @Test
   void codeInjectionDetectionOnStringReader() {
     StringReader reader = new StringReader("2 + 2");
-
     // report is not called if the reader is not tainted
     module.onEval(reader);
     verify(reporter, never()).report(any(), any());
-
     // report is called when the reader is tainted
     taint(reader);
     module.onEval(reader);
@@ -159,7 +149,6 @@ class CodeInjectionModuleTest {
       // report is not called if the reader is not tainted
       module.onEval(reader);
       verify(reporter, never()).report(any(), any());
-
       // report is called when the reader is tainted
       taint(reader);
       module.onEval(reader);
@@ -174,7 +163,6 @@ class CodeInjectionModuleTest {
       taint(reader);
 
       module.onEval(reader);
-
       // mirrors the Groovy original's `0 * _`: the unsupported-reader path touches no mock
       verifyNoInteractions(reporter, overheadController, tracer);
     }
@@ -209,19 +197,21 @@ class CodeInjectionModuleTest {
         arguments("StringReader", new StringReader("2 + 2")),
         arguments(
             "InputStreamReader",
-            new InputStreamReader(new ByteArrayInputStream("2 + 2".getBytes()))));
+            new InputStreamReader(new ByteArrayInputStream("2 + 2".getBytes()))
+        )
+    );
   }
 
   private Range[] markedRanges() {
     return new Range[] {
-      new Range(0, 1, new Source(REQUEST_PARAMETER_VALUE, "name", "value"), CODE_INJECTION_MARK)
+        new Range(0, 1, new Source(REQUEST_PARAMETER_VALUE, "name", "value"), CODE_INJECTION_MARK)
     };
   }
 
   private void taint(Object value) {
-    ctx.getTaintedObjects()
-        .taint(
-            value, Ranges.forObject(new Source(REQUEST_PARAMETER_VALUE, "name", value.toString())));
+    ctx
+      .getTaintedObjects()
+      .taint(value, Ranges.forObject(new Source(REQUEST_PARAMETER_VALUE, "name", value.toString())));
   }
 
   // IastContext.Provider.INSTANCE is a private static field; the Groovy base read and restored it

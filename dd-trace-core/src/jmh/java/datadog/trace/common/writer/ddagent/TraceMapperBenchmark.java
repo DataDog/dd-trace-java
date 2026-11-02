@@ -2,7 +2,6 @@ package datadog.trace.common.writer.ddagent;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.core.BlackholeBuffer;
@@ -33,10 +32,8 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 1)
 @SuppressForbidden
 public class TraceMapperBenchmark {
-
   @Param({"v04", "v04:x-dth", "v05", "v05:x-dth"})
   String mapperName;
-
   private TraceMapper mapper;
   private Writable writable;
   private List<DDSpan> trace;
@@ -59,11 +56,12 @@ public class TraceMapperBenchmark {
       String feature = mapperAndFeatures[i];
       switch (feature) {
         case "x-dth":
-          propagationTags =
-              PropagationTags.factory()
-                  .fromHeaderValue(
-                      PropagationTags.HeaderType.DATADOG,
-                      "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+          propagationTags = PropagationTags
+            .factory()
+            .fromHeaderValue(
+                PropagationTags.HeaderType.DATADOG,
+                "_dd.p.anytag=value,_dd.p.dm=934086a686-4"
+            );
           break;
         default:
           throw new IllegalArgumentException("Unknown benchmark feature " + feature + ".");

@@ -3,7 +3,6 @@ package datadog.trace.core;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
@@ -84,20 +83,18 @@ public class PropagationScenariosBenchmark {
   private static final int UPSTREAM_TRACE_COUNT = 1024;
   // 128-bit trace ids carry their creation time in the top 32 bits, the rest of the high half zero
   private static final long TRACE_ID_EPOCH_SECONDS = 1_760_000_000L;
-
-  /** Injects into the benchmark's blackhole, so header values are consumed without a map. */
+  /**
+   * Injects into the benchmark's blackhole, so header values are consumed without a map.
+   */
   private static final CarrierSetter<Blackhole> BLACKHOLE_SETTER =
       (blackhole, key, value) -> blackhole.consume(value);
-
   private static final CarrierVisitor<Map<String, String>> MAP_VISITOR = Map::forEach;
-
   /**
    * {@code default}: the default sampler with no agent rates, as most services run. {@code rule}: a
    * configured sample rate (1.0, limit raised so the benchmark isn't rate limited).
    */
   @Param({"default", "rule"})
   String sampler;
-
   CoreTracer tracer;
 
   @Setup
@@ -133,31 +130,28 @@ public class PropagationScenariosBenchmark {
 
   @Benchmark
   public void leaf(Upstream upstream, Cursor cursor) {
-    AgentSpan server =
-        tracer
-            .buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME)
-            .asChildOf(extract(upstream.headers[cursor.next()]))
-            .start();
+    AgentSpan server = tracer
+      .buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME)
+      .asChildOf(extract(upstream.headers[cursor.next()]))
+      .start();
     server.finish();
   }
 
   @Benchmark
   public void intermediate(Upstream upstream, Cursor cursor, Blackhole blackhole) {
-    AgentSpan server =
-        tracer
-            .buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME)
-            .asChildOf(extract(upstream.headers[cursor.next()]))
-            .start();
+    AgentSpan server = tracer
+      .buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME)
+      .asChildOf(extract(upstream.headers[cursor.next()]))
+      .start();
     callDownstream(server, blackhole);
     server.finish();
   }
 
   private void callDownstream(AgentSpan server, Blackhole blackhole) {
-    AgentSpan client =
-        tracer
-            .buildSpan(INSTRUMENTATION_NAME, CLIENT_OPERATION_NAME)
-            .asChildOf(server.spanContext())
-            .start();
+    AgentSpan client = tracer
+      .buildSpan(INSTRUMENTATION_NAME, CLIENT_OPERATION_NAME)
+      .asChildOf(server.spanContext())
+      .start();
     Propagators.defaultPropagator().inject(client, blackhole, BLACKHOLE_SETTER);
     client.finish();
   }
@@ -168,12 +162,13 @@ public class PropagationScenariosBenchmark {
     return AgentSpan.fromContext(extracted).spanContext();
   }
 
-  /** The incoming headers the extracting scenarios cycle through. */
+  /**
+   * The incoming headers the extracting scenarios cycle through.
+   */
   @State(Scope.Benchmark)
   public static class Upstream {
     @Param({"sameVersion", "withOtelMember"})
     String upstream;
-
     @SuppressWarnings("unchecked")
     final Map<String, String>[] headers = new Map[UPSTREAM_TRACE_COUNT];
 
@@ -181,13 +176,13 @@ public class PropagationScenariosBenchmark {
     public void setup(PropagationScenariosBenchmark benchmark) {
       Random random = new Random(42);
       for (int i = 0; i < UPSTREAM_TRACE_COUNT; ++i) {
-        headers[i] =
-            "sameVersion".equals(upstream)
-                ? injectedBy(benchmark.tracer)
-                : currentFormat(
-                    random.nextLong() | 1,
-                    (TRACE_ID_EPOCH_SECONDS + i) << 32,
-                    random.nextLong() | 1);
+        headers[i] = "sameVersion".equals(upstream)
+            ? injectedBy(benchmark.tracer)
+            : currentFormat(
+                random.nextLong() | 1,
+                (TRACE_ID_EPOCH_SECONDS + i) << 32,
+                random.nextLong() | 1
+        );
       }
     }
 
@@ -199,9 +194,14 @@ public class PropagationScenariosBenchmark {
       return headers;
     }
 
-    /** What a current Datadog tracer sends after a default-sampler keep. */
+    /**
+     * What a current Datadog tracer sends after a default-sampler keep.
+     */
     private static Map<String, String> currentFormat(
-        long traceIdLow, long traceIdHigh, long parentId) {
+        long traceIdLow,
+        long traceIdHigh,
+        long parentId
+    ) {
       String tid = hex16(traceIdHigh);
       String parent = hex16(parentId);
       Map<String, String> headers = new HashMap<>();
@@ -213,12 +213,13 @@ public class PropagationScenariosBenchmark {
       headers.put(
           "tracestate",
           "dd=s:1;p:"
-              + parent
-              + ";t.dm:-1;t.tid:"
-              + tid
-              + ";t.ksr:1,ot=rv:"
-              + hex16(traceIdLow).substring(2)
-              + ";th:0");
+          + parent
+          + ";t.dm:-1;t.tid:"
+          + tid
+          + ";t.ksr:1,ot=rv:"
+          + hex16(traceIdLow).substring(2)
+          + ";th:0"
+      );
       return headers;
     }
 
@@ -228,7 +229,9 @@ public class PropagationScenariosBenchmark {
     }
   }
 
-  /** Per-thread position in the upstream headers. */
+  /**
+   * Per-thread position in the upstream headers.
+   */
   @State(Scope.Thread)
   public static class Cursor {
     int index;

@@ -9,7 +9,6 @@ import java.nio.file.attribute.FileAttribute;
 import java.util.Set;
 
 public class TestFileChannelSuite {
-
   public static FileChannel openRead(final Path path) throws IOException {
     return FileChannel.open(path, StandardOpenOption.READ);
   }
@@ -19,7 +18,8 @@ public class TestFileChannelSuite {
         path,
         StandardOpenOption.WRITE,
         StandardOpenOption.CREATE,
-        StandardOpenOption.TRUNCATE_EXISTING);
+        StandardOpenOption.TRUNCATE_EXISTING
+    );
   }
 
   public static FileChannel openWithOptions(final Path path, final OpenOption... options)
@@ -28,8 +28,10 @@ public class TestFileChannelSuite {
   }
 
   public static FileChannel openWithSet(
-      final Path path, final Set<? extends OpenOption> options, final FileAttribute<?>... attrs)
-      throws IOException {
+      final Path path,
+      final Set<? extends OpenOption> options,
+      final FileAttribute<?>... attrs
+  ) throws IOException {
     return FileChannel.open(path, options, attrs);
   }
 }

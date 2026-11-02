@@ -10,11 +10,14 @@ import java.util.Collection;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/** JSON serialization helpers for event payloads. */
+/**
+ * JSON serialization helpers for event payloads.
+ */
 public final class JsonWriting {
   private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
-  private JsonWriting() {}
+  private JsonWriting() {
+  }
 
   /**
    * Serializes a JSON document.
@@ -83,8 +86,10 @@ public final class JsonWriting {
    * @throws IOException if the field could not be written.
    */
   public static void writeKeyObject(
-      final JsonGenerator generator, final String fieldName, @Nullable final String key)
-      throws IOException {
+      final JsonGenerator generator,
+      final String fieldName,
+      @Nullable final String key
+  ) throws IOException {
     if (key != null) {
       generator.writeObjectFieldStart(fieldName);
       generator.writeStringField("key", key);
@@ -92,7 +97,9 @@ public final class JsonWriting {
     }
   }
 
-  /** Writes a JSON document. */
+  /**
+   * Writes a JSON document.
+   */
   @FunctionalInterface
   public interface Writer {
     void write(JsonGenerator generator) throws IOException;

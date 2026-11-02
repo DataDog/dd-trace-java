@@ -35,7 +35,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.ANNOTATION_TYPE)
 public @interface ImpliedFor {
-
-  /** The types the annotated contract is implied for. */
+  /**
+   * The types the annotated contract is implied for.
+   */
   Class<?>[] value();
 }

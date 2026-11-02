@@ -5,14 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class SecurityControlHelperTest {
-
   @AfterEach
   void tearDown() {
     InstrumentationBridge.PROPAGATION = null;

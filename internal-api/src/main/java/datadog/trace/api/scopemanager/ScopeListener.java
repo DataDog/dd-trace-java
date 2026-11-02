@@ -1,6 +1,8 @@
 package datadog.trace.api.scopemanager;
 
-/** Hooks for scope activation */
+/**
+ * Hooks for scope activation
+ */
 public interface ScopeListener {
   /**
    * Called just after a scope becomes the active scope
@@ -10,6 +12,8 @@ public interface ScopeListener {
    */
   void afterScopeActivated();
 
-  /** Called just after a scope is closed. */
+  /**
+   * Called just after a scope is closed.
+   */
   void afterScopeClosed();
 }

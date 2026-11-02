@@ -6,8 +6,8 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 // by integration name. GlobalOpenTelemetry holds static state that must reset between variants.
 @WithConfig(key = "integration.opentelemetry-metrics.enabled", value = "true")
 class OpenTelemetryMetricsActivationByInstrumentationNameForkedTest
-    extends OpenTelemetryMetricsActivationTest {
-
+    extends OpenTelemetryMetricsActivationTest
+{
   @Override
   boolean shouldBeInjected() {
     return true;

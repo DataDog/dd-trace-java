@@ -2,7 +2,6 @@ package datadog.trace.civisibility.domain.buildsystem;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
-
 import datadog.communication.ddagent.TracerVersion;
 import datadog.context.propagation.CarrierSetter;
 import datadog.environment.SystemProperties;
@@ -44,13 +43,10 @@ import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSystemModule {
-
   private final CoverageProcessor coverageProcessor;
   private final ModuleSignalRouter moduleSignalRouter;
   private final BuildModuleSettings settings;
-
   private final LongAdder testsSkipped = new LongAdder();
-
   private volatile boolean testSkippingEnabled;
 
   public <T extends CoverageProcessor> BuildSystemModuleImpl(
@@ -73,7 +69,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       T sessionCoverageCalculator,
       ExecutionSettings executionSettings,
       BuildSessionSettings sessionSettings,
-      Consumer<AgentSpan> onSpanFinish) {
+      Consumer<AgentSpan> onSpanFinish
+  ) {
     super(
         sessionSpanContext,
         moduleName,
@@ -85,29 +82,35 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         sourcePathResolver,
         codeowners,
         linesResolver,
-        onSpanFinish);
-    this.coverageProcessor =
-        coverageProcessorFactory.moduleCoverage(
-            span.getSpanId(), moduleLayout, executionSettings, sessionCoverageCalculator);
+        onSpanFinish
+    );
+    this.coverageProcessor = coverageProcessorFactory.moduleCoverage(
+        span.getSpanId(),
+        moduleLayout,
+        executionSettings,
+        sessionCoverageCalculator
+    );
     this.moduleSignalRouter = moduleSignalRouter;
 
     moduleSignalRouter.registerModuleHandler(
         span.getSpanId(),
         SignalType.MODULE_EXECUTION_RESULT,
-        this::onModuleExecutionResultReceived);
+        this::onModuleExecutionResultReceived
+    );
 
-    settings =
-        new BuildModuleSettings(
-            getPropertiesPropagatedToChildProcess(
-                config.getServiceName(),
-                config.isServiceNameSetByUser(),
-                moduleName,
-                startCommand,
-                classpath,
-                jacocoAgent,
-                signalServerAddress,
-                executionSettings,
-                sessionSettings));
+    settings = new BuildModuleSettings(
+        getPropertiesPropagatedToChildProcess(
+            config.getServiceName(),
+            config.isServiceNameSetByUser(),
+            moduleName,
+            startCommand,
+            classpath,
+            jacocoAgent,
+            signalServerAddress,
+            executionSettings,
+            sessionSettings
+        )
+    );
 
     setTag(Tags.TEST_COMMAND, startCommand);
 
@@ -116,11 +119,13 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
   @ParametersAreNonnullByDefault
   private static final class ChildProcessPropertiesPropagationSetter
-      implements CarrierSetter<Map<String, String>> {
+      implements CarrierSetter<Map<String, String>>
+  {
     static final CarrierSetter<Map<String, String>> INSTANCE =
         new ChildProcessPropertiesPropagationSetter();
 
-    private ChildProcessPropertiesPropagationSetter() {}
+    private ChildProcessPropertiesPropagationSetter() {
+    }
 
     @Override
     public void set(Map<String, String> carrier, String key, String value) {
@@ -137,13 +142,14 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       @Nullable JavaAgent jacocoAgent,
       InetSocketAddress signalServerAddress,
       ExecutionSettings executionSettings,
-      BuildSessionSettings sessionSettings) {
+      BuildSessionSettings sessionSettings
+  ) {
     Map<String, String> propagatedSystemProperties = new HashMap<>();
     for (Map.Entry<String, String> p : SystemProperties.asStringMap().entrySet()) {
       String propertyName = p.getKey();
       String propertyValue = p.getValue();
       if ((propertyName.startsWith(Config.PREFIX)
-              || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
+          || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
           && propertyValue != null) {
         propagatedSystemProperties.put(propertyName, propertyValue);
       }
@@ -151,72 +157,93 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED),
-        Boolean.toString(executionSettings.isItrEnabled()));
+        Boolean.toString(executionSettings.isItrEnabled())
+    );
 
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED),
-        Boolean.toString(executionSettings.isCodeCoverageEnabled()));
+        Boolean.toString(executionSettings.isCodeCoverageEnabled())
+    );
 
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED),
-        Boolean.toString(executionSettings.isTestSkippingEnabled()));
+        Boolean.toString(executionSettings.isTestSkippingEnabled())
+    );
 
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED),
-        Boolean.toString(executionSettings.isFlakyTestRetriesEnabled()));
+        Boolean.toString(executionSettings.isFlakyTestRetriesEnabled())
+    );
 
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED),
-        Boolean.toString(executionSettings.isImpactedTestsDetectionEnabled()));
+            CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED
+        ),
+        Boolean.toString(executionSettings.isImpactedTestsDetectionEnabled())
+    );
 
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED),
-        Boolean.toString(executionSettings.getEarlyFlakeDetectionSettings().isEnabled()));
+            CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED
+        ),
+        Boolean.toString(executionSettings.getEarlyFlakeDetectionSettings().isEnabled())
+    );
 
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED),
-        Boolean.toString(executionSettings.getTestManagementSettings().isEnabled()));
+        Boolean.toString(executionSettings.getTestManagementSettings().isEnabled())
+    );
 
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED),
-        Boolean.toString(executionSettings.isFailedTestReplayEnabled()));
-
+        Boolean.toString(executionSettings.isFailedTestReplayEnabled())
+    );
     // explicitly disable build instrumentation in child processes,
     // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,
     // and we don't want to show those as if they were regular build executions
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED),
-        Boolean.toString(false));
+            CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED
+        ),
+        Boolean.toString(false)
+    );
 
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION),
-        TracerVersion.TRACER_VERSION);
+        TracerVersion.TRACER_VERSION
+    );
 
     propagatedSystemProperties.put(
-        propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME), serviceName);
+        propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME),
+        serviceName
+    );
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME_SET_BY_USER),
-        String.valueOf(userProvidedServiceName));
+        String.valueOf(userProvidedServiceName)
+    );
     propagatedSystemProperties.put(
-        propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME), moduleName);
+        propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME),
+        moduleName
+    );
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_TEST_COMMAND),
-        startCommand);
+        startCommand
+    );
 
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST),
-        signalServerAddress != null ? signalServerAddress.getHostName() : null);
+        signalServerAddress != null ? signalServerAddress.getHostName() : null
+    );
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT),
-        String.valueOf(signalServerAddress != null ? signalServerAddress.getPort() : 0));
+        String.valueOf(signalServerAddress != null ? signalServerAddress.getPort() : 0)
+    );
 
     List<String> coverageIncludedPackages = sessionSettings.getCoverageIncludedPackages();
     propagatedSystemProperties.put(
         propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES),
-        String.join(":", coverageIncludedPackages));
+        String.join(":", coverageIncludedPackages)
+    );
 
     if (jacocoAgent != null && !config.isCiVisibilityCoverageLinesDisabled()) {
       // If the module is using Jacoco,
@@ -228,13 +255,14 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       // otherwise it has no effect.
       propagatedSystemProperties.put(
           propertyNameToSystemPropertyName(
-              CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED),
-          Boolean.toString(true));
+              CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED
+          ),
+          Boolean.toString(true)
+      );
     }
-
     // propagate module span context to child processes
     defaultPropagator()
-        .inject(span, propagatedSystemProperties, ChildProcessPropertiesPropagationSetter.INSTANCE);
+      .inject(span, propagatedSystemProperties, ChildProcessPropertiesPropagationSetter.INSTANCE);
 
     return propagatedSystemProperties;
   }

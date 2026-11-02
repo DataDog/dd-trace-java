@@ -2,7 +2,6 @@ package datadog.context;
 
 import static datadog.context.ContextProviders.binder;
 import static datadog.context.ContextProviders.manager;
-
 import javax.annotation.Nullable;
 
 /**
@@ -151,7 +150,8 @@ public interface Context {
       ContextKey<T> firstKey,
       @Nullable T firstValue,
       ContextKey<U> secondKey,
-      @Nullable U secondValue) {
+      @Nullable U secondValue
+  ) {
     return with(firstKey, firstValue).with(secondKey, secondValue);
   }
 

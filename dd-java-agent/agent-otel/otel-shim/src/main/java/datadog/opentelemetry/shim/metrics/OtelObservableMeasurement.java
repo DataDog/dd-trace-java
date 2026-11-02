@@ -12,12 +12,12 @@ import org.slf4j.LoggerFactory;
 
 @ParametersAreNonnullByDefault
 final class OtelObservableMeasurement
-    implements ObservableDoubleMeasurement, ObservableLongMeasurement {
-
+    implements ObservableDoubleMeasurement,
+    ObservableLongMeasurement
+{
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelObservableMeasurement.class);
   private static final RatelimitedLogger RATELIMITED_LOGGER =
       new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
-
   private final OtelMetricStorage storage;
   private volatile boolean active;
 
@@ -64,8 +64,10 @@ final class OtelObservableMeasurement
   private void logNotActive() {
     if (LOGGER.isDebugEnabled()) {
       RATELIMITED_LOGGER.warn(
-          "Measurement recorded for instrument {} outside callback registered to instrument. Dropping measurement.",
-          storage.getInstrumentName());
+          "Measurement recorded for instrument {} outside callback registered to instrument. "
+          + "Dropping measurement.",
+          storage.getInstrumentName()
+      );
     }
   }
 }

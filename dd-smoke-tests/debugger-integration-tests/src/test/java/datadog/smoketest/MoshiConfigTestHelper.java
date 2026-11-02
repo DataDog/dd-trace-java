@@ -50,13 +50,13 @@ public class MoshiConfigTestHelper {
     ProbeCondition.ProbeConditionJsonAdapter probeConditionJsonAdapter =
         new ProbeConditionJsonAdapter();
     return new Moshi.Builder()
-        .add(ProbeCondition.class, probeConditionJsonAdapter)
-        .add(DebuggerScript.class, probeConditionJsonAdapter)
-        .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
-        .add(LogProbe.Segment.class, new LogProbe.Segment.SegmentJsonAdapter())
-        .add(Where.SourceLine[].class, new Where.SourceLineAdapter())
-        .add(ProbeDefinition.Tag[].class, new ProbeDefinition.TagAdapter())
-        .build();
+      .add(ProbeCondition.class, probeConditionJsonAdapter)
+      .add(DebuggerScript.class, probeConditionJsonAdapter)
+      .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
+      .add(LogProbe.Segment.class, new LogProbe.Segment.SegmentJsonAdapter())
+      .add(Where.SourceLine[].class, new Where.SourceLineAdapter())
+      .add(ProbeDefinition.Tag[].class, new ProbeDefinition.TagAdapter())
+      .build();
   }
 
   private static class ProbeConditionJsonAdapter extends ProbeCondition.ProbeConditionJsonAdapter {
@@ -77,7 +77,6 @@ public class MoshiConfigTestHelper {
 
   private static class JsonConditionVisitor implements Visitor<Void> {
     private static final Logger LOGGER = LoggerFactory.getLogger(JsonConditionVisitor.class);
-
     private final JsonWriter jsonWriter;
 
     public JsonConditionVisitor(JsonWriter jsonWriter) {
@@ -316,7 +315,8 @@ public class MoshiConfigTestHelper {
           jsonWriter.value(widenValue.doubleValue());
         } else {
           throw new UnsupportedOperationException(
-              "numeric value unsupported:" + numericValue.getValue().getClass());
+              "numeric value unsupported:" + numericValue.getValue().getClass()
+          );
         }
       } catch (IOException ex) {
         LOGGER.debug("Cannot serialize: ", ex);

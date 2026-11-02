@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.azure.functions.worker.DurableFuncti
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.TaskFailureDetails;
 import datadog.context.ContextScope;
@@ -20,8 +19,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class DurableOrchestrationExecutorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public DurableOrchestrationExecutorInstrumentation() {
     super("azure-functions");
   }
@@ -35,11 +35,12 @@ public final class DurableOrchestrationExecutorInstrumentation extends Instrumen
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("execute"))
-            .and(takesArgument(0, named("java.util.List")))
-            .and(takesArgument(1, named("java.util.List"))),
-        DurableOrchestrationExecutorInstrumentation.class.getName() + "$ExecuteAdvice");
+          .and(isPublic())
+          .and(named("execute"))
+          .and(takesArgument(0, named("java.util.List")))
+          .and(takesArgument(1, named("java.util.List"))),
+        DurableOrchestrationExecutorInstrumentation.class.getName() + "$ExecuteAdvice"
+    );
   }
 
   public static class ExecuteAdvice {
@@ -49,7 +50,8 @@ public final class DurableOrchestrationExecutorInstrumentation extends Instrumen
         @Advice.Argument(1) List<?> newEvents,
         @Advice.Local("state") DurableOrchestrationState state,
         @Advice.Local("previousSpan") AgentSpan previousSpan,
-        @Advice.Local("startTimeMicros") long startTimeMicros) {
+        @Advice.Local("startTimeMicros") long startTimeMicros
+    ) {
       state = DurableOrchestrationState.current();
       if (state == null) {
         return null;
@@ -70,7 +72,8 @@ public final class DurableOrchestrationExecutorInstrumentation extends Instrumen
         @Advice.Local("previousSpan") AgentSpan previousSpan,
         @Advice.Local("startTimeMicros") long startTimeMicros,
         @Advice.Thrown Throwable throwable,
-        @Advice.Return Object result) {
+        @Advice.Return Object result
+    ) {
       if (state == null) {
         return;
       }

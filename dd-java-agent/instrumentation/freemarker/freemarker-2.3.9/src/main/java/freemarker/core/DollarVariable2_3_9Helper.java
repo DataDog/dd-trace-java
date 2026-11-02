@@ -7,10 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class DollarVariable2_3_9Helper {
-  private DollarVariable2_3_9Helper() {}
+  private DollarVariable2_3_9Helper() {
+  }
 
   private static final Logger log = LoggerFactory.getLogger(DollarVariable2_3_9Helper.class);
-
   private static final Field ESCAPED_EXPRESSION = prepareEscapedExpression();
 
   private static Field prepareEscapedExpression() {

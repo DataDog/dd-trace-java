@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling.bytebuddy.outline;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findDescriptor;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeOutline.NO_ANNOTATIONS;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeOutline.NO_TYPES;
-
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.description.annotation.AnnotationDescription;
@@ -15,19 +14,17 @@ import net.bytebuddy.description.method.ParameterList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
 
-/** Provides an outline of a method; its name, descriptor, and modifiers. */
+/**
+ * Provides an outline of a method; its name, descriptor, and modifiers.
+ */
 final class MethodOutline extends MethodDescription.InDefinedShape.AbstractBase {
   private static final int ALLOWED_METHOD_MODIFIERS = 0x0000ffff;
-
   private static final ParameterList<ParameterDescription.InDefinedShape> NO_PARAMETERS =
       new ParameterList.Empty<>();
-
   private final TypeDescription declaringType;
-
   private final String descriptor;
   private final int modifiers;
   private final String name;
-
   private List<AnnotationDescription> declaredAnnotations;
 
   MethodOutline(TypeDescription declaringType, int access, String name, String descriptor) {

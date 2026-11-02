@@ -1,7 +1,6 @@
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import java.io.InputStream;
@@ -92,7 +91,8 @@ public class NativeEndpoints {
   }
 
   public static class ListenerEndpoint extends EndpointEvents
-      implements Session.Listener.AutoDemanding {
+      implements Session.Listener.AutoDemanding
+  {
     @Override
     public void onWebSocketOpen(Session session) {
       this.session = session;

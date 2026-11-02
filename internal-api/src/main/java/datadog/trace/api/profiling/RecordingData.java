@@ -21,7 +21,9 @@ import java.time.Instant;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** Platform-agnostic API for operations required when retrieving data using the ProfilingSystem. */
+/**
+ * Platform-agnostic API for operations required when retrieving data using the ProfilingSystem.
+ */
 public abstract class RecordingData implements ProfilingSnapshot {
   protected final Instant start;
   protected final Instant end;

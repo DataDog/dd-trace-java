@@ -35,20 +35,16 @@ final class SmapEntryCache {
   }
 
   private static final Logger log = LoggerFactory.getLogger(SmapEntryCache.class);
-
   private static final long VSYSCALL_START_ADDRESS = 0xffffffffff600000L;
   private static final String VSYSCALL_START_ADDRESS_STR = Long.toHexString(VSYSCALL_START_ADDRESS);
   private static final Path SMAPS_PATH = Paths.get("/proc/self/smaps");
-
   private final Object[] events = new Object[] {new ArrayList<>(), new ArrayList<>()};
-
   private volatile long lastTimestamp = 0L;
   private volatile int index = 0;
   private static final AtomicLongFieldUpdater<SmapEntryCache> UPDATER =
       AtomicLongFieldUpdater.newUpdater(SmapEntryCache.class, "lastTimestamp");
   private static final AtomicIntegerFieldUpdater<SmapEntryCache> INDEX_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(SmapEntryCache.class, "index");
-
   private final long ttl;
   private final Path smapsPath;
 
@@ -92,11 +88,11 @@ final class SmapEntryCache {
       // ---
       // Java 24-25
       // 0x0000000448800000-0x000000049d800000   1426063360 rw-p   1425514496 0 4K com  JAVAHEAP
-
       // unify the format of address range for Java 23 and 24+
       line = line.replace(" - ", "-");
-      boolean isVsyscall =
-          line.startsWith("0x" + VSYSCALL_START_ADDRESS_STR); // can't be parsed to Long safely(?)
+      boolean isVsyscall = line
+        // can't be parsed to Long safely(?)
+        .startsWith("0x" + VSYSCALL_START_ADDRESS_STR);
       long startAddress = -1;
       int dashIndex = line.indexOf('-');
       if (dashIndex > 0) {
@@ -283,7 +279,6 @@ final class SmapEntryCache {
       String[] lines =
           ((String) mbs.invoke(objectName, "systemMap", dcmdArgs, signature)).split("\n");
       Map<Long, String> annotatedRegions = new HashMap<>();
-
       // Java 24+ format is different from Java 23
       int javaVersion = JavaVirtualMachine.isJavaVersionAtLeast(24) ? 24 : 23;
 

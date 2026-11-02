@@ -3,7 +3,6 @@ package datadog.trace.agent.test.server.http;
 import static datadog.trace.agent.test.server.http.HttpServletRequestExtractAdapter.GETTER;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
 import datadog.trace.agent.test.base.HttpServer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -55,7 +54,6 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 
 @SuppressFBWarnings({"IS2_INCONSISTENT_SYNC", "PA_PUBLIC_PRIMITIVE_ATTRIBUTE"})
 public class JavaTestHttpServer implements AutoCloseable {
-
   @FunctionalInterface
   public interface RequestHandler {
     void handle(HandlerApi api) throws Exception;
@@ -64,28 +62,23 @@ public class JavaTestHttpServer implements AutoCloseable {
   private final Server internalServer;
   private HandlersSpec handlers;
   private Consumer<Server> customizer = s -> {};
-
   public String keystorePath;
   private URI address;
   private URI secureAddress;
   private final AtomicReference<HandlerApi.RequestApi> last = new AtomicReference<>();
-
   public final SSLContext sslContext;
+  private final X509TrustManager trustManager = new X509TrustManager() {
+    @Override
+    public X509Certificate[] getAcceptedIssuers() {
+      return new X509Certificate[0];
+    }
 
-  private final X509TrustManager trustManager =
-      new X509TrustManager() {
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-          return new X509Certificate[0];
-        }
+    @Override
+    public void checkClientTrusted(X509Certificate[] certificate, String str) {}
 
-        @Override
-        public void checkClientTrusted(X509Certificate[] certificate, String str) {}
-
-        @Override
-        public void checkServerTrusted(X509Certificate[] certificate, String str) {}
-      };
-
+    @Override
+    public void checkServerTrusted(X509Certificate[] certificate, String str) {}
+  };
   private final HostnameVerifier hostnameVerifier =
       (hostname, session) -> "localhost".equals(hostname);
 
@@ -124,27 +117,25 @@ public class JavaTestHttpServer implements AutoCloseable {
         internalServer.setHandler(handlerList);
 
         HttpConfiguration httpConfiguration = new HttpConfiguration();
-
         // HTTP
         ServerConnector http =
             new ServerConnector(internalServer, new HttpConnectionFactory(httpConfiguration));
         http.setHost("localhost");
         http.setPort(0);
         internalServer.addConnector(http);
-
         // HTTPS
         SslContextFactory sslContextFactory = new SslContextFactory();
-        keystorePath =
-            extractKeystoreToDisk(JavaTestHttpServer.class.getResource("datadog.jks")).getPath();
+        keystorePath = extractKeystoreToDisk(JavaTestHttpServer.class.getResource("datadog.jks"))
+          .getPath();
         sslContextFactory.setKeyStorePath(keystorePath);
         sslContextFactory.setKeyStorePassword("datadog");
         HttpConfiguration httpsConfiguration = new HttpConfiguration(httpConfiguration);
         httpsConfiguration.addCustomizer(new SecureRequestCustomizer());
-        ServerConnector https =
-            new ServerConnector(
-                internalServer,
-                new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
-                new HttpConnectionFactory(httpsConfiguration));
+        ServerConnector https = new ServerConnector(
+            internalServer,
+            new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
+            new HttpConnectionFactory(httpsConfiguration)
+        );
         https.setHost("localhost");
         https.setPort(0);
         internalServer.addConnector(https);
@@ -171,8 +162,11 @@ public class JavaTestHttpServer implements AutoCloseable {
     while (!internalServer.isStarted()) {
       if (rem <= 0) {
         throw new RuntimeException(
-            new TimeoutException(
-                "Failed to start server " + this + " on port " + address.getPort()));
+            new TimeoutException("Failed to start server "
+            + this
+            + " on port "
+            + address.getPort())
+        );
       }
       try {
         Thread.sleep(Math.min(rem, 100));
@@ -310,8 +304,8 @@ public class JavaTestHttpServer implements AutoCloseable {
         String target,
         Request baseRequest,
         HttpServletRequest request,
-        HttpServletResponse response)
-        throws IOException, ServletException {
+        HttpServletResponse response
+    ) throws IOException, ServletException {
       send(baseRequest, response);
     }
 
@@ -344,8 +338,8 @@ public class JavaTestHttpServer implements AutoCloseable {
         String target,
         Request baseRequest,
         HttpServletRequest request,
-        HttpServletResponse response)
-        throws IOException, ServletException {
+        HttpServletResponse response
+    ) throws IOException, ServletException {
       if (request.getMethod().equalsIgnoreCase(method)) {
         super.handle(target, baseRequest, request, response);
       }
@@ -365,8 +359,8 @@ public class JavaTestHttpServer implements AutoCloseable {
         String target,
         Request baseRequest,
         HttpServletRequest request,
-        HttpServletResponse response)
-        throws IOException, ServletException {
+        HttpServletResponse response
+    ) throws IOException, ServletException {
       if (path.equals(target)) {
         super.handle(target, baseRequest, request, response);
       }
@@ -386,8 +380,8 @@ public class JavaTestHttpServer implements AutoCloseable {
         String target,
         Request baseRequest,
         HttpServletRequest request,
-        HttpServletResponse response)
-        throws IOException, ServletException {
+        HttpServletResponse response
+    ) throws IOException, ServletException {
       if (target.startsWith(prefix)) {
         super.handle(target, baseRequest, request, response);
       }
@@ -426,14 +420,14 @@ public class JavaTestHttpServer implements AutoCloseable {
         AgentSpanContext extractedContext = extractContextAndGetSpanContext(req.orig, GETTER);
         if (extractedContext != null) {
           startSpan("test", "test-http-server", extractedContext)
-              .setTag("path", req.getPath())
-              .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
-              .finish();
+            .setTag("path", req.getPath())
+            .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
+            .finish();
         } else {
           startSpan("test", "test-http-server")
-              .setTag("path", req.getPath())
-              .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
-              .finish();
+            .setTag("path", req.getPath())
+            .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
+            .finish();
         }
       }
     }

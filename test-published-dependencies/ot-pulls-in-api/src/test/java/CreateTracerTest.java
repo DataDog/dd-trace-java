@@ -5,7 +5,6 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 public class CreateTracerTest {
-
   @Test
   void createTracer() throws InterruptedException {
     DDTracer tracer = DDTracer.builder().serviceName("TestService").build();

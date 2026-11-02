@@ -8,7 +8,6 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class Jetty12EE9JakartaPojoWebsocketModule extends Jetty10JavaxPojoWebSocketModule {
-
   public Jetty12EE9JakartaPojoWebsocketModule() {
     super("jakarta", "org.eclipse.jetty.ee9.websocket.jakarta.common.Jakarta");
   }
@@ -24,7 +23,8 @@ public class Jetty12EE9JakartaPojoWebsocketModule extends Jetty10JavaxPojoWebSoc
     ret.put("javax", "jakarta");
     ret.put(
         "org.eclipse.jetty.websocket.javax.common.Javax",
-        "org.eclipse.jetty.ee9.websocket.jakarta.common.Jakarta");
+        "org.eclipse.jetty.ee9.websocket.jakarta.common.Jakarta"
+    );
     return ret;
   }
 }

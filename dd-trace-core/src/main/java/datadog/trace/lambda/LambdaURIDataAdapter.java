@@ -3,7 +3,6 @@ package datadog.trace.lambda;
 import static datadog.trace.lambda.LambdaEventParser.findHeader;
 import static datadog.trace.util.IntStringUtils.REJECT_LEADING_PLUS;
 import static datadog.trace.util.IntStringUtils.parseNonNegativeIntTrimmed;
-
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import java.util.Locale;
 import java.util.Map;
@@ -42,14 +41,12 @@ class LambdaURIDataAdapter extends URIDataAdapterBase {
     }
 
     this.host = host;
-
     // Lowercased because the port default below and URIUtils.buildURL both compare the scheme
     // exactly; whitelisted because X-Forwarded-Proto is client-influenceable and arrives
     // comma-joined when duplicated, which would render as "https, http://host/path".
     String forwardedProto = findHeader(headers, "x-forwarded-proto");
     String proto = forwardedProto == null ? null : forwardedProto.toLowerCase(Locale.ROOT);
     this.scheme = "http".equals(proto) || "https".equals(proto) ? proto : "https";
-
     // X-Forwarded-Port is client-influenceable, so parse it without throwing
     int parsedPort =
         parseNonNegativeIntTrimmed(findHeader(headers, "x-forwarded-port"), REJECT_LEADING_PLUS);

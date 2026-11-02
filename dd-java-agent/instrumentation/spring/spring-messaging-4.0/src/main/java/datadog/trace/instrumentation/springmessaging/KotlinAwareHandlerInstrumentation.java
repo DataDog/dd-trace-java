@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.springmessaging;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -32,16 +31,16 @@ import org.reactivestreams.Publisher;
  */
 @AutoService(InstrumenterModule.class)
 public class KotlinAwareHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public KotlinAwareHandlerInstrumentation() {
     super("spring-messaging", "spring-messaging-4", "spring-messaging-kotlin");
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.reactivestreams.Publisher", HandoffContext.class.getName());
+    return Collections.singletonMap("org.reactivestreams.Publisher", HandoffContext.class.getName());
   }
 
   @Override
@@ -53,16 +52,17 @@ public class KotlinAwareHandlerInstrumentation extends InstrumenterModule.Tracin
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("doInvoke")),
-        KotlinAwareHandlerInstrumentation.class.getName() + "$DoInvokeAdvice");
+        KotlinAwareHandlerInstrumentation.class.getName() + "$DoInvokeAdvice"
+    );
   }
 
   public static class DoInvokeAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.Return Object result) {
       if (result instanceof Publisher) {
-        InstrumentationContext.get(Publisher.class, HandoffContext.class)
-            .put((Publisher<?>) result, HandoffContext.anyThread(currentContext()));
+        InstrumentationContext
+          .get(Publisher.class, HandoffContext.class)
+          .put((Publisher<?>) result, HandoffContext.anyThread(currentContext()));
       }
     }
   }

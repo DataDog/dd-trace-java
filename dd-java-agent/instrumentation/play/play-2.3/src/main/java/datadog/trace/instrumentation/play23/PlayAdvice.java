@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.DECOR
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.PLAY_ACTION;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.PLAY_REQUEST;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.REPORT_HTTP_STATUS;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -48,16 +47,17 @@ public class PlayAdvice {
       @Advice.This final Object thisAction,
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final Request<?> req,
-      @Advice.Return(readOnly = false) final Future<Result> responseFuture) {
+      @Advice.Return(readOnly = false) final Future<Result> responseFuture
+  ) {
     final AgentSpan playControllerSpan = spanFromContext(playControllerScope.context());
-
     // Call onRequest on return after tags are populated.
     DECORATE.onRequest(playControllerSpan, req, req, rootContext());
 
     if (throwable == null) {
       responseFuture.onComplete(
           new RequestCompleteCallback(playControllerScope),
-          ((Action<?>) thisAction).executionContext());
+          ((Action<?>) thisAction).executionContext()
+      );
     } else {
       DECORATE.onError(playControllerSpan, throwable);
       if (REPORT_HTTP_STATUS) {
@@ -68,7 +68,6 @@ public class PlayAdvice {
     }
     playControllerScope.close();
     // span finished in RequestCompleteCallback
-
     final AgentSpan rootSpan = activeSpan();
     // set the resource name on the upstream akka/netty span if there is one
     if (rootSpan != null) {

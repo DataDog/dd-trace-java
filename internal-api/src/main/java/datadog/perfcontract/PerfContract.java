@@ -21,4 +21,5 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.ANNOTATION_TYPE)
-public @interface PerfContract {}
+public @interface PerfContract {
+}

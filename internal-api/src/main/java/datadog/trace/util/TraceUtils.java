@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static datadog.trace.util.Strings.truncate;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,31 +10,31 @@ import org.slf4j.LoggerFactory;
  * to mimic the normalization is done in the Datadog Agent.
  */
 public class TraceUtils {
-
   private static final int MAX_TYPE_LEN = 100;
   private static final int MAX_SERVICE_LEN = 100;
   private static final int MAX_OP_NAME_LEN = 100;
   private static final int MAX_ENV_LEN = 200;
-
   static final String DEFAULT_SERVICE_NAME = "unnamed-service";
   static final String DEFAULT_OPERATION_NAME = "unnamed_operation";
   static final String DEFAULT_ENV = "none";
-
   private static final Logger log = LoggerFactory.getLogger(TraceUtils.class);
 
   public static String normalizeServiceName(final String service) {
     if (service == null || service.isEmpty()) {
       log.debug(
           "Fixing malformed trace. Service  is empty (reason:service_empty), setting span.service={}.",
-          service);
+          service
+      );
       return DEFAULT_SERVICE_NAME;
     }
 
     String svc = service;
     if (svc.length() > MAX_SERVICE_LEN) {
       log.debug(
-          "Fixing malformed trace. Service is too long (reason:service_truncate), truncating span.service to length={}.",
-          MAX_SERVICE_LEN);
+          "Fixing malformed trace. Service is too long (reason:service_truncate), truncating "
+          + "span.service to length={}.",
+          MAX_SERVICE_LEN
+      );
       svc = truncate(svc, MAX_SERVICE_LEN);
     }
 
@@ -50,8 +49,10 @@ public class TraceUtils {
     CharSequence name = opName;
     if (name.length() > MAX_OP_NAME_LEN) {
       log.debug(
-          "Fixing malformed trace. Name is too long (reason:span_name_truncate), truncating span.name to length={}.",
-          MAX_OP_NAME_LEN);
+          "Fixing malformed trace. Name is too long (reason:span_name_truncate), truncating "
+          + "span.name to length={}.",
+          MAX_OP_NAME_LEN
+      );
       name = truncate(name, MAX_OP_NAME_LEN);
     }
 
@@ -66,7 +67,8 @@ public class TraceUtils {
     if (spanType != null && spanType.length() > MAX_TYPE_LEN) {
       log.debug(
           "Fixing malformed trace. Type is too long (reason:type_truncate), truncating span.type to length={}",
-          MAX_TYPE_LEN);
+          MAX_TYPE_LEN
+      );
       return truncate(spanType, MAX_TYPE_LEN);
     }
     return spanType;
@@ -189,8 +191,8 @@ public class TraceUtils {
     int i = 0;
     char previousCh = 0;
     // skip non-alphabetic characters
-    for (i = 0; i < name.length() && !isAlpha(name.charAt(i)); i++) {}
-
+    for (i = 0; i < name.length() && !isAlpha(name.charAt(i)); i++) {
+    }
     // if there were no alphabetic characters it wasn't valid
     if (i == name.length()) {
       return "";

@@ -16,6 +16,7 @@ public class JwtUserService implements UserDetailsService {
     return new User(
         username,
         "",
-        Arrays.asList(new SimpleGrantedAuthority(USER), new SimpleGrantedAuthority(ROLE)));
+        Arrays.asList(new SimpleGrantedAuthority(USER), new SimpleGrantedAuthority(ROLE))
+    );
   }
 }

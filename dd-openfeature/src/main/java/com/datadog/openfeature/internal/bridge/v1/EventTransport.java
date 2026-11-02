@@ -2,7 +2,9 @@ package com.datadog.openfeature.internal.bridge.v1;
 
 import java.io.IOException;
 
-/** Delivers serialized product events to the Datadog event platform. */
+/**
+ * Delivers serialized product events to the Datadog event platform.
+ */
 @FunctionalInterface
 public interface EventTransport {
   /**

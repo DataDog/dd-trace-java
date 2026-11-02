@@ -17,7 +17,6 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public final class HibernateModule extends InstrumenterModule.Tracing {
-
   static final String SESSION_STATE = "datadog.trace.instrumentation.hibernate.SessionState";
 
   public HibernateModule() {
@@ -37,9 +36,9 @@ public final class HibernateModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.hibernate.SessionMethodUtils",
-      "datadog.trace.instrumentation.hibernate.SessionState",
-      "datadog.trace.instrumentation.hibernate.HibernateDecorator",
+        "datadog.trace.instrumentation.hibernate.SessionMethodUtils",
+        "datadog.trace.instrumentation.hibernate.SessionState",
+        "datadog.trace.instrumentation.hibernate.HibernateDecorator"
     };
   }
 
@@ -50,6 +49,7 @@ public final class HibernateModule extends InstrumenterModule.Tracing {
         new SessionFactoryInstrumentation(),
         new QueryInstrumentation(),
         new CriteriaInstrumentation(),
-        new TransactionInstrumentation());
+        new TransactionInstrumentation()
+    );
   }
 }
