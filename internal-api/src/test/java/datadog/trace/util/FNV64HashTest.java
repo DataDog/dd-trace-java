@@ -248,6 +248,8 @@ class FNV64HashTest {
     }
   }
 
+  // A method source, not a table: the inputs are escapes for unpaired surrogates and other
+  // characters a table can't show readably
   static Stream<Arguments> utf8Strings() {
     return Stream.of(
         arguments("ascii", "topic:orders"),

@@ -1,7 +1,13 @@
 package datadog.trace.api.datastreams;
 
+import static datadog.trace.api.BaseHash.getBaseHash;
+import static datadog.trace.api.BaseHash.updateBaseHash;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.setServiceNameOverride;
+import static datadog.trace.util.FNV64Hash.Version.v1;
+import static datadog.trace.util.FNV64Hash.continueHash;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -10,14 +16,26 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.api.BaseHash;
 import datadog.trace.api.datastreams.DataStreamsTags.Direction;
-import datadog.trace.util.FNV64Hash;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class DataStreamsTagsTest {
+  private long originalBaseHash;
+
+  @BeforeEach
+  void captureBaseHash() {
+    originalBaseHash = getBaseHash();
+  }
+
+  /** The override and base hash are global, so a test changing them mustn't leak into others. */
+  @AfterEach
+  void restoreGlobals() {
+    setServiceNameOverride(null);
+    updateBaseHash(originalBaseHash);
+  }
 
   private static DataStreamsTags getTags(int idx) {
     return new DataStreamsTags(
@@ -110,6 +128,7 @@ class DataStreamsTagsTest {
     assertFalse(tags.hasAllTags(new String[] {"exchange:orders"}), "absent tag");
     assertFalse(tags.hasAllTags(new String[] {"unknown:orders"}), "unknown name");
     assertFalse(tags.hasAllTags(new String[] {"direction:out"}), "different direction");
+    assertFalse(tags.hasAllTags(new String[] {"direction:garbage"}), "unknown direction");
     assertFalse(tags.hasAllTags(new String[] {"topic:orders", "group:other"}), "one mismatch");
   }
 
@@ -130,10 +149,10 @@ class DataStreamsTagsTest {
 
     ThreadLocal<String> serviceName = new ThreadLocal<>();
     serviceName.set("test");
-    DataStreamsTags.setServiceNameOverride(serviceName);
+    setServiceNameOverride(serviceName);
     DataStreamsTags two = getTags(0);
 
-    BaseHash.updateBaseHash(12);
+    updateBaseHash(12);
     DataStreamsTags three = getTags(0);
 
     assertNotEquals(one.getHash(), two.getHash());
@@ -507,8 +526,6 @@ class DataStreamsTagsTest {
 
   @Test
   void hashesMatchHashingTheEncodedTags() {
-    // Another test may have left an override set
-    DataStreamsTags.setServiceNameOverride(null);
     DataStreamsTags[] tagsList = {
       getTags(0),
       DataStreamsTags.create(null, null),
@@ -532,28 +549,23 @@ class DataStreamsTagsTest {
           "3")
     };
     for (DataStreamsTags tags : tagsList) {
-      assertHashesMatchEncodedTags(tags, BaseHash.getBaseHash(), null);
+      assertHashesMatchEncodedTags(tags, getBaseHash(), null);
     }
   }
 
   @Test
   void hashesUseTheBaseHashAndServiceNameOverrideOfConstruction() {
-    long baseHash = BaseHash.getBaseHash();
+    long baseHash = getBaseHash();
     ThreadLocal<String> serviceName = new ThreadLocal<>();
     serviceName.set("service-at-construction");
-    DataStreamsTags.setServiceNameOverride(serviceName);
-    try {
-      DataStreamsTags tags = getTags(1);
+    setServiceNameOverride(serviceName);
+    DataStreamsTags tags = getTags(1);
 
-      // Changed before the hashes are first read, which mustn't change them
-      serviceName.set("service-later");
-      BaseHash.updateBaseHash(baseHash + 1);
+    // Changed before the hashes are first read, which mustn't change them
+    serviceName.set("service-later");
+    updateBaseHash(baseHash + 1);
 
-      assertHashesMatchEncodedTags(tags, baseHash, "service-at-construction");
-    } finally {
-      DataStreamsTags.setServiceNameOverride(null);
-      BaseHash.updateBaseHash(baseHash);
-    }
+    assertHashesMatchEncodedTags(tags, baseHash, "service-at-construction");
   }
 
   /** Checks the hashes against FNV-64 over the UTF-8 encoded "name:value" tags. */
@@ -561,33 +573,40 @@ class DataStreamsTagsTest {
       DataStreamsTags tags, long baseHash, String serviceName) {
     long hash = baseHash;
     if (serviceName != null) {
-      hash = continueHash(hash, serviceName);
+      hash = hashEncoded(hash, serviceName);
     }
     int nonNullSize = 0;
     for (int i = 0; i < 7; i++) {
       String tag = tags.tagByIndex(i);
       if (tag != null) {
         nonNullSize++;
-        hash = continueHash(hash, tag);
+        hash = hashEncoded(hash, tag);
       }
     }
     long aggregationHash = hash;
-    for (int i = 7; i < tags.size(); i++) {
+    for (int i = 7; i < 12; i++) {
       String tag = tags.tagByIndex(i);
       if (tag != null) {
         nonNullSize++;
-        if (i < 12) {
-          aggregationHash = continueHash(aggregationHash, tag);
-        }
+        aggregationHash = hashEncoded(aggregationHash, tag);
+      }
+    }
+    long completeHash = aggregationHash;
+    for (int i = 12; i < tags.size(); i++) {
+      String tag = tags.tagByIndex(i);
+      if (tag != null) {
+        nonNullSize++;
+        completeHash = hashEncoded(completeHash, tag);
       }
     }
     assertEquals(hash, tags.getHash(), tags::toString);
     assertEquals(aggregationHash, tags.getAggregationHash(), tags::toString);
+    // The complete hash isn't exposed, but equals and hashCode are defined by it
+    assertEquals(Long.hashCode(completeHash), tags.hashCode(), tags::toString);
     assertEquals(nonNullSize, tags.nonNullSize(), tags::toString);
   }
 
-  private static long continueHash(long hash, String value) {
-    return FNV64Hash.continueHash(
-        hash, value.getBytes(StandardCharsets.UTF_8), FNV64Hash.Version.v1);
+  private static long hashEncoded(long hash, String value) {
+    return continueHash(hash, value.getBytes(UTF_8), v1);
   }
 }
