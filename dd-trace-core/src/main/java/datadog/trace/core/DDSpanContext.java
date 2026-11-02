@@ -15,6 +15,8 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.HashStore;
+import datadog.trace.api.IdStore;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
@@ -45,6 +47,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.util.TagsHelper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -57,6 +60,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,15 +143,51 @@ public class DDSpanContext
   private CharSequence serviceNameSource;
 
   /**
-   * Tags are associated to the current span, they will not propagate to the children span.
+   * The span's known tags, by id. Also the lock for all of the span's tag state. Tags belong to
+   * this span; they don't propagate to its children.
    *
-   * <p>The underlying assumption for using a normal Map with synchronized access instead of a
-   * ConcurrentHashMap is that even though the tags can be accessed and modified from multiple
-   * threads, they will rarely, if ever, be read and modified concurrently by multiple threads but
-   * rather read and accessed in a serial fashion on thread after thread. The synchronization can
-   * then be wrapped around bulk operations to minimize the costly atomic operations.
+   * <p><b>Storage.</b> The span owns its tag stores directly. This store holds the known tags and
+   * is created with the span. {@link #customTags} holds the custom tags by name and is created on
+   * the first custom write. Until then it is null, or the read-through parent's custom store,
+   * borrowed read-only while {@link #customTagsBorrowed}. Every read and write is routed by name or
+   * id straight to one of the stores. Internal bulk readers (post-processors, serializers, {@link
+   * #getTags()}) go through the cached {@link #tagView()} instead.
+   *
+   * <p><b>Locking.</b> One lock, this store itself, guards both stores, {@link #customTagsBorrowed}
+   * and {@link #tagView}. It is this store because it always exists, while {@link #customTags} may
+   * be null or borrowed.
+   *
+   * <ul>
+   *   <li>The stores are unsynchronized; they rely on this lock.
+   *   <li>Read-through parents are frozen, so reading through them needs no lock.
+   *   <li>The lock is reentrant, and that matters: code that runs while it is held may call back
+   *       into the span's setters. The tag interceptor does so from {@code setAllTags}, and
+   *       post-processors do so through the view from {@code processTagsAndBaggage}.
+   *   <li>{@link #unsafeGetTag} and {@code unsafeSetTag} skip the lock. Callers either hold it
+   *       already or guarantee that nothing mutates the span concurrently.
+   * </ul>
+   *
+   * <p>A plain lock rather than concurrent structures: tags are rarely read and written by several
+   * threads at once. They are touched by one thread after another, so a lock around each operation,
+   * or around a bulk operation, costs less than atomic operations on every access.
    */
-  private final TagMap unsafeTags;
+  @GuardedBy("knownTags")
+  private final IdStore knownTags;
+
+  /** Custom tags by name: null, borrowed from the read-through parent, or the span's own. */
+  @GuardedBy("knownTags")
+  private HashStore customTags;
+
+  /** True while {@link #customTags} is the read-through parent's store, borrowed read-only. */
+  @GuardedBy("knownTags")
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "guarded by the knownTags lock, which every accessor's caller holds")
+  private boolean customTagsBorrowed;
+
+  /** This span's view of its tag stores for its internal readers; see {@link #tagView()}. */
+  @GuardedBy("knownTags")
+  private TagMap tagView;
 
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
@@ -217,7 +257,6 @@ public class DDSpanContext
       final Map<String, String> baggageItems,
       final boolean errorFlag,
       final CharSequence spanType,
-      final int tagsSize,
       final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
@@ -239,7 +278,6 @@ public class DDSpanContext
         null,
         errorFlag,
         spanType,
-        tagsSize,
         traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
@@ -266,7 +304,6 @@ public class DDSpanContext
       final Map<String, String> baggageItems,
       final boolean errorFlag,
       final CharSequence spanType,
-      final int tagsSize,
       final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
@@ -290,7 +327,6 @@ public class DDSpanContext
         null,
         errorFlag,
         spanType,
-        tagsSize,
         traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
@@ -320,7 +356,6 @@ public class DDSpanContext
       final Baggage w3cBaggage,
       final boolean errorFlag,
       final CharSequence spanType,
-      final int tagsSize,
       final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
@@ -346,7 +381,6 @@ public class DDSpanContext
         w3cBaggage,
         errorFlag,
         spanType,
-        tagsSize,
         traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
@@ -375,7 +409,6 @@ public class DDSpanContext
       final Baggage w3cBaggage,
       final boolean errorFlag,
       final CharSequence spanType,
-      final int tagsSize,
       final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
@@ -412,13 +445,11 @@ public class DDSpanContext
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
 
-    // The +1 is the magic number from the tags below that we set at the end,
-    // and "* 4 / 3" is to make sure that we don't resize immediately
-    final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    this.unsafeTags =
-        readThroughParent != null
-            ? TagMap.createFromParent(readThroughParent)
-            : TagMap.create(capacity);
+    // Reads through to the frozen tracer-level tags, if any.
+    TagMap parentTags = TagMap.readThroughParent(readThroughParent);
+    this.knownTags = IdStore.create(parentTags);
+    this.customTags = HashStore.inheritedFrom(parentTags);
+    this.customTagsBorrowed = this.customTags != null;
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
@@ -667,16 +698,15 @@ public class DDSpanContext
     if (map == null) {
       return;
     }
-    synchronized (unsafeTags) {
+    synchronized (knownTags) {
       map.forEach(
           this,
           (ctx, tagEntry) -> {
-            final String tag = tagEntry.tag();
-            if (ctx.unsafeTags.containsKey(tag)) {
+            if (ctx.isPresent(tagEntry)) {
               return;
             }
             if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
-              ctx.unsafeTags.set(tagEntry);
+              ctx.routePut(tagEntry);
             }
           });
     }
@@ -801,7 +831,7 @@ public class DDSpanContext
   }
 
   public void setSpanSamplingPriority(double rate, int limit) {
-    synchronized (unsafeTags) {
+    synchronized (knownTags) {
       unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
       unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
       if (limit != Integer.MAX_VALUE) {
@@ -934,6 +964,139 @@ public class DDSpanContext
     spanKindOrdinal = spanKindOrdinalOf(kind);
   }
 
+  /**
+   * This span's cached view of its tag stores, for its internal bulk readers (post-processors, the
+   * serializer, the snapshot copy) -- never its own set/get paths. The view keeps the stores it was
+   * created over: {@link #customTagsForWrite} drops it when the span creates its own custom store.
+   * Bulk readers run late in a span's life, after its custom writes, so that is rare. Call under
+   * the {@code knownTags} lock.
+   */
+  private TagMap tagView() {
+    TagMap view = this.tagView;
+    if (view == null) {
+      // a view handed to the post-processor chain escapes, so allocate it once per span
+      this.tagView = view = TagMap.viewOf(knownTags, customTags, customTagsBorrowed);
+    }
+    return view;
+  }
+
+  /**
+   * Adopts the custom store a reader may have created through the view (by writing a custom tag),
+   * so the span's own paths see it. Call under the {@code knownTags} lock, after using the view.
+   */
+  private void adoptViewStores(TagMap view) {
+    // Skipped when the span dropped this view during its use: a callback into a span setter
+    // created the span's own custom store, which must not be replaced by the view's older one.
+    if (view == this.tagView) {
+      this.customTags = view.customStore();
+      this.customTagsBorrowed = view.isCustomStoreBorrowed();
+    }
+  }
+
+  /**
+   * The custom store to write to: created on the first custom write, ending any borrowing. A cached
+   * view still holds the old store, so it is dropped.
+   */
+  private HashStore customTagsForWrite() {
+    HashStore custom = this.customTags;
+    if (custom == null || this.customTagsBorrowed) {
+      custom = HashStore.create(custom); // reads through to the store borrowed till now
+      this.customTags = custom;
+      this.customTagsBorrowed = false;
+      this.tagView = null;
+    }
+    return custom;
+  }
+
+  /**
+   * Removes the custom tag {@code name}: hiding an inherited one needs a store of the span's own.
+   */
+  private void removeCustomTag(String name) {
+    HashStore custom = this.customTags;
+    if (custom == null) {
+      return;
+    }
+    if (this.customTagsBorrowed) {
+      if (custom.getEntry(name) == null) {
+        return; // nothing to hide: keep borrowing
+      }
+      custom = customTagsForWrite();
+    }
+    custom.remove(name);
+  }
+
+  /** Removes {@code tag}, known or custom. Call under the {@code knownTags} lock. */
+  private void routeRemoval(String tag) {
+    long key = KnownTagCodec.keyOf(tag);
+    if (key != 0) {
+      knownTags.remove(key);
+    } else {
+      removeCustomTag(tag);
+    }
+  }
+
+  /**
+   * Copies {@code map}'s tags into the stores, sharing its Entry objects where a store keeps them.
+   */
+  private void routePutAll(TagMap map) {
+    // straight into the stores: a view created this early would likely be dropped by a later
+    // custom write
+    map.forEach(this, (ctx, entryReader) -> ctx.routePut(entryReader));
+  }
+
+  /*
+   * The route* operations send a tag to the store that holds it: the known store by id, else the
+   * custom store by name. Call them while holding the knownTags lock.
+   */
+
+  private void routeSet(long key, String tag, Object value) {
+    if (key != 0) {
+      knownTags.store(key, value);
+    } else {
+      customTagsForWrite().store(tag, value);
+    }
+  }
+
+  private void routeSet(long key, String tag, CharSequence value) {
+    if (key != 0) {
+      knownTags.store(key, value);
+    } else {
+      customTagsForWrite().store(tag, value);
+    }
+  }
+
+  private void routeSet(long key, String tag, int value) {
+    if (key != 0) {
+      knownTags.store(key, value);
+    } else {
+      customTagsForWrite().store(tag, value);
+    }
+  }
+
+  private void routeSet(long key, String tag, long value) {
+    if (key != 0) {
+      knownTags.store(key, value);
+    } else {
+      customTagsForWrite().store(tag, value);
+    }
+  }
+
+  private void routeSet(long key, String tag, float value) {
+    if (key != 0) {
+      knownTags.store(key, value);
+    } else {
+      customTagsForWrite().store(tag, value);
+    }
+  }
+
+  private void routeSet(long key, String tag, double value) {
+    if (key != 0) {
+      knownTags.store(key, value);
+    } else {
+      customTagsForWrite().store(tag, value);
+    }
+  }
+
   static byte spanKindOrdinalOf(String kind) {
     if (kind == null) {
       return SPAN_KIND_UNSET;
@@ -965,8 +1128,9 @@ public class DDSpanContext
       return SPAN_KIND_VALUES[ordinal];
     }
     // UNSET or CUSTOM -- fall through to tag map
-    synchronized (unsafeTags) {
-      return unsafeTags.getString(Tags.SPAN_KIND);
+    synchronized (knownTags) {
+      TagMap.EntryReader kind = knownTags.getEntryReader(KnownTags.SPAN_KIND_ID);
+      return kind == null ? null : kind.stringValue();
     }
   }
 
@@ -977,32 +1141,32 @@ public class DDSpanContext
   }
 
   public void setMetric(final CharSequence key, final Number value) {
-    synchronized (unsafeTags) {
+    synchronized (knownTags) {
       unsafeSetTag(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final int value) {
-    synchronized (unsafeTags) {
-      unsafeTags.set(key.toString(), value);
+    synchronized (knownTags) {
+      routeSet(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final long value) {
-    synchronized (unsafeTags) {
-      unsafeTags.set(key.toString(), value);
+    synchronized (knownTags) {
+      routeSet(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final float value) {
-    synchronized (unsafeTags) {
-      unsafeTags.set(key.toString(), value);
+    synchronized (knownTags) {
+      routeSet(key.toString(), value);
     }
   }
 
   public void setMetric(final CharSequence key, final double value) {
-    synchronized (unsafeTags) {
-      unsafeTags.set(key.toString(), value);
+    synchronized (knownTags) {
+      routeSet(key.toString(), value);
     }
   }
 
@@ -1011,24 +1175,64 @@ public class DDSpanContext
       return;
     }
 
-    synchronized (unsafeTags) {
-      unsafeTags.set(entry);
+    synchronized (knownTags) {
+      routePut(entry);
+    }
+  }
+
+  /*
+   * Route a tag that interception let through, by name: resolved once to the store that holds it.
+   */
+
+  private void routeSet(String tag, Object value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
+  }
+
+  private void routeSet(String tag, CharSequence value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
+  }
+
+  private void routeSet(String tag, int value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
+  }
+
+  private void routeSet(String tag, long value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
+  }
+
+  private void routeSet(String tag, float value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
+  }
+
+  private void routeSet(String tag, double value) {
+    routeSet(KnownTagCodec.keyOf(tag), tag, value);
+  }
+
+  /** Stores {@code entry}, sharing its Entry where the store keeps Entry objects. */
+  private void routePut(TagMap.EntryReader entryReader) {
+    if (entryReader.tagId() != 0) {
+      knownTags.put(entryReader); // no Entry built for a dense store, or for a flyweight from one
+    } else {
+      TagMap.Entry entry = entryReader.entry();
+      if (entry != null) { // a reader with no entry is a no-op, as for TagMap.set
+        customTagsForWrite().put(entry);
+      }
     }
   }
 
   public void removeTag(String tag) {
     if (tagEquals(tag, Tags.SPAN_KIND)) {
-      // Clear the cached ordinal; unsafeTags still needs to be updated below.
+      // Clear the cached ordinal; the tag store still needs to be updated below.
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
-    synchronized (unsafeTags) {
-      unsafeTags.remove(tag);
+    synchronized (knownTags) {
+      routeRemoval(tag);
     }
   }
 
   /**
-   * Removes a known tag by id rather than by its name. An id the id-keyed setters ignore is ignored
-   * here too.
+   * Removes a known tag by id rather than by its name. An id that names no known tag is ignored,
+   * like the id-keyed setters do.
    *
    * @param tagId a {@code KnownTags} id constant
    */
@@ -1039,9 +1243,19 @@ public class DDSpanContext
     if (tagId == KnownTags.SPAN_KIND) {
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
-    synchronized (unsafeTags) {
-      unsafeTags.getAndRemove(tagId);
+    synchronized (knownTags) {
+      knownTags.remove(tagId);
     }
+  }
+
+  /** Whether {@code entry}'s tag is already on this span. */
+  private boolean isPresent(TagMap.EntryReader entry) {
+    long key = entry.tagId(); // the reader already carries its id: no name lookup
+    if (key != 0) {
+      return knownTags.load(key) != null;
+    }
+    HashStore custom = customTags;
+    return custom != null && custom.getEntry(entry.tag()) != null;
   }
 
   /**
@@ -1066,8 +1280,8 @@ public class DDSpanContext
     } else if (null == value) {
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+      synchronized (knownTags) {
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1082,8 +1296,8 @@ public class DDSpanContext
     } else if (null == value) {
       removeTag(tag);
     } else if (!tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+      synchronized (knownTags) {
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1099,10 +1313,11 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tagId);
-    } else if (!tagInterceptor.needsIntercept(tagId)
-        || !tagInterceptor.interceptTag(this, tagId, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      return;
+    }
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
+      synchronized (knownTags) {
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1113,10 +1328,11 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tagId);
-    } else if (!tagInterceptor.needsIntercept(tagId)
-        || !tagInterceptor.interceptTag(this, tagId, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      return;
+    }
+    if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
+      synchronized (knownTags) {
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1128,8 +1344,8 @@ public class DDSpanContext
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (knownTags) {
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1141,8 +1357,8 @@ public class DDSpanContext
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (knownTags) {
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1154,8 +1370,8 @@ public class DDSpanContext
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (knownTags) {
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1167,8 +1383,8 @@ public class DDSpanContext
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (knownTags) {
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1180,8 +1396,8 @@ public class DDSpanContext
     if (tagInterceptor.needsIntercept(tagId)) {
       this.setBox(tagId, value);
     } else {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, value);
+      synchronized (knownTags) {
+        knownTags.store(tagId, value);
       }
     }
   }
@@ -1193,8 +1409,8 @@ public class DDSpanContext
 
     // the interceptor prechecks the entry, to avoid boxing
     if (!tagInterceptor.interceptTag(this, entry)) {
-      synchronized (unsafeTags) {
-        unsafeTags.set(entry);
+      synchronized (knownTags) {
+        routePut(entry);
       }
     }
   }
@@ -1213,8 +1429,8 @@ public class DDSpanContext
    */
   private void setBox(long tagId, Object box) {
     if (!tagInterceptor.interceptTag(this, tagId, box)) {
-      synchronized (unsafeTags) {
-        unsafeTags.internals().setKnown(tagId, box);
+      synchronized (knownTags) {
+        knownTags.store(tagId, box);
       }
     }
   }
@@ -1228,8 +1444,8 @@ public class DDSpanContext
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+      synchronized (knownTags) {
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1243,8 +1459,8 @@ public class DDSpanContext
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+      synchronized (knownTags) {
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1258,8 +1474,8 @@ public class DDSpanContext
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+      synchronized (knownTags) {
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1273,8 +1489,8 @@ public class DDSpanContext
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+      synchronized (knownTags) {
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1288,8 +1504,8 @@ public class DDSpanContext
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
         || !tagInterceptor.interceptCustomTag(this, tag, value)) {
-      synchronized (unsafeTags) {
-        unsafeTags.set(tag, value);
+      synchronized (knownTags) {
+        customTagsForWrite().store(tag, value); // already known to be custom
       }
     }
   }
@@ -1303,7 +1519,7 @@ public class DDSpanContext
       return;
     }
 
-    synchronized (unsafeTags) {
+    synchronized (knownTags) {
       if (needsIntercept) {
         // forEach out-performs the iterator of TagMap
         // Taking advantage of ability to pass through other context arguments
@@ -1312,11 +1528,11 @@ public class DDSpanContext
             this,
             (ctx, tagEntry) -> {
               if (!ctx.tagInterceptor.interceptTag(ctx, tagEntry)) {
-                ctx.unsafeTags.set(tagEntry);
+                ctx.routePut(tagEntry);
               }
             });
       } else {
-        unsafeTags.putAll(map);
+        routePutAll(map);
       }
     }
   }
@@ -1326,20 +1542,20 @@ public class DDSpanContext
       return;
     }
 
-    synchronized (unsafeTags) {
+    synchronized (knownTags) {
       for (final TagMap.EntryChange entryChange : ledger) {
         String tag = entryChange.tag();
         if (entryChange.isRemoval()) {
           if (tagEquals(tag, Tags.SPAN_KIND)) {
-            // mirror removeTag(String): keep the cached ordinal in sync with unsafeTags
+            // mirror removeTag(String): keep the cached ordinal in sync with the tags
             spanKindOrdinal = SPAN_KIND_UNSET;
           }
-          unsafeTags.remove(tag);
+          routeRemoval(tag);
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
           if (!tagInterceptor.interceptTag(this, entry)) {
-            unsafeTags.set(entry);
+            routePut(entry);
           }
         }
       }
@@ -1352,9 +1568,14 @@ public class DDSpanContext
     } else if (map instanceof TagMap) {
       setAllTags((TagMap) map);
     } else if (!map.isEmpty()) {
-      synchronized (unsafeTags) {
+      synchronized (knownTags) {
         for (final Map.Entry<String, ?> tag : map.entrySet()) {
-          if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
+          long tagId = KnownTagCodec.keyOf(tag.getKey());
+          boolean intercepted =
+              tagId != 0
+                  ? tagInterceptor.interceptTag(this, tagId, tag.getValue())
+                  : tagInterceptor.interceptCustomTag(this, tag.getKey(), tag.getValue());
+          if (!intercepted) {
             unsafeSetTag(tag.getKey(), tag.getValue());
           }
         }
@@ -1363,19 +1584,19 @@ public class DDSpanContext
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    unsafeTags.set(tag, value);
+    routeSet(tag, value);
   }
 
   void unsafeSetTag(final String tag, final CharSequence value) {
-    unsafeTags.set(tag, value);
+    routeSet(tag, value);
   }
 
   void unsafeSetTag(final String tag, final byte value) {
-    unsafeTags.set(tag, value);
+    routeSet(tag, value);
   }
 
   void unsafeSetTag(final String tag, final double value) {
-    unsafeTags.set(tag, value);
+    routeSet(tag, value);
   }
 
   Object getTag(final String key) {
@@ -1392,7 +1613,7 @@ public class DDSpanContext
         return getSpanKindString();
       default:
         Object value;
-        synchronized (unsafeTags) {
+        synchronized (knownTags) {
           value = unsafeGetTag(key);
         }
         // maintain previously observable type of http url :|
@@ -1405,43 +1626,65 @@ public class DDSpanContext
    * interpretation -- the storage beneath the span, as a Map was beneath a TagMap. A span isn't
    * conceptually a TagStore. It implements one so post-processing is handed the span's storage
    * without allocating: a wrapper would be free only if escape analysis removed it, and the
-   * post-processor chain's dispatch loop defeats that. Callers hold the span's tag lock, as
+   * post-processor chain's dispatch loop defeats that. Callers hold the knownTags lock, as
    * post-processing does.
    */
 
   @Override
   public Object load(String tag) {
-    return unsafeTags.getObject(tag);
+    long key = KnownTagCodec.keyOf(tag);
+    if (key != 0) {
+      return knownTags.load(key);
+    }
+    HashStore custom = customTags;
+    TagMap.Entry entry = custom == null ? null : custom.getEntry(tag);
+    return entry == null ? null : entry.objectValue();
   }
 
   @Override
   public String loadString(String tag) {
-    return unsafeTags.getString(tag);
+    long key = KnownTagCodec.keyOf(tag);
+    if (key != 0) {
+      return knownTags.loadString(key);
+    }
+    HashStore custom = customTags;
+    TagMap.Entry entry = custom == null ? null : custom.getEntry(tag);
+    return entry == null ? null : entry.stringValue();
   }
 
   @Override
   public Object load(long tagId) {
-    return unsafeTags.load(tagId);
+    return knownTags.load(tagId);
   }
 
   @Override
   public String loadString(long tagId) {
-    return unsafeTags.loadString(tagId);
+    return knownTags.loadString(tagId);
   }
 
   @Override
   public void store(String tag, Object value) {
-    unsafeTags.set(tag, value);
+    if (value == null) {
+      routeRemoval(tag);
+    } else {
+      routeSet(tag, value);
+    }
   }
 
   @Override
   public void store(long tagId, Object value) {
-    unsafeTags.set(tagId, value);
+    if (value == null) {
+      knownTags.remove(tagId);
+    } else {
+      knownTags.store(tagId, value);
+    }
   }
 
   @Override
   public void store(TagMap.EntryReader entry) {
-    unsafeTags.set(entry);
+    if (entry != null) {
+      routePut(entry);
+    }
   }
 
   /**
@@ -1452,7 +1695,7 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    Object value = unsafeTags.getObject(tag);
+    Object value = load(tag);
     return value != null ? value : unsafeGetDirectionScopedTag(tag);
   }
 
@@ -1471,8 +1714,7 @@ public class DDSpanContext
     if (tagId == 0) {
       return null;
     }
-    TagMap.Entry entry = unsafeTags.getEntry(tagId);
-    return entry == null ? null : entry.objectValue();
+    return knownTags.load(tagId);
   }
 
   /**
@@ -1495,8 +1737,8 @@ public class DDSpanContext
 
   @Deprecated
   public TagMap getTags() {
-    synchronized (unsafeTags) {
-      TagMap tags = unsafeTags.copy();
+    synchronized (knownTags) {
+      TagMap tags = tagView().copy();
 
       tags.put(DDTags.THREAD_ID, threadId);
       // maintain previously observable type of the thread name :|
@@ -1548,7 +1790,7 @@ public class DDSpanContext
   }
 
   void earlyProcessTags(AppendableSpanLinks links) {
-    synchronized (unsafeTags) {
+    synchronized (knownTags) {
       TagsPostProcessorFactory.eagerProcessor().processTags(this, this, links);
     }
   }
@@ -1578,15 +1820,18 @@ public class DDSpanContext
     // This is a compromise to avoid...
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
-    synchronized (unsafeTags) {
+    synchronized (knownTags) {
+      // One live view of the tag stores, for the post-processors and the serializer
+      TagMap tags = tagView();
+
       // Tags
-      TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
+      TagsPostProcessorFactory.lazyProcessor().processTags(tags, this, restrictedSpan);
 
       // Links
       if (injectLinksAsTags) {
         String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
         if (linksTag != null) {
-          unsafeTags.set(SPAN_LINKS, linksTag);
+          tags.set(SPAN_LINKS, linksTag);
         }
       }
 
@@ -1595,7 +1840,7 @@ public class DDSpanContext
       if (injectEventsAsTags) {
         String eventsTag = spanEventsToTag(events);
         if (eventsTag != null) {
-          unsafeTags.set(SPAN_EVENTS, eventsTag);
+          tags.set(SPAN_EVENTS, eventsTag);
         }
       }
 
@@ -1621,7 +1866,7 @@ public class DDSpanContext
           new Metadata(
               threadId,
               threadName,
-              unsafeTags,
+              tags,
               traceConfig.globalTags,
               traceConfig.spanDefaultTags,
               baggageItemsWithPropagationTags,
@@ -1636,6 +1881,7 @@ public class DDSpanContext
               Config.get().isOtlpTracesExportEnabled() ? OTLP_EXPORT_TRUE : OTLP_EXPORT_FALSE,
               restrictedSpan.getLinks(),
               events));
+      adoptViewStores(tags);
     }
   }
 
@@ -1786,7 +2032,7 @@ public class DDSpanContext
       s.append(" *measured*");
     }
 
-    synchronized (unsafeTags) {
+    synchronized (knownTags) {
       s.append(" tags=").append(new TreeMap<>(getTags()));
     }
     return s.toString();

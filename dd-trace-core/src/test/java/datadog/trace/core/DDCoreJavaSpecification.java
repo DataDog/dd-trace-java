@@ -115,7 +115,6 @@ public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
             null,
             false,
             spanType,
-            0,
             tracer.createTraceCollector(DDTraceId.ONE),
             null,
             null,
