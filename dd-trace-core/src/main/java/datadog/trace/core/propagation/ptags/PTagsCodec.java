@@ -31,8 +31,25 @@ abstract class PTagsCodec {
   protected static final TagKey LLMOBS_PAGENT_SPAN_ID_TAG = TagKey.from("llmobs_pagent_span_id");
   protected static final TagKey LLMOBS_PAGENT_NAME_TAG = TagKey.from("llmobs_pagent_name");
   protected static final TagKey LLMOBS_PARENT_ID_TAG = TagKey.from("llmobs_parent_id");
+
   protected static final TagKey LLMOBS_SAMPLE_RATE_TAG = TagKey.from("llmobs_sr");
   protected static final TagKey LLMOBS_SAMPLING_DECISION_TAG = TagKey.from("llmobs_sd");
+
+  /**
+   * The value of tag {@code key}, cached unless the key's values are unique to one trace or span.
+   */
+  static TagValue tagValue(Encoding encoding, TagKey key, CharSequence s, int start, int end) {
+    return hasUniqueValues(key)
+        ? TagValue.uncached(encoding, s, start, end)
+        : TagValue.from(encoding, s, start, end);
+  }
+
+  /** Whether values of {@code key} are unique to one trace or span, so not worth caching. */
+  static boolean hasUniqueValues(TagKey key) {
+    return LLMOBS_TRACE_ID_TAG.equals(key)
+        || LLMOBS_PARENT_ID_TAG.equals(key)
+        || LLMOBS_PAGENT_SPAN_ID_TAG.equals(key);
+  }
 
   /**
    * Encodes the header. {@code llmObsValues} are the LLM Observability values of the span being
