@@ -33,6 +33,13 @@ class NativeImageJmxSmokeTest {
             .contains("Runtime JMX metrics available"));
   }
 
+  @Test
+  void supportsRuntimeJmxWithDefaultClassInitialization() throws Exception {
+    assertTrue(
+        buildAndRun(newBuildDirectory(), true, RuntimeOnlyJmxApplication.class, false)
+            .contains("Runtime JMX server available"));
+  }
+
   private Path newBuildDirectory() throws Exception {
     Path buildDirectory = Paths.get(System.getProperty("datadog.smoketest.builddir"));
     Files.createDirectories(buildDirectory);
@@ -40,6 +47,12 @@ class NativeImageJmxSmokeTest {
   }
 
   private String buildAndRun(Path directory, boolean withAgent, Class<?> application)
+      throws Exception {
+    return buildAndRun(directory, withAgent, application, true);
+  }
+
+  private String buildAndRun(
+      Path directory, boolean withAgent, Class<?> application, boolean initializeAtBuildTime)
       throws Exception {
     String name = withAgent ? "with-agent" : "without-agent";
     Path executable = directory.resolve(name);
@@ -52,8 +65,6 @@ class NativeImageJmxSmokeTest {
                 "--no-fallback",
                 "--parallelism=4",
                 "-J-Xmx4g",
-                // Match Quarkus's default; the tracer supplies its own runtime exceptions.
-                "--initialize-at-build-time",
                 "-cp",
                 new File(
                         JmxApplication.class
@@ -62,6 +73,10 @@ class NativeImageJmxSmokeTest {
                             .getLocation()
                             .toURI())
                     .getAbsolutePath()));
+    if (initializeAtBuildTime) {
+      // Match Quarkus's default; the tracer supplies its own runtime exceptions.
+      command.add("--initialize-at-build-time");
+    }
     if (withAgent) {
       command.add("-J-javaagent:" + System.getProperty("datadog.smoketest.agent.shadowJar.path"));
     }
@@ -70,8 +85,10 @@ class NativeImageJmxSmokeTest {
 
     int exitCode = run(command, buildLog, MINUTES.toSeconds(10));
     String output = new String(Files.readAllBytes(buildLog), UTF_8);
-    assertTrue(
-        output.contains("Build-time MXBean registered"), () -> "Fixture did not run: " + buildLog);
+    assertEquals(
+        initializeAtBuildTime,
+        output.contains("Build-time MXBean registered"),
+        () -> "Fixture did not run: " + buildLog);
     assertEquals(
         0,
         exitCode,
