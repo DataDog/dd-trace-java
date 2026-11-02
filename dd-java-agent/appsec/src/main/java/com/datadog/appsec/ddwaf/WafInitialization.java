@@ -4,7 +4,6 @@ import com.datadog.appsec.util.StandardizedLogging;
 import com.datadog.ddwaf.Waf;
 import datadog.environment.SystemProperties;
 import java.io.File;
-import java.io.IOException;
 import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +38,8 @@ public class WafInitialization {
             return "libc";
           }
         }
-      } catch (IOException e) {
-        // purposefully left blank
+      } catch (Exception ignored) {
+        // purposefully left blank, detection is best effort and falls back to unknown
       }
     }
     return "unknown";
