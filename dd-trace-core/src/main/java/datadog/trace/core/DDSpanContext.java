@@ -90,8 +90,6 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   /** Baggage is associated with the whole trace and shared with other spans */
   private volatile Map<String, String> baggageItems;
 
-  private final Baggage w3cBaggage;
-
   // Not Shared with other span contexts
   private final DDTraceId traceId;
   private final long spanId;
@@ -166,8 +164,6 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
 
   private volatile boolean topLevel;
 
-  private final boolean disableSamplingMechanismValidation;
-
   /**
    * This span's own propagation tags, when they differ from the trace's. Only a non-root span that
    * is the target of a write (e.g. {@code _dd.p.ts}) gets one. Access via {@link
@@ -183,8 +179,6 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   private volatile PathwayContext pathwayContext;
 
   private final ProfilingContextIntegration profilingContextIntegration;
-  private final boolean injectBaggageAsTags;
-  private final boolean injectLinksAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
 
@@ -213,7 +207,6 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
-      final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags) {
     this(
         traceId,
@@ -236,62 +229,8 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
         requestContextDataIast,
         null,
         pathwayContext,
-        disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        true,
-        true,
-        null);
-  }
-
-  public DDSpanContext(
-      final DDTraceId traceId,
-      final long spanId,
-      final long parentId,
-      final CharSequence parentServiceName,
-      final String serviceName,
-      final CharSequence operationName,
-      final CharSequence resourceName,
-      final int samplingPriority,
-      final CharSequence origin,
-      final Map<String, String> baggageItems,
-      final boolean errorFlag,
-      final CharSequence spanType,
-      final int tagsSize,
-      final TraceCollector traceCollector,
-      final Object requestContextDataAppSec,
-      final Object requestContextDataIast,
-      final PathwayContext pathwayContext,
-      final boolean disableSamplingMechanismValidation,
-      final PropagationTags propagationTags,
-      final boolean injectBaggageAsTags,
-      final boolean injectLinksAsTags) {
-    this(
-        traceId,
-        spanId,
-        parentId,
-        parentServiceName,
-        null,
-        serviceName,
-        operationName,
-        resourceName,
-        samplingPriority,
-        origin,
-        baggageItems,
-        null,
-        errorFlag,
-        spanType,
-        tagsSize,
-        traceCollector,
-        requestContextDataAppSec,
-        requestContextDataIast,
-        null,
-        pathwayContext,
-        disableSamplingMechanismValidation,
-        propagationTags,
-        ProfilingContextIntegration.NoOp.INSTANCE,
-        injectBaggageAsTags,
-        injectLinksAsTags,
         null);
   }
 
@@ -317,11 +256,8 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
       final Object requestContextDataIast,
       final Object CiVisibilityContextData,
       final PathwayContext pathwayContext,
-      final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
-      final ProfilingContextIntegration profilingContextIntegration,
-      final boolean injectBaggageAsTags,
-      final boolean injectLinksAsTags) {
+      final ProfilingContextIntegration profilingContextIntegration) {
     this(
         traceId,
         spanId,
@@ -343,11 +279,8 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
         requestContextDataIast,
         CiVisibilityContextData,
         pathwayContext,
-        disableSamplingMechanismValidation,
         propagationTags,
         profilingContextIntegration,
-        injectBaggageAsTags,
-        injectLinksAsTags,
         null);
   }
 
@@ -372,11 +305,8 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
       final Object requestContextDataIast,
       final Object CiVisibilityContextData,
       final PathwayContext pathwayContext,
-      final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean injectBaggageAsTags,
-      final boolean injectLinksAsTags,
       final TagMap readThroughParent) {
 
     assert traceCollector != null;
@@ -394,7 +324,9 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     } else {
       this.baggageItems = new ConcurrentHashMap<>(baggageItems);
     }
-    this.w3cBaggage = w3cBaggage;
+    if (w3cBaggage != null) {
+      traceCollector.initW3CBaggage(w3cBaggage);
+    }
 
     if (requestContextDataAppSec != null
         || requestContextDataIast != null
@@ -433,7 +365,6 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     this.threadId = current.getId();
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
 
-    this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
     if (propagationTags != null) {
       propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
       if (traceCollector.initPropagationTags(propagationTags) != propagationTags) {
@@ -441,8 +372,6 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
         this.propagationTags = propagationTags;
       }
     }
-    this.injectBaggageAsTags = injectBaggageAsTags;
-    this.injectLinksAsTags = injectLinksAsTags;
     if (origin != null) {
       setOrigin(origin);
     }
@@ -808,7 +737,7 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
       return false;
     }
     if (!SamplingMechanism.validateWithSamplingPriority(newMechanism, newPriority)) {
-      if (disableSamplingMechanismValidation) {
+      if (traceCollector.getTracer().isSamplingMechanismValidationDisabled()) {
         log.debug(
             "{}: Bypassing setting setSamplingPriority check ("
                 + TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED
@@ -1541,7 +1470,8 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
    */
   void processTagsAndBaggage(
       final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan, int options) {
-    boolean injectLinksAsTags = this.injectLinksAsTags && (options & STRUCTURED_LINKS) == 0;
+    boolean injectLinksAsTags =
+        traceCollector.getTracer().isInjectLinksAsTags() && (options & STRUCTURED_LINKS) == 0;
     boolean injectEventsAsTags = (options & STRUCTURED_EVENTS) == 0;
     PropagationTags serializedPropagationTags;
     if ((options & ROOT_PROPAGATION_TAGS) != 0) {
@@ -1581,10 +1511,12 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
 
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
-      if (this.injectBaggageAsTags) {
+      if (traceCollector.getTracer().isInjectBaggageAsTags()) {
         baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
+        // W3C baggage is only extracted onto the local root
+        Baggage w3cBaggage = isLocalRoot() ? traceCollector.getW3CBaggage() : null;
         if (w3cBaggage != null) {
-          injectW3CBaggageTags(baggageItemsWithPropagationTags);
+          injectW3CBaggageTags(baggageItemsWithPropagationTags, w3cBaggage);
         }
         if (serializedPropagationTags != null) {
           serializedPropagationTags.fillTagMap(baggageItemsWithPropagationTags);
@@ -1709,7 +1641,8 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
     builder.append('"');
   }
 
-  void injectW3CBaggageTags(Map<String, String> baggageItemsWithPropagationTags) {
+  void injectW3CBaggageTags(
+      Map<String, String> baggageItemsWithPropagationTags, Baggage w3cBaggage) {
     List<String> baggageTagKeys = Config.get().getTraceBaggageTagKeys();
     if (baggageTagKeys.isEmpty()) {
       return;

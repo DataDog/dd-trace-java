@@ -295,6 +295,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     ServiceNameCollector.get().addService(serviceName);
   }
 
+  boolean isSamplingMechanismValidationDisabled() {
+    return disableSamplingMechanismValidation;
+  }
+
+  boolean isInjectBaggageAsTags() {
+    return injectBaggageAsTags;
+  }
+
+  boolean isInjectLinksAsTags() {
+    return injectLinksAsTags;
+  }
+
   PropagationTags.Factory getPropagationTagsFactory() {
     return propagationTagsFactory;
   }
@@ -2347,11 +2359,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               requestContextDataIast,
               ciVisibilityContextData,
               pathwayContext,
-              tracer.disableSamplingMechanismValidation,
               propagationTags,
               tracer.profilingContextIntegration,
-              tracer.injectBaggageAsTags,
-              tracer.injectLinksAsTags,
               mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
