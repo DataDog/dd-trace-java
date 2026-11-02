@@ -144,8 +144,8 @@ public interface WorkQueue<T> {
    *
    * <p>The reservation holds no position in the backing. Its element joins the queue when filled,
    * so an open reservation does not block consumers. Use try-with-resources to release unfilled
-   * reservations; abandoning one permanently consumes its capacity. Keep the reservation on the
-   * reserving thread.
+   * reservations; abandoning one permanently consumes its capacity. Keep the reservation in the
+   * reserving frame.
    *
    * <p>A refused claim returns a non-null reservation that ignores fill. Check {@link
    * Reservation#granted()} before building the element.
