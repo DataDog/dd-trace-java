@@ -155,19 +155,9 @@ public class DataStreamsTags {
       if (separator == -1) {
         return false;
       }
-      String key = tag.substring(0, separator);
-      if (DIRECTION_TAG.equals(key)) {
-        String value = tag.substring(separator + 1);
-        if (!Objects.equals(
-            this.directionValue,
-            Objects.equals(value, "out") ? Direction.OUTBOUND : Direction.INBOUND)) {
-          return false;
-        }
-      } else {
-        int index = indexOfName(key);
-        if (index == -1 || !Objects.equals(tagByIndex(index), tag)) {
-          return false;
-        }
+      int index = indexOfName(tag.substring(0, separator));
+      if (index == -1 || !Objects.equals(tagByIndex(index), tag)) {
+        return false;
       }
     }
 
@@ -334,6 +324,11 @@ public class DataStreamsTags {
 
   // WARNING: DO NOT REORDER! Indices 0-6 are hash tags, 7-11 are aggregation tags, 12-13 are
   // values. Reordering breaks hashing!
+  /**
+   * The {@code name:value} tag at {@code index}, or null if it has no value. Builds a new string on
+   * each call, as do the {@code get*} tag getters, so they're meant for serialization and tests,
+   * not per-message use.
+   */
   public String tagByIndex(int index) {
     String value = valueByIndex(index);
     return value != null ? nameByIndex(index) + ":" + value : null;
