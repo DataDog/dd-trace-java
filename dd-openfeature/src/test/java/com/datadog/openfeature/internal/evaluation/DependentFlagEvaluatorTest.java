@@ -35,16 +35,7 @@ class DependentFlagEvaluatorTest {
 
   @Test
   void memoizesDependenciesAndReplaysTheirExposureAfterRuleRollback() {
-    final List<String> evaluations = new ArrayList<>();
-    final List<String> exposures = new ArrayList<>();
-    final FlagEvaluator evaluator =
-        evaluator(
-            evaluations,
-            (items, context) -> {
-              for (final FlagEvaluator.DependencyExposure item : items) {
-                exposures.add(item.flagKey);
-              }
-            });
+    final FlagEvaluator evaluator = evaluator();
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("dependency", stringFlag("dependency", "on", null, true));
     flags.put(
@@ -55,20 +46,19 @@ class DependentFlagEvaluatorTest {
                 allocation("rejected", dependencyRule("dependency", "off"), "selected", false),
                 allocation("accepted", dependencyRule("dependency", "on"), "selected", false))));
 
-    final ProviderEvaluation<Integer> result =
-        evaluator.evaluate(config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
+    final FlagEvaluator.EvaluationResult<Integer> evaluation =
+        evaluator.evaluateWithDependencies(
+            config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
+    final ProviderEvaluation<Integer> result = evaluation.details;
 
     assertEquals(1, result.getValue());
-    assertEquals(singletonList("dependency:on"), evaluations);
-    assertEquals(singletonList("dependency"), exposures);
+    assertEquals(singletonList("dependency:on"), evaluations(evaluation));
+    assertEquals(singletonList("dependency"), exposures(evaluation));
   }
 
   @Test
   void rollsBackDependencyExposuresWhenTheRootEvaluationFails() {
-    final List<String> evaluations = new ArrayList<>();
-    final List<List<FlagEvaluator.DependencyExposure>> exposureCommits = new ArrayList<>();
-    final FlagEvaluator evaluator =
-        evaluator(evaluations, (items, context) -> exposureCommits.add(items));
+    final FlagEvaluator evaluator = evaluator();
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("dependency", stringFlag("dependency", "on", null, true));
     flags.put(
@@ -78,65 +68,58 @@ class DependentFlagEvaluatorTest {
             singletonList(
                 allocation("broken", dependencyRule("dependency", "on"), "missing", false))));
 
-    final ProviderEvaluation<Integer> result =
-        evaluator.evaluate(config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
+    final FlagEvaluator.EvaluationResult<Integer> evaluation =
+        evaluator.evaluateWithDependencies(
+            config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
+    final ProviderEvaluation<Integer> result = evaluation.details;
 
     assertEquals(ErrorCode.GENERAL, result.getErrorCode());
-    assertEquals(singletonList("dependency:on"), evaluations);
-    assertTrue(exposureCommits.isEmpty());
+    assertEquals(singletonList("dependency:on"), evaluations(evaluation));
+    assertTrue(evaluation.dependencyExposures.isEmpty());
   }
 
   @Test
   void propagatesCyclesAndEmitsAnErrorForEveryReachedDependency() {
-    final List<String> evaluations = new ArrayList<>();
-    final FlagEvaluator evaluator = evaluator(evaluations, (items, context) -> {});
+    final FlagEvaluator evaluator = evaluator();
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("a", stringFlag("a", "on", dependencyRule("b", "on"), false));
     flags.put("b", stringFlag("b", "on", dependencyRule("a", "on"), false));
 
-    final ProviderEvaluation<String> result =
-        evaluator.evaluate(
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator.evaluateWithDependencies(
             config(flags, null), String.class, "a", "default", new MutableContext("u"));
+    final ProviderEvaluation<String> result = evaluation.details;
 
     assertEquals(ErrorCode.GENERAL, result.getErrorCode());
-    assertEquals(singletonList("b:GENERAL"), evaluations);
+    assertEquals(singletonList("b:GENERAL"), evaluations(evaluation));
   }
 
   @Test
   void enforcesTheConfiguredMaximumDependencyDepth() {
-    final List<String> evaluations = new ArrayList<>();
-    final FlagEvaluator evaluator = evaluator(evaluations, (items, context) -> {});
+    final FlagEvaluator evaluator = evaluator();
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("root", stringFlag("root", "on", dependencyRule("a", "on"), false));
     flags.put("a", stringFlag("a", "on", dependencyRule("b", "on"), false));
     flags.put("b", stringFlag("b", "on", null, false));
 
-    final ProviderEvaluation<String> result =
-        evaluator.evaluate(
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator.evaluateWithDependencies(
             config(flags, new EvaluatorParams(1D)),
             String.class,
             "root",
             "default",
             new MutableContext("u"));
+    final ProviderEvaluation<String> result = evaluation.details;
 
     assertEquals(ErrorCode.GENERAL, result.getErrorCode());
-    assertEquals(Arrays.asList("b:GENERAL", "a:GENERAL"), evaluations);
+    assertEquals(Arrays.asList("b:GENERAL", "a:GENERAL"), evaluations(evaluation));
   }
 
   @Test
   void memoizedSubtreeDepthFailureDoesNotReemitMemoizedNodeInEitherOrder() {
     for (final List<String> rootDependencies :
         Arrays.asList(Arrays.asList("a", "b"), Arrays.asList("b", "a"))) {
-      final List<String> evaluations = new ArrayList<>();
-      final List<String> exposures = new ArrayList<>();
-      final FlagEvaluator evaluator =
-          evaluator(
-              evaluations,
-              (items, context) -> {
-                for (final FlagEvaluator.DependencyExposure item : items) {
-                  exposures.add(item.flagKey);
-                }
-              });
+      final FlagEvaluator evaluator = evaluator();
       final Map<String, Flag> flags = new HashMap<>();
       flags.put("leaf", stringFlag("leaf", "on", null, true));
       flags.put("a", stringFlag("a", "on", dependencyRule("leaf", "on"), true));
@@ -150,27 +133,28 @@ class DependentFlagEvaluatorTest {
                       ONE_OF, null, rootDependencies.get(1), singletonList("on"))));
       flags.put("root", stringFlag("root", "on", rootRule, true));
 
-      final ProviderEvaluation<String> result =
-          evaluator.evaluate(
+      final FlagEvaluator.EvaluationResult<String> evaluation =
+          evaluator.evaluateWithDependencies(
               config(flags, new EvaluatorParams(2D)),
               String.class,
               "root",
               "default",
               new MutableContext("u"));
+      final ProviderEvaluation<String> result = evaluation.details;
 
       assertEquals(ErrorCode.GENERAL, result.getErrorCode(), rootDependencies.toString());
       final List<String> evaluationKeys = new ArrayList<>();
-      for (final String evaluation : evaluations) {
-        evaluationKeys.add(evaluation.substring(0, evaluation.indexOf(':')));
+      for (final String record : evaluations(evaluation)) {
+        evaluationKeys.add(record.substring(0, record.indexOf(':')));
       }
       assertEquals(Arrays.asList("leaf", "a", "b"), evaluationKeys);
-      assertTrue(exposures.isEmpty());
+      assertTrue(evaluation.dependencyExposures.isEmpty());
     }
   }
 
   @Test
   void validatesInvalidMaximumDependencyDepthOnlyWhenADependencyIsReached() {
-    final FlagEvaluator evaluator = evaluator(new ArrayList<>(), (items, context) -> {});
+    final FlagEvaluator evaluator = evaluator();
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("ordinary", stringFlag("ordinary", "on", null, false));
     flags.put("dependency", stringFlag("dependency", "on", null, false));
@@ -195,7 +179,7 @@ class DependentFlagEvaluatorTest {
     flags.put("dependency", stringFlag("dependency", "on", null, false));
     flags.put(
         "dependent", stringFlag("dependent", "on", dependencyRule("dependency", "on"), false));
-    final FlagEvaluator evaluator = evaluator(new ArrayList<>(), (items, context) -> {});
+    final FlagEvaluator evaluator = evaluator();
 
     assertEquals(
         "on-value",
@@ -242,16 +226,14 @@ class DependentFlagEvaluatorTest {
                 .getBytes(UTF_8));
 
     final ProviderEvaluation<String> result =
-        evaluator(new ArrayList<>(), (items, context) -> {})
-            .evaluate(config, String.class, "root", "default", new MutableContext("u"));
+        evaluator().evaluate(config, String.class, "root", "default", new MutableContext("u"));
 
     assertEquals(ErrorCode.PARSE_ERROR, result.getErrorCode());
   }
 
   @Test
   void supportsNotOneOfAndShortCircuitsBeforeAFatalDependency() {
-    final List<String> evaluations = new ArrayList<>();
-    final FlagEvaluator evaluator = evaluator(evaluations, (items, context) -> {});
+    final FlagEvaluator evaluator = evaluator();
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("dependency", stringFlag("dependency", "on", null, false));
     final Rule rejectedBeforeMissing =
@@ -276,53 +258,42 @@ class DependentFlagEvaluatorTest {
     final MutableContext context = new MutableContext("u");
     context.add("gate", "closed");
 
-    final ProviderEvaluation<Integer> result =
-        evaluator.evaluate(config(flags, null), Integer.class, "root", 0, context);
+    final FlagEvaluator.EvaluationResult<Integer> evaluation =
+        evaluator.evaluateWithDependencies(config(flags, null), Integer.class, "root", 0, context);
+    final ProviderEvaluation<Integer> result = evaluation.details;
 
     assertEquals(1, result.getValue());
-    assertEquals(singletonList("dependency:on"), evaluations);
+    assertEquals(singletonList("dependency:on"), evaluations(evaluation));
   }
 
   @Test
   void emitsMissingAndInvalidPrerequisiteErrors() {
-    final List<String> missing = new ArrayList<>();
     final Map<String, Flag> missingFlags = new HashMap<>();
     missingFlags.put("root", stringFlag("root", "on", dependencyRule("missing", "on"), false));
-    assertEquals(
-        ErrorCode.FLAG_NOT_FOUND,
-        evaluator(missing, (items, context) -> {})
-            .evaluate(
+    final FlagEvaluator.EvaluationResult<String> missingEvaluation =
+        evaluator()
+            .evaluateWithDependencies(
                 config(missingFlags, null),
                 String.class,
                 "root",
                 "default",
-                new MutableContext("u"))
-            .getErrorCode());
-    assertEquals(singletonList("missing:FLAG_NOT_FOUND"), missing);
+                new MutableContext("u"));
+    assertEquals(ErrorCode.FLAG_NOT_FOUND, missingEvaluation.details.getErrorCode());
+    assertEquals(singletonList("missing:FLAG_NOT_FOUND"), evaluations(missingEvaluation));
 
-    final List<String> invalid = new ArrayList<>();
     final ServerConfiguration invalidConfig = config(missingFlags, null);
     invalidConfig.invalidFlags = singletonMap("missing", "invalid_flag");
-    assertEquals(
-        ErrorCode.PARSE_ERROR,
-        evaluator(invalid, (items, context) -> {})
-            .evaluate(invalidConfig, String.class, "root", "default", new MutableContext("u"))
-            .getErrorCode());
-    assertEquals(singletonList("missing:PARSE_ERROR"), invalid);
+    final FlagEvaluator.EvaluationResult<String> invalidEvaluation =
+        evaluator()
+            .evaluateWithDependencies(
+                invalidConfig, String.class, "root", "default", new MutableContext("u"));
+    assertEquals(ErrorCode.PARSE_ERROR, invalidEvaluation.details.getErrorCode());
+    assertEquals(singletonList("missing:PARSE_ERROR"), evaluations(invalidEvaluation));
   }
 
   @Test
   void rollsBackATransitiveTraceWhenTheRootAllocationHasNoAssignment() {
-    final List<String> evaluations = new ArrayList<>();
-    final List<String> exposures = new ArrayList<>();
-    final FlagEvaluator evaluator =
-        evaluator(
-            evaluations,
-            (items, context) -> {
-              for (final FlagEvaluator.DependencyExposure item : items) {
-                exposures.add(item.flagKey);
-              }
-            });
+    final FlagEvaluator evaluator = evaluator();
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("leaf", stringFlag("leaf", "on", null, true));
     flags.put("parent", stringFlag("parent", "on", dependencyRule("leaf", "on"), true));
@@ -339,27 +310,37 @@ class DependentFlagEvaluatorTest {
         integerFlag(
             "root", Arrays.asList(noAssignment, allocation("fallback", null, "selected", false))));
 
-    final ProviderEvaluation<Integer> result =
-        evaluator.evaluate(config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
+    final FlagEvaluator.EvaluationResult<Integer> evaluation =
+        evaluator.evaluateWithDependencies(
+            config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
+    final ProviderEvaluation<Integer> result = evaluation.details;
 
     assertEquals(1, result.getValue());
-    assertEquals(Arrays.asList("leaf:on", "parent:on"), evaluations);
-    assertTrue(exposures.isEmpty());
+    assertEquals(Arrays.asList("leaf:on", "parent:on"), evaluations(evaluation));
+    assertTrue(evaluation.dependencyExposures.isEmpty());
   }
 
-  private static FlagEvaluator evaluator(
-      final List<String> evaluations, final FlagEvaluator.DependencyExposureSink exposureSink) {
-    return new FlagEvaluator(
-        false,
-        (flag, subject, allocation, variant, serialId) -> false,
-        (flag, details, context, timestamp) ->
-            evaluations.add(
-                flag
-                    + ":"
-                    + (details.getErrorCode() == null
-                        ? details.getVariant()
-                        : details.getErrorCode().name())),
-        exposureSink);
+  private static FlagEvaluator evaluator() {
+    return new FlagEvaluator(false, (flag, subject, allocation, variant, serialId) -> false);
+  }
+
+  private static List<String> evaluations(final FlagEvaluator.EvaluationResult<?> result) {
+    final List<String> values = new ArrayList<>();
+    for (final FlagEvaluator.DependencyEvaluation evaluation : result.dependencyEvaluations) {
+      values.add(
+          evaluation.flagKey
+              + ":"
+              + (evaluation.errorCode == null ? evaluation.variant : evaluation.errorCode.name()));
+    }
+    return values;
+  }
+
+  private static List<String> exposures(final FlagEvaluator.EvaluationResult<?> result) {
+    final List<String> values = new ArrayList<>();
+    for (final FlagEvaluator.DependencyExposure exposure : result.dependencyExposures) {
+      values.add(exposure.flagKey);
+    }
+    return values;
   }
 
   private static ServerConfiguration config(

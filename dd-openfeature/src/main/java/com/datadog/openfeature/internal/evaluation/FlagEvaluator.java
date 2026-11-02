@@ -11,6 +11,8 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALU
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.unmodifiableList;
 
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
@@ -63,8 +65,6 @@ public final class FlagEvaluator {
   static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
   private final boolean spanEnrichmentEnabled;
   private final ExposureLookup exposureLookup;
-  private final DependencyEvaluationSink dependencyEvaluationSink;
-  private final DependencyExposureSink dependencyExposureSink;
 
   /**
    * Creates an evaluator.
@@ -73,25 +73,21 @@ public final class FlagEvaluator {
    * @param exposureLookup the lookup telling whether an exposure was already recorded.
    */
   public FlagEvaluator(final boolean spanEnrichmentEnabled, final ExposureLookup exposureLookup) {
-    this(
-        spanEnrichmentEnabled,
-        exposureLookup,
-        (flag, details, context, timestamp) -> {},
-        (items, context) -> {});
-  }
-
-  public FlagEvaluator(
-      final boolean spanEnrichmentEnabled,
-      final ExposureLookup exposureLookup,
-      final DependencyEvaluationSink dependencyEvaluationSink,
-      final DependencyExposureSink dependencyExposureSink) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
     this.exposureLookup = exposureLookup;
-    this.dependencyEvaluationSink = dependencyEvaluationSink;
-    this.dependencyExposureSink = dependencyExposureSink;
   }
 
   public <T> ProviderEvaluation<T> evaluate(
+      final ServerConfiguration config,
+      final Class<T> target,
+      final String key,
+      final T defaultValue,
+      final EvaluationContext context) {
+    return evaluateWithDependencies(config, target, key, defaultValue, context).details;
+  }
+
+  /** Evaluates a root flag and returns all telemetry candidates produced by its graph. */
+  public <T> EvaluationResult<T> evaluateWithDependencies(
       final ServerConfiguration config,
       final Class<T> target,
       final String key,
@@ -106,24 +102,27 @@ public final class FlagEvaluator {
         config != null && Boolean.TRUE.equals(config.observeFullEvaluationData);
     final EvaluationState state =
         new EvaluationState(config, context, observeFullEvaluationData, System.currentTimeMillis());
+    ProviderEvaluation<T> result;
+    boolean commitExposures;
     try {
-      final ProviderEvaluation<T> result = evaluateFlag(state, target, key, defaultValue);
-      state.complete(result.getErrorCode() == null);
-      return result;
+      result = evaluateFlag(state, target, key, defaultValue);
+      commitExposures = result.getErrorCode() == null;
     } catch (final DependencyGraphException e) {
-      state.complete(false);
-      return error(defaultValue, e.errorCode, e.getMessage(), observeFullEvaluationData);
+      result = error(defaultValue, e.errorCode, e.getMessage(), observeFullEvaluationData);
+      commitExposures = false;
     } catch (final PatternSyntaxException e) {
-      state.complete(false);
-      return error(defaultValue, ErrorCode.PARSE_ERROR, e.getMessage(), observeFullEvaluationData);
+      result =
+          error(defaultValue, ErrorCode.PARSE_ERROR, e.getMessage(), observeFullEvaluationData);
+      commitExposures = false;
     } catch (final NumberFormatException e) {
-      state.complete(false);
-      return error(
-          defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
+      result =
+          error(defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
+      commitExposures = false;
     } catch (final Exception e) {
-      state.complete(false);
-      return error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData);
+      result = error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData);
+      commitExposures = false;
     }
+    return state.complete(result, commitExposures);
   }
 
   private <T> ProviderEvaluation<T> evaluateFlag(
@@ -709,10 +708,11 @@ public final class FlagEvaluator {
       }
     }
 
-    private void complete(final boolean commitExposures) {
-      if (session != null) {
-        session.complete(commitExposures);
-      }
+    private <T> EvaluationResult<T> complete(
+        final ProviderEvaluation<T> details, final boolean commitExposures) {
+      return session == null
+          ? new EvaluationResult<>(details, emptyList(), emptyList(), evaluationTimestampMs)
+          : session.complete(details, commitExposures);
     }
   }
 
@@ -722,8 +722,9 @@ public final class FlagEvaluator {
     private final Map<String, MemoizedDependency> memo = new HashMap<>();
     private final Set<String> active = new HashSet<>();
     private final List<DependencyFrame> frames = new ArrayList<>();
+    private final Set<String> evaluatedFlags = new HashSet<>();
+    private final List<DependencyEvaluation> evaluations = new ArrayList<>();
     private final List<DependencyExposure> exposures = new ArrayList<>();
-    private boolean completed;
 
     private DependencyEvaluationSession(
         final String rootFlagKey, final int maxDependencyDepth, final EvaluationState state) {
@@ -750,18 +751,13 @@ public final class FlagEvaluator {
       }
     }
 
-    private void complete(final boolean commitExposures) {
-      if (completed) {
-        return;
-      }
-      completed = true;
-      if (commitExposures && !exposures.isEmpty()) {
-        try {
-          dependencyExposureSink.record(new ArrayList<>(exposures), state.context);
-        } catch (final RuntimeException | LinkageError ignored) {
-          // Telemetry is best effort and must not change evaluation semantics.
-        }
-      }
+    private <T> EvaluationResult<T> complete(
+        final ProviderEvaluation<T> details, final boolean commitExposures) {
+      return new EvaluationResult<>(
+          details,
+          evaluations,
+          commitExposures ? exposures : emptyList(),
+          state.evaluationTimestampMs);
     }
 
     private String resolveCurrent(final String flagKey) {
@@ -862,12 +858,10 @@ public final class FlagEvaluator {
     }
 
     private void emitEvaluation(final String flagKey, final ProviderEvaluation<?> details) {
-      try {
-        dependencyEvaluationSink.record(
-            flagKey, details, state.context, state.evaluationTimestampMs);
-      } catch (final RuntimeException | LinkageError ignored) {
-        // Telemetry is best effort and must not change evaluation semantics.
+      if (!evaluatedFlags.add(flagKey)) {
+        return;
       }
+      evaluations.add(new DependencyEvaluation(flagKey, details));
     }
 
     private void recordReachedDepth(final int depth) {
@@ -984,26 +978,58 @@ public final class FlagEvaluator {
 
   public static final class DependencyExposure {
     public final String flagKey;
-    public final ProviderEvaluation<?> details;
+    public final String variant;
+    public final ImmutableMetadata metadata;
 
     private DependencyExposure(final String flagKey, final ProviderEvaluation<?> details) {
       this.flagKey = flagKey;
-      this.details = details;
+      this.variant = details.getVariant();
+      this.metadata = details.getFlagMetadata();
     }
   }
 
-  @FunctionalInterface
-  public interface DependencyEvaluationSink {
-    void record(
-        String flagKey,
-        ProviderEvaluation<?> details,
-        EvaluationContext context,
-        long evaluationTimestampMs);
+  /** Detached evaluation telemetry for one reached prerequisite. */
+  public static final class DependencyEvaluation {
+    public final String flagKey;
+    public final String variant;
+    public final String reason;
+    public final ErrorCode errorCode;
+    public final String errorMessage;
+    public final ImmutableMetadata metadata;
+
+    private DependencyEvaluation(final String flagKey, final ProviderEvaluation<?> details) {
+      this.flagKey = flagKey;
+      this.variant = details.getVariant();
+      this.reason = details.getReason();
+      this.errorCode = details.getErrorCode();
+      this.errorMessage = details.getErrorMessage();
+      this.metadata = details.getFlagMetadata();
+    }
   }
 
-  @FunctionalInterface
-  public interface DependencyExposureSink {
-    void record(List<DependencyExposure> exposures, EvaluationContext context);
+  /** Root evaluation plus the telemetry candidates accumulated while evaluating its graph. */
+  public static final class EvaluationResult<T> {
+    public final ProviderEvaluation<T> details;
+    public final List<DependencyEvaluation> dependencyEvaluations;
+    public final List<DependencyExposure> dependencyExposures;
+    public final long evaluationTimestampMs;
+
+    private EvaluationResult(
+        final ProviderEvaluation<T> details,
+        final List<DependencyEvaluation> dependencyEvaluations,
+        final List<DependencyExposure> dependencyExposures,
+        final long evaluationTimestampMs) {
+      this.details = details;
+      this.dependencyEvaluations =
+          dependencyEvaluations.isEmpty()
+              ? emptyList()
+              : unmodifiableList(new ArrayList<>(dependencyEvaluations));
+      this.dependencyExposures =
+          dependencyExposures.isEmpty()
+              ? emptyList()
+              : unmodifiableList(new ArrayList<>(dependencyExposures));
+      this.evaluationTimestampMs = evaluationTimestampMs;
+    }
   }
 
   /** Tells whether an exposure was already recorded, so it is not sent again. */

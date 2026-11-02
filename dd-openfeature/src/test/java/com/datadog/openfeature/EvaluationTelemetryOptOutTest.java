@@ -24,6 +24,7 @@ import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.exposure.ExposurePipeline;
@@ -113,6 +114,8 @@ class EvaluationTelemetryOptOutTest {
   private FeatureFlagsRuntime runtime;
   private CapturingEvaluator evaluator;
   private Client client;
+  private boolean failDependencyPublisher;
+  private boolean mutateDependencyRecord;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -533,6 +536,8 @@ class EvaluationTelemetryOptOutTest {
 
     assertEquals(1, included.getValue());
     assertEquals(2, this.events.size(), "dependency and root evaluation events");
+    assertEquals("dependency", this.events.get(0).flagKey, "dependency publishes before root");
+    assertEquals("root", this.events.get(1).flagKey);
     assertEquals(2, this.metrics.get(), "dependency and root OTel metrics");
     assertEquals(1, this.spans.size(), "only the ordinary root span hook runs");
     assertEquals(2, this.exposures.size());
@@ -560,6 +565,61 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(ErrorCode.GENERAL, details.getErrorCode());
     assertEquals(0, details.getValue());
     assertEquals(0, this.exposures.size());
+  }
+
+  @Test
+  void failingDependencyPublisherDoesNotChangeTheRootOrExposures() throws Exception {
+    this.failDependencyPublisher = true;
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+
+    final FlagEvaluationDetails<Integer> details =
+        this.client.getIntegerDetails("root", 0, context("subject", new Value(false)));
+
+    assertEquals(1, details.getValue());
+    assertEquals(1, this.events.size(), "only root telemetry survives publisher failure");
+    assertEquals(1, this.metrics.get(), "only root metrics survive publisher failure");
+    assertEquals(2, this.exposures.size(), "publisher failure does not affect exposures");
+  }
+
+  @Test
+  void dependencyRecordCannotBeMutatedByItsPublisher() throws Exception {
+    this.mutateDependencyRecord = true;
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+
+    final FlagEvaluationDetails<Integer> details =
+        this.client.getIntegerDetails("root", 0, context("subject", new Value(false)));
+
+    assertEquals(1, details.getValue());
+    assertEquals(1, this.events.size(), "immutable record rejects publisher mutation");
+    assertEquals(2, this.exposures.size(), "mutation attempt does not affect exposures");
+  }
+
+  @Test
+  void parallelDependentRootsKeepIndependentReturnedBatches() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    final ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      final Future<FlagEvaluationDetails<Integer>> first =
+          executor.submit(
+              () -> this.client.getIntegerDetails("root", 0, context("first", new Value(false))));
+      final Future<FlagEvaluationDetails<Integer>> second =
+          executor.submit(
+              () -> this.client.getIntegerDetails("root", 0, context("second", new Value(false))));
+
+      assertEquals(1, first.get(5, SECONDS).getValue());
+      assertEquals(1, second.get(5, SECONDS).getValue());
+    } finally {
+      executor.shutdownNow();
+    }
+    assertEquals(4, this.events.size(), "dependency and root for each evaluation");
+    assertEquals(4, this.metrics.get());
+    assertEquals(4, this.exposures.size());
   }
 
   @Test
@@ -841,6 +901,20 @@ class EvaluationTelemetryOptOutTest {
     @Override
     void recordExposure(final ExposureEvent event) {
       EvaluationTelemetryOptOutTest.this.exposures.add(event);
+    }
+
+    @Override
+    void publishDependencyEvaluation(
+        final FlagEvaluator.DependencyEvaluation dependency,
+        final EvaluationContext context,
+        final long evaluationTimestampMs) {
+      if (EvaluationTelemetryOptOutTest.this.failDependencyPublisher) {
+        throw new IllegalStateException("publisher failed");
+      }
+      if (EvaluationTelemetryOptOutTest.this.mutateDependencyRecord) {
+        dependency.metadata.asUnmodifiableMap().clear();
+      }
+      super.publishDependencyEvaluation(dependency, context, evaluationTimestampMs);
     }
   }
 

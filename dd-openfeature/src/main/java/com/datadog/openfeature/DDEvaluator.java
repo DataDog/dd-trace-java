@@ -97,8 +97,6 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   private final Settings settings;
   private final FlagEvaluator core;
   private final ConfigurationStore configuration = new ConfigurationStore();
-  private final ThreadLocal<List<FlagEvaluator.DependencyExposure>> stagedDependencyExposures =
-      new ThreadLocal<>();
   private final AtomicLong nextDependencyExposureToken = new AtomicLong();
   private final Map<Long, List<FlagEvaluator.DependencyExposure>> pendingDependencyExposures =
       new ConcurrentHashMap<>();
@@ -112,12 +110,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     this.settings = settings;
     // When span enrichment is off, the __dd_* span-enrichment metadata is attached only to
     // evaluations of allocations logging exposures, for the exposure hook.
-    this.core =
-        new FlagEvaluator(
-            settings.isSpanEnrichmentEnabled(),
-            this::isExposed,
-            this::recordDependencyEvaluation,
-            (items, context) -> stagedDependencyExposures.set(items));
+    this.core = new FlagEvaluator(settings.isSpanEnrichmentEnabled(), this::isExposed);
   }
 
   void configureDependencyTelemetry(final boolean optOutEnabled, final FlagEvalMetrics metrics) {
@@ -180,11 +173,17 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
-    stagedDependencyExposures.remove();
-    final ProviderEvaluation<T> result =
-        core.evaluate(configuration.get(), target, key, defaultValue, context);
-    final List<FlagEvaluator.DependencyExposure> staged = stagedDependencyExposures.get();
-    stagedDependencyExposures.remove();
+    final FlagEvaluator.EvaluationResult<T> evaluation =
+        core.evaluateWithDependencies(configuration.get(), target, key, defaultValue, context);
+    for (final FlagEvaluator.DependencyEvaluation dependency : evaluation.dependencyEvaluations) {
+      try {
+        publishDependencyEvaluation(dependency, context, evaluation.evaluationTimestampMs);
+      } catch (final RuntimeException | LinkageError ignored) {
+        // Telemetry is best effort and must not change the root evaluation.
+      }
+    }
+    final ProviderEvaluation<T> result = evaluation.details;
+    final List<FlagEvaluator.DependencyExposure> staged = evaluation.dependencyExposures;
     if (staged == null || staged.isEmpty() || result.getErrorCode() != null) {
       return result;
     }
@@ -277,15 +276,14 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     }
   }
 
-  private void recordDependencyEvaluation(
-      final String flagKey,
-      final ProviderEvaluation<?> details,
+  void publishDependencyEvaluation(
+      final FlagEvaluator.DependencyEvaluation dependency,
       final EvaluationContext context,
       final long evaluationTimestampMs) {
     if (dependencyTelemetryOptOutEnabled && isEvaluationTelemetryOptedOut(context)) {
       return;
     }
-    final ImmutableMetadata metadata = details.getFlagMetadata();
+    final ImmutableMetadata metadata = dependency.metadata;
     final Map<String, Object> values =
         metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
     final Object allocationValue = values.get(ALLOCATION_KEY);
@@ -294,10 +292,10 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     final FlagEvalMetrics metrics = dependencyMetrics;
     if (metrics != null) {
       metrics.record(
-          flagKey,
-          details.getVariant(),
-          details.getReason(),
-          details.getErrorCode(),
+          dependency.flagKey,
+          dependency.variant,
+          dependency.reason,
+          dependency.errorCode,
           allocationKey);
     }
     final FeatureFlagsRuntime current = runtime();
@@ -310,9 +308,9 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     }
     final boolean observeFullEvaluationData =
         Boolean.TRUE.equals(values.get(OBSERVE_FULL_EVALUATION_DATA));
-    String errorMessage = observeFullEvaluationData ? details.getErrorMessage() : null;
-    if ((errorMessage == null || errorMessage.isEmpty()) && details.getErrorCode() != null) {
-      errorMessage = details.getErrorCode().name();
+    String errorMessage = observeFullEvaluationData ? dependency.errorMessage : null;
+    if ((errorMessage == null || errorMessage.isEmpty()) && dependency.errorCode != null) {
+      errorMessage = dependency.errorCode.name();
     }
     final Map<String, Object> attrs;
     if (observeFullEvaluationData) {
@@ -330,8 +328,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
             : Collections.<String, Object>emptyMap();
     writer.enqueue(
         new FlagEvalEvent(
-            flagKey,
-            details.getVariant(),
+            dependency.flagKey,
+            dependency.variant,
             allocationKey,
             context == null ? null : context.getTargetingKey(),
             errorMessage,
@@ -363,8 +361,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       return;
     }
     for (final FlagEvaluator.DependencyExposure exposure : exposures) {
-      final ProviderEvaluation<?> details = exposure.details;
-      final ImmutableMetadata metadata = details.getFlagMetadata();
+      final ImmutableMetadata metadata = exposure.metadata;
       final Map<String, Object> values =
           metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
       if (!Boolean.TRUE.equals(values.get(DO_LOG))) {
@@ -373,7 +370,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final Object allocationValue = values.get(ALLOCATION_KEY);
       final String allocationKey =
           allocationValue instanceof String ? (String) allocationValue : null;
-      final String variantKey = details.getVariant();
+      final String variantKey = exposure.variant;
       if (allocationKey == null || variantKey == null) {
         continue;
       }
