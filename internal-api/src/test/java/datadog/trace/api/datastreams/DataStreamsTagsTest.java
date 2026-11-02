@@ -102,6 +102,18 @@ class DataStreamsTagsTest {
   }
 
   @Test
+  void hasAllTagsRejectsTagsItDoesNotHave() {
+    DataStreamsTags tags = DataStreamsTags.create("kafka", INBOUND, "orders", "group", "cluster");
+
+    assertTrue(tags.hasAllTags(new String[] {"topic:orders", "direction:in", "group:group"}));
+    assertFalse(tags.hasAllTags(new String[] {"topic:payments"}), "different value");
+    assertFalse(tags.hasAllTags(new String[] {"exchange:orders"}), "absent tag");
+    assertFalse(tags.hasAllTags(new String[] {"unknown:orders"}), "unknown name");
+    assertFalse(tags.hasAllTags(new String[] {"direction:out"}), "different direction");
+    assertFalse(tags.hasAllTags(new String[] {"topic:orders", "group:other"}), "one mismatch");
+  }
+
+  @Test
   void testLongToBytes() {
     long value = 123444L;
     byte[] bytes = DataStreamsTags.longToBytes(value);
