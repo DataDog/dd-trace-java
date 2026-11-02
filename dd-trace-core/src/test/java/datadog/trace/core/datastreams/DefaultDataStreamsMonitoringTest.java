@@ -143,6 +143,36 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.close();
   }
 
+  @TableTest({
+    "scenario | enabledInConfig | queued",
+    "dsm off  | false           | false ",
+    "dsm on   | true            | true  "
+  })
+  void backlogsAndSchemaUsageAreOnlyQueuedWithDataStreamsOn(
+      boolean enabledInConfig, boolean queued) {
+    TraceConfig traceConfig = stubTraceConfig(enabledInConfig);
+
+    DefaultDataStreamsMonitoring dataStreams = unstartedDataStreams(traceConfig);
+    dataStreams.trackBacklog(
+        DataStreamsTags.createWithPartition("kafka_commit", "topic", "0", "cluster", "group"), 1);
+    assertEquals(!queued, isInboxEmpty(dataStreams), "backlog");
+
+    dataStreams = unstartedDataStreams(traceConfig);
+    dataStreams.reportSchemaRegistryUsage("topic", "cluster", 1, true, false, "serialize");
+    assertEquals(!queued, isInboxEmpty(dataStreams), "schema registry usage");
+  }
+
+  /** Not started, so nothing drains what's queued. */
+  private static DefaultDataStreamsMonitoring unstartedDataStreams(TraceConfig traceConfig) {
+    return new DefaultDataStreamsMonitoring(
+        mock(Sink.class),
+        stubFeatures(true),
+        new ControllableTimeSource(),
+        () -> traceConfig,
+        mock(DatastreamsPayloadWriter.class),
+        DEFAULT_BUCKET_DURATION_NANOS);
+  }
+
   @Test
   void contextCarrierAdapterTest() {
     CustomContextCarrier carrier = new CustomContextCarrier();
