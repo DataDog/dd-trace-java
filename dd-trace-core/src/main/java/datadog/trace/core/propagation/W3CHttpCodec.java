@@ -190,6 +190,11 @@ class W3CHttpCodec {
     private String tracestateHeader = null;
     private String traceparentHeader = null;
 
+    /** The high and low order bits of the trace id {@link #parseTraceParent} last parsed. */
+    private long traceIdHigh;
+
+    private long traceIdLow;
+
     private W3CContextInterpreter(Config config) {
       super(config);
     }
@@ -342,16 +347,7 @@ class W3CHttpCodec {
         throw new IllegalStateException(
             "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
       }
-      parseTraceParentHeader(traceparentHeader);
-    }
-
-    /** The high and low order bits of the trace id {@link #parseTraceParent} last parsed. */
-    private long traceIdHigh;
-
-    private long traceIdLow;
-
-    void parseTraceParentHeader(String tp) {
-      parseTraceParent(tp, true);
+      parseTraceParent(traceparentHeader, true);
     }
 
     /**
