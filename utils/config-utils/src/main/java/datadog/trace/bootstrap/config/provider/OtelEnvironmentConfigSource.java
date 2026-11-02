@@ -169,8 +169,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
         getOtelProperty(
             "otel.traces.span.metrics.enabled", "dd." + OTEL_TRACES_SPAN_METRICS_ENABLED));
 
-    String exporter = getOtelProperty("otel.traces.exporter");
-    if ("otlp".equalsIgnoreCase(exporter)) { // traces defaults to non-OTLP (i.e. datadog)
+    Exporter exporter = selectExporter("traces");
+    if (exporter == Exporter.OTLP) { // traces defaults to non-OTLP (i.e. datadog)
       capture(TRACE_OTEL_EXPORTER, "otlp");
       capture(
           OTLP_TRACES_HEADERS,
@@ -187,8 +187,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       capture(
           OTLP_TRACES_ENDPOINT,
           getOtelOtlpProperty("traces", "endpoint", "dd." + OTLP_TRACES_ENDPOINT));
-    } else {
-      capture(TRACE_ENABLED, mapDataCollection("traces"));
+    } else if (exporter == Exporter.NONE) {
+      capture(TRACE_ENABLED, "false");
     }
   }
 
@@ -551,6 +551,73 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
         .setUnsupportedOtelEnvVarMetric("otel_" + signal + "_exporter");
 
     return null;
+  }
+
+  /**
+   * Selects the exporter from an OpenTelemetry exporter list, warning about each ignored entry.
+   *
+   * <p>Blank entries are skipped, so an empty list is treated as unset.
+   */
+  private Exporter selectExporter(String signal) {
+    String sysProp = "otel." + signal + ".exporter";
+    String value = getOtelProperty(sysProp);
+    if (null == value) {
+      return Exporter.UNSET;
+    }
+
+    List<String> names = new ArrayList<>();
+    Exporter selected = Exporter.UNSET;
+    for (String entry : parseOtelList(value)) {
+      String name = entry.trim();
+      if (name.isEmpty()) {
+        continue;
+      }
+      names.add(name);
+      Exporter exporter = parseExporter(name);
+      if (exporter.compareTo(selected) > 0) {
+        selected = exporter;
+      }
+    }
+
+    String envVar = toEnvVar(sysProp);
+    boolean anyIgnored = false;
+    for (String name : names) {
+      Exporter exporter = parseExporter(name);
+      if (exporter == Exporter.UNSUPPORTED) {
+        log.warn("{}={} is not supported", envVar, name);
+        anyIgnored = true;
+      } else if (exporter != selected) {
+        log.warn(
+            "{}: ignoring {} combined with {}",
+            envVar,
+            name,
+            selected.name().toLowerCase(Locale.ROOT));
+        anyIgnored = true;
+      }
+    }
+    if (anyIgnored) {
+      OtelEnvMetricCollectorProvider.get()
+          .setUnsupportedOtelEnvVarMetric(toEnvVarLowerCase(sysProp));
+    }
+    return selected;
+  }
+
+  private static Exporter parseExporter(String name) {
+    if ("otlp".equalsIgnoreCase(name)) {
+      return Exporter.OTLP;
+    }
+    if ("none".equalsIgnoreCase(name)) {
+      return Exporter.NONE;
+    }
+    return Exporter.UNSUPPORTED;
+  }
+
+  /** Exporter selection outcomes, in increasing order of precedence. */
+  private enum Exporter {
+    UNSET,
+    UNSUPPORTED,
+    NONE,
+    OTLP
   }
 
   /** Merges the OpenTelemetry client and server headers to capture into a single list. */

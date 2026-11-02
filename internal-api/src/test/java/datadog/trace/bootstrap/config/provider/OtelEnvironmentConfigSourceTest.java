@@ -6,7 +6,9 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
@@ -17,6 +19,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEnvConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -27,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 @ExtendWith(WithConfigExtension.class)
 class OtelEnvironmentConfigSourceTest {
@@ -37,6 +41,8 @@ class OtelEnvironmentConfigSourceTest {
       "content-length:http.response.header.content-length,another-header:http.response.header.another-header";
   private static final String TAGS_VALUE =
       "key1:one,key2:two,key3:three,key4:four,key5:five,key6:six,key7:seven,key8:eight,key9:nine,key10:ten,key11:eleven,key12:twelve";
+
+  private static final String OTLP_TIMEOUT = "500";
 
   // ignore this test when we enable the OpenTelemetry integration by default
   @Test
@@ -388,6 +394,30 @@ class OtelEnvironmentConfigSourceTest {
     assertEquals("false", source.get(TRACE_ENABLED));
   }
 
+  @TableTest({
+    "scenario                       | exporters           | DD_TRACE_OTEL_ENABLED=true | DD_TRACE_OTEL_ENABLED=false",
+    "unset                          |                     | DATADOG                    | DATADOG                    ",
+    "empty                          | ''                  | DATADOG                    | DATADOG                    ",
+    "otlp                           | otlp                | OTLP                       | DATADOG                    ",
+    "otlp with unsupported          | 'otlp,console'      | OTLP                       | DATADOG                    ",
+    "none                           | none                | DISABLED                   | DATADOG                    ",
+    "none with unsupported          | 'none,console'      | DISABLED                   | DATADOG                    ",
+    "none with otlp                 | 'none,otlp'         | OTLP                       | DATADOG                    ",
+    "none with otlp and unsupported | 'none,otlp,console' | OTLP                       | DATADOG                    "
+  })
+  // keeps the OpenTelemetry mapping active when DD_TRACE_OTEL_ENABLED=false
+  @WithConfig(key = METRICS_OTEL_ENABLED, value = "true")
+  void otelTracesExporterSelection(
+      String exporters, Export traceOtelEnabled, Export traceOtelDisabled) {
+    injectExporterConfig("traces", exporters);
+
+    injectSysConfig(TRACE_OTEL_ENABLED, "true");
+    assertEquals(traceOtelEnabled, tracesExport(new OtelEnvironmentConfigSource()));
+
+    injectSysConfig(TRACE_OTEL_ENABLED, "false");
+    assertEquals(traceOtelDisabled, tracesExport(new OtelEnvironmentConfigSource()));
+  }
+
   @Test
   @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   @WithConfig(
@@ -478,5 +508,51 @@ class OtelEnvironmentConfigSourceTest {
     assertNull(source.get(REQUEST_HEADER_TAGS));
     assertNull(source.get(RESPONSE_HEADER_TAGS));
     assertNull(source.get(TRACE_EXTENSIONS_PATH));
+  }
+
+  /** Outcome of an OpenTelemetry exporter setting for one signal. */
+  enum Export {
+    /** Exported over OTLP. */
+    OTLP,
+    /** Not exported over OTLP; Datadog collection keeps its default. */
+    DATADOG,
+    /** Not collected. */
+    DISABLED
+  }
+
+  /** Sets the exporter list, plus an OTLP timeout that is only mapped when OTLP is selected. */
+  private static void injectExporterConfig(String signal, String exporters) {
+    injectSysConfig("otel.exporter.otlp." + signal + ".timeout", OTLP_TIMEOUT, false);
+    String sysProp = "otel." + signal + ".exporter";
+    if (exporters == null) {
+      removeSysConfig(sysProp, false);
+    } else {
+      injectSysConfig(sysProp, exporters, false);
+    }
+  }
+
+  private static Export tracesExport(OtelEnvironmentConfigSource source) {
+    return collectionExport(source, TRACE_OTEL_EXPORTER, OTLP_TRACES_TIMEOUT, TRACE_ENABLED);
+  }
+
+  private static Export collectionExport(
+      OtelEnvironmentConfigSource source,
+      String exporterKey,
+      String otlpTimeoutKey,
+      String collectionEnabledKey) {
+    if (isOtlpExported(source, exporterKey, otlpTimeoutKey)) {
+      return Export.OTLP;
+    }
+    boolean collectionDisabled = "false".equals(source.get(collectionEnabledKey));
+    return collectionDisabled ? Export.DISABLED : Export.DATADOG;
+  }
+
+  /** Also checks that OTLP settings are mapped only alongside the OTLP exporter. */
+  private static boolean isOtlpExported(
+      OtelEnvironmentConfigSource source, String exporterKey, String otlpTimeoutKey) {
+    boolean otlp = "otlp".equals(source.get(exporterKey));
+    String expectedTimeout = otlp ? OTLP_TIMEOUT : null;
+    assertEquals(expectedTimeout, source.get(otlpTimeoutKey));
+    return otlp;
   }
 }

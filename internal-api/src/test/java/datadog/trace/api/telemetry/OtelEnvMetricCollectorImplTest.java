@@ -65,6 +65,25 @@ class OtelEnvMetricCollectorImplTest extends DDJavaSpecification {
     assertEquals(0, metrics.size());
   }
 
+  @TableTest({
+    "scenario          | otelEnvValue",
+    "empty             | ''          ",
+    "blank             | '  '        ",
+    "duplicated otlp   | 'otlp,otlp' ",
+    "padded upper otlp | ' OTLP '    "
+  })
+  void emptyOrSupportedTracesExporterNoMetric(String otelEnvValue) {
+    // setup
+    injectEnvConfig("OTEL_TRACES_EXPORTER", otelEnvValue, false);
+    injectEnvConfig("DD_TRACE_OTEL_ENABLED", "true", false);
+
+    // when
+    List<OtelEnvMetric> metrics = drainMetrics();
+
+    // then
+    assertEquals(0, metrics.size());
+  }
+
   @Test
   @WithConfig(key = "DD_SERVICE_NAME", value = "DD_TEST_SERVICE", env = true, addPrefix = false)
   @WithConfig(key = "OTEL_SERVICE_NAME", value = "OTEL_TEST_SERVICE", env = true, addPrefix = false)
@@ -182,10 +201,12 @@ class OtelEnvMetricCollectorImplTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario         | otelEnvKey            | otelEnvValue | metricType | metricValue | metricNamespace | metricName           | tagsOtelValue                             ",
-    "metrics exporter | OTEL_METRICS_EXPORTER | zipkin       | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_metrics_exporter",
-    "traces exporter  | OTEL_TRACES_EXPORTER  | zipkin       | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_traces_exporter ",
-    "logs exporter    | OTEL_LOGS_EXPORTER    | zipkin       | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_logs_exporter   "
+    "scenario         | otelEnvKey            | otelEnvValue          | metricType | metricValue | metricNamespace | metricName           | tagsOtelValue                             ",
+    "metrics exporter | OTEL_METRICS_EXPORTER | zipkin                | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_metrics_exporter",
+    "traces exporter  | OTEL_TRACES_EXPORTER  | zipkin                | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_traces_exporter ",
+    "logs exporter    | OTEL_LOGS_EXPORTER    | zipkin                | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_logs_exporter   ",
+    "traces list      | OTEL_TRACES_EXPORTER  | 'otlp,zipkin,console' | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_traces_exporter ",
+    "traces none+otlp | OTEL_TRACES_EXPORTER  | 'none,otlp'           | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_traces_exporter "
   })
   void unsupportedMetric(
       String otelEnvKey,
