@@ -1,9 +1,16 @@
 package datadog.trace.civisibility.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.intThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.BackendApi;
@@ -13,6 +20,8 @@ import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.civisibility.config.TestFQN;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.civisibility.config.api.dto.request.TracerEnvironment;
@@ -39,6 +48,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompareMode;
 
@@ -214,7 +224,9 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
                               sendResponseBody(api, responses.get(current - 1).getBytes());
                             })));
     servers.add(intakeServer);
-    ConfigurationApi configurationApi = givenConfigurationApi(intakeServer, true, true);
+    CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
+    ConfigurationApi configurationApi =
+        givenConfigurationApi(intakeServer, true, true, metricCollector);
 
     Map<String, Collection<TestFQN>> knownTests =
         configurationApi.getKnownTestsByModule(tracerEnvironment);
@@ -233,15 +245,141 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
         "module-c",
         Arrays.asList(new TestFQN("suite-c", "test-5"), new TestFQN("suite-c", "test-6")));
     assertEquals(expected, knownTests);
+
+    verify(metricCollector).add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, 6);
+    verify(metricCollector).add(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED, 3);
+    verify(metricCollector)
+        .add(
+            eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS),
+            intThat(duration -> duration >= 0));
+    verify(metricCollector)
+        .add(
+            eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS),
+            intThat(duration -> duration >= 0));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testKnownTestsSinglePageMetrics(boolean empty) throws IOException {
+    JavaTestHttpServer server =
+        JavaTestHttpServer.httpServer(
+            s ->
+                s.handlers(
+                    h ->
+                        h.prefix(
+                            "/api/v2/ci/libraries/tests",
+                            api ->
+                                sendResponseBody(
+                                    api,
+                                    ("{\"data\":{\"attributes\":{\"tests\":"
+                                            + (empty ? "{}" : "{\"module\":{\"suite\":[\"test\"]}}")
+                                            + "}}}")
+                                        .getBytes()))));
+    servers.add(server);
+    CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
+    ConfigurationApi configurationApi = givenConfigurationApi(server, true, true, metricCollector);
+
+    Map<String, Collection<TestFQN>> tests =
+        configurationApi.getKnownTestsByModule(givenTracerEnvironment(null));
+
+    if (empty) {
+      assertNull(tests);
+    } else {
+      assertEquals(1, tests.get("module").size());
+    }
+    verify(metricCollector).add(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED, 1);
+    verify(metricCollector)
+        .add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, empty ? 0 : 1);
+    verify(metricCollector)
+        .add(
+            eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS),
+            intThat(duration -> duration >= 0));
+    verify(metricCollector)
+        .add(
+            eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS),
+            intThat(duration -> duration >= 0));
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {1, 2})
+  void testKnownTestsFailureDoesNotEmitPaginationMetrics(int failingPage) {
+    AtomicInteger requests = new AtomicInteger();
+    JavaTestHttpServer server =
+        JavaTestHttpServer.httpServer(
+            s ->
+                s.handlers(
+                    h ->
+                        h.prefix(
+                            "/api/v2/ci/libraries/tests",
+                            api -> {
+                              if (requests.incrementAndGet() == failingPage) {
+                                api.getResponse().status(400).send("bad request".getBytes());
+                              } else {
+                                sendResponseBody(
+                                    api,
+                                    "{\"data\":{\"attributes\":{\"tests\":{},\"page_info\":{\"has_next\":true,\"cursor\":\"next\"}}}}"
+                                        .getBytes());
+                              }
+                            })));
+    servers.add(server);
+    CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
+    ConfigurationApi configurationApi = givenConfigurationApi(server, true, true, metricCollector);
+
+    assertThrows(
+        IOException.class,
+        () -> configurationApi.getKnownTestsByModule(givenTracerEnvironment(null)));
+
+    assertEquals(failingPage, requests.get());
+    verify(metricCollector, never())
+        .add(eq(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED), anyInt());
+    verify(metricCollector, never())
+        .add(eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS), anyInt());
+    verify(metricCollector, never())
+        .add(eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS), anyInt());
+  }
+
+  @Test
+  void testKnownTestsMalformedResponseDoesNotEmitPaginationMetrics() {
+    JavaTestHttpServer server =
+        JavaTestHttpServer.httpServer(
+            s ->
+                s.handlers(
+                    h ->
+                        h.prefix(
+                            "/api/v2/ci/libraries/tests",
+                            api -> sendResponseBody(api, "invalid JSON".getBytes()))));
+    servers.add(server);
+    CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
+    ConfigurationApi configurationApi = givenConfigurationApi(server, true, true, metricCollector);
+
+    assertThrows(
+        IOException.class,
+        () -> configurationApi.getKnownTestsByModule(givenTracerEnvironment(null)));
+
+    verify(metricCollector, never())
+        .add(eq(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED), anyInt());
+    verify(metricCollector, never())
+        .add(eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS), anyInt());
+    verify(metricCollector, never())
+        .add(eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS), anyInt());
   }
 
   private ConfigurationApi givenConfigurationApi(
       JavaTestHttpServer intakeServer, boolean agentless, boolean compression) {
+    return givenConfigurationApi(
+        intakeServer, agentless, compression, NoOpMetricCollector.INSTANCE);
+  }
+
+  private ConfigurationApi givenConfigurationApi(
+      JavaTestHttpServer intakeServer,
+      boolean agentless,
+      boolean compression,
+      CiVisibilityMetricCollector metricCollector) {
     BackendApi api =
         agentless
             ? givenIntakeApi(intakeServer.getAddress(), compression)
             : givenEvpProxy(intakeServer.getAddress(), compression);
-    return new ConfigurationApiImpl(api, NoOpMetricCollector.INSTANCE, () -> REQUEST_UID);
+    return new ConfigurationApiImpl(api, metricCollector, () -> REQUEST_UID);
   }
 
   private JavaTestHttpServer givenBackendEndpoint(

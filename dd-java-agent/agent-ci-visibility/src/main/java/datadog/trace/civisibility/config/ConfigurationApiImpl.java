@@ -37,6 +37,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
@@ -210,7 +211,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   @Override
   public Map<String, Collection<TestFQN>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException {
-    OkHttpUtils.CustomListener telemetryListener =
+    TelemetryListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST)
             .requestErrors(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST_ERRORS)
@@ -222,6 +223,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     Map<String, Map<String, List<String>>> aggregateTests = new HashMap<>();
     String pageState = null;
     int pageNumber = 0;
+    long startNanos = System.nanoTime();
 
     do {
       pageNumber += 1;
@@ -266,6 +268,13 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             : 0;
     LOGGER.debug("Received {} known tests in total", knownTestsCount);
     metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, knownTestsCount);
+    long totalFetchMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+    metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED, pageNumber);
+    metricCollector.add(
+        CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS, (int) totalFetchMs);
+    metricCollector.add(
+        CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS,
+        telemetryListener.getTotalRequestDurationMillis());
     // returning null disables features that rely on known tests; this is intentional on the very
     // first execution for a repository, when we want to seed the backend with the initial set.
     return testsByModule;
