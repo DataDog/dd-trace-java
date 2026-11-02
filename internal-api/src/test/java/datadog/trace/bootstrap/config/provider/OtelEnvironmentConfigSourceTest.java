@@ -25,6 +25,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEnvConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSysConfig;
+import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -34,6 +35,7 @@ import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,6 +55,7 @@ class OtelEnvironmentConfigSourceTest {
       "key1:one,key2:two,key3:three,key4:four,key5:five,key6:six,key7:seven,key8:eight,key9:nine,key10:ten,key11:eleven,key12:twelve";
 
   private static final String OTLP_TIMEOUT = "500";
+  private static final List<String> SIGNALS = asList("traces", "metrics", "logs");
 
   @TempDir Path tempDir;
 
@@ -479,6 +482,67 @@ class OtelEnvironmentConfigSourceTest {
   }
 
   @TableTest({
+    "scenario            | exporters       ",
+    "unsupported         | console         ",
+    "invalid             | not-an-exporter ",
+    "several unsupported | 'zipkin,console'"
+  })
+  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
+  @WithConfig(key = METRICS_OTEL_ENABLED, value = "true")
+  @WithConfig(key = LOGS_OTEL_ENABLED, value = "true")
+  void onlyUnsupportedExportersDisableOtlpExport(String exporters) {
+    injectExporterConfig("traces", exporters);
+    injectExporterConfig("metrics", exporters);
+    injectExporterConfig("logs", exporters);
+
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    assertEquals(Export.DATADOG, tracesExport(source));
+    assertEquals(Export.DATADOG, metricsExport(source));
+    assertEquals(Export.DISABLED, logsExport(source));
+  }
+
+  @TableTest({
+    "scenario        | signal  | exporters | equivalent",
+    "otlp upper case | traces  | OTLP      | otlp      ",
+    "otlp mixed case | metrics | oTlP      | otlp      ",
+    "none upper case | logs    | NONE      | none      "
+  })
+  void exporterNamesAreCaseInsensitive(String signal, String exporters, String equivalent) {
+    assertSameMapping(signal, exporters, equivalent);
+  }
+
+  @TableTest({
+    "scenario           | signal  | exporters       | equivalent ",
+    "padded otlp        | traces  | ' otlp '        | otlp       ",
+    "padded none        | metrics | 'none '         | none       ",
+    "padded list values | logs    | ' otlp , none ' | 'otlp,none'"
+  })
+  void exporterNamesAreTrimmed(String signal, String exporters, String equivalent) {
+    assertSameMapping(signal, exporters, equivalent);
+  }
+
+  @TableTest({
+    "scenario          | signal  | exporters       | equivalent    ",
+    "trailing comma    | traces  | 'otlp,'         | otlp          ",
+    "leading comma     | metrics | ',none'         | none          ",
+    "consecutive comma | logs    | 'otlp,,console' | 'otlp,console'"
+  })
+  void emptyExporterEntriesAreSkipped(String signal, String exporters, String equivalent) {
+    assertSameMapping(signal, exporters, equivalent);
+  }
+
+  @TableTest({
+    "scenario        | signal  | exporters",
+    "empty           | traces  | ''       ",
+    "blank           | metrics | '  '     ",
+    "only separators | logs    | ', ,'    "
+  })
+  void blankExporterListIsUnset(String signal, String exporters) {
+    assertSameMapping(signal, exporters, null);
+  }
+
+  @TableTest({
     "scenario                          | sysProp | envVar | configFile | logsOtelExporter",
     "system property otlp over env     | otlp    | none   |            | otlp            ",
     "system property none over env     | none    | otlp   |            |                 ",
@@ -653,5 +717,23 @@ class OtelEnvironmentConfigSourceTest {
     String expectedTimeout = otlp ? OTLP_TIMEOUT : null;
     assertEquals(expectedTimeout, source.get(otlpTimeoutKey));
     return otlp;
+  }
+
+  /** Asserts that both exporter lists of the signal map to the same outcome on every signal. */
+  private static void assertSameMapping(String signal, String exporters, String equivalent) {
+    injectSysConfig(TRACE_OTEL_ENABLED, "true");
+    injectSysConfig(METRICS_OTEL_ENABLED, "true");
+    injectSysConfig(LOGS_OTEL_ENABLED, "true");
+    for (String otherSignal : SIGNALS) {
+      injectExporterConfig(otherSignal, null);
+    }
+
+    assertEquals(mappedExports(signal, equivalent), mappedExports(signal, exporters));
+  }
+
+  private static List<Export> mappedExports(String signal, String exporters) {
+    injectExporterConfig(signal, exporters);
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+    return asList(tracesExport(source), metricsExport(source), logsExport(source));
   }
 }
