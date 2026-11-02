@@ -47,6 +47,16 @@ public final class HashStore {
   private Set<String> removedFromParent;
 
   /**
+   * Finds the custom store an owner borrows read-only until its first custom write.
+   *
+   * @param parent the owner's frozen parent map; may be null
+   * @return {@code parent}'s custom store, or null if there is no parent or it has none
+   */
+  public static HashStore inheritedFrom(TagMap parent) {
+    return parent == null ? null : parent.nameStore;
+  }
+
+  /**
    * Creates the custom store for an owner's first custom write.
    *
    * @param borrowed the store the owner borrowed until now, which the new store reads through to;
@@ -325,6 +335,16 @@ public final class HashStore {
     if (this.parent != null) {
       this.forEachParent(thisObj, consumer, (t, c, entry) -> c.accept(t, entry));
     }
+  }
+
+  /**
+   * {@link #forEach(Object, BiConsumer)} over the local entries only, skipping the parent chain.
+   *
+   * @param thisObj passed as the consumer's first argument
+   * @param consumer receives {@code thisObj} and each local entry
+   */
+  <T> void forEachLocal(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+    HashSupport.forEach(this.buckets, thisObj, consumer);
   }
 
   <T, U> void forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {

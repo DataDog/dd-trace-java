@@ -463,24 +463,6 @@ final class HashSupport {
     return ledger.toString();
   }
 
-  /** Whether {@code buckets} holds no entry, checked bucket by bucket. */
-  static boolean isEmpty(Object[] buckets) {
-    Object[] thisBuckets = buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object curBucket = thisBuckets[i];
-
-      if (curBucket instanceof Entry) {
-        return false;
-      } else if (curBucket instanceof BucketGroup) {
-        BucketGroup curGroup = (BucketGroup) curBucket;
-        if (!curGroup.isEmptyChain()) return false;
-      }
-    }
-
-    return true;
-  }
-
   /** Walks a bucket array's raw entries, tombstones included, for an iterator. */
   static class BucketWalker {
     private Object[] buckets;

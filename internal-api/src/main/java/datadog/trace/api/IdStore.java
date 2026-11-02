@@ -40,6 +40,16 @@ public abstract class IdStore {
   }
 
   /**
+   * Creates an id store for a map.
+   *
+   * @param parent the frozen map whose known tags the new store reads through to; may be null
+   * @return a fresh, empty id store
+   */
+  public static IdStore create(TagMap parent) {
+    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore);
+  }
+
+  /**
    * Builds the exception for an id that names no known tag.
    *
    * @param tagId the rejected id
@@ -226,6 +236,14 @@ public abstract class IdStore {
    */
   abstract <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer);
+
+  /**
+   * {@link #forEach(Object, BiConsumer)} over the local entries only, skipping the parent chain.
+   *
+   * @param thisObj passed as the consumer's first argument
+   * @param consumer receives {@code thisObj} and each local, live entry
+   */
+  abstract <T> void forEachLocal(T thisObj, BiConsumer<T, ? super EntryReader> consumer);
 
   /**
    * Starts a walk over the visible entries, local then inherited, for an iterator.

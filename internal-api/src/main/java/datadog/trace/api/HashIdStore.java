@@ -334,6 +334,15 @@ final class HashIdStore extends IdStore {
   }
 
   @Override
+  <T> void forEachLocal(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+    if (this.hasTombstones) {
+      HashSupport.forEachLive(this.buckets, thisObj, consumer);
+    } else {
+      HashSupport.forEach(this.buckets, thisObj, consumer);
+    }
+  }
+
+  @Override
   <T, U> void forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
     if (this.hasTombstones) {
       HashSupport.forEachLive(this.buckets, thisObj, otherObj, consumer);
