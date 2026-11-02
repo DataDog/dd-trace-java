@@ -1,3 +1,3 @@
 plugins {
-  id("dd-trace-java.conventions.java-only")
+  id("dd-trace-java.conventions.java")
 }

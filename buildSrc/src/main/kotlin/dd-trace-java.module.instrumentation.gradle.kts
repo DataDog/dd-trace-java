@@ -1,7 +1,7 @@
 import datadog.gradle.plugin.instrument.BuildTimeInstrumentationExtension
 
 plugins {
-  id("dd-trace-java.conventions.java")
+  id("dd-trace-java.conventions.java-groovy")
   id("dd-trace-java.conventions.forbidden-apis")
 }
 

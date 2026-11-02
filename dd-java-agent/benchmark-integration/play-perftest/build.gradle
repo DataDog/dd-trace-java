@@ -1,6 +1,6 @@
 plugins {
   id 'com.gradleup.shadow'
-  id 'dd-trace-java.conventions.java'
+  id 'dd-trace-java.conventions.java-groovy'
   id 'org.gradle.playframework'
 }
 
