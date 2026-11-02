@@ -7,7 +7,9 @@ import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
@@ -418,6 +420,30 @@ class OtelEnvironmentConfigSourceTest {
     assertEquals(traceOtelDisabled, tracesExport(new OtelEnvironmentConfigSource()));
   }
 
+  @TableTest({
+    "scenario                       | exporters           | DD_METRICS_OTEL_ENABLED=true | DD_METRICS_OTEL_ENABLED=false",
+    "unset                          |                     | OTLP                         | DATADOG                      ",
+    "empty                          | ''                  | OTLP                         | DATADOG                      ",
+    "otlp                           | otlp                | OTLP                         | DATADOG                      ",
+    "otlp with unsupported          | 'otlp,console'      | OTLP                         | DATADOG                      ",
+    "none                           | none                | DISABLED                     | DISABLED                     ",
+    "none with unsupported          | 'none,console'      | DISABLED                     | DISABLED                     ",
+    "none with otlp                 | 'none,otlp'         | OTLP                         | DATADOG                      ",
+    "none with otlp and unsupported | 'none,otlp,console' | OTLP                         | DATADOG                      "
+  })
+  // keeps the OpenTelemetry mapping active when DD_METRICS_OTEL_ENABLED=false
+  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
+  void otelMetricsExporterSelection(
+      String exporters, Export metricsOtelEnabled, Export metricsOtelDisabled) {
+    injectExporterConfig("metrics", exporters);
+
+    injectSysConfig(METRICS_OTEL_ENABLED, "true");
+    assertEquals(metricsOtelEnabled, metricsExport(new OtelEnvironmentConfigSource()));
+
+    injectSysConfig(METRICS_OTEL_ENABLED, "false");
+    assertEquals(metricsOtelDisabled, metricsExport(new OtelEnvironmentConfigSource()));
+  }
+
   @Test
   @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   @WithConfig(
@@ -533,6 +559,11 @@ class OtelEnvironmentConfigSourceTest {
 
   private static Export tracesExport(OtelEnvironmentConfigSource source) {
     return collectionExport(source, TRACE_OTEL_EXPORTER, OTLP_TRACES_TIMEOUT, TRACE_ENABLED);
+  }
+
+  private static Export metricsExport(OtelEnvironmentConfigSource source) {
+    return collectionExport(
+        source, METRICS_OTEL_EXPORTER, OTLP_METRICS_TIMEOUT, RUNTIME_METRICS_ENABLED);
   }
 
   private static Export collectionExport(

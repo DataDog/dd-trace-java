@@ -143,7 +143,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     if (metricsOtelEnabled()) {
       setupMetricsOtelEnvironment();
     } else {
-      capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
+      capture(RUNTIME_METRICS_ENABLED, selectExporter("metrics") == Exporter.NONE ? "false" : null);
     }
 
     if (logsOtelEnabled()) {
@@ -209,8 +209,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
             "otel.instrumentation.runtime-telemetry.emit-experimental-metrics",
             "dd." + METRICS_OTEL_EXPERIMENTAL_ENABLED));
 
-    String exporter = getOtelProperty("otel.metrics.exporter");
-    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // metrics defaults to OTLP
+    Exporter exporter = selectExporter("metrics");
+    if (exporter == Exporter.UNSET || exporter == Exporter.OTLP) { // metrics defaults to OTLP
       capture(METRICS_OTEL_EXPORTER, "otlp");
       capture(
           OTLP_METRICS_HEADERS,
@@ -232,8 +232,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
           getOtelProperty(
               "otel.exporter.otlp.metrics.temporality.preference",
               "dd." + OTLP_METRICS_TEMPORALITY_PREFERENCE));
-    } else {
-      capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
+    } else if (exporter == Exporter.NONE) {
+      capture(RUNTIME_METRICS_ENABLED, "false");
     }
   }
 
