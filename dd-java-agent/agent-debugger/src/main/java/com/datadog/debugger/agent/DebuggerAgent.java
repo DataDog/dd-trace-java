@@ -413,14 +413,11 @@ public class DebuggerAgent {
 
   private static String getSnapshotEndpoint(
       Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
-    if (ddAgentFeaturesDiscovery.supportsDebugger()) {
-      String debuggerSnapshotEndpoint = ddAgentFeaturesDiscovery.getDebuggerSnapshotEndpoint();
-      if (debuggerSnapshotEndpoint == null) {
-        throw new IllegalArgumentException("Cannot find snapshot endpoint on datadog agent");
-      }
-      return ddAgentFeaturesDiscovery.buildUrl(debuggerSnapshotEndpoint).toString();
+    String debuggerSnapshotEndpoint = ddAgentFeaturesDiscovery.getDebuggerSnapshotEndpoint();
+    if (debuggerSnapshotEndpoint == null) {
+      return config.getFinalDebuggerSnapshotUrl();
     }
-    return config.getFinalDebuggerSnapshotUrl();
+    return ddAgentFeaturesDiscovery.buildUrl(debuggerSnapshotEndpoint).toString();
   }
 
   private static String getDiagnosticEndpoint(
