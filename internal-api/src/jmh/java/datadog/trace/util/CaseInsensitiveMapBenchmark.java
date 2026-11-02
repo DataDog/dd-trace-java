@@ -293,7 +293,7 @@ public class CaseInsensitiveMapBenchmark {
   static CIEntry[] _create_flat(float loadFactor) {
     // 16 distinct case-insensitive keys (foo-0..quux-3).
     CIEntry[] table =
-        FlatHashtable.create(CIEntry.class, PREFIXES.length * NUM_SUFFIXES, loadFactor);
+        FlatHashtable.create(PREFIXES.length * NUM_SUFFIXES, loadFactor, CIEntry[]::new);
     for (int suffix = 0; suffix < NUM_SUFFIXES; ++suffix) {
       for (String prefix : PREFIXES) {
         String key = prefix + "-" + suffix;
