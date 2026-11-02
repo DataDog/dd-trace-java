@@ -574,9 +574,12 @@ validate_build:
   needs: [ build ]
   variables:
     CACHE_TYPE: "lib"
+  parallel:
+    matrix:
+      - BUILD_CACHE: ["true", "false"]
   script:
     # Rebuild independently of the cache used to produce the reference artifacts.
-    - export GRADLE_ARGS="$GRADLE_ARGS --no-build-cache --rerun-tasks"
+    - if [ "$BUILD_CACHE" = "false" ]; then export GRADLE_ARGS="$GRADLE_ARGS --no-build-cache --rerun-tasks"; fi
     # Preserve the `build` job artifacts before Gradle rebuilds and overwrites them under
     # workspace/**/build/libs, so jardiff can compare the rebuilt jars against them.
     - mkdir -p reference-artifacts
@@ -590,7 +593,7 @@ validate_build:
     - ./gradlew --version
     # Keep both JAR sets for direct inspection when the comparison fails.
     - |
-      if ! ./gradlew compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS; then
+      if ! ./gradlew clean compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS; then
         mkdir -p check_reports/jar-comparison-artifacts/reference check_reports/jar-comparison-artifacts/candidate
         cp reference-artifacts/*.jar check_reports/jar-comparison-artifacts/reference/
         cp workspace/dd-java-agent/build/libs/*.jar check_reports/jar-comparison-artifacts/candidate/
