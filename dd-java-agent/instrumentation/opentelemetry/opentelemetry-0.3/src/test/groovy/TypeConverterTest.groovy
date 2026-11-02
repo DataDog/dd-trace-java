@@ -53,7 +53,6 @@ class TypeConverterTest extends InstrumentationSpecification {
       [:],
       false,
       "fakeType",
-      0,
       trace,
       null,
       null,
