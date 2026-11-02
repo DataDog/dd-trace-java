@@ -8,13 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class ThreadUtilsTest {
 
-  @ParameterizedTest
-  @ValueSource(ints = {1, 4})
+  @TableTest({
+    "scenario   | concurrency",
+    "sequential | 1          ",
+    "concurrent | 4          "
+  })
   void runsEveryInvocation(int concurrency) throws Throwable {
     AtomicInteger count = new AtomicInteger();
 
@@ -23,8 +25,11 @@ class ThreadUtilsTest {
     assertEquals(11, count.get());
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {1, 4})
+  @TableTest({
+    "scenario   | concurrency",
+    "sequential | 1          ",
+    "concurrent | 4          "
+  })
   void propagatesCheckedException(int concurrency) {
     IOException failure = new IOException("action failed");
 
@@ -42,8 +47,11 @@ class ThreadUtilsTest {
     assertSame(failure, actual);
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {1, 4})
+  @TableTest({
+    "scenario   | concurrency",
+    "sequential | 1          ",
+    "concurrent | 4          "
+  })
   void propagatesRuntimeException(int concurrency) {
     IllegalStateException failure = new IllegalStateException("action failed");
 
@@ -61,8 +69,11 @@ class ThreadUtilsTest {
     assertSame(failure, actual);
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {1, 4})
+  @TableTest({
+    "scenario   | concurrency",
+    "sequential | 1          ",
+    "concurrent | 4          "
+  })
   void propagatesError(int concurrency) {
     AssertionError failure = new AssertionError("action failed");
 
