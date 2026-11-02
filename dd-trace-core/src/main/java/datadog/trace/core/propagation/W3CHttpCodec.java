@@ -316,18 +316,9 @@ class W3CHttpCodec {
      */
     @Override
     protected TagContext build() {
-      // If there is neither a traceparent nor a tracestate header, then ignore this
-      if (traceparentHeader == null && tracestateHeader == null) {
-        onlyTagContext();
-      }
-      if (valid && fullContext) {
+      if (canBuildFullContext()) {
         try {
-          if (traceparentHeader == null && tracestateHeader != null) {
-            throw new IllegalStateException(
-                "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
-          }
-          // Now we know that we have at least a traceparent header
-          parseTraceParentHeader(traceparentHeader);
+          parseRequiredTraceParent(true);
           parseTraceStateHeader(tracestateHeader);
         } catch (RuntimeException e) {
           onlyTagContext();
@@ -341,6 +332,26 @@ class W3CHttpCodec {
     private long traceIdHigh;
 
     private long traceIdLow;
+
+    /** Whether a full context may be built, which needs a traceparent or tracestate header. */
+    private boolean canBuildFullContext() {
+      if (traceparentHeader == null && tracestateHeader == null) {
+        onlyTagContext();
+      }
+      return valid && fullContext;
+    }
+
+    /**
+     * Parses the traceparent header, which a tracestate header is invalid without. The trace id is
+     * built only if {@code buildTraceId}.
+     */
+    private void parseRequiredTraceParent(boolean buildTraceId) {
+      if (traceparentHeader == null) {
+        throw new IllegalStateException(
+            "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
+      }
+      parseTraceParent(traceparentHeader, buildTraceId);
+    }
 
     void parseTraceParentHeader(String tp) {
       parseTraceParent(tp, true);
@@ -400,20 +411,13 @@ class W3CHttpCodec {
 
     /** Like {@link #build()}, but for {@link TraceContextExtractor#extractForMerge}. */
     TraceContextMerge buildForMerge() {
-      if (traceparentHeader == null && tracestateHeader == null) {
-        onlyTagContext();
-      }
-      if (!valid || !fullContext) {
+      if (!canBuildFullContext()) {
         return null;
       }
       W3CTracestate tracestate;
       try {
-        if (traceparentHeader == null) {
-          throw new IllegalStateException(
-              "Found no traceparent header but tracestate header '" + tracestateHeader + "'");
-        }
         // the trace id only needs to be compared, so it's kept as its parts
-        parseTraceParent(traceparentHeader, false);
+        parseRequiredTraceParent(false);
         tracestate = W3CTracestate.parse(tracestateHeader);
       } catch (RuntimeException e) {
         log.debug("Exception when building context", e);
