@@ -5,7 +5,8 @@ package datadog.trace.api;
  *
  * <p>Every store is built through {@link Default#INSTANCE}, never with {@code new}, so a JVM loads
  * one {@code IdStore} subclass and class hierarchy analysis devirtualizes every call on an {@code
- * IdStore} without a guard. A store builds its own copies.
+ * IdStore} without a guard. So nothing that is always loaded may extend {@code IdStore}. A store
+ * builds its own copies.
  *
  * <p>No static state here, and no {@link TagMap}, so {@link TagMap#EMPTY} can be built with {@link
  * #createEmpty} whichever of the two classes initializes first.

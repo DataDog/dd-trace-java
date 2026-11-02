@@ -3,6 +3,7 @@ package datadog.trace.api;
 import datadog.apicontract.Restricted;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -18,12 +19,12 @@ import javax.annotation.Nullable;
  * TagMap} owns one too.
  *
  * <p>Values move by {@code load} and {@code store}, as through {@link TagStore}; entries by {@code
- * getEntry}, {@code put} and {@code remove}. Unlike {@link TagStore}, writes take no nulls: the
- * owner turns a null value into {@code remove} and skips a null entry before calling.
+ * getEntry}, {@code put} and {@code remove}. {@link TagStore} treats a null value as a removal; an
+ * id store takes no nulls at all, so its owner turns a null value into {@code remove} and skips a
+ * null entry before calling.
  *
- * <p>{@link IdStoreFactory} builds every store, so the JVM loads one implementation and class
- * hierarchy analysis devirtualizes every call on an {@code IdStore} without a type guard; nothing
- * that is always loaded may extend this class. No locking: guarded by the owner's lock.
+ * <p>Build stores only through {@link IdStoreFactory}, which says why. No locking: guarded by the
+ * owner's lock.
  */
 @Restricted(allowedIn = {"datadog.trace.core"})
 public abstract class IdStore {
@@ -39,15 +40,13 @@ public abstract class IdStore {
     return new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
   }
 
-  /*
-   * Point operations. A returned EntryReader is valid only until this store's next operation: a
-   * store that keeps known tags without an Entry per tag answers with a reused flyweight. Call
-   * EntryReader.entry() to keep one. Stores are inside the tracer's trust boundary, so callers are
-   * expected to follow this rather than have it enforced.
-   */
-
   /**
    * The entry for the known tag {@code tagId}, reading through to the parent chain, or null.
+   *
+   * <p>The reader is valid only until this store's next operation: a store that keeps known tags
+   * without an Entry per tag answers with a reused flyweight. Call {@link EntryReader#entry()} to
+   * keep it, or use {@link #getEntry} instead. Stores are inside the tracer's trust boundary, so
+   * callers are expected to follow this rather than have it enforced.
    *
    * @throws IllegalArgumentException if {@code tagId} names no known tag
    */
@@ -80,22 +79,31 @@ public abstract class IdStore {
   @Nullable
   public abstract String loadString(long tagId);
 
-  /*
-   * Stores a known tag without validating its id: the caller has checked KnownTagCodec.isKnown.
+  /**
+   * Inserts or replaces the known tag {@code tagId} with {@code value}, without reading through to
+   * the parent chain; a tombstone for the tag is replaced, so the new value is visible.
+   *
+   * <p>Does not validate {@code tagId}: the caller has checked {@link KnownTagCodec#isKnown}. Takes
+   * no null: the owner calls {@link #remove} for a null value.
    */
-
   public abstract void store(long tagId, @Nonnull Object value);
 
+  /** {@link #store(long, Object)} for a {@link CharSequence}. */
   public abstract void store(long tagId, @Nonnull CharSequence value);
 
+  /** {@link #store(long, Object)} for a {@code boolean}, kept unboxed. */
   public abstract void store(long tagId, boolean value);
 
+  /** {@link #store(long, Object)} for an {@code int}, kept unboxed. */
   public abstract void store(long tagId, int value);
 
+  /** {@link #store(long, Object)} for a {@code long}, kept unboxed. */
   public abstract void store(long tagId, long value);
 
+  /** {@link #store(long, Object)} for a {@code float}, kept unboxed. */
   public abstract void store(long tagId, float value);
 
+  /** {@link #store(long, Object)} for a {@code double}, kept unboxed. */
   public abstract void store(long tagId, double value);
 
   /**
@@ -106,7 +114,10 @@ public abstract class IdStore {
   @Nullable
   public abstract EntryReader put(@Nonnull EntryReader entryReader);
 
-  /** {@link #put}, returning the prior visible entry -- local, else read through. */
+  /**
+   * {@link #put}, returning the prior visible entry -- local, else read through -- or null if the
+   * tag was not visible (absent from the chain, or removed by a tombstone).
+   */
   @Nullable
   public abstract EntryReader getAndPut(@Nonnull EntryReader entryReader);
 
@@ -126,9 +137,17 @@ public abstract class IdStore {
   /** Exact count, including the visible part of the read-through chain. */
   abstract int size();
 
+  /**
+   * Exact: no tag is visible. With tombstones in a read-through chain this may walk the ancestors,
+   * so a fast path should try {@link #isDefinitelyEmpty} first.
+   */
   abstract boolean isEmpty();
 
-  /** Cheap: no level of the chain holds a local entry (ignores shadowing and tombstones). */
+  /**
+   * Cheap: no level of the chain holds a local entry (ignores shadowing and tombstones). True means
+   * empty; false means only "maybe not", since tombstones can hide every inherited tag. Use it to
+   * skip work on a fast path, and {@link #isEmpty} when the answer must be exact.
+   */
   abstract boolean isDefinitelyEmpty();
 
   /** Upper bound: the local counts of every level. */
@@ -140,8 +159,17 @@ public abstract class IdStore {
   /** Visits the local entries, then the visible inherited ones. */
   abstract void forEach(Consumer<? super EntryReader> consumer);
 
+  /**
+   * {@link #forEach(Consumer)}, passing {@code thisObj} as the consumer's first argument, so the
+   * consumer can be a non-capturing lambda that the JVM keeps as a constant instead of allocating
+   * per call: {@code store.forEach(map, (m, entry) -> m.put(entry.tag(), entry.objectValue()))}.
+   */
   abstract <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer);
 
+  /**
+   * {@link #forEach(Object, BiConsumer)} with a second context object, passed as the consumer's
+   * second argument: {@code store.forEach(this, sink, (self, s, entry) -> self.write(s, entry))}.
+   */
   abstract <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer);
 
@@ -154,18 +182,24 @@ public abstract class IdStore {
   /** An independently mutable copy with the same parent, sharing any Entry objects it holds. */
   abstract IdStore copy();
 
-  /** Copies the entries of the parentless store {@code that}, sharing any Entry objects. */
+  /**
+   * Copies the entries of the parentless store {@code that} (asserted), sharing any Entry objects.
+   * "Local" names the source: only {@code that}'s own entries are copied, since it has no parent.
+   */
   abstract void putAllLocal(IdStore that);
 
-  /** Puts the local entries into {@code map}, for a store with no parent. */
+  /** Puts the local entries into {@code map}, for a store with no parent (asserted). */
   abstract void fillMapLocal(Map<? super String, Object> map);
 
+  /** {@link #fillMapLocal} with each value as a String. */
   abstract void fillStringMapLocal(Map<? super String, ? super String> map);
 
   /** Tests only: throws if the store's structure is inconsistent. */
+  @VisibleForTesting
   abstract void checkIntegrity();
 
   /** Tests only: the local count, recomputed from the structure. */
+  @VisibleForTesting
   abstract int computeSize();
 
   /** For deep debugging. */

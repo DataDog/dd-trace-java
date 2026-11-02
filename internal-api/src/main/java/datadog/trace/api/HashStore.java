@@ -5,6 +5,7 @@ import datadog.trace.api.TagMap.BucketGroup;
 import datadog.trace.api.TagMap.Entry;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -20,8 +21,9 @@ import javax.annotation.Nullable;
  * IdStore}.
  *
  * <p>Values move by {@code store}, as through {@link TagStore}; entries by {@code getEntry}, {@code
- * put} and {@code remove}. Unlike {@link TagStore}, writes take no nulls: the owner turns a null
- * value into {@code remove} and skips a null entry before calling.
+ * put} and {@code remove}. {@link TagStore} treats a null value as a removal; this store takes no
+ * nulls at all, so its owner turns a null value into {@code remove} and skips a null entry before
+ * calling.
  *
  * <p>Created lazily by its owner -- a {@link TagMap}, or a span in the tracer core -- on the first
  * custom write ({@link #create}); until then the owner borrows its parent's custom store, if any,
@@ -131,48 +133,55 @@ public final class HashStore {
   }
 
   private Entry get(String tag, int hash) {
-    Entry local = HashSupport.find(this.buckets, hash, tag);
-    if (local != null) {
-      return local;
+    for (HashStore level = this; level != null; level = level.parent) {
+      Entry local = HashSupport.find(level.buckets, hash, tag);
+      if (local != null) {
+        return local;
+      }
+      if (level.removedFromParent != null && level.removedFromParent.contains(tag)) {
+        return null; // tombstoned: removed locally, do not read through
+      }
     }
-    HashStore parent = this.parent;
-    if (parent == null) {
-      return null;
-    }
-    if (this.removedFromParent != null && this.removedFromParent.contains(tag)) {
-      return null; // tombstoned: removed locally, do not read through
-    }
-    return parent.get(tag, hash);
+    return null;
   }
 
-  /*
-   * Stores the custom tag {@code tag}, which must not be a known tag's name.
+  /**
+   * Inserts or replaces the custom tag {@code tag} with {@code value}, without reading through to
+   * the parent chain; a tombstone for the tag is cleared, so the new value is visible.
+   *
+   * <p>{@code tag} must not be a known tag's name. Takes no null: the owner calls {@link #remove}
+   * for a null value.
    */
-
   public void store(String tag, @Nonnull Object value) {
     this.put(Entry.newAnyEntry(tag, value));
   }
 
+  /** {@link #store(String, Object)} for a {@link CharSequence}. */
   public void store(String tag, @Nonnull CharSequence value) {
     this.put(Entry.newObjectEntry(tag, value));
   }
 
+  /** {@link #store(String, Object)} for a {@code boolean}, kept unboxed. */
   public void store(String tag, boolean value) {
     this.put(Entry.newBooleanEntry(tag, value));
   }
 
+  /** {@link #store(String, Object)} for an {@code int}, kept unboxed. */
   public void store(String tag, int value) {
     this.put(Entry.newIntEntry(tag, value));
   }
 
+  /** {@link #store(String, Object)} for a {@code long}, kept unboxed. */
   public void store(String tag, long value) {
     this.put(Entry.newLongEntry(tag, value));
   }
 
+  /** {@link #store(String, Object)} for a {@code float}, kept unboxed. */
   public void store(String tag, float value) {
     this.put(Entry.newFloatEntry(tag, value));
   }
 
+  /** {@link #store(String, Object)} for a {@code double}, kept unboxed. */
   public void store(String tag, double value) {
     this.put(Entry.newDoubleEntry(tag, value));
   }
@@ -195,7 +204,10 @@ public final class HashStore {
     return replaced;
   }
 
-  /** {@link #put}, returning the prior visible entry -- local, else read through. */
+  /**
+   * {@link #put}, returning the prior visible entry -- local, else read through -- or null if the
+   * tag was not visible (absent from the chain, or removed by a tombstone).
+   */
   @Nullable
   public Entry getAndPut(@Nonnull Entry newEntry) {
     // Capture whether the key was tombstoned BEFORE put clears it: a tombstoned key had no visible
@@ -325,8 +337,12 @@ public final class HashStore {
     return copy;
   }
 
-  /** Copies the entries of the parentless store {@code that}, sharing Entry objects. */
+  /**
+   * Copies the entries of the parentless store {@code that} (asserted), sharing Entry objects.
+   * "Local" names the source: only {@code that}'s own entries are copied, since it has no parent.
+   */
   void putAllLocal(HashStore that) {
+    assert that.parent == null : "putAllLocal copies only a parentless store";
     if (that.count == 0) {
       return;
     }
@@ -338,15 +354,20 @@ public final class HashStore {
     }
   }
 
+  /** Puts the local entries into {@code map}, for a store with no parent (asserted). */
   void fillMapLocal(Map<? super String, Object> map) {
+    assert this.parent == null : "fillMapLocal is for a parentless store";
     HashSupport.fillMap(this.buckets, map);
   }
 
+  /** {@link #fillMapLocal} with each value as a String. */
   void fillStringMapLocal(Map<? super String, ? super String> map) {
+    assert this.parent == null : "fillStringMapLocal is for a parentless store";
     HashSupport.fillStringMap(this.buckets, map);
   }
 
   /** Tests only: throws if the store's structure is inconsistent. */
+  @VisibleForTesting
   void checkIntegrity() {
     HashSupport.checkBuckets(this.buckets);
     if (this.count != this.computeSize()) {
@@ -355,6 +376,7 @@ public final class HashStore {
   }
 
   /** Tests only: the local count, recomputed from the structure. */
+  @VisibleForTesting
   int computeSize() {
     return HashSupport.count(this.buckets);
   }

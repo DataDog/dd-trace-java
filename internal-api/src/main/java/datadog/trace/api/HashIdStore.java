@@ -24,8 +24,10 @@ final class HashIdStore extends IdStore {
     return new HashIdStore(new Object[1]);
   }
 
-  /** Walks the leaf's buckets, then each ancestor's, skipping tombstones and shadowed entries. */
-  /** Walks the store's levels; it is its own bucket walker, so a cursor is one allocation. */
+  /**
+   * Walks the leaf's buckets, then each ancestor's, skipping tombstones and shadowed entries. It is
+   * its own bucket walker, so a cursor is one allocation.
+   */
   private static final class HashCursor extends HashSupport.BucketWalker implements Cursor {
     private final HashIdStore leaf;
     private HashIdStore level;
@@ -95,12 +97,14 @@ final class HashIdStore extends IdStore {
 
   /** {@link #getEntry} for a validated id. */
   private Entry getVisible(long tagId) {
-    Entry local = HashSupport.findById(this.buckets, Entry.bucketHash(tagId), tagId);
-    if (local != null) {
-      return local.tombstone ? null : local;
+    int hash = Entry.bucketHash(tagId);
+    for (HashIdStore level = this; level != null; level = level.parent) {
+      Entry local = HashSupport.findById(level.buckets, hash, tagId);
+      if (local != null) {
+        return local.tombstone ? null : local; // a tombstone stops read-through
+      }
     }
-    HashIdStore parent = this.parent;
-    return parent == null ? null : parent.getVisible(tagId);
+    return null;
   }
 
   @Override
@@ -376,6 +380,7 @@ final class HashIdStore extends IdStore {
   @Override
   void putAllLocal(IdStore other) {
     HashIdStore that = (HashIdStore) other;
+    assert that.parent == null : "putAllLocal copies only a parentless store";
     if (that.count == 0) {
       return;
     }
@@ -394,11 +399,13 @@ final class HashIdStore extends IdStore {
 
   @Override
   void fillMapLocal(Map<? super String, Object> map) {
+    assert this.parent == null : "fillMapLocal is for a parentless store";
     HashSupport.fillMap(this.buckets, map);
   }
 
   @Override
   void fillStringMapLocal(Map<? super String, ? super String> map) {
+    assert this.parent == null : "fillStringMapLocal is for a parentless store";
     HashSupport.fillStringMap(this.buckets, map);
   }
 
