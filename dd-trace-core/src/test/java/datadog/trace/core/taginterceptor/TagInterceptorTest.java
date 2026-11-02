@@ -132,6 +132,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
+    // spotless:off - TableTest formatter 1.1.2 splits concatenated row strings.
     "scenario                           | context         | serviceName                                 | expected                                   ",
     "root context with default service  | '/'             | 'DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME' | 'DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME'",
     "empty context with default service | ''              | 'DEFAULT_SERVICE_NAME'                      | 'DEFAULT_SERVICE_NAME'                     ",
@@ -141,6 +142,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     "empty context with my-service      | ''              | 'my-service'                                | 'my-service'                               ",
     "/some-context with my-service      | '/some-context' | 'my-service'                                | 'my-service'                               ",
     "other-context with my-service      | 'other-context' | 'my-service'                                | 'my-service'                               "
+    // spotless:on
   })
   void setServiceNameFromServletContext(
       String context,
@@ -202,6 +204,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
+    // spotless:off - TableTest formatter 1.1.2 splits concatenated row strings.
     "scenario                      | configured                  | tag          | expectedBuilder | expectedSetter",
     "configured by OTel name       | db.system                   | db.system    | split           | split         ",
     "configured by Datadog name    | db.type                     | db.type      | split           | split         ",
@@ -215,6 +218,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     "custom tag survives expansion | db.system,custom.tag        | custom.tag   | split           | split         ",
     "first of two renamed tags     | db.system,db.operation.name | db.type      | split           | split         ",
     "second of two renamed tags    | db.system,db.operation.name | db.operation | split           | split         "
+    // spotless:on
   })
   void splitByTagsMatchesCanonicalAndOriginalNames(
       String configured, String tag, String expectedBuilder, String expectedSetter) {
