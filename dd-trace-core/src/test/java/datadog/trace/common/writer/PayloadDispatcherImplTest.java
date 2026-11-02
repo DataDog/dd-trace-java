@@ -29,8 +29,11 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
@@ -38,6 +41,11 @@ import org.junit.jupiter.api.Timeout;
 import org.tabletest.junit.TableTest;
 
 class PayloadDispatcherImplTest extends DDJavaSpecification {
+
+  private static final Set<String> TRACE_STATE_METHODS =
+      new HashSet<>(
+          Arrays.asList(
+              "getPropagationTagsIfPresent", "initPropagationTags", "getOrigin", "setOrigin"));
 
   static final MonitoringImpl monitoring =
       new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
@@ -187,6 +195,10 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
         mock(
             PendingTrace.class,
             invocation -> {
+              if (TRACE_STATE_METHODS.contains(invocation.getMethod().getName())) {
+                // trace-level state the span context reads back from its collector
+                return invocation.callRealMethod();
+              }
               Class<?> returnType = invocation.getMethod().getReturnType();
               if (CoreTracer.class.isAssignableFrom(returnType)) {
                 // Use RETURNS_DEFAULTS so getTagInterceptor() returns null (matching Groovy Stub
