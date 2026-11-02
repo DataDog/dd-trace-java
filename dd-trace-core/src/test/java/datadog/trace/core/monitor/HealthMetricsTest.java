@@ -2,6 +2,10 @@ package datadog.trace.core.monitor;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -9,6 +13,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.RemoteApi;
+import datadog.trace.common.writer.ddagent.SpanAdmission;
 import datadog.trace.core.DDSpan;
 import java.util.Arrays;
 import java.util.Collections;
@@ -119,6 +124,32 @@ class HealthMetricsTest {
     verify(statsD).count("queue.partial.traces", 1L);
     verify(statsD).count("queue.dropped.spans", (long) droppedSpans, "priority:sampler_drop");
     verifyNoMoreInteractions(statsD);
+  }
+
+  @Test
+  void testReportsSpanBudgetGaugesOnFlush() throws InterruptedException {
+    SpanAdmission admission = SpanAdmission.of(1000);
+    assertTrue(admission.tryAdmitKept(300));
+    CountDownLatch latch = new CountDownLatch(2);
+    try (TracerHealthMetrics healthMetrics =
+        new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)) {
+      healthMetrics.registerSpanAdmission(admission);
+      healthMetrics.start();
+      assertTrue(latch.await(10, TimeUnit.SECONDS));
+    }
+    verify(statsD, atLeastOnce()).gauge("queue.spans", 300L);
+    verify(statsD, atLeastOnce()).gauge("queue.span_limit", 1000L);
+  }
+
+  @Test
+  void testUnlimitedSpanBudgetReportsNoGauges() throws InterruptedException {
+    try (TracerHealthMetrics healthMetrics =
+        new TracerHealthMetrics(statsD, 100, TimeUnit.MILLISECONDS)) {
+      healthMetrics.registerSpanAdmission(SpanAdmission.unlimited());
+      healthMetrics.start();
+      Thread.sleep(300);
+    }
+    verify(statsD, never()).gauge(eq("queue.spans"), anyLong());
   }
 
   @Test

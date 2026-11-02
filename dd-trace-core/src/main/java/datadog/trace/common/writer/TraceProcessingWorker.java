@@ -91,8 +91,32 @@ public class TraceProcessingWorker implements AutoCloseable {
       final long flushInterval,
       final TimeUnit timeUnit,
       final SingleSpanSampler singleSpanSampler) {
+    this(
+        capacity,
+        prioritization.admission(spanLimit),
+        healthMetrics,
+        dispatcher,
+        droppingPolicy,
+        prioritization,
+        flushInterval,
+        timeUnit,
+        singleSpanSampler);
+  }
+
+  @VisibleForTesting
+  TraceProcessingWorker(
+      final int capacity,
+      final SpanAdmission spanAdmission,
+      final HealthMetrics healthMetrics,
+      final PayloadDispatcher dispatcher,
+      final DroppingPolicy droppingPolicy,
+      final Prioritization prioritization,
+      final long flushInterval,
+      final TimeUnit timeUnit,
+      final SingleSpanSampler singleSpanSampler) {
     this.capacity = capacity;
-    this.spanAdmission = prioritization.admission(spanLimit);
+    this.spanAdmission = spanAdmission;
+    healthMetrics.registerSpanAdmission(spanAdmission);
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
     this.spanSamplingWorker =

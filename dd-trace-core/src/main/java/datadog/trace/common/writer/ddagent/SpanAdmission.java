@@ -87,6 +87,11 @@ public final class SpanAdmission {
     }
   }
 
+  /** The span cap the cutoffs are taken from, or {@link Long#MAX_VALUE} when unlimited. */
+  public long limit() {
+    return budget == null ? Long.MAX_VALUE : budget.limit();
+  }
+
   long keptCutoff(int spans) {
     long limit = budget.limit();
     long half = limit / 2;
