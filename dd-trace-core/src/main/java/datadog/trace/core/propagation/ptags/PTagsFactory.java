@@ -51,12 +51,25 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null, ProductTraceSource.UNSET, null, LLMObsTagValues.EMPTY);
+    return createValid(
+        null,
+        null,
+        null,
+        ProductTraceSource.UNSET,
+        PrioritySampling.UNSET,
+        null,
+        LLMObsTagValues.EMPTY);
   }
 
   @Override
   public final PropagationTags fromHeaderValue(@Nonnull HeaderType headerType, String value) {
     return DEC_ENC_MAP.get(headerType).fromHeaderValue(this, value);
+  }
+
+  @Override
+  public final PropagationTags fromDatadogHeaderValue(String value, int samplingPriority) {
+    return ((DatadogPTagsCodec) DEC_ENC_MAP.get(DATADOG))
+        .fromHeaderValue(this, value, samplingPriority);
   }
 
   @Override
@@ -72,6 +85,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       TagValue decisionMakerTagValue,
       TagValue traceIdTagValue,
       int productTraceSource,
+      int samplingPriority,
       TagValue orgPropagationMarkerTagValue,
       @Nonnull LLMObsTagValues llmObsTagValues) {
     return new PTags(
@@ -80,8 +94,13 @@ public class PTagsFactory implements PropagationTags.Factory {
         decisionMakerTagValue,
         traceIdTagValue,
         productTraceSource,
+        samplingPriority,
+        null,
+        null,
         orgPropagationMarkerTagValue,
-        llmObsTagValues);
+        llmObsTagValues,
+        null,
+        null);
   }
 
   PropagationTags createInvalid(String error) {
@@ -181,29 +200,6 @@ public class PTagsFactory implements PropagationTags.Factory {
      * {@code null} if not set.
      */
     private volatile CharSequence lastParentId;
-
-    PTags(
-        PTagsFactory factory,
-        List<TagElement> tagPairs,
-        TagValue decisionMakerTagValue,
-        TagValue traceIdTagValue,
-        int traceSource,
-        TagValue orgPropagationMarkerTagValue,
-        @Nonnull LLMObsTagValues llmObsTagValues) {
-      this(
-          factory,
-          tagPairs,
-          decisionMakerTagValue,
-          traceIdTagValue,
-          traceSource,
-          PrioritySampling.UNSET,
-          null,
-          null,
-          orgPropagationMarkerTagValue,
-          llmObsTagValues,
-          null,
-          null);
-    }
 
     // Takes tracestate/otelTraceState up-front to build SamplingState in one allocation.
     PTags(

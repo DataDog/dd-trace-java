@@ -336,6 +336,14 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.fullContext = false;
   }
 
+  /**
+   * The extracted sampling priority that the trace will inherit, so propagation tags can start from
+   * it, or {@link PrioritySampling#UNSET} when it may not be inherited.
+   */
+  protected int inheritedSamplingPriority() {
+    return apmTracingEnabled ? samplingPriority : PrioritySampling.UNSET;
+  }
+
   protected int defaultSamplingPriority() {
     return PrioritySampling.UNSET;
   }
