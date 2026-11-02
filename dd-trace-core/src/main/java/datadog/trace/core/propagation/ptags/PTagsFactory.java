@@ -1104,7 +1104,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         return inheritedOtelMember()
             .otelTraceStateForWrite(((InheritedSamplingState) samplingState).pendingChecks());
       }
-      return samplingState.getOtelTraceStateForWrite();
+      return samplingState.getOtelTraceState();
     }
 
     /**
