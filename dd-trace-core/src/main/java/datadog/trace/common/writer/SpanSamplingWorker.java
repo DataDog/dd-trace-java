@@ -9,6 +9,7 @@ import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.common.sampling.SingleSpanSampler;
+import datadog.trace.common.writer.ddagent.SpanAdmission;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
@@ -26,11 +27,39 @@ public interface SpanSamplingWorker extends AutoCloseable {
       SingleSpanSampler singleSpanSampler,
       HealthMetrics healthMetrics,
       DroppingPolicy droppingPolicy) {
+    return build(
+        capacity,
+        primaryQueue,
+        secondaryQueue,
+        singleSpanSampler,
+        healthMetrics,
+        droppingPolicy,
+        SpanAdmission.unlimited());
+  }
+
+  /**
+   * @param spanAdmission the budget the traces on this worker's queue were charged to; spans this
+   *     worker drops are released to it, spans it forwards stay charged
+   */
+  static SpanSamplingWorker build(
+      int capacity,
+      Queue<Object> primaryQueue,
+      Queue<Object> secondaryQueue,
+      SingleSpanSampler singleSpanSampler,
+      HealthMetrics healthMetrics,
+      DroppingPolicy droppingPolicy,
+      SpanAdmission spanAdmission) {
     if (singleSpanSampler == null) {
       return new NoopSpanSamplingWorker();
     }
     return new DefaultSpanSamplingWorker(
-        capacity, primaryQueue, secondaryQueue, singleSpanSampler, healthMetrics, droppingPolicy);
+        capacity,
+        primaryQueue,
+        secondaryQueue,
+        singleSpanSampler,
+        healthMetrics,
+        droppingPolicy,
+        spanAdmission);
   }
 
   void start();
@@ -53,6 +82,7 @@ public interface SpanSamplingWorker extends AutoCloseable {
     private final HealthMetrics healthMetrics;
 
     private final DroppingPolicy droppingPolicy;
+    private final SpanAdmission spanAdmission;
 
     protected DefaultSpanSamplingWorker(
         int capacity,
@@ -60,7 +90,9 @@ public interface SpanSamplingWorker extends AutoCloseable {
         Queue<Object> secondaryQueue,
         SingleSpanSampler singleSpanSampler,
         HealthMetrics healthMetrics,
-        DroppingPolicy droppingPolicy) {
+        DroppingPolicy droppingPolicy,
+        SpanAdmission spanAdmission) {
+      this.spanAdmission = spanAdmission;
       this.samplingHandler = new SamplingHandler();
       this.spanSamplingThread = newAgentThread(SPAN_SAMPLING_PROCESSOR, samplingHandler);
       this.spanSamplingQueue = Queues.mpscBlockingConsumerArrayQueue(capacity);
@@ -131,6 +163,9 @@ public interface SpanSamplingWorker extends AutoCloseable {
             return;
           }
 
+          // The trace was charged whole. Parts forwarded below stay charged until serialized;
+          // parts dropped here are released here.
+
           ArrayList<DDSpan> sampledSpans = new ArrayList<>(trace.size());
           ArrayList<DDSpan> unsampledSpans = new ArrayList<>(trace.size());
           for (DDSpan span : trace) {
@@ -146,12 +181,14 @@ public interface SpanSamplingWorker extends AutoCloseable {
           int samplingPriority = trace.get(0).samplingPriority();
           if (sampledSpans.size() > 0 && !primaryQueue.offer(sampledSpans)) {
             // couldn't send sampled spans because the queue is full, count entire trace as dropped
+            spanAdmission.release(trace.size());
             healthMetrics.onFailedPublish(samplingPriority, trace.size());
             log.debug(
                 "Sampled spans written to overfilled buffer after single span sampling. Counted but dropping trace: {}",
                 trace);
           } else if (unsampledSpans.size() > 0
               && (droppingPolicy.active() || !secondaryQueue.offer(unsampledSpans))) {
+            spanAdmission.release(unsampledSpans.size());
             if (sampledSpans.isEmpty()) {
               // dropped all spans because none of the spans sampled
               healthMetrics.onFailedPublish(samplingPriority, unsampledSpans.size());

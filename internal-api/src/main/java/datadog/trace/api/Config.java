@@ -196,6 +196,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_STATS_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_WRITER_SPAN_BUDGET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
@@ -743,6 +744,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_WRITER_SPAN_BUDGET;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
@@ -975,6 +977,7 @@ public class Config {
   private final boolean scopeStrictMode;
   private final int scopeIterationKeepAlive;
   private final int partialFlushMinSpans;
+  private final int traceWriterSpanBudget;
   private final int traceKeepLatencyThreshold;
   private final boolean traceKeepLatencyThresholdEnabled;
   private final boolean traceStrictWritesEnabled;
@@ -1948,6 +1951,8 @@ public class Config {
         !partialFlushEnabled
             ? 0
             : configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+    traceWriterSpanBudget =
+        configProvider.getInteger(TRACE_WRITER_SPAN_BUDGET, DEFAULT_TRACE_WRITER_SPAN_BUDGET);
 
     traceKeepLatencyThreshold =
         configProvider.getInteger(
@@ -3891,6 +3896,11 @@ public class Config {
 
   public int getPartialFlushMinSpans() {
     return partialFlushMinSpans;
+  }
+
+  /** Most spans the trace writer holds awaiting serialization; zero or negative means no limit. */
+  public int getTraceWriterSpanBudget() {
+    return traceWriterSpanBudget;
   }
 
   public int getTraceKeepLatencyThreshold() {
@@ -6799,6 +6809,8 @@ public class Config {
         + scopeIterationKeepAlive
         + ", partialFlushMinSpans="
         + partialFlushMinSpans
+        + ", traceWriterSpanBudget="
+        + traceWriterSpanBudget
         + ", traceKeepLatencyThresholdEnabled="
         + traceKeepLatencyThresholdEnabled
         + ", traceKeepLatencyThreshold="

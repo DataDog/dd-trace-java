@@ -2,6 +2,7 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -15,6 +16,7 @@ import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult;
+import datadog.trace.common.writer.ddagent.SpanAdmission;
 import datadog.trace.core.DDSpan;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -22,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
@@ -307,5 +310,73 @@ class PrioritizationTest extends DDJavaSpecification {
     verify(primary, times(forceKeep ? 1 : 0)).offer(trace);
     verify(spanSampling, times(forceKeep ? 0 : 1)).offer(trace);
     verifyNoMoreInteractions(root, primary, spanSampling);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void testFastLaneRefusesOverBudgetTraceWithoutOffering() {
+    Queue<Object> primary = mock(Queue.class);
+    Queue<Object> secondary = mock(Queue.class);
+    SpanAdmission admission = SpanAdmission.of(100);
+    assertTrue(admission.tryAdmitKept(100));
+    PrioritizationStrategy fastLane =
+        Prioritization.FAST_LANE.create(primary, secondary, null, () -> false, admission);
+    List<DDSpan> trace = Collections.nCopies(10, mock(DDSpan.class));
+
+    PublishResult result =
+        fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_KEEP, trace);
+
+    assertEquals(PublishResult.DROPPED_BUFFER_OVERFLOW, result);
+    verify(primary, never()).offer(any());
+    assertEquals(100, admission.used());
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void testFastLaneChargesEnqueuedTraceAndReleasesOneTheQueueRefuses() {
+    Queue<Object> primary = mock(Queue.class);
+    Queue<Object> secondary = mock(Queue.class);
+    SpanAdmission admission = SpanAdmission.of(100);
+    PrioritizationStrategy fastLane =
+        Prioritization.FAST_LANE.create(primary, secondary, null, () -> false, admission);
+    List<DDSpan> trace = Collections.nCopies(10, mock(DDSpan.class));
+    when(primary.offer(trace)).thenReturn(true, false);
+
+    assertEquals(
+        ENQUEUED_FOR_SERIALIZATION,
+        fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_KEEP, trace));
+    assertEquals(10, admission.used());
+
+    assertEquals(
+        PublishResult.DROPPED_BUFFER_OVERFLOW,
+        fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_KEEP, trace));
+    assertEquals(10, admission.used());
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void testFastLaneShedsSampledOutBeforeKept() {
+    Queue<Object> primary = mock(Queue.class);
+    Queue<Object> secondary = mock(Queue.class);
+    when(primary.offer(any())).thenReturn(true);
+    when(secondary.offer(any())).thenReturn(true);
+    SpanAdmission admission = SpanAdmission.of(100);
+    assertTrue(admission.tryAdmitKept(30));
+    PrioritizationStrategy fastLane =
+        Prioritization.FAST_LANE.create(primary, secondary, null, () -> false, admission);
+    List<DDSpan> trace = Collections.singletonList(mock(DDSpan.class));
+
+    assertEquals(
+        PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT,
+        fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_DROP, trace));
+    assertEquals(
+        ENQUEUED_FOR_SERIALIZATION,
+        fastLane.publish(mock(DDSpan.class), PrioritySampling.SAMPLER_KEEP, trace));
+  }
+
+  @Test
+  void testEnsureTraceIsOutsideTheSpanBudget() {
+    assertTrue(Prioritization.ENSURE_TRACE.admission(100).isUnlimited());
+    assertEquals(false, Prioritization.FAST_LANE.admission(100).isUnlimited());
   }
 }

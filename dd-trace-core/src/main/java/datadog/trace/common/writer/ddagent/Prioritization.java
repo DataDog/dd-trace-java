@@ -11,14 +11,25 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public enum Prioritization {
+  /**
+   * Blocks the publishing thread until a kept trace fits, and so never drops one. Not for
+   * production. It is outside the span budget: blocking on a stalled agent is the behavior it asks
+   * for.
+   */
   ENSURE_TRACE {
     @Override
     public PrioritizationStrategy create(
         final Queue<Object> primary,
         final Queue<Object> secondary,
         final Queue<Object> spanSampling,
-        DroppingPolicy neverUsed) {
+        DroppingPolicy neverUsed,
+        SpanAdmission ignored) {
       return new EnsureTraceStrategy(primary, secondary, spanSampling);
+    }
+
+    @Override
+    public SpanAdmission admission(long spanLimit) {
+      return SpanAdmission.unlimited();
     }
   },
   FAST_LANE {
@@ -27,16 +38,39 @@ public enum Prioritization {
         final Queue<Object> primary,
         final Queue<Object> secondary,
         final Queue<Object> spanSampling,
-        DroppingPolicy droppingPolicy) {
-      return new FastLaneStrategy(primary, secondary, spanSampling, droppingPolicy);
+        DroppingPolicy droppingPolicy,
+        SpanAdmission admission) {
+      return new FastLaneStrategy(primary, secondary, spanSampling, droppingPolicy, admission);
+    }
+
+    @Override
+    public SpanAdmission admission(long spanLimit) {
+      return SpanAdmission.of(spanLimit);
     }
   };
 
+  /** As {@link #create(Queue, Queue, Queue, DroppingPolicy, SpanAdmission)} without a budget. */
+  public PrioritizationStrategy create(
+      Queue<Object> primary,
+      Queue<Object> secondary,
+      Queue<Object> spanSampling,
+      DroppingPolicy droppingPolicy) {
+    return create(primary, secondary, spanSampling, droppingPolicy, SpanAdmission.unlimited());
+  }
+
+  /**
+   * @param admission the span budget the strategy charges; whoever consumes the queues must release
+   *     what was charged
+   */
   public abstract PrioritizationStrategy create(
       Queue<Object> primary,
       Queue<Object> secondary,
       Queue<Object> spanSampling,
-      DroppingPolicy droppingPolicy);
+      DroppingPolicy droppingPolicy,
+      SpanAdmission admission);
+
+  /** The span budget for a strategy of this type, given the configured span limit. */
+  public abstract SpanAdmission admission(long spanLimit);
 
   private abstract static class PrioritizationStrategyWithFlush implements PrioritizationStrategy {
 
@@ -113,22 +147,26 @@ public enum Prioritization {
     private final Queue<Object> secondary;
     private final Queue<Object> spanSampling;
     private final DroppingPolicy droppingPolicy;
+    private final SpanAdmission admission;
 
     private FastLaneStrategy(
         final Queue<Object> primary,
         final Queue<Object> secondary,
         final Queue<Object> spanSampling,
-        DroppingPolicy droppingPolicy) {
+        DroppingPolicy droppingPolicy,
+        SpanAdmission admission) {
       super(primary);
       this.secondary = secondary;
       this.spanSampling = spanSampling;
       this.droppingPolicy = droppingPolicy;
+      this.admission = admission;
     }
 
     @Override
     public <T extends CoreSpan<T>> PublishResult publish(T root, int priority, List<T> trace) {
+      final int spans = trace.size();
       if (root.isForceKeep()) {
-        return primary.offer(trace)
+        return enqueue(primary, trace, admission.tryAdmitForceKept(spans))
             ? PublishResult.ENQUEUED_FOR_SERIALIZATION
             : PublishResult.DROPPED_BUFFER_OVERFLOW;
       }
@@ -137,21 +175,33 @@ public enum Prioritization {
         case USER_DROP:
           if (spanSampling != null) {
             // send dropped traces for single span sampling
-            return spanSampling.offer(trace)
+            return enqueue(spanSampling, trace, admission.tryAdmitSampledOut(spans))
                 ? PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING
                 : PublishResult.DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN;
           }
           if (droppingPolicy.active()) {
             return PublishResult.DROPPED_BY_POLICY;
           }
-          return secondary.offer(trace)
+          return enqueue(secondary, trace, admission.tryAdmitSampledOut(spans))
               ? PublishResult.ENQUEUED_FOR_SERIALIZATION
               : PublishResult.DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT;
         default:
-          return primary.offer(trace)
+          return enqueue(primary, trace, admission.tryAdmitKept(spans))
               ? PublishResult.ENQUEUED_FOR_SERIALIZATION
               : PublishResult.DROPPED_BUFFER_OVERFLOW;
       }
+    }
+
+    /** Offers an admitted trace, returning its spans to the budget if the queue is full. */
+    private boolean enqueue(Queue<Object> queue, List<?> trace, boolean admitted) {
+      if (!admitted) {
+        return false;
+      }
+      if (queue.offer(trace)) {
+        return true;
+      }
+      admission.release(trace.size());
+      return false;
     }
   }
 }
