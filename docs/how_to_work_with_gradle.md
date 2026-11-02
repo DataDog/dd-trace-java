@@ -322,6 +322,14 @@ Gradle tasks declare **inputs** (what they read) and **outputs** (what they prod
 > produced under different conditions. A task with untracked output dependencies must not use
 > the build cache.
 
+#### Secrets in cached outputs
+
+Gradle caches declared task outputs, including test reports and captured stdout/stderr.
+Input fingerprints and CI log masking do not sanitize those files.
+
+Keep credentials used for authentication or in-memory signing out of generated resources,
+archives, and reports. Unset credentials before subsequent tasks that do not need them.
+
 #### Declaring Inputs and Outputs
 
 ##### In custom task class

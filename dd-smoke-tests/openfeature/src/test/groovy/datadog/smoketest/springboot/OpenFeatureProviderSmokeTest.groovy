@@ -82,6 +82,34 @@ class OpenFeatureProviderSmokeTest extends AbstractOpenFeatureSmokeTest {
     response.close()
   }
 
+  void 'test exposures retain allocation changes and suppress repeats'() {
+    setup:
+    publishConfiguration()
+    final subject = 'exposure-cache-smoke-test'
+    final standard = [flag: 'serial-id-targeting-flag', allocation: 'default-allocation',
+      variant: 'standard', targetingKey: subject, serialId: 200]
+    final vip = [flag: 'serial-id-targeting-flag', allocation: 'vip-allocation',
+      variant: 'vip', targetingKey: subject, serialId: 201]
+
+    when:
+    final results = [[:], [:], [segment: 'vip'], [segment: 'vip'], [:], [:]].collect { attributes ->
+      final testCase = [flag: 'serial-id-targeting-flag', variationType: 'STRING',
+        defaultValue: 'fallback', targetingKey: subject, attributes: attributes]
+      final response = evaluate(testCase)
+      try {
+        assert response.code() == 200
+        return [testCase: testCase, body: new JsonSlurper().parse(response.body().byteStream())]
+      } finally {
+        response.close()
+      }
+    }
+    final expectedExposures = buildExpectedExposures(results)
+
+    then:
+    expectedExposures == [standard, vip, standard]
+    assertExposures(expectedExposures)
+  }
+
   private static Set<Product> decodeProducts(final Map<String, Object> request) {
     return request.client.products.collect { Product.valueOf(it) }
   }

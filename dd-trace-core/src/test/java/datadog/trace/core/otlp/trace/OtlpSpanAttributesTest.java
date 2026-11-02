@@ -4,11 +4,17 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 import datadog.json.JsonMapper;
+import datadog.trace.api.Config;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.CoreTracer;
@@ -17,20 +23,24 @@ import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.AdditionalAnswers;
+import org.mockito.MockedStatic;
 
 /**
  * End-to-end check that the global tags are exported once, as OTLP resource attributes taken from
  * the trace's config snapshot, while span defaults and the span's own tags stay on each span.
+ * Traces with different global tags share a payload under resources of their own.
  */
 @WithConfig(key = GeneralConfig.TAGS, value = "team:core,region:us1")
 @WithConfig(key = TracerConfig.SPAN_TAGS, value = "owner:alice,tier:gold")
-class OtlpSpanTagsTest {
+class OtlpSpanAttributesTest {
 
   private CoreTracer tracer;
 
@@ -95,23 +105,79 @@ class OtlpSpanTagsTest {
     }
   }
 
+  /** Under OTel semantics span.kind is left to the OTLP kind field, even as a span default. */
   @Test
-  void traceWithOtherGlobalTagsNeedsItsOwnPayload() {
+  @WithConfig(key = TracerConfig.SPAN_TAGS, value = "owner:alice,span.kind:server")
+  void spanKindDefaultIsNotWrittenUnderOtelSemantics() throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(true);
+      configMock.when(Config::get).thenReturn(config);
+
+      CoreTracer kindTracer = CoreTracer.builder().writer(new ListWriter()).build();
+      try {
+        DDSpan span = (DDSpan) kindTracer.startSpan("test", "op");
+        span.finish();
+
+        Map<String, Object> otlpSpan = onlySpan(collect(span));
+        assertEquals(2, ((Number) otlpSpan.get("kind")).intValue(), "SPAN_KIND_SERVER = 2");
+        Map<String, Object> spanAttributes = attributes(otlpSpan);
+        assertFalse(spanAttributes.containsKey("span.kind"));
+        assertEquals("alice", spanAttributes.get("owner"));
+      } finally {
+        kindTracer.close();
+      }
+    }
+  }
+
+  @Test
+  void traceWithOtherGlobalTagsGetsItsOwnResource() throws IOException {
     CoreTracer otherTracer = CoreTracer.builder().writer(new ListWriter()).build();
     try {
-      List<CoreSpan<?>> trace = finishedTrace(tracer);
-      List<CoreSpan<?>> sameTagsTrace = finishedTrace(tracer);
       // another tracer's snapshot holds its own global tags map
-      List<CoreSpan<?>> otherTagsTrace = finishedTrace(otherTracer);
+      List<List<CoreSpan<?>>> traces =
+          asList(
+              droppedTrace(otherTracer), // no exported spans, so no resource of its own
+              finishedTrace(tracer),
+              finishedTrace(tracer),
+              finishedTrace(otherTracer),
+              finishedTrace(tracer));
 
       OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-      assertTrue(collector.sharesResource(trace)); // empty payload takes any trace
-      collector.addTrace(trace);
-      assertTrue(collector.sharesResource(sameTagsTrace));
-      assertFalse(collector.sharesResource(otherTagsTrace));
+      traces.forEach(collector::addTrace);
+      List<Map<String, Object>> resourceSpans = allResourceSpans(collector.collectTraces());
 
-      collector.collectTraces();
-      assertTrue(collector.sharesResource(otherTagsTrace)); // a new payload takes it
+      assertEquals(3, resourceSpans.size());
+      assertEquals(2, spans(resourceSpans.get(0)).size());
+      assertEquals(1, spans(resourceSpans.get(1)).size());
+      assertEquals(1, spans(resourceSpans.get(2)).size());
+      for (Map<String, Object> resource : resourceSpans) {
+        assertEquals("core", attributes(resource(resource)).get("team"));
+      }
+    } finally {
+      otherTracer.close();
+    }
+  }
+
+  @Test
+  void traceWithOtherGlobalTagsGetsItsOwnProtoResource() throws IOException {
+    CoreTracer otherTracer = CoreTracer.builder().writer(new ListWriter()).build();
+    try {
+      List<List<CoreSpan<?>>> traces =
+          asList(
+              droppedTrace(otherTracer), // no exported spans, so no resource of its own
+              finishedTrace(tracer),
+              finishedTrace(tracer),
+              finishedTrace(otherTracer),
+              finishedTrace(tracer));
+
+      OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+      traces.forEach(collector::addTrace);
+      OtlpPayload payload = collector.collectTraces();
+
+      // the protobuf payload is prepended, so its resources come out last first
+      assertEquals(asList(1, 1, 2), protoSpansPerResource(payload));
     } finally {
       otherTracer.close();
     }
@@ -129,14 +195,54 @@ class OtlpSpanTagsTest {
     return asList((CoreSpan<?>) span);
   }
 
-  @SuppressWarnings("unchecked")
+  private static List<CoreSpan<?>> droppedTrace(CoreTracer tracer) {
+    DDSpan span = (DDSpan) tracer.startSpan("test", "op");
+    span.setSamplingPriority(PrioritySampling.USER_DROP);
+    span.finish();
+    return asList((CoreSpan<?>) span);
+  }
+
   private static Map<String, Object> onlyResourceSpans(OtlpPayload payload) throws IOException {
+    List<Map<String, Object>> resourceSpans = allResourceSpans(payload);
+    assertEquals(1, resourceSpans.size());
+    return resourceSpans.get(0);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Map<String, Object>> allResourceSpans(OtlpPayload payload)
+      throws IOException {
     byte[] bytes = new byte[payload.getContentLength()];
     payload.getContent().get(bytes);
     Map<String, Object> root = JsonMapper.fromJsonToMap(new String(bytes, StandardCharsets.UTF_8));
-    List<Object> resourceSpans = (List<Object>) root.get("resourceSpans");
-    assertEquals(1, resourceSpans.size());
-    return (Map<String, Object>) resourceSpans.get(0);
+    return (List<Map<String, Object>>) root.get("resourceSpans");
+  }
+
+  /** Counts the spans in each TracesData.resource_spans entry of a protobuf payload. */
+  private static List<Integer> protoSpansPerResource(OtlpPayload payload) throws IOException {
+    List<Integer> counts = new ArrayList<>();
+    CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
+    while (!tracesData.isAtEnd()) {
+      assertEquals(1, WireFormat.getTagFieldNumber(tracesData.readTag())); // resource_spans
+      CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
+      int count = 0;
+      while (!resourceSpans.isAtEnd()) {
+        int tag = resourceSpans.readTag();
+        if (WireFormat.getTagFieldNumber(tag) != 2) { // scope_spans
+          resourceSpans.skipField(tag);
+          continue;
+        }
+        CodedInputStream scopeSpans = resourceSpans.readBytes().newCodedInput();
+        while (!scopeSpans.isAtEnd()) {
+          int scopeTag = scopeSpans.readTag();
+          if (WireFormat.getTagFieldNumber(scopeTag) == 2) { // spans
+            count++;
+          }
+          scopeSpans.skipField(scopeTag);
+        }
+      }
+      counts.add(count);
+    }
+    return counts;
   }
 
   @SuppressWarnings("unchecked")
@@ -146,10 +252,15 @@ class OtlpSpanTagsTest {
 
   @SuppressWarnings("unchecked")
   private static Map<String, Object> onlySpan(Map<String, Object> resourceSpans) {
-    List<Object> scopeSpans = (List<Object>) resourceSpans.get("scopeSpans");
-    List<Object> spans = (List<Object>) ((Map<String, Object>) scopeSpans.get(0)).get("spans");
+    List<Object> spans = spans(resourceSpans);
     assertEquals(1, spans.size());
     return (Map<String, Object>) spans.get(0);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Object> spans(Map<String, Object> resourceSpans) {
+    List<Object> scopeSpans = (List<Object>) resourceSpans.get("scopeSpans");
+    return (List<Object>) ((Map<String, Object>) scopeSpans.get(0)).get("spans");
   }
 
   /** Flattens OTLP JSON {@code KeyValue} attributes, failing on duplicate keys. */

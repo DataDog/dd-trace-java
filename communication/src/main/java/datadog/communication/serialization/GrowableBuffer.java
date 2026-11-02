@@ -13,6 +13,7 @@ public final class GrowableBuffer implements StreamingBuffer {
   private final int initialCapacity;
   private ByteBuffer buffer;
   private int messageCount;
+  private int mark;
 
   public GrowableBuffer(int requiredCapacity) {
     this.initialCapacity = nextPowerOfTwo(requiredCapacity);
@@ -38,8 +39,14 @@ public final class GrowableBuffer implements StreamingBuffer {
   @Override
   public void reset() {
     messageCount = 0;
+    mark = 0;
     buffer.position(0);
     buffer.limit(buffer.capacity());
+  }
+
+  @Override
+  public void rewind() {
+    buffer.position(mark);
   }
 
   @Override
@@ -53,8 +60,10 @@ public final class GrowableBuffer implements StreamingBuffer {
   }
 
   @Override
-  public void mark() {
+  public boolean mark() {
     ++messageCount;
+    mark = buffer.position();
+    return true;
   }
 
   @Override

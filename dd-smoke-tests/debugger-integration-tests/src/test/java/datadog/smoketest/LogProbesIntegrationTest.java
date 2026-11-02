@@ -27,7 +27,6 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,13 +37,20 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
-@Flaky
 @NonRetryable
 public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
+
+  @BeforeEach
+  public void beforeEach() {
+    // increase template evaluation timeout to avoid flakiness
+    additionalJvmArgs.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=200");
+  }
+
   @Test
   @DisplayName("testInaccessibleObject")
   void testInaccessibleObject() throws Exception {
@@ -211,8 +217,6 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @Test
   @DisplayName("testFullMethodWithLogTemplate")
   void testFullMethodWithLogTemplate() throws Exception {
-    // increase template evaluation timeout to avoid flakiness
-    additionalJvmArgs.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=200");
     final String METHOD_NAME = "fullMethod";
     final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";
     final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
@@ -601,7 +605,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         snapshot -> {
           if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
             assertEquals(1, snapshot.getEvaluationErrors().size());
-            assertEquals("timeout (50ms)", snapshot.getEvaluationErrors().get(0).getMessage());
+            assertEquals("timeout (200ms)", snapshot.getEvaluationErrors().get(0).getMessage());
             snapshotReceived.set(true);
           }
         });
@@ -637,7 +641,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         snapshot -> {
           if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
             assertEquals(1, snapshot.getEvaluationErrors().size());
-            assertEquals("timeout (50ms)", snapshot.getEvaluationErrors().get(0).getMessage());
+            assertEquals("timeout (200ms)", snapshot.getEvaluationErrors().get(0).getMessage());
             snapshotReceived.set(true);
           }
         });

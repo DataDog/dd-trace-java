@@ -39,7 +39,10 @@ class ProviderTest {
     final Provider.Options options = new Provider.Options();
 
     final Provider.Options configured =
-        options.initTimeout(5, SECONDS).enableEvaluationTelemetryOptOutParameter(true);
+        options
+            .initTimeout(5, SECONDS)
+            .enableEvaluationTelemetryOptOutParameter(true)
+            .experimentationOptOutMode(com.datadog.openfeature.ExperimentationOptOutMode.IMMEDIATE);
 
     assertSame(options, configured);
     assertEquals(5, configured.getTimeout());
