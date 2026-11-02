@@ -1,5 +1,6 @@
 package datadog.trace.api.datastreams;
 
+import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,7 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.datastreams.DataStreamsTags.Direction;
+import datadog.trace.util.FNV64Hash;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 class DataStreamsTagsTest {
@@ -488,5 +491,91 @@ class DataStreamsTagsTest {
         base.getAggregationHash(),
         withPartition.getAggregationHash()); // aggregation hash unchanged
     assertNotEquals(base, withPartition); // but complete hash changed
+  }
+
+  @Test
+  void hashesMatchHashingTheEncodedTags() {
+    // Another test may have left an override set
+    DataStreamsTags.setServiceNameOverride(null);
+    DataStreamsTags[] tagsList = {
+      getTags(0),
+      DataStreamsTags.create(null, null),
+      DataStreamsTags.create("kafka", INBOUND, "orders", "group", "cluster"),
+      DataStreamsTags.createWithExchange("rabbitmq", OUTBOUND, "exchange", false),
+      DataStreamsTags.createWithDataset("s3", Direction.UNKNOWN, null, "caf\u00e9", "\u6ce8\ud83d"),
+      new DataStreamsTags(
+          "bus\ud83d\ude80",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "consumer",
+          null,
+          null,
+          "3")
+    };
+    for (DataStreamsTags tags : tagsList) {
+      assertHashesMatchEncodedTags(tags, BaseHash.getBaseHash(), null);
+    }
+  }
+
+  @Test
+  void hashesUseTheBaseHashAndServiceNameOverrideOfConstruction() {
+    long baseHash = BaseHash.getBaseHash();
+    ThreadLocal<String> serviceName = new ThreadLocal<>();
+    serviceName.set("service-at-construction");
+    DataStreamsTags.setServiceNameOverride(serviceName);
+    try {
+      DataStreamsTags tags = getTags(1);
+
+      // Changed before the hashes are first read, which mustn't change them
+      serviceName.set("service-later");
+      BaseHash.updateBaseHash(baseHash + 1);
+
+      assertHashesMatchEncodedTags(tags, baseHash, "service-at-construction");
+    } finally {
+      DataStreamsTags.setServiceNameOverride(null);
+      BaseHash.updateBaseHash(baseHash);
+    }
+  }
+
+  /** Checks the hashes against FNV-64 over the UTF-8 encoded "name:value" tags. */
+  private static void assertHashesMatchEncodedTags(
+      DataStreamsTags tags, long baseHash, String serviceName) {
+    long hash = baseHash;
+    if (serviceName != null) {
+      hash = continueHash(hash, serviceName);
+    }
+    int nonNullSize = 0;
+    for (int i = 0; i < 7; i++) {
+      String tag = tags.tagByIndex(i);
+      if (tag != null) {
+        nonNullSize++;
+        hash = continueHash(hash, tag);
+      }
+    }
+    long aggregationHash = hash;
+    for (int i = 7; i < tags.size(); i++) {
+      String tag = tags.tagByIndex(i);
+      if (tag != null) {
+        nonNullSize++;
+        if (i < 12) {
+          aggregationHash = continueHash(aggregationHash, tag);
+        }
+      }
+    }
+    assertEquals(hash, tags.getHash(), tags::toString);
+    assertEquals(aggregationHash, tags.getAggregationHash(), tags::toString);
+    assertEquals(nonNullSize, tags.nonNullSize(), tags::toString);
+  }
+
+  private static long continueHash(long hash, String value) {
+    return FNV64Hash.continueHash(
+        hash, value.getBytes(StandardCharsets.UTF_8), FNV64Hash.Version.v1);
   }
 }
