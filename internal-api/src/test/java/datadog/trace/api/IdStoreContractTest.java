@@ -30,7 +30,8 @@ class IdStoreContractTest {
 
   static Stream<Arguments> stores() {
     return Stream.of(
-        arguments(named("HashIdStore", (Function<IdStore, IdStore>) HashIdStore::new)));
+        arguments(named("HashIdStore", (Function<IdStore, IdStore>) HashIdStore::new)),
+        arguments(named("DenseIdStore", (Function<IdStore, IdStore>) DenseIdStore::new)));
   }
 
   /** Every known tag id, in declaration order. */

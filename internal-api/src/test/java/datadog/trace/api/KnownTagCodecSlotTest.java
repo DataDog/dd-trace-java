@@ -81,4 +81,14 @@ class KnownTagCodecSlotTest {
     assertEquals(1L << 63, 1L << KnownTagCodec.slotOf(KnownTags.RESOURCE_NAME_ID));
     assertTrue(KnownTagCodec.slotCount() <= 63, "real slots must stay below the shared bit 63");
   }
+
+  @Test
+  void makeTagIdBuildsTheRealIdOfAKnownTag() {
+    // a slotted, intercepted tag: its constant carries slot and flag bits beyond the serial
+    long id = KnownTags.HTTP_STATUS_CODE_ID;
+    assertEquals(id, KnownTagCodec.makeTagId(KnownTagCodec.serialNum(id)));
+
+    long unknown = KnownTagCodec.makeTagId(KnownTagCodec.serialLimit() + 1);
+    assertFalse(KnownTagCodec.isKnown(unknown));
+  }
 }
