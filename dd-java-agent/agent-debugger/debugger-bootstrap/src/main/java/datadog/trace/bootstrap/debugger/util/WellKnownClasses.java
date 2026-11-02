@@ -229,8 +229,7 @@ public class WellKnownClasses {
           // Spring specific
           "org.springframework.validation.support.BindingAwareModelMap",
           "org.springframework.util.LinkedMultiValueMap",
-          "org.springframework.util.LinkedCaseInsensitiveMap"
-          );
+          "org.springframework.util.LinkedCaseInsensitiveMap");
 
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
