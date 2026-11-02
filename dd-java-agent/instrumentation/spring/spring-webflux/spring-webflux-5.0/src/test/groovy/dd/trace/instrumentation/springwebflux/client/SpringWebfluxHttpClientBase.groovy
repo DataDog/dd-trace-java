@@ -3,6 +3,7 @@ package dd.trace.instrumentation.springwebflux.client
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -40,18 +41,21 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
       .block()
 
     if (hasParent) {
-      blockUntilChildSpansFinished(callback ? 3 : 2)
+      blockUntilChildSpansFinished(size(callback ? 2 : 1))
     }
 
     check()
 
-    consumeResponse(response)
+    consumeResponse(response, method)
   }
 
-  protected static int consumeResponse(ClientResponse response) {
+  protected static int consumeResponse(ClientResponse response, String method) {
     int status = response.statusCode().value()
     Channel channel = responseChannel(response)
-    response.bodyToMono(Void).block()
+    // Only skip HEAD body consumption in OpenTelemetry mode.
+    if (!Config.get().isTraceOtelSemanticsEnabled() || method != "HEAD") {
+      response.bodyToMono(Void).block()
+    }
     // Body completion can occur inside channelRead, before channelReadComplete is fired.
     channel.eventLoop().submit({} as Runnable).sync()
     return status
@@ -92,7 +96,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
 
     def leafParentId = trace.spanAssertCount.get()
     super.clientSpan(trace, parentSpan, method, renameService, tagQueryString, uri, status, error, exception, ignorePeer, extraTags)
-    if (!exception) {
+    if (!exception && !Config.get().isTraceOtelSemanticsEnabled()) {
       def expectedQuery = tagQueryString ? uri.query : null
       def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
       if (expectedQuery != null && !expectedQuery.empty) {
@@ -140,7 +144,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
 
   @Override
   int size(int size) {
-    return size + 1
+    return Config.get().isTraceOtelSemanticsEnabled() ? size : size + 1
   }
 
   boolean testRedirects() {

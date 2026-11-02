@@ -24,12 +24,12 @@ class SpringWebfluxHttpClientDoOnSuccessTest extends SpringWebfluxHttpClientBase
       .block()
 
     if (hasParent) {
-      blockUntilChildSpansFinished(callback ? 3 : 2)
+      blockUntilChildSpansFinished(size(callback ? 2 : 1))
     }
 
     check()
 
-    consumeResponse(response)
+    consumeResponse(response, method)
   }
 
   @Override
