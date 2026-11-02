@@ -225,7 +225,11 @@ public class WellKnownClasses {
           "com.google.protobuf.", // Google ProtoBuf
           "com.google.common.collect.", // Google Guava
           "it.unimi.dsi.fastutil.", // fastutil
-          "org.agrona.collections." // Agrona
+          "org.agrona.collections.", // Agrona
+          // Spring specific
+          "org.springframework.validation.support.BindingAwareModelMap",
+          "org.springframework.util.LinkedMultiValueMap",
+          "org.springframework.util.LinkedCaseInsensitiveMap"
           );
 
   /**
