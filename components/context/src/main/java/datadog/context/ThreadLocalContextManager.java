@@ -87,6 +87,7 @@ final class ThreadLocalContextManager implements ContextManager {
     }
   }
 
+  // Indexed loops keep these notification helpers within HotSpot's small-method inline budget.
   static void notifyUpdate(ContextListener[] listeners, Context before, Context after) {
     for (int i = 0; i < listeners.length; i++) {
       try {
