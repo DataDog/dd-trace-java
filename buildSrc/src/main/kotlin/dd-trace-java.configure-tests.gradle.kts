@@ -1,4 +1,5 @@
 import datadog.gradle.plugin.testing.GeneratedGroovyClosureSpec
+import datadog.gradle.plugin.testing.NestedTestHelperSpec
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -57,6 +58,8 @@ tasks.withType<Test>().configureEach {
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
     setExcludes(emptyList())
     exclude(GeneratedGroovyClosureSpec())
+    // Resolve the classpath through the task: test suites replace the collection after this block.
+    exclude(NestedTestHelperSpec(tasks.named<Test>(name).flatMap { it.classpath.elements }))
     setIncludes(listOf("**/*ForkedTest*"))
     forkEvery = 1
     // Limit the number of concurrent forked tests
