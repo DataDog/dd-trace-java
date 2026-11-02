@@ -49,7 +49,6 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -165,16 +164,10 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   private volatile boolean topLevel;
 
   /**
-   * This span's own propagation tags, when they differ from the trace's. Only a non-root span that
-   * is the target of a write (e.g. {@code _dd.p.ts}) gets one. Access via {@link
-   * #ownPropagationTags()}.
+   * This span's own propagation tags, when it was constructed with some while its trace already had
+   * propagation tags. Otherwise null, and the trace's are used.
    */
-  private volatile PropagationTags propagationTags;
-
-  private static final AtomicReferenceFieldUpdater<DDSpanContext, PropagationTags>
-      PROPAGATION_TAGS =
-          AtomicReferenceFieldUpdater.newUpdater(
-              DDSpanContext.class, PropagationTags.class, "propagationTags");
+  private final PropagationTags propagationTags;
 
   private volatile PathwayContext pathwayContext;
 
@@ -367,10 +360,13 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
 
     if (propagationTags != null) {
       propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
-      if (traceCollector.initPropagationTags(propagationTags) != propagationTags) {
-        // the trace already has propagation tags, so these are this span's own
-        this.propagationTags = propagationTags;
-      }
+      // if the trace already has propagation tags, these are this span's own
+      this.propagationTags =
+          traceCollector.initPropagationTags(propagationTags) != propagationTags
+              ? propagationTags
+              : null;
+    } else {
+      this.propagationTags = null;
     }
     if (origin != null) {
       setOrigin(origin);
@@ -387,19 +383,6 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   private PropagationTags tracePropagationTags() {
     PropagationTags tags = traceCollector.getPropagationTagsIfPresent();
     return tags != null ? tags : traceCollector.initPropagationTags(newEmptyPropagationTags());
-  }
-
-  /**
-   * Returns this span's own propagation tags: the trace's for the local root, otherwise an instance
-   * created on first use.
-   */
-  private PropagationTags ownPropagationTags() {
-    PropagationTags tags = ownPropagationTagsIfPresent();
-    if (tags != null) {
-      return tags;
-    }
-    PropagationTags created = newEmptyPropagationTags();
-    return PROPAGATION_TAGS.compareAndSet(this, null, created) ? created : propagationTags;
   }
 
   /** This span's own propagation tags, or null if a non-root span has none yet. */
@@ -659,11 +642,13 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext {
   }
 
   public void addPropagatedTraceSource(final int value) {
-    ownPropagationTags().addTraceSource(value);
+    // trace level, so it's propagated whichever span it's set on
+    tracePropagationTags().addTraceSource(value);
   }
 
   public void updateDebugPropagation(String value) {
-    ownPropagationTags().updateDebugPropagation(value);
+    // trace level, so it's propagated whichever span it's set on
+    tracePropagationTags().updateDebugPropagation(value);
   }
 
   /**
