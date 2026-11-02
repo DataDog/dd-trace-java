@@ -281,22 +281,13 @@ public class PTagsFactory implements PropagationTags.Factory {
             || samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE)) {
           return;
         }
-        TagValue knuthSamplingRate = getKnuthSamplingRateTagValue(current);
         next =
-            deferOtelCheck(current, samplingPriority, samplingMechanism, knuthSamplingRate, true);
-        if (next == null) {
-          OtelTraceState nextOtelTraceState =
-              reconcileOtelTraceState(
-                  otelTraceStateOf(current), samplingPriority, samplingMechanism);
-          next =
-              nextSamplingState(
-                  current,
-                  samplingPriority,
-                  samplingMechanism,
-                  nextOtelTraceState,
-                  knuthSamplingRate,
-                  true);
-        }
+            decide(
+                current,
+                samplingPriority,
+                samplingMechanism,
+                getKnuthSamplingRateTagValue(current),
+                true);
       } while (next != current && !SAMPLING_STATE_UPDATER.compareAndSet(this, current, next));
     }
 
@@ -315,27 +306,13 @@ public class PTagsFactory implements PropagationTags.Factory {
         }
         boolean updateDecisionMaker =
             canChangeDecisionMaker || samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE;
-        TagValue knuthSamplingRate = getKnuthSamplingRateTagValue(current);
         next =
-            deferOtelCheck(
+            decide(
                 current,
                 samplingPriority,
                 samplingMechanism,
-                knuthSamplingRate,
+                getKnuthSamplingRateTagValue(current),
                 updateDecisionMaker);
-        if (next == null) {
-          OtelTraceState nextOtelTraceState =
-              reconcileOtelTraceState(
-                  otelTraceStateOf(current), samplingPriority, samplingMechanism);
-          next =
-              nextSamplingState(
-                  current,
-                  samplingPriority,
-                  samplingMechanism,
-                  nextOtelTraceState,
-                  knuthSamplingRate,
-                  updateDecisionMaker);
-        }
       } while (next != current && !SAMPLING_STATE_UPDATER.compareAndSet(this, current, next));
       return true;
     }
@@ -503,6 +480,33 @@ public class PTagsFactory implements PropagationTags.Factory {
         return EMPTY_SAMPLING_STATE;
       }
       return new SamplingState(samplingPriority, tracestate, null, decisionMakerTagValue, null);
+    }
+
+    /**
+     * Returns the state after a decision on {@code current}, or {@code current} itself when nothing
+     * changes. The otel member is reconciled unless {@link #deferOtelCheck} can defer it.
+     */
+    private SamplingState decide(
+        SamplingState current,
+        int samplingPriority,
+        int samplingMechanism,
+        TagValue knuthSamplingRate,
+        boolean updateDecisionMaker) {
+      SamplingState next =
+          deferOtelCheck(
+              current, samplingPriority, samplingMechanism, knuthSamplingRate, updateDecisionMaker);
+      if (next != null) {
+        return next;
+      }
+      OtelTraceState nextOtelTraceState =
+          reconcileOtelTraceState(otelTraceStateOf(current), samplingPriority, samplingMechanism);
+      return nextSamplingState(
+          current,
+          samplingPriority,
+          samplingMechanism,
+          nextOtelTraceState,
+          knuthSamplingRate,
+          updateDecisionMaker);
     }
 
     /**
