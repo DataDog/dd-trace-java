@@ -32,7 +32,8 @@ public class DelegatingRequestProducer implements AsyncRequestProducer {
 
   @Override
   public void sendRequest(RequestChannel channel, HttpContext context)
-      throws HttpException, IOException {
+      throws HttpException,
+      IOException {
     DelegatingRequestChannel requestChannel =
         new DelegatingRequestChannel(channel, span, injectContext);
     delegate.sendRequest(requestChannel, context);

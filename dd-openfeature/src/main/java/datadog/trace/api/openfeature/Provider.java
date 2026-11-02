@@ -9,7 +9,9 @@ import java.util.concurrent.TimeUnit;
  */
 @Deprecated
 public class Provider extends com.datadog.openfeature.Provider {
-  /** Creates a provider waiting up to 30 seconds for the initial flag configuration. */
+  /**
+   * Creates a provider waiting up to 30 seconds for the initial flag configuration.
+   */
   public Provider() {
     super();
   }
@@ -41,7 +43,8 @@ public class Provider extends com.datadog.openfeature.Provider {
   public static class Options extends com.datadog.openfeature.Provider.Options {
     @Override
     public Options experimentationOptOutMode(
-        final com.datadog.openfeature.ExperimentationOptOutMode mode) {
+        final com.datadog.openfeature.ExperimentationOptOutMode mode
+    ) {
       super.experimentationOptOutMode(mode);
       return this;
     }

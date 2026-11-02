@@ -22,7 +22,11 @@ public abstract class AbstractFilter extends Filter {
   }
 
   public AbstractFilter(
-      String operationName, boolean wrap, Materializer mat, HttpExecutionContext ec) {
+      String operationName,
+      boolean wrap,
+      Materializer mat,
+      HttpExecutionContext ec
+  ) {
     super(mat);
     this.operationName = operationName;
     this.wrap = wrap;
@@ -32,24 +36,23 @@ public abstract class AbstractFilter extends Filter {
   @Override
   public CompletionStage<Result> apply(
       Function<Http.RequestHeader, CompletionStage<Result>> nextFilter,
-      Http.RequestHeader requestHeader) {
+      Http.RequestHeader requestHeader
+  ) {
     final Tracer tracer = GlobalTracer.get();
     final Span startedSpan = wrap ? tracer.buildSpan(operationName).start() : null;
     Scope outerScope = wrap ? tracer.scopeManager().activate(startedSpan) : null;
     try {
       return nextFilter
-          .apply(requestHeader)
-          .thenApplyAsync(
-              result -> {
-                Span span = wrap ? startedSpan : tracer.buildSpan(operationName).start();
-                try (Scope innerScope = tracer.scopeManager().activate(span)) {
-                  // Yes this does no real work
-                  return result;
-                } finally {
-                  span.finish();
-                }
-              },
-              ec.current());
+        .apply(requestHeader)
+        .thenApplyAsync(result -> {
+          Span span = wrap ? startedSpan : tracer.buildSpan(operationName).start();
+          try (Scope innerScope = tracer.scopeManager().activate(span)) {
+            // Yes this does no real work
+            return result;
+          } finally {
+            span.finish();
+          }
+        }, ec.current());
     } finally {
       if (wrap) {
         outerScope.close();

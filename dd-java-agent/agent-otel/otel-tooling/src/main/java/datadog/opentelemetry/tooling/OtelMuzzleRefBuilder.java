@@ -8,12 +8,13 @@ import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC_OR_PROTECTED;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_STATIC;
-
 import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.Collection;
 import net.bytebuddy.jar.asm.Type;
 
-/** Maps OpenTelemetry muzzle references to the Datadog equivalent. */
+/**
+ * Maps OpenTelemetry muzzle references to the Datadog equivalent.
+ */
 public final class OtelMuzzleRefBuilder {
   private final Reference.Builder builder;
 
@@ -54,15 +55,30 @@ public final class OtelMuzzleRefBuilder {
   }
 
   public OtelMuzzleRefBuilder addField(
-      Source[] sources, Flag[] flags, String fieldName, Type fieldType, boolean isDeclared) {
+      Source[] sources,
+      Flag[] flags,
+      String fieldName,
+      Type fieldType,
+      boolean isDeclared
+  ) {
     builder.withField(Source.flatten(sources), Flag.flatten(flags), fieldName, fieldType);
     return this;
   }
 
   public OtelMuzzleRefBuilder addMethod(
-      Source[] sources, Flag[] flags, String methodName, Type returnType, Type... argumentTypes) {
+      Source[] sources,
+      Flag[] flags,
+      String methodName,
+      Type returnType,
+      Type... argumentTypes
+  ) {
     builder.withMethod(
-        Source.flatten(sources), Flag.flatten(flags), methodName, returnType, argumentTypes);
+        Source.flatten(sources),
+        Flag.flatten(flags),
+        methodName,
+        returnType,
+        argumentTypes
+    );
     return this;
   }
 
@@ -79,7 +95,8 @@ public final class OtelMuzzleRefBuilder {
           ref.superName,
           ref.interfaces,
           ref.fields,
-          ref.methods);
+          ref.methods
+      );
     }
 
     public static OtelMuzzleRefBuilder builder(String className) {
@@ -102,7 +119,6 @@ public final class OtelMuzzleRefBuilder {
     NON_INTERFACE(EXPECTS_NON_INTERFACE),
     STATIC(EXPECTS_STATIC),
     NON_STATIC(EXPECTS_NON_STATIC);
-
     final int bit;
 
     Flag(int bit) {

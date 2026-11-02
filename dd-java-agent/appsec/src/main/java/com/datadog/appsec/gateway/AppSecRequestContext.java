@@ -4,7 +4,6 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.unmodifiableMap;
-
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
@@ -50,67 +49,62 @@ import org.slf4j.LoggerFactory;
 @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
 public class AppSecRequestContext implements DataBundle, Closeable, AppSecContext {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
-
   public static final int DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS = 50;
-
   // Values MUST be lowercase! Lookup with Ignore Case
   // was removed due performance reason
   // request headers that will always be set when appsec is enabled
-  public static final Set<String> DEFAULT_REQUEST_HEADERS_ALLOW_LIST =
-      new TreeSet<>(
-          Arrays.asList(
-              "content-type",
-              "user-agent",
-              "accept",
-              "x-amzn-trace-id",
-              "cloudfront-viewer-ja3-fingerprint",
-              "cf-ray",
-              "x-cloud-trace-context",
-              "x-appgw-trace-id",
-              "x-sigsci-requestid",
-              "x-sigsci-tags",
-              "akamai-user-risk"));
-
+  public static final Set<String> DEFAULT_REQUEST_HEADERS_ALLOW_LIST = new TreeSet<>(Arrays.asList(
+      "content-type",
+      "user-agent",
+      "accept",
+      "x-amzn-trace-id",
+      "cloudfront-viewer-ja3-fingerprint",
+      "cf-ray",
+      "x-cloud-trace-context",
+      "x-appgw-trace-id",
+      "x-sigsci-requestid",
+      "x-sigsci-tags",
+      "akamai-user-risk"
+  ));
   // request headers when there are security events
-  public static final Set<String> REQUEST_HEADERS_ALLOW_LIST =
-      new TreeSet<>(
-          Arrays.asList(
-              "x-forwarded-for",
-              "x-real-ip",
-              "true-client-ip",
-              "x-client-ip",
-              "x-forwarded",
-              "forwarded-for",
-              "x-cluster-client-ip",
-              "fastly-client-ip",
-              "cf-connecting-ip",
-              "cf-connecting-ipv6",
-              "forwarded",
-              "via",
-              "content-length",
-              "content-encoding",
-              "content-language",
-              "host",
-              "accept-encoding",
-              "accept-language"));
-
+  public static final Set<String> REQUEST_HEADERS_ALLOW_LIST = new TreeSet<>(Arrays.asList(
+      "x-forwarded-for",
+      "x-real-ip",
+      "true-client-ip",
+      "x-client-ip",
+      "x-forwarded",
+      "forwarded-for",
+      "x-cluster-client-ip",
+      "fastly-client-ip",
+      "cf-connecting-ip",
+      "cf-connecting-ipv6",
+      "forwarded",
+      "via",
+      "content-length",
+      "content-encoding",
+      "content-language",
+      "host",
+      "accept-encoding",
+      "accept-language"
+  ));
   // response headers when there are security events
-  public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST =
-      new TreeSet<>(
-          Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
-
+  public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST = new TreeSet<>(Arrays.asList(
+      "content-length",
+      "content-type",
+      "content-encoding",
+      "content-language"
+  ));
   // headers related with authorization
-  public static final Set<String> AUTHORIZATION_HEADERS =
-      new TreeSet<>(
-          Arrays.asList(
-              "authorization",
-              "proxy-authorization",
-              "www-authenticate",
-              "proxy-authenticate",
-              "authentication-info",
-              "proxy-authentication-info",
-              "cookie",
-              "set-cookie"));
+  public static final Set<String> AUTHORIZATION_HEADERS = new TreeSet<>(Arrays.asList(
+      "authorization",
+      "proxy-authorization",
+      "www-authenticate",
+      "proxy-authenticate",
+      "authentication-info",
+      "proxy-authentication-info",
+      "cookie",
+      "set-cookie"
+  ));
 
   static {
     REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
@@ -119,7 +113,6 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
   private volatile Queue<AppSecEvent> appSecEvents;
   private volatile Queue<StackTraceEvent> stackTraceEvents;
-
   // assume these will always be written and read by the same thread
   private String scheme;
   private String method;
@@ -145,22 +138,17 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private String peerAddress;
   private int peerPort;
   private String inferredClientIp;
-
   private boolean extendedDataCollection = false;
   private int extendedDataCollectionMaxHeaders = DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS;
-
   private volatile StoredBodySupplier storedRequestBodySupplier;
   private String dbType;
-
   private int responseStatus;
-
   private boolean reqDataPublished;
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean responseBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
-
   /**
    * WAF-reported attributes, published copy-on-write: writers publish a fresh unmodifiable copy
    * instead of mutating in place, so a reader can keep the instance it read without
@@ -168,10 +156,8 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
    * thread (APPSEC-70134).
    */
   private final AtomicReference<Map<String, Object>> derivatives = new AtomicReference<>();
-
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
-
   // should be guarded by this
   private volatile WafContext wafContext;
   private volatile boolean wafContextClosed;
@@ -179,7 +165,6 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private volatile WafMetrics wafMetrics;
   private volatile WafMetrics raspMetrics;
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
-
   private volatile boolean wafBlocked;
   private volatile String blockingResponseContentType;
   private volatile Integer blockingResponseContentLength;
@@ -188,30 +173,23 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private volatile boolean wafRequestBlockFailure;
   private volatile boolean wafRateLimited;
   private volatile boolean wafRequestExcluded;
-
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
-
   private volatile Object processedRequestBody;
   private volatile boolean processedResponseBodySizeExceeded;
   private volatile boolean raspMatched;
-
   // keep a reference to the last published usr.id
   private volatile String userId;
   // keep a reference to the last published usr.login
   private volatile String userLogin;
   // keep a reference to the last published usr.session_id
   private volatile String sessionId;
-
   // Used to detect missing request-end event at close.
   private volatile boolean requestEndCalled;
-
   private volatile boolean keepOpenForApiSecurityPostProcessing;
   private volatile Long apiSecurityEndpointHash;
-
   private final AtomicInteger httpClientRequestCount = new AtomicInteger(0);
   private final Set<Long> sampledHttpClientRequests = new HashSet<>();
-
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
@@ -335,8 +313,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       if (sampledHttpClientRequests.contains(id)) {
         return true;
       }
-      if (sampledHttpClientRequests.size()
-          < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
+      if (sampledHttpClientRequests.size() < Config
+        .get()
+        .getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
         sampledHttpClientRequests.add(id);
         return true;
       }
@@ -387,7 +366,10 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
    * off-heap memory (APPSEC-69085).
    */
   public WafContext getOrCreateWafContext(
-      WafHandle wafHandle, boolean createMetrics, boolean isRasp) {
+      WafHandle wafHandle,
+      boolean createMetrics,
+      boolean isRasp
+  ) {
     synchronized (this) {
       // Atomic with respect to closeWafContext(): both run under this monitor.
       if (wafContextClosed) {
@@ -423,7 +405,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     return metricsReady(createMetrics, isRasp) ? curWafContext : null;
   }
 
-  /** Whether the metrics a WAF call with these flags needs already exist. */
+  /**
+   * Whether the metrics a WAF call with these flags needs already exist.
+   */
   private boolean metricsReady(boolean createMetrics, boolean isRasp) {
     return !createMetrics || (wafMetrics != null && (!isRasp || raspMetrics != null));
   }
@@ -449,7 +433,6 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   }
 
   /* Implementation of DataBundle */
-
   @Override
   public boolean hasAddress(Address<?> addr) {
     return persistentData.containsKey(addr);
@@ -477,7 +460,6 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   }
 
   /* Interface for use of GatewayBridge */
-
   String getScheme() {
     return scheme;
   }
@@ -595,7 +577,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       headers = new LinkedHashMap<>();
       requestHeaders = headers;
     }
-    headers.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1)).add(value);
+    headers
+      .computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1))
+      .add(value);
   }
 
   void finishRequestHeaders() {
@@ -625,7 +609,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       headers = new LinkedHashMap<>();
       responseHeaders = headers;
     }
-    headers.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1)).add(value);
+    headers
+      .computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1))
+      .add(value);
   }
 
   public void finishResponseHeaders() {
@@ -798,7 +784,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     if (!keepOpenForApiSecurityPostProcessing) {
       if (wafContext != null) {
         log.debug(
-            SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
+            SEND_TELEMETRY,
+            "WAF object had not been closed (probably missed request-end event)"
+        );
       }
       // Always close, even if the WAF never ran for this request: wafContextClosed must be set so
       // a late/async caller of getOrCreateWafContext() cannot resurrect a context (APPSEC-69085).
@@ -878,60 +866,57 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
 
   public void reportDerivatives(Map<String, Object> data) {
     log.debug("Reporting derivatives: {}", data);
-    if (data == null || data.isEmpty()) return;
-
+    if (data == null || data.isEmpty()) {
+      return;
+    }
     // Initialize or update derivatives atomically
-    derivatives.updateAndGet(
-        current -> {
-          Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
+    derivatives.updateAndGet(current -> {
+      Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
+      // Process each attribute according to the specification
+      for (Map.Entry<String, Object> entry : data.entrySet()) {
+        String attributeKey = entry.getKey();
+        Object attributeConfig = entry.getValue();
 
-          // Process each attribute according to the specification
-          for (Map.Entry<String, Object> entry : data.entrySet()) {
-            String attributeKey = entry.getKey();
-            Object attributeConfig = entry.getValue();
+        if (attributeConfig instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> config = (Map<String, Object>) attributeConfig;
+          // Check if it's a literal value schema
+          if (config.containsKey("value")) {
+            Object literalValue = config.get("value");
+            if (literalValue != null) {
+              // Preserve the original type - don't convert to string
+              updated.put(attributeKey, literalValue);
+              log.debug(
+                  "Added literal attribute: {} = {} (type: {})",
+                  attributeKey,
+                  literalValue,
+                  literalValue.getClass().getSimpleName()
+              );
+            }
+          } else // Check if it's a request data schema
+          if (config.containsKey("address")) {
+            String address = (String) config.get("address");
+            @SuppressWarnings("unchecked")
+            List<String> keyPath = (List<String>) config.get("key_path");
+            @SuppressWarnings("unchecked")
+            List<String> transformers = (List<String>) config.get("transformers");
 
-            if (attributeConfig instanceof Map) {
-              @SuppressWarnings("unchecked")
-              Map<String, Object> config = (Map<String, Object>) attributeConfig;
-
-              // Check if it's a literal value schema
-              if (config.containsKey("value")) {
-                Object literalValue = config.get("value");
-                if (literalValue != null) {
-                  // Preserve the original type - don't convert to string
-                  updated.put(attributeKey, literalValue);
-                  log.debug(
-                      "Added literal attribute: {} = {} (type: {})",
-                      attributeKey,
-                      literalValue,
-                      literalValue.getClass().getSimpleName());
-                }
-              }
-              // Check if it's a request data schema
-              else if (config.containsKey("address")) {
-                String address = (String) config.get("address");
-                @SuppressWarnings("unchecked")
-                List<String> keyPath = (List<String>) config.get("key_path");
-                @SuppressWarnings("unchecked")
-                List<String> transformers = (List<String>) config.get("transformers");
-
-                Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
-                if (extractedValue != null) {
-                  // For extracted values, convert to string as they come from request data
-                  updated.put(attributeKey, extractedValue.toString());
-                  log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
-                }
-              }
-            } else {
-              // Handle plain string/numeric values
-              updated.put(attributeKey, attributeConfig);
-              log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+            Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
+            if (extractedValue != null) {
+              // For extracted values, convert to string as they come from request data
+              updated.put(attributeKey, extractedValue.toString());
+              log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
             }
           }
-
-          // Unmodifiable: readers may hold this instance indefinitely.
-          return unmodifiableMap(updated);
-        });
+        } else {
+          // Handle plain string/numeric values
+          updated.put(attributeKey, attributeConfig);
+          log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+        }
+      }
+      // Unmodifiable: readers may hold this instance indefinitely.
+      return unmodifiableMap(updated);
+    });
   }
 
   /**
@@ -943,14 +928,16 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
    * @return The extracted value, or null if not found
    */
   private Object extractValueFromRequestData(
-      String address, List<String> keyPath, List<String> transformers) {
+      String address,
+      List<String> keyPath,
+      List<String> transformers
+  ) {
     // Get the data from the address
     Object data = getDataForAddress(address);
     if (data == null) {
       log.debug("No data found for address: {}", address);
       return null;
     }
-
     // Navigate through the key path
     Object currentValue = data;
     if (keyPath != null && !keyPath.isEmpty()) {
@@ -960,7 +947,6 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
         return null;
       }
     }
-
     // Apply transformers if specified
     if (transformers != null && !transformers.isEmpty()) {
       currentValue = applyTransformers(currentValue, transformers);
@@ -969,7 +955,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     return currentValue;
   }
 
-  /** Gets data for a specific address from the request context. */
+  /**
+   * Gets data for a specific address from the request context.
+   */
   private Object getDataForAddress(String address) {
     // Map common addresses to our data structures
     switch (address) {
@@ -1003,7 +991,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     }
   }
 
-  /** Navigates through a data structure using a key path. */
+  /**
+   * Navigates through a data structure using a key path.
+   */
   private Object navigateKeyPath(Object data, List<String> keyPath) {
     Object current = data;
 
@@ -1039,7 +1029,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     return current;
   }
 
-  /** Applies transformers to a value. */
+  /**
+   * Applies transformers to a value.
+   */
   private Object applyTransformers(Object value, List<String> transformers) {
     Object current = value;
 
@@ -1082,17 +1074,14 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     if (traceSegment == null) {
       return false;
     }
-
     // Get and clear derivatives atomically
     Map<String, Object> derivativesToCommit = derivatives.getAndSet(null);
     log.debug("Committing derivatives: {} for {}", derivativesToCommit, traceSegment);
-
     // Process and commit derivatives directly
     if (derivativesToCommit != null && !derivativesToCommit.isEmpty()) {
       for (Map.Entry<String, Object> entry : derivativesToCommit.entrySet()) {
         String key = entry.getKey();
         Object value = entry.getValue();
-
         // Handle different value types
         if (value instanceof Number) {
           traceSegment.setTagTop(key, (Number) value);
@@ -1149,7 +1138,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     return wafContextClosed;
   }
 
-  /** Must be called during request end event processing. */
+  /**
+   * Must be called during request end event processing.
+   */
   void setRequestEndCalled() {
     requestEndCalled = true;
   }

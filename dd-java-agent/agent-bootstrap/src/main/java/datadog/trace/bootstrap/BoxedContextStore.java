@@ -3,7 +3,9 @@ package datadog.trace.bootstrap;
 import datadog.instrument.fieldinject.ObjectStoreDispatch;
 import java.util.function.Function;
 
-/** Boxes a store-id and dispatches context operations through {@link ObjectStoreDispatch}. */
+/**
+ * Boxes a store-id and dispatches context operations through {@link ObjectStoreDispatch}.
+ */
 public final class BoxedContextStore implements ContextStore<Object, Object> {
   final int storeId;
 
@@ -28,7 +30,9 @@ public final class BoxedContextStore implements ContextStore<Object, Object> {
 
   @Override
   public Object getOrCompute(
-      final Object key, final Function<? super Object, Object> contextFactory) {
+      final Object key,
+      final Function<? super Object, Object> contextFactory
+  ) {
     return ObjectStoreDispatch.getOrCompute(key, storeId, contextFactory);
   }
 

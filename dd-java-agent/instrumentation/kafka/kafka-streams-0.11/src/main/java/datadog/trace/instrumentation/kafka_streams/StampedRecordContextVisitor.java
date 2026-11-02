@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.kafka_streams;
 
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_PRODUCED_KEY;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
 import java.nio.ByteBuffer;
@@ -12,9 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StampedRecordContextVisitor implements ContextVisitor<StampedRecord> {
-
   private static final Logger log = LoggerFactory.getLogger(StampedRecordContextVisitor.class);
-
   public static final StampedRecordContextVisitor SR_GETTER = new StampedRecordContextVisitor();
 
   @Override

@@ -6,21 +6,20 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public abstract class Iterators {
+  private static final Iterator<?> EMPTY = new Iterator<Object>() {
+    @Override
+    public boolean hasNext() {
+      return false;
+    }
 
-  private static final Iterator<?> EMPTY =
-      new Iterator<Object>() {
-        @Override
-        public boolean hasNext() {
-          return false;
-        }
+    @Override
+    public Object next() {
+      throw new NoSuchElementException();
+    }
+  };
 
-        @Override
-        public Object next() {
-          throw new NoSuchElementException();
-        }
-      };
-
-  private Iterators() {}
+  private Iterators() {
+  }
 
   @SuppressWarnings("unchecked")
   public static <E> Iterator<E> empty() {
@@ -35,22 +34,19 @@ public abstract class Iterators {
   @SuppressWarnings("unchecked")
   @Nonnull
   public static <E> Iterator<E> of(
-      final @org.jetbrains.annotations.Nullable E @org.jetbrains.annotations.Nullable ... items) {
+      @org.jetbrains.annotations.Nullable final E@org.jetbrains.annotations.Nullable ... items
+  ) {
     return items == null || items.length == 0 ? empty() : new ArrayIterator<>(items);
   }
 
   @Nonnull
-  public static Iterator<?> join(
-      final Iterator<?> @org.jetbrains.annotations.Nullable ... iterators) {
+  public static Iterator<?> join(final Iterator<?>@org.jetbrains.annotations.Nullable ... iterators) {
     return iterators == null || iterators.length == 0 ? empty() : new JoinIterator(iterators);
   }
 
   private static class HeadedArrayIterator<E> extends ArrayIterator<E> {
-
     private static final Object[] EMPTY_TAIL = new Object[0];
-
     private boolean first;
-
     private final E head;
 
     @SuppressWarnings("unchecked")
@@ -100,7 +96,8 @@ public abstract class Iterators {
   private static class JoinIterator implements Iterator<Object> {
     private final Iterator<?>[] iterators;
     private int index;
-    @Nullable private Iterator<?> current;
+    @Nullable
+    private Iterator<?> current;
 
     private JoinIterator(@Nonnull final Iterator<?>[] iterators) {
       this.iterators = iterators;

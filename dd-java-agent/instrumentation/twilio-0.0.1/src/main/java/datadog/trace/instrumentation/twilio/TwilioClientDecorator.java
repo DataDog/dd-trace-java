@@ -16,31 +16,29 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Decorate Twilio span's with relevant contextual information. */
+/**
+ * Decorate Twilio span's with relevant contextual information.
+ */
 public class TwilioClientDecorator extends ClientDecorator {
-
   private static final Logger log = LoggerFactory.getLogger(TwilioClientDecorator.class);
-
   public static final CharSequence TWILIO_SDK = UTF8BytesString.create("twilio.sdk");
-
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("twilio-sdk");
-
-  private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().allowInferredServices()
-          ? COMPONENT_NAME.toString()
-          : null;
-
-  private static final QualifiedClassNameCache NAMES =
-      new QualifiedClassNameCache(
-          new Function<Class<?>, CharSequence>() {
-            @Override
-            // Drop common package prefix (com.twilio.rest)
-            public String apply(Class<?> input) {
-              return input.getCanonicalName().substring("com.twilio.rest.".length());
-            }
-          },
-          Functions.PrefixJoin.of("."));
-
+  private static final String SERVICE_NAME = SpanNaming
+    .instance()
+    .namingSchema()
+    .allowInferredServices()
+      ? COMPONENT_NAME.toString()
+      : null;
+  private static final QualifiedClassNameCache NAMES = new QualifiedClassNameCache(
+      new Function<Class<?>, CharSequence>() {
+        @Override
+        public // Drop common package prefix (com.twilio.rest)
+        String apply(Class<?> input) {
+          return input.getCanonicalName().substring("com.twilio.rest.".length());
+        }
+      },
+      Functions.PrefixJoin.of(".")
+  );
   public static final TwilioClientDecorator DECORATE = new TwilioClientDecorator();
 
   @Override
@@ -63,13 +61,20 @@ public class TwilioClientDecorator extends ClientDecorator {
     return SERVICE_NAME;
   }
 
-  /** Decorate trace based on service execution metadata. */
+  /**
+   * Decorate trace based on service execution metadata.
+   */
   public void onServiceExecution(
-      final AgentSpan span, final Object serviceExecutor, final String methodName) {
+      final AgentSpan span,
+      final Object serviceExecutor,
+      final String methodName
+  ) {
     span.setResourceName(NAMES.getQualifiedName(serviceExecutor.getClass(), methodName));
   }
 
-  /** Annotate the span with the results of the operation. */
+  /**
+   * Annotate the span with the results of the operation.
+   */
   public final void onResult(final AgentSpan span, Object result) {
     try {
       doOnResult(span, result);
@@ -79,7 +84,6 @@ public class TwilioClientDecorator extends ClientDecorator {
   }
 
   protected void doOnResult(final AgentSpan span, Object result) {
-
     // Unwrap ListenableFuture (if present)
     if (result instanceof ListenableFuture) {
       try {
@@ -88,15 +92,12 @@ public class TwilioClientDecorator extends ClientDecorator {
         log.debug("Error unwrapping result", e);
       }
     }
-
     // Nothing to do here, so return
     if (result == null) {
       return;
     }
-
     // Provide helpful metadata for some of the more common response types
     span.setTag("twilio.type", result.getClass().getCanonicalName());
-
     // Instrument the most popular resource types directly
     if (result instanceof Message) {
       final Message message = (Message) result;
@@ -128,7 +129,11 @@ public class TwilioClientDecorator extends ClientDecorator {
    * required.
    */
   private void setTagIfPresent(
-      final AgentSpan span, final Object result, final String tag, final String getter) {
+      final AgentSpan span,
+      final Object result,
+      final String tag,
+      final String getter
+  ) {
     try {
       final Method method = result.getClass().getMethod(getter);
       final Object value = method.invoke(result);
@@ -136,7 +141,6 @@ public class TwilioClientDecorator extends ClientDecorator {
       if (value != null) {
         span.setTag(tag, value.toString());
       }
-
     } catch (final Exception e) {
       // Expected that this won't work for all result types
     }

@@ -13,4 +13,5 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @ExtendWith(AllowContextTestingExtension.class)
-public @interface AllowContextTesting {}
+public @interface AllowContextTesting {
+}

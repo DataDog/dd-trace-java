@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.core.DDSpan;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.LinkedList;
@@ -15,7 +14,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class MultiWriterTest extends DDJavaSpecification {
-
   @Test
   void testThatMultiWriterDelegatesToAll() {
     Writer[] writers = new Writer[3];
@@ -40,7 +38,6 @@ class MultiWriterTest extends DDJavaSpecification {
     verify(mockW2).write(trace);
     verifyNoMoreInteractions(mockW1, mockW2);
     clearInvocations(mockW1, mockW2);
-
     // flush (both return true)
     when(mockW1.flush()).thenReturn(true);
     when(mockW2.flush()).thenReturn(true);
@@ -51,7 +48,6 @@ class MultiWriterTest extends DDJavaSpecification {
     verifyNoMoreInteractions(mockW1, mockW2);
     assertTrue(flushed);
     clearInvocations(mockW1, mockW2);
-
     // flush (one returns false)
     when(mockW1.flush()).thenReturn(true);
     when(mockW2.flush()).thenReturn(false);

@@ -19,13 +19,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class MultipartHelper {
-
   private static final Logger log = LoggerFactory.getLogger(MultipartHelper.class);
-
   public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
   public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
-  private MultipartHelper() {}
+  private MultipartHelper() {
+  }
 
   // Reflection avoids a bytecode ref to MultivaluedMap (javax→jakarta in RESTEasy 6)
   private static final Method GET_HEADERS;
@@ -69,8 +68,8 @@ public final class MultipartHelper {
         }
         String contentType = contentTypeOf(headers);
         bodyMap
-            .computeIfAbsent(e.getKey(), k -> new ArrayList<>())
-            .add(readContent(inputPart, contentTypeWithDefaultUtf8(contentType)));
+          .computeIfAbsent(e.getKey(), k -> new ArrayList<>())
+          .add(readContent(inputPart, contentTypeWithDefaultUtf8(contentType)));
         total++;
       }
     }
@@ -138,7 +137,9 @@ public final class MultipartHelper {
   // here. Shares the same quote-aware semicolon scanning; see rawFilenameFromContentDisposition()
   // for the rationale.
   private static boolean hasFilenameParam(String cd) {
-    if (cd == null) return false;
+    if (cd == null) {
+      return false;
+    }
     int i = 0;
     int len = cd.length();
     while (i < len) {
@@ -146,19 +147,29 @@ public final class MultipartHelper {
         if (cd.charAt(i) == '"') {
           i++;
           while (i < len && cd.charAt(i) != '"') {
-            if (cd.charAt(i) == '\\') i++;
+            if (cd.charAt(i) == '\\') {
+              i++;
+            }
             i++;
           }
         }
         i++;
       }
-      if (i >= len) break;
+      if (i >= len) {
+        break;
+      }
       i++;
-      while (i < len && (cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) i++;
+      while (i < len && (cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) {
+        i++;
+      }
       if (cd.regionMatches(true, i, "filename", 0, 8)) {
         int j = i + 8;
-        if (j < len && cd.charAt(j) == '*') j++;
-        while (j < len && (cd.charAt(j) == ' ' || cd.charAt(j) == '\t')) j++;
+        if (j < len && cd.charAt(j) == '*') {
+          j++;
+        }
+        while (j < len && (cd.charAt(j) == ' ' || cd.charAt(j) == '\t')) {
+          j++;
+        }
         if (j < len && cd.charAt(j) == '=') {
           return true;
         }
@@ -179,8 +190,9 @@ public final class MultipartHelper {
           @SuppressWarnings("unchecked")
           Map<String, List<String>> headers =
               (Map<String, List<String>>) GET_HEADERS.invoke(inputPart);
-          cdHeaders =
-              headers != null ? getHeaderCaseInsensitive(headers, "Content-Disposition") : null;
+          cdHeaders = headers != null
+              ? getHeaderCaseInsensitive(headers, "Content-Disposition")
+              : null;
         } catch (Exception ignored) {
           continue;
         }
@@ -251,7 +263,9 @@ public final class MultipartHelper {
 
   static String readContent(InputPart inputPart, String contentType) {
     try (InputStream is = inputPart.getBody(InputStream.class, null)) {
-      if (is == null) return "";
+      if (is == null) {
+        return "";
+      }
       return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
     } catch (Exception e) {
       // getBody()/readInputStream() can throw unchecked exceptions too (e.g. a MessageBodyReader
@@ -262,7 +276,9 @@ public final class MultipartHelper {
   }
 
   private static List<String> getHeaderCaseInsensitive(
-      Map<String, List<String>> headers, String name) {
+      Map<String, List<String>> headers,
+      String name
+  ) {
     for (Entry<String, List<String>> entry : headers.entrySet()) {
       if (name.equalsIgnoreCase(entry.getKey())) {
         return entry.getValue();
@@ -285,7 +301,9 @@ public final class MultipartHelper {
   // Like filenameFromContentDisposition but returns "" for present-but-empty filename,
   // and null only when the filename parameter is absent entirely.
   static String rawFilenameFromContentDisposition(String cd) {
-    if (cd == null) return null;
+    if (cd == null) {
+      return null;
+    }
     int i = 0;
     int len = cd.length();
     while (i < len) {
@@ -293,33 +311,50 @@ public final class MultipartHelper {
         if (cd.charAt(i) == '"') {
           i++;
           while (i < len && cd.charAt(i) != '"') {
-            if (cd.charAt(i) == '\\') i++;
+            if (cd.charAt(i) == '\\') {
+              i++;
+            }
             i++;
           }
         }
         i++;
       }
-      if (i >= len) break;
+      if (i >= len) {
+        break;
+      }
       i++;
-      while (i < len && (cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) i++;
+      while (i < len && (cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) {
+        i++;
+      }
       if (cd.regionMatches(true, i, "filename", 0, 8)) {
         int j = i + 8;
-        while (j < len && (cd.charAt(j) == ' ' || cd.charAt(j) == '\t')) j++;
+        while (j < len && (cd.charAt(j) == ' ' || cd.charAt(j) == '\t')) {
+          j++;
+        }
         if (j < len && cd.charAt(j) == '=') {
           i = j + 1;
-          while (i < len && (cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) i++;
-          if (i >= len) return "";
+          while (i < len && (cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) {
+            i++;
+          }
+          if (i >= len) {
+            return "";
+          }
           if (cd.charAt(i) == '"') {
             i++;
             StringBuilder sb = new StringBuilder();
             while (i < len && cd.charAt(i) != '"') {
-              if (cd.charAt(i) == '\\' && i + 1 < len) i++; // unescape
+              // unescape
+              if (cd.charAt(i) == '\\' && i + 1 < len) {
+                i++;
+              }
               sb.append(cd.charAt(i++));
             }
             return sb.toString();
           } else {
             int start = i;
-            while (i < len && cd.charAt(i) != ';') i++;
+            while (i < len && cd.charAt(i) != ';') {
+              i++;
+            }
             return cd.substring(start, i).trim();
           }
         }

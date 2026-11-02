@@ -10,7 +10,6 @@ import org.apache.commons.fileupload.FileItemHeaders;
 
 public class MockFileItem implements FileItem {
   private final String name;
-
   private final InputStream inputStream;
 
   public MockFileItem(final String name, final InputStream inputStream) {

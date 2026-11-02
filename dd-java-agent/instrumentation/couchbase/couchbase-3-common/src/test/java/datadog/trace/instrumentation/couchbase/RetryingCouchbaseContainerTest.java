@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.couchbase;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.SocketException;
@@ -34,9 +33,14 @@ class RetryingCouchbaseContainerTest {
     RuntimeException failure = new RuntimeException(cause);
     failure.setStackTrace(
         new StackTraceElement[] {
-          new StackTraceElement(
-              CouchbaseContainer.class.getName(), method, "CouchbaseContainer.java", 1)
-        });
+        new StackTraceElement(
+            CouchbaseContainer.class.getName(),
+            method,
+            "CouchbaseContainer.java",
+            1
+        )
+        }
+    );
     return RetryingCouchbaseContainer.isTransientRenameFailure(failure);
   }
 }

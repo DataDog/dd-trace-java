@@ -19,12 +19,12 @@ import org.spockframework.mock.TooManyInvocationsError;
  * @see <a href="https://github.com/DataDog/dd-trace-java/pull/7674">Original change</a>
  */
 public final class TooManyInvocationsErrorHandler implements TestExecutionExceptionHandler {
-
   @Override
   public void handleTestExecutionException(ExtensionContext ctx, Throwable ex) throws Throwable {
     if (ex instanceof TooManyInvocationsError) {
       fixTooManyInvocationsError((TooManyInvocationsError) ex);
-      throw ex; // re‑throw so JUnit still marks the test as failed.
+      // re‑throw so JUnit still marks the test as failed.
+      throw ex;
     }
     throw ex;
   }
@@ -42,12 +42,10 @@ public final class TooManyInvocationsErrorHandler implements TestExecutionExcept
             args.set(
                 i,
                 new AssertionError(
-                    "'"
-                        + arg.getClass().getName()
-                        + "' hidden due to '"
-                        + t.getClass().getName()
-                        + "'",
-                    t));
+                    "'" + arg.getClass().getName() + "' hidden due to '" + t.getClass().getName() + "'",
+                    t
+                )
+            );
           }
         }
       }

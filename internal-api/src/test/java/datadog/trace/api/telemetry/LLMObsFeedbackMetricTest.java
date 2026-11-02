@@ -3,7 +3,6 @@ package datadog.trace.api.telemetry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Collection;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.Test;
  * record_llmobs_submit_feedback} in dd-trace-py.
  */
 class LLMObsFeedbackMetricTest {
-
   private LLMObsMetricCollector collector;
 
   @BeforeEach

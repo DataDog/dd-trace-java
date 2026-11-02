@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import javax.annotation.Nonnull;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -36,10 +35,8 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Threads(8)
 public class ConcurrentHashtableFindBenchmark {
-
   static final int N_KEYS = 64;
   static final int CAPACITY = 128;
-
   static final long[] KEY_HASHES = new long[N_KEYS];
 
   static {
@@ -48,7 +45,9 @@ public class ConcurrentHashtableFindBenchmark {
     }
   }
 
-  /** Mirrors {@code LogCollector.RawLogMessage}: a keyHash plus a payload compared on match. */
+  /**
+   * Mirrors {@code LogCollector.RawLogMessage}: a keyHash plus a payload compared on match.
+   */
   static final class FindEntry extends ConcurrentHashtable.Entry<FindEntry> {
     final int payload;
 
@@ -90,7 +89,9 @@ public class ConcurrentHashtableFindBenchmark {
     }
   }
 
-  /** Same loop shape as {@code LogCollector.find}: scan candidates for a keyHash, match, return. */
+  /**
+   * Same loop shape as {@code LogCollector.find}: scan candidates for a keyHash, match, return.
+   */
   @Benchmark
   public FindEntry find(SharedState s, ThreadState t) {
     int i = t.next();

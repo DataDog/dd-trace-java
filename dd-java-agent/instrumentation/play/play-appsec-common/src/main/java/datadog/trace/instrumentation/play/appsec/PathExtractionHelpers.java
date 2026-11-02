@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play.appsec;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -17,10 +16,14 @@ import org.slf4j.LoggerFactory;
 public class PathExtractionHelpers {
   private static final Logger log = LoggerFactory.getLogger(PathExtractionHelpers.class);
 
-  private PathExtractionHelpers() {}
+  private PathExtractionHelpers() {
+  }
 
   public static BlockingException callRequestPathParamsCallback(
-      RequestContext reqCtx, Map<String, Object> params, String origin) {
+      RequestContext reqCtx,
+      Map<String, Object> params,
+      String origin
+  ) {
     try {
       return doCallRequestPathParamsCallback(reqCtx, params, origin);
     } catch (Exception e) {
@@ -30,7 +33,10 @@ public class PathExtractionHelpers {
   }
 
   private static BlockingException doCallRequestPathParamsCallback(
-      RequestContext reqCtx, Map<String, Object> params, String origin) {
+      RequestContext reqCtx,
+      Map<String, Object> params,
+      String origin
+  ) {
     if (params == null || params.isEmpty()) {
       return null;
     }

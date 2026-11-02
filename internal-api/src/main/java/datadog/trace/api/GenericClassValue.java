@@ -3,7 +3,6 @@ package datadog.trace.api;
 import java.util.function.Function;
 
 public final class GenericClassValue<T> extends ClassValue<T> {
-
   @SuppressWarnings("unchecked")
   public static <T> ClassValue<T> constructing(Class<?> type) {
     return new GenericClassValue<>((Function<Class<?>, T>) Functions.newInstanceOf(type));

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Arrays;
@@ -82,7 +81,8 @@ class ListValueTest {
       ListValue collection = (ListValue) v;
       for (int j = 0; j < collection.count(); j++) {
         Value<?> v1 = collection.get(j);
-        assertEquals(intArray[i][j], v1.getValue()); // int is automatically widened to long
+        // int is automatically widened to long
+        assertEquals(intArray[i][j], v1.getValue());
       }
     }
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));

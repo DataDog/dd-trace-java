@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.tibcobw5;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -11,8 +10,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ThreadPoolInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ThreadPoolInstrumentation() {
     super("tibco");
   }
@@ -25,7 +25,9 @@ public class ThreadPoolInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        NameMatchers.named("schedule"), getClass().getName() + "$ScheduleAdvice");
+        NameMatchers.named("schedule"),
+        getClass().getName() + "$ScheduleAdvice"
+    );
   }
 
   public static class ScheduleAdvice {

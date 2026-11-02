@@ -10,7 +10,6 @@ public enum ValueType {
   SHORT,
   CHAR,
   FLOAT;
-
   public static String toString(ValueType type) {
     switch (type) {
       case BOOLEAN:

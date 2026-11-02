@@ -11,15 +11,16 @@ import javax.annotation.Nonnull;
 @Entity
 @Table
 public class Fruit {
-
-  public Fruit() {}
+  public Fruit() {
+  }
 
   public Fruit(@Nonnull String name) {
     this.name = name;
   }
 
-  @Id @GeneratedValue private Long id;
-
+  @Id
+  @GeneratedValue
+  private Long id;
   @Column(nullable = false)
   private String name;
 

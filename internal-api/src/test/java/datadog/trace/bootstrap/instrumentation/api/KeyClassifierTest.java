@@ -2,14 +2,12 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class KeyClassifierTest {
-
   static class RecordingClassifier implements AgentPropagation.KeyClassifier {
     String lastKey;
     String lastValue;
@@ -31,11 +29,10 @@ class KeyClassifierTest {
   void defaultTransformerMethodAppliesTransformerAndDelegates() {
     RecordingClassifier classifier = new RecordingClassifier(true);
 
-    boolean result =
-        classifier.accept(
-            "my-key",
-            "raw".getBytes(StandardCharsets.UTF_8),
-            bytes -> new String(bytes, StandardCharsets.UTF_8));
+    boolean result = classifier.accept("my-key", "raw".getBytes(StandardCharsets.UTF_8), bytes -> new String(
+        bytes,
+        StandardCharsets.UTF_8
+    ));
 
     assertEquals("my-key", classifier.lastKey);
     assertEquals("raw", classifier.lastValue);
@@ -49,17 +46,14 @@ class KeyClassifierTest {
 
     AgentPropagation.KeyClassifier classifier =
         (key, value) -> {
-          transformed.set(value);
-          return true;
-        };
+      transformed.set(value);
+      return true;
+    };
 
-    classifier.accept(
-        "key",
-        "input",
-        v -> {
-          callCount.incrementAndGet();
-          return v.toUpperCase();
-        });
+    classifier.accept("key", "input", v -> {
+      callCount.incrementAndGet();
+      return v.toUpperCase();
+    });
 
     assertEquals(1, callCount.get());
     assertEquals("INPUT", transformed.get());

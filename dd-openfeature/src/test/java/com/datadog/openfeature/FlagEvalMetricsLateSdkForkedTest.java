@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
@@ -38,7 +37,7 @@ class FlagEvalMetricsLateSdkForkedTest {
     when(meter.counterBuilder("feature_flag.evaluations")).thenReturn(counterBuilder);
     when(counterBuilder.setUnit("{evaluation}")).thenReturn(counterBuilder);
     when(counterBuilder.setDescription("Number of feature flag evaluations"))
-        .thenReturn(counterBuilder);
+      .thenReturn(counterBuilder);
     when(counterBuilder.build()).thenReturn(counter);
     try {
       assertDoesNotThrow(() -> GlobalOpenTelemetry.set(telemetry));

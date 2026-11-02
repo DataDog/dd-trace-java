@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_BINARY;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,7 +13,9 @@ import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.core.Behavior;
 import org.eclipse.jetty.websocket.core.CoreSession;
 
-/** Tracks message boundaries independently of asynchronous send completion. */
+/**
+ * Tracks message boundaries independently of asynchronous send completion.
+ */
 public class NativeSendContext {
   private final AgentSpan handshakeSpan;
   private final String sessionId;
@@ -30,15 +31,19 @@ public class NativeSendContext {
   }
 
   public synchronized SendCallback start(
-      Object payload, boolean binary, boolean partial, boolean last, Callback callback) {
+      Object payload,
+      boolean binary,
+      boolean partial,
+      boolean last,
+      Callback callback
+  ) {
     if (closed) {
       return null;
     }
     CharSequence type = binary ? MESSAGE_TYPE_BINARY : MESSAGE_TYPE_TEXT;
-    int size =
-        payload == null
-            ? 0
-            : binary ? ((ByteBuffer) payload).remaining() : ((String) payload).length();
+    int size = payload == null
+        ? 0
+        : binary ? ((ByteBuffer) payload).remaining() : ((String) payload).length();
     Message message = partial ? partialMessage : null;
     if (message == null || !type.equals(message.getMessageType())) {
       message = new Message(handshakeSpan, sessionId);
@@ -86,7 +91,11 @@ public class NativeSendContext {
     private boolean released;
 
     public SendCallback(
-        NativeSendContext context, Message message, AgentSpan span, Callback delegate) {
+        NativeSendContext context,
+        Message message,
+        AgentSpan span,
+        Callback delegate
+    ) {
       this.context = context;
       this.message = message;
       this.span = span;

@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
  */
 @Component
 class ScaReachabilityInit {
-
   @PostConstruct
   void init() {
     try {

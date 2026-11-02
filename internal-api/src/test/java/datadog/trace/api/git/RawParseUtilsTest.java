@@ -3,12 +3,10 @@ package datadog.trace.api.git;
 import static java.nio.charset.StandardCharsets.UTF_16;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class RawParseUtilsTest {
-
   @Test
   void testDecodeNoFallback() {
     String str = new String("some-string".getBytes(UTF_8), UTF_16);

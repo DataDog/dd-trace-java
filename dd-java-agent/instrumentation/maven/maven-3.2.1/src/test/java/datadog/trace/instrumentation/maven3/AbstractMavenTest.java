@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.maven3;
 
 import static java.util.Collections.addAll;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -23,20 +22,22 @@ import org.junit.jupiter.api.io.TempDir;
 public abstract class AbstractMavenTest {
   private static final int MAVEN_BUILD_ATTEMPTS = 3;
   private static final long MAVEN_BUILD_RETRY_DELAY_MILLIS = 5_000;
-
-  @TempDir static Path WORKING_DIRECTORY;
+  @TempDir
+  static Path WORKING_DIRECTORY;
 
   protected AbstractMavenTest() {
     System.setProperty(
-        "maven.multiModuleProjectDirectory", WORKING_DIRECTORY.toAbsolutePath().toString());
+        "maven.multiModuleProjectDirectory",
+        WORKING_DIRECTORY.toAbsolutePath().toString()
+    );
   }
 
   protected void executeMaven(
       Function<ExecutionEvent, Boolean> mojoStartedHandler,
       String pomPath,
       String goal,
-      String... additionalArgs)
-      throws Exception {
+      String... additionalArgs
+  ) throws Exception {
     executeMaven(mojoStartedHandler, pomPath, goal, null, null, additionalArgs);
   }
 
@@ -46,8 +47,8 @@ public abstract class AbstractMavenTest {
       String goal,
       PrintStream stdOut,
       PrintStream stderr,
-      String... additionalArgs)
-      throws Exception {
+      String... additionalArgs
+  ) throws Exception {
     File pomFile = new File(AbstractMavenTest.class.getResource(pomPath).toURI());
 
     List<String> arguments = new ArrayList<>();
@@ -80,20 +81,21 @@ public abstract class AbstractMavenTest {
       Function<ExecutionEvent, Boolean> mojoStartedHandler,
       List<String> arguments,
       PrintStream stdOut,
-      PrintStream stderr) {
+      PrintStream stderr
+  ) {
     MojoStartedSpy spy = new MojoStartedSpy(mojoStartedHandler);
-    MavenCli mavenCli =
-        new MavenCli() {
-          @Override
-          protected void customizeContainer(PlexusContainer container) {
-            container.addComponent(spy, EventSpy.class, null);
-          }
-        };
+    MavenCli mavenCli = new MavenCli() {
+      @Override
+      protected void customizeContainer(PlexusContainer container) {
+        container.addComponent(spy, EventSpy.class, null);
+      }
+    };
     mavenCli.doMain(
         arguments.toArray(new String[0]),
         WORKING_DIRECTORY.toAbsolutePath().toString(),
         stdOut,
-        stderr);
+        stderr
+    );
     return spy;
   }
 

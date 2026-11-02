@@ -22,7 +22,8 @@ public class SpringBlockingHelper {
   public static boolean tryCommitBlockingResponse(
       BlockResponseFunction blockResponseFunction,
       RequestContext reqCtx,
-      Flow.Action.RequestBlockingAction rba) {
+      Flow.Action.RequestBlockingAction rba
+  ) {
     try {
       return blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
     } catch (Exception e) {

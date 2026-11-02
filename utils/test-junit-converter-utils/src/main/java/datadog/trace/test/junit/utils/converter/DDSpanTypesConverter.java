@@ -32,7 +32,6 @@ import static datadog.trace.api.DDSpanTypes.TEST_SUITE_END;
 import static datadog.trace.api.DDSpanTypes.VALKEY;
 import static datadog.trace.api.DDSpanTypes.VULNERABILITY;
 import static datadog.trace.api.DDSpanTypes.WEBSOCKET;
-
 import java.util.HashMap;
 import java.util.Map;
 

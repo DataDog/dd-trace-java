@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.canSkipClassLoaderByName;
-
 import datadog.trace.agent.tooling.bytebuddy.matcher.IgnoredClassNameTrie;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -50,9 +49,11 @@ public final class DDRediscoveryStrategy implements RedefinitionStrategy.Discove
             }
             List<Class<?>> next = selectClassesForRetransformation(instrumentation, visited);
             if (next.isEmpty()) {
-              round = MAX_ROUNDS; // halt iterator, nothing more to re-transform
+              // halt iterator, nothing more to re-transform
+              round = MAX_ROUNDS;
             } else {
-              visited.addAll(next); // mark as visited so they're not transformed again
+              // mark as visited so they're not transformed again
+              visited.addAll(next);
               round++;
             }
             return next;
@@ -67,9 +68,13 @@ public final class DDRediscoveryStrategy implements RedefinitionStrategy.Discove
     };
   }
 
-  /** Selects classes to retransform from already loaded classes that we haven't previously seen. */
+  /**
+   * Selects classes to retransform from already loaded classes that we haven't previously seen.
+   */
   static List<Class<?>> selectClassesForRetransformation(
-      final Instrumentation instrumentation, final Set<Class<?>> visited) {
+      final Instrumentation instrumentation,
+      final Set<Class<?>> visited
+  ) {
     List<Class<?>> retransforming = new ArrayList<>();
     for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
       if (clazz == null) {
@@ -99,12 +104,14 @@ public final class DDRediscoveryStrategy implements RedefinitionStrategy.Discove
   private static boolean allowRetransform(Class<?> clazz) {
     switch (IgnoredClassNameTrie.apply(clazz.getName())) {
       case 0:
-        return true; // explicitly allowed
+        // explicitly allowed
+        return true;
       case -1:
         // unknown type; if it's from the boot-class-path ignore it, otherwise allow
         return null != clazz.getClassLoader();
       default:
-        return false; // explicitly ignored
+        // explicitly ignored
+        return false;
     }
   }
 }

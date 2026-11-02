@@ -10,7 +10,6 @@ import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
   private static final Logger log = LoggerFactory.getLogger(MessageExtractAdapter.class);
-
   public static final MessageExtractAdapter GETTER = new MessageExtractAdapter();
 
   @Override

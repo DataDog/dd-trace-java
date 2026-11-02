@@ -2,7 +2,6 @@ package datadog.trace.common.writer.ddagent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -16,9 +15,12 @@ import org.msgpack.core.MessageUnpacker;
  * here.
  */
 final class PayloadVerifiers {
-  private PayloadVerifiers() {}
+  private PayloadVerifiers() {
+  }
 
-  /** A serialized empty string round-trips as "", so a null expected value matches "". */
+  /**
+   * A serialized empty string round-trips as "", so a null expected value matches "".
+   */
   static void assertEqualsWithNullAsEmpty(CharSequence expected, CharSequence actual) {
     if (expected == null) {
       assertEquals("", actual);
@@ -27,7 +29,9 @@ final class PayloadVerifiers {
     }
   }
 
-  /** Unpacks a msgpack numeric value, matching the encoder's int/long/float/double formats. */
+  /**
+   * Unpacks a msgpack numeric value, matching the encoder's int/long/float/double formats.
+   */
   static Number unpackNumber(MessageUnpacker unpacker, String key) throws IOException {
     MessageFormat format = unpacker.getNextFormat();
     switch (format) {
@@ -49,7 +53,8 @@ final class PayloadVerifiers {
         return unpacker.unpackDouble();
       default:
         fail("Unexpected type in metrics values: " + format + " for key " + key);
-        return null; // unreachable
+        // unreachable
+        return null;
     }
   }
 
@@ -77,13 +82,17 @@ final class PayloadVerifiers {
       return src.position();
     }
 
-    /** Flips the buffer and returns it ready for reading. */
+    /**
+     * Flips the buffer and returns it ready for reading.
+     */
     ByteBuffer flipForReading() {
       captured.flip();
       return captured;
     }
 
-    /** Resets the buffer for the next payload. */
+    /**
+     * Resets the buffer for the next payload.
+     */
     void resetForWriting() {
       captured.position(0);
       captured.limit(captured.capacity());

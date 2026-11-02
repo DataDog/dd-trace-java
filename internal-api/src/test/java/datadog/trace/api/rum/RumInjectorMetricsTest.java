@@ -3,7 +3,6 @@ package datadog.trace.api.rum;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.telemetry.MetricCollector.DistributionSeriesPoint;
 import datadog.trace.api.telemetry.MetricCollector.Metric;
 import java.util.ArrayList;
@@ -12,7 +11,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class RumInjectorMetricsTest {
-
   private final RumInjectorMetrics metrics = new RumInjectorMetrics();
 
   // Note: application_id and remote_config_used tags need dynamic runtime values that depend on
@@ -23,17 +21,28 @@ class RumInjectorMetricsTest {
     metrics.onInjectionSucceed("3");
     metrics.onInjectionSucceed("5");
     metrics.onInjectionSucceed("6");
-
     // then
     List<Metric> drained = new ArrayList<>(metrics.drain());
     assertEquals(3, drained.size());
 
     assertCountMetric(
-        drained.get(0), "injection.succeed", "integration_name:servlet", "integration_version:3");
+        drained.get(0),
+        "injection.succeed",
+        "integration_name:servlet",
+        "integration_version:3"
+    );
     assertCountMetric(
-        drained.get(1), "injection.succeed", "integration_name:servlet", "integration_version:5");
+        drained.get(1),
+        "injection.succeed",
+        "integration_name:servlet",
+        "integration_version:5"
+    );
     assertCountMetric(
-        drained.get(2), "injection.succeed", "integration_name:servlet", "integration_version:6");
+        drained.get(2),
+        "injection.succeed",
+        "integration_name:servlet",
+        "integration_version:6"
+    );
   }
 
   @Test
@@ -42,7 +51,6 @@ class RumInjectorMetricsTest {
     metrics.onInjectionFailed("3", "gzip");
     metrics.onInjectionFailed("5", null);
     metrics.onInjectionFailed("6", "gzip");
-
     // then
     List<Metric> drained = new ArrayList<>(metrics.drain());
     assertEquals(3, drained.size());
@@ -53,7 +61,8 @@ class RumInjectorMetricsTest {
         "content_encoding:gzip",
         "integration_name:servlet",
         "integration_version:3",
-        "reason:failed_to_return_response_wrapper");
+        "reason:failed_to_return_response_wrapper"
+    );
 
     Metric servlet5 = drained.get(1);
     assertCountMetric(
@@ -61,10 +70,14 @@ class RumInjectorMetricsTest {
         "injection.failed",
         "integration_name:servlet",
         "integration_version:5",
-        "reason:failed_to_return_response_wrapper");
+        "reason:failed_to_return_response_wrapper"
+    );
     assertFalse(
-        servlet5.tags.stream().anyMatch(tag -> tag.startsWith("content_encoding:")),
-        "Unexpected content_encoding tag in " + servlet5.tags);
+        servlet5.tags
+          .stream()
+          .anyMatch(tag -> tag.startsWith("content_encoding:")),
+        "Unexpected content_encoding tag in " + servlet5.tags
+    );
 
     assertCountMetric(
         drained.get(2),
@@ -72,7 +85,8 @@ class RumInjectorMetricsTest {
         "content_encoding:gzip",
         "integration_name:servlet",
         "integration_version:6",
-        "reason:failed_to_return_response_wrapper");
+        "reason:failed_to_return_response_wrapper"
+    );
   }
 
   @Test
@@ -81,7 +95,6 @@ class RumInjectorMetricsTest {
     metrics.onInjectionSkipped("3");
     metrics.onInjectionSkipped("5");
     metrics.onInjectionSkipped("6");
-
     // then
     List<Metric> drained = new ArrayList<>(metrics.drain());
     assertEquals(3, drained.size());
@@ -91,26 +104,28 @@ class RumInjectorMetricsTest {
         "injection.skipped",
         "integration_name:servlet",
         "integration_version:3",
-        "reason:should_not_inject");
+        "reason:should_not_inject"
+    );
     assertCountMetric(
         drained.get(1),
         "injection.skipped",
         "integration_name:servlet",
         "integration_version:5",
-        "reason:should_not_inject");
+        "reason:should_not_inject"
+    );
     assertCountMetric(
         drained.get(2),
         "injection.skipped",
         "integration_name:servlet",
         "integration_version:6",
-        "reason:should_not_inject");
+        "reason:should_not_inject"
+    );
   }
 
   @Test
   void testOnInitializationSucceed() {
     // when
     metrics.onInitializationSucceed();
-
     // then
     List<Metric> drained = new ArrayList<>(metrics.drain());
     assertEquals(1, drained.size());
@@ -119,14 +134,14 @@ class RumInjectorMetricsTest {
         drained.get(0),
         "injection.initialization.succeed",
         "integration_name:servlet",
-        "integration_version:N/A");
+        "integration_version:N/A"
+    );
   }
 
   @Test
   void testOnContentSecurityPolicyDetected() {
     // when
     metrics.onContentSecurityPolicyDetected("5");
-
     // then
     List<Metric> drained = new ArrayList<>(metrics.drain());
     assertEquals(1, drained.size());
@@ -138,7 +153,8 @@ class RumInjectorMetricsTest {
         "integration_version:5",
         "kind:header",
         "reason:csp_header_found",
-        "status:seen");
+        "status:seen"
+    );
   }
 
   @Test
@@ -146,7 +162,6 @@ class RumInjectorMetricsTest {
     // when
     metrics.onInjectionResponseSize("3", 1024);
     metrics.onInjectionResponseSize("5", 2048);
-
     // then
     List<DistributionSeriesPoint> drained = new ArrayList<>(metrics.drainDistributionSeries());
     assertEquals(2, drained.size());
@@ -157,14 +172,16 @@ class RumInjectorMetricsTest {
         1024,
         "integration_name:servlet",
         "integration_version:3",
-        "response_kind:header");
+        "response_kind:header"
+    );
     assertDistribution(
         drained.get(1),
         "injection.response.bytes",
         2048,
         "integration_name:servlet",
         "integration_version:5",
-        "response_kind:header");
+        "response_kind:header"
+    );
   }
 
   @Test
@@ -172,15 +189,24 @@ class RumInjectorMetricsTest {
     // when
     metrics.onInjectionTime("3", 15L);
     metrics.onInjectionTime("5", 25L);
-
     // then
     List<DistributionSeriesPoint> drained = new ArrayList<>(metrics.drainDistributionSeries());
     assertEquals(2, drained.size());
 
     assertDistribution(
-        drained.get(0), "injection.ms", 15, "integration_name:servlet", "integration_version:3");
+        drained.get(0),
+        "injection.ms",
+        15,
+        "integration_name:servlet",
+        "integration_version:3"
+    );
     assertDistribution(
-        drained.get(1), "injection.ms", 25, "integration_name:servlet", "integration_version:5");
+        drained.get(1),
+        "injection.ms",
+        25,
+        "integration_name:servlet",
+        "integration_version:5"
+    );
   }
 
   @Test
@@ -194,7 +220,6 @@ class RumInjectorMetricsTest {
 
     Collection<Metric> drainedEmpty = metrics.drain();
     Collection<DistributionSeriesPoint> empty = metrics.drainDistributionSeries();
-
     // then
     assertEquals(1, drainedData.size());
     assertEquals(1, data.size());
@@ -213,7 +238,6 @@ class RumInjectorMetricsTest {
 
     Collection<Metric> counts = metrics.drain();
     Collection<DistributionSeriesPoint> distributions = metrics.drainDistributionSeries();
-
     // then
     assertEquals(3, counts.size());
     assertEquals(2, distributions.size());
@@ -231,7 +255,6 @@ class RumInjectorMetricsTest {
 
     Collection<Metric> emptyCounts = metrics.drain();
     Collection<DistributionSeriesPoint> emptyDistributions = metrics.drainDistributionSeries();
-
     // then
     assertTrue(hasData);
     assertTrue(emptyCounts.isEmpty());
@@ -239,7 +262,10 @@ class RumInjectorMetricsTest {
   }
 
   private static void assertCountMetric(
-      Metric metric, String expectedMetricName, String... expectedTags) {
+      Metric metric,
+      String expectedMetricName,
+      String... expectedTags
+  ) {
     assertEquals("rum", metric.namespace);
     assertEquals(expectedMetricName, metric.metricName);
     assertEquals("count", metric.type);
@@ -252,7 +278,8 @@ class RumInjectorMetricsTest {
       DistributionSeriesPoint point,
       String expectedMetricName,
       int expectedValue,
-      String... expectedTags) {
+      String... expectedTags
+  ) {
     assertEquals("rum", point.namespace);
     assertEquals(expectedMetricName, point.metricName);
     assertEquals(expectedValue, point.value);

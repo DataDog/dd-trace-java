@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.reactor.core;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -18,7 +17,8 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
-    implements ExcludeFilterProvider {
+    implements ExcludeFilterProvider
+{
   public ReactorCoreModule() {
     super("reactor-core");
   }
@@ -26,7 +26,8 @@ public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ReactorAsyncResultExtension", packageName + ".ReactorContextBridge",
+        packageName + ".ReactorAsyncResultExtension",
+        packageName + ".ReactorContextBridge"
     };
   }
 
@@ -48,7 +49,9 @@ public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
             "reactor.core.publisher.TopicProcessor$TopicInner",
             "reactor.core.publisher.TopicProcessor$TopicInner$1",
             "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner",
-            "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner$1"));
+            "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner$1"
+        )
+    );
   }
 
   @Override
@@ -57,6 +60,7 @@ public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
         new BlockingPublisherInstrumentation(),
         new CorePublisherInstrumentation(),
         new ContextWritingSubscriberInstrumentation(),
-        new OptimizableOperatorInstrumentation());
+        new OptimizableOperatorInstrumentation()
+    );
   }
 }

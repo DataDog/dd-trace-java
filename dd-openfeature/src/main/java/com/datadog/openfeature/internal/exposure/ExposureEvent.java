@@ -20,7 +20,8 @@ public class ExposureEvent {
       final Flag flag,
       final Variant variant,
       final Subject subject,
-      final Integer serialId) {
+      final Integer serialId
+  ) {
     this(timestamp, allocation, flag, variant, subject, serialId, null);
   }
 
@@ -31,7 +32,8 @@ public class ExposureEvent {
       final Variant variant,
       final Subject subject,
       final Integer serialId,
-      final Map<String, Object> features) {
+      final Map<String, Object> features
+  ) {
     this.timestamp = timestamp;
     this.allocation = allocation;
     this.flag = flag;

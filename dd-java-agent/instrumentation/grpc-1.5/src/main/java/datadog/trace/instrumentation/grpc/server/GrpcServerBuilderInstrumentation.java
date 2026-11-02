@@ -7,7 +7,6 @@ import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -19,24 +18,26 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class GrpcServerBuilderInstrumentation
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public boolean onlyMatchKnownTypes() {
-    return InstrumenterConfig.get()
-        .isIntegrationShortcutMatchingEnabled(asList("grpc", "grpc-server"), true);
+    return InstrumenterConfig
+      .get()
+      .isIntegrationShortcutMatchingEnabled(asList("grpc", "grpc-server"), true);
   }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.grpc.internal.AbstractServerImplBuilder",
-      "io.grpc.alts.AltsServerBuilder",
-      "io.grpc.ForwardingServerBuilder",
-      "io.grpc.inprocess.InProcessServerBuilder",
-      "io.grpc.netty.NettyServerBuilder",
-      "io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder",
-      "io.grpc.internal.ServerImplBuilder"
+        "io.grpc.internal.AbstractServerImplBuilder",
+        "io.grpc.alts.AltsServerBuilder",
+        "io.grpc.ForwardingServerBuilder",
+        "io.grpc.inprocess.InProcessServerBuilder",
+        "io.grpc.netty.NettyServerBuilder",
+        "io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder",
+        "io.grpc.internal.ServerImplBuilder"
     };
   }
 
@@ -54,11 +55,11 @@ public class GrpcServerBuilderInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("build")).and(takesArguments(0)),
-        GrpcServerBuilderInstrumentation.class.getName() + "$BuildAdvice");
+        GrpcServerBuilderInstrumentation.class.getName() + "$BuildAdvice"
+    );
   }
 
   public static class BuildAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.This ServerBuilder<?> serverBuilder) {
       int callDepth = incrementCallDepth(ServerBuilder.class);

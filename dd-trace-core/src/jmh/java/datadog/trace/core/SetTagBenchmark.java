@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -38,7 +37,6 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(value = 3)
 public class SetTagBenchmark {
   static final CoreTracer TRACER = CoreTracer.builder().build();
-
   private DDSpan span;
   private TagMap tagMap;
   private long nonConstantTagId;

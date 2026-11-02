@@ -13,7 +13,6 @@ import java.nio.file.Paths;
 import javax.annotation.Nullable;
 
 public class CIProviderGitInfoBuilder implements GitInfoBuilder {
-
   private final Config config;
   private final CiEnvironment environment;
 

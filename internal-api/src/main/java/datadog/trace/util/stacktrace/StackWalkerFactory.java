@@ -10,19 +10,16 @@ import org.slf4j.LoggerFactory;
 
 @SuppressForbidden
 public class StackWalkerFactory {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(StackWalkerFactory.class);
-
   public static final StackWalker INSTANCE;
 
   static {
     Stream<StackWalker> stream = Stream.of(hotspot(), jdk9()).map(Supplier::get);
-    INSTANCE =
-        stream
-            .filter(Objects::nonNull)
-            .filter(StackWalker::isEnabled)
-            .findFirst()
-            .orElseGet(defaultStackWalker());
+    INSTANCE = stream
+      .filter(Objects::nonNull)
+      .filter(StackWalker::isEnabled)
+      .findFirst()
+      .orElseGet(defaultStackWalker());
   }
 
   private static Supplier<StackWalker> defaultStackWalker() {
@@ -44,10 +41,10 @@ public class StackWalkerFactory {
         return null;
       }
       try {
-        return (StackWalker)
-            Class.forName("datadog.trace.util.stacktrace.JDK9StackWalker")
-                .getDeclaredConstructor()
-                .newInstance();
+        return (StackWalker) Class
+          .forName("datadog.trace.util.stacktrace.JDK9StackWalker")
+          .getDeclaredConstructor()
+          .newInstance();
       } catch (Throwable e) {
         LOGGER.warn("JDK9StackWalker not available", e);
         return null;

@@ -2,12 +2,10 @@ package datadog.trace.civisibility.coverage.line;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-
 import datadog.trace.civisibility.coverage.line.LineCoverageStore.AnalysisCacheKey;
 import org.junit.jupiter.api.Test;
 
 class LineCoverageStoreTest {
-
   @Test
   void cacheKeyReusesAnalysisForSameClassAndProbes() {
     AnalysisCacheKey key = new AnalysisCacheKey(1L, new boolean[] {true, false, true, false});

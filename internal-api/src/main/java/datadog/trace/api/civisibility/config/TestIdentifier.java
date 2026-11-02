@@ -5,16 +5,18 @@ import datadog.trace.util.Strings;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-/** Uniquely identifies a test case with FQN and parameters. */
+/**
+ * Uniquely identifies a test case with FQN and parameters.
+ */
 public class TestIdentifier {
   private final TestFQN fqn;
-
   /**
    * Some API endpoints do not return parameters data. If this field is {@code null} then either
    * corresponding test case is not parameterized, or this identifier refers to <strong>all</strong>
    * parameter variations.
    */
-  private @Nullable final String parameters;
+  @Nullable
+  private final String parameters;
 
   public TestIdentifier(String suite, String name, @Nullable String parameters) {
     this.fqn = new TestFQN(suite, name);

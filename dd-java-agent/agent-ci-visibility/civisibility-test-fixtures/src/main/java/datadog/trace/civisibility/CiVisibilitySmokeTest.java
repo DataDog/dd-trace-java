@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestFQN;
@@ -32,11 +31,10 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.io.TempDir;
 
 public abstract class CiVisibilitySmokeTest {
-
-  public static final List<String> SMOKE_IGNORED_TAGS =
-      Collections.unmodifiableList(
-          Arrays.asList("content.meta.['_dd.integration']", "content.meta.['_dd.svc_src']"));
-
+  public static final List<String> SMOKE_IGNORED_TAGS = Collections.unmodifiableList(Arrays.asList(
+      "content.meta.['_dd.integration']",
+      "content.meta.['_dd.svc_src']"
+  ));
   protected static final String AGENT_JAR =
       System.getProperty("datadog.smoketest.agent.shadowJar.path");
   protected static final String TEST_ENVIRONMENT_NAME = "integration-test";
@@ -44,18 +42,17 @@ public abstract class CiVisibilitySmokeTest {
       Config.get().getCiVisibilityCompilerPluginVersion();
   protected static final String JACOCO_PLUGIN_VERSION =
       Config.get().getCiVisibilityJacocoPluginVersion();
-
   private static final Map<String, String> DEFAULT_TRACER_CONFIG = defaultJvmArguments();
-
   private static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
   private static final String DISABLE_CDS = "-Xshare:off";
-
-  private static final Path JVM_CRASH_LOGS_DIR =
-      Paths.get(
-          System.getProperty("datadog.smoketest.builddir", "build"), "reports", "jvm-crash-logs");
+  private static final Path JVM_CRASH_LOGS_DIR = Paths.get(
+      System.getProperty("datadog.smoketest.builddir", "build"),
+      "reports",
+      "jvm-crash-logs"
+  );
   private static final int JVM_CRASH_LOG_PRINTED_LINES = 60;
-
-  @TempDir protected Path prefsDir;
+  @TempDir
+  protected Path prefsDir;
 
   protected static String buildJavaHome() {
     String javaHome = System.getProperty("java.home");
@@ -99,7 +96,10 @@ public abstract class CiVisibilitySmokeTest {
   }
 
   private static Map<String, String> buildJvmArgMap(
-      String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
+      String mockBackendIntakeUrl,
+      String serviceName,
+      Map<String, String> additionalArgs
+  ) {
     Map<String, String> argMap = new HashMap<>(DEFAULT_TRACER_CONFIG);
     argMap.put(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL, mockBackendIntakeUrl);
     argMap.put(CiVisibilityConfig.CIVISIBILITY_INTAKE_AGENTLESS_URL, mockBackendIntakeUrl);
@@ -114,7 +114,10 @@ public abstract class CiVisibilitySmokeTest {
   }
 
   protected List<String> buildJvmArguments(
-      String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
+      String mockBackendIntakeUrl,
+      String serviceName,
+      Map<String, String> additionalArgs
+  ) {
     List<String> arguments = new ArrayList<>(Arrays.asList("-Xms256m", "-Xmx512m"));
     // Disable CDS to avoid SIGSEGVs on Linux arm64
     if (isLinuxArm64()) {
@@ -124,7 +127,6 @@ public abstract class CiVisibilitySmokeTest {
     arguments.add(preventJulPrefsFileLock());
 
     Map<String, String> argMap = buildJvmArgMap(mockBackendIntakeUrl, serviceName, additionalArgs);
-
     // Convenience switches for local debugging. Set as JVM system properties (e.g. via
     // `-Ddatadog.civisibility.smoketest.debug.parent=1`) rather than env vars, to keep the
     // config-inversion-linter happy (it forbids unregistered `DD_…` env-var literals in
@@ -135,7 +137,6 @@ public abstract class CiVisibilitySmokeTest {
     if (System.getProperty("datadog.civisibility.smoketest.debug.child") != null) {
       argMap.put(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT, "5055");
     }
-
     // CI-Vis smoke tests produce a lot of logs in debug mode, so it is disabled by default.
     // Note: GitLab capacity for job logs at 32 MB and truncates the rest, which can fail the job.
     // Enable full debug via `-Ddatadog.civisibility.smoketest.debug.enabled=true`.
@@ -143,10 +144,11 @@ public abstract class CiVisibilitySmokeTest {
       argMap.put(GeneralConfig.TRACE_DEBUG, "true");
     }
 
-    String agentArgs =
-        argMap.entrySet().stream()
-            .map(e -> propertyNameToSystemPropertyName(e.getKey()) + "=" + e.getValue())
-            .collect(Collectors.joining(","));
+    String agentArgs = argMap
+      .entrySet()
+      .stream()
+      .map(e -> propertyNameToSystemPropertyName(e.getKey()) + "=" + e.getValue())
+      .collect(Collectors.joining(","));
     arguments.add("-javaagent:" + AGENT_JAR + "=" + agentArgs);
 
     return arguments;
@@ -182,7 +184,8 @@ public abstract class CiVisibilitySmokeTest {
     }
     environment.put(
         JAVA_TOOL_OPTIONS,
-        options == null || options.isEmpty() ? DISABLE_CDS : options + " " + DISABLE_CDS);
+        options == null || options.isEmpty() ? DISABLE_CDS : options + " " + DISABLE_CDS
+    );
   }
 
   private static boolean isLinuxArm64() {
@@ -201,10 +204,9 @@ public abstract class CiVisibilitySmokeTest {
 
     List<Path> crashLogs;
     try (Stream<Path> files = Files.walk(directory)) {
-      crashLogs =
-          files
-              .filter(p -> p.getFileName().toString().matches("hs_err_pid\\d+\\.log"))
-              .collect(Collectors.toList());
+      crashLogs = files
+        .filter(p -> p.getFileName().toString().matches("hs_err_pid\\d+\\.log"))
+        .collect(Collectors.toList());
     } catch (IOException | UncheckedIOException e) {
       System.err.printf("Failed to look for JVM crash logs in %s: %s%n", directory, e);
       return;
@@ -221,7 +223,8 @@ public abstract class CiVisibilitySmokeTest {
               "JVM crash log %s (copied to %s):%n%s%n",
               crashLog,
               copy.toAbsolutePath(),
-              lines.limit(JVM_CRASH_LOG_PRINTED_LINES).collect(Collectors.joining("\n")));
+              lines.limit(JVM_CRASH_LOG_PRINTED_LINES).collect(Collectors.joining("\n"))
+          );
         }
       } catch (IOException | UncheckedIOException e) {
         System.err.printf("Failed to report JVM crash log %s: %s%n", crashLog, e);
@@ -231,7 +234,11 @@ public abstract class CiVisibilitySmokeTest {
 
   private static Path tempUserPrefsPath() {
     String uniqueId =
-        System.currentTimeMillis() + "_" + System.nanoTime() + "_" + Thread.currentThread().getId();
+        System.currentTimeMillis()
+        + "_"
+        + System.nanoTime()
+        + "_"
+        + Thread.currentThread().getId();
     return Paths.get(System.getProperty("java.io.tmpdir"), "gradle-test-userPrefs", uniqueId);
   }
 
@@ -240,9 +247,16 @@ public abstract class CiVisibilitySmokeTest {
       String toolchain,
       String toolchainVersion,
       List<? extends Map<?, ?>> events,
-      List<? extends Map<?, ?>> coverages) {
+      List<? extends Map<?, ?>> coverages
+  ) {
     verifyEventsAndCoverages(
-        projectName, toolchain, toolchainVersion, events, coverages, Collections.emptyList());
+        projectName,
+        toolchain,
+        toolchainVersion,
+        events,
+        coverages,
+        Collections.emptyList()
+    );
   }
 
   protected void verifyEventsAndCoverages(
@@ -251,28 +265,35 @@ public abstract class CiVisibilitySmokeTest {
       String toolchainVersion,
       List<? extends Map<?, ?>> events,
       List<? extends Map<?, ?>> coverages,
-      List<String> additionalDynamicTags) {
+      List<String> additionalDynamicTags
+  ) {
     Map<String, String> additionalReplacements = new HashMap<>();
     additionalReplacements.put(
-        "content.meta.['test.toolchain']", toolchain + ":" + toolchainVersion);
+        "content.meta.['test.toolchain']",
+        toolchain + ":" + toolchainVersion
+    );
 
     if (System.getenv("GENERATE_TEST_FIXTURES") != null) {
       String baseTemplatesPath;
       try {
-        baseTemplatesPath =
-            CiVisibilitySmokeTest.class
-                .getClassLoader()
-                .getResource(projectName)
-                .toURI()
-                .getSchemeSpecificPart()
-                .replace("build/resources/test", "src/test/resources");
+        baseTemplatesPath = CiVisibilitySmokeTest.class
+          .getClassLoader()
+          .getResource(projectName)
+          .toURI()
+          .getSchemeSpecificPart()
+          .replace("build/resources/test", "src/test/resources");
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
       List<String> dynamicPaths = new ArrayList<>(additionalReplacements.keySet());
       dynamicPaths.addAll(additionalDynamicTags);
       CiVisibilityTestUtils.generateTemplates(
-          baseTemplatesPath, events, coverages, dynamicPaths, SMOKE_IGNORED_TAGS);
+          baseTemplatesPath,
+          events,
+          coverages,
+          dynamicPaths,
+          SMOKE_IGNORED_TAGS
+      );
     } else {
       CiVisibilityTestUtils.assertData(
           projectName,
@@ -280,7 +301,8 @@ public abstract class CiVisibilitySmokeTest {
           coverages,
           additionalReplacements,
           SMOKE_IGNORED_TAGS,
-          additionalDynamicTags);
+          additionalDynamicTags
+      );
     }
   }
 
@@ -302,7 +324,8 @@ public abstract class CiVisibilitySmokeTest {
   protected void verifyTelemetryMetrics(
       List<Map<String, Object>> receivedTelemetryMetrics,
       List<Map<String, Object>> receivedTelemetryDistributions,
-      int expectedEventsCount) {
+      int expectedEventsCount
+  ) {
     int eventsCreated = 0;
     int eventsFinished = 0;
     for (Map<String, Object> metric : receivedTelemetryMetrics) {
@@ -319,7 +342,6 @@ public abstract class CiVisibilitySmokeTest {
     }
     assertEquals(expectedEventsCount, eventsCreated);
     assertEquals(expectedEventsCount, eventsFinished);
-
     // an even more basic smoke check for distributions: assert that we received some
     assertFalse(receivedTelemetryDistributions.isEmpty());
   }
@@ -327,13 +349,18 @@ public abstract class CiVisibilitySmokeTest {
   protected void verifyCoverageReports(
       String projectName,
       List<CiVisibilityTestUtils.CoverageReport> reports,
-      Map<String, String> replacements) {
+      Map<String, String> replacements
+  ) {
     CiVisibilityTestUtils.assertData(projectName, reports, replacements);
   }
 
   protected static void verifySnapshotLogs(
-      List<Map<String, Object>> receivedLogs, int expectedProbes, int expectedSnapshots) {
-    int logsPerProbe = 3; // 3 probe statuses per probe -> received, installed, emitting
+      List<Map<String, Object>> receivedLogs,
+      int expectedProbes,
+      int expectedSnapshots
+  ) {
+    // 3 probe statuses per probe -> received, installed, emitting
+    int logsPerProbe = 3;
 
     assertEquals(logsPerProbe * expectedProbes + expectedSnapshots, receivedLogs.size());
 
@@ -352,16 +379,19 @@ public abstract class CiVisibilitySmokeTest {
   }
 
   private static void verifyProbeStatuses(List<Map<String, Object>> logs, int expectedCount) {
-    long received =
-        logs.stream()
-            .filter(log -> ((String) log.get("message")).startsWith("Received probe"))
-            .count();
-    long installed =
-        logs.stream()
-            .filter(log -> ((String) log.get("message")).startsWith("Installed probe"))
-            .count();
+    long received = logs
+      .stream()
+      .filter(log -> ((String) log.get("message")).startsWith("Received probe"))
+      .count();
+    long installed = logs
+      .stream()
+      .filter(log -> ((String) log.get("message")).startsWith("Installed probe"))
+      .count();
     long emitting =
-        logs.stream().filter(log -> ((String) log.get("message")).endsWith("is emitting.")).count();
+        logs
+      .stream()
+      .filter(log -> ((String) log.get("message")).endsWith("is emitting."))
+      .count();
     assertEquals(expectedCount, received);
     assertEquals(expectedCount, installed);
     assertEquals(expectedCount, emitting);
@@ -372,12 +402,13 @@ public abstract class CiVisibilitySmokeTest {
 
     List<String> requiredLogFields =
         Arrays.asList("logger.name", "logger.method", "dd.span_id", "dd.trace_id");
-    List<String> requiredSnapshotFields =
-        Arrays.asList("captures", "exceptionId", "probe", "stack");
+    List<String> requiredSnapshotFields = Arrays.asList("captures", "exceptionId", "probe", "stack");
 
     for (Map<String, Object> log : logs) {
-      requiredLogFields.forEach(
-          field -> assertTrue(log.containsKey(field), "log must contain field: " + field));
+      requiredLogFields.forEach(field -> assertTrue(
+          log.containsKey(field),
+          "log must contain field: " + field
+      ));
 
       @SuppressWarnings("unchecked")
       Map<String, Object> debuggerMap = (Map<String, Object>) log.get("debugger");
@@ -385,10 +416,10 @@ public abstract class CiVisibilitySmokeTest {
       Map<String, Object> snapshotContent = (Map<String, Object>) debuggerMap.get("snapshot");
 
       assertNotNull(snapshotContent, "snapshot must not be null");
-      requiredSnapshotFields.forEach(
-          field ->
-              assertTrue(
-                  snapshotContent.containsKey(field), "snapshot must contain field: " + field));
+      requiredSnapshotFields.forEach(field -> assertTrue(
+          snapshotContent.containsKey(field),
+          "snapshot must contain field: " + field
+      ));
     }
   }
 }

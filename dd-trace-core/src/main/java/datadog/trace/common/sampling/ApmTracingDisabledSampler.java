@@ -12,14 +12,15 @@ import java.time.Clock;
  * checks {@link ActiveSubsystems#APPSEC_ACTIVE} per trace.
  */
 public class ApmTracingDisabledSampler implements Sampler, PrioritySampler {
-
   private final AsmStandaloneSampler asmStandaloneSampler;
   private final ForcePrioritySampler dropSampler;
 
   public ApmTracingDisabledSampler(final Clock clock) {
     this.asmStandaloneSampler = new AsmStandaloneSampler(clock);
-    this.dropSampler =
-        new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
+    this.dropSampler = new ForcePrioritySampler(
+        PrioritySampling.SAMPLER_DROP,
+        SamplingMechanism.DEFAULT
+    );
   }
 
   @Override

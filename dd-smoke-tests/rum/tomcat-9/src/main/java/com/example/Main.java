@@ -15,25 +15,22 @@ public class Main {
 
     Tomcat tomcat = new Tomcat();
     tomcat.setPort(port);
-    tomcat.getConnector(); // This is required to make Tomcat start
+    // This is required to make Tomcat start
+    tomcat.getConnector();
     tomcat.setBaseDir(".");
-
     // Add webapp context
     String contextPath = "";
     String docBase = new File(".").getAbsolutePath();
     Context context = tomcat.addContext(contextPath, docBase);
-
     // Add servlet programmatically
-    context.addServletContainerInitializer(
-        (c, ctx) -> {
-          ctx.addServlet("htmlServlet", new HtmlServlet()).addMapping("/html");
-          final ServletRegistration.Dynamic registration =
-              ctx.addServlet("htmlAsyncServlet", new HtmlAsyncServlet());
-          registration.addMapping("/html_async");
-          registration.setAsyncSupported(true);
-          ctx.addServlet("xmlServlet", new XmlServlet()).addMapping("/xml");
-        },
-        null);
+    context.addServletContainerInitializer((c, ctx) -> {
+      ctx.addServlet("htmlServlet", new HtmlServlet()).addMapping("/html");
+      final ServletRegistration.Dynamic registration =
+          ctx.addServlet("htmlAsyncServlet", new HtmlAsyncServlet());
+      registration.addMapping("/html_async");
+      registration.setAsyncSupported(true);
+      ctx.addServlet("xmlServlet", new XmlServlet()).addMapping("/xml");
+    }, null);
 
     tomcat.start();
     tomcat.getServer().await();

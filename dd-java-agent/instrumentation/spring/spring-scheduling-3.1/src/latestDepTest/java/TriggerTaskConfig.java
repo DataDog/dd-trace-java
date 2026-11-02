@@ -15,8 +15,7 @@ public class TriggerTaskConfig {
   }
 
   @Bean
-  public ScheduledTasksEndpoint scheduledTasksEndpoint(
-      ObjectProvider<ScheduledTaskHolder> holders) {
+  public ScheduledTasksEndpoint scheduledTasksEndpoint(ObjectProvider<ScheduledTaskHolder> holders) {
     return new ScheduledTasksEndpoint(holders.orderedStream().collect(Collectors.toSet()));
   }
 }

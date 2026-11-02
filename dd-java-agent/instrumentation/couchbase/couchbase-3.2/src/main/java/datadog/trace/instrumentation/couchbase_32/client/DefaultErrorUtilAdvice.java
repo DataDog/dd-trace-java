@@ -8,7 +8,9 @@ import net.bytebuddy.asm.Advice;
 public class DefaultErrorUtilAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onExit(
-      @Advice.Argument(0) KeyValueRequest<?> request, @Advice.Return CouchbaseException ex) {
+      @Advice.Argument(0) KeyValueRequest<?> request,
+      @Advice.Return CouchbaseException ex
+  ) {
     if (null != request) {
       RequestSpan requestSpan = request.requestSpan();
       if (requestSpan instanceof DatadogRequestSpan) {

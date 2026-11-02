@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -26,16 +25,17 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithTypeStructure {
-
+    Instrumenter.HasMethodAdvice,
+    Instrumenter.WithTypeStructure
+{
   public KafkaConsumerInfoInstrumentation() {
     super("kafka", "kafka-3.8");
   }
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
+    // since 3.8
+    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy");
   }
 
   @Override
@@ -43,17 +43,22 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     Map<String, String> contextStores = new HashMap<>(4);
     contextStores.put(
         "org.apache.kafka.clients.Metadata",
-        "datadog.trace.instrumentation.kafka_common.MetadataState");
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
+    );
     contextStores.put(
-        "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
+        "org.apache.kafka.clients.consumer.ConsumerRecords",
+        KafkaConsumerInfo.class.getName()
+    );
     // new- here we are storing the callbackinvoker and consumerdelegate in the context store
     // as opposed to the old consumercoordinator and kafkaconsumer
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker",
-        KafkaConsumerInfo.class.getName());
+        KafkaConsumerInfo.class.getName()
+    );
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerDelegate",
-        KafkaConsumerInfo.class.getName());
+        KafkaConsumerInfo.class.getName()
+    );
     return contextStores;
   }
 
@@ -75,13 +80,13 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaDecorator",
-      packageName + ".KafkaConsumerInfo",
-      packageName + ".KafkaConsumerInstrumentationHelper",
-      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.PendingConfig",
-      "datadog.trace.instrumentation.kafka_common.MetadataState",
+        packageName + ".KafkaDecorator",
+        packageName + ".KafkaConsumerInfo",
+        packageName + ".KafkaConsumerInstrumentationHelper",
+        "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+        "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+        "datadog.trace.instrumentation.kafka_common.PendingConfig",
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
     };
   }
 
@@ -89,16 +94,18 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
-            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
-            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
-        packageName + ".ConstructorAdvice");
+          .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
+          .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
+          .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
+        packageName + ".ConstructorAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("poll"))
-            .and(takesArguments(1))
-            .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
-        packageName + ".RecordsAdvice");
+          .and(isPublic())
+          .and(named("poll"))
+          .and(takesArguments(1))
+          .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
+        packageName + ".RecordsAdvice"
+    );
   }
 }

@@ -53,14 +53,16 @@ import org.jacoco.report.xml.XMLFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Processes Jacoco coverage reports. */
+/**
+ * Processes Jacoco coverage reports.
+ */
 public class JacocoCoverageProcessor implements CoverageProcessor {
-
   public static final class Factory implements CoverageProcessor.Factory<JacocoCoverageProcessor> {
     private final Config config;
     private final RepoIndexProvider repoIndexProvider;
     private final CoverageReportUploader coverageReportUploader;
-    @Nullable private final String repoRoot;
+    @Nullable
+    private final String repoRoot;
     private final ModuleSignalRouter moduleSignalRouter;
 
     public Factory(
@@ -68,7 +70,8 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
         RepoIndexProvider repoIndexProvider,
         CoverageReportUploader coverageReportUploader,
         @Nullable String repoRoot,
-        ModuleSignalRouter moduleSignalRouter) {
+        ModuleSignalRouter moduleSignalRouter
+    ) {
       this.config = config;
       this.repoIndexProvider = repoIndexProvider;
       this.coverageReportUploader = coverageReportUploader;
@@ -79,7 +82,12 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
     @Override
     public JacocoCoverageProcessor sessionCoverage(long sessionId) {
       return new JacocoCoverageProcessor(
-          config, repoIndexProvider, coverageReportUploader, repoRoot, sessionId);
+          config,
+          repoIndexProvider,
+          coverageReportUploader,
+          repoRoot,
+          sessionId
+      );
     }
 
     @Override
@@ -87,42 +95,38 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
         long moduleId,
         @Nullable BuildModuleLayout moduleLayout,
         ExecutionSettings executionSettings,
-        JacocoCoverageProcessor sessionCoverage) {
+        JacocoCoverageProcessor sessionCoverage
+    ) {
       return new JacocoCoverageProcessor(
           config,
           repoIndexProvider,
-          null, // do not upload coverage reports for individual modules
+          // do not upload coverage reports for individual modules
+          null,
           executionSettings,
           repoRoot,
           moduleId,
           moduleLayout,
           moduleSignalRouter,
-          sessionCoverage);
+          sessionCoverage
+      );
     }
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JacocoCoverageProcessor.class);
-
-  @Nullable private final JacocoCoverageProcessor parent;
-
+  @Nullable
+  private final JacocoCoverageProcessor parent;
   private final Config config;
-
   private final RepoIndexProvider repoIndexProvider;
-
-  @Nullable private final CoverageReportUploader coverageReportUploader;
-
-  @Nullable private final String repoRoot;
-
+  @Nullable
+  private final CoverageReportUploader coverageReportUploader;
+  @Nullable
+  private final String repoRoot;
   private final long eventId;
-
   private final Object coverageDataLock = new Object();
-
   @GuardedBy("coverageDataLock")
   private final ExecutionDataStore coverageData = new ExecutionDataStore();
-
   @GuardedBy("coverageDataLock")
   private final Map<String, BitSet> backendCoverageData = new HashMap<>();
-
   @GuardedBy("coverageDataLock")
   private final Collection<File> outputClassesDirs = new HashSet<>();
 
@@ -131,7 +135,8 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
       RepoIndexProvider repoIndexProvider,
       @Nullable CoverageReportUploader coverageReportUploader,
       @Nullable String repoRoot,
-      long sessionId) {
+      long sessionId
+  ) {
     this.parent = null;
     this.config = config;
     this.repoIndexProvider = repoIndexProvider;
@@ -149,7 +154,8 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
       long moduleId,
       @Nullable BuildModuleLayout moduleLayout,
       ModuleSignalRouter moduleSignalRouter,
-      @Nonnull JacocoCoverageProcessor parent) {
+      @Nonnull JacocoCoverageProcessor parent
+  ) {
     this.parent = parent;
     this.config = config;
     this.repoIndexProvider = repoIndexProvider;
@@ -164,7 +170,10 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
 
     addModuleLayout(moduleLayout);
     moduleSignalRouter.registerModuleHandler(
-        moduleId, SignalType.MODULE_COVERAGE_DATA_JACOCO, this::addCoverageData);
+        moduleId,
+        SignalType.MODULE_COVERAGE_DATA_JACOCO,
+        this::addCoverageData
+    );
   }
 
   private void addModuleLayout(@Nullable BuildModuleLayout moduleLayout) {
@@ -186,7 +195,9 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
     }
   }
 
-  /** Handles skipped tests' coverage data received from the backend */
+  /**
+   * Handles skipped tests' coverage data received from the backend
+   */
   private void addBackendCoverageData(@Nonnull Map<String, BitSet> skippableTestsCoverage) {
     synchronized (coverageDataLock) {
       for (Map.Entry<String, BitSet> e : skippableTestsCoverage.entrySet()) {
@@ -206,7 +217,9 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
     return merged;
   }
 
-  /** Handles executed tests' coverage data received from a JVM that ran tests */
+  /**
+   * Handles executed tests' coverage data received from a JVM that ran tests
+   */
   private SignalResponse addCoverageData(ModuleCoverageDataJacoco moduleCoverageData) {
     byte[] rawCoverageData = moduleCoverageData.getCoverageData();
     ExecutionDataStore parsedCoverageData = parseCoverageData(rawCoverageData);
@@ -298,12 +311,14 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
   private File getCoverageReportFolder() {
     String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
     if (coverageReportDumpDir != null) {
-      return Paths.get(
-              coverageReportDumpDir,
-              (parent == null ? "session" : "module") + "-" + eventId,
-              "aggregated")
-          .toAbsolutePath()
-          .toFile();
+      return Paths
+        .get(
+            coverageReportDumpDir,
+            (parent == null ? "session" : "module") + "-" + eventId,
+            "aggregated"
+        )
+        .toAbsolutePath()
+        .toFile();
     } else {
       return null;
     }
@@ -344,7 +359,8 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
 
   private static final class RepoIndexFileLocator extends InputStreamSourceFileLocator {
     private final RepoIndex repoIndex;
-    @Nonnull private final String repoRoot;
+    @Nonnull
+    private final String repoRoot;
 
     private RepoIndexFileLocator(RepoIndex repoIndex, @Nonnull String repoRoot) {
       super("utf-8", 4);
@@ -369,7 +385,8 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
   private static final class NoOpFileLocator implements ISourceFileLocator {
     private static final NoOpFileLocator INSTANCE = new NoOpFileLocator();
 
-    private NoOpFileLocator() {}
+    private NoOpFileLocator() {
+    }
 
     @Override
     public Reader getSourceFile(String s, String s1) {
@@ -395,7 +412,6 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
       xmlVisitor.visitEnd();
 
       coverageReportUploader.upload("jacoco", new ByteArrayInputStream(baos.toByteArray()));
-
     } catch (IOException e) {
       LOGGER.error("Error while uploading coverage report", e);
     }
@@ -446,8 +462,10 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
         // backendCoverageData contains data for all modules in the repo,
         // but coverageBundle bundle only has source files that are relevant for the given module,
         // so we are not taking into account any backend coverage that is not relevant
-        linesCoverage.coveredLines.or(
-            backendCoverageData.getOrDefault(pathRelativeToIndexRoot, EMPTY_BIT_SET));
+        linesCoverage.coveredLines.or(backendCoverageData.getOrDefault(
+            pathRelativeToIndexRoot,
+            EMPTY_BIT_SET
+        ));
 
         mergedCoverageData.put(pathRelativeToIndexRoot, linesCoverage);
 
@@ -469,7 +487,9 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
     String lcovReport = LcovReportWriter.toString(mergedCoverageData);
     try {
       coverageReportUploader.upload(
-          "lcov", new ByteArrayInputStream(lcovReport.getBytes(StandardCharsets.UTF_8)));
+          "lcov",
+          new ByteArrayInputStream(lcovReport.getBytes(StandardCharsets.UTF_8))
+      );
     } catch (IOException e) {
       LOGGER.error("Error while uploading coverage report", e);
     }

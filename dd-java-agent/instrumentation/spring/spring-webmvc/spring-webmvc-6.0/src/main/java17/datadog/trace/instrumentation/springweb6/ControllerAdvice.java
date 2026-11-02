@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.handlerSpanKeys;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Pair;
@@ -17,13 +16,12 @@ import net.bytebuddy.asm.Advice;
 import org.springframework.web.method.HandlerMethod;
 
 public class ControllerAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope nameResourceAndStartSpan(
       @Advice.Argument(0) final HttpServletRequest request,
       @Advice.Argument(2) final Object handler,
-      @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys) {
-
+      @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys
+  ) {
     /*
     By the time HandlerAdapter.handle runs, every handler mapping kind (annotated and SimpleUrlHandlerMapping via its
     PathExposingHandlerInterceptor) has populated BEST_MATCHING_PATTERN_ATTRIBUTE.
@@ -40,9 +38,7 @@ public class ControllerAdvice {
     if (activeSpan() == null) {
       return null;
     }
-
     // Now create a span for handler/controller execution.
-
     final Class<?> handlerClass;
     if (handler instanceof HandlerMethod) {
       handlerClass = ((HandlerMethod) handler).getBean().getClass();
@@ -50,15 +46,14 @@ public class ControllerAdvice {
       handlerClass = handler.getClass();
     }
     handlerSpanKeys = handlerSpanKeys(handlerClass);
-
     // If the context already exists, return it
     final Object existingContext = request.getAttribute(handlerSpanKeys.getLeft());
     if (existingContext instanceof Context) {
       return ((Context) existingContext).attach();
     }
 
-    final AgentSpan span =
-        startSpan("spring-web-controller", DECORATE.spanName()).setMeasured(true);
+    final AgentSpan span = startSpan("spring-web-controller", DECORATE.spanName())
+      .setMeasured(true);
     DECORATE.afterStart(span);
     DECORATE.onHandle(span, handler);
 
@@ -71,7 +66,8 @@ public class ControllerAdvice {
       @Advice.Enter final ContextScope scope,
       @Advice.Argument(0) final HttpServletRequest request,
       @Advice.Thrown final Throwable throwable,
-      @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys) {
+      @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys
+  ) {
     if (scope == null) {
       return;
     }

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.openfeature;
 
 import static java.lang.reflect.Modifier.isAbstract;
 import static java.lang.reflect.Modifier.isStatic;
-
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
@@ -14,20 +13,23 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import java.lang.reflect.Method;
 import javax.annotation.Nullable;
 
-/** The bridge backed by the agent Feature Flags backend. */
+/**
+ * The bridge backed by the agent Feature Flags backend.
+ */
 public final class JavaAgentBridge implements AgentBridge {
   // Muzzle checks calls, but not the SPI methods implemented by these helpers.
   // TODO APMLP-1512 Drop this check once dd-openfeature 1.69.0 is released: the japicmpBridgeV1
   //  task then keeps the frozen bridge.v1 SPI compatible with the helpers implementing it.
-  private static final boolean SPI_COMPATIBLE =
-      implementsSpi(AgentBridge.class, JavaAgentBridge.class)
-          && implementsSpi(ConfigurationSource.class, AgentConfigurationSource.class)
-          && implementsSpi(EventTransport.class, AgentEventProxy.class)
-          && implementsSpi(HealthMetrics.class, AgentHealthMetrics.class)
-          && implementsSpi(SpanEnricher.class, AgentSpanEnricher.class)
-          && implementsSpi(ShutdownSource.class, AgentShutdownSource.class)
-          && implementsSpi(AgentBridge.class, DisabledAgentBridge.class);
-
+  private static final boolean SPI_COMPATIBLE = implementsSpi(
+      AgentBridge.class,
+      JavaAgentBridge.class
+  )
+      && implementsSpi(ConfigurationSource.class, AgentConfigurationSource.class)
+      && implementsSpi(EventTransport.class, AgentEventProxy.class)
+      && implementsSpi(HealthMetrics.class, AgentHealthMetrics.class)
+      && implementsSpi(SpanEnricher.class, AgentSpanEnricher.class)
+      && implementsSpi(ShutdownSource.class, AgentShutdownSource.class)
+      && implementsSpi(AgentBridge.class, DisabledAgentBridge.class);
   private final FeatureFlaggingGateway.Backend backend;
   private final HealthMetrics healthMetrics;
   private final SpanEnricher spanEnricher;

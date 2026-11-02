@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -16,9 +15,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
-/** Exercises {@link ConcurrentHashtable#tryReserve} and {@link ConcurrentHashtable.Reservation}. */
+/**
+ * Exercises {@link ConcurrentHashtable#tryReserve} and {@link ConcurrentHashtable.Reservation}.
+ */
 class ConcurrentHashtableReservationTest {
-
   private static final class TestEntry extends ConcurrentHashtable.Entry<TestEntry> {
     final int value;
 
@@ -45,7 +45,6 @@ class ConcurrentHashtableReservationTest {
     }
     assertEquals(1, first.value);
     assertEquals(1, ConcurrentHashtable.estimateSize(state));
-
     // Reserving again for a key that already exists should discard the reservation and return the
     // existing entry, not double-insert or leak the claimed slot.
     TestEntry second;
@@ -74,13 +73,10 @@ class ConcurrentHashtableReservationTest {
     TestEntry result;
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 4)) {
       assertFalse(r.isReserved());
-      result =
-          r.tryGetOrInsertOrNull(
-              4,
-              v -> {
-                factoryCalls.incrementAndGet();
-                return new TestEntry(v);
-              });
+      result = r.tryGetOrInsertOrNull(4, v -> {
+        factoryCalls.incrementAndGet();
+        return new TestEntry(v);
+      });
     }
     assertNull(result);
     assertEquals(0, factoryCalls.get());
@@ -310,13 +306,10 @@ class ConcurrentHashtableReservationTest {
     TestEntry result;
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 4)) {
       assertFalse(r.isReserved());
-      result =
-          r.tryGetOrInsertOrNull(
-              4,
-              v -> {
-                factoryCalls.incrementAndGet();
-                return new TestEntry(v);
-              });
+      result = r.tryGetOrInsertOrNull(4, v -> {
+        factoryCalls.incrementAndGet();
+        return new TestEntry(v);
+      });
     }
     assertNull(result);
     assertEquals(0, factoryCalls.get());
@@ -338,7 +331,6 @@ class ConcurrentHashtableReservationTest {
       r.tryGetOrInsertOrNull(3, TestEntry::new);
     }
     assertTrue(ConcurrentHashtable.isFull(state));
-
     // Reserving for the same keyHash again simulates a concurrent duplicate insert landing just
     // before the caller's own reservation attempt.
     TestEntry match;
@@ -387,15 +379,12 @@ class ConcurrentHashtableReservationTest {
 
     ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
-      Future<TestEntry> secondFuture =
-          executor.submit(
-              () -> {
-                try (ConcurrentHashtable.Reservation<TestEntry> second =
-                    ConcurrentHashtable.tryReserve(state, 1)) {
-                  return second.tryGetOrInsertOrNull(new TestEntry(1));
-                }
-              });
-
+      Future<TestEntry> secondFuture = executor.submit(() -> {
+        try (ConcurrentHashtable.Reservation<TestEntry> second =
+            ConcurrentHashtable.tryReserve(state, 1)) {
+          return second.tryGetOrInsertOrNull(new TestEntry(1));
+        }
+      });
       // A buggy fast-reject would complete this immediately (with a null result) instead of
       // blocking on the still-held write lock.
       assertThrows(TimeoutException.class, () -> secondFuture.get(200, TimeUnit.MILLISECONDS));

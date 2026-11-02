@@ -1,6 +1,8 @@
 package com.datadog.openfeature.internal.flagevaluation;
 
-/** Records flag evaluation events from the evaluation thread, without blocking. */
+/**
+ * Records flag evaluation events from the evaluation thread, without blocking.
+ */
 public interface FlagEvaluationWriter {
   /**
    * Reports whether the async hand-off queue currently has room for another event. Producers
@@ -13,7 +15,9 @@ public interface FlagEvaluationWriter {
    */
   boolean hasCapacityForEnqueue();
 
-  /** Counts one queue-overflow drop without offering an event. */
+  /**
+   * Counts one queue-overflow drop without offering an event.
+   */
   void countPreQueueOverflow();
 
   /**

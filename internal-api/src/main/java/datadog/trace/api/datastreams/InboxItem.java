@@ -1,3 +1,4 @@
 package datadog.trace.api.datastreams;
 
-public interface InboxItem {}
+public interface InboxItem {
+}

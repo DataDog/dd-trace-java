@@ -15,7 +15,6 @@ import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorat
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.JAKARTA_RS_CONTROLLER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -36,8 +35,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private static final String JAKARTA_ENDPOINT_OPERATION_NAME = "jakarta-rs.request";
 
   public JakartaRsAnnotationsInstrumentation() {
@@ -70,26 +70,27 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(
-        declaresAnnotation(named(hierarchyMarkerType()))
-            .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
+    return hasSuperType(declaresAnnotation(named(hierarchyMarkerType()))
+      .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType()))))
+    );
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(hasSuperMethod(isAnnotatedWith(namedOneOf(getJaxRsAnnotations())))),
-        JakartaRsAnnotationsInstrumentation.class.getName() + "$JakartaRsAnnotationsAdvice");
+        JakartaRsAnnotationsInstrumentation.class.getName() + "$JakartaRsAnnotationsAdvice"
+    );
   }
 
   public static class JakartaRsAnnotationsAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope nameSpan(
         @Advice.This final Object target,
         @Advice.Origin final Method method,
         @Advice.AllArguments final Object[] args,
-        @Advice.Local("asyncResponse") AsyncResponse asyncResponse) {
+        @Advice.Local("asyncResponse") AsyncResponse asyncResponse
+    ) {
       ContextStore<AsyncResponse, AgentSpan> contextStore = null;
       for (final Object arg : args) {
         if (arg instanceof AsyncResponse) {
@@ -107,7 +108,6 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
           break;
         }
       }
-
       // Rename the parent span according to the path represented by these annotations.
       final AgentSpan parent = activeSpan();
 
@@ -130,7 +130,8 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
     public static void stopSpan(
         @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Local("asyncResponse") final AsyncResponse asyncResponse) {
+        @Advice.Local("asyncResponse") final AsyncResponse asyncResponse
+    ) {
       if (scope == null) {
         return;
       }

@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
-
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.ufc.Allocation;
@@ -25,16 +24,18 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** Drives the span-enrichment branch of {@link DDEvaluator}, enabled through its settings. */
+/**
+ * Drives the span-enrichment branch of {@link DDEvaluator}, enabled through its settings.
+ */
 class DDEvaluatorSpanEnrichmentTest {
-
   @Test
   void enrichmentMetadataCarriesTheSplitSerialId() {
     final ProviderEvaluation<?> result = evaluate(340132);
 
     assertNotNull(
         result.getFlagMetadata().getBoolean(DO_LOG),
-        "span enrichment must be on, or the assertions below pass vacuously");
+        "span enrichment must be on, or the assertions below pass vacuously"
+    );
     assertEquals(Integer.valueOf(340132), result.getFlagMetadata().getInteger(SPLIT_SERIAL_ID));
   }
 
@@ -52,13 +53,14 @@ class DDEvaluatorSpanEnrichmentTest {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put(
         "target",
-        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation))
+    );
 
-    final DDEvaluator evaluator =
-        new DDEvaluator(
-            mock(Runnable.class),
-            AgentBridge.NONE,
-            TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true"));
+    final DDEvaluator evaluator = new DDEvaluator(
+        mock(Runnable.class),
+        AgentBridge.NONE,
+        TestSettings.of("experimental.flagging.provider.span.enrichment.enabled", "true")
+    );
     evaluator.accept(new ServerConfiguration("", "", true, null, flags));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("user-1");

@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.Integration;
 import datadog.trace.api.telemetry.IntegrationsCollector;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class IntegrationPeriodicActionTest {
-
   private final IntegrationPeriodicAction periodicAction = new IntegrationPeriodicAction();
   private final TelemetryService telemetryService = mock(TelemetryService.class);
 
@@ -38,10 +36,10 @@ class IntegrationPeriodicActionTest {
   }
 
   private void assertMatchingIntegration(List<Integration> integrations, String name) {
-    List<Integration> matches =
-        integrations.stream()
-            .filter(integration -> integration.name.equals(name))
-            .collect(Collectors.toList());
+    List<Integration> matches = integrations
+      .stream()
+      .filter(integration -> integration.name.equals(name))
+      .collect(Collectors.toList());
     assertEquals(1, matches.size(), "expected exactly one match for " + name);
     assertTrue(matches.get(0).enabled);
   }

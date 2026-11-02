@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static java.util.Objects.requireNonNull;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -9,9 +8,10 @@ import java.util.Map;
 import java.util.Objects;
 
 public class SpanAttributes {
-  /** Represent an empty attributes. */
+  /**
+   * Represent an empty attributes.
+   */
   public static final SpanAttributes EMPTY = new SpanAttributes(Collections.emptyMap());
-
   private final Map<String, String> attributes;
 
   protected SpanAttributes(Map<String, String> attributes) {
@@ -129,7 +129,9 @@ public class SpanAttributes {
 
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof SpanAttributes)) return false;
+    if (!(o instanceof SpanAttributes)) {
+      return false;
+    }
     SpanAttributes that = (SpanAttributes) o;
     return Objects.equals(attributes, that.attributes);
   }

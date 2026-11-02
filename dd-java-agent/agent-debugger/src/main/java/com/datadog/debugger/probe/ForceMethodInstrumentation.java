@@ -8,4 +8,5 @@ package com.datadog.debugger.probe;
  * information they are collecting is very much related to specific lines but the lifecycle of a
  * line probe is insufficient to gather that data.
  */
-public interface ForceMethodInstrumentation {}
+public interface ForceMethodInstrumentation {
+}

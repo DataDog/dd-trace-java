@@ -3,13 +3,14 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.util.CollectionUtils.arrayContains;
-
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
 import java.util.BitSet;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Records a single match result in the bit-set. */
+/**
+ * Records a single match result in the bit-set.
+ */
 abstract class MatchRecorder {
   protected final int id;
 
@@ -18,13 +19,19 @@ abstract class MatchRecorder {
   }
 
   public abstract void record(
-      TypeDescription type, ClassLoader classLoader, Class<?> classBeingRedefined, BitSet matches);
+      TypeDescription type,
+      ClassLoader classLoader,
+      Class<?> classBeingRedefined,
+      BitSet matches
+  );
 
   public String describe() {
     return InstrumenterState.describe(id);
   }
 
-  /** Selects types based on a simple direct match that doesn't require further lookup. */
+  /**
+   * Selects types based on a simple direct match that doesn't require further lookup.
+   */
   static final class ForType extends MatchRecorder {
     private final ElementMatcher<TypeDescription> typeMatcher;
 
@@ -38,7 +45,8 @@ abstract class MatchRecorder {
         TypeDescription type,
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
-        BitSet matches) {
+        BitSet matches
+    ) {
       long fromTick = InstrumenterMetrics.tick();
       if (typeMatcher.matches(type)) {
         InstrumenterMetrics.knownTypeHit(fromTick);
@@ -49,7 +57,9 @@ abstract class MatchRecorder {
     }
   }
 
-  /** Selects types based on more complex matching against the type's hierarchy. */
+  /**
+   * Selects types based on more complex matching against the type's hierarchy.
+   */
   static final class ForHierarchy extends MatchRecorder {
     private final ElementMatcher<ClassLoader> hintMatcher;
     private final ElementMatcher<TypeDescription> typeMatcher;
@@ -66,7 +76,8 @@ abstract class MatchRecorder {
         TypeDescription type,
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
-        BitSet matches) {
+        BitSet matches
+    ) {
       // check current state first in case a known-type already matched this instrumentation
       if (!matches.get(id)) {
         long fromTick = InstrumenterMetrics.tick();
@@ -80,13 +91,18 @@ abstract class MatchRecorder {
     }
   }
 
-  /** Selects types that can and should have a context-store field injected. */
+  /**
+   * Selects types that can and should have a context-store field injected.
+   */
   static final class ForContextStore extends MatchRecorder {
     private final ElementMatcher<ClassLoader> activation;
     private final FieldBackedContextMatcher contextMatcher;
 
     ForContextStore(
-        int id, ElementMatcher<ClassLoader> activation, FieldBackedContextMatcher contextMatcher) {
+        int id,
+        ElementMatcher<ClassLoader> activation,
+        FieldBackedContextMatcher contextMatcher
+    ) {
       super(id);
       this.activation = activation;
       this.contextMatcher = contextMatcher;
@@ -97,7 +113,8 @@ abstract class MatchRecorder {
         TypeDescription type,
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
-        BitSet matches) {
+        BitSet matches
+    ) {
       long fromTick = InstrumenterMetrics.tick();
       if (activation.matches(classLoader) && contextMatcher.matches(type, classBeingRedefined)) {
         InstrumenterMetrics.contextStoreHit(fromTick);
@@ -114,7 +131,9 @@ abstract class MatchRecorder {
     }
   }
 
-  /** Narrows the current match to eliminate incompatible types. */
+  /**
+   * Narrows the current match to eliminate incompatible types.
+   */
   static final class NarrowType extends MatchRecorder {
     private final ElementMatcher<TypeDescription> matcher;
 
@@ -128,7 +147,8 @@ abstract class MatchRecorder {
         TypeDescription type,
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
-        BitSet matches) {
+        BitSet matches
+    ) {
       if (matches.get(id)) {
         long fromTick = InstrumenterMetrics.tick();
         if (!matcher.matches(type)) {
@@ -141,7 +161,9 @@ abstract class MatchRecorder {
     }
   }
 
-  /** Narrows the current match to avoid structural changes on already-loaded classes. */
+  /**
+   * Narrows the current match to avoid structural changes on already-loaded classes.
+   */
   static final class PreserveLoadedStructure extends MatchRecorder {
     private final Class<?> structuralChangeMarker;
 
@@ -155,7 +177,8 @@ abstract class MatchRecorder {
         TypeDescription type,
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
-        BitSet matches) {
+        BitSet matches
+    ) {
       // don't transform loaded classes unless they directly declare the marker
       // - we must re-transform those to preserve the original structural change
       if (matches.get(id)
@@ -166,7 +189,9 @@ abstract class MatchRecorder {
     }
   }
 
-  /** Copies an already-computed match into another id, avoiding a redundant type match. */
+  /**
+   * Copies an already-computed match into another id, avoiding a redundant type match.
+   */
   static final class CopyMatch extends MatchRecorder {
     private final int fromId;
 
@@ -184,14 +209,17 @@ abstract class MatchRecorder {
         TypeDescription type,
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
-        BitSet matches) {
+        BitSet matches
+    ) {
       if (matches.get(fromId)) {
         matches.set(id);
       }
     }
   }
 
-  /** Narrows the current match to eliminate incompatible class-loaders. */
+  /**
+   * Narrows the current match to eliminate incompatible class-loaders.
+   */
   static final class NarrowLocation extends MatchRecorder {
     private final ElementMatcher<ClassLoader> matcher;
 
@@ -205,7 +233,8 @@ abstract class MatchRecorder {
         TypeDescription type,
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
-        BitSet matches) {
+        BitSet matches
+    ) {
       if (matches.get(id)) {
         long fromTick = InstrumenterMetrics.tick();
         if (!matcher.matches(classLoader)) {

@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -29,7 +28,9 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class AsyncCommandInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public AsyncCommandInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-async");
   }
@@ -48,20 +49,22 @@ public class AsyncCommandInstrumentation extends InstrumenterModule.ContextTrack
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArguments(1)
-                    .and(takesArgument(0, named("io.lettuce.core.protocol.RedisCommand")))),
-        getClass().getName() + "$Capture");
+          .and(takesArguments(1)
+            .and(takesArgument(0, named("io.lettuce.core.protocol.RedisCommand")))
+          ),
+        getClass().getName() + "$Capture"
+    );
     transformer.applyAdvice(
         isMethod().and(namedOneOf("complete", "completeExceptionally", "onComplete", "encode")),
-        getClass().getName() + "$Activate");
+        getClass().getName() + "$Activate"
+    );
     transformer.applyAdvice(
         isMethod().and(named("cancel")).and(takesArguments(boolean.class)),
-        getClass().getName() + "$Cancel");
+        getClass().getName() + "$Cancel"
+    );
   }
 
   public static final class Capture {
-
     @SuppressWarnings("rawtypes")
     @Advice.OnMethodExit
     public static void after(@Advice.This AsyncCommand asyncCommand) {
@@ -74,7 +77,9 @@ public class AsyncCommandInstrumentation extends InstrumenterModule.ContextTrack
     @Advice.OnMethodEnter
     public static ContextScope before(@Advice.This AsyncCommand asyncCommand) {
       return startTaskScope(
-          InstrumentationContext.get(AsyncCommand.class, State.class), asyncCommand);
+          InstrumentationContext.get(AsyncCommand.class, State.class),
+          asyncCommand
+      );
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
@@ -88,7 +93,9 @@ public class AsyncCommandInstrumentation extends InstrumenterModule.ContextTrack
     @Advice.OnMethodEnter
     public static void before(@Advice.This AsyncCommand asyncCommand) {
       AdviceUtils.cancelTask(
-          InstrumentationContext.get(AsyncCommand.class, State.class), asyncCommand);
+          InstrumentationContext.get(AsyncCommand.class, State.class),
+          asyncCommand
+      );
     }
   }
 }

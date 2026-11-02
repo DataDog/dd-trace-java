@@ -13,9 +13,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 class TruncatedVulnerabilitiesAdapter extends FormattingAdapter<TruncatedVulnerabilities> {
-
   private static final String MAX_SIZE_EXCEEDED = "MAX_SIZE_EXCEEDED";
-
   private final JsonAdapter<Vulnerability> vulnerabilityAdapter;
 
   public TruncatedVulnerabilitiesAdapter(Moshi moshi) {
@@ -43,11 +41,8 @@ class TruncatedVulnerabilitiesAdapter extends FormattingAdapter<TruncatedVulnera
   }
 
   private static class TruncatedVulnerabilityAdapter extends FormattingAdapter<Vulnerability> {
-
     private final JsonAdapter<VulnerabilityType> vulnerabilityTypeAdapter;
-
     private final JsonAdapter<Evidence> evidenceAdapter;
-
     private final JsonAdapter<Location> locationAdapter;
 
     public TruncatedVulnerabilityAdapter(Moshi moshi) {
@@ -57,8 +52,7 @@ class TruncatedVulnerabilitiesAdapter extends FormattingAdapter<TruncatedVulnera
     }
 
     @Override
-    public void toJson(@Nonnull JsonWriter writer, @Nullable Vulnerability value)
-        throws IOException {
+    public void toJson(@Nonnull JsonWriter writer, @Nullable Vulnerability value) throws IOException {
       if (value == null) {
         return;
       }

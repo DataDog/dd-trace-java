@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-
 import datadog.trace.api.DDTags;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class DefaultLogHandlerTest extends DDJavaSpecification {
-
   private final ListWriter writer = new ListWriter();
   private final CoreTracer tracer = CoreTracer.builder().writer(writer).build();
 

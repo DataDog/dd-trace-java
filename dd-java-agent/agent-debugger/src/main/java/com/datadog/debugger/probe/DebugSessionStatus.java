@@ -9,7 +9,6 @@ public enum DebugSessionStatus {
   },
   ACTIVE,
   DISABLED;
-
   public boolean isDefined() {
     return true;
   }

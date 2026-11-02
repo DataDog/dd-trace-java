@@ -6,7 +6,6 @@ public enum TagMapScenario {
   OPTIMIZED_SMALL(10),
   OPTIMIZED_MEDIUM(25),
   OPTIMIZED_LARGE(125);
-
   final int size;
 
   TagMapScenario(int size) {

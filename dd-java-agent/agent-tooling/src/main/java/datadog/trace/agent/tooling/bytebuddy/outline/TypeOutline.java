@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy.outline;
 
 import static datadog.trace.agent.tooling.bytebuddy.outline.AnnotationOutline.annotationOutline;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType;
-
 import datadog.instrument.classmatch.ClassOutline;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,24 +15,22 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.jar.asm.Opcodes;
 
-/** Provides an outline of a type; i.e. the named elements making up its structure. */
+/**
+ * Provides an outline of a type; i.e. the named elements making up its structure.
+ */
 final class TypeOutline extends WithName {
-  private static final int ALLOWED_TYPE_MODIFIERS = 0x0000ffdf; // excludes ACC_SUPER
-
+  // excludes ACC_SUPER
+  private static final int ALLOWED_TYPE_MODIFIERS = 0x0000ffdf;
   static final TypeList.Generic NO_TYPES = new TypeList.Generic.Empty();
   static final AnnotationList NO_ANNOTATIONS = new AnnotationList.Empty();
-
   private static final FieldList<FieldDescription.InDefinedShape> NO_FIELDS =
       new FieldList.Empty<>();
   private static final MethodList<MethodDescription.InDefinedShape> NO_METHODS =
       new MethodList.Empty<>();
-
   private final int modifiers;
   private final String superName;
   private final String[] interfaces;
-
   private List<AnnotationDescription> declaredAnnotations;
-
   private final List<FieldDescription.InDefinedShape> declaredFields = new ArrayList<>();
   private final List<MethodDescription.InDefinedShape> declaredMethods = new ArrayList<>();
 
@@ -44,7 +41,9 @@ final class TypeOutline extends WithName {
     this.interfaces = interfaces;
   }
 
-  /** Adapts simpler {@link ClassOutline} structure to existing {@link TypeOutline}. */
+  /**
+   * Adapts simpler {@link ClassOutline} structure to existing {@link TypeOutline}.
+   */
   public TypeOutline(ClassOutline outline) {
     super(outline.className.replace('/', '.'));
     this.modifiers = outline.access & ALLOWED_TYPE_MODIFIERS;

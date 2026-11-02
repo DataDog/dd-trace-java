@@ -5,7 +5,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class IntervalTask implements Runnable {
-
   private final CountDownLatch latch = new CountDownLatch(1);
 
   @Scheduled(fixedRate = 5000, scheduler = "tracingTaskScheduler")

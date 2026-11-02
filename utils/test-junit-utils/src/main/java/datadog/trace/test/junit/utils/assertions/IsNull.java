@@ -8,7 +8,8 @@ import java.util.Optional;
  * @param <T> The type of the value being matched.
  */
 public class IsNull<T> implements Matcher<T> {
-  IsNull() {}
+  IsNull() {
+  }
 
   @Override
   public Optional<T> expected() {

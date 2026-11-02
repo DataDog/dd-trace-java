@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,8 +18,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public class LegacyProviderInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.WithTypeStructure,
+    Instrumenter.HasMethodAdvice
+{
   public LegacyProviderInstrumentation() {
     super("openfeature");
   }
@@ -51,18 +51,22 @@ public class LegacyProviderInstrumentation extends InstrumenterModule
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         named("initialize").and(takesArguments(1)),
-        packageName + ".LegacyProviderAdvice$Initialize");
+        packageName + ".LegacyProviderAdvice$Initialize"
+    );
     transformer.applyAdvice(
         named("getProviderHooks").and(takesArguments(0)),
-        packageName + ".LegacyProviderAdvice$Hooks");
+        packageName + ".LegacyProviderAdvice$Hooks"
+    );
     transformer.applyAdvice(
         namedOneOf(
-                "getBooleanEvaluation",
-                "getStringEvaluation",
-                "getIntegerEvaluation",
-                "getDoubleEvaluation",
-                "getObjectEvaluation")
-            .and(takesArguments(3)),
-        packageName + ".LegacyProviderAdvice$Evaluation");
+            "getBooleanEvaluation",
+            "getStringEvaluation",
+            "getIntegerEvaluation",
+            "getDoubleEvaluation",
+            "getObjectEvaluation"
+        )
+          .and(takesArguments(3)),
+        packageName + ".LegacyProviderAdvice$Evaluation"
+    );
   }
 }

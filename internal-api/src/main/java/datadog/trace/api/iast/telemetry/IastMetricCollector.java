@@ -1,7 +1,6 @@
 package datadog.trace.api.iast.telemetry;
 
 import static datadog.trace.api.iast.telemetry.IastMetric.Scope.REQUEST;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -23,13 +22,9 @@ import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("resource")
 public class IastMetricCollector implements MetricCollector<IastMetricCollector.IastMetricData> {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(IastMetricCollector.class);
-
   private static final String NAMESPACE = "iast";
-
   private static final Verbosity VERBOSITY = Config.get().getIastTelemetryVerbosity();
-
   private static IastMetricCollector INSTANCE = new NoOpInstance();
 
   public static void register(final IastMetricCollector collector) {
@@ -61,7 +56,6 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
   }
 
   private final BlockingQueue<IastMetricData> rawMetricsQueue;
-
   private final AtomicLongArray counters;
 
   public IastMetricCollector() {
@@ -69,22 +63,31 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
   }
 
   protected IastMetricCollector(
-      final BlockingQueue<IastMetricData> rawMetricsQueue, final AtomicLongArray counters) {
+      final BlockingQueue<IastMetricData> rawMetricsQueue,
+      final AtomicLongArray counters
+  ) {
     this.rawMetricsQueue = rawMetricsQueue;
     this.counters = counters;
   }
 
-  /** Prefer using {@link #add(IastMetric, int, Object)} if possible */
+  /**
+   * Prefer using {@link #add(IastMetric, int, Object)} if possible
+   */
   public static void add(@Nonnull final IastMetric metric, final int value) {
     add(metric, value, null);
   }
 
   public static void add(
-      @Nonnull final IastMetric metric, final int value, @Nullable final Object ctx) {
+      @Nonnull final IastMetric metric,
+      final int value,
+      @Nullable final Object ctx
+  ) {
     add(metric, (byte) -1, value, ctx);
   }
 
-  /** Prefer using {@link #add(IastMetric, byte, int, Object)} if possible */
+  /**
+   * Prefer using {@link #add(IastMetric, byte, int, Object)} if possible
+   */
   public static void add(@Nonnull final IastMetric metric, final byte tagValue, final int value) {
     add(metric, tagValue, value, null);
   }
@@ -93,7 +96,8 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
       @Nonnull final IastMetric metric,
       final byte tagValue,
       final int value,
-      @Nullable final Object ctx) {
+      @Nullable final Object ctx
+  ) {
     try {
       final IastMetricCollector instance = metric.getScope() == REQUEST ? get(ctx) : INSTANCE;
       instance.addMetric(metric, tagValue, value);
@@ -164,7 +168,6 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
   }
 
   public static class IastMetricData extends MetricCollector.Metric {
-
     private final IastMetric metric;
     private final byte tagValue;
 
@@ -175,7 +178,8 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
           metric.getName(),
           "count",
           value,
-          metric.getTelemetryTag(tagValue));
+          metric.getTelemetryTag(tagValue)
+      );
       this.metric = metric;
       this.tagValue = tagValue;
     }
@@ -199,7 +203,6 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
   }
 
   private static class NoOpInstance extends IastMetricCollector {
-
     public NoOpInstance() {
       super(null, null);
     }
@@ -220,7 +223,6 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
   }
 
   public interface HasMetricCollector {
-
     IastMetricCollector getMetricCollector();
   }
 }

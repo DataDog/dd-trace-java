@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.jetty_client12.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jetty_client12.JettyClientDecorator.DECORATE;
-
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

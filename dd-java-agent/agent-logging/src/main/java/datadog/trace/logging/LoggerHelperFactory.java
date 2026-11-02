@@ -2,7 +2,9 @@ package datadog.trace.logging;
 
 import java.util.Map;
 
-/** A factory for creating {@link LoggerHelper} instances. */
+/**
+ * A factory for creating {@link LoggerHelper} instances.
+ */
 public abstract class LoggerHelperFactory {
   /**
    * Create a {@link LoggerHelper} for the given {@code name}.

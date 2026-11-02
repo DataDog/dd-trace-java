@@ -10,7 +10,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -27,7 +26,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ScopeDiagnosticsExtensionTest {
-
   private static class FailingFixture {
     @BeforeAll
     static void failSuiteSetup() {}
@@ -58,7 +56,7 @@ class ScopeDiagnosticsExtensionTest {
     Invocation<Void> harnessSetup = mock(Invocation.class);
     ReflectiveInvocationContext<Method> harnessContext = mock(ReflectiveInvocationContext.class);
     when(harnessContext.getExecutable())
-        .thenReturn(AbstractInstrumentationTest.class.getDeclaredMethod("initAll"));
+      .thenReturn(AbstractInstrumentationTest.class.getDeclaredMethod("initAll"));
     extension.interceptBeforeAllMethod(harnessSetup, harnessContext, context);
 
     ContextContinuation continuation = Context.root().capture();
@@ -68,19 +66,21 @@ class ScopeDiagnosticsExtensionTest {
         DDTraceId.from(1),
         2,
         "suite.setup",
-        (byte) 0);
+        (byte) 0
+    );
 
     RuntimeException setupFailure = new RuntimeException("suite setup failed");
     Invocation<Void> failingSetup = mock(Invocation.class);
     doThrow(setupFailure).when(failingSetup).proceed();
     ReflectiveInvocationContext<Method> failingContext = mock(ReflectiveInvocationContext.class);
     when(failingContext.getExecutable())
-        .thenReturn(FailingFixture.class.getDeclaredMethod("failSuiteSetup"));
+      .thenReturn(FailingFixture.class.getDeclaredMethod("failSuiteSetup"));
 
-    RuntimeException thrown =
-        assertThrows(
-            RuntimeException.class,
-            () -> extension.interceptBeforeAllMethod(failingSetup, failingContext, context));
+    RuntimeException thrown = assertThrows(RuntimeException.class, () -> extension.interceptBeforeAllMethod(
+        failingSetup,
+        failingContext,
+        context
+    ));
 
     assertSame(setupFailure, thrown);
     assertEquals(1, thrown.getSuppressed().length);
@@ -101,17 +101,16 @@ class ScopeDiagnosticsExtensionTest {
     Invocation<Void> harnessSetup = mock(Invocation.class);
     ReflectiveInvocationContext<Method> harnessContext = mock(ReflectiveInvocationContext.class);
     when(harnessContext.getExecutable())
-        .thenReturn(AbstractInstrumentationTest.class.getDeclaredMethod("initAll"));
+      .thenReturn(AbstractInstrumentationTest.class.getDeclaredMethod("initAll"));
     extension.interceptBeforeAllMethod(harnessSetup, harnessContext, context);
     recordLeak();
-
     // Suite setup uses the class exclusion even when the test method enforces leaks.
     extension.beforeEach(context);
     extension.afterEach(context);
     recordLeak();
 
     when(harnessContext.getExecutable())
-        .thenReturn(AbstractInstrumentationTest.class.getDeclaredMethod("tearDownAll"));
+      .thenReturn(AbstractInstrumentationTest.class.getDeclaredMethod("tearDownAll"));
     Invocation<Void> harnessCleanup = mock(Invocation.class);
     extension.interceptAfterAllMethod(harnessCleanup, harnessContext, context);
   }
@@ -137,7 +136,7 @@ class ScopeDiagnosticsExtensionTest {
     when(context.getTestClass()).thenReturn(Optional.of(SelectiveFixture.class));
     doReturn(SelectiveFixture.class).when(context).getRequiredTestClass();
     when(context.getElement())
-        .thenReturn(Optional.of(SelectiveFixture.class.getDeclaredMethod(methodName)));
+      .thenReturn(Optional.of(SelectiveFixture.class.getDeclaredMethod(methodName)));
     return context;
   }
 
@@ -149,7 +148,8 @@ class ScopeDiagnosticsExtensionTest {
         DDTraceId.from(1),
         2,
         "fixture",
-        (byte) 0);
+        (byte) 0
+    );
     // The diagnostic is recorded explicitly; release the real continuation to avoid a resource
     // leak.
     continuation.release();

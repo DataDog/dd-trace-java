@@ -4,7 +4,9 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 
-/** This application is a minimalistic application to create spans. */
+/**
+ * This application is a minimalistic application to create spans.
+ */
 public class Application {
   public static void main(String[] args) throws InterruptedException {
     // Get an Open Telemetry tracer

@@ -11,7 +11,6 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALU
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static java.util.Arrays.asList;
-
 import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
@@ -46,7 +45,9 @@ import java.util.regex.PatternSyntaxException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Local evaluation over a single configuration snapshot. No transport dependency. */
+/**
+ * Local evaluation over a single configuration snapshot. No transport dependency.
+ */
 public final class FlagEvaluator {
   private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluator.class);
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
@@ -75,7 +76,8 @@ public final class FlagEvaluator {
   public FlagEvaluator(
       final boolean spanEnrichmentEnabled,
       final ExposureLookup exposureLookup,
-      final ExperimentationOptOutMode experimentationOptOutMode) {
+      final ExperimentationOptOutMode experimentationOptOutMode
+  ) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
     this.exposureLookup = exposureLookup;
     this.experimentationOptOutMode = experimentationOptOutMode;
@@ -86,7 +88,8 @@ public final class FlagEvaluator {
       final Class<T> target,
       final String key,
       final T defaultValue,
-      final EvaluationContext context) {
+      final EvaluationContext context
+  ) {
     // Snapshot the config once and thread observeFullEvaluationData through every
     // ProviderEvaluation returned, so the hook's consent decision is pinned to this evaluation's
     // config and cannot drift on a concurrent Remote Config swap.
@@ -108,13 +111,14 @@ public final class FlagEvaluator {
         experimentationCutoff = ExperimentationOptOut.cutoff(experimentationOptOutMode, context);
       } catch (final ExperimentationOptOut.InvalidTimestampException e) {
         // This diagnostic is fixed SDK text. It contains no customer context values.
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.ERROR.name())
-            .errorCode(ErrorCode.INVALID_CONTEXT)
-            .errorMessage(ExperimentationOptOut.INVALID_TIMESTAMP)
-            .flagMetadata(consentMetadata(observeFullEvaluationData))
-            .build();
+        return ProviderEvaluation
+          .<T>builder()
+          .value(defaultValue)
+          .reason(Reason.ERROR.name())
+          .errorCode(ErrorCode.INVALID_CONTEXT)
+          .errorMessage(ExperimentationOptOut.INVALID_TIMESTAMP)
+          .flagMetadata(consentMetadata(observeFullEvaluationData))
+          .build();
       }
 
       final Flag flag = config.flags.get(key);
@@ -124,7 +128,8 @@ public final class FlagEvaluator {
               defaultValue,
               ErrorCode.PARSE_ERROR,
               "invalid configuration for flag " + key,
-              observeFullEvaluationData);
+              observeFullEvaluationData
+          );
         }
         return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
       }
@@ -136,15 +141,17 @@ public final class FlagEvaluator {
             defaultValue,
             ErrorCode.PARSE_ERROR,
             "invalid randomizationActivatedAt for flag " + key,
-            observeFullEvaluationData);
+            observeFullEvaluationData
+        );
       }
 
       if (!flag.enabled) {
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.DISABLED.name())
-            .flagMetadata(consentMetadata(observeFullEvaluationData))
-            .build();
+        return ProviderEvaluation
+          .<T>builder()
+          .value(defaultValue)
+          .reason(Reason.DISABLED.name())
+          .flagMetadata(consentMetadata(observeFullEvaluationData))
+          .build();
       }
 
       if (flag.allocations == null) {
@@ -152,7 +159,8 @@ public final class FlagEvaluator {
             defaultValue,
             ErrorCode.GENERAL,
             "Missing allocations for flag " + key,
-            observeFullEvaluationData);
+            observeFullEvaluationData
+        );
       }
 
       final Instant now = Instant.now();
@@ -162,7 +170,10 @@ public final class FlagEvaluator {
       for (final Allocation allocation : flag.allocations) {
         if (experimentationCutoff != null
             && ExperimentationOptOut.excludes(
-                experimentationOptOutMode, experimentationCutoff, allocation)) {
+                experimentationOptOutMode,
+                experimentationCutoff,
+                allocation
+            )) {
           continue;
         }
         if (!isAllocationActive(allocation, now)) {
@@ -187,11 +198,16 @@ public final class FlagEvaluator {
                   split,
                   context,
                   evalTimestampMs,
-                  observeFullEvaluationData);
+                  observeFullEvaluationData
+              );
             } else {
               if (targetingKey == null) {
                 return error(
-                    defaultValue, ErrorCode.TARGETING_KEY_MISSING, null, observeFullEvaluationData);
+                    defaultValue,
+                    ErrorCode.TARGETING_KEY_MISSING,
+                    null,
+                    observeFullEvaluationData
+                );
               }
               // To match a split, subject must match ALL underlying shards
               boolean allShardsMatch = true;
@@ -211,51 +227,55 @@ public final class FlagEvaluator {
                     split,
                     context,
                     evalTimestampMs,
-                    observeFullEvaluationData);
+                    observeFullEvaluationData
+                );
               }
             }
           }
         }
       }
 
-      return ProviderEvaluation.<T>builder()
-          .value(defaultValue)
-          .reason(Reason.DEFAULT.name())
-          .flagMetadata(consentMetadata(observeFullEvaluationData))
-          .build();
+      return ProviderEvaluation
+        .<T>builder()
+        .value(defaultValue)
+        .reason(Reason.DEFAULT.name())
+        .flagMetadata(consentMetadata(observeFullEvaluationData))
+        .build();
     } catch (final PatternSyntaxException e) {
       return error(defaultValue, ErrorCode.PARSE_ERROR, e.getMessage(), observeFullEvaluationData);
     } catch (final NumberFormatException e) {
-      return error(
-          defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
+      return error(defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
     } catch (final Exception e) {
       return error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData);
     }
   }
 
   private static ImmutableMetadata consentMetadata(final boolean observeFullEvaluationData) {
-    return ImmutableMetadata.builder()
-        .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
-        .build();
+    return ImmutableMetadata
+      .builder()
+      .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
+      .build();
   }
 
   private static <T> ProviderEvaluation<T> error(
       final T defaultValue,
       final ErrorCode code,
       final String errorMessage,
-      final boolean observeFullEvaluationData) {
+      final boolean observeFullEvaluationData
+  ) {
     // Under consent-off the errorMessage is dropped: exception messages from the outer catch blocks
     // (NumberFormatException, generic Exception) can echo raw evaluation-context values, so they
     // must never reach any consumer of ProviderEvaluation.getErrorMessage() — not just our own
     // wire hook. Downstream (FlagEvalLoggingHook) falls back to ErrorCode.name(), so operators
     // still get a stable signal like "TYPE_MISMATCH".
-    return ProviderEvaluation.<T>builder()
-        .value(defaultValue)
-        .reason(Reason.ERROR.name())
-        .errorCode(code)
-        .errorMessage(observeFullEvaluationData ? errorMessage : null)
-        .flagMetadata(consentMetadata(observeFullEvaluationData))
-        .build();
+    return ProviderEvaluation
+      .<T>builder()
+      .value(defaultValue)
+      .reason(Reason.ERROR.name())
+      .errorCode(code)
+      .errorMessage(observeFullEvaluationData ? errorMessage : null)
+      .flagMetadata(consentMetadata(observeFullEvaluationData))
+      .build();
   }
 
   private static boolean isEmpty(final List<?> list) {
@@ -298,7 +318,9 @@ public final class FlagEvaluator {
   }
 
   private static boolean evaluateCondition(
-      final ConditionConfiguration condition, final EvaluationContext context) {
+      final ConditionConfiguration condition,
+      final EvaluationContext context
+  ) {
     if (condition.operator == ConditionOperator.IS_NULL) {
       final Object value = resolveAttribute(condition.attribute, context);
       boolean isNull = value == null;
@@ -347,13 +369,14 @@ public final class FlagEvaluator {
   }
 
   private static boolean matchesRegex(
-      final Object attributeValue, final ConditionConfiguration condition) {
+      final Object attributeValue,
+      final ConditionConfiguration condition
+  ) {
     // Parsed configurations cache the validated pattern. Directly constructed configurations
     // retain the same syntax and error handling.
-    final Pattern pattern =
-        condition.regex != null
-            ? condition.regex
-            : ConditionConfiguration.compileRegex(condition.value);
+    final Pattern pattern = condition.regex != null
+        ? condition.regex
+        : ConditionConfiguration.compileRegex(condition.value);
     return pattern.matcher(String.valueOf(attributeValue)).find();
   }
 
@@ -382,7 +405,10 @@ public final class FlagEvaluator {
   }
 
   private static boolean compareNumber(
-      final Object attributeValue, final Object conditionValue, NumberComparator comparator) {
+      final Object attributeValue,
+      final Object conditionValue,
+      NumberComparator comparator
+  ) {
     final double a = mapValue(Double.class, attributeValue);
     final double b = mapValue(Double.class, conditionValue);
     return comparator.compare(a, b);
@@ -396,7 +422,8 @@ public final class FlagEvaluator {
   private static boolean evaluateSemverCondition(
       final Object attributeValue,
       final ParsedSemver comparand,
-      final SemverComparator comparator) {
+      final SemverComparator comparator
+  ) {
     if (!(attributeValue instanceof String) || comparand == null) {
       return false;
     }
@@ -417,8 +444,7 @@ public final class FlagEvaluator {
     return false;
   }
 
-  private static long getShard(
-      final String salt, final String targetingKey, final long totalShards) {
+  private static long getShard(final String salt, final String targetingKey, final long totalShards) {
     final String hashKey = salt + "-" + targetingKey;
     final String md5Hash = getMD5Hash(hashKey);
     final String first8Chars = md5Hash.substring(0, Math.min(8, md5Hash.length()));
@@ -453,14 +479,16 @@ public final class FlagEvaluator {
       final Split split,
       final EvaluationContext context,
       final long evalTimestampMs,
-      final boolean observeFullEvaluationData) {
+      final boolean observeFullEvaluationData
+  ) {
     final Variant variant = flag.variations.get(variationKey);
     if (variant == null) {
       return error(
           defaultValue,
           ErrorCode.GENERAL,
           "Variant not found for: " + variationKey,
-          observeFullEvaluationData);
+          observeFullEvaluationData
+      );
     }
 
     if (!isTypeCompatible(target, flag.variationType)) {
@@ -468,10 +496,11 @@ public final class FlagEvaluator {
           defaultValue,
           ErrorCode.TYPE_MISMATCH,
           "Requested type "
-              + target.getSimpleName()
-              + " does not match flag variationType "
-              + flag.variationType.name(),
-          observeFullEvaluationData);
+          + target.getSimpleName()
+          + " does not match flag variationType "
+          + flag.variationType.name(),
+          observeFullEvaluationData
+      );
     }
 
     final T mappedValue;
@@ -482,23 +511,23 @@ public final class FlagEvaluator {
           defaultValue,
           ErrorCode.PARSE_ERROR,
           "Variant '"
-              + variant.key
-              + "' value does not match declared type "
-              + flag.variationType.name()
-              + ": "
-              + e.getMessage(),
-          observeFullEvaluationData);
+          + variant.key
+          + "' value does not match declared type "
+          + flag.variationType.name()
+          + ": "
+          + e.getMessage(),
+          observeFullEvaluationData
+      );
     }
-
     // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
     // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
-    final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
-        ImmutableMetadata.builder()
-            .addString("flagKey", flag.key)
-            .addString("variationType", flag.variationType.name())
-            .addString(ALLOCATION_KEY, allocation.key)
-            .addLong(EVAL_TIMESTAMP_MS, evalTimestampMs)
-            .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
+    final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder = ImmutableMetadata
+      .builder()
+      .addString("flagKey", flag.key)
+      .addString("variationType", flag.variationType.name())
+      .addString(ALLOCATION_KEY, allocation.key)
+      .addLong(EVAL_TIMESTAMP_MS, evalTimestampMs)
+      .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
     // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment and
     // for the exposure hook, which sends the exposure after the evaluation succeeds. An evaluation
     // that neither logs exposures nor enriches spans carries neither key.
@@ -515,23 +544,33 @@ public final class FlagEvaluator {
       metadataBuilder.addBoolean(
           EXPOSURE_CACHE_HIT,
           this.exposureLookup.isExposed(
-              flag.key, context.getTargetingKey(), allocation.key, variant.key, split.serialId));
+              flag.key,
+              context.getTargetingKey(),
+              allocation.key,
+              variant.key,
+              split.serialId
+          )
+      );
     }
-    return ProviderEvaluation.<T>builder()
-        .value(mappedValue)
-        .reason(
-            !isEmpty(allocation.rules)
-                ? Reason.TARGETING_MATCH.name()
-                : allocation.startAt != null || allocation.endAt != null
-                    ? Reason.DEFAULT.name()
-                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
-        .variant(variant.key)
-        .flagMetadata(metadataBuilder.build())
-        .build();
+    return ProviderEvaluation
+      .<T>builder()
+      .value(mappedValue)
+      .reason(
+          !isEmpty(allocation.rules)
+          ? Reason.TARGETING_MATCH.name()
+          : allocation.startAt != null || allocation.endAt != null
+          ? Reason.DEFAULT.name()
+          : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name()
+      )
+      .variant(variant.key)
+      .flagMetadata(metadataBuilder.build())
+      .build();
   }
 
   private static void addSplitFeatures(
-      final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder, final Split split) {
+      final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder,
+      final Split split
+  ) {
     if (split.features == null) {
       return;
     }
@@ -580,7 +619,8 @@ public final class FlagEvaluator {
   private static void addFeature(
       final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder,
       final String key,
-      final Object value) {
+      final Object value
+  ) {
     if (value instanceof String) {
       metadataBuilder.addString(key, (String) value);
     } else if (value instanceof Boolean) {
@@ -600,7 +640,8 @@ public final class FlagEvaluator {
 
   public static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
     if (variationType == null) {
-      return true; // No type info — allow any
+      // No type info — allow any
+      return true;
     }
     switch (variationType) {
       case BOOLEAN:
@@ -614,7 +655,8 @@ public final class FlagEvaluator {
       case JSON:
         return target == Value.class;
       default:
-        return true; // Unknown types pass through — mapValue errors caught as GENERAL
+        // Unknown types pass through — mapValue errors caught as GENERAL
+        return true;
     }
   }
 
@@ -656,7 +698,9 @@ public final class FlagEvaluator {
     return Double.parseDouble(String.valueOf(value));
   }
 
-  /** Tells whether an exposure was already recorded, so it is not sent again. */
+  /**
+   * Tells whether an exposure was already recorded, so it is not sent again.
+   */
   @FunctionalInterface
   public interface ExposureLookup {
     /**
@@ -670,7 +714,12 @@ public final class FlagEvaluator {
      * @return whether the exposure was already recorded.
      */
     boolean isExposed(
-        String flag, String subject, String allocation, String variant, Integer serialId);
+        String flag,
+        String subject,
+        String allocation,
+        String variant,
+        Integer serialId
+    );
   }
 
   @FunctionalInterface

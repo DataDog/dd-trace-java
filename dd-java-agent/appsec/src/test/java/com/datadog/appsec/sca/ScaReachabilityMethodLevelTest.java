@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.DependencySnapshot;
@@ -39,8 +38,9 @@ import org.junit.jupiter.api.Test;
  * {@link ScaReachabilityTransformerTest}.
  */
 class ScaReachabilityMethodLevelTest {
-
-  /** Target class that the transformer will instrument in tests. */
+  /**
+   * Target class that the transformer will instrument in tests.
+   */
   public static class TargetClass {
     public String vulnerableMethod() {
       return "executed";
@@ -51,7 +51,9 @@ class ScaReachabilityMethodLevelTest {
     }
   }
 
-  /** Fixture compiled normally, then stripped of line numbers before callback injection. */
+  /**
+   * Fixture compiled normally, then stripped of line numbers before callback injection.
+   */
   public static class ClassToBeStrippedOfLineNumber {
     // Intentionally non-final so javac emits a field read instead of inlining a constant.
     private static int runtimeFieldValue = 7;
@@ -76,10 +78,14 @@ class ScaReachabilityMethodLevelTest {
   void setUp() throws Exception {
     ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
     // Register the same handler as ScaReachabilitySystem.start() does in production
-    ScaReachabilityCallback.register(
-        (vulnId, artifact, version, dotClassName, methodName, line) ->
-            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-                artifact, version, vulnId, dotClassName, methodName, line));
+    ScaReachabilityCallback.register((vulnId, artifact, version, dotClassName, methodName, line) -> ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        artifact,
+        version,
+        vulnId,
+        dotClassName,
+        methodName,
+        line
+    ));
     db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     transformer = new ScaReachabilityTransformer(db, null);
   }
@@ -93,7 +99,6 @@ class ScaReachabilityMethodLevelTest {
   // ---------------------------------------------------------------------------
   // ASM injection: ScaMethodCallbackInjector.inject()
   // ---------------------------------------------------------------------------
-
   @Test
   void inject_returnsModifiedBytecode() throws Exception {
     byte[] original = bytecodeOf(TargetClass.class);
@@ -131,7 +136,9 @@ class ScaReachabilityMethodLevelTest {
     // back to reporting the vulnerable symbol itself (dotClassName/methodName).
     // This verifies the fallback path works correctly.
     assertFalse(
-        hit.className().isEmpty(), "className must be non-empty (fallback: vulnerable class)");
+        hit.className().isEmpty(),
+        "className must be non-empty (fallback: vulnerable class)"
+    );
     assertFalse(hit.symbolName().isEmpty(), "symbolName must be non-empty");
     assertTrue(hit.line() >= 0, "line must be non-negative");
   }
@@ -145,10 +152,13 @@ class ScaReachabilityMethodLevelTest {
     byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
     Class<?> cls = loadModified(modified);
     Object instance = cls.getDeclaredConstructor().newInstance();
-    cls.getMethod("safeMethod").invoke(instance); // call only the safe method
+    // call only the safe method
+    cls.getMethod("safeMethod").invoke(instance);
 
     assertTrue(
-        drainHits().isEmpty(), "No hit expected when only non-instrumented methods are called");
+        drainHits().isEmpty(),
+        "No hit expected when only non-instrumented methods are called"
+    );
   }
 
   @Test
@@ -169,7 +179,8 @@ class ScaReachabilityMethodLevelTest {
     assertEquals(
         1,
         drainHits().size(),
-        "Hit must be reported only once regardless of how many times the method is called");
+        "Hit must be reported only once regardless of how many times the method is called"
+    );
   }
 
   @Test
@@ -179,10 +190,13 @@ class ScaReachabilityMethodLevelTest {
     callbacks.put(
         "vulnerableMethod",
         Collections.singletonList(
-            spec("GHSA-m1", "com.example:lib", "1.0.0", "T", "vulnerableMethod")));
+            spec("GHSA-m1", "com.example:lib", "1.0.0", "T", "vulnerableMethod")
+        )
+    );
     callbacks.put(
         "safeMethod",
-        Collections.singletonList(spec("GHSA-m2", "com.example:lib", "1.0.0", "T", "safeMethod")));
+        Collections.singletonList(spec("GHSA-m2", "com.example:lib", "1.0.0", "T", "safeMethod"))
+    );
 
     byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
     Class<?> cls = loadModified(modified);
@@ -193,8 +207,12 @@ class ScaReachabilityMethodLevelTest {
 
     List<ScaReachabilityHit> hits = drainHits();
     assertEquals(2, hits.size(), "Each instrumented method produces its own hit");
-    assertTrue(hits.stream().anyMatch(h -> h.symbolName().equals("vulnerableMethod")));
-    assertTrue(hits.stream().anyMatch(h -> h.symbolName().equals("safeMethod")));
+    assertTrue(hits
+      .stream()
+      .anyMatch(h -> h.symbolName().equals("vulnerableMethod")));
+    assertTrue(hits
+      .stream()
+      .anyMatch(h -> h.symbolName().equals("safeMethod")));
   }
 
   @Test
@@ -205,15 +223,21 @@ class ScaReachabilityMethodLevelTest {
     callbacks.put(
         "readField",
         Collections.singletonList(
-            spec("GHSA-field", "com.example:lib", "1.0.0", className, "readField")));
+            spec("GHSA-field", "com.example:lib", "1.0.0", className, "readField")
+        )
+    );
     callbacks.put(
         "returnArgument",
         Collections.singletonList(
-            spec("GHSA-var", "com.example:lib", "1.0.0", className, "returnArgument")));
+            spec("GHSA-var", "com.example:lib", "1.0.0", className, "returnArgument")
+        )
+    );
     callbacks.put(
         "callToString",
         Collections.singletonList(
-            spec("GHSA-method", "com.example:lib", "1.0.0", className, "callToString")));
+            spec("GHSA-method", "com.example:lib", "1.0.0", className, "callToString")
+        )
+    );
 
     Class<?> cls = loadModified(ScaMethodCallbackInjector.inject(original, callbacks));
 
@@ -224,9 +248,15 @@ class ScaReachabilityMethodLevelTest {
     List<ScaReachabilityHit> hits = drainHits();
     assertEquals(3, hits.size());
     assertTrue(hits.stream().allMatch(hit -> hit.line() == 1));
-    assertTrue(hits.stream().anyMatch(hit -> hit.symbolName().equals("readField")));
-    assertTrue(hits.stream().anyMatch(hit -> hit.symbolName().equals("returnArgument")));
-    assertTrue(hits.stream().anyMatch(hit -> hit.symbolName().equals("callToString")));
+    assertTrue(hits
+      .stream()
+      .anyMatch(hit -> hit.symbolName().equals("readField")));
+    assertTrue(hits
+      .stream()
+      .anyMatch(hit -> hit.symbolName().equals("returnArgument")));
+    assertTrue(hits
+      .stream()
+      .anyMatch(hit -> hit.symbolName().equals("callToString")));
   }
 
   @Test
@@ -238,7 +268,6 @@ class ScaReachabilityMethodLevelTest {
     // the registry handler, but the registry itself enforces "single occurrence per CVE".
     // This verifies that ClassB's hit does NOT cause a NullPointerException or error — it is
     // simply ignored since ClassA already provided the first callsite for GHSA-shared.
-
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacksClassA =
         new HashMap<>();
     callbacksClassA.put(
@@ -249,7 +278,10 @@ class ScaReachabilityMethodLevelTest {
                 "com.example:lib",
                 "1.0.0",
                 "com.example.ClassA",
-                "vulnerableMethod")));
+                "vulnerableMethod"
+            )
+        )
+    );
 
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacksClassB =
         new HashMap<>();
@@ -261,7 +293,10 @@ class ScaReachabilityMethodLevelTest {
                 "com.example:lib",
                 "1.0.0",
                 "com.example.ClassB",
-                "vulnerableMethod")));
+                "vulnerableMethod"
+            )
+        )
+    );
 
     byte[] original = bytecodeOf(TargetClass.class);
     Class<?> clsA = loadModified(ScaMethodCallbackInjector.inject(original, callbacksClassA));
@@ -331,13 +366,17 @@ class ScaReachabilityMethodLevelTest {
                 "com.example:lib",
                 "1.0.0",
                 UnhandledFirstOpcodeMethods.class.getName(),
-                methodName)));
+                methodName
+            )
+        )
+    );
     byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
 
     assertEquals(
         "GHSA-first-instruction",
         firstVisitedInstructionOf(modified, methodName),
-        "the injected callback's first LDC (vulnId) must be the method's first visited instruction");
+        "the injected callback's first LDC (vulnId) must be the method's first visited instruction"
+    );
   }
 
   /**
@@ -347,40 +386,42 @@ class ScaReachabilityMethodLevelTest {
    */
   private static Object firstVisitedInstructionOf(byte[] bytecode, String methodName) {
     Object[] first = {null};
-    new ClassReader(bytecode)
-        .accept(
-            new ClassVisitor(OpenedClassReader.ASM_API) {
-              @Override
-              public MethodVisitor visitMethod(
-                  int access, String name, String descriptor, String signature, String[] exc) {
-                if (!name.equals(methodName)) {
-                  return null;
-                }
-                return new MethodVisitor(OpenedClassReader.ASM_API) {
-                  @Override
-                  public void visitLdcInsn(Object value) {
-                    if (first[0] == null) {
-                      first[0] = value;
-                    }
-                  }
+    new ClassReader(bytecode).accept(new ClassVisitor(OpenedClassReader.ASM_API) {
+      @Override
+      public MethodVisitor visitMethod(
+          int access,
+          String name,
+          String descriptor,
+          String signature,
+          String[] exc
+      ) {
+        if (!name.equals(methodName)) {
+          return null;
+        }
+        return new MethodVisitor(OpenedClassReader.ASM_API) {
+          @Override
+          public void visitLdcInsn(Object value) {
+            if (first[0] == null) {
+              first[0] = value;
+            }
+          }
 
-                  @Override
-                  public void visitTypeInsn(int opcode, String type) {
-                    if (first[0] == null) {
-                      first[0] = "TYPE_INSN:" + opcode;
-                    }
-                  }
+          @Override
+          public void visitTypeInsn(int opcode, String type) {
+            if (first[0] == null) {
+              first[0] = "TYPE_INSN:" + opcode;
+            }
+          }
 
-                  @Override
-                  public void visitInvokeDynamicInsn(String n, String d, Handle h, Object... args) {
-                    if (first[0] == null) {
-                      first[0] = "INVOKEDYNAMIC";
-                    }
-                  }
-                };
-              }
-            },
-            0);
+          @Override
+          public void visitInvokeDynamicInsn(String n, String d, Handle h, Object... args) {
+            if (first[0] == null) {
+              first[0] = "INVOKEDYNAMIC";
+            }
+          }
+        };
+      }
+    }, 0);
     assertNotNull(first[0], "no matching instruction found in " + methodName);
     return first[0];
   }
@@ -451,17 +492,19 @@ class ScaReachabilityMethodLevelTest {
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
     for (String methodName :
         new String[] {
-          "intInsn",
-          "jumpInsn",
-          "iincInsn",
-          "tableSwitchInsn",
-          "lookupSwitchInsn",
-          "multiANewArrayInsn"
-        }) {
+        "intInsn",
+        "jumpInsn",
+        "iincInsn",
+        "tableSwitchInsn",
+        "lookupSwitchInsn",
+        "multiANewArrayInsn"
+    }) {
       callbacks.put(
           methodName,
           Collections.singletonList(
-              spec("GHSA-" + methodName, "com.example:lib", "1.0.0", "T", methodName)));
+              spec("GHSA-" + methodName, "com.example:lib", "1.0.0", "T", methodName)
+          )
+      );
     }
 
     Class<?> cls = loadModified(ScaMethodCallbackInjector.inject(original, callbacks));
@@ -480,32 +523,32 @@ class ScaReachabilityMethodLevelTest {
   // ---------------------------------------------------------------------------
   // transform(): two-phase design — first load enqueues, retransform injects
   // ---------------------------------------------------------------------------
-
   @Test
   void transform_firstLoad_schedulesRetransformAndReturnsNull() throws Exception {
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-cls\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + TargetClass.class.getName().replace('.', '/')
-            + "\",\"method\":\"vulnerableMethod\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-cls\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + TargetClass.class.getName().replace('.', '/')
+        + "\",\"method\":\"vulnerableMethod\"}]"
+        + "}]}";
     ScaCveDatabase classDb = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(classDb, null);
 
-    byte[] result =
-        t.transform(
-            null,
-            TargetClass.class.getName().replace('.', '/'),
-            null, // classBeingRedefined == null → first load path
-            TargetClass.class.getProtectionDomain(),
-            bytecodeOf(TargetClass.class));
+    byte[] result = t.transform(
+        null,
+        TargetClass.class.getName().replace('.', '/'),
+        // classBeingRedefined == null → first load path
+        null,
+        TargetClass.class.getProtectionDomain(),
+        bytecodeOf(TargetClass.class)
+    );
 
     assertNull(result, "First load must return null (JAR I/O deferred to periodic task)");
     assertFalse(
         t.pendingRetransformNames.isEmpty(),
-        "First load must add the class name to pendingRetransformNames for the next heartbeat");
+        "First load must add the class name to pendingRetransformNames for the next heartbeat"
+    );
   }
 
   @Test
@@ -518,34 +561,34 @@ class ScaReachabilityMethodLevelTest {
     // is exhausted, which transform_retransform_stopsReQueueingAfterMaxUnresolvedRetries covers.
     // The invariant asserted here is that the retransform path reaches processClass() rather than
     // the first-load fast-path.
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-mth\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + TargetClass.class.getName().replace('.', '/')
-            + "\",\"method\":\"vulnerableMethod\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-mth\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + TargetClass.class.getName().replace('.', '/')
+        + "\",\"method\":\"vulnerableMethod\"}]"
+        + "}]}";
     ScaCveDatabase methodDb = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(methodDb, null);
-
     // Start clean: no pending retransforms
     assertTrue(t.pendingRetransformNames.isEmpty());
 
     t.transform(
         null,
         TargetClass.class.getName().replace('.', '/'),
-        TargetClass.class, // classBeingRedefined != null → retransform path
+        // classBeingRedefined != null → retransform path
+        TargetClass.class,
         TargetClass.class.getProtectionDomain(),
-        bytecodeOf(TargetClass.class));
-
+        bytecodeOf(TargetClass.class)
+    );
     // Version resolution failed (no pom.properties for com.example:lib in test classpath), so
     // processClass() re-queued the class for a retry on the next heartbeat -- this is only attempt
     // 1, well below the cap. This confirms the retransform path reached processClass() rather than
     // the first-load path.
     assertFalse(
         t.pendingRetransformNames.isEmpty(),
-        "processClass() must re-queue on version resolution failure for heartbeat retry");
+        "processClass() must re-queue on version resolution failure for heartbeat retry"
+    );
   }
 
   @Test
@@ -554,19 +597,17 @@ class ScaReachabilityMethodLevelTest {
     // pom.properties anywhere in the test classpath, just like an embedded-Tomcat app never
     // resolving "tomcat"/"tomcat-coyote") must not re-queue itself into pendingRetransformNames
     // forever — every heartbeat would otherwise cost a stop-the-world retransformClasses() call.
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-cap\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + TargetClass.class.getName().replace('.', '/')
-            + "\",\"method\":\"vulnerableMethod\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-cap\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + TargetClass.class.getName().replace('.', '/')
+        + "\",\"method\":\"vulnerableMethod\"}]"
+        + "}]}";
     ScaCveDatabase methodDb = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(methodDb, null);
 
     int maxRetries = ScaReachabilityTransformer.MAX_UNRESOLVED_RETRIES;
-
     // Heartbeats 1..maxRetries-1 stay within the cap and keep re-queuing. The Nth heartbeat is the
     // one where the attempt count reaches maxRetries and processClass() gives up instead.
     for (int attempt = 1; attempt < maxRetries; attempt++) {
@@ -577,9 +618,9 @@ class ScaReachabilityMethodLevelTest {
       simulateHeartbeat(t);
       assertFalse(
           t.pendingRetransformNames.isEmpty(),
-          "attempt " + attempt + " is within the cap, so the class must still be queued for retry");
+          "attempt " + attempt + " is within the cap, so the class must still be queued for retry"
+      );
     }
-
     // The cap is reached on this heartbeat (attempt count == maxRetries): from now on
     // processClass() must not re-add the class. Clearing the set makes that unambiguous — anything
     // present afterwards can only have been re-added by the call below.
@@ -588,7 +629,8 @@ class ScaReachabilityMethodLevelTest {
 
     assertTrue(
         t.pendingRetransformNames.isEmpty(),
-        "after MAX_UNRESOLVED_RETRIES the class must be given up on and never re-queued again");
+        "after MAX_UNRESOLVED_RETRIES the class must be given up on and never re-queued again"
+    );
   }
 
   @Test
@@ -597,34 +639,35 @@ class ScaReachabilityMethodLevelTest {
     // artifact that stays unresolved for a few heartbeats and then finally resolves (e.g. its JAR
     // is only scanned successfully on a later pass) must behave exactly as before the cap existed:
     // the method-level callback is injected on that attempt, and nothing is given up on early.
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-late\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + TargetClass.class.getName().replace('.', '/')
-            + "\",\"method\":\"vulnerableMethod\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-late\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + TargetClass.class.getName().replace('.', '/')
+        + "\",\"method\":\"vulnerableMethod\"}]"
+        + "}]}";
     ScaCveDatabase methodDb = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(methodDb, null);
-
     // Attempts 1..3: com.example:lib has no pom.properties in the test classpath, so resolution
     // fails and the class is re-queued (3 < MAX_UNRESOLVED_RETRIES).
     for (int attempt = 1; attempt <= 3; attempt++) {
       t.pendingRetransformNames.clear();
       assertNull(
           simulateHeartbeat(t),
-          "attempt " + attempt + " cannot inject anything while the artifact is unresolved");
+          "attempt " + attempt + " cannot inject anything while the artifact is unresolved"
+      );
       assertTrue(
           t.pendingRetransformNames.contains(TargetClass.class.getName().replace('.', '/')),
-          "attempt " + attempt + " is well within the cap, so the class must be re-queued");
+          "attempt " + attempt + " is well within the cap, so the class must be re-queued"
+      );
     }
-
     // Attempt 4 (still before the 5th and final allowed attempt): make resolution succeed by
     // seeding the classpath-scan cache that resolveArtifactDep() consults before scanning, which
     // is exactly what a successful findArtifactInClasspath() would have populated.
     t.classpathArtifactCache.put(
-        "com.example:lib", new Dependency("com.example:lib", "1.0.0", "lib-1.0.0.jar", null));
+        "com.example:lib",
+        new Dependency("com.example:lib", "1.0.0", "lib-1.0.0.jar", null)
+    );
     t.pendingRetransformNames.clear();
 
     byte[] modified = simulateHeartbeat(t);
@@ -632,7 +675,8 @@ class ScaReachabilityMethodLevelTest {
     assertNotNull(modified, "once the artifact resolves, the callback bytecode must be returned");
     assertTrue(
         t.pendingRetransformNames.isEmpty(),
-        "nothing is left unresolved, so there is nothing to re-queue");
+        "nothing is left unresolved, so there is nothing to re-queue"
+    );
 
     Class<?> cls = loadModified(modified);
     cls.getMethod("vulnerableMethod").invoke(cls.getDeclaredConstructor().newInstance());
@@ -658,21 +702,20 @@ class ScaReachabilityMethodLevelTest {
         TargetClass.class.getName().replace('.', '/'),
         TargetClass.class,
         TargetClass.class.getProtectionDomain(),
-        bytecodeOf(TargetClass.class));
+        bytecodeOf(TargetClass.class)
+    );
   }
 
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
-
   /**
    * Extracts ScaReachabilityHit objects from pending dependencies in the registry. Only returns
    * CVEs that have an actual hit (callsite recorded), not empty-reached CVEs.
    */
   private static List<ScaReachabilityHit> drainHits() {
     List<ScaReachabilityHit> result = new ArrayList<>();
-    for (DependencySnapshot dep :
-        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies()) {
+    for (DependencySnapshot dep : ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies()) {
       for (ScaReachabilityDependencyRegistry.CveSnapshot cve : dep.cves) {
         if (cve.hit != null) {
           result.add(cve.hit);
@@ -683,7 +726,8 @@ class ScaReachabilityMethodLevelTest {
   }
 
   private static Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> singleCallback(
-      String methodName) {
+      String methodName
+  ) {
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> m = new HashMap<>();
     m.put(
         methodName,
@@ -693,13 +737,26 @@ class ScaReachabilityMethodLevelTest {
                 "com.example:test-lib",
                 "1.2.3",
                 TargetClass.class.getName(),
-                methodName)));
+                methodName
+            )
+        )
+    );
     return m;
   }
 
   private static ScaMethodCallbackInjector.MethodCallbackSpec spec(
-      String vulnId, String artifact, String version, String dotClass, String method) {
+      String vulnId,
+      String artifact,
+      String version,
+      String dotClass,
+      String method
+  ) {
     return new ScaMethodCallbackInjector.MethodCallbackSpec(
-        vulnId, artifact, version, dotClass, method);
+        vulnId,
+        artifact,
+        version,
+        dotClass,
+        method
+    );
   }
 }

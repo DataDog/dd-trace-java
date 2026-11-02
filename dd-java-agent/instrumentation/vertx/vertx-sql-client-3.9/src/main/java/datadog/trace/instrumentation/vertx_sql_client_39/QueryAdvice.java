@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.vertx_sql_client_39;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.vertx_sql_client_39.VertxSqlClientDecorator.DECORATE;
-
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.api.Pair;
@@ -20,8 +19,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 public class QueryAdvice {
   public static class Copy {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterCopy(
-        @Advice.This final Query<?> zis, @Advice.Return final Query<?> ret) {
+    public static void afterCopy(@Advice.This final Query<?> zis, @Advice.Return final Query<?> ret) {
       ContextStore<Query, Pair> contextStore = InstrumentationContext.get(Query.class, Pair.class);
       contextStore.put(ret, contextStore.get(zis));
     }
@@ -32,37 +30,43 @@ public class QueryAdvice {
     public static <T, R extends SqlResult<T>> ContextScope beforeExecute(
         @Advice.This final Query<?> zis,
         @Advice.Argument(
-                value = 0,
-                readOnly = false,
-                optional = true,
-                typing = Assigner.Typing.DYNAMIC)
-            Object maybeHandler,
-        @Advice.Argument(value = 1, readOnly = false, optional = true)
-            Handler<AsyncResult<R>> handler) {
+            value = 0,
+            readOnly = false,
+            optional = true,
+            typing = Assigner.Typing.DYNAMIC
+        ) Object maybeHandler,
+        @Advice.Argument(value = 1, readOnly = false, optional = true) Handler<AsyncResult<R>> handler
+    ) {
       final boolean prepared = !(maybeHandler instanceof Handler);
 
       final AgentSpan parentSpan = activeSpan();
       final ContextContinuation parentContinuation =
           null == parentSpan ? null : parentSpan.captureWithContext();
-      final AgentSpan clientSpan =
-          DECORATE.startAndDecorateSpanForStatement(
-              zis, InstrumentationContext.get(Query.class, Pair.class), prepared);
+      final AgentSpan clientSpan = DECORATE.startAndDecorateSpanForStatement(
+          zis,
+          InstrumentationContext.get(Query.class, Pair.class),
+          prepared
+      );
       if (null == clientSpan) {
         return null;
       }
       if (prepared) {
         handler = new QueryResultHandlerWrapper<>(handler, clientSpan, parentContinuation);
       } else {
-        maybeHandler =
-            new QueryResultHandlerWrapper<>(
-                (Handler<AsyncResult<R>>) maybeHandler, clientSpan, parentContinuation);
+        maybeHandler = new QueryResultHandlerWrapper<>(
+            (Handler<AsyncResult<R>>) maybeHandler,
+            clientSpan,
+            parentContinuation
+        );
       }
       return activateSpan(clientSpan);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterExecute(
-        @Advice.Thrown final Throwable throwable, @Advice.Enter final ContextScope clientScope) {
+        @Advice.Thrown final Throwable throwable,
+        @Advice.Enter final ContextScope clientScope
+    ) {
       if (null != clientScope) {
         clientScope.close();
       }

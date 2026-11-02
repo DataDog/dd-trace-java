@@ -1,7 +1,6 @@
 package com.datadog.openfeature;
 
 import static org.mockito.Mockito.mock;
-
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
@@ -35,7 +34,10 @@ class ExposureTestEvaluator extends DDEvaluator {
 
   @Override
   public synchronized boolean initialize(
-      final long timeout, final TimeUnit unit, final EvaluationContext context) {
+      final long timeout,
+      final TimeUnit unit,
+      final EvaluationContext context
+  ) {
     return hasConfiguration();
   }
 

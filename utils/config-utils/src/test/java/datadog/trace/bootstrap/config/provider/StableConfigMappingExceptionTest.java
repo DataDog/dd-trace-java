@@ -4,13 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 public class StableConfigMappingExceptionTest {
-
   @Test
   void constructorsWorkAsExpected() {
     StableConfigMappingException ex1 = new StableConfigMappingException("msg");
@@ -23,21 +21,19 @@ public class StableConfigMappingExceptionTest {
 
   @Test
   void safeToStringHandlesNull() {
-    StableConfigMappingException ex =
-        assertThrows(
-            StableConfigMappingException.class,
-            () -> StableConfigMappingException.throwStableConfigMappingException("msg", null));
+    StableConfigMappingException ex = assertThrows(StableConfigMappingException.class, () -> StableConfigMappingException.throwStableConfigMappingException(
+        "msg",
+        null
+    ));
     assertTrue(ex.getMessage().endsWith(" null"));
   }
 
   @Test
   void safeToStringHandlesShortString() {
-    StableConfigMappingException ex =
-        assertThrows(
-            StableConfigMappingException.class,
-            () ->
-                StableConfigMappingException.throwStableConfigMappingException(
-                    "msg", "short string"));
+    StableConfigMappingException ex = assertThrows(StableConfigMappingException.class, () -> StableConfigMappingException.throwStableConfigMappingException(
+        "msg",
+        "short string"
+    ));
     assertTrue(ex.getMessage().endsWith(" short string"));
   }
 
@@ -47,10 +43,10 @@ public class StableConfigMappingExceptionTest {
     Arrays.fill(chars, 'a');
     String longStr = new String(chars);
 
-    StableConfigMappingException ex =
-        assertThrows(
-            StableConfigMappingException.class,
-            () -> StableConfigMappingException.throwStableConfigMappingException("msg", longStr));
+    StableConfigMappingException ex = assertThrows(StableConfigMappingException.class, () -> StableConfigMappingException.throwStableConfigMappingException(
+        "msg",
+        longStr
+    ));
 
     char[] halfChars = new char[50];
     Arrays.fill(halfChars, 'a');

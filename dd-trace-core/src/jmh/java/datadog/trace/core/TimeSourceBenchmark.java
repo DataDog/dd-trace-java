@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import datadog.trace.api.DDTraceId;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -25,9 +24,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(NANOSECONDS)
 @Fork(value = 1)
 public class TimeSourceBenchmark {
-
   static final CoreTracer TRACER = CoreTracer.builder().build();
-
   private PendingTrace pendingTrace;
 
   @Setup(Level.Trial)

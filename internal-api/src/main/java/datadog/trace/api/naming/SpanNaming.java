@@ -5,7 +5,9 @@ import datadog.trace.api.naming.v0.NamingSchemaV0;
 import datadog.trace.api.naming.v1.NamingSchemaV1;
 import javax.annotation.Nonnull;
 
-/** This is the main entry point to drive span naming decisions. */
+/**
+ * This is the main entry point to drive span naming decisions.
+ */
 public class SpanNaming {
   public static final int SCHEMA_MIN_VERSION = 0;
   public static final int SCHEMA_MAX_VERSION = 1;

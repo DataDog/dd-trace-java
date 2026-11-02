@@ -9,7 +9,6 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 
 public class WeakCipherModuleImpl extends SinkModuleBase implements WeakCipherModule {
-
   private Config config;
 
   public WeakCipherModuleImpl(final Dependencies dependencies) {

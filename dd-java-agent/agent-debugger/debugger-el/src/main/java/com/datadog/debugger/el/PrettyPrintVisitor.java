@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.Set;
 
 public class PrettyPrintVisitor implements Visitor<String> {
-
   public static String print(Expression<?> expr) {
     return expr.accept(new PrettyPrintVisitor());
   }

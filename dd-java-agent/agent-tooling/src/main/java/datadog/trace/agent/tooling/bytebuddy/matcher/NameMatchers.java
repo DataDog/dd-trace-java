@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
-
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -13,7 +12,6 @@ import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public final class NameMatchers {
-
   /**
    * Matches a {@link NamedElement} for its exact name.
    *
@@ -89,18 +87,19 @@ public final class NameMatchers {
    * @return An element matcher checking if an element's exact name is a member of a set.
    */
   public static <T extends NamedElement> NotExcluded<T> notExcludedByName(
-      ExcludeFilter.ExcludeType type) {
+      ExcludeFilter.ExcludeType type
+  ) {
     return new NotExcluded<>(type);
   }
 
   @SuppressWarnings("rawtypes")
   private static final DDCache<String, Named> namedCache = DDCaches.newFixedSizeCache(256);
-
   @SuppressWarnings("rawtypes")
   private static final Function<String, Named> newNamedMatcher = Named::new;
 
   public static final class Named<T extends NamedElement>
-      extends ElementMatcher.Junction.ForNonNullValues<T> {
+      extends ElementMatcher.Junction.ForNonNullValues<T>
+  {
     final String name;
 
     Named(String name) {
@@ -119,7 +118,8 @@ public final class NameMatchers {
   }
 
   public static final class StartsWith<T extends NamedElement>
-      extends ElementMatcher.Junction.ForNonNullValues<T> {
+      extends ElementMatcher.Junction.ForNonNullValues<T>
+  {
     private final String name;
 
     StartsWith(String name) {
@@ -133,7 +133,8 @@ public final class NameMatchers {
   }
 
   public static final class EndsWith<T extends NamedElement>
-      extends ElementMatcher.Junction.ForNonNullValues<T> {
+      extends ElementMatcher.Junction.ForNonNullValues<T>
+  {
     private final String name;
 
     EndsWith(String name) {
@@ -147,7 +148,8 @@ public final class NameMatchers {
   }
 
   public static final class OneOf<T extends NamedElement>
-      extends ElementMatcher.Junction.ForNonNullValues<T> {
+      extends ElementMatcher.Junction.ForNonNullValues<T>
+  {
     final Set<String> names;
 
     OneOf(Set<String> names) {
@@ -161,7 +163,8 @@ public final class NameMatchers {
   }
 
   public static final class NoneOf<T extends NamedElement>
-      extends ElementMatcher.Junction.ForNonNullValues<T> {
+      extends ElementMatcher.Junction.ForNonNullValues<T>
+  {
     private final Set<String> names;
 
     NoneOf(Set<String> names) {
@@ -175,7 +178,8 @@ public final class NameMatchers {
   }
 
   public static final class NotExcluded<T extends NamedElement>
-      extends ElementMatcher.Junction.ForNonNullValues<T> {
+      extends ElementMatcher.Junction.ForNonNullValues<T>
+  {
     private final ExcludeFilter.ExcludeType excludeType;
 
     NotExcluded(ExcludeFilter.ExcludeType excludeType) {

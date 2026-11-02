@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DATABASE_CONNECTION;
 import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.JAVA_JDBC_CONNECTION;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -23,8 +22,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public DataSourceInstrumentation() {
     super("jdbc-datasource");
   }
@@ -36,7 +36,8 @@ public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
@@ -47,11 +48,12 @@ public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("getConnection"), DataSourceInstrumentation.class.getName() + "$GetConnectionAdvice");
+        named("getConnection"),
+        DataSourceInstrumentation.class.getName() + "$GetConnectionAdvice"
+    );
   }
 
   public static class GetConnectionAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope start(@Advice.This final DataSource ds) {
       if (activeSpan() == null) {
@@ -69,7 +71,9 @@ public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

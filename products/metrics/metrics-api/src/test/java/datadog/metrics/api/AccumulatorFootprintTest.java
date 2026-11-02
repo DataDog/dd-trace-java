@@ -2,7 +2,6 @@ package datadog.metrics.api;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-
 import datadog.environment.JavaVirtualMachine;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -37,7 +36,6 @@ import org.openjdk.jol.info.GraphLayout;
  * matter.
  */
 class AccumulatorFootprintTest {
-
   enum Counters {
     REQUESTS,
     ERRORS,
@@ -75,7 +73,10 @@ class AccumulatorFootprintTest {
 
     System.out.printf(
         "fresh:      %d LongAdders = %6d bytes, Accumulator = %6d bytes%n",
-        adders.length, adderBytes, accumulatorBytes);
+        adders.length,
+        adderBytes,
+        accumulatorBytes
+    );
   }
 
   /**
@@ -99,22 +100,21 @@ class AccumulatorFootprintTest {
     CountDownLatch done = new CountDownLatch(threads);
     try {
       for (int t = 0; t < threads; t++) {
-        pool.execute(
-            () -> {
-              try {
-                start.await();
-                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
-                while (System.nanoTime() < deadline) {
-                  for (LongAdder adder : adders) {
-                    adder.increment();
-                  }
-                }
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              } finally {
-                done.countDown();
+        pool.execute(() -> {
+          try {
+            start.await();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            while (System.nanoTime() < deadline) {
+              for (LongAdder adder : adders) {
+                adder.increment();
               }
-            });
+            }
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          } finally {
+            done.countDown();
+          }
+        });
       }
       start.countDown();
       assertTrue(done.await(30, TimeUnit.SECONDS));
@@ -128,13 +128,18 @@ class AccumulatorFootprintTest {
 
     System.out.printf(
         "contended:  %d LongAdders = %6d bytes, Accumulator = %6d bytes%n",
-        adders.length, contendedAdderBytes, accumulatorBytes);
+        adders.length,
+        contendedAdderBytes,
+        accumulatorBytes
+    );
 
     assertTrue(
         contendedAdderBytes >= freshAdderBytes,
-        "contended LongAdder footprint should never shrink below the fresh footprint");
+        "contended LongAdder footprint should never shrink below the fresh footprint"
+    );
     assertTrue(
         accumulatorBytes < contendedAdderBytes,
-        "Accumulator's fixed footprint should be smaller than N contended LongAdders");
+        "Accumulator's fixed footprint should be smaller than N contended LongAdders"
+    );
   }
 }

@@ -17,48 +17,44 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class QueryObfuscator extends TagsPostProcessor {
-
   private static final Logger log = LoggerFactory.getLogger(QueryObfuscator.class);
-
   private static final String REDACTED = "<redacted>";
-
   @VisibleForTesting
   static final String DEFAULT_OBFUSCATION_PATTERN =
       "(?i)"
-          // Sensitive parameter names.
-          + "(?:(?:\"|%22)?)"
-          + "(?:"
-          + "(?:old[-_]?|new[-_]?)?p(?:ass)?w(?:or)?d(?:1|2)?"
-          + "|pass(?:[-_]?phrase)?|secret"
-          + "|(?:api[-_]?|private[-_]?|public[-_]?|access[-_]?|secret[-_]?|app(?:lication)?[-_]?)"
-          + "key(?:[-_]?id)?"
-          + "|token|consumer[-_]?(?:id|key|secret)"
-          + "|sign(?:ed|ature)?|auth(?:entication|orization)?"
-          + ")"
-          // Query parameter or quoted JSON value.
-          + "(?:"
-          + "(?:\\s|%20)*(?:=|%3D)[^&]+"
-          + "|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)"
-          + "(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22)"
-          + ")"
-          // Tokens and key material, matched independently of parameter names.
-          + "|(?:"
-          + "bearer(?:\\s|%20)+[a-z0-9._\\-]+"
-          + "|token(?::|%3A)[a-z0-9]{13}"
-          + "|gh[opsu]_[0-9a-zA-Z]{36}"
-          // JWT: capture the preceding delimiter in group 1 for the replacement.
-          + "|(^|[^\\w%-]|%[0-9a-f]{2})"
-          + "ey[I-L][\\w-]+(?:=|%3D)*\\.ey[I-L][\\w-]+(?:=|%3D)*"
-          + "(?:\\.(?:[\\w.+/=-]|%3D|%2F|%2B)+)?"
-          // PEM private key.
-          + "|-{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY-{5}[^\\-]+"
-          + "-{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY(?:-{5})?(?:\\n|%0A)?"
-          // SSH public key.
-          + "|(?:ssh-(?:rsa|dss)|ecdsa-[a-z0-9]+-[a-z0-9]+)"
-          + "(?:\\s|%20|%09)+(?:[a-z0-9/.+]|%2F|%5C|%2B){100,}(?:=|%3D)*"
-          + "(?:(?:\\s|%20|%09)+[a-z0-9._-]+)?"
-          + ")";
-
+      // Sensitive parameter names.
+  + "(?:(?:\"|%22)?)"
+      + "(?:"
+      + "(?:old[-_]?|new[-_]?)?p(?:ass)?w(?:or)?d(?:1|2)?"
+      + "|pass(?:[-_]?phrase)?|secret"
+      + "|(?:api[-_]?|private[-_]?|public[-_]?|access[-_]?|secret[-_]?|app(?:lication)?[-_]?)"
+      + "key(?:[-_]?id)?"
+      + "|token|consumer[-_]?(?:id|key|secret)"
+      + "|sign(?:ed|ature)?|auth(?:entication|orization)?"
+      + ")"
+      // Query parameter or quoted JSON value.
+  + "(?:"
+      + "(?:\\s|%20)*(?:=|%3D)[^&]+"
+      + "|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)"
+      + "(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22)"
+      + ")"
+      // Tokens and key material, matched independently of parameter names.
+  + "|(?:"
+      + "bearer(?:\\s|%20)+[a-z0-9._\\-]+"
+      + "|token(?::|%3A)[a-z0-9]{13}"
+      + "|gh[opsu]_[0-9a-zA-Z]{36}"
+      // JWT: capture the preceding delimiter in group 1 for the replacement.
+  + "|(^|[^\\w%-]|%[0-9a-f]{2})"
+      + "ey[I-L][\\w-]+(?:=|%3D)*\\.ey[I-L][\\w-]+(?:=|%3D)*"
+      + "(?:\\.(?:[\\w.+/=-]|%3D|%2F|%2B)+)?"
+      // PEM private key.
+  + "|-{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY-{5}[^\\-]+"
+      + "-{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY(?:-{5})?(?:\\n|%0A)?"
+      // SSH public key.
+  + "|(?:ssh-(?:rsa|dss)|ecdsa-[a-z0-9]+-[a-z0-9]+)"
+      + "(?:\\s|%20|%09)+(?:[a-z0-9/.+]|%2F|%5C|%2B){100,}(?:=|%3D)*"
+      + "(?:(?:\\s|%20|%09)+[a-z0-9._-]+)?"
+      + ")";
   private final Pattern pattern;
   private final String replacement;
   private final boolean failClosed;
@@ -81,7 +77,6 @@ public final class QueryObfuscator extends TagsPostProcessor {
       this.failClosed = false;
       return;
     }
-
     // null -> use default regex
     // group references only apply to the default regex, a user regex may capture the secret itself
     if (regex == null) {
@@ -99,7 +94,8 @@ public final class QueryObfuscator extends TagsPostProcessor {
       log.error(
           "Could not compile given query obfuscation regex, the query string will not be reported: {}",
           regex,
-          e);
+          e
+      );
       failClosed = true;
     }
     this.pattern = pattern;
@@ -125,7 +121,10 @@ public final class QueryObfuscator extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagMap unsafeTags,
+      DDSpanContext spanContext,
+      AppendableSpanLinks spanLinks
+  ) {
     processQuery(unsafeTags, spanContext, DDTags.HTTP_QUERY);
     if (otelSemanticsEnabled) {
       processQuery(unsafeTags, spanContext, KnownTags.URL_QUERY_NAME);
@@ -159,7 +158,6 @@ public final class QueryObfuscator extends TagsPostProcessor {
           unsafeTags.put(Tags.HTTP_URL, url + "?" + obfuscatedQuery);
         }
       }
-
       // HTTP clients carry the query separately only so this processor can scrub it before
       // rebuilding url.full. url.query is a server attribute in the OTel HTTP conventions.
       if (otelSemanticsEnabled

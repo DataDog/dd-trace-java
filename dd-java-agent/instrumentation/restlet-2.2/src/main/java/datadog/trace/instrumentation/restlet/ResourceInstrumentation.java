@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.restlet.ResourceDecorator.RESTLET_CO
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -23,8 +22,9 @@ import org.restlet.resource.ServerResource;
 
 @AutoService(InstrumenterModule.class)
 public final class ResourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private static final String RESTLET_HTTP_OPERATION_NAME = "restlet.request";
 
   public ResourceInstrumentation() {
@@ -40,21 +40,22 @@ public final class ResourceInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("doHandle"))
-            .and(takesArguments(2))
-            // In 2.2 this parameter is of type AnnotationInfo. In 2.3+ it is of type
-            // MethodAnnotationInfo, which is a subclass of AnnotationInfo
-            .and(
-                takesArgument(0, extendsClass(named("org.restlet.engine.resource.AnnotationInfo"))))
-            .and(takesArgument(1, named("org.restlet.representation.Variant"))),
-        getClass().getName() + "$ResourceHandleAdvice");
+          .and(named("doHandle"))
+          .and(takesArguments(2))
+          // In 2.2 this parameter is of type AnnotationInfo. In 2.3+ it is of type
+          // MethodAnnotationInfo, which is a subclass of AnnotationInfo
+          .and(takesArgument(0, extendsClass(named("org.restlet.engine.resource.AnnotationInfo"))))
+          .and(takesArgument(1, named("org.restlet.representation.Variant"))),
+        getClass().getName() + "$ResourceHandleAdvice"
+    );
   }
 
   public static class ResourceHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginRequest(
         @Advice.This final ServerResource serverResource,
-        @Advice.Argument(0) final AnnotationInfo annotationInfo) {
+        @Advice.Argument(0) final AnnotationInfo annotationInfo
+    ) {
       final AgentSpan parent = activeSpan();
 
       final AgentSpan span = startSpan(RESTLET_CONTROLLER.toString(), RESTLET_HTTP_OPERATION_NAME);
@@ -67,7 +68,9 @@ public final class ResourceInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishRequest(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable error) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Thrown final Throwable error
+    ) {
       AgentSpan span = spanFromScope(scope);
 
       if (null != error) {

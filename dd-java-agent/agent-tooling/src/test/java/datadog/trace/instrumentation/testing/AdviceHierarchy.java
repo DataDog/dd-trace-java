@@ -4,7 +4,8 @@ import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassWriter;
 
 public final class AdviceHierarchy {
-  private AdviceHierarchy() {}
+  private AdviceHierarchy() {
+  }
 
   public static class Superclass {
     public static int muzzleCheck(ClassReader reader) {

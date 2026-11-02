@@ -32,14 +32,12 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   private static final String MISSING_RESPONSE_TRACING_HANDLER_MESSAGE =
       "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline";
   private static volatile boolean HAS_WARNED;
-
   private final TraceSegment segment;
   private final int statusCode;
   private final BlockingContentType bct;
   private final Map<String, String> extraHeaders;
   private final String securityResponseId;
   private final ServerRequestContext serverContext;
-
   // Current callers are event-loop confined; volatile preserves visibility if
   // commitBlockingResponse is invoked from another thread.
   private volatile boolean hasBlockedAlready;
@@ -50,7 +48,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
       BlockingContentType bct,
       Map<String, String> extraHeaders,
       String securityResponseId,
-      ServerRequestContext serverContext) {
+      ServerRequestContext serverContext
+  ) {
     this.segment = segment;
     this.statusCode = statusCode;
     this.bct = bct;
@@ -62,7 +61,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   public BlockingResponseHandler(
       TraceSegment segment,
       Flow.Action.RequestBlockingAction rba,
-      ServerRequestContext serverContext) {
+      ServerRequestContext serverContext
+  ) {
     this.segment = segment;
     this.statusCode = rba.getStatusCode();
     this.bct = rba.getBlockingContentType();
@@ -100,7 +100,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   boolean commitBlockingResponse(
       final ChannelHandlerContext ctx,
       final HttpVersion protocolVersion,
-      final String acceptHeader) {
+      final String acceptHeader
+  ) {
     ChannelHandlerContext ctxForDownstream =
         ctx.pipeline().context(HttpServerResponseTracingHandler.class);
     if (ctxForDownstream == null) {
@@ -113,15 +114,15 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     this.hasBlockedAlready = true;
     ServerRequestContext.markRequestBlocked(ctx.channel());
 
-    PendingBlockResponse pendingBlockResponse =
-        new PendingBlockResponse(
-            segment,
-            statusCode,
-            bct,
-            extraHeaders,
-            securityResponseId,
-            protocolVersion,
-            acceptHeader);
+    PendingBlockResponse pendingBlockResponse = new PendingBlockResponse(
+        segment,
+        statusCode,
+        bct,
+        extraHeaders,
+        securityResponseId,
+        protocolVersion,
+        acceptHeader
+    );
 
     if (serverContext != null
         && ServerRequestContext.nextResponse(ctx.channel()) != serverContext) {
@@ -143,7 +144,9 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   }
 
   static boolean maybeWriteDeferredBlockResponse(
-      ChannelHandlerContext ctx, ServerRequestContext serverContext) {
+      ChannelHandlerContext ctx,
+      ServerRequestContext serverContext
+  ) {
     if (serverContext == null) {
       return false;
     }
@@ -157,7 +160,9 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   }
 
   private static void writeBlockResponse(
-      ChannelHandlerContext ctxForDownstream, PendingBlockResponse pendingBlockResponse) {
+      ChannelHandlerContext ctxForDownstream,
+      PendingBlockResponse pendingBlockResponse
+  ) {
     // write starts in the handler before the one associated with ctx
     // so add one that will be skipped (but that will prevent any writes later coming from later
     // handlers).
@@ -166,22 +171,24 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     // expect to have seen a request before processing the response
     if (ctxForDownstream.pipeline().get(IGNORE_ALL_WRITES_HANDLER) == null) {
       ctxForDownstream
-          .pipeline()
-          .addAfter(
-              ctxForDownstream.name(), IGNORE_ALL_WRITES_HANDLER, IgnoreAllWritesHandler.INSTANCE);
+        .pipeline()
+        .addAfter(
+            ctxForDownstream.name(),
+            IGNORE_ALL_WRITES_HANDLER,
+            IgnoreAllWritesHandler.INSTANCE
+        );
     }
     ChannelHandlerContext writeContext =
         ctxForDownstream.pipeline().context(IGNORE_ALL_WRITES_HANDLER);
 
     writeContext
-        .writeAndFlush(pendingBlockResponse.toResponse())
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              }
-              writeContext.channel().close();
-            });
+      .writeAndFlush(pendingBlockResponse.toResponse())
+      .addListener(fut -> {
+        if (!fut.isSuccess()) {
+          log.warn("Write of blocking response failed", fut.cause());
+        }
+        writeContext.channel().close();
+      });
   }
 
   private static class PendingBlockResponse {
@@ -203,7 +210,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
         Map<String, String> extraHeaders,
         String securityResponseId,
         HttpVersion protocolVersion,
-        String acceptHeader) {
+        String acceptHeader
+    ) {
       this.segment = segment;
       this.statusCode = statusCode;
       this.bct = bct;

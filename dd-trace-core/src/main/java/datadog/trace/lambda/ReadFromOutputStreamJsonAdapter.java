@@ -8,7 +8,6 @@ import java.io.IOException;
 import okio.BufferedSink;
 
 public final class ReadFromOutputStreamJsonAdapter extends JsonAdapter<ByteArrayOutputStream> {
-
   @Override
   public ByteArrayOutputStream fromJson(JsonReader reader) throws IOException {
     throw new UnsupportedOperationException();

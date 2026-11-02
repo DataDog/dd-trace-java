@@ -7,7 +7,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public abstract class ClientDecorator extends BaseDecorator {
-
   protected abstract String service();
 
   protected String spanKind() {
@@ -19,10 +18,11 @@ public abstract class ClientDecorator extends BaseDecorator {
     // Extend the base prototype with the client-level span.kind. spanKind() is overridable and may
     // read a not-yet-initialized static during singleton construction -- building lazily (via
     // spanPrototype()) preserves the ordering safety the old cached spanKindEntry provided.
-    return SpanPrototype.builder()
-        .extends_(super.buildSpanPrototype())
-        .initKind(spanKind())
-        .build();
+    return SpanPrototype
+      .builder()
+      .extends_(super.buildSpanPrototype())
+      .initKind(spanKind())
+      .build();
   }
 
   @Override
@@ -31,7 +31,6 @@ public abstract class ClientDecorator extends BaseDecorator {
     if (service != null) {
       span.setServiceName(service, component());
     }
-
     // Generate metrics for all client spans.
     span.setMeasured(true);
     super.doAfterStart(span);

@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-
 import com.datadog.openfeature.internal.LocalHttpServer;
 import java.io.IOException;
 import java.net.ConnectException;
@@ -38,14 +37,13 @@ class HttpCallTest {
     try (StallingHttpServer server = new StallingHttpServer(true)) {
       final CountDownLatch handlerCalled = new CountDownLatch(1);
       final HttpResponse.BodyHandler<?> handler = bodyHandler(discard);
-      final HttpCall<?> call =
-          new HttpCall<>(
-              HttpClient.newHttpClient(),
-              request(server, Duration.ofSeconds(1)),
-              info -> {
-                handlerCalled.countDown();
-                return handler.apply(info);
-              });
+      final HttpCall<?> call = new HttpCall<>(HttpClient.newHttpClient(), request(
+          server,
+          Duration.ofSeconds(1)
+      ), info -> {
+        handlerCalled.countDown();
+        return handler.apply(info);
+      });
 
       assertTrue(handlerCalled.await(5, SECONDS));
       assertThrows(HttpTimeoutException.class, call::execute);
@@ -56,11 +54,11 @@ class HttpCallTest {
   @Test
   void timesOutStalledHeaders() throws Exception {
     try (StallingHttpServer server = new StallingHttpServer(false)) {
-      final HttpCall<byte[]> call =
-          new HttpCall<>(
-              HttpClient.newHttpClient(),
-              request(server, Duration.ofMillis(500)),
-              HttpResponse.BodyHandlers.ofByteArray());
+      final HttpCall<byte[]> call = new HttpCall<>(
+          HttpClient.newHttpClient(),
+          request(server, Duration.ofMillis(500)),
+          HttpResponse.BodyHandlers.ofByteArray()
+      );
 
       server.awaitRequest();
       assertThrows(HttpTimeoutException.class, call::execute);
@@ -72,11 +70,11 @@ class HttpCallTest {
   @Test
   void cancellationBeforeHeadersCancelsLateSubscription() throws Exception {
     try (StallingHttpServer server = new StallingHttpServer(false)) {
-      final HttpCall<byte[]> call =
-          new HttpCall<>(
-              HttpClient.newHttpClient(),
-              request(server, Duration.ofSeconds(10)),
-              HttpResponse.BodyHandlers.ofByteArray());
+      final HttpCall<byte[]> call = new HttpCall<>(
+          HttpClient.newHttpClient(),
+          request(server, Duration.ofSeconds(10)),
+          HttpResponse.BodyHandlers.ofByteArray()
+      );
 
       server.awaitRequest();
       call.cancel();
@@ -91,22 +89,21 @@ class HttpCallTest {
     final CountDownLatch handlerCalled = new CountDownLatch(1);
     final CountDownLatch createSubscriber = new CountDownLatch(1);
     try (StallingHttpServer server = new StallingHttpServer(true)) {
-      final HttpCall<byte[]> call =
-          new HttpCall<>(
-              HttpClient.newHttpClient(),
-              request(server, Duration.ofSeconds(10)),
-              info -> {
-                handlerCalled.countDown();
-                try {
-                  if (!createSubscriber.await(5, SECONDS)) {
-                    throw new IllegalStateException("Subscriber creation was not released");
-                  }
-                } catch (final InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                  throw new IllegalStateException(e);
-                }
-                return HttpResponse.BodySubscribers.ofByteArray();
-              });
+      final HttpCall<byte[]> call = new HttpCall<>(HttpClient.newHttpClient(), request(
+          server,
+          Duration.ofSeconds(10)
+      ), info -> {
+        handlerCalled.countDown();
+        try {
+          if (!createSubscriber.await(5, SECONDS)) {
+            throw new IllegalStateException("Subscriber creation was not released");
+          }
+        } catch (final InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IllegalStateException(e);
+        }
+        return HttpResponse.BodySubscribers.ofByteArray();
+      });
 
       assertTrue(handlerCalled.await(5, SECONDS));
       call.cancel();
@@ -121,11 +118,11 @@ class HttpCallTest {
   @Test
   void interruptionClosesConnection() throws Exception {
     try (StallingHttpServer server = new StallingHttpServer(true)) {
-      final HttpCall<byte[]> call =
-          new HttpCall<>(
-              HttpClient.newHttpClient(),
-              request(server, Duration.ofSeconds(10)),
-              HttpResponse.BodyHandlers.ofByteArray());
+      final HttpCall<byte[]> call = new HttpCall<>(
+          HttpClient.newHttpClient(),
+          request(server, Duration.ofSeconds(10)),
+          HttpResponse.BodyHandlers.ofByteArray()
+      );
 
       server.awaitRequest();
       Thread.currentThread().interrupt();
@@ -143,13 +140,11 @@ class HttpCallTest {
     final HttpClient client = mock(HttpClient.class);
     final ConnectException failure = new ConnectException("connection refused");
     doReturn(CompletableFuture.failedFuture(failure)).when(client).sendAsync(any(), any());
-    final HttpCall<byte[]> call =
-        new HttpCall<>(
-            client,
-            HttpRequest.newBuilder(URI.create("http://localhost/"))
-                .timeout(Duration.ofSeconds(1))
-                .build(),
-            HttpResponse.BodyHandlers.ofByteArray());
+    final HttpCall<byte[]> call = new HttpCall<>(
+        client,
+        HttpRequest.newBuilder(URI.create("http://localhost/")).timeout(Duration.ofSeconds(1)).build(),
+        HttpResponse.BodyHandlers.ofByteArray()
+    );
 
     assertSame(failure, assertThrows(ConnectException.class, call::execute));
   }
@@ -159,15 +154,13 @@ class HttpCallTest {
     final HttpClient client = mock(HttpClient.class);
     final CancellationException cancelled = new CancellationException("Request cancelled");
     doReturn(CompletableFuture.failedFuture(new CompletionException(cancelled)))
-        .when(client)
-        .sendAsync(any(), any());
-    final HttpCall<byte[]> call =
-        new HttpCall<>(
-            client,
-            HttpRequest.newBuilder(URI.create("http://localhost/"))
-                .timeout(Duration.ofSeconds(1))
-                .build(),
-            HttpResponse.BodyHandlers.ofByteArray());
+      .when(client)
+      .sendAsync(any(), any());
+    final HttpCall<byte[]> call = new HttpCall<>(
+        client,
+        HttpRequest.newBuilder(URI.create("http://localhost/")).timeout(Duration.ofSeconds(1)).build(),
+        HttpResponse.BodyHandlers.ofByteArray()
+    );
 
     assertSame(cancelled, assertThrows(IOException.class, call::execute).getCause());
   }
@@ -188,9 +181,8 @@ class HttpCallTest {
       assertArrayEquals("first".getBytes(UTF_8), body);
       assertArrayEquals(
           "second".getBytes(UTF_8),
-          new HttpCall<>(client, request, HttpResponse.BodyHandlers.ofByteArray())
-              .execute()
-              .body());
+          new HttpCall<>(client, request, HttpResponse.BodyHandlers.ofByteArray()).execute().body()
+      );
     }
   }
 

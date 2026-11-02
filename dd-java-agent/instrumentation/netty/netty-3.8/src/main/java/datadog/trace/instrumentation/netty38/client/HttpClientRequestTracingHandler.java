@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.NETTY_CLIENT;
 import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.netty38.client.NettyResponseInjectAdapter.SETTER;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -24,11 +23,11 @@ import org.jboss.netty.channel.SimpleChannelDownstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHandler {
-
   private final ContextStore<Channel, ChannelTraceContext> contextStore;
 
   public HttpClientRequestTracingHandler(
-      final ContextStore<Channel, ChannelTraceContext> contextStore) {
+      final ContextStore<Channel, ChannelTraceContext> contextStore
+  ) {
     this.contextStore = contextStore;
   }
 

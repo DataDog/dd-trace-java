@@ -5,4 +5,5 @@ package datadog.trace.agent.test;
  * test. This class is placed inside testFixtures source set to prevent tests' classloader from
  * eagerly loading it
  */
-public class HelperClass {}
+public class HelperClass {
+}

@@ -44,15 +44,15 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public abstract class ClassLatch<T, R, E extends Exception> {
   private static final String RECEIVER_PREFIX = "Receiver class ";
-
   /**
    * Per-class state. Created eagerly so that it is safely published through a final field; it holds
    * nothing for a class until {@link ClassValue#get} is called for it. The value is a JDK type so
    * that nothing from the agent class loader is referenced from an application class.
    */
   private final ClassValue<boolean[]> latched = new Latches();
-
-  /** Whether any class has been latched; keeps the per-class lookup off the common path. */
+  /**
+   * Whether any class has been latched; keeps the per-class lookup off the common path.
+   */
   private boolean anyLatched;
 
   private static final class Latches extends ClassValue<boolean[]> {
@@ -62,7 +62,9 @@ public abstract class ClassLatch<T, R, E extends Exception> {
     }
   }
 
-  /** Performs the operation. Latch through the protected helpers when it failed for the class. */
+  /**
+   * Performs the operation. Latch through the protected helpers when it failed for the class.
+   */
   @Nullable
   protected abstract R apply(T target) throws E;
 
@@ -76,7 +78,9 @@ public abstract class ClassLatch<T, R, E extends Exception> {
     return null;
   }
 
-  /** The class the latch is keyed on. The target's own class unless overridden. */
+  /**
+   * The class the latch is keyed on. The target's own class unless overridden.
+   */
   protected Class<?> keyOf(T target) {
     return target.getClass();
   }
@@ -123,12 +127,16 @@ public abstract class ClassLatch<T, R, E extends Exception> {
     return result != null ? result : defaultValue;
   }
 
-  /** Returns whether the operation is being skipped for the target. */
+  /**
+   * Returns whether the operation is being skipped for the target.
+   */
   public final boolean isLatched(@Nullable T target) {
     return target != null && anyLatched && latched.get(keyOf(target))[0];
   }
 
-  /** Skips the operation for the target's key from now on. */
+  /**
+   * Skips the operation for the target's key from now on.
+   */
   protected final void latch(T target) {
     // Set the per-class value before enabling lookups. Other threads may still observe stale state
     // and repeat the operation.
@@ -136,7 +144,9 @@ public abstract class ClassLatch<T, R, E extends Exception> {
     anyLatched = true;
   }
 
-  /** Resumes performing the operation for the target's key, for tests or a policy that retries. */
+  /**
+   * Resumes performing the operation for the target's key, for tests or a policy that retries.
+   */
   protected final void unlatch(T target) {
     if (anyLatched) {
       latched.get(keyOf(target))[0] = false;
@@ -195,7 +205,10 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   @Nullable
   @StrategyConsumer
   protected final R handleAbstractMethod(
-      T target, String methodName, @Strategy ThrowingFunction<T, R, E> call) throws E {
+      T target,
+      String methodName,
+      @Strategy ThrowingFunction<T, R, E> call
+  ) throws E {
     try {
       return call.apply(target);
     } catch (AbstractMethodError e) {
@@ -229,8 +242,7 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    */
   @Nullable
   @StrategyConsumer
-  protected final R handleNoSuchMethod(T target, @Strategy ThrowingFunction<T, R, E> call)
-      throws E {
+  protected final R handleNoSuchMethod(T target, @Strategy ThrowingFunction<T, R, E> call) throws E {
     try {
       return call.apply(target);
     } catch (NoSuchMethodError e) {
@@ -257,7 +269,10 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   @Nullable
   @StrategyConsumer
   protected final R handleNoSuchOrAbstractMethod(
-      T target, String methodName, @Strategy ThrowingFunction<T, R, E> call) throws E {
+      T target,
+      String methodName,
+      @Strategy ThrowingFunction<T, R, E> call
+  ) throws E {
     try {
       return handleAbstractMethod(target, methodName, call);
     } catch (NoSuchMethodError e) {
@@ -287,7 +302,6 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   private static final String[] NO_NAMES = new String[0];
-
   /**
    * Caches public method names that have an abstract declaration and no concrete instance
    * declaration. Entries are initialized only when attributing a message-less {@link
@@ -298,40 +312,39 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * scans the dense array instead of building a hash table. This avoids hashing and the temporary
    * {@code HashSet} allocation.
    */
-  private static final ClassValue<String[]> ABSTRACT_METHOD_NAMES =
-      new ClassValue<String[]>() {
-        @Override
-        protected String[] computeValue(Class<?> type) {
-          try {
-            int count = 0;
-            final Method[] methods = type.getMethods();
-            final String[] names = new String[methods.length];
-            for (final Method method : methods) {
-              if (Modifier.isAbstract(method.getModifiers())) {
-                names[count++] = method.getName();
-              }
-            }
-            for (final Method method : methods) {
-              final int modifiers = method.getModifiers();
-              if (!Modifier.isAbstract(modifiers) && !Modifier.isStatic(modifiers)) {
-                final String name = method.getName();
-                for (int i = 0; i < count; ) {
-                  if (name.equals(names[i])) {
-                    names[i] = names[--count];
-                  } else {
-                    i++;
-                  }
-                }
-              }
-            }
-            return count == 0 ? NO_NAMES : Arrays.copyOf(names, count);
-          } catch (final SecurityException | LinkageError ignored) {
-            // cannot tell, so never latch: getMethods() resolves every public signature, and one
-            // that references a class missing from the class path raises NoClassDefFoundError
-            return NO_NAMES;
+  private static final ClassValue<String[]> ABSTRACT_METHOD_NAMES = new ClassValue<String[]>() {
+    @Override
+    protected String[] computeValue(Class<?> type) {
+      try {
+        int count = 0;
+        final Method[] methods = type.getMethods();
+        final String[] names = new String[methods.length];
+        for (final Method method : methods) {
+          if (Modifier.isAbstract(method.getModifiers())) {
+            names[count++] = method.getName();
           }
         }
-      };
+        for (final Method method : methods) {
+          final int modifiers = method.getModifiers();
+          if (!Modifier.isAbstract(modifiers) && !Modifier.isStatic(modifiers)) {
+            final String name = method.getName();
+            for (int i = 0; i < count; ) {
+              if (name.equals(names[i])) {
+                names[i] = names[--count];
+              } else {
+                i++;
+              }
+            }
+          }
+        }
+        return count == 0 ? NO_NAMES : Arrays.copyOf(names, count);
+      } catch (final SecurityException | LinkageError ignored) {
+        // cannot tell, so never latch: getMethods() resolves every public signature, and one
+        // that references a class missing from the class path raises NoClassDefFoundError
+        return NO_NAMES;
+      }
+    }
+  };
 
   /**
    * Matches the receiver class named by HotSpot's message against a class. Two formats exist:

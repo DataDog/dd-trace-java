@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class MainController {
-
   @GetMapping("/read")
   public String read(Principal userPrincipal, JwtAuthenticationToken jwtToken) {
     System.out.println("Token attributes: " + jwtToken.getTokenAttributes());

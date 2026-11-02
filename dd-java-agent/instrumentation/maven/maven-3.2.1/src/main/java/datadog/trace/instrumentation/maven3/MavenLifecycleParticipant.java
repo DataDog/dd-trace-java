@@ -26,9 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenLifecycleParticipant.class);
-
   private final BuildEventsHandler<MavenExecutionRequest> buildEventsHandler =
       InstrumentationBridge.createBuildEventsHandler();
 
@@ -40,7 +38,6 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
     ExecutionListener originalExecutionListener = session.getRequest().getExecutionListener();
     ExecutionListener spyExecutionListener = new MavenExecutionListener(buildEventsHandler);
-
     // We cannot add an ExecutionListener to the request, we can only replace the existing one.
     // Since we want to preserve the original listener, the solution is to use a "splitter",
     // that will forward each event both to the original listener and to our custom one.
@@ -48,15 +45,14 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
     // we use a dynamic proxy instead of implementing the interface
     InvocationHandler invocationHandler =
         (Object target, Method method, Object[] args) -> {
-          method.invoke(spyExecutionListener, args);
-          return method.invoke(originalExecutionListener, args);
-        };
-    ExecutionListener proxyExecutionListener =
-        (ExecutionListener)
-            Proxy.newProxyInstance(
-                MavenLifecycleParticipant.class.getClassLoader(),
-                new Class[] {ExecutionListener.class},
-                invocationHandler);
+      method.invoke(spyExecutionListener, args);
+      return method.invoke(originalExecutionListener, args);
+    };
+    ExecutionListener proxyExecutionListener = (ExecutionListener) Proxy.newProxyInstance(
+        MavenLifecycleParticipant.class.getClassLoader(),
+        new Class[] {ExecutionListener.class},
+        invocationHandler
+    );
     session.getRequest().setExecutionListener(proxyExecutionListener);
   }
 
@@ -75,7 +71,14 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
     String startCommand = MavenUtils.getCommandLine(session);
     String mavenVersion = MavenUtils.getMavenVersion(session);
     buildEventsHandler.onTestSessionStart(
-        request, projectName, projectRoot, startCommand, "maven", mavenVersion, null);
+        request,
+        projectName,
+        projectRoot,
+        startCommand,
+        "maven",
+        mavenVersion,
+        null
+    );
 
     List<MavenProject> projects = session.getProjects();
     for (MavenProject project : projects) {
@@ -106,7 +109,10 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
   }
 
   private void configureProjects(
-      ExecutorService projectConfigurationPool, MavenSession session, List<MavenProject> projects) {
+      ExecutorService projectConfigurationPool,
+      MavenSession session,
+      List<MavenProject> projects
+  ) {
     CompletionService<Void> testExecutionsCompletionService =
         new ExecutorCompletionService<>(projectConfigurationPool);
     for (MavenProject project : projects) {

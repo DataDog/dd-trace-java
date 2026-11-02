@@ -5,7 +5,6 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 public interface LinesResolver {
-
   @Nonnull
   Lines getMethodLines(@Nonnull Method method);
 
@@ -14,7 +13,6 @@ public interface LinesResolver {
 
   final class Lines {
     public static final Lines EMPTY = new Lines(Integer.MAX_VALUE, Integer.MIN_VALUE);
-
     private final int startLineNumber;
     private final int endLineNumber;
 

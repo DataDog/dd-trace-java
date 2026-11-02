@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static java.lang.Thread.currentThread;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
@@ -28,7 +27,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 class TraceGenerator {
-
   static List<List<CoreSpan>> generateRandomTraces(int howMany, boolean lowCardinality) {
     List<List<CoreSpan>> traces = new ArrayList<>(howMany);
     for (int i = 0; i < howMany; ++i) {
@@ -109,7 +107,8 @@ class TraceGenerator {
         baggage,
         tags,
         "type-" + random.nextInt(lowCardinality ? 1 : 100),
-        random.nextBoolean());
+        random.nextBoolean()
+    );
   }
 
   private static String randomString(int maxLength) {
@@ -131,7 +130,6 @@ class TraceGenerator {
   }
 
   static class PojoSpan implements CoreSpan<PojoSpan> {
-
     private final CharSequence serviceName;
     private final CharSequence operationName;
     private final CharSequence resourceName;
@@ -158,7 +156,8 @@ class TraceGenerator {
         Map<String, String> baggage,
         Map<String, Object> tags,
         String type,
-        boolean measured) {
+        boolean measured
+    ) {
       this.serviceName = UTF8BytesString.create(serviceName);
       this.operationName = UTF8BytesString.create(operationName);
       this.resourceName = UTF8BytesString.create(resourceName);
@@ -170,24 +169,24 @@ class TraceGenerator {
       this.error = error;
       this.type = type;
       this.measured = measured;
-      this.metadata =
-          new Metadata(
-              currentThread().getId(),
-              UTF8BytesString.create(currentThread().getName()),
-              fromMap(tags),
-              TagMap.EMPTY,
-              TagMap.EMPTY,
-              baggage,
-              UNSET,
-              measured,
-              isTopLevel(),
-              0,
-              null,
-              0,
-              getTagsForSerialization(),
-              UTF8BytesString.create(String.valueOf(Config.get().isOtlpTracesExportEnabled())),
-              emptyList(),
-              emptyList());
+      this.metadata = new Metadata(
+          currentThread().getId(),
+          UTF8BytesString.create(currentThread().getName()),
+          fromMap(tags),
+          TagMap.EMPTY,
+          TagMap.EMPTY,
+          baggage,
+          UNSET,
+          measured,
+          isTopLevel(),
+          0,
+          null,
+          0,
+          getTagsForSerialization(),
+          UTF8BytesString.create(String.valueOf(Config.get().isOtlpTracesExportEnabled())),
+          emptyList(),
+          emptyList()
+      );
     }
 
     @Override
@@ -364,7 +363,11 @@ class TraceGenerator {
 
     @Override
     public PojoSpan setSamplingPriority(
-        int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+        int samplingPriority,
+        CharSequence rate,
+        double sampleRate,
+        int samplingMechanism
+    ) {
       return this;
     }
 

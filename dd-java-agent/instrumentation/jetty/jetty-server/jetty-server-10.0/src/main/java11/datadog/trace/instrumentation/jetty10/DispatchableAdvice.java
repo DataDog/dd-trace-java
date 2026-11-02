@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jetty10;
 
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
-
 import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;

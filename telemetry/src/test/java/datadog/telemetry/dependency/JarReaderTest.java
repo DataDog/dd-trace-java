@@ -5,13 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.IOException;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 class JarReaderTest {
-
   @Test
   void readPlainJarWithManifestAndNoPomProperties() throws IOException {
     String jarPath = getJar("bson-4.2.0.jar").getAbsolutePath();
@@ -80,29 +78,28 @@ class JarReaderTest {
 
   @Test
   void nonExistentOuterJarForNestedJar() {
-    assertThrows(
-        IOException.class,
-        () ->
-            JarReader.readNestedJarFile(
-                "non-existent.jar", "BOOT-INF/lib/opentracing-util-0.33.0.jar"));
+    assertThrows(IOException.class, () -> JarReader.readNestedJarFile(
+        "non-existent.jar",
+        "BOOT-INF/lib/opentracing-util-0.33.0.jar"
+    ));
   }
 
   @Test
   void nonExistentInnerJarForNestedJar() throws IOException {
     String outerPath = getJar("spring-boot-app.jar").getAbsolutePath();
 
-    assertThrows(
-        IOException.class,
-        () -> JarReader.readNestedJarFile(outerPath, "BOOT-INF/lib/non-existent.jar"));
+    assertThrows(IOException.class, () -> JarReader.readNestedJarFile(
+        outerPath,
+        "BOOT-INF/lib/non-existent.jar"
+    ));
   }
 
   @Test
   void doublyNestedJarPath() {
-    assertThrows(
-        IOException.class,
-        () ->
-            JarReader.readNestedJarFile(
-                "non-existent.jar", "BOOT-INF/lib/opentracing-util-0.33.0.jar/third"));
+    assertThrows(IOException.class, () -> JarReader.readNestedJarFile(
+        "non-existent.jar",
+        "BOOT-INF/lib/opentracing-util-0.33.0.jar/third"
+    ));
   }
 
   @Test

@@ -5,7 +5,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
 
-/** LibDirBasedPathLocator locates libraries inside a list of library directories */
+/**
+ * LibDirBasedPathLocator locates libraries inside a list of library directories
+ */
 final class LibDirBasedPathLocator implements PathLocator {
   private final File[] libDirs;
 
@@ -19,7 +21,9 @@ final class LibDirBasedPathLocator implements PathLocator {
 
     for (File libDir : this.libDirs) {
       File libFile = new File(libDir, fullPath);
-      if (libFile.exists()) return toUrl(libFile);
+      if (libFile.exists()) {
+        return toUrl(libFile);
+      }
     }
 
     return null;
@@ -41,7 +45,9 @@ final class LibDirBasedPathLocator implements PathLocator {
 
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof LibDirBasedPathLocator)) return false;
+    if (!(obj instanceof LibDirBasedPathLocator)) {
+      return false;
+    }
 
     LibDirBasedPathLocator that = (LibDirBasedPathLocator) obj;
     return Arrays.equals(this.libDirs, that.libDirs);

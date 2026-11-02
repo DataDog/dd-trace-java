@@ -2,9 +2,12 @@ package datadog.trace.agent.test.scopediag;
 
 import net.bytebuddy.asm.Advice;
 
-/** Test-only advice for scopes added to the active stack. */
+/**
+ * Test-only advice for scopes added to the active stack.
+ */
 public final class ScopeStackAdvice {
-  private ScopeStackAdvice() {}
+  private ScopeStackAdvice() {
+  }
 
   public static final class Push {
     @Advice.OnMethodEnter(suppress = Throwable.class)

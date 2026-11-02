@@ -7,7 +7,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.lambda.MultipartSplitter.Part;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -16,7 +15,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class MultipartSplitterTest {
-
   private static final int NO_PART_BUDGET_LIMIT = 256;
 
   @ParameterizedTest(name = "[{index}] {0} -> {1}")
@@ -24,20 +22,21 @@ class MultipartSplitterTest {
       delimiter = '|',
       nullValues = "NULL",
       value = {
-        // case is preserved: the boundary is matched byte-for-byte against the body
-        "multipart/form-data; boundary=AbC123        | AbC123",
-        // the parameter name is not
-        "multipart/form-data; BOUNDARY=xy            | xy",
-        // quoted values may hold separators
-        "multipart/form-data; boundary=\"a;b c\"     | a;b c",
-        // position among the other parameters does not matter
-        "multipart/form-data; boundary=xy; charset=x | xy",
-        // a parameter that merely ends in "boundary" is not one
-        "multipart/form-data; xboundary=xy           | NULL",
-        "multipart/form-data                         | NULL",
-        "multipart/form-data; boundary=              | NULL",
-        "NULL                                        | NULL",
-      })
+      // case is preserved: the boundary is matched byte-for-byte against the body
+      "multipart/form-data; boundary=AbC123        | AbC123",
+      // the parameter name is not
+      "multipart/form-data; BOUNDARY=xy            | xy",
+      // quoted values may hold separators
+      "multipart/form-data; boundary=\"a;b c\"     | a;b c",
+      // position among the other parameters does not matter
+      "multipart/form-data; boundary=xy; charset=x | xy",
+      // a parameter that merely ends in "boundary" is not one
+      "multipart/form-data; xboundary=xy           | NULL",
+      "multipart/form-data                         | NULL",
+      "multipart/form-data; boundary=              | NULL",
+      "NULL                                        | NULL"
+      }
+  )
   void extractsTheBoundary(String contentType, String expected) {
     assertEquals(expected, extractBoundary(contentType));
   }
@@ -55,29 +54,30 @@ class MultipartSplitterTest {
       delimiter = '|',
       nullValues = "NULL",
       value = {
-        "form-data; name=user               | name     | user",
-        "form-data; name=\"user\"           | name     | user",
-        "form-data; name=\"a;b\"            | name     | a;b",
-        "form-data; NAME=user               | name     | user",
-        "form-data; name=user; charset=utf-8| name     | user",
-        // "filename" must not answer a lookup for "name": the match has to start at a parameter
-        "form-data; filename=\"f\"; name=u  | name     | u",
-        // present but empty, which is what browsers send for an untouched file input
-        "form-data; filename=\"\"           | filename | ''",
-        "form-data; filename=               | filename | ''",
-        "form-data; name=user               | filename | NULL",
-        "NULL                               | name     | NULL",
-        // a quoted value cannot forge a parameter boundary: the quoted span is skipped whole, so
-        // this field is not mistaken for a file part and dropped
-        "form-data; name=\"; filename=x\"   | filename | NULL",
-        "form-data; name=\"; filename=x\"   | name     | '; filename=x'",
-        // and the same aliasing the other way round does not rename the field
-        "form-data; filename=\"; name=y\"   | name     | NULL",
-        // RFC 7230 optional whitespace is tolerated on both sides of the "="
-        "form-data; name =user             | name     | user",
-        // a bare parameter name is not a parameter
-        "form-data; name                    | name     | NULL",
-      })
+      "form-data; name=user               | name     | user",
+      "form-data; name=\"user\"           | name     | user",
+      "form-data; name=\"a;b\"            | name     | a;b",
+      "form-data; NAME=user               | name     | user",
+      "form-data; name=user; charset=utf-8| name     | user",
+      // "filename" must not answer a lookup for "name": the match has to start at a parameter
+      "form-data; filename=\"f\"; name=u  | name     | u",
+      // present but empty, which is what browsers send for an untouched file input
+      "form-data; filename=\"\"           | filename | ''",
+      "form-data; filename=               | filename | ''",
+      "form-data; name=user               | filename | NULL",
+      "NULL                               | name     | NULL",
+      // a quoted value cannot forge a parameter boundary: the quoted span is skipped whole, so
+      // this field is not mistaken for a file part and dropped
+      "form-data; name=\"; filename=x\"   | filename | NULL",
+      "form-data; name=\"; filename=x\"   | name     | '; filename=x'",
+      // and the same aliasing the other way round does not rename the field
+      "form-data; filename=\"; name=y\"   | name     | NULL",
+      // RFC 7230 optional whitespace is tolerated on both sides of the "="
+      "form-data; name =user             | name     | user",
+      // a bare parameter name is not a parameter
+      "form-data; name                    | name     | NULL"
+      }
+  )
   void readsParameters(String headerValue, String paramName, String expected) {
     assertEquals(expected, parameter(headerValue, paramName));
   }
@@ -102,33 +102,36 @@ class MultipartSplitterTest {
   @CsvSource(
       delimiter = '|',
       value = {
-        "happy path                | --x@A: b@@v@--x--          | 1",
-        "two parts                 | --x@@a@--x@@b@--x--        | 2",
-        "preamble is discarded     | junk@--x@@v@--x--          | 1",
-        // The preamble is discarded even when a line in it looks like a delimiter: RFC 2046
-        // requires it to be ignored, so the fields after it are the ones the app receives
-        "preamble looks like one   | --x--not-a-close@--x@@v@--x-- | 1",
-        "epilogue is discarded     | --x@@v@--x--@junk          | 1",
-        // A delimiter at the very start of a part's content has no line break of its own, so it
-        // reads as content, not as a delimiter — and the part that follows is absorbed with it
-        "delimiter at content start| --x@@--x@@v@--x--         | 1",
-        // a truncated body still yields its last part
-        "truncated last delimiter  | --x@A: b@@v                | 1",
-        "truncated in the headers  | --x@A: b                   | 0",
-        // A part truncated inside its headers voids the parts before it too: its own headers are
-        // content the WAF would otherwise never see
-        "truncated after a part    | --x@@v@--x@A: b            | 0",
-        "no line break at all      | --x                        | 0",
-        "close delimiter only      | --x--                      | 0",
-        "empty part content        | --x@A: b@@                 | 1",
-        "part without headers      | --x@@v@--x--               | 1",
-        "unrelated delimiter       | --y@@v@--y--               | 0",
-        // RFC 2046 transport padding between the delimiter and its line break
-        "padded delimiter          | --x  @@v@--x--             | 1",
-      })
+      "happy path                | --x@A: b@@v@--x--          | 1",
+      "two parts                 | --x@@a@--x@@b@--x--        | 2",
+      "preamble is discarded     | junk@--x@@v@--x--          | 1",
+      // The preamble is discarded even when a line in it looks like a delimiter: RFC 2046
+      // requires it to be ignored, so the fields after it are the ones the app receives
+      "preamble looks like one   | --x--not-a-close@--x@@v@--x-- | 1",
+      "epilogue is discarded     | --x@@v@--x--@junk          | 1",
+      // A delimiter at the very start of a part's content has no line break of its own, so it
+      // reads as content, not as a delimiter — and the part that follows is absorbed with it
+      "delimiter at content start| --x@@--x@@v@--x--         | 1",
+      // a truncated body still yields its last part
+      "truncated last delimiter  | --x@A: b@@v                | 1",
+      "truncated in the headers  | --x@A: b                   | 0",
+      // A part truncated inside its headers voids the parts before it too: its own headers are
+      // content the WAF would otherwise never see
+      "truncated after a part    | --x@@v@--x@A: b            | 0",
+      "no line break at all      | --x                        | 0",
+      "close delimiter only      | --x--                      | 0",
+      "empty part content        | --x@A: b@@                 | 1",
+      "part without headers      | --x@@v@--x--               | 1",
+      "unrelated delimiter       | --y@@v@--y--               | 0",
+      // RFC 2046 transport padding between the delimiter and its line break
+      "padded delimiter          | --x  @@v@--x--             | 1"
+      }
+  )
   void splitsBodies(String name, String template, int expectedParts) {
     assertEquals(
-        expectedParts, split(template.replace("@", "\r\n"), "x", NO_PART_BUDGET_LIMIT).size());
+        expectedParts,
+        split(template.replace("@", "\r\n"), "x", NO_PART_BUDGET_LIMIT).size()
+    );
   }
 
   @Test
@@ -199,7 +202,7 @@ class MultipartSplitterTest {
     // accepts. Reporting the second part alone would show the WAF less than the app receives.
     String body =
         "--x\r\nX-First: 1\r\n"
-            + "--x\r\nContent-Disposition: form-data; name=\"b\"\r\n\r\nsecond\r\n--x--";
+        + "--x\r\nContent-Disposition: form-data; name=\"b\"\r\n\r\nsecond\r\n--x--";
 
     assertTrue(split(body, "x", NO_PART_BUDGET_LIMIT).isEmpty());
   }
@@ -208,8 +211,8 @@ class MultipartSplitterTest {
   void matchesHeaderNamesCaseInsensitivelyAndTrimsValues() {
     String body =
         "--x\r\nCONTENT-Disposition:  form-data; name=a \r\n"
-            + "content-type \t:\ttext/plain \r\n\r\nv\r\n"
-            + "--x\r\nContent-Type:\r\n\r\nv\r\n--x--";
+        + "content-type \t:\ttext/plain \r\n\r\nv\r\n"
+        + "--x\r\nContent-Type:\r\n\r\nv\r\n--x--";
 
     List<Part> parts = split(body, "x", NO_PART_BUDGET_LIMIT);
 
@@ -236,9 +239,9 @@ class MultipartSplitterTest {
   void neverThrowsOnAMutatedBody() {
     String body =
         "preamble\r\n--x\r\nContent-Disposition: form-data; name=\"a\"\r\n"
-            + "Content-Type: application/json\r\n\r\n{\"k\":1}\r\n"
-            + "--x\r\nContent-Disposition: form-data; name=b; filename=\"f\"\r\n\r\nfile\r\n"
-            + "--x--\r\nepilogue";
+        + "Content-Type: application/json\r\n\r\n{\"k\":1}\r\n"
+        + "--x\r\nContent-Disposition: form-data; name=b; filename=\"f\"\r\n\r\nfile\r\n"
+        + "--x--\r\nepilogue";
     // Fixed positions rather than a random seed, so a failure is reproducible
     char[] substitutes = {'-', '\r', '\n', ':', ';', '"', '\\', '=', '\0', '�'};
 
@@ -247,7 +250,10 @@ class MultipartSplitterTest {
       for (char substitute : substitutes) {
         if (i < body.length()) {
           split(
-              body.substring(0, i) + substitute + body.substring(i + 1), "x", NO_PART_BUDGET_LIMIT);
+              body.substring(0, i) + substitute + body.substring(i + 1),
+              "x",
+              NO_PART_BUDGET_LIMIT
+          );
         }
       }
     }

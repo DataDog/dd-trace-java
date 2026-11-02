@@ -7,7 +7,6 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.canAvoidSamplingPriorityLock;
 import static datadog.trace.api.sampling.SamplingMechanism.validateWithSamplingPriority;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.junit.utils.converter.SamplingMechanismConverter;
@@ -17,7 +16,6 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class SamplingMechanismTest extends DDJavaSpecification {
-
   @TableTest({
     "mechanism         | priority     | valid",
     "UNKNOWN           | UNSET        | true ",
@@ -94,7 +92,8 @@ class SamplingMechanismTest extends DDJavaSpecification {
   void testValidation(
       @ConvertWith(SamplingMechanismConverter.class) byte mechanism,
       @ConvertWith(OutOfRangePrioritySamplingConverter.class) byte priority,
-      boolean valid) {
+      boolean valid
+  ) {
     assertEquals(valid, validateWithSamplingPriority(mechanism, priority));
   }
 
@@ -117,7 +116,8 @@ class SamplingMechanismTest extends DDJavaSpecification {
   void testCanAvoidSamplingPriorityLock(
       @ConvertWith(SamplingMechanismConverter.class) byte mechanism,
       @ConvertWith(PrioritySamplingConverter.class) byte priority,
-      boolean valid) {
+      boolean valid
+  ) {
     assertEquals(valid, canAvoidSamplingPriorityLock(priority, mechanism));
   }
 
@@ -132,7 +132,8 @@ class SamplingMechanismTest extends DDJavaSpecification {
   void testCanAvoidSamplingPriorityLockWithDataJobsEnabled(
       @ConvertWith(SamplingMechanismConverter.class) byte mechanism,
       @ConvertWith(PrioritySamplingConverter.class) byte priority,
-      boolean valid) {
+      boolean valid
+  ) {
     assertEquals(valid, canAvoidSamplingPriorityLock(priority, mechanism));
   }
 
@@ -144,11 +145,14 @@ class SamplingMechanismTest extends DDJavaSpecification {
   void testCanAvoidSamplingPriorityLockWithApmTracingEnabled(
       @ConvertWith(SamplingMechanismConverter.class) byte mechanism,
       @ConvertWith(PrioritySamplingConverter.class) byte priority,
-      boolean valid) {
+      boolean valid
+  ) {
     assertEquals(valid, canAvoidSamplingPriorityLock(priority, mechanism));
   }
 
-  /** Also resolves the out-of-range priorities just below USER_DROP and just above USER_KEEP. */
+  /**
+   * Also resolves the out-of-range priorities just below USER_DROP and just above USER_KEEP.
+   */
   static class OutOfRangePrioritySamplingConverter extends PrioritySamplingConverter {
     @Override
     protected boolean throwsOnUnsupportedValue() {

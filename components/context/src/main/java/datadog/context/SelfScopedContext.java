@@ -1,10 +1,13 @@
 package datadog.context;
 
-/** Context that acts as its own unattached scope. */
+/**
+ * Context that acts as its own unattached scope.
+ */
 public interface SelfScopedContext extends Context, ContextScope {
   @Override
   default ContextScope asScope() {
-    return this; // acts as no-op scope, avoiding allocation
+    // acts as no-op scope, avoiding allocation
+    return this;
   }
 
   @Override

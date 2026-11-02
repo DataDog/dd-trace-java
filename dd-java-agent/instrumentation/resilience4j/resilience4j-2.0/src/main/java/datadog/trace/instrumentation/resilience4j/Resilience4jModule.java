@@ -8,7 +8,6 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class Resilience4jModule extends InstrumenterModule.Tracing {
-
   public Resilience4jModule() {
     super("resilience4j");
   }
@@ -21,6 +20,7 @@ public class Resilience4jModule extends InstrumenterModule.Tracing {
         new FallbackCheckedSupplierInstrumentation(),
         new FallbackCompletionStageInstrumentation(),
         new FallbackSupplierInstrumentation(),
-        new RetryInstrumentation());
+        new RetryInstrumentation()
+    );
   }
 }

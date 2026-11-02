@@ -1,5 +1,4 @@
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -38,10 +37,12 @@ public class SchedulingConfig implements SchedulingConfigurer {
     }
 
     @Override
-    public ScheduledFuture<?> scheduleAtFixedRate(
-        Runnable task, Instant startTime, Duration period) {
+    public ScheduledFuture<?> scheduleAtFixedRate(Runnable task, Instant startTime, Duration period) {
       return scheduler.scheduleAtFixedRate(
-          () -> runnableUnderTrace("parent", task), startTime, period);
+          () -> runnableUnderTrace("parent", task),
+          startTime,
+          period
+      );
     }
 
     @Override
@@ -51,9 +52,15 @@ public class SchedulingConfig implements SchedulingConfigurer {
 
     @Override
     public ScheduledFuture<?> scheduleWithFixedDelay(
-        Runnable task, Instant startTime, Duration delay) {
+        Runnable task,
+        Instant startTime,
+        Duration delay
+    ) {
       return scheduler.scheduleWithFixedDelay(
-          () -> runnableUnderTrace("parent", task), startTime, delay);
+          () -> runnableUnderTrace("parent", task),
+          startTime,
+          delay
+      );
     }
 
     @Override
@@ -78,8 +85,7 @@ public class SchedulingConfig implements SchedulingConfigurer {
 
     @Override
     public ScheduledFuture<?> scheduleWithFixedDelay(Runnable runnable, Date date, long l) {
-      return scheduler.scheduleWithFixedDelay(
-          () -> runnableUnderTrace("parent", runnable), date, l);
+      return scheduler.scheduleWithFixedDelay(() -> runnableUnderTrace("parent", runnable), date, l);
     }
 
     @Override

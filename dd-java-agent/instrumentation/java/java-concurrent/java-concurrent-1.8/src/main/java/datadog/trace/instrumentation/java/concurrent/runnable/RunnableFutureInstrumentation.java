@@ -18,7 +18,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -40,28 +39,29 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class RunnableFutureInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice,
-        ExcludeFilterProvider {
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider
+{
   public RunnableFutureInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, "runnable-future");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(RUNNABLE_FUTURE)
-        .and(
-            extendsClass(
-                named("java.util.concurrent.FutureTask")
-                    .or(nameEndsWith(".netty.util.concurrent.PromiseTask"))
-                    .or(
-                        nameEndsWith(
-                            "com.google.common.util.concurrent.TrustedListenableFutureTask"))));
+      .and(
+          extendsClass(named("java.util.concurrent.FutureTask")
+            .or(nameEndsWith(".netty.util.concurrent.PromiseTask"))
+            .or(nameEndsWith("com.google.common.util.concurrent.TrustedListenableFutureTask"))
+          )
+      );
   }
 
   @Override
@@ -77,29 +77,27 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
         promiseTask.or(nameEndsWith(".netty.util.concurrent.ScheduledFutureTask"));
     ElementMatcher.Junction<MethodDescription> nettyCancellation =
         named("cancel").and(isDeclaredBy(extendsClass(promiseTask)));
-
     // instrument any FutureTask or TrustedListenableFutureTask constructor,
     // but only instrument the PromiseTask constructor with a Callable argument
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                isDeclaredBy(
-                        named("java.util.concurrent.FutureTask")
-                            .or(
-                                nameEndsWith(
-                                    "com.google.common.util.concurrent.TrustedListenableFutureTask")))
-                    .or(
-                        isDeclaredBy(promiseTask)
-                            .and(takesArgument(1, named(Callable.class.getName()))))),
-        getClass().getName() + "$Construct");
+          .and(isDeclaredBy(named("java.util.concurrent.FutureTask")
+            .or(nameEndsWith("com.google.common.util.concurrent.TrustedListenableFutureTask"))
+          )
+            .or(isDeclaredBy(promiseTask).and(takesArgument(1, named(Callable.class.getName()))))
+          ),
+        getClass().getName() + "$Construct"
+    );
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     // Netty owns activation and cleanup, using its execution decision for one-shot tasks.
     transformer.applyAdvice(
         isMethod().and(named("run")).and(not(isDeclaredBy(nettyTask))),
-        getClass().getName() + "$Run");
+        getClass().getName() + "$Run"
+    );
     transformer.applyAdvice(
         isMethod().and(namedOneOf("set", "setException", "cancel")).and(not(nettyCancellation)),
-        getClass().getName() + "$Cancel");
+        getClass().getName() + "$Cancel"
+    );
   }
 
   @Override
@@ -114,8 +112,10 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
             "com.couchbase.client.deps.io.netty.util.concurrent.PromiseTask",
             "com.couchbase.client.deps.io.netty.util.concurrent.RunnableScheduledFutureTask",
             "com.couchbase.client.deps.io.netty.util.concurrent.ScheduledFutureTask",
-            "com.couchbase.client.deps.io.netty.util.concurrent.UnorderedThreadPoolEventExecutor$NonNotifyRunnable",
-            "com.couchbase.client.deps.io.netty.util.concurrent.UnorderedThreadPoolEventExecutor$RunnableScheduledFutureTask",
+            "com.couchbase.client.deps.io.netty.util.concurrent."
+            + "UnorderedThreadPoolEventExecutor$NonNotifyRunnable",
+            "com.couchbase.client.deps.io.netty.util.concurrent."
+            + "UnorderedThreadPoolEventExecutor$RunnableScheduledFutureTask",
             "com.google.common.util.concurrent.Futures$CombinerFuture",
             "com.google.common.util.concurrent.ListenableFutureTask",
             "com.google.common.util.concurrent.TrustedListenableFutureTask",
@@ -124,7 +124,8 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
             "io.grpc.netty.shaded.io.netty.util.concurrent.RunnableScheduledFutureTask",
             "io.grpc.netty.shaded.io.netty.util.concurrent.ScheduledFutureTask",
             "io.grpc.netty.shaded.io.netty.util.concurrent.UnorderedThreadPoolEventExecutor$NonNotifyRunnable",
-            "io.grpc.netty.shaded.io.netty.util.concurrent.UnorderedThreadPoolEventExecutor$RunnableScheduledFutureTask",
+            "io.grpc.netty.shaded.io.netty.util.concurrent."
+            + "UnorderedThreadPoolEventExecutor$RunnableScheduledFutureTask",
             "io.netty.util.concurrent.PromiseTask",
             "io.netty.util.concurrent.RunnableScheduledFutureTask",
             "io.netty.util.concurrent.ScheduledFutureTask",
@@ -138,18 +139,21 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
             "org.apache.http.impl.client.HttpRequestFutureTask",
             "org.elasticsearch.common.util.concurrent.PrioritizedEsThreadPoolExecutor$PrioritizedFutureTask",
             "org.glassfish.enterprise.concurrent.internal.ManagedFutureTask",
-            "org.glassfish.enterprise.concurrent.internal.ManagedScheduledThreadPoolExecutor$ManagedScheduledFutureTask",
-            "org.glassfish.enterprise.concurrent.internal.ManagedScheduledThreadPoolExecutor$ManagedTriggerSingleFutureTask",
+            "org.glassfish.enterprise.concurrent.internal."
+            + "ManagedScheduledThreadPoolExecutor$ManagedScheduledFutureTask",
+            "org.glassfish.enterprise.concurrent.internal."
+            + "ManagedScheduledThreadPoolExecutor$ManagedTriggerSingleFutureTask",
             "org.springframework.boot.SpringApplicationShutdownHook",
             "org.springframework.util.concurrent.ListenableFutureTask",
             "org.springframework.util.concurrent.SettableListenableFuture$SettableTask",
             "play.shaded.ahc.io.netty.util.concurrent.PromiseTask",
             "play.shaded.ahc.io.netty.util.concurrent.RunnableScheduledFutureTask",
-            "play.shaded.ahc.io.netty.util.concurrent.ScheduledFutureTask"));
+            "play.shaded.ahc.io.netty.util.concurrent.ScheduledFutureTask"
+        )
+    );
   }
 
   public static final class Construct {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T> void captureScope(@Advice.This RunnableFuture<T> task) {
       capture(InstrumentationContext.get(RunnableFuture.class, State.class), task);

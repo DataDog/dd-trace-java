@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -31,15 +30,17 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 class DebuggingAdviceTransformerTest {
-
   @Test
   void doesNotChangeGeneratedBytecode() {
     byte[] regular = transform(new AgentBuilder.Transformer.ForAdvice(), ValidAdvice.class);
-    byte[] debugging =
-        transform(
-            new DebuggingAdviceTransformer(
-                Advice.withCustomMapping(), "test.Instrumentation", ValidAdvice.class.getName()),
-            ValidAdvice.class);
+    byte[] debugging = transform(
+        new DebuggingAdviceTransformer(
+            Advice.withCustomMapping(),
+            "test.Instrumentation",
+            ValidAdvice.class.getName()
+        ),
+        ValidAdvice.class
+    );
 
     assertArrayEquals(regular, debugging);
   }
@@ -49,11 +50,10 @@ class DebuggingAdviceTransformerTest {
     RuntimeException failure = new IllegalStateException("binding failed");
     AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate =
         (type, method, visitor, context, typePool, writerFlags, readerFlags) -> {
-          throw failure;
-        };
+      throw failure;
+    };
 
-    RuntimeException thrown =
-        assertThrows(RuntimeException.class, () -> wrapTargetMethod(delegate));
+    RuntimeException thrown = assertThrows(RuntimeException.class, () -> wrapTargetMethod(delegate));
 
     assertTrue(thrown instanceof AdviceTransformationException);
     assertSame(failure, thrown.getCause());
@@ -64,11 +64,10 @@ class DebuggingAdviceTransformerTest {
     LinkageError failure = new NoClassDefFoundError("missing.AdviceDependency");
     AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate =
         (type, method, visitor, context, typePool, writerFlags, readerFlags) -> {
-          throw failure;
-        };
+      throw failure;
+    };
 
-    RuntimeException thrown =
-        assertThrows(RuntimeException.class, () -> wrapTargetMethod(delegate));
+    RuntimeException thrown = assertThrows(RuntimeException.class, () -> wrapTargetMethod(delegate));
 
     assertTrue(thrown instanceof AdviceTransformationException);
     assertSame(failure, thrown.getCause());
@@ -78,13 +77,14 @@ class DebuggingAdviceTransformerTest {
   void preservesLinkageFailureRaisedDuringAdviceApplicationAsCause() {
     LinkageError failure = new NoClassDefFoundError("missing.AdviceDependency");
     AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate =
-        (type, method, visitor, context, typePool, writerFlags, readerFlags) ->
-            new MethodVisitor(ASM_API) {
-              @Override
-              public void visitMaxs(int maxStack, int maxLocals) {
-                throw failure;
-              }
-            };
+        (type, method, visitor, context, typePool, writerFlags, readerFlags) -> new MethodVisitor(
+            ASM_API
+    ) {
+      @Override
+      public void visitMaxs(int maxStack, int maxLocals) {
+        throw failure;
+      }
+    };
 
     MethodVisitor visitor = wrapTargetMethod(delegate);
     RuntimeException thrown = assertThrows(RuntimeException.class, () -> visitor.visitMaxs(0, 0));
@@ -96,18 +96,18 @@ class DebuggingAdviceTransformerTest {
   @Test
   void doesNotAttributeDownstreamRuntimeFailureToAdvice() {
     RuntimeException failure = new IllegalStateException("custom visitor failed");
-    MethodVisitor downstream =
-        new MethodVisitor(ASM_API) {
-          @Override
-          public void visitMaxs(int maxStack, int maxLocals) {
-            throw failure;
-          }
-        };
+    MethodVisitor downstream = new MethodVisitor(ASM_API) {
+      @Override
+      public void visitMaxs(int maxStack, int maxLocals) {
+        throw failure;
+      }
+    };
 
-    RuntimeException thrown =
-        assertThrows(
-            RuntimeException.class,
-            () -> wrapTargetMethod(forwardingVisitor(), downstream).visitMaxs(0, 0));
+    RuntimeException thrown = assertThrows(RuntimeException.class, () -> wrapTargetMethod(
+        forwardingVisitor(),
+        downstream
+    )
+      .visitMaxs(0, 0));
 
     assertSame(failure, thrown);
   }
@@ -115,18 +115,18 @@ class DebuggingAdviceTransformerTest {
   @Test
   void doesNotAttributeDownstreamLinkageFailureToAdvice() {
     LinkageError failure = new NoClassDefFoundError("missing.CustomVisitorDependency");
-    MethodVisitor downstream =
-        new MethodVisitor(ASM_API) {
-          @Override
-          public void visitMaxs(int maxStack, int maxLocals) {
-            throw failure;
-          }
-        };
+    MethodVisitor downstream = new MethodVisitor(ASM_API) {
+      @Override
+      public void visitMaxs(int maxStack, int maxLocals) {
+        throw failure;
+      }
+    };
 
-    LinkageError thrown =
-        assertThrows(
-            LinkageError.class,
-            () -> wrapTargetMethod(forwardingVisitor(), downstream).visitMaxs(0, 0));
+    LinkageError thrown = assertThrows(LinkageError.class, () -> wrapTargetMethod(
+        forwardingVisitor(),
+        downstream
+    )
+      .visitMaxs(0, 0));
 
     assertSame(failure, thrown);
   }
@@ -135,12 +135,14 @@ class DebuggingAdviceTransformerTest {
   void attributesLocalVariableAnnotationFailureToAdvice() {
     RuntimeException failure = new IllegalStateException("annotation binding failed");
     AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate =
-        (type, method, visitor, context, typePool, writerFlags, readerFlags) ->
-            localVariableAnnotationFailureVisitor(null, failure);
+        (type, method, visitor, context, typePool, writerFlags, readerFlags) -> localVariableAnnotationFailureVisitor(
+            null,
+            failure
+    );
 
-    RuntimeException thrown =
-        assertThrows(
-            RuntimeException.class, () -> visitLocalVariableAnnotation(wrapTargetMethod(delegate)));
+    RuntimeException thrown = assertThrows(RuntimeException.class, () -> visitLocalVariableAnnotation(
+        wrapTargetMethod(delegate)
+    ));
 
     assertTrue(thrown instanceof AdviceTransformationException);
     assertSame(failure, thrown.getCause());
@@ -151,10 +153,9 @@ class DebuggingAdviceTransformerTest {
     RuntimeException failure = new IllegalStateException("custom annotation visitor failed");
     MethodVisitor downstream = localVariableAnnotationFailureVisitor(null, failure);
 
-    RuntimeException thrown =
-        assertThrows(
-            RuntimeException.class,
-            () -> visitLocalVariableAnnotation(wrapTargetMethod(forwardingVisitor(), downstream)));
+    RuntimeException thrown = assertThrows(RuntimeException.class, () -> visitLocalVariableAnnotation(
+        wrapTargetMethod(forwardingVisitor(), downstream)
+    ));
 
     assertSame(failure, thrown);
   }
@@ -181,12 +182,13 @@ class DebuggingAdviceTransformerTest {
       assertTrue(failure.getCause().getMessage().contains("does not define an index 1"));
 
       new AgentInstaller.TransformLoggingListener()
-          .onError(
-              Target.class.getName(),
-              Target.class.getClassLoader(),
-              JavaModule.ofType(Target.class),
-              false,
-              failure);
+        .onError(
+            Target.class.getName(),
+            Target.class.getClassLoader(),
+            JavaModule.ofType(Target.class),
+            false,
+            failure
+        );
 
       assertEquals(1, appender.list.size());
       ILoggingEvent event = appender.list.get(0);
@@ -194,8 +196,10 @@ class DebuggingAdviceTransformerTest {
       assertTrue(event.getFormattedMessage().contains("test.Instrumentation"));
       assertTrue(event.getFormattedMessage().contains(InvalidArgumentAdvice.class.getName()));
       assertTrue(event.getFormattedMessage().contains(Target.class.getName()));
-      assertTrue(
-          event.getFormattedMessage().contains("greet(Ljava/lang/String;)Ljava/lang/String;"));
+      assertTrue(event
+        .getFormattedMessage()
+        .contains("greet(Ljava/lang/String;)Ljava/lang/String;")
+      );
       assertTrue(event.getFormattedMessage().contains("instrumentation.target.loaded=false"));
       assertEquals(failure.getCause().getMessage(), event.getThrowableProxy().getMessage());
       String flareErrors = InstrumenterFlare.transformationErrors();
@@ -213,13 +217,10 @@ class DebuggingAdviceTransformerTest {
 
   @Test
   void attributesStackedAdviceFailureOnlyToFailingAdvice() {
-    RuntimeException failure =
-        assertThrows(
-            RuntimeException.class,
-            () ->
-                materialize(
-                    debuggingTransformer(InvalidArgumentAdvice.class),
-                    debuggingTransformer(ValidAdvice.class)));
+    RuntimeException failure = assertThrows(RuntimeException.class, () -> materialize(
+        debuggingTransformer(InvalidArgumentAdvice.class),
+        debuggingTransformer(ValidAdvice.class)
+    ));
 
     assertTrue(failure instanceof AdviceTransformationException);
     AdviceTransformationException diagnostic = (AdviceTransformationException) failure;
@@ -229,38 +230,49 @@ class DebuggingAdviceTransformerTest {
 
   private AgentBuilder.Transformer.ForAdvice debuggingTransformer(Class<?> adviceClass) {
     return new DebuggingAdviceTransformer(
-            Advice.withCustomMapping(), "test.Instrumentation", adviceClass.getName())
-        .include(getClass().getClassLoader())
-        .advice(named("greet"), adviceClass.getName());
+        Advice.withCustomMapping(),
+        "test.Instrumentation",
+        adviceClass.getName()
+    )
+      .include(getClass().getClassLoader())
+      .advice(named("greet"), adviceClass.getName());
   }
 
   private MethodVisitor wrapTargetMethod(
-      AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate) {
+      AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate
+  ) {
     return wrapTargetMethod(delegate, null);
   }
 
   private MethodVisitor wrapTargetMethod(
       AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate,
-      MethodVisitor methodVisitor) {
-    return DebuggingAdviceTransformer.wrap(
-            delegate, "test.Instrumentation", InvalidArgumentAdvice.class.getName())
-        .wrap(
-            new TypeDescription.ForLoadedType(Target.class),
-            new MethodDescription.ForLoadedMethod(getTargetMethod()),
-            methodVisitor,
-            null,
-            null,
-            0,
-            0);
+      MethodVisitor methodVisitor
+  ) {
+    return DebuggingAdviceTransformer
+      .wrap(delegate, "test.Instrumentation", InvalidArgumentAdvice.class.getName())
+      .wrap(
+          new TypeDescription.ForLoadedType(Target.class),
+          new MethodDescription.ForLoadedMethod(getTargetMethod()),
+          methodVisitor,
+          null,
+          null,
+          0,
+          0
+      );
   }
 
   private AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper forwardingVisitor() {
-    return (type, method, visitor, context, typePool, writerFlags, readerFlags) ->
-        new MethodVisitor(ASM_API, visitor) {};
+    return (type, method, visitor, context, typePool, writerFlags, readerFlags) -> new MethodVisitor(
+        ASM_API,
+        visitor
+    ) {
+    };
   }
 
   private MethodVisitor localVariableAnnotationFailureVisitor(
-      MethodVisitor delegate, RuntimeException failure) {
+      MethodVisitor delegate,
+      RuntimeException failure
+  ) {
     return new MethodVisitor(ASM_API, delegate) {
       @Override
       public AnnotationVisitor visitLocalVariableAnnotation(
@@ -270,7 +282,8 @@ class DebuggingAdviceTransformerTest {
           Label[] end,
           int[] index,
           String descriptor,
-          boolean visible) {
+          boolean visible
+      ) {
         throw failure;
       }
     };
@@ -280,7 +293,14 @@ class DebuggingAdviceTransformerTest {
     Label start = new Label();
     Label end = new Label();
     visitor.visitLocalVariableAnnotation(
-        0, null, new Label[] {start}, new Label[] {end}, new int[] {0}, "Ltest/Marker;", true);
+        0,
+        null,
+        new Label[] {start},
+        new Label[] {end},
+        new int[] {0},
+        "Ltest/Marker;",
+        true
+    );
   }
 
   private Method getTargetMethod() {
@@ -292,10 +312,10 @@ class DebuggingAdviceTransformerTest {
   }
 
   private byte[] transform(AgentBuilder.Transformer.ForAdvice transformer, Class<?> adviceClass) {
-    return materialize(
-        transformer
-            .include(getClass().getClassLoader())
-            .advice(named("greet"), adviceClass.getName()));
+    return materialize(transformer
+      .include(getClass().getClassLoader())
+      .advice(named("greet"), adviceClass.getName())
+    );
   }
 
   private byte[] materialize(AgentBuilder.Transformer.ForAdvice... transformers) {
@@ -303,13 +323,13 @@ class DebuggingAdviceTransformerTest {
     DynamicType.Builder<?> builder = new ByteBuddy().redefine(Target.class);
     ProtectionDomain protectionDomain = Target.class.getProtectionDomain();
     for (AgentBuilder.Transformer.ForAdvice transformer : transformers) {
-      builder =
-          transformer.transform(
-              builder,
-              target,
-              Target.class.getClassLoader(),
-              JavaModule.ofType(Target.class),
-              protectionDomain);
+      builder = transformer.transform(
+          builder,
+          target,
+          Target.class.getClassLoader(),
+          JavaModule.ofType(Target.class),
+          protectionDomain
+      );
     }
     return builder.make().getBytes();
   }

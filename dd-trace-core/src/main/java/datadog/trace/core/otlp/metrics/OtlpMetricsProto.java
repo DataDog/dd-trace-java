@@ -13,7 +13,6 @@ import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.HISTOGRAM_T
 import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.OBSERVABLE_COUNTER_TEMPORALITY;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.TEMPORALITY_CUMULATIVE;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.TEMPORALITY_DELTA;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
@@ -23,17 +22,22 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 
-/** Provides optimized writers for OpenTelemetry's "metrics.proto" wire protocol. */
+/**
+ * Provides optimized writers for OpenTelemetry's "metrics.proto" wire protocol.
+ */
 public final class OtlpMetricsProto {
-  private OtlpMetricsProto() {}
+  private OtlpMetricsProto() {
+  }
 
-  /** Records a scoped metrics message after its nested metric messages have been recorded. */
+  /**
+   * Records a scoped metrics message after its nested metric messages have been recorded.
+   */
   public static int recordScopedMetricsMessage(
       GrowableBuffer buf,
       OtelInstrumentationScope scope,
       int nestedMetricBytes,
-      OtlpProtoBuffer protobuf) {
-
+      OtlpProtoBuffer protobuf
+  ) {
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeInstrumentationScope(buf, scope);
     if (scope.getSchemaUrl() != null) {
@@ -44,12 +48,15 @@ public final class OtlpMetricsProto {
     return protobuf.recordMessage(buf, 2, nestedMetricBytes);
   }
 
-  /** Records a metric message after its nested data point messages have been recorded. */
+  /**
+   * Records a metric message after its nested data point messages have been recorded.
+   */
   public static int recordMetricMessage(
       GrowableBuffer buf,
       OtelInstrumentDescriptor descriptor,
       int nestedDataPointBytes,
-      OtlpProtoBuffer protobuf) {
+      OtlpProtoBuffer protobuf
+  ) {
     return recordMetricMessage(buf, descriptor, nestedDataPointBytes, protobuf, false);
   }
 
@@ -63,8 +70,8 @@ public final class OtlpMetricsProto {
       OtelInstrumentDescriptor descriptor,
       int nestedDataPointBytes,
       OtlpProtoBuffer protobuf,
-      boolean forceDelta) {
-
+      boolean forceDelta
+  ) {
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeString(buf, descriptor.getName().getUtf8Bytes());
     if (descriptor.getDescription() != null) {
@@ -89,7 +96,8 @@ public final class OtlpMetricsProto {
         writeTag(buf, 2, VARINT_WIRE_TYPE);
         writeVarInt(buf, COUNTER_TEMPORALITY);
         writeTag(buf, 3, VARINT_WIRE_TYPE);
-        writeVarInt(buf, 1); // monotonic
+        // monotonic
+        writeVarInt(buf, 1);
         break;
       case OBSERVABLE_COUNTER:
         writeTag(buf, 7, LEN_WIRE_TYPE);
@@ -97,7 +105,8 @@ public final class OtlpMetricsProto {
         writeTag(buf, 2, VARINT_WIRE_TYPE);
         writeVarInt(buf, OBSERVABLE_COUNTER_TEMPORALITY);
         writeTag(buf, 3, VARINT_WIRE_TYPE);
-        writeVarInt(buf, 1); // monotonic
+        // monotonic
+        writeVarInt(buf, 1);
         break;
       case UP_DOWN_COUNTER:
       case OBSERVABLE_UP_DOWN_COUNTER:
@@ -120,16 +129,22 @@ public final class OtlpMetricsProto {
     return protobuf.recordMessage(buf, 2, nestedDataPointBytes);
   }
 
-  /** Records a data point message. */
+  /**
+   * Records a data point message.
+   */
   public static int recordDataPointMessage(
-      GrowableBuffer buf, OtlpDataPoint point, OtlpProtoBuffer protobuf) {
+      GrowableBuffer buf,
+      OtlpDataPoint point,
+      OtlpProtoBuffer protobuf
+  ) {
     if (point instanceof OtlpDoublePoint) {
       writeTag(buf, 4, I64_WIRE_TYPE);
       writeI64(buf, ((OtlpDoublePoint) point).value);
     } else if (point instanceof OtlpLongPoint) {
       writeTag(buf, 6, I64_WIRE_TYPE);
       writeI64(buf, ((OtlpLongPoint) point).value);
-    } else { // must be a histogram point
+    } else {
+      // must be a histogram point
       OtlpHistogramPoint histogram = (OtlpHistogramPoint) point;
       writeTag(buf, 4, I64_WIRE_TYPE);
       writeI64(buf, (long) histogram.count);
@@ -146,14 +161,16 @@ public final class OtlpMetricsProto {
             writeTag(buf, 7, I64_WIRE_TYPE);
             writeI64(buf, bucketBoundary);
           } else {
-            hasOverflow = true; // don't write the overflow boundary
+            // don't write the overflow boundary
+            hasOverflow = true;
           }
         }
         for (double bucketCount : histogram.bucketCounts) {
           writeTag(buf, 6, I64_WIRE_TYPE);
           writeI64(buf, (long) bucketCount);
         }
-        if (!hasOverflow) { // write one more count than boundaries
+        if (!hasOverflow) {
+          // write one more count than boundaries
           writeTag(buf, 6, I64_WIRE_TYPE);
           writeI64(buf, 0L);
         }

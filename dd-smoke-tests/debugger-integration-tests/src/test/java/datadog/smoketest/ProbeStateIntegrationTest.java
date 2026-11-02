@@ -2,7 +2,6 @@ package datadog.smoketest;
 
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
@@ -29,7 +28,8 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     // internal flag required to avoid racing source file tracking and class loading as
     // source file tracking information may be missing when looking for class to retransform
     additionalJvmArgs.add(
-        "-Ddd.internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled=true");
+        "-Ddd.internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled=true"
+    );
     appUrl = startAppAndAndGetUrl();
   }
 
@@ -37,16 +37,22 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @DisplayName("testAddRemoveProbes")
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+      disabledReason = "Flaky on J9 JVMs"
+  )
   void testAddRemoveProbes() throws Exception {
     LogProbe logProbe =
-        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
+        LogProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME)
+      .build();
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
     Snapshot snapshot = waitForOneSnapshot();
     assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
-    setCurrentConfiguration(createConfig(Collections.emptyList())); // remove probes
+    // remove probes
+    setCurrentConfiguration(createConfig(Collections.emptyList()));
     waitForReTransformation(appUrl);
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
@@ -59,14 +65,15 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @DisplayName("testAddSourceFileProbeLargeInnerClasses")
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+      disabledReason = "Flaky on J9 JVMs"
+  )
   void testAddSourceFileProbeLargeInnerClasses() throws Exception {
-    LogProbe logProbe =
-        LogProbe.builder()
-            .probeId(PROBE_ID)
-            .where("LargeInnerClasses.java", 6)
-            .captureSnapshot(true)
-            .build();
+    LogProbe logProbe = LogProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where("LargeInnerClasses.java", 6)
+      .captureSnapshot(true)
+      .build();
     addProbe(logProbe);
     waitForInstrumentation(appUrl, "datadog.smoketest.debugger.LargeInnerClasses", true);
   }
@@ -75,35 +82,44 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @DisplayName("testAddSourceFileProbeHugeInnerClasses")
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+      disabledReason = "Flaky on J9 JVMs"
+  )
   // Test disabled for JDK8 as the debuggerAgent is started async for JDK < 9
   @EnabledForJreRange(min = JRE.JAVA_11)
   void testAddSourceFileProbeHugeInnerClasses() throws Exception {
-    LogProbe logProbe =
-        LogProbe.builder()
-            .probeId(PROBE_ID)
-            .where("HugeInnerClasses.java", 6)
-            .captureSnapshot(true)
-            .build();
+    LogProbe logProbe = LogProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where("HugeInnerClasses.java", 6)
+      .captureSnapshot(true)
+      .build();
     addProbe(logProbe);
     waitForSpecificLine(
-        appUrl, "java.lang.IllegalStateException: Too many classes to retransform: 1001");
+        appUrl,
+        "java.lang.IllegalStateException: Too many classes to retransform: 1001"
+    );
   }
 
   @Test
   @DisplayName("testDisableEnableProbes")
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+      disabledReason = "Flaky on J9 JVMs"
+  )
   void testDisableEnableProbes() throws Exception {
     LogProbe logProbe =
-        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
+        LogProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME)
+      .build();
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
     Snapshot snapshot = waitForOneSnapshot();
     assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
-    setCurrentConfiguration(createConfig(Collections.emptyList())); // no probe
+    // no probe
+    setCurrentConfiguration(createConfig(Collections.emptyList()));
     waitForReTransformation(appUrl);
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
@@ -116,25 +132,30 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @DisplayName("testDisableEnableProbesUsingDenyList")
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+      disabledReason = "Flaky on J9 JVMs"
+  )
   @Disabled("Not supported for config coming from RemoteConfig")
   void testDisableEnableProbesUsingDenyList() throws Exception {
     LogProbe logProbe =
-        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
+        LogProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME)
+      .build();
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
     Snapshot snapshot = waitForOneSnapshot();
     assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
-
-    datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect BLOCKED status
+    // expect BLOCKED status
+    datadogAgentServer.enqueue(EMPTY_200_RESPONSE);
     Configuration.FilterList denyList =
         new Configuration.FilterList(asList("datadog.smoketest.debugger"), Collections.emptyList());
     setCurrentConfiguration(createConfig(asList(logProbe), null, denyList));
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.BLOCKED);
-
-    datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect INSTALLED status
+    // expect INSTALLED status
+    datadogAgentServer.enqueue(EMPTY_200_RESPONSE);
     addProbe(logProbe);
     // waitForInstrumentation(appUrl);
     waitForReTransformation(appUrl);
@@ -148,25 +169,30 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @DisplayName("testDisableEnableProbesUsingAllowList")
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+      disabledReason = "Flaky on J9 JVMs"
+  )
   @Disabled("Not supported for config coming from RemoteConfig")
   void testDisableEnableProbesUsingAllowList() throws Exception {
     LogProbe logProbe =
-        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
+        LogProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME)
+      .build();
     addProbe(logProbe);
     waitForInstrumentation(appUrl);
     execute(appUrl, FULL_METHOD_NAME);
     Snapshot snapshot = waitForOneSnapshot();
     assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
-
-    datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect BLOCKED status
+    // expect BLOCKED status
+    datadogAgentServer.enqueue(EMPTY_200_RESPONSE);
     Configuration.FilterList allowList =
         new Configuration.FilterList(asList("datadog.not.debugger"), Collections.emptyList());
     setCurrentConfiguration(createConfig(asList(logProbe), allowList, null));
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.BLOCKED);
-
-    datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect INSTALLED status
+    // expect INSTALLED status
+    datadogAgentServer.enqueue(EMPTY_200_RESPONSE);
     addProbe(logProbe);
     // waitForInstrumentation(appUrl);
     waitForReTransformation(appUrl);
@@ -180,30 +206,34 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @DisplayName("testProbeStatusError")
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+      disabledReason = "Flaky on J9 JVMs"
+  )
   public void testProbeStatusError() throws Exception {
     LogProbe logProbe =
-        LogProbe.builder()
-            .probeId(PROBE_ID)
-            .where(TEST_APP_CLASS_NAME, "unknownMethodName")
-            .build();
+        LogProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where(TEST_APP_CLASS_NAME, "unknownMethodName")
+      .build();
     addProbe(logProbe);
     AtomicBoolean received = new AtomicBoolean();
     AtomicBoolean error = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
-            assertEquals(
-                "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
-                probeStatus.getDiagnostics().getException().getMessage());
-            error.set(true);
-          }
-        });
-    processRequests(
-        () -> received.get() && error.get(),
-        () -> String.format("timeout received=%s error=%s", received.get(), error.get()));
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+        received.set(true);
+      }
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+        assertEquals(
+            "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
+            probeStatus.getDiagnostics().getException().getMessage()
+        );
+        error.set(true);
+      }
+    });
+    processRequests(() -> received.get() && error.get(), () -> String.format(
+        "timeout received=%s error=%s",
+        received.get(),
+        error.get()
+    ));
   }
 }

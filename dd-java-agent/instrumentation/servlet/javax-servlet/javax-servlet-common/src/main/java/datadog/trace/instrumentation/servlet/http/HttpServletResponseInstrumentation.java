@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.DECORATE;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.JAVA_WEB_SERVLET_RESPONSE;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.SERVLET_RESPONSE;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,7 +23,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class HttpServletResponseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public HttpServletResponseInstrumentation() {
     super("servlet", "servlet-response");
   }
@@ -43,14 +44,16 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         namedOneOf("sendError", "sendRedirect"),
-        HttpServletResponseInstrumentation.class.getName() + "$SendAdvice");
+        HttpServletResponseInstrumentation.class.getName() + "$SendAdvice"
+    );
   }
 
   public static class SendAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope start(
-        @Advice.Origin("#m") final String method, @Advice.This final HttpServletResponse resp) {
+        @Advice.Origin("#m") final String method,
+        @Advice.This final HttpServletResponse resp
+    ) {
       if (activeSpan() == null) {
         // Don't want to generate a new top-level span
         return null;
@@ -71,7 +74,9 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

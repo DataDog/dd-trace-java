@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.RETRANSFORMER;
-
 import datadog.trace.agent.tooling.bytebuddy.matcher.CustomExcludes;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ProxyClassIgnores;
 import datadog.trace.api.InstrumenterConfig;
@@ -22,34 +21,33 @@ import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Combines separate matcher results into a single bit-set for {@link SplittingTransformer}. */
+/**
+ * Combines separate matcher results into a single bit-set for {@link SplittingTransformer}.
+ */
 final class CombiningMatcher implements AgentBuilder.RawMatcher {
   private static final Logger log = LoggerFactory.getLogger(CombiningMatcher.class);
-
   private static final boolean DEFER_MATCHING =
       null != InstrumenterConfig.get().deferIntegrationsUntil();
-
   private static final Set<String> DEFERRED_CLASSLOADER_NAMES =
       InstrumenterConfig.get().getDeferredClassLoaders();
-
   private static final boolean DEFER_ALL = DEFERRED_CLASSLOADER_NAMES.isEmpty();
-
   // optimization to avoid repeated allocations inside BitSet as matched ids are set
   static final int MAX_COMBINED_ID_HINT = 512;
-
-  /** Matcher results shared between {@link CombiningMatcher} and {@link SplittingTransformer} */
+  /**
+   * Matcher results shared between {@link CombiningMatcher} and {@link SplittingTransformer}
+   */
   static final ThreadLocal<BitSet> recordedMatches =
       ThreadLocal.withInitial(() -> new BitSet(MAX_COMBINED_ID_HINT));
-
   private final KnownTypesIndex knownTypesIndex = KnownTypesIndex.readIndex();
-
   private final BitSet knownTypesMask;
   private final MatchRecorder[] matchers;
-
   private volatile boolean deferring;
 
   CombiningMatcher(
-      Instrumentation instrumentation, BitSet knownTypesMask, List<MatchRecorder> matchers) {
+      Instrumentation instrumentation,
+      BitSet knownTypesMask,
+      List<MatchRecorder> matchers
+  ) {
     this.knownTypesMask = knownTypesMask;
     this.matchers = matchers.toArray(new MatchRecorder[0]);
 
@@ -64,8 +62,8 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
       ClassLoader classLoader,
       JavaModule module,
       Class<?> classBeingRedefined,
-      ProtectionDomain pd) {
-
+      ProtectionDomain pd
+  ) {
     // check initial requests to see if we should defer matching until retransformation
     if (DEFER_MATCHING && null == classBeingRedefined && deferring && isDeferred(classLoader)) {
       return false;
@@ -97,7 +95,9 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
     return !ids.isEmpty();
   }
 
-  /** Arranges for any deferred matching to resume at the requested trigger point. */
+  /**
+   * Arranges for any deferred matching to resume at the requested trigger point.
+   */
   private void scheduleResumeMatching(Instrumentation instrumentation, String untilTrigger) {
     if (null != untilTrigger && !untilTrigger.isEmpty()) {
       long delay = TimeUtils.parseSimpleDelay(untilTrigger);
@@ -105,11 +105,12 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
         log.info(
             "Unrecognized value for dd.{}: {}",
             EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL,
-            untilTrigger);
-      } else if (delay >= 5) { // don't bother deferring small delays
-
+            untilTrigger
+        );
+      } else if (delay >= 5) {
+        // don't bother deferring small delays
         new AgentTaskScheduler(RETRANSFORMER)
-            .schedule(this::resumeMatching, instrumentation, delay, TimeUnit.SECONDS);
+          .schedule(this::resumeMatching, instrumentation, delay, TimeUnit.SECONDS);
 
         deferring = true;
       }
@@ -163,14 +164,18 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
         && (DEFER_ALL || DEFERRED_CLASSLOADER_NAMES.contains(classLoader.getClass().getName()));
   }
 
-  /** Tests whether this class would be ignored on retransformation. */
+  /**
+   * Tests whether this class would be ignored on retransformation.
+   */
   private static boolean wouldIgnore(String name) {
     return name.indexOf('/') >= 0 // don't retransform lambdas
         || CustomExcludes.isExcluded(name)
         || ProxyClassIgnores.isIgnored(name);
   }
 
-  /** Tests whether this class would be matched at least once on retransformation. */
+  /**
+   * Tests whether this class would be matched at least once on retransformation.
+   */
   private boolean wouldMatch(ClassLoader classLoader, Class<?> clazz) {
     BitSet ids = recordedMatches.get();
     ids.clear();

@@ -3,7 +3,6 @@ package datadog.trace.agent.test.scopediag;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
 import java.lang.reflect.Field;
@@ -11,9 +10,10 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import org.junit.jupiter.api.Test;
 
-/** Verifies the tracer internals used by {@link ScopeContinuationProbe}. */
+/**
+ * Verifies the tracer internals used by {@link ScopeContinuationProbe}.
+ */
 class ScopeContinuationProbeTest {
-
   @Test
   void cancelledSentinelMatchesProduction() throws Exception {
     assertEquals(Integer.MIN_VALUE >> 1, ScopeContinuationProbe.CANCELLED);
@@ -24,7 +24,8 @@ class ScopeContinuationProbeTest {
     assertEquals(
         cancelled.getInt(null),
         ScopeContinuationProbe.CANCELLED,
-        "ScopeContinuationProbe.CANCELLED is out of sync with ScopeContinuation.CANCELLED");
+        "ScopeContinuationProbe.CANCELLED is out of sync with ScopeContinuation.CANCELLED"
+    );
   }
 
   @Test
@@ -91,7 +92,11 @@ class ScopeContinuationProbeTest {
   }
 
   private static void assertMethod(
-      Class<?> owner, String name, Class<?> returnType, Class<?>... arguments) throws Exception {
+      Class<?> owner,
+      String name,
+      Class<?> returnType,
+      Class<?>... arguments
+  ) throws Exception {
     Method method = owner.getDeclaredMethod(name, arguments);
     assertEquals(returnType, method.getReturnType(), method.toString());
     assertFalse(Modifier.isStatic(method.getModifiers()), method.toString());

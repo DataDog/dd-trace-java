@@ -5,7 +5,6 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.instrumentation.jetty70.RequestExtractParametersInstrumentation.REQUEST_REFERENCE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -28,7 +27,9 @@ import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(InstrumenterModule.class)
 public class UrlEncodedInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public UrlEncodedInstrumentation() {
     super("jetty");
   }
@@ -47,12 +48,13 @@ public class UrlEncodedInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("decodeTo")
-            .and(takesArgument(0, InputStream.class))
-            .and(takesArgument(1, named("org.eclipse.jetty.util.MultiMap")))
-            .and(takesArgument(2, String.class))
-            // there may be a 4th argument with the limit
-            .and(isPublic()),
-        getClass().getName() + "$UrlEncodedDecodeToAdvice");
+          .and(takesArgument(0, InputStream.class))
+          .and(takesArgument(1, named("org.eclipse.jetty.util.MultiMap")))
+          .and(takesArgument(2, String.class))
+          // there may be a 4th argument with the limit
+          .and(isPublic()),
+        getClass().getName() + "$UrlEncodedDecodeToAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -60,7 +62,8 @@ public class UrlEncodedInstrumentation extends InstrumenterModule.AppSec
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
         @Advice.Argument(value = 1, readOnly = false) MultiMap<String> map,
-        @Advice.Local("origMap") MultiMap<String> origMap) {
+        @Advice.Local("origMap") MultiMap<String> origMap
+    ) {
       // check we're inside extractParameters in Request
       if (CallDepthThreadLocalMap.getCallDepth(Request.class) == 0) {
         return false;
@@ -75,15 +78,17 @@ public class UrlEncodedInstrumentation extends InstrumenterModule.AppSec
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean relevantCall,
-        @Advice.Argument(1) MultiMap<String> map, // this is our map, not the orig arg
+        // this is our map, not the orig arg
+        @Advice.Argument(1) MultiMap<String> map,
         @Advice.Local("origMap") MultiMap<String> origMap,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (!relevantCall) {
         return;
       }
-
-      if (map.isEmpty()) { // nothing was written
+      if (map.isEmpty()) {
+        // nothing was written
         return;
       }
 

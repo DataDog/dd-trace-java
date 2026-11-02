@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
@@ -26,14 +25,10 @@ class JettyRunnableWrapperTest {
   void preservesInvocationTypeAndContext(InvocationType type) {
     Context caller = Context.current();
     AtomicBoolean ran = new AtomicBoolean();
-    Runnable task =
-        wrap(
-            Invocable.from(
-                type,
-                () -> {
-                  assertSame(REQUEST, Context.current());
-                  ran.set(true);
-                }));
+    Runnable task = wrap(Invocable.from(type, () -> {
+      assertSame(REQUEST, Context.current());
+      ran.set(true);
+    }));
 
     assertEquals(type, Invocable.getInvocationType(task));
     assertSame(caller, Context.current());
@@ -53,14 +48,10 @@ class JettyRunnableWrapperTest {
   void restoresContextWhenTaskThrows() {
     Context caller = Context.current();
     RuntimeException failure = new RuntimeException("task failed");
-    Runnable task =
-        wrap(
-            Invocable.from(
-                InvocationType.NON_BLOCKING,
-                () -> {
-                  assertSame(REQUEST, Context.current());
-                  throw failure;
-                }));
+    Runnable task = wrap(Invocable.from(InvocationType.NON_BLOCKING, () -> {
+      assertSame(REQUEST, Context.current());
+      throw failure;
+    }));
     assertSame(failure, assertThrows(RuntimeException.class, task::run));
     assertSame(caller, Context.current());
   }
@@ -71,15 +62,11 @@ class JettyRunnableWrapperTest {
     Queue<Runnable> dispatched = new ArrayDeque<>();
     AtomicBoolean ran = new AtomicBoolean();
     Thread producer = Thread.currentThread();
-    produced.add(
-        wrap(
-            Invocable.from(
-                InvocationType.NON_BLOCKING,
-                () -> {
-                  assertSame(producer, Thread.currentThread());
-                  assertSame(REQUEST, Context.current());
-                  ran.set(true);
-                })));
+    produced.add(wrap(Invocable.from(InvocationType.NON_BLOCKING, () -> {
+      assertSame(producer, Thread.currentThread());
+      assertSame(REQUEST, Context.current());
+      ran.set(true);
+    })));
     AdaptiveExecutionStrategy strategy =
         new AdaptiveExecutionStrategy(produced::poll, dispatched::add);
     Context caller = Context.current();

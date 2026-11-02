@@ -9,7 +9,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public final class ReferenceCreatorTestSupport {
-  private ReferenceCreatorTestSupport() {}
+  private ReferenceCreatorTestSupport() {
+  }
 
   public static Map<String, Reference> referencesFrom(Class<?> adviceClass) {
     AdviceScanResult scanResult = AdviceScanner.scan(new AdviceModule(adviceClass.getName()));
@@ -25,7 +26,8 @@ public final class ReferenceCreatorTestSupport {
   }
 
   private static final class AdviceModule extends InstrumenterModule
-      implements Instrumenter.HasMethodAdvice {
+      implements Instrumenter.HasMethodAdvice
+  {
     private final String adviceClass;
 
     private AdviceModule(String adviceClass) {

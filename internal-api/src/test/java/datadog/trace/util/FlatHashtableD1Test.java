@@ -6,13 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class FlatHashtableD1Test {
-
   static final class StringIntEntry extends FlatHashtable.D1.Entry<String> {
     int value;
 
@@ -22,7 +20,9 @@ class FlatHashtableD1Test {
     }
   }
 
-  /** Key whose hashCode is fully controllable, to force probe collisions deterministically. */
+  /**
+   * Key whose hashCode is fully controllable, to force probe collisions deterministically.
+   */
   static final class CollidingKey {
     final String label;
     final int hash;
@@ -187,13 +187,10 @@ class FlatHashtableD1Test {
   void getOrCreateOnMissBuildsEntryViaCreator() {
     FlatHashtable.D1<String, StringIntEntry> table = growable(8);
     int[] createCount = {0};
-    StringIntEntry created =
-        table.tryGetOrCreateOrNull(
-            "foo",
-            k -> {
-              createCount[0]++;
-              return new StringIntEntry(k, 42);
-            });
+    StringIntEntry created = table.tryGetOrCreateOrNull("foo", k -> {
+      createCount[0]++;
+      return new StringIntEntry(k, 42);
+    });
     assertNotNull(created);
     assertEquals("foo", created.key());
     assertEquals(42, created.value);
@@ -208,13 +205,10 @@ class FlatHashtableD1Test {
     StringIntEntry seeded = new StringIntEntry("foo", 1);
     table.insert(seeded);
     int[] createCount = {0};
-    StringIntEntry got =
-        table.tryGetOrCreateOrNull(
-            "foo",
-            k -> {
-              createCount[0]++;
-              return new StringIntEntry(k, 999);
-            });
+    StringIntEntry got = table.tryGetOrCreateOrNull("foo", k -> {
+      createCount[0]++;
+      return new StringIntEntry(k, 999);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);
@@ -263,7 +257,9 @@ class FlatHashtableD1Test {
     table.tryGetOrCreate("a", k -> new StringIntEntry(k, 1));
     table.tryGetOrCreate("b", k -> new StringIntEntry(k, 2));
 
-    assertFalse(table.tryGetOrCreate("c", k -> new StringIntEntry(k, 3)).isPresent());
+    assertFalse(table
+      .tryGetOrCreate("c", k -> new StringIntEntry(k, 3))
+      .isPresent());
 
     Maybe<StringIntEntry> hit = table.tryGetOrCreate("a", k -> new StringIntEntry(k, 99));
     assertEquals(1, hit.getOrNull().value, "existing entry is still returned even at capacity");
@@ -273,7 +269,9 @@ class FlatHashtableD1Test {
   void growableGetOrCreateAsMaybeIsAlwaysPresent() {
     FlatHashtable.D1<String, StringIntEntry> table = growable(1);
     for (int i = 0; i < 50; i++) {
-      assertTrue(table.tryGetOrCreate("k" + i, k -> new StringIntEntry(k, 0)).isPresent());
+      assertTrue(table
+        .tryGetOrCreate("k" + i, k -> new StringIntEntry(k, 0))
+        .isPresent());
     }
     assertEquals(50, table.size());
   }

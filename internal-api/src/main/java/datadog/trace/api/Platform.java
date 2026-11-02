@@ -4,7 +4,6 @@ import static datadog.environment.JavaVirtualMachine.isJ9;
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
-
 import datadog.environment.SystemProperties;
 
 /**

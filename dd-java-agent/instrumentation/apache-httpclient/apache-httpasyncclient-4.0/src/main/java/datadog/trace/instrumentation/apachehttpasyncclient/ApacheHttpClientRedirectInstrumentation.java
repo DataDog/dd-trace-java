@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.util.PropagationUtils;
 import java.util.Locale;
@@ -23,8 +22,9 @@ import org.apache.http.protocol.HttpContext;
  * https://github.com/elastic/apm-agent-java/blob/master/apm-agent-plugins/apm-apache-httpclient-plugin/src/main/java/co/elastic/apm/agent/httpclient/ApacheHttpAsyncClientRedirectInstrumentation.java
  */
 public class ApacheHttpClientRedirectInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
     return "org.apache.http.client.RedirectStrategy";
@@ -39,16 +39,18 @@ public class ApacheHttpClientRedirectInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("getRedirect"))
-            .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
-        ApacheHttpClientRedirectInstrumentation.class.getName() + "$ClientRedirectAdvice");
+          .and(named("getRedirect"))
+          .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
+        ApacheHttpClientRedirectInstrumentation.class.getName() + "$ClientRedirectAdvice"
+    );
   }
 
   public static class ClientRedirectAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void onAfterExecute(
         @Advice.Argument(value = 2) final HttpContext context,
-        @Advice.Return(typing = Assigner.Typing.DYNAMIC) final HttpRequest redirect) {
+        @Advice.Return(typing = Assigner.Typing.DYNAMIC) final HttpRequest redirect
+    ) {
       if (redirect == null) {
         return;
       }
@@ -57,7 +59,6 @@ public class ApacheHttpClientRedirectInstrumentation
         return;
       }
       HttpRequest original = (HttpRequest) originalRequest;
-
       // Apache HttpClient 4.0.1+ copies headers from the original request to the redirect only when
       // the redirect request has no headers. Because tracing injects propagation headers before
       // redirect handling completes, an otherwise empty redirect request may no longer look empty
@@ -70,8 +71,10 @@ public class ApacheHttpClientRedirectInstrumentation
       } else {
         boolean copiedPropagationHeader = false;
         for (final Header header : original.getAllHeaders()) {
-          if (PropagationUtils.KNOWN_PROPAGATION_HEADERS.contains(
-              header.getName().toLowerCase(Locale.ROOT))) {
+          if (PropagationUtils.KNOWN_PROPAGATION_HEADERS.contains(header
+            .getName()
+            .toLowerCase(Locale.ROOT)
+          )) {
             if (!redirect.containsHeader(header.getName())) {
               redirect.setHeader(header.getName(), header.getValue());
               copiedPropagationHeader = true;

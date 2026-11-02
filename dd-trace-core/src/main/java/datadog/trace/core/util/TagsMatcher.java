@@ -29,7 +29,9 @@ public final class TagsMatcher {
       Matcher matcher = entry.getValue();
 
       Object value = span.getTag(tag);
-      if (value == null || !matcher.matches(value)) return false;
+      if (value == null || !matcher.matches(value)) {
+        return false;
+      }
     }
     return true;
   }

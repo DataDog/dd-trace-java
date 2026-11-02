@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.apachehttpasyncclient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-
 import org.apache.http.HttpHost;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpRequestWrapper;
@@ -11,7 +10,6 @@ import org.apache.http.protocol.HttpContext;
 import org.junit.jupiter.api.Test;
 
 class ApacheHttpClientRedirectInstrumentationTest {
-
   @Test
   void doesNotCopyApplicationHeadersToCrossOriginRedirects() throws Exception {
     HttpGet original = originalRequest("http://example.com/request");
@@ -23,7 +21,9 @@ class ApacheHttpClientRedirectInstrumentationTest {
     HttpGet redirect = new HttpGet("http://attacker.example/redirect");
 
     ApacheHttpClientRedirectInstrumentation.ClientRedirectAdvice.onAfterExecute(
-        contextWith(original), redirect);
+        contextWith(original),
+        redirect
+    );
 
     assertFalse(redirect.containsHeader("Authorization"));
     assertFalse(redirect.containsHeader("Cookie"));
@@ -40,7 +40,9 @@ class ApacheHttpClientRedirectInstrumentationTest {
     HttpGet redirect = new HttpGet("http://attacker.example/redirect");
 
     ApacheHttpClientRedirectInstrumentation.ClientRedirectAdvice.onAfterExecute(
-        contextWith(original), redirect);
+        contextWith(original),
+        redirect
+    );
 
     assertFalse(redirect.containsHeader("Authorization"));
     assertFalse(redirect.containsHeader("Cookie"));
@@ -56,7 +58,9 @@ class ApacheHttpClientRedirectInstrumentationTest {
     HttpGet redirect = new HttpGet("https://example.com/redirect");
 
     ApacheHttpClientRedirectInstrumentation.ClientRedirectAdvice.onAfterExecute(
-        contextWith(original), redirect);
+        contextWith(original),
+        redirect
+    );
 
     assertEquals("Bearer secret", redirect.getFirstHeader("Authorization").getValue());
     assertEquals("123", redirect.getFirstHeader("x-datadog-trace-id").getValue());
@@ -70,7 +74,9 @@ class ApacheHttpClientRedirectInstrumentationTest {
     HttpGet redirect = new HttpGet("https://example.com/redirect");
 
     ApacheHttpClientRedirectInstrumentation.ClientRedirectAdvice.onAfterExecute(
-        contextWith(original), redirect);
+        contextWith(original),
+        redirect
+    );
 
     assertEquals("Bearer secret", redirect.getFirstHeader("Authorization").getValue());
   }

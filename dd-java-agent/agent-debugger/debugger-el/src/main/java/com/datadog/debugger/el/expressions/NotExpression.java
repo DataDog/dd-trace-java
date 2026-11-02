@@ -1,13 +1,14 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.Visitor;
 import java.util.Objects;
 
-/** Will negate the resolved {@linkplain BooleanExpression} */
+/**
+ * Will negate the resolved {@linkplain BooleanExpression}
+ */
 public final class NotExpression implements BooleanExpression {
   private final BooleanExpression predicate;
 
@@ -34,7 +35,9 @@ public final class NotExpression implements BooleanExpression {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     NotExpression that = (NotExpression) o;
     return Objects.equals(predicate, that.predicate);
   }

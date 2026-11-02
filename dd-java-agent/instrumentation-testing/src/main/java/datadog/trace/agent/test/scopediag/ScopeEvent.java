@@ -1,17 +1,23 @@
 package datadog.trace.agent.test.scopediag;
 
-/** A timestamped scope or continuation lifecycle event with its thread and call site. */
+/**
+ * A timestamped scope or continuation lifecycle event with its thread and call site.
+ */
 public final class ScopeEvent {
   public enum Type {
     CAPTURE,
     ACTIVATE,
-    /** An {@code activate()} that returned the noop scope after the continuation was resolved. */
+    /**
+     * An {@code activate()} that returned the noop scope after the continuation was resolved.
+     */
     ACTIVATE_FAILED,
     RESOLVE_FINISH,
     RESOLVE_RELEASE,
     SCOPE_OPEN,
     SCOPE_CLOSE,
-    /** A scope was closed while not on top of its thread's stack. */
+    /**
+     * A scope was closed while not on top of its thread's stack.
+     */
     SCOPE_CLOSE_WRONG_THREAD
   }
 
@@ -31,7 +37,9 @@ public final class ScopeEvent {
     return new ScopeEvent(type, threadName, nanos, stack == null ? null : stack.clone());
   }
 
-  /** The most relevant (top, post-filter) frame, or {@code null} if none survived filtering. */
+  /**
+   * The most relevant (top, post-filter) frame, or {@code null} if none survived filtering.
+   */
   public StackTraceElement callsite() {
     return stack != null && stack.length > 0 ? stack[0] : null;
   }

@@ -24,19 +24,19 @@ import org.slf4j.LoggerFactory;
  * the raw {@link String}, which the WAF can still match string rules against.
  */
 final class ContentTypeBodyParser {
-
   private static final Logger log = LoggerFactory.getLogger(ContentTypeBodyParser.class);
-
   // These bound the work done in this parser only: exceeding any of them degrades the body to a raw
   // string rather than dropping content.
   static final int MAX_BYTES = 1024 * 1024;
   static final int MAX_PARTS = 256;
   static final int MAX_DEPTH = 20;
-
-  /** What a form body's percent-escapes mean when it declares no charset of its own. */
+  /**
+   * What a form body's percent-escapes mean when it declares no charset of its own.
+   */
   private static final String DEFAULT_CHARSET = "UTF-8";
 
-  private ContentTypeBodyParser() {}
+  private ContentTypeBodyParser() {
+  }
 
   /**
    * State shared across a whole parse: the byte and part allowances, and the filenames collected
@@ -58,7 +58,9 @@ final class ContentTypeBodyParser {
       this.bytes = byteAllowance;
     }
 
-    /** Allocated only once a file part is seen, which most bodies never do. */
+    /**
+     * Allocated only once a file part is seen, which most bodies never do.
+     */
     private List<String> filenames;
 
     int remainingParts() {
@@ -119,7 +121,11 @@ final class ContentTypeBodyParser {
   }
 
   static Object dispatch(
-      final String body, final String contentType, final int depth, final ParseContext context) {
+      final String body,
+      final String contentType,
+      final int depth,
+      final ParseContext context
+  ) {
     if (body == null) {
       return null;
     }
@@ -128,8 +134,7 @@ final class ContentTypeBodyParser {
       return body;
     }
     if (!context.takeBytes(body.length())) {
-      log.debug(
-          "Byte allowance cannot cover a body of {} chars, keeping raw string", body.length());
+      log.debug("Byte allowance cannot cover a body of {} chars, keeping raw string", body.length());
       return body;
     }
     final MediaType mediaType = MediaType.parse(contentType);
@@ -165,7 +170,10 @@ final class ContentTypeBodyParser {
    *     the part allowance
    */
   private static Map<String, List<String>> parseUrlEncoded(
-      final String body, final String charset, final ParseContext context) {
+      final String body,
+      final String charset,
+      final ParseContext context
+  ) {
     if (body.isEmpty()) {
       return null;
     }
@@ -182,8 +190,8 @@ final class ContentTypeBodyParser {
       // dropping it would hide its value from the WAF. The Netty body collector keeps it too.
       final String name = decode(equals == -1 ? pair : pair.substring(0, equals), charset);
       parameters
-          .computeIfAbsent(name, k -> new ArrayList<>(1))
-          .add(equals == -1 ? "" : decode(pair.substring(equals + 1), charset));
+        .computeIfAbsent(name, k -> new ArrayList<>(1))
+        .add(equals == -1 ? "" : decode(pair.substring(equals + 1), charset));
     }
     if (parameters.isEmpty()) {
       return null;
@@ -199,7 +207,11 @@ final class ContentTypeBodyParser {
    *     parts than the allowance, or it yields no field
    */
   private static Object parseMultipart(
-      final String body, final String contentType, final int depth, final ParseContext context) {
+      final String body,
+      final String contentType,
+      final int depth,
+      final ParseContext context
+  ) {
     final String boundary = MultipartSplitter.extractBoundary(contentType);
     if (boundary == null) {
       log.debug("Multipart body without a usable boundary, keeping raw string");
@@ -238,10 +250,9 @@ final class ContentTypeBodyParser {
       final String partContentType = part.contentType;
       final String content = body.substring(part.contentStart, part.contentEnd);
       // A part that declares no type is kept as a raw string
-      final Object value =
-          partContentType == null || partContentType.isEmpty()
-              ? content
-              : dispatch(content, partContentType, depth + 1, context);
+      final Object value = partContentType == null || partContentType.isEmpty()
+          ? content
+          : dispatch(content, partContentType, depth + 1, context);
       addField(fields, promoted, name, value);
     }
     return fields.isEmpty() ? null : fields;
@@ -259,7 +270,8 @@ final class ContentTypeBodyParser {
       final Map<String, Object> fields,
       final Map<String, List<Object>> promoted,
       final String name,
-      final Object value) {
+      final Object value
+  ) {
     final List<Object> values = promoted.get(name);
     if (values != null) {
       values.add(value);
@@ -301,7 +313,9 @@ final class ContentTypeBodyParser {
     return DEFAULT_CHARSET;
   }
 
-  /** Percent-decodes a single token, keeping it undecoded rather than dropping it on failure. */
+  /**
+   * Percent-decodes a single token, keeping it undecoded rather than dropping it on failure.
+   */
   private static String decode(final String value, final String charset) {
     if (value.isEmpty()) {
       return value;

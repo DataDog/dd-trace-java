@@ -54,7 +54,9 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
 
   @Override
   public Object getOrCompute(
-      final Object key, final Function<? super Object, Object> contextFactory) {
+      final Object key,
+      final Function<? super Object, Object> contextFactory
+  ) {
     if (key instanceof KeyWithValue) {
       final KeyWithValue accessor = (KeyWithValue) key;
       Object existingContext = accessor.$get$__dd_instrument$(storeId);

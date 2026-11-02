@@ -26,7 +26,6 @@ final class GetterAccess {
 
   private static final Pattern REQUEST_OPERATION_NAME_PATTERN =
       Pattern.compile("Request", Pattern.LITERAL);
-
   private final String operationName;
   private final MethodHandle getKey;
   private final MethodHandle getBucketName;
@@ -44,8 +43,9 @@ final class GetterAccess {
   private final MethodHandle getFunctionName;
 
   private GetterAccess(final Class<?> objectType) {
-    operationName =
-        REQUEST_OPERATION_NAME_PATTERN.matcher(objectType.getSimpleName()).replaceAll("");
+    operationName = REQUEST_OPERATION_NAME_PATTERN
+      .matcher(objectType.getSimpleName())
+      .replaceAll("");
     getKey = findStringGetter(objectType, "getKey");
     getBucketName = findStringGetter(objectType, "getBucketName");
     getQueueUrl = findStringGetter(objectType, "getQueueUrl");
@@ -55,8 +55,11 @@ final class GetterAccess {
     getStreamARN = findStringGetter(objectType, "getStreamARN");
     getRecords = findListGetter(objectType, "getRecords");
     getPublishBatchRequestEntries = findListGetter(objectType, "getPublishBatchRequestEntries");
-    getApproximateArrivalTimestamp =
-        findGetter(objectType, "getApproximateArrivalTimestamp", Date.class);
+    getApproximateArrivalTimestamp = findGetter(
+        objectType,
+        "getApproximateArrivalTimestamp",
+        Date.class
+    );
     getTableName = findStringGetter(objectType, "getTableName");
     getStateMachineArn = findStringGetter(objectType, "getStateMachineArn");
     getExecutionArn = findStringGetter(objectType, "getExecutionArn");
@@ -160,8 +163,7 @@ final class GetterAccess {
   private static final MethodType STRING_RETURN_TYPE = MethodType.methodType(String.class);
   private static final MethodType LIST_RETURN_TYPE = MethodType.methodType(List.class);
 
-  private static MethodHandle findStringGetter(
-      final Class<?> requestType, final String methodName) {
+  private static MethodHandle findStringGetter(final Class<?> requestType, final String methodName) {
     try {
       return PUBLIC_LOOKUP.findVirtual(requestType, methodName, STRING_RETURN_TYPE);
     } catch (Throwable e) {
@@ -178,7 +180,10 @@ final class GetterAccess {
   }
 
   private static MethodHandle findGetter(
-      final Class<?> pojoType, final String methodName, final Class<?> returnType) {
+      final Class<?> pojoType,
+      final String methodName,
+      final Class<?> returnType
+  ) {
     try {
       return PUBLIC_LOOKUP.findVirtual(pojoType, methodName, MethodType.methodType(returnType));
     } catch (Throwable e) {

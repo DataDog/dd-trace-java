@@ -77,7 +77,8 @@ interface EventSource {
         Queue<DistributionSeries> distributionSeriesQueue,
         Queue<LogMessage> logMessageQueue,
         Queue<ProductChange> productChanges,
-        Queue<Endpoint> endpoints) {
+        Queue<Endpoint> endpoints
+    ) {
       this.configChangeQueue = configChangeQueue;
       this.integrationQueue = integrationQueue;
       this.dependencyQueue = dependencyQueue;

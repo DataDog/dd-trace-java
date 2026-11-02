@@ -9,7 +9,6 @@ import javax.annotation.Nonnull;
 
 public class Resilience4jSpanDecorator<T> extends BaseDecorator {
   public static final Resilience4jSpanDecorator<Void> DECORATE = new Resilience4jSpanDecorator<>();
-
   private static final CharSequence RESILIENCE4J = UTF8BytesString.create("resilience4j");
 
   @Override

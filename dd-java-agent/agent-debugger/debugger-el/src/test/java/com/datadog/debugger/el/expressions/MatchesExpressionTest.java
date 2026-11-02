@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
@@ -79,15 +78,13 @@ class MatchesExpressionTest {
     MatchesExpression expression =
         new MatchesExpression(DSL.value(sb.toString()), new StringValue("((a+)\\2?)+b"));
     // guard against the regex not being interrupted: without timeout check this would run forever
-    EvaluationException exception =
-        assertTimeoutPreemptively(
-            Duration.ofSeconds(5),
-            () -> {
-              // create the context in the evaluating thread (CPU timeout checker is per thread)
-              EvalContext timeoutEvalContext = createEvalContext(this, Duration.ofMillis(10));
-              return assertThrows(
-                  EvaluationTimeOutException.class, () -> expression.evaluate(timeoutEvalContext));
-            });
+    EvaluationException exception = assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+      // create the context in the evaluating thread (CPU timeout checker is per thread)
+      EvalContext timeoutEvalContext = createEvalContext(this, Duration.ofMillis(10));
+      return assertThrows(EvaluationTimeOutException.class, () -> expression.evaluate(
+          timeoutEvalContext
+      ));
+    });
     assertEquals("timeout (10ms)", exception.getMessage());
     assertEquals("matches(\"" + sb + "\", \"((a+)\\2?)+b\")", print(expression));
   }

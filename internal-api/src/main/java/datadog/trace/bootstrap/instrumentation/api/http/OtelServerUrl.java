@@ -5,11 +5,14 @@ import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 
-/** Extracts the OpenTelemetry URL tags from a captured HTTP server URL. */
+/**
+ * Extracts the OpenTelemetry URL tags from a captured HTTP server URL.
+ */
 public final class OtelServerUrl implements TagExtractor<HttpServerUrl> {
   public static final OtelServerUrl INSTANCE = new OtelServerUrl();
 
-  private OtelServerUrl() {}
+  private OtelServerUrl() {
+  }
 
   @Override
   public void extract(HttpServerUrl url, AgentSpan span) {

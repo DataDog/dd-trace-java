@@ -47,17 +47,16 @@ import org.openjdk.jmh.annotations.Warmup;
 @SuppressForbidden
 public class StringReplaceAllBenchmark {
   static final String[] INPUTS = {
-    "foo",
-    "baz",
-    "foobar",
-    "foobaz",
-    "foo=baz",
-    "bar=foo",
-    "foo=foo&bar=foo",
-    "lorem ipsum",
-    "datadog"
+      "foo",
+      "baz",
+      "foobar",
+      "foobaz",
+      "foo=baz",
+      "bar=foo",
+      "foo=foo&bar=foo",
+      "lorem ipsum",
+      "datadog"
   };
-
   static int sharedInputIndex = 0;
 
   static String nextInput() {

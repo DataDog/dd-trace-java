@@ -11,9 +11,9 @@ import javax.annotation.Nonnull;
 @Sink(VulnerabilityTypes.XSS)
 @CallSite(
     spi = IastCallSites.class,
-    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isFullDetection"})
+    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isFullDetection"}
+)
 public class JspWriterFullDetectionCallSite {
-
   @CallSite.Before("void javax.servlet.jsp.JspWriter.print(char[])")
   @CallSite.Before("void javax.servlet.jsp.JspWriter.println(char[])")
   @CallSite.Before("void javax.servlet.jsp.JspWriter.write(char[])")

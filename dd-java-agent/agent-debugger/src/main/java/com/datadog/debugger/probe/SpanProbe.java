@@ -24,7 +24,10 @@ public class SpanProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+      MethodInfo methodInfo,
+      List<DiagnosticMessage> diagnostics,
+      List<Integer> probeIndices
+  ) {
     return new SpanInstrumenter(this, methodInfo, diagnostics, probeIndices).instrument();
   }
 
@@ -39,8 +42,12 @@ public class SpanProbe extends ProbeDefinition {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     SpanProbe that = (SpanProbe) o;
     return Objects.equals(language, that.language)
         && Objects.equals(id, that.id)

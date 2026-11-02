@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class ContainerRequestFilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public ContainerRequestFilterInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-filter");
   }
@@ -41,17 +41,19 @@ public class ContainerRequestFilterInstrumentation extends InstrumenterModule.Tr
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("filter"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("javax.ws.rs.container.ContainerRequestContext"))),
-        ContainerRequestFilterInstrumentation.class.getName() + "$RequestFilterAdvice");
+          .and(named("filter"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("javax.ws.rs.container.ContainerRequestContext"))),
+        ContainerRequestFilterInstrumentation.class.getName() + "$RequestFilterAdvice"
+    );
   }
 
   public static class RequestFilterAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void setFilterClass(
         @Advice.This final ContainerRequestFilter filter,
-        @Advice.Argument(0) final ContainerRequestContext context) {
+        @Advice.Argument(0) final ContainerRequestContext context
+    ) {
       context.setProperty(JaxRsAnnotationsDecorator.ABORT_FILTER_CLASS, filter.getClass());
     }
   }

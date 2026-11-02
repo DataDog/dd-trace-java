@@ -22,5 +22,6 @@ final class TokenUsage {
     }
   }
 
-  private TokenUsage() {}
+  private TokenUsage() {
+  }
 }

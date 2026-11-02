@@ -1,7 +1,6 @@
 package datadog.trace.test.junit.utils.converter;
 
 import static java.lang.invoke.MethodType.methodType;
-
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
@@ -20,12 +19,10 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
  * is resolved in the package of the test class.
  */
 public class MethodRefGetterConverter implements ArgumentConverter {
-
   public static final String METHOD_REF_SEP = "::";
 
   @Override
-  public Object convert(Object source, ParameterContext context)
-      throws ArgumentConversionException {
+  public Object convert(Object source, ParameterContext context) throws ArgumentConversionException {
     String reference = (String) source;
     List<String> segments = splitSegments(reference);
     if (segments.size() < 2) {
@@ -45,20 +42,21 @@ public class MethodRefGetterConverter implements ArgumentConverter {
         type = returnType;
       } catch (NoSuchMethodException | IllegalAccessException e) {
         throw new ArgumentConversionException(
-            "No public no-arg method " + methodName + " on " + type.getName(), e);
+            "No public no-arg method " + methodName + " on " + type.getName(),
+            e
+        );
       }
     }
     MethodHandle function = chain.asType(methodType(Object.class, Object.class));
-    return (Function<Object, Object>)
-        target -> {
-          try {
-            return (Object) function.invokeExact(target);
-          } catch (RuntimeException | Error e) {
-            throw e;
-          } catch (Throwable e) {
-            throw new IllegalStateException("Failed to invoke " + reference, e);
-          }
-        };
+    return (Function<Object, Object>) target -> {
+      try {
+        return (Object) function.invokeExact(target);
+      } catch (RuntimeException | Error e) {
+        throw e;
+      } catch (Throwable e) {
+        throw new IllegalStateException("Failed to invoke " + reference, e);
+      }
+    };
   }
 
   private static List<String> splitSegments(String reference) {

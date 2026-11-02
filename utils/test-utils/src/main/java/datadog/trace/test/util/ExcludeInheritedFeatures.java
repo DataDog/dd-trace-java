@@ -15,4 +15,5 @@ import org.spockframework.runtime.extension.ExtensionAnnotation;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @ExtensionAnnotation(ExcludeInheritedFeaturesExtension.class)
-public @interface ExcludeInheritedFeatures {}
+public @interface ExcludeInheritedFeatures {
+}

@@ -26,7 +26,8 @@ public final class StatusCodes {
     if (statusCodeFunction == null) {
       LOGGER.debug(
           "Unable to find a status code extractor function working for the current webflux client version. "
-              + "Status codes will not be tagged on webflux client spans");
+          + "Status codes will not be tagged on webflux client spans"
+      );
     }
     return statusCodeFunction;
   }
@@ -37,16 +38,17 @@ public final class StatusCodes {
     MethodHandle statusCode;
     MethodHandle value;
     try {
-      Class<?> httpStatusCodeClass =
-          Class.forName(
-              "org.springframework.http.HttpStatusCode", false, StatusCodes.class.getClassLoader());
-      statusCode =
-          MethodHandles.publicLookup()
-              .findVirtual(
-                  ClientResponse.class, "statusCode", MethodType.methodType(httpStatusCodeClass));
-      value =
-          MethodHandles.publicLookup()
-              .findVirtual(httpStatusCodeClass, "value", MethodType.methodType(int.class));
+      Class<?> httpStatusCodeClass = Class.forName(
+          "org.springframework.http.HttpStatusCode",
+          false,
+          StatusCodes.class.getClassLoader()
+      );
+      statusCode = MethodHandles
+        .publicLookup()
+        .findVirtual(ClientResponse.class, "statusCode", MethodType.methodType(httpStatusCodeClass));
+      value = MethodHandles
+        .publicLookup()
+        .findVirtual(httpStatusCodeClass, "value", MethodType.methodType(int.class));
     } catch (ClassNotFoundException | IllegalAccessException | NoSuchMethodException e) {
       return null;
     }
@@ -66,9 +68,9 @@ public final class StatusCodes {
   private static Function<ClientResponse, Integer> getStatusCodeFunction51() {
     MethodHandle rawStatusCode;
     try {
-      rawStatusCode =
-          MethodHandles.publicLookup()
-              .findVirtual(ClientResponse.class, "rawStatusCode", MethodType.methodType(int.class));
+      rawStatusCode = MethodHandles
+        .publicLookup()
+        .findVirtual(ClientResponse.class, "rawStatusCode", MethodType.methodType(int.class));
     } catch (IllegalAccessException | NoSuchMethodException e) {
       return null;
     }
@@ -88,13 +90,12 @@ public final class StatusCodes {
     MethodHandle statusCode;
     MethodHandle value;
     try {
-      statusCode =
-          MethodHandles.publicLookup()
-              .findVirtual(
-                  ClientResponse.class, "statusCode", MethodType.methodType(HttpStatus.class));
-      value =
-          MethodHandles.publicLookup()
-              .findVirtual(HttpStatus.class, "value", MethodType.methodType(int.class));
+      statusCode = MethodHandles
+        .publicLookup()
+        .findVirtual(ClientResponse.class, "statusCode", MethodType.methodType(HttpStatus.class));
+      value = MethodHandles
+        .publicLookup()
+        .findVirtual(HttpStatus.class, "value", MethodType.methodType(int.class));
     } catch (IllegalAccessException | NoSuchMethodException e) {
       return null;
     }
@@ -109,5 +110,6 @@ public final class StatusCodes {
     };
   }
 
-  private StatusCodes() {}
+  private StatusCodes() {
+  }
 }

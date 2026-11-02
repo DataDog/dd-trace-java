@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.context.benchmark;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
@@ -17,7 +16,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public final class ContextStoreBenchmarkInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private static final String KEY_TYPE = "context.benchmark.ContextStoreBenchmarkKey";
   private static final String CONTEXT_TYPE =
       "datadog.trace.agent.tooling.context.benchmark.ContextStoreBenchmarkInstrumentation$State";
@@ -60,9 +61,13 @@ public final class ContextStoreBenchmarkInstrumentation extends InstrumenterModu
     transformer.applyAdvice(named("putContext"), getClass().getName() + "$PutContextAdvice");
     transformer.applyAdvice(named("removeContext"), getClass().getName() + "$RemoveContextAdvice");
     transformer.applyAdvice(
-        named("getOrPutContext"), getClass().getName() + "$GetOrPutContextAdvice");
+        named("getOrPutContext"),
+        getClass().getName() + "$GetOrPutContextAdvice"
+    );
     transformer.applyAdvice(
-        named("getOrComputeContext"), getClass().getName() + "$GetOrComputeContextAdvice");
+        named("getOrComputeContext"),
+        getClass().getName() + "$GetOrComputeContextAdvice"
+    );
   }
 
   public static class State {
@@ -112,7 +117,8 @@ public final class ContextStoreBenchmarkInstrumentation extends InstrumenterModu
     public static void exit(
         @Advice.This Object key,
         @Advice.Argument(0) int storeIndex,
-        @Advice.Return(readOnly = false) Object context) {
+        @Advice.Return(readOnly = false) Object context
+    ) {
       ContextStore<Object, State> store;
       switch (storeIndex) {
         case 0:
@@ -139,7 +145,8 @@ public final class ContextStoreBenchmarkInstrumentation extends InstrumenterModu
     public static void exit(
         @Advice.This Object key,
         @Advice.Argument(0) int storeIndex,
-        @Advice.Argument(1) Object context) {
+        @Advice.Argument(1) Object context
+    ) {
       ContextStore<Object, State> store;
       switch (storeIndex) {
         case 0:
@@ -166,7 +173,8 @@ public final class ContextStoreBenchmarkInstrumentation extends InstrumenterModu
     public static void exit(
         @Advice.This Object key,
         @Advice.Argument(0) int storeIndex,
-        @Advice.Return(readOnly = false) Object context) {
+        @Advice.Return(readOnly = false) Object context
+    ) {
       ContextStore<Object, State> store;
       switch (storeIndex) {
         case 0:
@@ -194,7 +202,8 @@ public final class ContextStoreBenchmarkInstrumentation extends InstrumenterModu
         @Advice.This Object key,
         @Advice.Argument(0) int storeIndex,
         @Advice.Argument(1) Object context,
-        @Advice.Return(readOnly = false) Object result) {
+        @Advice.Return(readOnly = false) Object result
+    ) {
       ContextStore<Object, Object> store;
       switch (storeIndex) {
         case 0:
@@ -222,7 +231,8 @@ public final class ContextStoreBenchmarkInstrumentation extends InstrumenterModu
         @Advice.This Object key,
         @Advice.Argument(0) int storeIndex,
         @Advice.Argument(1) Function<Object, Object> contextFactory,
-        @Advice.Return(readOnly = false) Object result) {
+        @Advice.Return(readOnly = false) Object result
+    ) {
       ContextStore<Object, Object> store;
       switch (storeIndex) {
         case 0:

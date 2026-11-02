@@ -7,7 +7,6 @@ import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXMAP;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP16;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP32;
 import static java.util.Collections.singletonList;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -16,9 +15,7 @@ import java.util.List;
 import okhttp3.RequestBody;
 
 public abstract class Payload {
-
   private static final ByteBuffer EMPTY_ARRAY = ByteBuffer.allocate(1).put(0, (byte) 0x90);
-
   private int traceCount = 0;
   private long droppedTraces = 0;
   private long droppedSpans = 0;
@@ -28,7 +25,9 @@ public abstract class Payload {
     return withBody(traceCount, null == body ? null : singletonList(body));
   }
 
-  /** Sets a body held in parts, such as the chunks of a chunked buffer, in order. */
+  /**
+   * Sets a body held in parts, such as the chunks of a chunked buffer, in order.
+   */
   public Payload withBody(int traceCount, List<ByteBuffer> body) {
     this.traceCount = traceCount;
     if (null != body) {
@@ -65,7 +64,9 @@ public abstract class Payload {
 
   public abstract RequestBody toRequest();
 
-  /** The size of the body in bytes. */
+  /**
+   * The size of the body in bytes.
+   */
   protected int bodySize() {
     int size = 0;
     for (ByteBuffer part : body) {
@@ -84,7 +85,9 @@ public abstract class Payload {
     }
   }
 
-  /** Writes all of the buffer's remaining bytes to the channel. */
+  /**
+   * Writes all of the buffer's remaining bytes to the channel.
+   */
   protected static void writeFully(ByteBuffer buffer, WritableByteChannel channel)
       throws IOException {
     while (buffer.hasRemaining()) {

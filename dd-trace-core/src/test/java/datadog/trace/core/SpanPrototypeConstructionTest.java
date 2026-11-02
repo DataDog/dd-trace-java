@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.common.writer.ListWriter;
 import org.junit.jupiter.api.AfterEach;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test;
  * the explicit operationName / builder tags overriding the prototype's (prototype = defaults).
  */
 public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
-
   private ListWriter writer;
   private CoreTracer tracer;
   private SpanPrototype prototype;
@@ -27,14 +25,14 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
   void setup() {
     writer = new ListWriter();
     tracer = tracerBuilder().writer(writer).build();
-    prototype =
-        SpanPrototype.builder()
-            .initInstrumentationName("test-instr")
-            .initOperationName("proto.op")
-            .initSpanType("web")
-            .initKind(SPAN_KIND_SERVER)
-            .initComponentOnly("test-component")
-            .build();
+    prototype = SpanPrototype
+      .builder()
+      .initInstrumentationName("test-instr")
+      .initOperationName("proto.op")
+      .initSpanType("web")
+      .initKind(SPAN_KIND_SERVER)
+      .initComponentOnly("test-component")
+      .build();
   }
 
   @AfterEach
@@ -46,9 +44,11 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
   void buildSpanSeedsPrototypeAndFallsBackToPrototypeOperationName() {
     DDSpan span = (DDSpan) tracer.buildSpan(prototype, null).start();
     try {
-      assertEquals("proto.op", span.getOperationName().toString()); // null -> prototype's
+      // null -> prototype's
+      assertEquals("proto.op", span.getOperationName().toString());
       assertEquals("web", span.getSpanType());
-      assertEquals("test-component", span.getTags().get(COMPONENT)); // constant tag seeded
+      // constant tag seeded
+      assertEquals("test-component", span.getTags().get(COMPONENT));
     } finally {
       span.finish();
     }
@@ -60,8 +60,10 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
     // the interceptor, so BOTH the ordinal side-effect and the span.kind tag Entry must land.
     DDSpan span = (DDSpan) tracer.buildSpan(prototype, null).start();
     try {
-      assertEquals(SPAN_KIND_SERVER, span.getSpanKindString()); // ordinal side-effect applied
-      assertEquals(SPAN_KIND_SERVER, span.getTags().get(SPAN_KIND)); // tag (shared Entry) present
+      // ordinal side-effect applied
+      assertEquals(SPAN_KIND_SERVER, span.getSpanKindString());
+      // tag (shared Entry) present
+      assertEquals(SPAN_KIND_SERVER, span.getTags().get(SPAN_KIND));
     } finally {
       span.finish();
     }
@@ -71,7 +73,8 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
   void explicitOperationNameOverridesPrototype() {
     DDSpan span = (DDSpan) tracer.buildSpan(prototype, "explicit.op").start();
     try {
-      assertEquals("explicit.op", span.getOperationName().toString()); // explicit wins
+      // explicit wins
+      assertEquals("explicit.op", span.getOperationName().toString());
     } finally {
       span.finish();
     }
@@ -91,7 +94,10 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
   @Test
   void explicitBuilderTagOverridesPrototypeConstant() {
     // prototype seeds `component` just before the builder's own tags, so the explicit withTag wins
-    DDSpan span = (DDSpan) tracer.buildSpan(prototype, null).withTag(COMPONENT, "override").start();
+    DDSpan span = (DDSpan) tracer
+      .buildSpan(prototype, null)
+      .withTag(COMPONENT, "override")
+      .start();
     try {
       assertEquals("override", span.getTags().get(COMPONENT));
     } finally {
@@ -104,14 +110,15 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
     // Mirrors BaseDecorator.afterStart: the component tag is seeded AND the integration name is set
     // on the context, which IntegrationAdder serializes as _dd.integration (field -> tag mapping is
     // covered by IntegrationAdderTest).
-    SpanPrototype proto =
-        SpanPrototype.builder()
-            .initInstrumentationName("test-instr")
-            .initComponentAndIntegration("netty")
-            .build();
+    SpanPrototype proto = SpanPrototype
+      .builder()
+      .initInstrumentationName("test-instr")
+      .initComponentAndIntegration("netty")
+      .build();
     DDSpan span = (DDSpan) tracer.buildSpan(proto, "op").start();
     try {
-      assertEquals("netty", span.getTags().get(COMPONENT)); // component tag seeded
+      // component tag seeded
+      assertEquals("netty", span.getTags().get(COMPONENT));
       assertEquals("netty", ((DDSpanContext) span.spanContext()).getIntegrationName());
     } finally {
       span.finish();
@@ -121,15 +128,17 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
   @Test
   void initComponentOnlyDoesNotSetIntegrationName() {
     // initComponentOnly is tag-only: no integration-name side effect, so no _dd.integration.
-    SpanPrototype proto =
-        SpanPrototype.builder()
-            .initInstrumentationName("test-instr")
-            .initComponentOnly("netty")
-            .build();
+    SpanPrototype proto = SpanPrototype
+      .builder()
+      .initInstrumentationName("test-instr")
+      .initComponentOnly("netty")
+      .build();
     DDSpan span = (DDSpan) tracer.buildSpan(proto, "op").start();
     try {
-      assertEquals("netty", span.getTags().get(COMPONENT)); // tag present
-      assertNull(((DDSpanContext) span.spanContext()).getIntegrationName()); // but no integration
+      // tag present
+      assertEquals("netty", span.getTags().get(COMPONENT));
+      // but no integration
+      assertNull(((DDSpanContext) span.spanContext()).getIntegrationName());
     } finally {
       span.finish();
     }
@@ -140,16 +149,17 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
     // Documents a known desync: overriding an inherited initComponentAndIntegration component with
     // tag-only initComponentOnly does NOT clear the inherited integration name. Use
     // initComponentAndIntegration to override both together.
-    SpanPrototype base =
-        SpanPrototype.builder()
-            .initInstrumentationName("test-instr")
-            .initComponentAndIntegration("netty")
-            .build();
+    SpanPrototype base = SpanPrototype
+      .builder()
+      .initInstrumentationName("test-instr")
+      .initComponentAndIntegration("netty")
+      .build();
     SpanPrototype derived =
         SpanPrototype.builder().extends_(base).initComponentOnly("other").build();
     DDSpan span = (DDSpan) tracer.buildSpan(derived, "op").start();
     try {
-      assertEquals("other", span.getTags().get(COMPONENT)); // component overridden
+      // component overridden
+      assertEquals("other", span.getTags().get(COMPONENT));
       // integration name stays inherited from the base (the documented desync)
       assertEquals("netty", ((DDSpanContext) span.spanContext()).getIntegrationName());
     } finally {

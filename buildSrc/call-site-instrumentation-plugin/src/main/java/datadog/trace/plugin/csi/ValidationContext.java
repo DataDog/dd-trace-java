@@ -10,7 +10,6 @@ public interface ValidationContext extends HasErrors {
   void addContextProperty(@Nonnull String name, Object object);
 
   class BaseValidationContext extends HasErrorsImpl implements ValidationContext {
-
     private final Map<String, Object> context = new HashMap<>();
 
     @SuppressWarnings("unchecked")

@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KA
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_POLL;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -32,9 +31,10 @@ public class RecordsAdvice {
     KafkaConsumerInfo kafkaConsumerInfo =
         InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
     if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
-      String clusterId =
-          KafkaConsumerInstrumentationHelper.extractClusterId(
-              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
+      String clusterId = KafkaConsumerInstrumentationHelper.extractClusterId(
+          kafkaConsumerInfo,
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+      );
       if (clusterId != null) {
         ClusterIdHolder.set(clusterId);
       }
@@ -52,16 +52,20 @@ public class RecordsAdvice {
       @Advice.Enter final ContextScope scope,
       @Advice.This ConsumerDelegate consumer,
       @Advice.Return ConsumerRecords records,
-      @Advice.Thrown Throwable throwable) {
+      @Advice.Thrown Throwable throwable
+  ) {
     int recordsCount = 0;
     if (records != null) {
       // new - we are getting the KafkaConsumerInfo from the ConsumerDelegate instead of
       // KafkaConsumer
       KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
+          InstrumentationContext
+        .get(ConsumerDelegate.class, KafkaConsumerInfo.class)
+        .get(consumer);
       if (kafkaConsumerInfo != null) {
-        InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class)
-            .put(records, kafkaConsumerInfo);
+        InstrumentationContext
+          .get(ConsumerRecords.class, KafkaConsumerInfo.class)
+          .put(records, kafkaConsumerInfo);
       }
       recordsCount = records.count();
     }

@@ -5,10 +5,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class TestStringConcatFactorySuite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestStringConcatFactorySuite.class);
 
-  private TestStringConcatFactorySuite() {}
+  private TestStringConcatFactorySuite() {
+  }
 
   public static String plus(final String left, final String right) {
     LOGGER.debug("Before string plus {} {}", left, right);
@@ -39,7 +39,11 @@ public abstract class TestStringConcatFactorySuite {
   }
 
   public static String plus(
-      final String left, final Object right, final String third, final Object fourth) {
+      final String left,
+      final Object right,
+      final String third,
+      final Object fourth
+  ) {
     LOGGER.debug("Before string plus {} {} {} {}", left, right, third, fourth);
     final String result = left + right + third + fourth;
     LOGGER.debug("After string plus {}", result);

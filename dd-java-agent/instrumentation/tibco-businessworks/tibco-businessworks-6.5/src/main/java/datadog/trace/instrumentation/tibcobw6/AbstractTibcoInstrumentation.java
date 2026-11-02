@@ -25,7 +25,9 @@ public abstract class AbstractTibcoInstrumentation extends InstrumenterModule.Tr
     Map<String, String> stores = new HashMap<>();
     stores.put("com.tibco.pvm.api.PmWorkUnit", AgentSpan.class.getName());
     stores.put(
-        "com.tibco.bw.jms.shared.api.receive.JMSMessageCallBackHandler", String.class.getName());
+        "com.tibco.bw.jms.shared.api.receive.JMSMessageCallBackHandler",
+        String.class.getName()
+    );
     return stores;
   }
 }

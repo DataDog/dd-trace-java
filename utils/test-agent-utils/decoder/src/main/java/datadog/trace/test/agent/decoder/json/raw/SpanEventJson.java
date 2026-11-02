@@ -23,18 +23,16 @@ final class SpanEventJson {
   private static final int INT_TYPE = 2;
   private static final int DOUBLE_TYPE = 3;
   private static final int ARRAY_TYPE = 4;
-
   @Json(name = "time_unix_nano")
   Long timeUnixNano;
-
   String name;
-
   Map<String, AttributeValueJson> attributes;
 
   DecodedSpanEvent toDecodedSpanEvent() {
     if (this.name == null || this.timeUnixNano == null) {
       throw new IllegalStateException(
-          "JSON span event missing a required field (name, time_unix_nano): " + this);
+          "JSON span event missing a required field (name, time_unix_nano): " + this
+      );
     }
     Map<String, Object> decoded = new LinkedHashMap<>();
     if (this.attributes != null) {
@@ -72,14 +70,16 @@ final class SpanEventJson {
         return values;
       default:
         throw new IllegalStateException(
-            "JSON span event with an unknown attribute type " + value.type + ": " + this);
+            "JSON span event with an unknown attribute type " + value.type + ": " + this
+        );
     }
   }
 
   private Object requireValue(Object value) {
     if (value == null) {
       throw new IllegalStateException(
-          "JSON span event with an attribute missing its typed value: " + this);
+          "JSON span event with an attribute missing its typed value: " + this
+      );
     }
     return value;
   }
@@ -95,22 +95,19 @@ final class SpanEventJson {
         + '}';
   }
 
-  /** A typed attribute value, holding the field matching its type. */
+  /**
+   * A typed attribute value, holding the field matching its type.
+   */
   static final class AttributeValueJson {
     Integer type;
-
     @Json(name = "string_value")
     String stringValue;
-
     @Json(name = "bool_value")
     Boolean boolValue;
-
     @Json(name = "int_value")
     Long intValue;
-
     @Json(name = "double_value")
     Double doubleValue;
-
     @Json(name = "array_value")
     ArrayValueJson arrayValue;
 
@@ -132,7 +129,9 @@ final class SpanEventJson {
     }
   }
 
-  /** The values of an array attribute. */
+  /**
+   * The values of an array attribute.
+   */
   static final class ArrayValueJson {
     List<AttributeValueJson> values;
   }

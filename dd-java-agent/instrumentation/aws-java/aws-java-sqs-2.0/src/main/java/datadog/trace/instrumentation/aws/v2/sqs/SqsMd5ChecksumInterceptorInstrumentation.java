@@ -2,13 +2,13 @@ package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
 
 public final class SqsMd5ChecksumInterceptorInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     // The AWS SDK checksum interceptor reads ReceiveMessageResponse.messages() while finalizing
@@ -19,7 +19,9 @@ public final class SqsMd5ChecksumInterceptorInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("afterExecution")), getClass().getName() + "$AfterExecutionAdvice");
+        isMethod().and(named("afterExecution")),
+        getClass().getName() + "$AfterExecutionAdvice"
+    );
   }
 
   public static class AfterExecutionAdvice {

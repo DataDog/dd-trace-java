@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -28,8 +27,7 @@ class LocalSessionStoreInstrumentationTest extends AbstractInstrumentationTest {
         parent.finish();
       }
       try {
-        assertTrue(
-            writer.waitForTracesMax(1, 3), "Session-store timers retained the request trace");
+        assertTrue(writer.waitForTracesMax(1, 3), "Session-store timers retained the request trace");
         assertTraces(trace(span().root().operationName("parent")));
       } finally {
         store.close();

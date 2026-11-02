@@ -3,7 +3,6 @@ package com.datadog.iast.util;
 import static com.datadog.iast.util.HttpHeader.SET_COOKIE2;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Collections.emptyList;
-
 import datadog.trace.api.iast.util.Cookie;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,16 +12,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CookieSecurityParser {
-
   private static final Logger LOG = LoggerFactory.getLogger(CookieSecurityParser.class);
-
   private static final String SECURE = "Secure";
   private static final String HTTP_ONLY = "HttpOnly";
   private static final String SAME_SITE = "SameSite";
   private static final String EXPIRES = "Expires";
   private static final String VERSION = "Version";
   private static final String MAX_AGE = "Max-Age";
-
   // states for the FSM
   private static final byte COOKIE_NAME = 1;
   private static final byte COOKIE_VALUE = 2;
@@ -46,7 +42,9 @@ public class CookieSecurityParser {
     return parse(httpHeader, headerValue);
   }
 
-  /** Cookie parsing algo based on a little FSM */
+  /**
+   * Cookie parsing algo based on a little FSM
+   */
   public static List<Cookie> parse(final HttpHeader headerName, String headerValue) {
     if (headerValue == null || headerValue.isEmpty()) {
       return Collections.emptyList();
@@ -72,7 +70,8 @@ public class CookieSecurityParser {
         if (eof || separator) {
           if (next == ',') {
             if (quoteCount % 2 == 0 && version == 1) {
-              addCookie = true; // multiple cookie separator
+              // multiple cookie separator
+              addCookie = true;
             } else {
               continue;
             }
@@ -85,7 +84,8 @@ public class CookieSecurityParser {
               break;
             case COOKIE_VALUE:
               if (headerValue.charAt(start) == '"' && headerValue.charAt(end - 1) == '"') {
-                if (i != start + 1) { // avoid empty value ""
+                if (i != start + 1) {
+                  // avoid empty value ""
                   cookieValue = headerValue.substring(start + 1, end - 1).trim();
                 }
               } else {
@@ -102,19 +102,23 @@ public class CookieSecurityParser {
               } else if (equalsIgnoreCase(HTTP_ONLY, headerValue, from, length)) {
                 httpOnly = true;
               } else if (equalsIgnoreCase(EXPIRES, headerValue, from, length)) {
-                version = 0; // only netscape cookie using 'expires'
+                // only netscape cookie using 'expires'
+                version = 0;
                 attribute = EXPIRES_ATTR;
               } else if (equalsIgnoreCase(VERSION, headerValue, from, length)) {
-                version = 1; // version is mandatory for rfc 2965/2109 cookie
+                // version is mandatory for rfc 2965/2109 cookie
+                version = 1;
               } else if (equalsIgnoreCase(MAX_AGE, headerValue, from, length)) {
-                version = 1; // rfc 2965/2109 use 'max-age'
+                // rfc 2965/2109 use 'max-age'
+                version = 1;
                 attribute = MAX_AGE_ATTR;
               } else if (equalsIgnoreCase(SAME_SITE, headerValue, from, length)) {
                 attribute = SAME_SITE_ATTR;
               }
               state = next == '=' ? COOKIE_ATTR_VALUE : COOKIE_ATTR_NAME;
               break;
-            default: // COOKIE_ATTR_VALUE
+            default:
+              // COOKIE_ATTR_VALUE
               if (attribute > 0) {
                 final String value = headerValue.substring(start, end).trim();
                 switch (attribute) {
@@ -139,8 +143,8 @@ public class CookieSecurityParser {
         if (addCookie || eof) {
           if (cookieName != null && !cookieName.isEmpty()) {
             result.add(
-                new Cookie(
-                    cookieName, cookieValue, secure, httpOnly, sameSite, expiresYear, maxAge));
+                new Cookie(cookieName, cookieValue, secure, httpOnly, sameSite, expiresYear, maxAge)
+            );
           }
           cookieName = null;
           cookieValue = null;
@@ -172,7 +176,6 @@ public class CookieSecurityParser {
 
   @Nullable
   private static Integer parseExpires(final String value, final String headerValue) {
-
     Integer year = null;
     try {
       int count = 0;
@@ -213,7 +216,11 @@ public class CookieSecurityParser {
   }
 
   private static boolean equalsIgnoreCase(
-      final String token, final String value, int start, final int length) {
+      final String token,
+      final String value,
+      int start,
+      final int length
+  ) {
     return token.regionMatches(true, 0, value, start, length);
   }
 }

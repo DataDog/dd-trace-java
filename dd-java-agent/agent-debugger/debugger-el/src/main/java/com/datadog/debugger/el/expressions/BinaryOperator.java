@@ -16,7 +16,6 @@ public enum BinaryOperator {
       return left.evaluate(evalContext) || right.evaluate(evalContext);
     }
   };
-
   private final String symbol;
 
   BinaryOperator(String symbol) {
@@ -24,7 +23,10 @@ public enum BinaryOperator {
   }
 
   public abstract Boolean apply(
-      BooleanExpression left, BooleanExpression right, EvalContext evalContext);
+      BooleanExpression left,
+      BooleanExpression right,
+      EvalContext evalContext
+  );
 
   public <R> R accept(Visitor<R> visitor) {
     return visitor.visit(this);

@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static java.lang.invoke.MethodHandles.dropArguments;
 import static java.lang.invoke.MethodHandles.insertArguments;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
@@ -28,55 +27,58 @@ import org.eclipse.jetty.websocket.core.CoreSession;
 public class NativeMethodHandleWrappers {
   private static final MethodHandles LOOKUP =
       new MethodHandles(NativeMethodHandleWrappers.class.getClassLoader());
-  private static final MethodHandle TEXT =
-      LOOKUP.method(
-          NativeMethodHandleWrappers.class,
-          "onText",
-          MethodHandle.class,
-          ReceiveContexts.class,
-          boolean.class,
-          String.class,
-          boolean.class);
-  private static final MethodHandle BINARY =
-      LOOKUP.method(
-          NativeMethodHandleWrappers.class,
-          "onBinary",
-          MethodHandle.class,
-          ReceiveContexts.class,
-          boolean.class,
-          ByteBuffer.class,
-          boolean.class,
-          Callback.class);
-  private static final MethodHandle CLOSE =
-      LOOKUP.method(
-          NativeMethodHandleWrappers.class,
-          "onClose",
-          MethodHandle.class,
-          HandlerContext.Receiver.class,
-          Session.class,
-          int.class,
-          String.class);
-  private static final MethodHandle STREAM =
-      LOOKUP.method(
-          NativeMethodHandleWrappers.class,
-          "onStream",
-          MethodHandle.class,
-          ReceiveContexts.class,
-          Object.class);
+  private static final MethodHandle TEXT = LOOKUP.method(
+      NativeMethodHandleWrappers.class,
+      "onText",
+      MethodHandle.class,
+      ReceiveContexts.class,
+      boolean.class,
+      String.class,
+      boolean.class
+  );
+  private static final MethodHandle BINARY = LOOKUP.method(
+      NativeMethodHandleWrappers.class,
+      "onBinary",
+      MethodHandle.class,
+      ReceiveContexts.class,
+      boolean.class,
+      ByteBuffer.class,
+      boolean.class,
+      Callback.class
+  );
+  private static final MethodHandle CLOSE = LOOKUP.method(
+      NativeMethodHandleWrappers.class,
+      "onClose",
+      MethodHandle.class,
+      HandlerContext.Receiver.class,
+      Session.class,
+      int.class,
+      String.class
+  );
+  private static final MethodHandle STREAM = LOOKUP.method(
+      NativeMethodHandleWrappers.class,
+      "onStream",
+      MethodHandle.class,
+      ReceiveContexts.class,
+      Object.class
+  );
 
   private static HandlerContext.Receiver context(AgentSpan span, CoreSession session) {
     if (Config.get().isWebsocketMessagesInheritSampling()) {
       span.forceSamplingDecision();
     }
     return new HandlerContext.Receiver(
-        span.getLocalRootSpan(), Integer.toHexString(System.identityHashCode(session)));
+        span.getLocalRootSpan(),
+        Integer.toHexString(System.identityHashCode(session))
+    );
   }
 
   public static MethodHandle wrapMessage(
       MethodHandle delegate,
       AgentSpan span,
       CoreSession session,
-      ContextStore<CoreSession, ReceiveContexts> contextStore) {
+      ContextStore<CoreSession, ReceiveContexts> contextStore
+  ) {
     MethodType type = delegate.type();
     Class<?> payload = type.parameterType(0);
     boolean streaming = payload == Reader.class || payload == InputStream.class;
@@ -90,15 +92,18 @@ public class NativeMethodHandleWrappers {
     }
     if (streaming) {
       return insertArguments(
-              STREAM, 0, delegate.asType(MethodType.methodType(void.class, Object.class)), contexts)
-          .asType(delegate.type());
+          STREAM,
+          0,
+          delegate.asType(MethodType.methodType(void.class, Object.class)),
+          contexts
+      )
+        .asType(delegate.type());
     }
     boolean partial = type.parameterCount() > 1 && type.parameterType(1) == boolean.class;
     MethodHandle normalized = partial ? delegate : dropArguments(delegate, 1, boolean.class);
-    MethodHandle wrapper =
-        payload == String.class
-            ? contexts.wrapText(normalized, partial)
-            : insertArguments(BINARY, 0, normalized, contexts, partial);
+    MethodHandle wrapper = payload == String.class
+        ? contexts.wrapText(normalized, partial)
+        : insertArguments(BINARY, 0, normalized, contexts, partial);
     return partial ? wrapper : insertArguments(wrapper, 1, true);
   }
 
@@ -112,7 +117,10 @@ public class NativeMethodHandleWrappers {
   }
 
   private static ContextScope startMessage(
-      HandlerContext.Receiver context, Object data, boolean partial) {
+      HandlerContext.Receiver context,
+      Object data,
+      boolean partial
+  ) {
     try {
       return activateSpan(DECORATE.startInboundFrameSpan(context, data, partial));
     } catch (Throwable t) {
@@ -126,8 +134,8 @@ public class NativeMethodHandleWrappers {
       ReceiveContexts contexts,
       boolean partial,
       String payload,
-      boolean last)
-      throws Throwable {
+      boolean last
+  ) throws Throwable {
     boolean finish = last;
     ContextScope scope = contexts.startText(payload, partial);
     try (ContextScope ignored = scope) {
@@ -168,8 +176,8 @@ public class NativeMethodHandleWrappers {
       boolean partial,
       ByteBuffer payload,
       boolean last,
-      Callback callback)
-      throws Throwable {
+      Callback callback
+  ) throws Throwable {
     ReceiveCallback wrapped;
     ContextScope scope;
     synchronized (contexts) {
@@ -328,8 +336,8 @@ public class NativeMethodHandleWrappers {
       HandlerContext.Receiver context,
       Session session,
       int code,
-      String reason)
-      throws Throwable {
+      String reason
+  ) throws Throwable {
     ContextScope scope = null;
     try {
       scope = activateSpan(DECORATE.startInboundCloseSpan(context, reason, code));

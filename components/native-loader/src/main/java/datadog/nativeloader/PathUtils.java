@@ -3,9 +3,12 @@ package datadog.nativeloader;
 import static datadog.nativeloader.LibraryLoadException.UNSUPPORTED_ARCH;
 import static datadog.nativeloader.LibraryLoadException.UNSUPPORTED_OS;
 
-/** Utilities for generating library file paths to be requested from a {@link PathLocator} */
+/**
+ * Utilities for generating library file paths to be requested from a {@link PathLocator}
+ */
 public final class PathUtils {
-  private PathUtils() {}
+  private PathUtils() {
+  }
 
   public static final String libPrefix(PlatformSpec platformSpec) {
     if (platformSpec.isMac() || platformSpec.isLinux()) {
@@ -69,7 +72,9 @@ public final class PathUtils {
     }
   }
 
-  /** Helper for concatenating paths with / Handles null & empty for both parts */
+  /**
+   * Helper for concatenating paths with / Handles null & empty for both parts
+   */
   public static final String concatPath(String pathPart1, String pathPart2) {
     if (isEmpty(pathPart1)) {
       return pathPart2;
@@ -80,13 +85,19 @@ public final class PathUtils {
     }
   }
 
-  /** Helper for concatenating parts with / Handles null & empty anywhere in the var-arg array */
+  /**
+   * Helper for concatenating parts with / Handles null & empty anywhere in the var-arg array
+   */
   public static final String concatPath(String... pathParts) {
     StringBuilder builder = new StringBuilder();
     for (String pathPart : pathParts) {
-      if (isEmpty(pathPart)) continue;
+      if (isEmpty(pathPart)) {
+        continue;
+      }
 
-      if (builder.length() != 0) builder.append('/');
+      if (builder.length() != 0) {
+        builder.append('/');
+      }
       builder.append(pathPart);
     }
     return builder.toString();

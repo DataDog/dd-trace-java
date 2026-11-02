@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
@@ -21,10 +20,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.IntPredicate;
 
 final class FlagEvaluationTestSupport {
-
   static final long REALISTIC_EVAL_MS = 1_760_000_000_000L;
 
-  private FlagEvaluationTestSupport() {}
+  private FlagEvaluationTestSupport() {
+  }
 
   static FlagEvalEvent event(
       final String flagKey,
@@ -32,7 +31,8 @@ final class FlagEvaluationTestSupport {
       final String allocationKey,
       final String targetingKey,
       final long evalTimeMs,
-      final Map<String, Object> attrs) {
+      final Map<String, Object> attrs
+  ) {
     return new FlagEvalEvent(flagKey, variant, allocationKey, targetingKey, evalTimeMs, attrs);
   }
 
@@ -43,7 +43,8 @@ final class FlagEvaluationTestSupport {
       final String targetingKey,
       final long evalTimeMs,
       final boolean observeFullEvaluationData,
-      final Map<String, Object> attrs) {
+      final Map<String, Object> attrs
+  ) {
     return new FlagEvalEvent(
         flagKey,
         variant,
@@ -52,13 +53,24 @@ final class FlagEvaluationTestSupport {
         null,
         evalTimeMs,
         observeFullEvaluationData,
-        attrs);
+        attrs
+    );
   }
 
   static FlagEvalEvent errorEvent(
-      final String flagKey, final String errorMessage, final long evalTimeMs) {
+      final String flagKey,
+      final String errorMessage,
+      final long evalTimeMs
+  ) {
     return new FlagEvalEvent(
-        flagKey, null, null, null, errorMessage, evalTimeMs, Collections.emptyMap());
+        flagKey,
+        null,
+        null,
+        null,
+        errorMessage,
+        evalTimeMs,
+        Collections.emptyMap()
+    );
   }
 
   static FlagEvalEvent simpleEvent(final String flagKey, final String variant) {
@@ -84,9 +96,12 @@ final class FlagEvaluationTestSupport {
   static TestWriterSetup buildTestWriter(final int payloadSizeLimitBytes) {
     final CapturingTransport transport = new CapturingTransport();
     final RecordingMetrics metrics = new RecordingMetrics();
-    final FlagEvaluationPipeline.SerializingHandlerForTest handler =
-        new FlagEvaluationPipeline.SerializingHandlerForTest(
-            transport, context(), payloadSizeLimitBytes, new RuntimeServices(metrics));
+    final FlagEvaluationPipeline.SerializingHandlerForTest handler = new FlagEvaluationPipeline.SerializingHandlerForTest(
+        transport,
+        context(),
+        payloadSizeLimitBytes,
+        new RuntimeServices(metrics)
+    );
     return new TestWriterSetup(handler, transport, metrics);
   }
 
@@ -111,7 +126,9 @@ final class FlagEvaluationTestSupport {
   static CapturedJson readJson(final byte[] body) {
     assertNotNull(body, "payload must have been posted");
     return new CapturedJson(
-        new String(body, StandardCharsets.UTF_8), JsonReading.readObjectWithDoubles(body));
+        new String(body, StandardCharsets.UTF_8),
+        JsonReading.readObjectWithDoubles(body)
+    );
   }
 
   static Map<String, Object> flushAndCaptureJson(final TestWriterSetup setup) {
@@ -151,7 +168,9 @@ final class FlagEvaluationTestSupport {
     return null;
   }
 
-  /** Records the posted payloads, optionally failing some posts. */
+  /**
+   * Records the posted payloads, optionally failing some posts.
+   */
   static final class CapturingTransport implements EventTransport {
     final List<Post> posts = new CopyOnWriteArrayList<>();
     volatile IntPredicate failingPost = index -> false;
@@ -177,14 +196,17 @@ final class FlagEvaluationTestSupport {
     }
   }
 
-  /** Records health counters, keyed by their {@code reason:} tag like the agent collector. */
+  /**
+   * Records health counters, keyed by their {@code reason:} tag like the agent collector.
+   */
   static final class RecordingMetrics implements HealthMetrics {
     private final List<String[]> counts = new CopyOnWriteArrayList<>();
 
     @Override
     public void count(final String metric, final long value, final String reason) {
       this.counts.add(
-          new String[] {metric, Long.toString(value), reason == null ? null : "reason:" + reason});
+          new String[] {metric, Long.toString(value), reason == null ? null : "reason:" + reason}
+      );
     }
 
     long sum(final String metricName, final String tag) {
@@ -207,7 +229,8 @@ final class FlagEvaluationTestSupport {
     TestWriterSetup(
         final FlagEvaluationPipeline.SerializingHandlerForTest handler,
         final CapturingTransport transport,
-        final RecordingMetrics metrics) {
+        final RecordingMetrics metrics
+    ) {
       this.handler = handler;
       this.transport = transport;
       this.metrics = metrics;

@@ -17,7 +17,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @Tag("flaky")
 @ExtendWith(FlakyJUnitExtension.class)
 public @interface Flaky {
-  /** Reason why the test is flaky (optional). */
+  /**
+   * Reason why the test is flaky (optional).
+   */
   String value() default "";
 
   /**
@@ -40,7 +42,6 @@ public @interface Flaky {
   Class<? extends Predicate<String>> condition() default True.class;
 
   class True implements Predicate<String> {
-
     @Override
     public boolean test(final String spec) {
       return true;

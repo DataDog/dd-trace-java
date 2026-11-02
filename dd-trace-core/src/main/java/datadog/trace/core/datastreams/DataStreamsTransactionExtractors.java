@@ -19,20 +19,20 @@ public class DataStreamsTransactionExtractors {
   public static final DataStreamsTransactionExtractors EMPTY =
       new DataStreamsTransactionExtractors("[]", Collections.emptyList());
   private static final Logger LOG = LoggerFactory.getLogger(DataStreamsTransactionExtractors.class);
-  private static final Moshi MOSHI =
-      new Moshi.Builder()
-          .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorAdapter())
-          .build();
+  private static final Moshi MOSHI = new Moshi.Builder()
+    .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorAdapter())
+    .build();
   private static final ParameterizedType LIST_OF_RULES =
       Types.newParameterizedType(List.class, DataStreamsTransactionExtractorImpl.class);
   public static final JsonAdapter<List<DataStreamsTransactionExtractor>> LIST_OF_RULES_ADAPTER =
       MOSHI.adapter(LIST_OF_RULES);
-
   private final List<DataStreamsTransactionExtractor> extractors;
   private final String json;
 
   public DataStreamsTransactionExtractors(
-      String json, List<DataStreamsTransactionExtractor> extractors) {
+      String json,
+      List<DataStreamsTransactionExtractor> extractors
+  ) {
     this.extractors = Collections.unmodifiableList(extractors);
     this.json = json;
   }
@@ -67,8 +67,9 @@ public class DataStreamsTransactionExtractors {
   public static final class DataStreamsTransactionExtractorsAdapter {
     @FromJson
     DataStreamsTransactionExtractors fromJson(
-        JsonReader reader, JsonAdapter<List<DataStreamsTransactionExtractor>> parser)
-        throws IOException {
+        JsonReader reader,
+        JsonAdapter<List<DataStreamsTransactionExtractor>> parser
+    ) throws IOException {
       if (reader.peek() == JsonReader.Token.NULL) {
         return reader.nextNull();
       }
@@ -86,8 +87,8 @@ public class DataStreamsTransactionExtractors {
 
   public static final class DataStreamsTransactionExtractorAdapter {
     private static DataStreamsTransactionExtractor create(
-        JsonDataStreamsTransactionExtractor jsonExtractor) {
-
+        JsonDataStreamsTransactionExtractor jsonExtractor
+    ) {
       DataStreamsTransactionExtractor.Type type;
       try {
         type = DataStreamsTransactionExtractor.Type.valueOf(jsonExtractor.type);
@@ -110,13 +111,17 @@ public class DataStreamsTransactionExtractors {
   }
 
   public static final class DataStreamsTransactionExtractorImpl
-      implements DataStreamsTransactionExtractor {
+      implements DataStreamsTransactionExtractor
+  {
     private final String name;
     private final DataStreamsTransactionExtractor.Type type;
     private final String value;
 
     public DataStreamsTransactionExtractorImpl(
-        final String name, final DataStreamsTransactionExtractor.Type type, final String value) {
+        final String name,
+        final DataStreamsTransactionExtractor.Type type,
+        final String value
+    ) {
       this.name = name;
       this.type = type;
       this.value = value;

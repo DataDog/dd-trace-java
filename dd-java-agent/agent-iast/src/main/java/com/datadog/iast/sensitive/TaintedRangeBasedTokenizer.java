@@ -8,21 +8,19 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 public class TaintedRangeBasedTokenizer implements SensitiveHandler.Tokenizer {
-
   private final String value;
   private final Range[] ranges;
-
-  @Nullable private Ranged current;
-
+  @Nullable
+  private Ranged current;
   private int rangesIndex;
-
   private int pos;
 
   public TaintedRangeBasedTokenizer(final Evidence evidence) {
     this.ranges = evidence.getRanges() == null ? Ranges.EMPTY : evidence.getRanges();
     this.value = evidence.getValue();
     rangesIndex = 0;
-    pos = 0; // current value position
+    // current value position
+    pos = 0;
   }
 
   @Override

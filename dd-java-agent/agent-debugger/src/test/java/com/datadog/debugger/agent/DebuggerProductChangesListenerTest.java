@@ -14,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
-
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -40,8 +39,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class DebuggerProductChangesListenerTest {
   private static final String SERVICE_NAME = "service-name";
-
-  @Mock private Config tracerConfig;
+  @Mock
+  private Config tracerConfig;
 
   static class SimpleAcceptor implements ConfigurationAcceptor {
     private Collection<? extends ProbeDefinition> definitions;
@@ -109,7 +108,12 @@ public class DebuggerProductChangesListenerTest {
     acceptSpanDecorationProbe(listener, spanDecorationProbe);
     listener.commit(NOOP);
     assertDefinitions(
-        acceptor.getDefinitions(), metricProbe, logProbe, spanProbe, spanDecorationProbe);
+        acceptor.getDefinitions(),
+        metricProbe,
+        logProbe,
+        spanProbe,
+        spanDecorationProbe
+    );
 
     acceptTriggerProbe(listener, triggerProbe);
     listener.commit(NOOP);
@@ -119,12 +123,18 @@ public class DebuggerProductChangesListenerTest {
         logProbe,
         spanProbe,
         spanDecorationProbe,
-        triggerProbe);
+        triggerProbe
+    );
 
     removeMetricProbe(listener, metricProbe);
     listener.commit(NOOP);
     assertDefinitions(
-        acceptor.getDefinitions(), logProbe, spanProbe, spanDecorationProbe, triggerProbe);
+        acceptor.getDefinitions(),
+        logProbe,
+        spanProbe,
+        spanDecorationProbe,
+        triggerProbe
+    );
 
     removeLogProbe(listener, logProbe);
     listener.commit(NOOP);
@@ -156,23 +166,23 @@ public class DebuggerProductChangesListenerTest {
     SimpleAcceptor acceptor = new SimpleAcceptor();
     DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
     String probeUUID = UUID.randomUUID().toString();
-    IOException ioException =
-        assertThrows(
-            IOException.class,
-            () ->
-                listener.accept(
-                    createConfigKey("logProbe_" + probeUUID),
-                    "{bad json}".getBytes(StandardCharsets.UTF_8),
-                    NOOP));
+    IOException ioException = assertThrows(IOException.class, () -> listener.accept(
+        createConfigKey("logProbe_" + probeUUID),
+        "{bad json}".getBytes(StandardCharsets.UTF_8),
+        NOOP
+    ));
     assertNotNull(acceptor.lastException);
     assertEquals(ioException.getCause(), acceptor.lastException);
   }
 
   private void assertDefinitions(
       Collection<? extends ProbeDefinition> actualDefinitions,
-      ProbeDefinition... expectedDefinitions) {
+      ProbeDefinition... expectedDefinitions
+  ) {
     assertEquals(
-        new HashSet<>(Arrays.asList(expectedDefinitions)), new HashSet<>(actualDefinitions));
+        new HashSet<>(Arrays.asList(expectedDefinitions)),
+        new HashSet<>(actualDefinitions)
+    );
   }
 
   byte[] toContent(MetricProbe probe) {
@@ -196,21 +206,23 @@ public class DebuggerProductChangesListenerTest {
   }
 
   void acceptMetricProbe(DebuggerProductChangesListener listener, MetricProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(
-                createConfigKey("metricProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() -> listener.accept(
+        createConfigKey("metricProbe_" + probe.getId()),
+        toContent(probe),
+        NOOP
+    ));
   }
 
   void removeMetricProbe(DebuggerProductChangesListener listener, MetricProbe probe) {
-    assertDoesNotThrow(
-        () -> listener.remove(createConfigKey("metricProbe_" + probe.getId()), NOOP));
+    assertDoesNotThrow(() -> listener.remove(createConfigKey("metricProbe_" + probe.getId()), NOOP));
   }
 
   void acceptLogProbe(DebuggerProductChangesListener listener, LogProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(createConfigKey("logProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() -> listener.accept(
+        createConfigKey("logProbe_" + probe.getId()),
+        toContent(probe),
+        NOOP
+    ));
   }
 
   void removeLogProbe(DebuggerProductChangesListener listener, LogProbe probe) {
@@ -218,91 +230,102 @@ public class DebuggerProductChangesListenerTest {
   }
 
   void acceptSpanProbe(DebuggerProductChangesListener listener, SpanProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(createConfigKey("spanProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() -> listener.accept(
+        createConfigKey("spanProbe_" + probe.getId()),
+        toContent(probe),
+        NOOP
+    ));
   }
 
-  void acceptSpanDecorationProbe(
-      DebuggerProductChangesListener listener, SpanDecorationProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(
-                createConfigKey("spanDecorationProbe_" + probe.getId()), toContent(probe), NOOP));
+  void acceptSpanDecorationProbe(DebuggerProductChangesListener listener, SpanDecorationProbe probe) {
+    assertDoesNotThrow(() -> listener.accept(
+        createConfigKey("spanDecorationProbe_" + probe.getId()),
+        toContent(probe),
+        NOOP
+    ));
   }
 
   void acceptTriggerProbe(DebuggerProductChangesListener listener, TriggerProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(
-                createConfigKey("triggerProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() -> listener.accept(
+        createConfigKey("triggerProbe_" + probe.getId()),
+        toContent(probe),
+        NOOP
+    ));
   }
 
   void removeSpanProbe(DebuggerProductChangesListener listener, SpanProbe probe) {
     assertDoesNotThrow(() -> listener.remove(createConfigKey("spanProbe_" + probe.getId()), NOOP));
   }
 
-  void removeSpanDecorationProbe(
-      DebuggerProductChangesListener listener, SpanDecorationProbe probe) {
-    assertDoesNotThrow(
-        () -> listener.remove(createConfigKey("spanDecorationProbe_" + probe.getId()), NOOP));
+  void removeSpanDecorationProbe(DebuggerProductChangesListener listener, SpanDecorationProbe probe) {
+    assertDoesNotThrow(() -> listener.remove(
+        createConfigKey("spanDecorationProbe_" + probe.getId()),
+        NOOP
+    ));
   }
 
   void removeTriggerProbe(DebuggerProductChangesListener listener, TriggerProbe probe) {
-    assertDoesNotThrow(
-        () -> listener.remove(createConfigKey("triggerProbe_" + probe.getId()), NOOP));
+    assertDoesNotThrow(() -> listener.remove(createConfigKey("triggerProbe_" + probe.getId()), NOOP));
   }
 
   LogProbe createLogProbeWithSnapshot(String id) {
-    return LogProbe.builder()
-        .probeId(id, 0)
-        .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
-        .captureSnapshot(true)
-        .build();
+    return LogProbe
+      .builder()
+      .probeId(id, 0)
+      .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
+      .captureSnapshot(true)
+      .build();
   }
 
   MetricProbe createMetricProbe(String id) {
-    return MetricProbe.builder()
-        .probeId(id, 0)
-        .kind(MetricProbe.MetricKind.COUNT)
-        .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
-        .build();
+    return MetricProbe
+      .builder()
+      .probeId(id, 0)
+      .kind(MetricProbe.MetricKind.COUNT)
+      .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
+      .build();
   }
 
   LogProbe createLogProbe(String id) {
     final String LOG_LINE = "hello {world}";
-    return LogProbe.builder()
-        .probeId(id, 0)
-        .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
-        .template(LOG_LINE, parseTemplate(LOG_LINE))
-        .build();
+    return LogProbe
+      .builder()
+      .probeId(id, 0)
+      .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
+      .template(LOG_LINE, parseTemplate(LOG_LINE))
+      .build();
   }
 
   SpanProbe createSpanProbe(String id) {
-    return SpanProbe.builder()
-        .probeId(id, 0)
-        .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
-        .build();
+    return SpanProbe
+      .builder()
+      .probeId(id, 0)
+      .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
+      .build();
   }
 
   SpanDecorationProbe createSpanDecorationProbe(String id) {
-    return SpanDecorationProbe.builder()
-        .probeId(id, 0)
-        .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
-        .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
-        .build();
+    return SpanDecorationProbe
+      .builder()
+      .probeId(id, 0)
+      .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
+      .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
+      .build();
   }
 
   TriggerProbe createTriggerProbe(String id) {
-    return TriggerProbe.builder()
-        .probeId(new ProbeId(id, 0))
-        .where("java.lang.String", "indexOf", null)
-        .build();
+    return TriggerProbe
+      .builder()
+      .probeId(new ProbeId(id, 0))
+      .where("java.lang.String", "indexOf", null)
+      .build();
   }
 
   Configuration.FilterList createFilteredList() {
     return new Configuration.FilterList(
-        Collections.singletonList("datadog"), Collections.singletonList("class1"));
+        Collections.singletonList("datadog"),
+        Collections.singletonList("class1")
+    );
   }
 
   ParsedConfigKey createConfigKey(String configId) {

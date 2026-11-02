@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.karate2;
 
 import static datadog.json.JsonMapper.toJson;
-
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
@@ -23,11 +22,10 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class KarateUtils {
-
-  private KarateUtils() {}
+  private KarateUtils() {
+  }
 
   public static final List<LibraryCapability> CAPABILITIES = Collections.emptyList();
-
   private static final ConcurrentHashMap<URI, String> CLASSPATH_NAME_CACHE =
       new ConcurrentHashMap<>();
 
@@ -67,8 +65,7 @@ public abstract class KarateUtils {
     if (uri == null) {
       return fallback;
     }
-    return CLASSPATH_NAME_CACHE.computeIfAbsent(
-        uri, u -> computeClasspathRelativeName(u, fallback));
+    return CLASSPATH_NAME_CACHE.computeIfAbsent(uri, u -> computeClasspathRelativeName(u, fallback));
   }
 
   private static String resourceRelativeName(Feature feature) {
@@ -116,9 +113,7 @@ public abstract class KarateUtils {
   }
 
   private static String stripFeatureExtension(String path) {
-    return path.endsWith(".feature")
-        ? path.substring(0, path.length() - ".feature".length())
-        : path;
+    return path.endsWith(".feature") ? path.substring(0, path.length() - ".feature".length()) : path;
   }
 
   public static String getScenarioName(Scenario scenario) {

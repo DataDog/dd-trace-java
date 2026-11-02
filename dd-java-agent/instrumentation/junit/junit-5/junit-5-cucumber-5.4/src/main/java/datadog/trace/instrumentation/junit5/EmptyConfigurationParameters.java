@@ -10,9 +10,9 @@ import org.junit.platform.engine.ConfigurationParameters;
  * engine versions (6.0–7.23) whose {@code PickleDescriptor} constructor consumes the configuration
  * to compute exclusive resources but does not store it (so it cannot be read back).
  */
-@SuppressWarnings("deprecation") // ConfigurationParameters#size() is deprecated in newer platforms
+// ConfigurationParameters#size() is deprecated in newer platforms
+@SuppressWarnings("deprecation")
 public final class EmptyConfigurationParameters implements ConfigurationParameters {
-
   @Override
   public Optional<String> get(String key) {
     return Optional.empty();

@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -48,7 +47,6 @@ import org.msgpack.core.MessageUnpacker;
 
 @ExtendWith(WithConfigExtension.class)
 class TraceMapperV04PayloadTest {
-
   // Keep the ProcessTags static in sync with the (per-test rebuilt) Config, the way DDSpecification
   // did for the original Spock tests. Runs after WithConfigExtension has rebuilt Config.
   @BeforeEach
@@ -96,13 +94,18 @@ class TraceMapperV04PayloadTest {
         arguments(100 << 10, 1, false),
         arguments(100 << 10, 10, false),
         arguments(100 << 10, 100, false),
-        arguments(100 << 10, 1000, false));
+        arguments(100 << 10, 1000, false)
+    );
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("fullSixtyFourBitTraceAndSpanIdentifiersArguments")
   void fullSixtyFourBitTraceAndSpanIdentifiers(
-      String scenario, DDTraceId traceId, long spanId, long parentId) {
+      String scenario,
+      DDTraceId traceId,
+      long spanId,
+      long parentId
+  ) {
     PojoSpan span = plainSpan(traceId, spanId, parentId);
     List<List<PojoSpan>> traces = Collections.singletonList(Collections.singletonList(span));
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
@@ -119,7 +122,8 @@ class TraceMapperV04PayloadTest {
     return Stream.of(
         arguments("ONE", DD64bTraceId.ONE, 2L, 3L),
         arguments("MAX", DD64bTraceId.MAX, 2L, 3L),
-        arguments("negative", DD64bTraceId.from(-10), -11L, -12L));
+        arguments("negative", DD64bTraceId.from(-10), -11L, -12L)
+    );
   }
 
   @Test
@@ -136,25 +140,21 @@ class TraceMapperV04PayloadTest {
     span.setMetaStruct("stack", stack);
     List<List<PojoSpan>> traces = Collections.singletonList(Collections.singletonList(span));
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
-    PayloadVerifier verifier =
-        new PayloadVerifier(
-            traces,
-            traceMapper,
-            (expected, received) -> {
-              MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(received);
-              List<?> expectedStack = (List<?>) expected;
-              int size = unpacker.unpackArrayHeader();
-              assertEquals(expectedStack.size(), size);
-              for (Object entry : expectedStack) {
-                @SuppressWarnings("unchecked")
-                Map<String, String> stackEntry = (Map<String, String>) entry;
-                int fields = unpacker.unpackMapHeader();
-                for (int f = 0; f < fields; ++f) {
-                  String field = unpacker.unpackString();
-                  assertEquals(stackEntry.get(field), unpacker.unpackString());
-                }
-              }
-            });
+    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper, (expected, received) -> {
+      MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(received);
+      List<?> expectedStack = (List<?>) expected;
+      int size = unpacker.unpackArrayHeader();
+      assertEquals(expectedStack.size(), size);
+      for (Object entry : expectedStack) {
+        @SuppressWarnings("unchecked")
+        Map<String, String> stackEntry = (Map<String, String>) entry;
+        int fields = unpacker.unpackMapHeader();
+        for (int f = 0; f < fields; ++f) {
+          String field = unpacker.unpackString();
+          assertEquals(stackEntry.get(field), unpacker.unpackString());
+        }
+      }
+    });
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier));
 
     packer.format(Collections.singletonList(span), traceMapper);
@@ -188,11 +188,11 @@ class TraceMapperV04PayloadTest {
    */
   @Test
   void otlpExportMarkerOnlyOnFirstSpanOfFirstNonEmptyChunk() {
-    List<List<PojoSpan>> traces =
-        Arrays.asList(
-            Collections.emptyList(),
-            Arrays.asList(plainSpan(1), plainSpan(2)),
-            Collections.singletonList(plainSpan(3)));
+    List<List<PojoSpan>> traces = Arrays.asList(
+        Collections.emptyList(),
+        Arrays.asList(plainSpan(1), plainSpan(2)),
+        Collections.singletonList(plainSpan(3))
+    );
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(200 << 10, verifier));
@@ -212,10 +212,10 @@ class TraceMapperV04PayloadTest {
   @Test
   @WithConfig(
       key = WRITER_TYPE,
-      value = MULTI_WRITER_TYPE + ":" + OTLP_WRITER_TYPE + ",DDAgentWriter")
+      value = MULTI_WRITER_TYPE + ":" + OTLP_WRITER_TYPE + ",DDAgentWriter"
+  )
   void otlpExportMarkerIsTrueWhenAlsoExportingOverOtlp() {
-    List<List<PojoSpan>> traces =
-        Collections.singletonList(Collections.singletonList(plainSpan(1)));
+    List<List<PojoSpan>> traces = Collections.singletonList(Collections.singletonList(plainSpan(1)));
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper).expectOtlpExport("true");
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(200 << 10, verifier));
@@ -248,22 +248,21 @@ class TraceMapperV04PayloadTest {
         false,
         0,
         0,
-        "origin");
+        "origin"
+    );
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer {
-
     private final List<List<PojoSpan>> expectedTraces;
     private final TraceMapperV0_4 mapper;
     private final MetaStructVerifier<Object> metaStructVerifier;
     private final PayloadVerifiers.CapturingChannel channel =
         new PayloadVerifiers.CapturingChannel(200 << 10);
-
     private int position = 0;
-
-    /** Expected value of the payload-scoped {@code _dd.sdk.otlp_export} marker. */
+    /**
+     * Expected value of the payload-scoped {@code _dd.sdk.otlp_export} marker.
+     */
     private String expectedOtlpExport = "false";
-
     /**
      * Payload-spanning index of the chunk the marker was last seen on, or {@code -1} if it was
      * never seen. The span index within that chunk is not tracked: {@link #accept} already asserts
@@ -278,13 +277,16 @@ class TraceMapperV04PayloadTest {
     private PayloadVerifier(
         List<List<PojoSpan>> traces,
         TraceMapperV0_4 mapper,
-        MetaStructVerifier<Object> metaStructVerifier) {
+        MetaStructVerifier<Object> metaStructVerifier
+    ) {
       this.expectedTraces = traces;
       this.mapper = mapper;
       this.metaStructVerifier = metaStructVerifier;
     }
 
-    /** Sets the expected {@code _dd.sdk.otlp_export} value (defaults to {@code "false"}). */
+    /**
+     * Sets the expected {@code _dd.sdk.otlp_export} value (defaults to {@code "false"}).
+     */
     PayloadVerifier expectOtlpExport(String value) {
       this.expectedOtlpExport = value;
       return this;
@@ -357,7 +359,8 @@ class TraceMapperV04PayloadTest {
               Number n = unpackNumber(unpacker, key);
               if (DD_MEASURED.toString().equals(key)) {
                 assertTrue(
-                    (n.intValue() == 1 && expectedSpan.isMeasured()) || !expectedSpan.isMeasured());
+                    (n.intValue() == 1 && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
+                );
               } else if (DDSpanContext.PRIORITY_SAMPLING_KEY.equals(key)) {
                 // check that priority sampling is only on first and last span
                 if (k == 0 || k == spanCount - 1) {
@@ -374,13 +377,15 @@ class TraceMapperV04PayloadTest {
                 assertEquals(
                     ((Number) expectedSpan.getTag(metric.getKey())).doubleValue(),
                     metric.getValue().doubleValue(),
-                    0.001);
+                    0.001
+                );
               } else {
                 // Integer-typed metrics round-trip through msgpack's minimal encoding, so a Long
                 // tag can come back as an Integer (and vice versa). Compare numerically.
                 assertEquals(
                     ((Number) expectedSpan.getTag(metric.getKey())).longValue(),
-                    metric.getValue().longValue());
+                    metric.getValue().longValue()
+                );
               }
             }
             assertEquals("meta", unpacker.unpackString());
@@ -437,7 +442,9 @@ class TraceMapperV04PayloadTest {
         mapper.reset();
         channel.resetForWriting();
         assertEquals(
-            Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0, processTagsCount);
+            Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0,
+            processTagsCount
+        );
         // exactly one _dd.sdk.otlp_export per payload, never per span
         assertEquals(1, otlpExportCount);
       }

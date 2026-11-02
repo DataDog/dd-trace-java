@@ -13,16 +13,15 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public class HttpResourceDecorator {
   public static final HttpResourceDecorator HTTP_RESOURCE_DECORATOR = new HttpResourceDecorator();
-
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
-
   private final boolean shouldSetUrlResourceName =
       Config.get().isRuleEnabled("URLAsResourceNameRule");
   private final boolean hasClientPathMappings =
       !Config.get().getHttpClientPathResourceNameMapping().isEmpty();
 
-  private HttpResourceDecorator() {}
+  private HttpResourceDecorator() {
+  }
 
   public final void withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
     if (OTEL_SEMANTICS
@@ -31,7 +30,10 @@ public class HttpResourceDecorator {
       if (hasClientPathMappings && path != null) {
         Pair<CharSequence, Byte> resourceName =
             HttpResourceNames.computeForClient(
-                OtelHttpSemantics.spanNameMethod(method), path, false);
+                OtelHttpSemantics.spanNameMethod(method),
+                path,
+                false
+        );
         if (resourceName.getRight() == ResourceNamePriorities.HTTP_CLIENT_CONFIG_PATTERN_MATCH) {
           span.setResourceName(resourceName.getLeft(), resourceName.getRight());
           return;
@@ -44,7 +46,11 @@ public class HttpResourceDecorator {
   }
 
   public final void withServerPath(
-      AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
+      AgentSpan span,
+      CharSequence method,
+      CharSequence path,
+      boolean encoded
+  ) {
     if (OTEL_SEMANTICS) {
       OtelHttpSemantics.setMethodResourceName(span, method);
       return;
@@ -58,12 +64,19 @@ public class HttpResourceDecorator {
   }
 
   public final void withRoute(
-      final AgentSpan span, final CharSequence method, final CharSequence route) {
+      final AgentSpan span,
+      final CharSequence method,
+      final CharSequence route
+  ) {
     withRoute(span, method, route, false);
   }
 
   public final void withRoute(
-      final AgentSpan span, final CharSequence method, final CharSequence route, boolean encoded) {
+      final AgentSpan span,
+      final CharSequence method,
+      final CharSequence route,
+      boolean encoded
+  ) {
     CharSequence routeTag = route;
     if (encoded) {
       routeTag = URIUtils.decode(route.toString());

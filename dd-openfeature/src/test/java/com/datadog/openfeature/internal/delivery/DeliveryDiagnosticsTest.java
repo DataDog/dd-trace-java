@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
@@ -33,9 +32,8 @@ import org.slf4j.event.Level;
 class DeliveryDiagnosticsTest {
   private static final String CONFIG =
       "{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":"
-          + "{\"createdAt\":\"2024-04-17T19:40:53.716Z\",\"environment\":{\"name\":\"Test\"},"
-          + "\"flags\":{}}}}";
-
+      + "{\"createdAt\":\"2024-04-17T19:40:53.716Z\",\"environment\":{\"name\":\"Test\"},"
+      + "\"flags\":{}}}}";
   private LocalHttpServer server;
 
   @BeforeEach
@@ -71,10 +69,11 @@ class DeliveryDiagnosticsTest {
 
     assertFalse(source.pollOnce());
 
-    final List<CapturingServiceProvider.Event> attempts =
-        CapturingServiceProvider.events().stream()
-            .filter(e -> e.message.contains("poll attempt"))
-            .collect(Collectors.toList());
+    final List<CapturingServiceProvider.Event> attempts = CapturingServiceProvider
+      .events()
+      .stream()
+      .filter(e -> e.message.contains("poll attempt"))
+      .collect(Collectors.toList());
     assertEquals(2, attempts.size(), attempts.toString());
     for (final CapturingServiceProvider.Event attempt : attempts) {
       assertNull(attempt.throwable, attempt.toString());
@@ -128,7 +127,7 @@ class DeliveryDiagnosticsTest {
 
     assertEquals(1, this.server.requests().size(), "The first poll must not wait for the log");
     verify(executor)
-        .scheduleWithFixedDelay(any(Runnable.class), eq(30_000L), eq(30_000L), eq(MILLISECONDS));
+      .scheduleWithFixedDelay(any(Runnable.class), eq(30_000L), eq(30_000L), eq(MILLISECONDS));
   }
 
   @Test
@@ -145,13 +144,13 @@ class DeliveryDiagnosticsTest {
   @Test
   void agentlessReportsTheOriginOfTheEndpointOnly() {
     final URI server = this.server.uri("/ufc?token=hidden");
-    final URI endpoint =
-        URI.create(
-            "http://user:s3cret@"
-                + server.getHost()
-                + ":"
-                + server.getPort()
-                + "/path-secret/ufc?token=hidden");
+    final URI endpoint = URI.create(
+        "http://user:s3cret@"
+        + server.getHost()
+        + ":"
+        + server.getPort()
+        + "/path-secret/ufc?token=hidden"
+    );
     this.server.enqueue(200, CONFIG);
     final CdnConfigurationSource source = source(endpoint, null);
 
@@ -173,9 +172,9 @@ class DeliveryDiagnosticsTest {
     service.start(configuration -> {});
 
     connector.listener.accept("{\"environment\":{\"name\":\"Test\"},\"flags\":{}}".getBytes(UTF_8));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> connector.listener.accept("{not json".getBytes(UTF_8)));
+    assertThrows(IllegalArgumentException.class, () -> connector.listener.accept("{not json"
+      .getBytes(UTF_8)
+    ));
     connector.listener.accept(null);
 
     assertLogged("subscribing to Remote Configuration");
@@ -195,17 +194,20 @@ class DeliveryDiagnosticsTest {
   }
 
   private CdnConfigurationSource source(
-      final URI endpoint, final String apiKey, final ScheduledExecutorService executor) {
-    final CdnConfigurationSource source =
-        new CdnConfigurationSource(
-            endpoint,
-            apiKey,
-            30_000,
-            Duration.ofSeconds(5),
-            HttpClient.newHttpClient(),
-            executor,
-            delay -> {},
-            () -> 1.0);
+      final URI endpoint,
+      final String apiKey,
+      final ScheduledExecutorService executor
+  ) {
+    final CdnConfigurationSource source = new CdnConfigurationSource(
+        endpoint,
+        apiKey,
+        30_000,
+        Duration.ofSeconds(5),
+        HttpClient.newHttpClient(),
+        executor,
+          delay -> {},
+        () -> 1.0
+    );
     source.setListenerForTest(new CopyOnWriteArrayList<ServerConfiguration>()::add);
     return source;
   }
@@ -221,10 +223,12 @@ class DeliveryDiagnosticsTest {
   }
 
   private static List<String> messages(final String text) {
-    return CapturingServiceProvider.events().stream()
-        .map(e -> e.message)
-        .filter(message -> message.contains(text))
-        .collect(Collectors.toList());
+    return CapturingServiceProvider
+      .events()
+      .stream()
+      .map(e -> e.message)
+      .filter(message -> message.contains(text))
+      .collect(Collectors.toList());
   }
 
   private static final class CapturingSource implements ConfigurationSource {

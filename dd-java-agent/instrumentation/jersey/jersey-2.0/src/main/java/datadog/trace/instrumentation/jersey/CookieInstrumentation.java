@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -21,8 +20,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CookieInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public CookieInstrumentation() {
     super("jersey");
   }
@@ -31,10 +31,12 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getName").and(isPublic()).and(takesArguments(0).and(returns(String.class))),
-        CookieInstrumentation.class.getName() + "$InstrumenterAdviceGetName");
+        CookieInstrumentation.class.getName() + "$InstrumenterAdviceGetName"
+    );
     transformer.applyAdvice(
         named("getValue").and(isPublic()).and(takesArguments(0).and(returns(String.class))),
-        CookieInstrumentation.class.getName() + "$GetValueAdvice");
+        CookieInstrumentation.class.getName() + "$GetValueAdvice"
+    );
   }
 
   @Override
@@ -49,12 +51,18 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
     public static void onExit(
         @Advice.Return String cookieName,
         @Advice.This Object self,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         module.taintStringIfTainted(
-            ctx, cookieName, self, SourceTypes.REQUEST_COOKIE_NAME, cookieName);
+            ctx,
+            cookieName,
+            self,
+            SourceTypes.REQUEST_COOKIE_NAME,
+            cookieName
+        );
       }
     }
   }
@@ -67,7 +75,8 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
         @Advice.Return String cookieValue,
         @Advice.FieldValue("name") String name,
         @Advice.This Object self,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);

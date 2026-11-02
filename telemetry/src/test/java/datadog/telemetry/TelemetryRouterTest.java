@@ -14,7 +14,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.telemetry.api.RequestType;
 import java.io.IOException;
@@ -32,18 +31,15 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class TelemetryRouterTest {
-
   private static final HttpUrl AGENT_URL = HttpUrl.get("https://agent.example.com");
   private static final HttpUrl AGENT_TELEMETRY_URL =
       AGENT_URL.resolve("telemetry/proxy/api/v2/apmtelemetry");
   private static final HttpUrl INTAKE_URL = HttpUrl.get("https://intake.example.com");
   private static final String API_KEY = "api-key";
   private static final String API_KEY_HEADER = "DD-API-KEY";
-
   private final OkHttpClient okHttpClient = mock(OkHttpClient.class);
   private final DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery =
       mock(DDAgentFeaturesDiscovery.class);
-
   private TelemetryClient agentTelemetryClient;
   private TelemetryClient intakeTelemetryClient;
   private TelemetryRouter router;
@@ -52,9 +48,12 @@ class TelemetryRouterTest {
   void setup() {
     agentTelemetryClient = TelemetryClient.buildAgentClient(okHttpClient, AGENT_URL, NEVER_RETRY);
     intakeTelemetryClient = new TelemetryClient(okHttpClient, NEVER_RETRY, INTAKE_URL, API_KEY);
-    router =
-        new TelemetryRouter(
-            ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient, false);
+    router = new TelemetryRouter(
+        ddAgentFeaturesDiscovery,
+        agentTelemetryClient,
+        intakeTelemetryClient,
+        false
+    );
   }
 
   @TableTest({
@@ -130,7 +129,8 @@ class TelemetryRouterTest {
     "500       "
   })
   void switchToIntakeWhenAgentStopsSupportingTelemetryProxyAndTelemetryRequestsStartFailing(
-      int returnCode) {
+      int returnCode
+  ) {
     Request[] capturedRequest = new Request[1];
     stubNewCallCapturingRequest(capturedRequest, returnCode);
     when(ddAgentFeaturesDiscovery.supportsTelemetryProxy()).thenReturn(true);
@@ -157,9 +157,12 @@ class TelemetryRouterTest {
 
   @Test
   void whenConfiguredToPreferIntakeUseIntakeClientFromTheStart() {
-    TelemetryRouter telemetryRouter =
-        new TelemetryRouter(
-            ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient, true);
+    TelemetryRouter telemetryRouter = new TelemetryRouter(
+        ddAgentFeaturesDiscovery,
+        agentTelemetryClient,
+        intakeTelemetryClient,
+        true
+    );
     Request[] capturedRequest = new Request[1];
     stubNewCallCapturingRequest(capturedRequest, 200);
     when(ddAgentFeaturesDiscovery.supportsTelemetryProxy()).thenReturn(false);
@@ -174,11 +177,13 @@ class TelemetryRouterTest {
   }
 
   @Test
-  void
-      whenConfiguredToPreferIntakeDoNotSwitchToAgentIfIntakeRequestSucceedsEvenIfAgentSupportsTelemetryProxy() {
-    TelemetryRouter telemetryRouter =
-        new TelemetryRouter(
-            ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient, true);
+  void whenConfiguredToPreferIntakeDoNotSwitchToAgentIfIntakeRequestSucceedsEvenIfAgentSupportsTelemetryProxy() {
+    TelemetryRouter telemetryRouter = new TelemetryRouter(
+        ddAgentFeaturesDiscovery,
+        agentTelemetryClient,
+        intakeTelemetryClient,
+        true
+    );
     Request[] capturedRequest = new Request[1];
     stubNewCallCapturingRequest(capturedRequest, 200);
     when(ddAgentFeaturesDiscovery.supportsTelemetryProxy()).thenReturn(true);
@@ -201,17 +206,17 @@ class TelemetryRouterTest {
 
   @Test
   void whenConfiguredToPreferIntakeDoNotSwitchToAgentIfRequestIsInterrupted() {
-    TelemetryRouter telemetryRouter =
-        new TelemetryRouter(
-            ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient, true);
+    TelemetryRouter telemetryRouter = new TelemetryRouter(
+        ddAgentFeaturesDiscovery,
+        agentTelemetryClient,
+        intakeTelemetryClient,
+        true
+    );
     Request[] capturedRequest = new Request[1];
-    doAnswer(
-            invocation -> {
-              capturedRequest[0] = invocation.getArgument(0);
-              throw new InterruptedIOException("interrupted");
-            })
-        .when(okHttpClient)
-        .newCall(any());
+    doAnswer(invocation -> {
+      capturedRequest[0] = invocation.getArgument(0);
+      throw new InterruptedIOException("interrupted");
+    }).when(okHttpClient).newCall(any());
     when(ddAgentFeaturesDiscovery.supportsTelemetryProxy()).thenReturn(true);
 
     telemetryRouter.sendRequest(dummyRequest());
@@ -234,9 +239,12 @@ class TelemetryRouterTest {
 
   @Test
   void whenConfiguredToPreferIntakeSwitchToAgentIfIntakeRequestFails() {
-    TelemetryRouter telemetryRouter =
-        new TelemetryRouter(
-            ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient, true);
+    TelemetryRouter telemetryRouter = new TelemetryRouter(
+        ddAgentFeaturesDiscovery,
+        agentTelemetryClient,
+        intakeTelemetryClient,
+        true
+    );
     Request[] capturedRequest = new Request[1];
     stubNewCallCapturingRequest(capturedRequest, 403);
     when(ddAgentFeaturesDiscovery.supportsTelemetryProxy()).thenReturn(true);
@@ -320,7 +328,10 @@ class TelemetryRouterTest {
     "500        |                | true              "
   })
   void useAgentWhenIntakeIsNotAvailable(
-      int returnCode, String expectedApiKey, boolean expectedUrlIsAgent) {
+      int returnCode,
+      String expectedApiKey,
+      boolean expectedUrlIsAgent
+  ) {
     HttpUrl expectedUrl = expectedUrlIsAgent ? AGENT_TELEMETRY_URL : INTAKE_URL;
     TelemetryRouter agentOnlyRouter =
         new TelemetryRouter(ddAgentFeaturesDiscovery, agentTelemetryClient, null, false);
@@ -364,7 +375,6 @@ class TelemetryRouterTest {
     Request[] capturedRequest = new Request[1];
     stubNewCallCapturingRequest(capturedRequest, returnCode);
     when(ddAgentFeaturesDiscovery.supportsTelemetryProxy()).thenReturn(false);
-
     // always send first telemetry request to Agent
     router.sendRequest(dummyRequest());
 
@@ -374,7 +384,6 @@ class TelemetryRouterTest {
     assertEquals(AGENT_TELEMETRY_URL, capturedRequest[0].url());
     assertNull(capturedRequest[0].header(API_KEY_HEADER));
     clearInvocations(okHttpClient, ddAgentFeaturesDiscovery);
-
     // switch to Intake if sending a telemetry request to Agent failed or Agent supports
     // telemetry proxy
     router.sendRequest(dummyRequest());
@@ -385,7 +394,6 @@ class TelemetryRouterTest {
     assertEquals(INTAKE_URL, capturedRequest[0].url());
     assertEquals(API_KEY, capturedRequest[0].header(API_KEY_HEADER));
     clearInvocations(okHttpClient, ddAgentFeaturesDiscovery);
-
     // switch back to Agent if Intake request fails
     router.sendRequest(dummyRequest());
 
@@ -414,14 +422,12 @@ class TelemetryRouterTest {
   void singleClientConstructorDoesNotSwitchClientsOnFailure() {
     TelemetryClient singleClient = mock(TelemetryClient.class);
     TelemetryRouter singleClientRouter = new TelemetryRouter(singleClient);
-
     // first request fails
     when(singleClient.sendHttpRequest(any())).thenReturn(FAILURE);
     TelemetryClient.Result firstResult = singleClientRouter.sendRequest(dummyRequest());
 
     assertEquals(FAILURE, firstResult);
     verify(singleClient, times(1)).sendHttpRequest(any());
-
     // second request goes to the same client
     when(singleClient.sendHttpRequest(any())).thenReturn(SUCCESS);
     TelemetryClient.Result secondResult = singleClientRouter.sendRequest(dummyRequest());
@@ -440,7 +446,6 @@ class TelemetryRouterTest {
     Request[] capturedRequest = new Request[1];
     stubNewCallCapturingRequest(capturedRequest, returnCode);
     when(ddAgentFeaturesDiscovery.supportsTelemetryProxy()).thenReturn(false);
-
     // always send first telemetry request to Agent
     router.sendRequest(dummyRequest());
 
@@ -450,7 +455,6 @@ class TelemetryRouterTest {
     assertEquals(AGENT_TELEMETRY_URL, capturedRequest[0].url());
     assertNull(capturedRequest[0].header(API_KEY_HEADER));
     clearInvocations(okHttpClient, ddAgentFeaturesDiscovery);
-
     // switch to Intake if sending a telemetry request to Agent failed or Agent supports
     // telemetry proxy
     stubNewCallCapturingRequest(capturedRequest, 201);
@@ -464,7 +468,6 @@ class TelemetryRouterTest {
     assertEquals(INTAKE_URL, capturedRequest[0].url());
     assertEquals(API_KEY, capturedRequest[0].header(API_KEY_HEADER));
     clearInvocations(okHttpClient, ddAgentFeaturesDiscovery);
-
     // switch back to Agent if it starts supporting telemetry proxy
     stubNewCallCapturingRequest(capturedRequest, returnCode);
     when(ddAgentFeaturesDiscovery.supportsTelemetryProxy()).thenReturn(false);
@@ -480,20 +483,25 @@ class TelemetryRouterTest {
 
   private TelemetryRequest dummyRequest() {
     return new TelemetryRequest(
-        mock(EventSource.class), mock(EventSink.class), 1000, RequestType.APP_STARTED, false);
+        mock(EventSource.class),
+        mock(EventSink.class),
+        1000,
+        RequestType.APP_STARTED,
+        false
+    );
   }
 
   private static Call mockCall(int code) throws IOException {
     Call call = mock(Call.class);
     when(call.execute())
-        .thenReturn(
-            new Response.Builder()
-                .request(new Request.Builder().url(HttpUrl.get("https://example.com")).build())
-                .protocol(Protocol.HTTP_1_1)
-                .message("OK")
-                .body(ResponseBody.create(MediaType.get("text/plain"), "OK"))
-                .code(code)
-                .build());
+      .thenReturn(new Response.Builder()
+        .request(new Request.Builder().url(HttpUrl.get("https://example.com")).build())
+        .protocol(Protocol.HTTP_1_1)
+        .message("OK")
+        .body(ResponseBody.create(MediaType.get("text/plain"), "OK"))
+        .code(code)
+        .build()
+      );
     return call;
   }
 
@@ -504,21 +512,15 @@ class TelemetryRouterTest {
   }
 
   private void stubNewCallCapturingRequest(Request[] capturedRequest, int code) {
-    doAnswer(
-            invocation -> {
-              capturedRequest[0] = invocation.getArgument(0);
-              return mockCall(code);
-            })
-        .when(okHttpClient)
-        .newCall(any());
+    doAnswer(invocation -> {
+      capturedRequest[0] = invocation.getArgument(0);
+      return mockCall(code);
+    }).when(okHttpClient).newCall(any());
   }
 
   private void stubNewCallThrowing(IOException exception) {
-    doAnswer(
-            invocation -> {
-              throw exception;
-            })
-        .when(okHttpClient)
-        .newCall(any());
+    doAnswer(invocation -> {
+      throw exception;
+    }).when(okHttpClient).newCall(any());
   }
 }

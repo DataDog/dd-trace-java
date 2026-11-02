@@ -4,9 +4,12 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.regex.Pattern;
 
-/** Helper factory class for common {@link PathLocator} */
+/**
+ * Helper factory class for common {@link PathLocator}
+ */
 public final class PathLocators {
-  private PathLocators() {}
+  private PathLocators() {
+  }
 
   public static final PathLocator defaultPathLocator() {
     return fromJavaLibraryPath();

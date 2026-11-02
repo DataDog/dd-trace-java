@@ -1,8 +1,11 @@
 package datadog.trace.agent.test.scopediag;
 
-/** Maps package-private {@code ContinuableScope} source values to readable names. */
+/**
+ * Maps package-private {@code ContinuableScope} source values to readable names.
+ */
 final class ScopeSources {
-  private ScopeSources() {}
+  private ScopeSources() {
+  }
 
   static String name(byte source) {
     switch (source) {

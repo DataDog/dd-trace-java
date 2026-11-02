@@ -6,7 +6,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class BestEffortSourcePathResolver implements SourcePathResolver {
-
   private final SourcePathResolver[] delegates;
 
   public BestEffortSourcePathResolver(SourcePathResolver... delegates) {

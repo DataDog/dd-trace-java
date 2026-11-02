@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.InstrumentationContext.get;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -23,8 +22,10 @@ import net.bytebuddy.asm.Advice.This;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public class StructuredTaskScope21Instrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public StructuredTaskScope21Instrumentation() {
     super("java_concurrent", "structured-task-scope", "structured-task-scope-21");
   }

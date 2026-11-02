@@ -46,6 +46,7 @@ public class JavaxJmsModule extends InstrumenterModule.Tracing {
         new JMSMessageProducerInstrumentation(namespace),
         new MDBMessageConsumerInstrumentation(namespace),
         new MessageInstrumentation(namespace),
-        new SessionInstrumentation(namespace));
+        new SessionInstrumentation(namespace)
+    );
   }
 }

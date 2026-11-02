@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.directbytebuffer;
 
 import static datadog.trace.bootstrap.instrumentation.jfr.directallocation.DirectAllocationSource.ALLOCATE_DIRECT;
-
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.bootstrap.instrumentation.jfr.directallocation.DirectAllocationProfiling;
@@ -9,7 +8,6 @@ import datadog.trace.bootstrap.instrumentation.jfr.directallocation.DirectAlloca
 import net.bytebuddy.asm.Advice;
 
 public class AllocateDirectAdvice {
-
   @Advice.OnMethodEnter
   public static DirectAllocationSampleEvent enter(@Advice.Argument(0) long capacity) {
     // reporting or sampling may lead to direct allocation so we need to track the depth

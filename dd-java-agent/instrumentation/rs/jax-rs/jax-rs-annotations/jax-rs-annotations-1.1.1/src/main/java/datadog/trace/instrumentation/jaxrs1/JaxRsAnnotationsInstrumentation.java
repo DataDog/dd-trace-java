@@ -16,7 +16,6 @@ import static datadog.trace.instrumentation.jaxrs1.JaxRsAnnotationsDecorator.DEC
 import static datadog.trace.instrumentation.jaxrs1.JaxRsAnnotationsDecorator.JAX_RS_CONTROLLER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -33,8 +32,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private static final String JAX_ENDPOINT_OPERATION_NAME = "jax-rs.request";
 
   public JaxRsAnnotationsInstrumentation() {
@@ -68,23 +68,25 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(
-        declaresAnnotation(named(hierarchyMarkerType()))
-            .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
+    return hasSuperType(declaresAnnotation(named(hierarchyMarkerType()))
+      .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType()))))
+    );
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(hasSuperMethod(isAnnotatedWith(namedOneOf(getJaxRsAnnotations())))),
-        JaxRsAnnotationsInstrumentation.class.getName() + "$JaxRsAnnotationsAdvice");
+        JaxRsAnnotationsInstrumentation.class.getName() + "$JaxRsAnnotationsAdvice"
+    );
   }
 
   public static class JaxRsAnnotationsAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope nameSpan(
-        @Advice.This final Object target, @Advice.Origin final Method method) {
+        @Advice.This final Object target,
+        @Advice.Origin final Method method
+    ) {
       // Rename the parent span according to the path represented by these annotations.
       final AgentSpan parent = activeSpan();
 
@@ -98,7 +100,9 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       final AgentSpan span = spanFromScope(scope);
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);

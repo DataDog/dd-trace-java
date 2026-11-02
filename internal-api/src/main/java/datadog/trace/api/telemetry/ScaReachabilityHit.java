@@ -6,7 +6,6 @@ package datadog.trace.api.telemetry;
  * ScaReachabilityPeriodicAction} to build the telemetry payload.
  */
 public final class ScaReachabilityHit {
-
   private final String vulnId;
   private final String artifact;
   private final String version;
@@ -23,7 +22,8 @@ public final class ScaReachabilityHit {
       String version,
       String className,
       String symbolName,
-      int line) {
+      int line
+  ) {
     this.vulnId = vulnId;
     this.artifact = artifact;
     this.version = version;
@@ -32,12 +32,16 @@ public final class ScaReachabilityHit {
     this.line = line;
   }
 
-  /** GHSA identifier, e.g. {@code "GHSA-645p-88qh-w398"}. */
+  /**
+   * GHSA identifier, e.g. {@code "GHSA-645p-88qh-w398"}.
+   */
   public String vulnId() {
     return vulnId;
   }
 
-  /** Maven coordinate, e.g. {@code "com.fasterxml.jackson.core:jackson-databind"}. */
+  /**
+   * Maven coordinate, e.g. {@code "com.fasterxml.jackson.core:jackson-databind"}.
+   */
   public String artifact() {
     return artifact;
   }
@@ -54,12 +58,16 @@ public final class ScaReachabilityHit {
     return className;
   }
 
-  /** The APPLICATION method that called the vulnerable method (callsite). */
+  /**
+   * The APPLICATION method that called the vulnerable method (callsite).
+   */
   public String symbolName() {
     return symbolName;
   }
 
-  /** Line number in the application code where the call was made. */
+  /**
+   * Line number in the application code where the call was made.
+   */
   public int line() {
     return line;
   }

@@ -19,7 +19,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -35,7 +34,6 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("OrgGuardEnforcer truth table")
 class OrgGuardEnforcerTest {
-
   private PropagationTags.Factory factory;
   private HealthMetrics healthMetrics;
 
@@ -140,9 +138,14 @@ class OrgGuardEnforcerTest {
     OrgGuardEnforcer enforcer = enforcer(false, emptySet(), () -> "L");
     PropagationTags tags =
         factory.fromHeaderValue(W3C, "dd=s:1;o:foo;t.opm:upstream-X,vendor1=abc,vendor2=def");
-    ExtractedContext ctx =
-        new ExtractedContext(
-            DDTraceId.from(123L), 456L, 2, "origin", tags, TracePropagationStyle.TRACECONTEXT);
+    ExtractedContext ctx = new ExtractedContext(
+        DDTraceId.from(123L),
+        456L,
+        2,
+        "origin",
+        tags,
+        TracePropagationStyle.TRACECONTEXT
+    );
     TagContext result = enforcer.enforce(ctx);
     assertNotSame(ctx, result);
     ExtractedContext stripped = (ExtractedContext) result;
@@ -157,34 +160,39 @@ class OrgGuardEnforcerTest {
   @DisplayName("strip replaces inherited OTel sampling state after local resampling")
   void stripReplacesOtelSamplingStateAfterLocalResampling() {
     OrgGuardEnforcer enforcer = enforcer(false, emptySet(), () -> "L");
-    PropagationTags tags =
-        factory.fromHeaderValue(
-            W3C, "dd=s:1;o:foo;t.opm:upstream-X,ot=rv:00000000000000;th:1,vendor1=abc");
-    ExtractedContext ctx =
-        new ExtractedContext(
-            DDTraceId.from(123L),
-            456L,
-            SAMPLER_KEEP,
-            "origin",
-            tags,
-            TracePropagationStyle.TRACECONTEXT);
+    PropagationTags tags = factory.fromHeaderValue(
+        W3C,
+        "dd=s:1;o:foo;t.opm:upstream-X,ot=rv:00000000000000;th:1,vendor1=abc"
+    );
+    ExtractedContext ctx = new ExtractedContext(
+        DDTraceId.from(123L),
+        456L,
+        SAMPLER_KEEP,
+        "origin",
+        tags,
+        TracePropagationStyle.TRACECONTEXT
+    );
 
     ExtractedContext stripped = (ExtractedContext) enforcer.enforce(ctx);
-    assertTrue(
-        stripped
-            .getPropagationTags()
-            .tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false));
+    assertTrue(stripped
+      .getPropagationTags()
+      .tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false)
+    );
 
     String reEncoded = stripped.getPropagationTags().headerValue(W3C);
     assertNotNull(reEncoded);
     assertTrue(
-        reEncoded.matches("dd=s:1;t.dm:-1;t.ksr:1,ot=rv:[0-9a-f]{14};th:0,vendor1=abc"), reEncoded);
+        reEncoded.matches("dd=s:1;t.dm:-1;t.ksr:1,ot=rv:[0-9a-f]{14};th:0,vendor1=abc"),
+        reEncoded
+    );
   }
 
   // ---- helpers ----
-
   private OrgGuardEnforcer enforcer(
-      boolean strict, Set<String> trusted, Supplier<String> localOpmSupplier) {
+      boolean strict,
+      Set<String> trusted,
+      Supplier<String> localOpmSupplier
+  ) {
     return new OrgGuardEnforcer(strict, trusted, localOpmSupplier, factory, healthMetrics);
   }
 
@@ -199,8 +207,7 @@ class OrgGuardEnforcerTest {
     }
     tags.updateTraceSamplingPriority(samplingPriority, MANUAL);
     tags.updateTraceOrigin(origin);
-    return new ExtractedContext(
-        DDTraceId.from(123L), 456L, samplingPriority, origin, tags, DATADOG);
+    return new ExtractedContext(DDTraceId.from(123L), 456L, samplingPriority, origin, tags, DATADOG);
   }
 
   private static void assertStripped(ExtractedContext stripped, ExtractedContext original) {

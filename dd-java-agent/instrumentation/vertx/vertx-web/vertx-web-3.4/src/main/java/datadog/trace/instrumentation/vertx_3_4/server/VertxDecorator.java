@@ -11,11 +11,10 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.RoutingContext;
 
 public class VertxDecorator
-    extends HttpServerDecorator<RoutingContext, RoutingContext, HttpServerResponse, Void> {
+    extends HttpServerDecorator<RoutingContext, RoutingContext, HttpServerResponse, Void>
+{
   static final CharSequence INSTRUMENTATION_NAME = UTF8BytesString.create("vertx.route-handler");
-
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("vertx");
-
   static final VertxDecorator DECORATE = new VertxDecorator();
 
   @Override
@@ -58,7 +57,8 @@ public class VertxDecorator
       final AgentSpan span,
       final RoutingContext connection,
       final RoutingContext routingContext,
-      final Context parentContext) {}
+      final Context parentContext
+  ) {}
 
   @Override
   protected String peerHostIP(final RoutingContext routingContext) {

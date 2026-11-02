@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -16,13 +15,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class DynamicAutoTestRetrySettingsTest {
-
-  private static final List<ExecutionsByDuration> BACKEND_RETRIES =
-      Arrays.asList(
-          new ExecutionsByDuration(5_000, 10),
-          new ExecutionsByDuration(10_000, 2),
-          new ExecutionsByDuration(30_000, 3),
-          new ExecutionsByDuration(300_000, 4));
+  private static final List<ExecutionsByDuration> BACKEND_RETRIES = Arrays.asList(
+      new ExecutionsByDuration(5_000, 10),
+      new ExecutionsByDuration(10_000, 2),
+      new ExecutionsByDuration(30_000, 3),
+      new ExecutionsByDuration(300_000, 4)
+  );
 
   @Test
   void usesCustomBuckets() {
@@ -55,9 +53,11 @@ class DynamicAutoTestRetrySettingsTest {
   @ParameterizedTest
   @ValueSource(ints = {-1, 0, 1})
   void guaranteesAtLeastOneRetry(int retries) {
-    DynamicAutoTestRetrySettings settings =
-        DynamicAutoTestRetrySettings.create(
-            true, null, singletonList(new ExecutionsByDuration(5_000, retries)));
+    DynamicAutoTestRetrySettings settings = DynamicAutoTestRetrySettings.create(
+        true,
+        null,
+        singletonList(new ExecutionsByDuration(5_000, retries))
+    );
 
     assertEquals(2, settings.executionsForDuration(1_000));
   }
@@ -74,7 +74,8 @@ class DynamicAutoTestRetrySettingsTest {
   void disabledSettingsIgnoreCustomBuckets() {
     assertSame(
         DynamicAutoTestRetrySettings.DEFAULT,
-        DynamicAutoTestRetrySettings.create(false, Arrays.asList(5, 4, 3, 2, 1), BACKEND_RETRIES));
+        DynamicAutoTestRetrySettings.create(false, Arrays.asList(5, 4, 3, 2, 1), BACKEND_RETRIES)
+    );
   }
 
   @Test

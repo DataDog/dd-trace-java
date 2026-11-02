@@ -7,11 +7,11 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class WebServiceDecorator extends BaseDecorator {
   public static final WebServiceDecorator DECORATE = new WebServiceDecorator();
-
   public static final CharSequence JAX_WS_REQUEST = UTF8BytesString.create("jax-ws.request");
   public static final CharSequence JAX_WS_ENDPOINT = UTF8BytesString.create("jax-ws-endpoint");
 
-  private WebServiceDecorator() {}
+  private WebServiceDecorator() {
+  }
 
   @Override
   protected String[] instrumentationNames() {

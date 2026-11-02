@@ -32,11 +32,11 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
   }
 
   static class BodySubscriberWrapper<T> implements BodySubscriber<T> {
-    private static final AtomicReferenceFieldUpdater<BodySubscriberWrapper, ContextContinuation>
-        CONTINUATION =
-            AtomicReferenceFieldUpdater.newUpdater(
-                BodySubscriberWrapper.class, ContextContinuation.class, "continuation");
-
+    private static final AtomicReferenceFieldUpdater<BodySubscriberWrapper, ContextContinuation> CONTINUATION = AtomicReferenceFieldUpdater.newUpdater(
+        BodySubscriberWrapper.class,
+        ContextContinuation.class,
+        "continuation"
+    );
     private final BodySubscriber<T> delegate;
     private volatile ContextContinuation continuation;
 

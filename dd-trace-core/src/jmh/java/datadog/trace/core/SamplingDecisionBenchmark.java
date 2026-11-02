@@ -3,7 +3,6 @@ package datadog.trace.core;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -58,13 +57,14 @@ import org.openjdk.jmh.infra.Blackhole;
 public class SamplingDecisionBenchmark {
   private static final String INSTRUMENTATION_NAME = "bench";
   private static final String OPERATION_NAME = "servlet.request";
-
-  /** Default sampler with no agent rates: keeps every trace as SAMPLER_KEEP / DEFAULT. */
+  /**
+   * Default sampler with no agent rates: keeps every trace as SAMPLER_KEEP / DEFAULT.
+   */
   CoreTracer defaultSamplerTracer;
-
-  /** Rule sampler at rate 1.0: keeps every trace as USER_KEEP / LOCAL_USER_RULE. */
+  /**
+   * Rule sampler at rate 1.0: keeps every trace as USER_KEEP / LOCAL_USER_RULE.
+   */
   CoreTracer ruleSamplerTracer;
-
   PropagationTags.Factory ptagsFactory;
 
   @Setup
@@ -76,11 +76,11 @@ public class SamplingDecisionBenchmark {
     // The default limit (100/s) would reject almost every benchmark trace, which skips the keep
     // path entirely.
     ruleConfig.setProperty(TRACE_RATE_LIMIT, String.valueOf(Integer.MAX_VALUE));
-    ruleSamplerTracer =
-        CoreTracer.builder()
-            .writer(new DropWriter(blackhole))
-            .sampler(Sampler.Builder.forConfig(ruleConfig))
-            .build();
+    ruleSamplerTracer = CoreTracer
+      .builder()
+      .writer(new DropWriter(blackhole))
+      .sampler(Sampler.Builder.forConfig(ruleConfig))
+      .build();
 
     ptagsFactory = PropagationTags.factory();
   }
@@ -91,21 +91,27 @@ public class SamplingDecisionBenchmark {
     ruleSamplerTracer.close();
   }
 
-  /** Root span kept by the default sampler at finish. */
+  /**
+   * Root span kept by the default sampler at finish.
+   */
   @Benchmark
   public void spanDefaultSamplerKeep() {
     AgentSpan span = defaultSamplerTracer.startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
     span.finish();
   }
 
-  /** Root span kept by a sampling rule at finish (probability decision with OTel tracestate). */
+  /**
+   * Root span kept by a sampling rule at finish (probability decision with OTel tracestate).
+   */
   @Benchmark
   public void spanRuleSamplerKeep() {
     AgentSpan span = ruleSamplerTracer.startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
     span.finish();
   }
 
-  /** Root span kept manually before finish, so the sampler is skipped. */
+  /**
+   * Root span kept manually before finish, so the sampler is skipped.
+   */
   @Benchmark
   public void spanManualKeep() {
     AgentSpan span = defaultSamplerTracer.startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
@@ -113,7 +119,9 @@ public class SamplingDecisionBenchmark {
     span.finish();
   }
 
-  /** The probability decision samplers make, on fresh trace-level propagation tags. */
+  /**
+   * The probability decision samplers make, on fresh trace-level propagation tags.
+   */
   @Benchmark
   public PropagationTags ptagsProbabilityKeep(ThreadState thread) {
     PropagationTags ptags = ptagsFactory.empty();
@@ -123,7 +131,8 @@ public class SamplingDecisionBenchmark {
         1.0,
         false,
         thread.nextTraceIdLowOrderBits(),
-        false);
+        false
+    );
     return ptags;
   }
 
@@ -144,23 +153,32 @@ public class SamplingDecisionBenchmark {
     return ptagsProbabilityKeep(thread).headerValue(PropagationTags.HeaderType.W3C);
   }
 
-  /** A probability decision followed by the tracestate OTLP export writes, OTel member included. */
+  /**
+   * A probability decision followed by the tracestate OTLP export writes, OTel member included.
+   */
   @Benchmark
   public String ptagsProbabilityKeepOtlpTracestate(ThreadState thread) {
     PropagationTags ptags = ptagsProbabilityKeep(thread);
     return ptags.getW3CTracestate(ptags.samplingState());
   }
 
-  /** A priority-only decision (manual keep), on fresh trace-level propagation tags. */
+  /**
+   * A priority-only decision (manual keep), on fresh trace-level propagation tags.
+   */
   @Benchmark
   public PropagationTags ptagsPriorityKeep() {
     PropagationTags ptags = ptagsFactory.empty();
     ptags.tryUpdateTraceSamplingPriority(
-        PrioritySampling.USER_KEEP, SamplingMechanism.MANUAL, false);
+        PrioritySampling.USER_KEEP,
+        SamplingMechanism.MANUAL,
+        false
+    );
     return ptags;
   }
 
-  /** Varies the trace id so the OTel random value isn't a constant. */
+  /**
+   * Varies the trace id so the OTel random value isn't a constant.
+   */
   @State(Scope.Thread)
   public static class ThreadState {
     long traceIdLowOrderBits = 0x5DEECE66DL;

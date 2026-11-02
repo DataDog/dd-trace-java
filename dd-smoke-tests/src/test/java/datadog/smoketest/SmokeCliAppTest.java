@@ -1,7 +1,6 @@
 package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.smoketest.backend.AgentBackend;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -13,14 +12,13 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * the agent (launch/log-capture mechanics only).
  */
 class SmokeCliAppTest {
-
   @RegisterExtension
-  static final SmokeCliApp app =
-      SmokeCliApp.named("test-cli")
-          .mainClass("datadog.smoketest.TestCliApp")
-          .backend(AgentBackend.mockAgent())
-          .noAgent()
-          .build();
+  static final SmokeCliApp app = SmokeCliApp
+    .named("test-cli")
+    .mainClass("datadog.smoketest.TestCliApp")
+    .backend(AgentBackend.mockAgent())
+    .noAgent()
+    .build();
 
   @Test
   void retainsStartupLogsForAssertion() {
@@ -28,6 +26,7 @@ class SmokeCliAppTest {
     // apply to a one-shot CLI app, so waitForLogLine still finds it here.
     assertTrue(
         app.waitForLogLine(line -> line.contains("CLI-STARTUP-MARKER")),
-        "one-shot start-up output is retained for the test to assert on");
+        "one-shot start-up output is retained for the test to assert on"
+    );
   }
 }

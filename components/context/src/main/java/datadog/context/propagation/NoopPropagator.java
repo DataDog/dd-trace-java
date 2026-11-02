@@ -5,7 +5,8 @@ import datadog.context.Context;
 final class NoopPropagator implements Propagator {
   static final NoopPropagator INSTANCE = new NoopPropagator();
 
-  private NoopPropagator() {}
+  private NoopPropagator() {
+  }
 
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {

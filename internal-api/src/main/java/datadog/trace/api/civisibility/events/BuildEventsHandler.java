@@ -17,7 +17,8 @@ public interface BuildEventsHandler<SessionKey> {
       String startCommand,
       String buildSystemName,
       String buildSystemVersion,
-      Map<String, Object> additionalTags);
+      Map<String, Object> additionalTags
+  );
 
   void onTestSessionFail(SessionKey sessionKey, Throwable throwable);
 
@@ -36,7 +37,8 @@ public interface BuildEventsHandler<SessionKey> {
       @Nullable Path jvmExecutable,
       @Nullable Collection<Path> classpath,
       @Nullable JavaAgent jacocoAgent,
-      @Nullable Map<String, Object> additionalTags);
+      @Nullable Map<String, Object> additionalTags
+  );
 
   void onTestModuleSkip(SessionKey sessionKey, String moduleName, String reason);
 

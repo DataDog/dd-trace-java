@@ -50,8 +50,10 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(
     value = 2,
     jvmArgsAppend = {
-      "-XX:CompileCommand=dontinline,datadog.trace.util.MaybeUsagePatternsBenchmark$UninlinedBoxedAdder::accept"
-    })
+    "-XX:CompileCommand=dontinline,datadog.trace.util."
+    + "MaybeUsagePatternsBenchmark$UninlinedBoxedAdder::accept"
+    }
+)
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 @Threads(1)
@@ -59,14 +61,14 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(java.util.concurrent.TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
 public class MaybeUsagePatternsBenchmark {
-
   static final class Widget {
     long count;
   }
 
-  /** A non-capturing updater, as {@link Maybe#update(long, ObjLongConsumer)} expects. */
+  /**
+   * A non-capturing updater, as {@link Maybe#update(long, ObjLongConsumer)} expects.
+   */
   static final ObjLongConsumer<Widget> ADD_PRIMITIVE = (w, delta) -> w.count += delta;
-
   /**
    * The same update expressed through the generic-context overload instead. {@code Long} is not
    * assignable from {@code long} without boxing, so calling {@link Maybe#update(Object,
@@ -92,14 +94,12 @@ public class MaybeUsagePatternsBenchmark {
   }
 
   static final BiConsumer<Widget, Long> ADD_BOXED_UNINLINED = new UninlinedBoxedAdder();
-
   /**
    * Deliberately outside {@code Long}'s [-128, 127] cache range -- a cached delta like {@code 1L}
    * would make {@link #badBoxedContextUpdateUninlined} read 0 B/op too, for a reason with nothing
    * to do with which overload got picked.
    */
   static final long DELTA = 1_000L;
-
   private final Widget[] table = new Widget[8];
   private int counter;
 

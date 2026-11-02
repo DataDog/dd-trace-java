@@ -1,6 +1,8 @@
 package datadog.context;
 
-/** Binds context to carrier objects. */
+/**
+ * Binds context to carrier objects.
+ */
 public interface ContextBinder {
   /**
    * Returns the context attached to the given carrier object.

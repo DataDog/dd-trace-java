@@ -1,7 +1,6 @@
 package testdog.trace.instrumentation.java.lang.jdk21;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import org.junit.jupiter.api.DisplayName;

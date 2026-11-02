@@ -14,7 +14,6 @@ import static io.opentelemetry.api.trace.SpanKind.SERVER;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Collections.emptyMap;
 import static java.util.Locale.ROOT;
-
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -42,10 +41,10 @@ public final class OtelConventions {
   static final String EXCEPTION_MESSAGE_ATTRIBUTE = "exception.message";
   static final String EXCEPTION_TYPE_ATTRIBUTE = "exception.type";
   static final String EXCEPTION_STACK_TRACE_ATTRIBUTE = "exception.stacktrace";
-
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelConventions.class);
 
-  private OtelConventions() {}
+  private OtelConventions() {
+  }
 
   /**
    * The tag to store an attribute under on spans of {@code direction}. A direction-scoped
@@ -165,19 +164,23 @@ public final class OtelConventions {
    *     attributes.
    */
   public static void applySpanEventExceptionAttributes(
-      AgentSpan span, Throwable exception, Map<String, Object> attributes) {
+      AgentSpan span,
+      Throwable exception,
+      Map<String, Object> attributes
+  ) {
     // Handle exception message
     Object value =
         attributes.computeIfAbsent(EXCEPTION_MESSAGE_ATTRIBUTE, k -> exception.getMessage());
     span.setTag(KnownTags.ERROR_MESSAGE_ID, value);
     // Handle exception type
-    value =
-        attributes.computeIfAbsent(EXCEPTION_TYPE_ATTRIBUTE, k -> exception.getClass().getName());
+    value = attributes.computeIfAbsent(EXCEPTION_TYPE_ATTRIBUTE, k -> exception
+      .getClass()
+      .getName());
     span.setTag(KnownTags.ERROR_TYPE_ID, value);
     // Handle exception stacktrace
-    value =
-        attributes.computeIfAbsent(
-            EXCEPTION_STACK_TRACE_ATTRIBUTE, k -> stringifyErrorStack(exception));
+    value = attributes.computeIfAbsent(EXCEPTION_STACK_TRACE_ATTRIBUTE, k -> stringifyErrorStack(
+        exception
+    ));
     span.setTag(KnownTags.ERROR_STACK_ID, value);
   }
 
@@ -213,7 +216,10 @@ public final class OtelConventions {
      */
     String messagingSystem = getStringAttribute(span, "messaging.system");
     String messagingOperation = getStringAttribute(span, "messaging.operation");
-    if ((spanKind == CONSUMER || spanKind == PRODUCER || spanKind == CLIENT || spanKind == SERVER)
+    if ((spanKind == CONSUMER
+        || spanKind == PRODUCER
+        || spanKind == CLIENT
+        || spanKind == SERVER)
         && messagingSystem != null
         && messagingOperation != null) {
       return messagingSystem + "." + messagingOperation;
@@ -315,40 +321,39 @@ public final class OtelConventions {
       return SpanAttributes.EMPTY;
     }
     SpanAttributes.Builder builder = SpanAttributes.builder();
-    attributes.forEach(
-        (attributeKey, value) -> {
-          String key = attributeKey.getKey();
-          switch (attributeKey.getType()) {
-            case STRING:
-              builder.put(key, (String) value);
-              break;
-            case BOOLEAN:
-              builder.put(key, (boolean) value);
-              break;
-            case LONG:
-              builder.put(key, (long) value);
-              break;
-            case DOUBLE:
-              builder.put(key, (double) value);
-              break;
-            case STRING_ARRAY:
-              //noinspection unchecked
-              builder.putStringArray(key, (List<String>) value);
-              break;
-            case BOOLEAN_ARRAY:
-              //noinspection unchecked
-              builder.putBooleanArray(key, (List<Boolean>) value);
-              break;
-            case LONG_ARRAY:
-              //noinspection unchecked
-              builder.putLongArray(key, (List<Long>) value);
-              break;
-            case DOUBLE_ARRAY:
-              //noinspection unchecked
-              builder.putDoubleArray(key, (List<Double>) value);
-              break;
-          }
-        });
+    attributes.forEach((attributeKey, value) -> {
+      String key = attributeKey.getKey();
+      switch (attributeKey.getType()) {
+        case STRING:
+          builder.put(key, (String) value);
+          break;
+        case BOOLEAN:
+          builder.put(key, (boolean) value);
+          break;
+        case LONG:
+          builder.put(key, (long) value);
+          break;
+        case DOUBLE:
+          builder.put(key, (double) value);
+          break;
+        case STRING_ARRAY:
+          //noinspection unchecked
+          builder.putStringArray(key, (List<String>) value);
+          break;
+        case BOOLEAN_ARRAY:
+          //noinspection unchecked
+          builder.putBooleanArray(key, (List<Boolean>) value);
+          break;
+        case LONG_ARRAY:
+          //noinspection unchecked
+          builder.putLongArray(key, (List<Long>) value);
+          break;
+        case DOUBLE_ARRAY:
+          //noinspection unchecked
+          builder.putDoubleArray(key, (List<Double>) value);
+          break;
+      }
+    });
     return builder.build();
   }
 }

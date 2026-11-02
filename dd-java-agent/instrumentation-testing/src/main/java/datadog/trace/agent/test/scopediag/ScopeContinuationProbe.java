@@ -32,10 +32,11 @@ public final class ScopeContinuationProbe {
    * {@code ScopeContinuationProbeTest} detects drift.
    */
   static final int CANCELLED = Integer.MIN_VALUE >> 1;
-
   private static final ThreadLocal<ResolveAttempt> resolving = new ThreadLocal<>();
 
-  /** Distinguishes an explicit release from a scope close's internal release call. */
+  /**
+   * Distinguishes an explicit release from a scope close's internal release call.
+   */
   public static final class ResolveAttempt {
     private final Object window;
     private final ContextContinuation continuation;
@@ -45,7 +46,11 @@ public final class ScopeContinuationProbe {
     private final ResolveAttempt previous;
 
     private ResolveAttempt(
-        Object window, ContextContinuation continuation, boolean release, int countBefore) {
+        Object window,
+        ContextContinuation continuation,
+        boolean release,
+        int countBefore
+    ) {
       this.window = window;
       this.continuation = continuation;
       this.release = release;
@@ -55,14 +60,14 @@ public final class ScopeContinuationProbe {
   }
 
   private static volatile Field sourceField;
-
   private static volatile Field scopeSourceField;
   private static volatile Field continuationField;
   private static volatile Field scopeManagerField;
   private static volatile Method scopeStackMethod;
   private static volatile Method checkTopMethod;
 
-  private ScopeContinuationProbe() {}
+  private ScopeContinuationProbe() {
+  }
 
   public static void onCapture(Object self) {
     Object window = ScopeDiagnostics.recordingWindow();
@@ -79,7 +84,8 @@ public final class ScopeContinuationProbe {
             span.getTraceId(),
             span.getSpanId(),
             spanName(span),
-            sourceOf(self));
+            sourceOf(self)
+        );
       }
     } catch (Throwable ignored) {
       // Diagnostics must never affect the tracer.
@@ -110,7 +116,8 @@ public final class ScopeContinuationProbe {
             span.getSpanId(),
             spanName(span),
             sourceOf(self),
-            activateNanos);
+            activateNanos
+        );
       }
     } catch (Throwable ignored) {
     }
@@ -123,7 +130,11 @@ public final class ScopeContinuationProbe {
     }
     ResolveAttempt attempt =
         new ResolveAttempt(
-            window, (ContextContinuation) self, "release".equals(method), countBefore);
+            window,
+            (ContextContinuation) self,
+            "release".equals(method),
+            countBefore
+    );
     resolving.set(attempt);
     return attempt;
   }
@@ -151,7 +162,8 @@ public final class ScopeContinuationProbe {
           attempt.continuation,
           attempt.release,
           attempt.nanos,
-          attempt.countBefore <= CANCELLED || countAfter < CANCELLED);
+          attempt.countBefore <= CANCELLED || countAfter < CANCELLED
+      );
     } catch (Throwable ignored) {
     } finally {
       if (attempt.previous == null) {
@@ -184,7 +196,14 @@ public final class ScopeContinuationProbe {
       long spanId = span != null ? span.getSpanId() : 0L;
       String name = span != null ? spanName(span) : null;
       ScopeDiagnostics.recordScopeOpen(
-          window, scope, traceId, spanId, name, scopeSourceOf(scope), continuationOf(scope));
+          window,
+          scope,
+          traceId,
+          spanId,
+          name,
+          scopeSourceOf(scope),
+          continuationOf(scope)
+      );
     } catch (Throwable ignored) {
     }
   }
@@ -211,7 +230,9 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /** Records an out-of-order close when the internal stack can be inspected. */
+  /**
+   * Records an out-of-order close when the internal stack can be inspected.
+   */
   public static void onScopeClosing(Object scope) {
     Object window = ScopeDiagnostics.recordingWindow();
     if (window == null) {
@@ -225,7 +246,9 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /** Copies the possibly mutable span name. */
+  /**
+   * Copies the possibly mutable span name.
+   */
   private static String spanName(AgentSpan span) {
     try {
       CharSequence name = span.getSpanName();

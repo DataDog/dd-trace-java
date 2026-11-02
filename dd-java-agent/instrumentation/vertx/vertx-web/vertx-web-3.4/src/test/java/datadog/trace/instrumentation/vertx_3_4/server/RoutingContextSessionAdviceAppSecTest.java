@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -35,11 +34,9 @@ import org.junit.jupiter.params.provider.ValueSource;
  * <p>vertx-web 4.0 has an identical copy of this advice, covered by its own test.
  */
 class RoutingContextSessionAdviceAppSecTest {
-
   private static final String SESSION_ID = "session-id";
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.JSON);
-
   private AgentTracer.TracerAPI originalTracer;
   private TraceSegment traceSegment;
   private RequestContext reqCtx;
@@ -64,12 +61,10 @@ class RoutingContextSessionAdviceAppSecTest {
     flow = mock(Flow.class);
 
     CallbackProvider callbackProvider = mock(CallbackProvider.class);
-    when(callbackProvider.getCallback(EVENTS.requestSession()))
-        .thenReturn(
-            (ctx, id) -> {
-              receivedSessionId = id;
-              return flow;
-            });
+    when(callbackProvider.getCallback(EVENTS.requestSession())).thenReturn((ctx, id) -> {
+      receivedSessionId = id;
+      return flow;
+    });
     AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
     when(tracer.activeSpan()).thenReturn(span);
     when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(callbackProvider);
@@ -137,7 +132,8 @@ class RoutingContextSessionAdviceAppSecTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       calls++;
       lastSegment = segment;
       lastStatusCode = statusCode;

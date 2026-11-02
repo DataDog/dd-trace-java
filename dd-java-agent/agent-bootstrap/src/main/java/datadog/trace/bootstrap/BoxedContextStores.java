@@ -11,9 +11,7 @@ import org.slf4j.LoggerFactory;
  * <p>Only one is loaded at runtime; the explicit field type helps the JIT optimize.
  */
 public final class BoxedContextStores {
-
   private static final Logger log = LoggerFactory.getLogger(BoxedContextStores.class);
-
   // these fields will be accessed directly from field-injected instrumentation
   public static final BoxedContextStore contextStore0 = new BoxedContextStore(0);
   public static final BoxedContextStore contextStore1 = new BoxedContextStore(1);
@@ -47,47 +45,44 @@ public final class BoxedContextStores {
   public static final BoxedContextStore contextStore29 = new BoxedContextStore(29);
   public static final BoxedContextStore contextStore30 = new BoxedContextStore(30);
   public static final BoxedContextStore contextStore31 = new BoxedContextStore(31);
-
   // keep track of all allocated stores so far
   private static volatile BoxedContextStore[] stores = {
-    contextStore0,
-    contextStore1,
-    contextStore2,
-    contextStore3,
-    contextStore4,
-    contextStore5,
-    contextStore6,
-    contextStore7,
-    contextStore8,
-    contextStore9,
-    contextStore10,
-    contextStore11,
-    contextStore12,
-    contextStore13,
-    contextStore14,
-    contextStore15,
-    contextStore16,
-    contextStore17,
-    contextStore18,
-    contextStore19,
-    contextStore20,
-    contextStore21,
-    contextStore22,
-    contextStore23,
-    contextStore24,
-    contextStore25,
-    contextStore26,
-    contextStore27,
-    contextStore28,
-    contextStore29,
-    contextStore30,
-    contextStore31
+      contextStore0,
+      contextStore1,
+      contextStore2,
+      contextStore3,
+      contextStore4,
+      contextStore5,
+      contextStore6,
+      contextStore7,
+      contextStore8,
+      contextStore9,
+      contextStore10,
+      contextStore11,
+      contextStore12,
+      contextStore13,
+      contextStore14,
+      contextStore15,
+      contextStore16,
+      contextStore17,
+      contextStore18,
+      contextStore19,
+      contextStore20,
+      contextStore21,
+      contextStore22,
+      contextStore23,
+      contextStore24,
+      contextStore25,
+      contextStore26,
+      contextStore27,
+      contextStore28,
+      contextStore29,
+      contextStore30,
+      contextStore31
   };
-
   private static final ConcurrentHashMap<String, BoxedContextStore> storesByName =
       new ConcurrentHashMap<>();
   private static final Object allocationLock = new Object();
-
   private static int nextStoreId;
 
   public static int getContextStoreId(String keyClassName, String contextClassName) {
@@ -108,13 +103,15 @@ public final class BoxedContextStores {
           "Allocated ContextStore #{} - instrumentation.target.context={}->{}",
           store.storeId,
           keyClassName,
-          contextClassName);
+          contextClassName
+      );
     }
     return store.storeId;
   }
 
   public static BoxedContextStore getContextStore(final int storeId) {
-    return stores[storeId]; // guaranteed to be populated by getContextStoreId
+    // guaranteed to be populated by getContextStoreId
+    return stores[storeId];
   }
 
   // this method should only be called while holding the allocation lock

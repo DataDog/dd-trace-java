@@ -31,8 +31,9 @@ import org.slf4j.LoggerFactory;
  */
 final class DebugLoggingHook<T> implements Hook<T> {
   private static final Logger log = LoggerFactory.getLogger(DebugLoggingHook.class);
-
-  /** The longest rendering of a context or value, so that a large object cannot flood the log. */
+  /**
+   * The longest rendering of a context or value, so that a large object cannot flood the log.
+   */
   static final int MAX_VALUE_LENGTH = 1024;
 
   /**
@@ -57,9 +58,10 @@ final class DebugLoggingHook<T> implements Hook<T> {
     try {
       log.info(
           "DD_TRACE_DEBUG is enabled and DEBUG is enabled for {}: raw evaluation contexts and"
-              + " values, including any personal data in them, are written to the application"
-              + " logs.",
-          DebugLoggingHook.class.getName());
+          + " values, including any personal data in them, are written to the application"
+          + " logs.",
+          DebugLoggingHook.class.getName()
+      );
     } catch (final RuntimeException | LinkageError e) {
       // A failing logging backend must not prevent the provider from working.
     }
@@ -69,7 +71,8 @@ final class DebugLoggingHook<T> implements Hook<T> {
   public void finallyAfter(
       final HookContext<T> ctx,
       final FlagEvaluationDetails<T> details,
-      final Map<String, Object> hints) {
+      final Map<String, Object> hints
+  ) {
     // The hook is registered when the logger allows DEBUG, which an application can change later.
     if (details == null || !isLoggerEnabled()) {
       return;
@@ -77,7 +80,8 @@ final class DebugLoggingHook<T> implements Hook<T> {
     try {
       final EvaluationContext context = ctx.getCtx();
       log.debug(
-          "Feature Flagging evaluation: flag={}, context={}, defaultValue={}, value={}, variant={}, reason={}, errorCode={}, errorMessage={}, metadata={}",
+          "Feature Flagging evaluation: flag={}, context={}, defaultValue={}, value={}, "
+          + "variant={}, reason={}, errorCode={}, errorMessage={}, metadata={}",
           raw(details.getFlagKey()),
           raw(context),
           raw(ctx.getDefaultValue()),
@@ -86,9 +90,11 @@ final class DebugLoggingHook<T> implements Hook<T> {
           raw(details.getReason()),
           details.getErrorCode(),
           raw(details.getErrorMessage()),
-          details.getFlagMetadata() == null
-              ? null
-              : raw(details.getFlagMetadata().asUnmodifiableMap()));
+          details.getFlagMetadata() == null ? null : raw(details
+            .getFlagMetadata()
+            .asUnmodifiableMap()
+          )
+      );
     } catch (final RuntimeException | LinkageError e) {
       // Application supplied values can fail to format, and a diagnostic must not break the
       // evaluation.
@@ -114,16 +120,17 @@ final class DebugLoggingHook<T> implements Hook<T> {
     return capped(String.valueOf(value));
   }
 
-  /** Caps a text, telling how long it was. */
+  /**
+   * Caps a text, telling how long it was.
+   */
   private static String capped(final String text) {
     if (text.length() <= MAX_VALUE_LENGTH) {
       return text;
     }
     // Do not cut a surrogate pair in half.
-    final int end =
-        Character.isHighSurrogate(text.charAt(MAX_VALUE_LENGTH - 1))
-            ? MAX_VALUE_LENGTH - 1
-            : MAX_VALUE_LENGTH;
+    final int end = Character.isHighSurrogate(text.charAt(MAX_VALUE_LENGTH - 1))
+        ? MAX_VALUE_LENGTH - 1
+        : MAX_VALUE_LENGTH;
     return text.substring(0, end) + "...(truncated, " + text.length() + " characters)";
   }
 
@@ -135,7 +142,6 @@ final class DebugLoggingHook<T> implements Hook<T> {
    */
   private static final class Renderer {
     private static final int MAX_DEPTH = 8;
-
     private final StringBuilder out = new StringBuilder();
     private final Set<Object> path = Collections.newSetFromMap(new IdentityHashMap<>());
     private boolean truncated;
@@ -232,7 +238,9 @@ final class DebugLoggingHook<T> implements Hook<T> {
       write(value.asObject(), depth);
     }
 
-    /** Appends the text, or what fits of it, and gives up on the rest of the value. */
+    /**
+     * Appends the text, or what fits of it, and gives up on the rest of the value.
+     */
     private void text(final String text) {
       final int remaining = MAX_VALUE_LENGTH - this.out.length();
       if (text.length() > remaining) {

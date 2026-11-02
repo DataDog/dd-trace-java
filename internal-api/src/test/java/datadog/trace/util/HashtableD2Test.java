@@ -7,13 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class HashtableD2Test {
-
   @Test
   void pairKeysParticipateInIdentity() {
     Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
@@ -90,16 +88,11 @@ class HashtableD2Test {
     Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 1);
     PairEntry a = table.tryGetOrCreateOrNull("a", 1, (k1, k2) -> new PairEntry(k1, k2, 100));
 
-    Maybe<PairEntry> got =
-        table.tryGetOrCreateOrEvict(
-            "a",
-            1,
-            (k1, k2) -> {
-              throw new AssertionError("creator must not run on a hit");
-            },
-            e -> {
-              throw new AssertionError("evictable must not run on a hit");
-            });
+    Maybe<PairEntry> got = table.tryGetOrCreateOrEvict("a", 1, (k1, k2) -> {
+      throw new AssertionError("creator must not run on a hit");
+    }, e -> {
+      throw new AssertionError("evictable must not run on a hit");
+    });
 
     assertSame(a, got.getOrNull());
     assertEquals(1, table.size());
@@ -125,9 +118,11 @@ class HashtableD2Test {
     Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 1);
     table.tryGetOrCreateOrNull("old", 1, (k1, k2) -> new PairEntry(k1, k2, 100));
 
-    PairEntry result =
-        table.tryGetOrCreateOrEvictOrNull(
-            "new", 2, (k1, k2) -> new PairEntry(k1, k2, 200), e -> false);
+    PairEntry result = table.tryGetOrCreateOrEvictOrNull("new", 2, (k1, k2) -> new PairEntry(
+        k1,
+        k2,
+        200
+    ), e -> false);
 
     assertNull(result);
     assertEquals(1, table.size());
@@ -140,17 +135,14 @@ class HashtableD2Test {
     Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 1);
     table.tryGetOrCreateOrNull("old", 1, (k1, k2) -> new PairEntry(k1, k2, 100));
 
-    assertThrows(
-        RuntimeException.class,
-        () ->
-            table.tryGetOrCreateOrEvictOrNull(
-                "new",
-                2,
-                (k1, k2) -> {
-                  throw new RuntimeException("boom");
-                },
-                e -> true));
-
+    assertThrows(RuntimeException.class, () -> table.tryGetOrCreateOrEvictOrNull(
+        "new",
+        2,
+          (k1, k2) -> {
+            throw new RuntimeException("boom");
+          },
+        e -> true
+    ));
     // Eviction already happened before the creator threw: the table is left one entry smaller,
     // not corrupted or double-booked.
     assertEquals(0, table.size());
@@ -200,14 +192,10 @@ class HashtableD2Test {
   void getOrCreateOnMissBuildsEntryViaCreator() {
     Hashtable.D2<String, Integer, PairEntry> table = Hashtable.D2.createBounded(PairEntry.class, 8);
     int[] createCount = {0};
-    PairEntry created =
-        table.tryGetOrCreateOrNull(
-            "a",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2, 100);
-            });
+    PairEntry created = table.tryGetOrCreateOrNull("a", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2, 100);
+    });
     assertNotNull(created);
     assertEquals("a", created.key1);
     assertEquals(Integer.valueOf(1), created.key2);
@@ -223,14 +211,10 @@ class HashtableD2Test {
     PairEntry seeded = new PairEntry("a", 1, 100);
     table.insert(seeded);
     int[] createCount = {0};
-    PairEntry got =
-        table.tryGetOrCreateOrNull(
-            "a",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2, 999);
-            });
+    PairEntry got = table.tryGetOrCreateOrNull("a", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2, 999);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);
@@ -328,7 +312,9 @@ class HashtableD2Test {
     table.insert(new PairEntry("a", 1, 100));
     table.insert(new PairEntry("b", 2, 200));
 
-    assertFalse(table.tryGetOrCreate("c", 3, (k1, k2) -> new PairEntry(k1, k2, 300)).isPresent());
+    assertFalse(table
+      .tryGetOrCreate("c", 3, (k1, k2) -> new PairEntry(k1, k2, 300))
+      .isPresent());
     assertEquals(2, table.size());
 
     Maybe<PairEntry> hit = table.tryGetOrCreate("a", 1, (k1, k2) -> new PairEntry(k1, k2, 999));
@@ -343,13 +329,16 @@ class HashtableD2Test {
 
     PairEntry replacement = new PairEntry("a", 1, 999);
     assertTrue(
-        table.tryInsertOrReplace(replacement), "replacing an existing key succeeds when full");
+        table.tryInsertOrReplace(replacement),
+        "replacing an existing key succeeds when full"
+    );
     assertSame(replacement, table.get("a", 1));
     assertEquals(2, table.size());
 
     assertFalse(
         table.tryInsertOrReplace(new PairEntry("c", 3, 300)),
-        "a fresh insert is refused, not thrown");
+        "a fresh insert is refused, not thrown"
+    );
     assertEquals(2, table.size());
     assertNull(table.get("c", 3));
   }

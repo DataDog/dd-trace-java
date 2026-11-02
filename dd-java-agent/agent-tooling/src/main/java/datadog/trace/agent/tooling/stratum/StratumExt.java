@@ -13,11 +13,8 @@ import org.slf4j.LoggerFactory;
 public class StratumExt extends AbstractStratum implements Stratum {
   private final List<FileInfo> fileInfo = new ArrayList<>();
   private Map<String, FileInfo> fileInfoMap;
-
   private int[] lineStart = null;
-
   private final List<LineInfo> lineInfo = new ArrayList<>();
-
   private static final Logger LOG = LoggerFactory.getLogger(StratumExt.class);
 
   public StratumExt(final String name) {

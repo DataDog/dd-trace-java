@@ -9,11 +9,11 @@ import play.api.libs.json.JsValue;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class ResultsStatusApplyAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static void before(
-      @Advice.Argument(0) final Object content, @ActiveRequestContext final RequestContext reqCtx) {
-
+      @Advice.Argument(0) final Object content,
+      @ActiveRequestContext final RequestContext reqCtx
+  ) {
     if (!(content instanceof JsValue)) {
       return;
     }

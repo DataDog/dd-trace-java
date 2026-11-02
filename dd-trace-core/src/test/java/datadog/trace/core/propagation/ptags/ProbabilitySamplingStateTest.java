@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import java.util.concurrent.CountDownLatch;
@@ -17,7 +16,6 @@ import org.tabletest.junit.TableTest;
 
 class ProbabilitySamplingStateTest {
   private static final long TRACE_ID_LOW_ORDER_BITS = 0xfff972474538efffL;
-
   private final PropagationTags.Factory factory = PropagationTags.factory();
 
   @TableTest({
@@ -32,21 +30,33 @@ class ProbabilitySamplingStateTest {
     PropagationTags ptags = factory.empty();
 
     ptags.tryUpdateProbabilitySamplingDecision(
-        samplingPriority, AGENT_RATE, rate, false, TRACE_ID_LOW_ORDER_BITS, false);
+        samplingPriority,
+        AGENT_RATE,
+        rate,
+        false,
+        TRACE_ID_LOW_ORDER_BITS,
+        false
+    );
 
     SamplingState state = ptags.samplingState();
     assertInstanceOf(ProbabilitySamplingState.class, state);
     assertEquals(
-        OtelTraceState.fromProbabilityDecision(TRACE_ID_LOW_ORDER_BITS, rate, samplingPriority)
-            .toString(),
-        state.getOtelTraceState().toString());
+        OtelTraceState.fromProbabilityDecision(TRACE_ID_LOW_ORDER_BITS, rate, samplingPriority).toString(),
+        state.getOtelTraceState().toString()
+    );
   }
 
   @Test
   void repeatedReadsReturnOneInstance() {
     PropagationTags ptags = factory.empty();
     ptags.tryUpdateProbabilitySamplingDecision(
-        SAMPLER_KEEP, AGENT_RATE, 0.1, false, TRACE_ID_LOW_ORDER_BITS, false);
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        0.1,
+        false,
+        TRACE_ID_LOW_ORDER_BITS,
+        false
+    );
 
     SamplingState state = ptags.samplingState();
 
@@ -63,7 +73,13 @@ class ProbabilitySamplingStateTest {
     for (int trial = 0; trial < 100; trial++) {
       PropagationTags ptags = factory.empty();
       ptags.tryUpdateProbabilitySamplingDecision(
-          SAMPLER_KEEP, AGENT_RATE, 0.1, false, TRACE_ID_LOW_ORDER_BITS, false);
+          SAMPLER_KEEP,
+          AGENT_RATE,
+          0.1,
+          false,
+          TRACE_ID_LOW_ORDER_BITS,
+          false
+      );
       SamplingState state = ptags.samplingState();
 
       CharSequence[] seen = new CharSequence[readers];
@@ -71,17 +87,15 @@ class ProbabilitySamplingStateTest {
       Thread[] threads = new Thread[readers];
       for (int i = 0; i < readers; i++) {
         int reader = i;
-        threads[i] =
-            new Thread(
-                () -> {
-                  try {
-                    start.await();
-                  } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                  }
-                  seen[reader] = state.getOtelTraceState();
-                });
+        threads[i] = new Thread(() -> {
+          try {
+            start.await();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+          }
+          seen[reader] = state.getOtelTraceState();
+        });
         threads[i].start();
       }
       start.countDown();
@@ -100,7 +114,13 @@ class ProbabilitySamplingStateTest {
   void rateLimiterRejectionRecordsNoOtelState() {
     PropagationTags ptags = factory.empty();
     ptags.tryUpdateProbabilitySamplingDecision(
-        SAMPLER_DROP, AGENT_RATE, 0.1, true, TRACE_ID_LOW_ORDER_BITS, false);
+        SAMPLER_DROP,
+        AGENT_RATE,
+        0.1,
+        true,
+        TRACE_ID_LOW_ORDER_BITS,
+        false
+    );
 
     SamplingState state = ptags.samplingState();
 
@@ -112,14 +132,20 @@ class ProbabilitySamplingStateTest {
   void laterDecisionStartsFromDeferredOtelState() {
     PropagationTags ptags = factory.empty();
     ptags.tryUpdateProbabilitySamplingDecision(
-        SAMPLER_KEEP, AGENT_RATE, 0.1, false, TRACE_ID_LOW_ORDER_BITS, false);
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        0.1,
+        false,
+        TRACE_ID_LOW_ORDER_BITS,
+        false
+    );
 
     ptags.forceKeep(MANUAL);
-
     // A locally made probability state has nothing inherited to keep, so a manual keep drops it
-    assertNull(
-        OtelTraceState.fromProbabilityDecision(TRACE_ID_LOW_ORDER_BITS, 0.1, SAMPLER_KEEP)
-            .forNonProbabilityDecision());
+    assertNull(OtelTraceState
+      .fromProbabilityDecision(TRACE_ID_LOW_ORDER_BITS, 0.1, SAMPLER_KEEP)
+      .forNonProbabilityDecision()
+    );
     assertNull(ptags.samplingState().getOtelTraceState());
   }
 }

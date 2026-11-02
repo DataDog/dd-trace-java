@@ -5,12 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
-
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** {@link AgentSpan#setTagsFrom}: applying a {@link TagExtractor} or a {@link TagContributor}. */
+/**
+ * {@link AgentSpan#setTagsFrom}: applying a {@link TagExtractor} or a {@link TagContributor}.
+ */
 class AgentSpanSetTagsFromTest {
   private final AgentSpan span = mock(AgentSpan.class, CALLS_REAL_METHODS);
   private final List<Object> calls = new ArrayList<>();
@@ -19,9 +20,9 @@ class AgentSpanSetTagsFromTest {
   void appliesTheExtractorToTheSourceAndThisSpan() {
     TagExtractor<String> extractor =
         (source, target) -> {
-          calls.add(source);
-          calls.add(target);
-        };
+      calls.add(source);
+      calls.add(target);
+    };
 
     assertSame(span, span.setTagsFrom("source", extractor));
 

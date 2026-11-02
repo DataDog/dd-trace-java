@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,8 +17,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class InputStreamInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private static final String[] PRELOAD_CLASS_NAMES = {"java.io.PushbackInputStream"};
 
   public InputStreamInstrumentation() {
@@ -40,7 +40,8 @@ public class InputStreamInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArgument(0, InputStream.class)),
-        InputStreamInstrumentation.class.getName() + "$InputStreamAdvice");
+        InputStreamInstrumentation.class.getName() + "$InputStreamAdvice"
+    );
   }
 
   @Override
@@ -49,11 +50,12 @@ public class InputStreamInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class InputStreamAdvice {
-
     @Advice.OnMethodExit
     @Propagation
     public static void onExit(
-        @Advice.This final InputStream self, @Advice.Argument(0) final InputStream param) {
+        @Advice.This final InputStream self,
+        @Advice.Argument(0) final InputStream param
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
         if (module != null) {

@@ -5,14 +5,15 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public RouteHandlerInstrumentation() {
     super("vertx", "vertx-3.4");
   }
@@ -26,9 +27,10 @@ public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("handler", "blockingHandler"))
-            .and(isPublic())
-            .and(takesArgument(0, named("io.vertx.core.Handler"))),
-        packageName + ".RouteHandlerWrapperAdvice");
+          .and(namedOneOf("handler", "blockingHandler"))
+          .and(isPublic())
+          .and(takesArgument(0, named("io.vertx.core.Handler"))),
+        packageName + ".RouteHandlerWrapperAdvice"
+    );
   }
 }

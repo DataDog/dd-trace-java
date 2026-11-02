@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEAD
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_USER_AGENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
-
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
@@ -54,7 +53,8 @@ public class InferredProxySpan implements ImplicitContextKeyed {
   }
 
   private final Map<String, String> headers;
-  @VisibleForTesting AgentSpan span;
+  @VisibleForTesting
+  AgentSpan span;
   // Service-entry span registered at startSpan() time; used to guard against premature finishing
   // by child spans (e.g., Spring MVC handler spans) before the response status is known.
   private AgentSpan registeredServiceEntrySpan;
@@ -87,9 +87,11 @@ public class InferredProxySpan implements ImplicitContextKeyed {
 
     long startTime;
     try {
-      startTime = Long.parseLong(header(PROXY_START_TIME_MS)) * 1000; // Convert to microseconds
+      // Convert to microseconds
+      startTime = Long.parseLong(header(PROXY_START_TIME_MS)) * 1000;
     } catch (NumberFormatException e) {
-      return extracted; // Invalid timestamp
+      // Invalid timestamp
+      return extracted;
     }
 
     String proxySystem = header(PROXY_SYSTEM);
@@ -98,19 +100,17 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     String path = header(PROXY_PATH);
     String resourcePath = header(PROXY_RESOURCE_PATH);
     String domainName = header(PROXY_DOMAIN_NAME);
-    AgentSpan span = AgentTracer.get().startSpan(INSTRUMENTATION_NAME, proxy, extracted, startTime);
-
+    AgentSpan span = AgentTracer
+      .get()
+      .startSpan(INSTRUMENTATION_NAME, proxy, extracted, startTime);
     // Service: value of x-dd-proxy-domain-name or global config if not found
     String serviceName =
         domainName != null && !domainName.isEmpty() ? domainName : Config.get().getServiceName();
     span.setServiceName(serviceName, INSTRUMENTATION_NAME);
-
     // Component: aws-apigateway or aws-httpapi
     span.setTag(KnownTags.COMPONENT_ID, proxySystem);
-
     // Span kind: server
     span.setTag(KnownTags.SPAN_KIND_ID, SPAN_KIND_SERVER);
-
     // SpanType: web
     span.setTag(KnownTags.SPAN_TYPE_ID, "web");
 
@@ -120,15 +120,12 @@ public class InferredProxySpan implements ImplicitContextKeyed {
       span.setTag(KnownTags.HTTP_METHOD_ID, httpMethod);
     }
     span.setTagsFrom(HttpServerUrl.fromInferredProxy(domainName, path), URL_TAGS);
-
     // A concrete path is not a route under the OTel conventions. Keep the legacy fallback only
     // while Datadog semantics are active.
     String route = resourcePath != null && !resourcePath.isEmpty() ? resourcePath : null;
     span.setTag(KnownTags.HTTP_ROUTE_ID, OTEL_SEMANTICS ? route : route != null ? route : path);
-
     // "stage" - value of x-dd-proxy-stage
     span.setTag("stage", header(STAGE));
-
     // Optional tags - only set if present
     String accountId = header(PROXY_ACCOUNT_ID);
     if (accountId != null && !accountId.isEmpty()) {
@@ -144,7 +141,6 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     if (region != null && !region.isEmpty()) {
       span.setTag("region", region);
     }
-
     // Compute and set dd_resource_key (ARN) if we have region and apiId
     if (region != null && !region.isEmpty() && apiId != null && !apiId.isEmpty()) {
       String arn = computeArn(proxySystem, region, apiId);
@@ -152,10 +148,8 @@ public class InferredProxySpan implements ImplicitContextKeyed {
         span.setTag("dd_resource_key", arn);
       }
     }
-
     // _dd.inferred_span = 1 (indicates that this is an inferred span)
     span.setTag("_dd.inferred_span", 1);
-
     // Resource Name: OTel uses <Method> <Route> or just <Method>; Datadog keeps the historical
     // fallback to <Method> <Path> when no route is available.
     // Use MANUAL_INSTRUMENTATION priority to prevent TagInterceptor from overriding
@@ -165,13 +159,13 @@ public class InferredProxySpan implements ImplicitContextKeyed {
       resourceName = route != null ? spanNameMethod + " " + route : spanNameMethod;
     } else {
       String routeOrPath = route != null ? route : path;
-      resourceName =
-          httpMethod != null && routeOrPath != null ? httpMethod + " " + routeOrPath : null;
+      resourceName = httpMethod != null && routeOrPath != null
+          ? httpMethod + " " + routeOrPath
+          : null;
     }
     if (resourceName != null) {
       span.setResourceName(resourceName, MANUAL_INSTRUMENTATION);
     }
-
     // Free collected headers
     this.headers.clear();
     // Store inferred span
@@ -194,18 +188,19 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     if (proxySystem == null || region == null || apiId == null) {
       return null;
     }
-
     // Assume AWS partition (could be extended to support other partitions like aws-cn, aws-us-gov)
     String partition = "aws";
-
     // Determine resource type based on proxy system
     String resourceType;
     if ("aws-apigateway".equals(proxySystem)) {
-      resourceType = "restapis"; // v1 REST API
+      // v1 REST API
+      resourceType = "restapis";
     } else if ("aws-httpapi".equals(proxySystem)) {
-      resourceType = "apis"; // v2 HTTP API
+      // v2 HTTP API
+      resourceType = "apis";
     } else {
-      return null; // Unknown proxy type
+      // Unknown proxy type
+      return null;
     }
 
     return String.format("arn:%s:apigateway:%s::/%s/%s", partition, region, resourceType, apiId);
@@ -247,10 +242,9 @@ public class InferredProxySpan implements ImplicitContextKeyed {
       return;
     }
 
-    boolean isServiceEntryOrFallback =
-        registeredServiceEntrySpan == null
-            || callerSpan == null
-            || callerSpan == registeredServiceEntrySpan;
+    boolean isServiceEntryOrFallback = registeredServiceEntrySpan == null
+        || callerSpan == null
+        || callerSpan == registeredServiceEntrySpan;
 
     if (isServiceEntryOrFallback) {
       // Final call: copy all tags (AppSec + HTTP status/error/useragent) and close the span
@@ -308,7 +302,6 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     if (userAgent != null) {
       this.span.setTag(KnownTags.HTTP_USERAGENT_ID, userAgent.toString());
     }
-
     // Forward the Datadog scan/test markers so the API endpoint reducer can keep
     // scan/test traffic out of the inventory even when the local root is the inferred span.
     // These markers are only tagged on the service-entry span (by HttpServerDecorator), so

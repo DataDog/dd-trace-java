@@ -12,7 +12,8 @@ public class TestInterceptor implements TraceInterceptor {
 
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
-      final Collection<? extends MutableSpan> trace) {
+      final Collection<? extends MutableSpan> trace
+  ) {
     return trace;
   }
 

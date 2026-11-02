@@ -53,5 +53,6 @@ public class Java8BytecodeBridge {
     return Baggage.fromContext(context);
   }
 
-  private Java8BytecodeBridge() {}
+  private Java8BytecodeBridge() {
+  }
 }

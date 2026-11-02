@@ -1,7 +1,6 @@
 package datadog.trace.api.telemetry;
 
 import static java.util.Collections.singletonList;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -141,7 +140,6 @@ public class Endpoint {
     String DELETE = "DELETE";
     String TRACE = "TRACE";
     String ALL = "*";
-
     Set<String> METHODS =
         new HashSet<>(Arrays.asList(CONNECT, HEAD, GET, POST, PUT, PATCH, OPTIONS, DELETE, TRACE));
 

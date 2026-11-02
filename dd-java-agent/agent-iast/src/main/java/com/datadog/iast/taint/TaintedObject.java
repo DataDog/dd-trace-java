@@ -1,7 +1,6 @@
 package com.datadog.iast.taint;
 
 import static com.datadog.iast.taint.TaintedMap.POSITIVE_MASK;
-
 import com.datadog.iast.model.Range;
 import datadog.trace.api.Config;
 import java.lang.ref.WeakReference;
@@ -12,19 +11,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TaintedObject extends WeakReference<Object> {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TaintedObject.class);
-
   public static final int MAX_RANGE_COUNT = Config.get().getIastMaxRangeCount();
-
   final int positiveHashCode;
-  @Nullable TaintedObject next;
+  @Nullable
+  TaintedObject next;
   private Range[] ranges;
-
-  /** generation of the tainted for max age purging purposes */
+  /**
+   * generation of the tainted for max age purging purposes
+   */
   boolean generation;
 
-  public TaintedObject(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
+  public TaintedObject(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
     super(obj);
     validateRanges(ranges);
     this.positiveHashCode = System.identityHashCode(obj) & POSITIVE_MASK;

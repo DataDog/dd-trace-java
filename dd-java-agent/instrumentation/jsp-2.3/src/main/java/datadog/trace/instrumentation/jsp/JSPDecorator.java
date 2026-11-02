@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jsp;
 
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -32,8 +31,7 @@ public class JSPDecorator extends BaseDecorator {
     return JSP_HTTP_SERVLET;
   }
 
-  public void onCompile(
-      final ContextScope scope, final JspCompilationContext jspCompilationContext) {
+  public void onCompile(final ContextScope scope, final JspCompilationContext jspCompilationContext) {
     if (jspCompilationContext != null) {
       final AgentSpan span = spanFromScope(scope);
       span.setResourceName(jspCompilationContext.getJspFile());
@@ -62,7 +60,6 @@ public class JSPDecorator extends BaseDecorator {
     if (forwardOrigin instanceof String) {
       span.setTag("jsp.forwardOrigin", forwardOrigin.toString());
     }
-
     // add the request URL as a tag to provide better context when looking at spans produced by
     // actions. Tomcat 9 has relative path symbols in the value returned from
     // HttpServletRequest#getRequestURL(),

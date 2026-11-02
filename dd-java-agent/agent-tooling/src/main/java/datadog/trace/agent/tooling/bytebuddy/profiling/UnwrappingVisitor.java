@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy.profiling;
 
 import static datadog.trace.util.CollectionUtils.appendToArray;
 import static datadog.trace.util.CollectionUtils.arrayContains;
-
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -19,7 +18,6 @@ import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.OpenedClassReader;
 
 public class UnwrappingVisitor implements AsmVisitorWrapper {
-
   private final Map<String, String> classNameToDelegateFieldNames;
 
   public UnwrappingVisitor(String... classAndDelegateFieldNames) {
@@ -27,7 +25,9 @@ public class UnwrappingVisitor implements AsmVisitorWrapper {
     classNameToDelegateFieldNames = new HashMap<>(classAndDelegateFieldNames.length);
     for (int i = 0; i < classAndDelegateFieldNames.length; i += 2) {
       classNameToDelegateFieldNames.put(
-          classAndDelegateFieldNames[i], classAndDelegateFieldNames[i + 1]);
+          classAndDelegateFieldNames[i],
+          classAndDelegateFieldNames[i + 1]
+      );
     }
   }
 
@@ -50,26 +50,31 @@ public class UnwrappingVisitor implements AsmVisitorWrapper {
       FieldList<FieldDescription.InDefinedShape> fields,
       MethodList<?> methods,
       int writerFlags,
-      int readerFlags) {
+      int readerFlags
+  ) {
     String fieldName = classNameToDelegateFieldNames.get(instrumentedType.getName());
     return fieldName == null
         ? classVisitor
         : new ImplementTaskWrapperClassVisitor(
-            classVisitor, instrumentedType.getInternalName(), fieldName);
+            classVisitor,
+            instrumentedType.getInternalName(),
+            fieldName
+    );
   }
 
   static class ImplementTaskWrapperClassVisitor extends ClassVisitor {
-
     private static final String TASK_WRAPPER =
         "datadog/trace/bootstrap/instrumentation/api/TaskWrapper";
-
     private final String className;
     private final String fieldName;
     private boolean modify = false;
     private String descriptor;
 
     protected ImplementTaskWrapperClassVisitor(
-        ClassVisitor classVisitor, String className, String fieldName) {
+        ClassVisitor classVisitor,
+        String className,
+        String fieldName
+    ) {
       super(OpenedClassReader.ASM_API, classVisitor);
       this.className = className;
       this.fieldName = fieldName;
@@ -82,7 +87,8 @@ public class UnwrappingVisitor implements AsmVisitorWrapper {
         String name,
         String signature,
         String superName,
-        String[] interfaces) {
+        String[] interfaces
+    ) {
       if (!arrayContains(interfaces, TASK_WRAPPER)) {
         interfaces = appendToArray(interfaces, TASK_WRAPPER);
         if (signature != null) {
@@ -95,7 +101,12 @@ public class UnwrappingVisitor implements AsmVisitorWrapper {
 
     @Override
     public FieldVisitor visitField(
-        int access, String name, String descriptor, String signature, Object value) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        Object value
+    ) {
       if (fieldName.equals(name)) {
         this.descriptor = descriptor;
       }

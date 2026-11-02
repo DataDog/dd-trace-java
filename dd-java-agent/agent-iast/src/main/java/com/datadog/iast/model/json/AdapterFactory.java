@@ -28,16 +28,14 @@ import javax.annotation.Nullable;
  * list at the end, in the same order that they were found within the vulnerabilities.
  */
 class AdapterFactory implements JsonAdapter.Factory {
-
   static class Context {
-
     private static final ThreadLocal<Context> CONTEXT_THREAD_LOCAL =
         ThreadLocal.withInitial(Context::new);
-
     final List<Source> sources;
     final Map<Source, Integer> sourceIndexMap;
     final Map<Source, RedactionContext> sourceContext;
-    @Nullable Vulnerability vulnerability;
+    @Nullable
+    Vulnerability vulnerability;
 
     public Context() {
       sources = new ArrayList<>();
@@ -67,7 +65,8 @@ class AdapterFactory implements JsonAdapter.Factory {
   public JsonAdapter<?> create(
       @Nonnull final Type type,
       @Nonnull final Set<? extends Annotation> annotations,
-      @Nonnull final Moshi moshi) {
+      @Nonnull final Moshi moshi
+  ) {
     final Class<?> rawType = Types.getRawType(type);
     if (Source.class.equals(rawType)) {
       if (hasSourceIndexAnnotation(annotations)) {
@@ -90,12 +89,12 @@ class AdapterFactory implements JsonAdapter.Factory {
   }
 
   protected boolean hasSourceIndexAnnotation(@Nonnull final Set<? extends Annotation> annotations) {
-    return annotations.stream()
-        .anyMatch(annotation -> annotation.annotationType() == SourceIndex.class);
+    return annotations
+      .stream()
+      .anyMatch(annotation -> annotation.annotationType() == SourceIndex.class);
   }
 
   public static class SourceIndexAdapter extends FormattingAdapter<Source> {
-
     @Override
     public void toJson(@Nonnull final JsonWriter writer, @Nullable @SourceIndex final Source value)
         throws IOException {
@@ -115,15 +114,15 @@ class AdapterFactory implements JsonAdapter.Factory {
   }
 
   public static class VulnerabilityBatchAdapter extends FormattingAdapter<VulnerabilityBatch> {
-
     private final JsonAdapter<List<Source>> sourcesAdapter;
-
     private final JsonAdapter<List<Vulnerability>> vulnerabilitiesAdapter;
 
     public VulnerabilityBatchAdapter(@Nonnull final Moshi moshi) {
       sourcesAdapter = moshi.adapter(Types.newParameterizedType(List.class, Source.class));
-      vulnerabilitiesAdapter =
-          moshi.adapter(Types.newParameterizedType(List.class, Vulnerability.class));
+      vulnerabilitiesAdapter = moshi.adapter(Types.newParameterizedType(
+          List.class,
+          Vulnerability.class
+      ));
     }
 
     @Override
@@ -156,7 +155,6 @@ class AdapterFactory implements JsonAdapter.Factory {
   }
 
   public static class VulnerabilityAdapter extends FormattingAdapter<Vulnerability> {
-
     private final JsonAdapter<Vulnerability> adapter;
 
     public VulnerabilityAdapter(@Nonnull final AdapterFactory factory, @Nonnull final Moshi moshi) {
@@ -183,8 +181,10 @@ class AdapterFactory implements JsonAdapter.Factory {
     private final Source source;
     private final boolean sensitive;
     private boolean sensitiveRanges;
-    @Nullable private String redactedValue;
-    @Nullable private Set<VulnerabilityType> markedTypes;
+    @Nullable
+    private String redactedValue;
+    @Nullable
+    private Set<VulnerabilityType> markedTypes;
 
     public RedactionContext(final Source source) {
       this.source = source;

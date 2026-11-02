@@ -39,18 +39,21 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.CLASS)
 @Target({
-  ElementType.TYPE,
-  ElementType.FIELD,
-  ElementType.METHOD,
-  ElementType.CONSTRUCTOR,
-  ElementType.PARAMETER,
-  ElementType.ANNOTATION_TYPE
+    ElementType.TYPE,
+    ElementType.FIELD,
+    ElementType.METHOD,
+    ElementType.CONSTRUCTOR,
+    ElementType.PARAMETER,
+    ElementType.ANNOTATION_TYPE
 })
 public @interface SuppressPerfContract {
-
-  /** The perf-contract marker(s) being suppressed, by class reference. */
+  /**
+   * The perf-contract marker(s) being suppressed, by class reference.
+   */
   Class<? extends Annotation>[] value();
 
-  /** Why this exception is deliberate and reviewed, not an oversight. */
+  /**
+   * Why this exception is deliberate and reviewed, not an oversight.
+   */
   String reason();
 }

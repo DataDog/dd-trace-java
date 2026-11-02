@@ -6,13 +6,11 @@ import datadog.trace.civisibility.ci.env.CiEnvironment;
 import javax.annotation.Nonnull;
 
 class AwsCodePipelineInfo implements CIProviderInfo {
-
   public static final String AWS_CODEPIPELINE = "CODEBUILD_INITIATOR";
   public static final String AWS_CODEPIPELINE_PROVIDER_NAME = "awscodepipeline";
   public static final String AWS_CODEPIPELINE_EXECUTION_ID = "DD_PIPELINE_EXECUTION_ID";
   public static final String AWS_CODEPIPELINE_ACTION_EXECUTION_ID = "DD_ACTION_EXECUTION_ID";
   public static final String AWS_CODEPIPELINE_ARN = "CODEBUILD_BUILD_ARN";
-
   private final CiEnvironment environment;
 
   AwsCodePipelineInfo(CiEnvironment environment) {
@@ -26,15 +24,17 @@ class AwsCodePipelineInfo implements CIProviderInfo {
 
   @Override
   public CIInfo buildCIInfo() {
-    return CIInfo.builder(environment)
-        .ciProviderName(AWS_CODEPIPELINE_PROVIDER_NAME)
-        .ciPipelineId(environment.get(AWS_CODEPIPELINE_EXECUTION_ID))
-        .ciJobId(environment.get(AWS_CODEPIPELINE_ACTION_EXECUTION_ID))
-        .ciEnvVars(
-            AWS_CODEPIPELINE_EXECUTION_ID,
-            AWS_CODEPIPELINE_ACTION_EXECUTION_ID,
-            AWS_CODEPIPELINE_ARN)
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(AWS_CODEPIPELINE_PROVIDER_NAME)
+      .ciPipelineId(environment.get(AWS_CODEPIPELINE_EXECUTION_ID))
+      .ciJobId(environment.get(AWS_CODEPIPELINE_ACTION_EXECUTION_ID))
+      .ciEnvVars(
+          AWS_CODEPIPELINE_EXECUTION_ID,
+          AWS_CODEPIPELINE_ACTION_EXECUTION_ID,
+          AWS_CODEPIPELINE_ARN
+      )
+      .build();
   }
 
   @Nonnull

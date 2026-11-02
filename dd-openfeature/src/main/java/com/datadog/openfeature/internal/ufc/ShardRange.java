@@ -1,6 +1,8 @@
 package com.datadog.openfeature.internal.ufc;
 
-/** A UFC shard range. {@code start} and {@code end} hold unsigned 32-bit wire values. */
+/**
+ * A UFC shard range. {@code start} and {@code end} hold unsigned 32-bit wire values.
+ */
 public final class ShardRange {
   public final long start;
   public final long end;

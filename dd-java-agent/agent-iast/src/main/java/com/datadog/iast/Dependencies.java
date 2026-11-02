@@ -7,12 +7,10 @@ import datadog.trace.util.stacktrace.StackWalker;
 import javax.annotation.Nonnull;
 
 public class Dependencies {
-
   private final Config config;
   private final Reporter reporter;
   private final OverheadController overheadController;
   private final StackWalker stackWalker;
-
   final IastContext.Provider contextProvider;
 
   public Dependencies(
@@ -20,7 +18,8 @@ public class Dependencies {
       @Nonnull final Reporter reporter,
       @Nonnull final OverheadController overheadController,
       @Nonnull final StackWalker stackWalker,
-      @Nonnull final IastContext.Provider contextProvider) {
+      @Nonnull final IastContext.Provider contextProvider
+  ) {
     this.config = config;
     this.reporter = reporter;
     this.overheadController = overheadController;

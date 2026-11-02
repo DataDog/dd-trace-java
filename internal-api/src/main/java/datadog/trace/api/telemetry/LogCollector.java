@@ -2,7 +2,6 @@ package datadog.trace.api.telemetry;
 
 import static datadog.trace.util.ConcurrentHashtable.estimateSize;
 import static datadog.trace.util.LongHashingUtils.hash;
-
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.ConcurrentHashtable;
 import datadog.trace.util.ConcurrentHashtable.Reservation;
@@ -22,7 +21,8 @@ public class LogCollector {
   public static final Marker EXCLUDE_TELEMETRY = MarkerFactory.getMarker("EXCLUDE_TELEMETRY");
   private static final int DEFAULT_MAX_CAPACITY = 10;
   private static final LogCollector INSTANCE = new LogCollector();
-  @VisibleForTesting final ConcurrentHashtable.State<RawLogMessage> rawLogMessages;
+  @VisibleForTesting
+  final ConcurrentHashtable.State<RawLogMessage> rawLogMessages;
 
   public static LogCollector get() {
     return INSTANCE;
@@ -34,7 +34,8 @@ public class LogCollector {
 
   @SuppressFBWarnings(
       value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-      justification = "Usage in tests")
+      justification = "Usage in tests"
+  )
   LogCollector(int maxCapacity) {
     this.rawLogMessages = ConcurrentHashtable.createBounded(RawLogMessage.class, maxCapacity);
   }
@@ -53,7 +54,11 @@ public class LogCollector {
    *     tag1:value1,tag2:value2
    */
   public void addLogMessage(
-      String logLevel, String message, @Nullable Throwable throwable, @Nullable String tags) {
+      String logLevel,
+      String message,
+      @Nullable Throwable throwable,
+      @Nullable String tags
+  ) {
     long keyHash = RawLogMessage.computeHash(logLevel, message, throwable);
     // Fast path for duplicates: search lock-free before ever taking the table lock.
     RawLogMessage rawLogMessage = find(keyHash, logLevel, message, throwable);
@@ -61,7 +66,6 @@ public class LogCollector {
       rawLogMessage.increment();
       return;
     }
-
     // Slow path after a miss: tryGetOrInsertOrNull does its own locked comparison -- including,
     // via tryReserve, a recheck against a concurrent duplicate even when the table looks full --
     // so there's no need to repeat find() here first.
@@ -69,10 +73,9 @@ public class LogCollector {
         ConcurrentHashtable.tryReserve(rawLogMessages, keyHash)) {
       // Built zeroed, so this occurrence can be counted uniformly below whether or not
       // tryGetOrInsertOrNull ends up returning this instance or an existing match.
-      rawLogMessage =
-          reservation.tryGetOrInsertOrNull(
-              new RawLogMessage(
-                  logLevel, message, throwable, tags, System.currentTimeMillis() / 1000));
+      rawLogMessage = reservation.tryGetOrInsertOrNull(
+          new RawLogMessage(logLevel, message, throwable, tags, System.currentTimeMillis() / 1000)
+      );
       if (rawLogMessage == null) {
         // TODO: We could emit a metric for dropped logs.
         return;
@@ -94,17 +97,13 @@ public class LogCollector {
     if (size == 0) {
       return Collections.emptyList();
     }
-
     // Note drain takes the table lock
     List<RawLogMessage> list = new ArrayList<>(size);
-    ConcurrentHashtable.drain(
-        rawLogMessages,
-        list,
-        (drained, logMessage) -> {
-          // Snapshot each log group's count before adding it to the drain result.
-          logMessage.snapshotCount();
-          drained.add(logMessage);
-        });
+    ConcurrentHashtable.drain(rawLogMessages, list, (drained, logMessage) -> {
+      // Snapshot each log group's count before adding it to the drain result.
+      logMessage.snapshotCount();
+      drained.add(logMessage);
+    });
     return list;
   }
 
@@ -125,7 +124,11 @@ public class LogCollector {
    */
   @Nullable
   private RawLogMessage find(
-      long keyHash, String logLevel, String message, @Nullable Throwable throwable) {
+      long keyHash,
+      String logLevel,
+      String message,
+      @Nullable Throwable throwable
+  ) {
     StackTraceElement[] stackTrace = null;
     for (RawLogMessage entry : ConcurrentHashtable.hashIterable(rawLogMessages, keyHash)) {
       if (!Objects.equals(logLevel, entry.logLevel) || !Objects.equals(message, entry.message)) {
@@ -159,27 +162,30 @@ public class LogCollector {
   public static final class RawLogMessage extends ConcurrentHashtable.Entry<RawLogMessage> {
     private static final AtomicIntegerFieldUpdater<RawLogMessage> LIVE_OCCURRENCE_COUNT_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(RawLogMessage.class, "liveOccurrenceCount");
-
     public final String message;
     public final String logLevel;
     public final Throwable throwable;
     public final String tags;
     public final long timestamp;
-
-    /** Number of equivalent log messages captured when this group was drained. */
+    /**
+     * Number of equivalent log messages captured when this group was drained.
+     */
     public int count;
-
     /**
      * Live counter equivalent log messages accumulated in this group. Starts zeroed so a caller can
      * unconditionally {@link #increment()} once after a find-or-insert, whether it landed this
      * instance or an existing match.
      */
     private volatile int liveOccurrenceCount = 0;
-
     private volatile StackTraceElement[] cachedStackTrace = null;
 
     public RawLogMessage(
-        String logLevel, String message, Throwable throwable, String tags, long timestamp) {
+        String logLevel,
+        String message,
+        Throwable throwable,
+        String tags,
+        long timestamp
+    ) {
       super(computeHash(logLevel, message, throwable));
       this.logLevel = logLevel;
       this.message = message;
@@ -189,12 +195,15 @@ public class LogCollector {
     }
 
     public StackTraceElement[] stackTrace() {
-      if (throwable == null) return null;
-
+      if (throwable == null) {
+        return null;
+      }
       // getStackTrace() makes a defensive copy. Cache one safely published copy for concurrent
       // comparisons against equivalent throwables.
       StackTraceElement[] stackTrace = cachedStackTrace;
-      if (stackTrace != null) return stackTrace;
+      if (stackTrace != null) {
+        return stackTrace;
+      }
 
       cachedStackTrace = stackTrace = throwable.getStackTrace();
       return stackTrace;
@@ -204,20 +213,25 @@ public class LogCollector {
       LIVE_OCCURRENCE_COUNT_UPDATER.incrementAndGet(this);
     }
 
-    /** Snapshot this log's live occurrence count */
+    /**
+     * Snapshot this log's live occurrence count
+     */
     private void snapshotCount() {
       count = LIVE_OCCURRENCE_COUNT_UPDATER.get(this);
     }
 
     @Override
     public boolean matches(RawLogMessage that) {
-      if (!Objects.equals(logLevel, that.logLevel)) return false;
-      if (!Objects.equals(message, that.message)) return false;
+      if (!Objects.equals(logLevel, that.logLevel)) {
+        return false;
+      }
+      if (!Objects.equals(message, that.message)) {
+        return false;
+      }
 
       if (throwable == that.throwable) {
         // DQH - While this path may seem unlikely, it does happen if the JVM fast
         // throws optimization kicks-in (for NPE, etc), so this case is worth optimizing.
-
         // This also covers the case where both throwables are null
         return true;
       } else if (throwable != null && that.throwable != null) {
@@ -232,8 +246,12 @@ public class LogCollector {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       return matches((RawLogMessage) o);
     }
 
@@ -242,8 +260,7 @@ public class LogCollector {
       return (int) keyHash;
     }
 
-    private static long computeHash(
-        String logLevel, String message, @Nullable Throwable throwable) {
+    private static long computeHash(String logLevel, String message, @Nullable Throwable throwable) {
       return hash(logLevel, message, throwable == null ? null : throwable.getClass());
     }
   }

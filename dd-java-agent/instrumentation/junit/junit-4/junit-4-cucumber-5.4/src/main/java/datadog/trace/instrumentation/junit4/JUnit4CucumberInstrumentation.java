@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,9 @@ import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public JUnit4CucumberInstrumentation() {
     super("ci-visibility", "junit-4", "junit-4-cucumber");
   }
@@ -35,19 +35,21 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CucumberUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".CucumberTracingListener",
+        packageName + ".CucumberUtils",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".SkippedByDatadog",
+        packageName + ".JUnit4Utils",
+        packageName + ".TracingListener",
+        packageName + ".CucumberTracingListener"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestExecutionTracker.class.getName());
+        "org.junit.runner.Description",
+        TestExecutionTracker.class.getName()
+    );
   }
 
   @Override
@@ -58,19 +60,20 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("childrenInvoker")
-            .and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4CucumberInstrumentation.class.getName() + "$CucumberAdvice");
+        named("childrenInvoker").and(
+            takesArgument(0, named("org.junit.runner.notification.RunNotifier"))
+        ),
+        JUnit4CucumberInstrumentation.class.getName() + "$CucumberAdvice"
+    );
   }
 
   public static class CucumberAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addTracingListener(
         @Advice.FieldValue("children") List<ParentRunner<?>> children,
-        @Advice.Argument(value = 0, readOnly = false) RunNotifier runNotifier) {
-
+        @Advice.Argument(value = 0, readOnly = false) RunNotifier runNotifier
+    ) {
       RunNotifier replacedNotifier = new RunNotifier();
-
       // copy listeners to new notifier
       List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners != null) {
@@ -84,11 +87,16 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
       }
 
       TestEventsHandlerHolder.start(
-          TestFrameworkInstrumentation.CUCUMBER, CucumberUtils.CAPABILITIES);
+          TestFrameworkInstrumentation.CUCUMBER,
+          CucumberUtils.CAPABILITIES
+      );
 
       replacedNotifier.addListener(
           new CucumberTracingListener(
-              InstrumentationContext.get(Description.class, TestExecutionTracker.class), children));
+              InstrumentationContext.get(Description.class, TestExecutionTracker.class),
+              children
+          )
+      );
       runNotifier = replacedNotifier;
     }
   }

@@ -11,7 +11,6 @@ public final class GrpcExtractAdapter implements AgentPropagation.ContextVisitor
       key -> Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
   private static final DDCache<String, Metadata.Key<String>> KEY_CACHE =
       DDCaches.newFixedSizeCache(64);
-
   public static final GrpcExtractAdapter GETTER = new GrpcExtractAdapter();
 
   @Override

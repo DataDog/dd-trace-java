@@ -1,7 +1,6 @@
 package datadog.metrics.api;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import datadog.metrics.api.statsd.StatsDClient;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -73,7 +72,6 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(5)
 public class AccumulatorVsCounterBenchmark {
-
   enum Metric {
     HITS
   }
@@ -151,8 +149,7 @@ public class AccumulatorVsCounterBenchmark {
     public void distribution(String metricName, double value, String... tags) {}
 
     @Override
-    public void serviceCheck(
-        String serviceCheckName, String status, String message, String... tags) {}
+    public void serviceCheck(String serviceCheckName, String status, String message, String... tags) {}
 
     @Override
     public void error(Exception error) {}

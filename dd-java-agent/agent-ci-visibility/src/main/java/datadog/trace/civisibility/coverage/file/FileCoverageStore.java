@@ -28,16 +28,15 @@ import org.slf4j.LoggerFactory;
  * no line info is available. The advantage of lower granularity is lower performance overhead.
  */
 public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
-
   private static final Logger log = LoggerFactory.getLogger(FileCoverageStore.class);
-
   private final CiVisibilityMetricCollector metrics;
   private final SourcePathResolver sourcePathResolver;
 
   private FileCoverageStore(
       Function<Boolean, FileProbes> probesFactory,
       CiVisibilityMetricCollector metrics,
-      SourcePathResolver sourcePathResolver) {
+      SourcePathResolver sourcePathResolver
+  ) {
     super(probesFactory);
     this.metrics = metrics;
     this.sourcePathResolver = sourcePathResolver;
@@ -46,7 +45,11 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
   @Nullable
   @Override
   protected TestReport report(
-      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<FileProbes> probes) {
+      DDTraceId testSessionId,
+      Long testSuiteId,
+      long testSpanId,
+      Collection<FileProbes> probes
+  ) {
     Set<Class<?>> combinedClasses = Collections.newSetFromMap(new IdentityHashMap<>());
     Collection<String> combinedNonCodeResources = new HashSet<>();
 
@@ -65,7 +68,8 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
       if (sourcePaths.isEmpty()) {
         log.debug(
             "Skipping coverage reporting for {} because source path could not be determined",
-            clazz);
+            clazz
+        );
         metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
         continue;
       }
@@ -77,7 +81,8 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
       if (resourcePaths.isEmpty()) {
         log.debug(
             "Skipping coverage reporting for {} because resource path could not be determined",
-            nonCodeResource);
+            nonCodeResource
+        );
         metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
         continue;
       }
@@ -92,7 +97,8 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
     TestReport report = new TestReport(testSessionId, testSuiteId, testSpanId, fileEntries);
     metrics.add(
         CiVisibilityDistributionMetric.CODE_COVERAGE_FILES,
-        report.getTestReportFileEntries().size());
+        report.getTestReportFileEntries().size()
+    );
     return report;
   }
 
@@ -101,7 +107,6 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
   }
 
   public static final class Factory implements CoverageStore.Factory {
-
     private final CiVisibilityMetricCollector metrics;
     private final SourcePathResolver sourcePathResolver;
 

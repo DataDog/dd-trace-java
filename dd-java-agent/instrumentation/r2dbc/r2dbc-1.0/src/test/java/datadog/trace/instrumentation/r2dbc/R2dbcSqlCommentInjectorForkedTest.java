@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.r2dbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.BaseHash;
 import datadog.trace.test.junit.utils.config.WithConfig;
@@ -17,13 +16,15 @@ import org.junit.jupiter.api.Test;
  */
 @WithConfig(key = "dbm.propagation.mode", value = "full")
 class R2dbcSqlCommentInjectorForkedTest extends AbstractInstrumentationTest {
-
   @Test
   void injectsStaticMetadataCommentWhenDbmFull() {
-    String injected =
-        R2dbcSqlCommentInjector.inject(
-            "SELECT * FROM items", "orders", "postgresql", "db.internal", "shop");
-
+    String injected = R2dbcSqlCommentInjector.inject(
+        "SELECT * FROM items",
+        "orders",
+        "postgresql",
+        "db.internal",
+        "shop"
+    );
     // Comment is prepended as /*...*/ <sql>; only static metadata (no traceparent) for R2DBC.
     assertTrue(injected.startsWith("/*"), "expected a leading DBM comment, got: " + injected);
     assertTrue(injected.endsWith("*/ SELECT * FROM items"), "unexpected tail: " + injected);
@@ -45,7 +46,8 @@ class R2dbcSqlCommentInjectorForkedTest extends AbstractInstrumentationTest {
   void appendsForCallStatements() {
     String injected =
         R2dbcSqlCommentInjector.inject("call my_proc(1)", "orders", "postgresql", "h", "shop");
-    assertTrue(injected.startsWith("call my_proc(1) /*"), "expected appended comment: " + injected);
+    assertTrue(injected.startsWith("call my_proc(1) /*"), "expected appended comment: "
+        + injected);
     assertTrue(injected.endsWith("*/"), "unexpected tail: " + injected);
   }
 
@@ -69,7 +71,9 @@ class R2dbcSqlCommentInjectorForkedTest extends AbstractInstrumentationTest {
       String injected =
           R2dbcSqlCommentInjector.inject("SELECT * FROM items", "orders", dbType, "h", "shop");
       assertTrue(
-          injected.startsWith("SELECT * FROM items /*"), dbType + " should append: " + injected);
+          injected.startsWith("SELECT * FROM items /*"),
+          dbType + " should append: " + injected
+      );
     }
   }
 
@@ -81,11 +85,12 @@ class R2dbcSqlCommentInjectorForkedTest extends AbstractInstrumentationTest {
   }
 }
 
-/** Verifies {@code dd.dbm.always_append_sql_comment} is honored. */
+/**
+ * Verifies {@code dd.dbm.always_append_sql_comment} is honored.
+ */
 @WithConfig(key = "dbm.propagation.mode", value = "full")
 @WithConfig(key = "dbm.always_append_sql_comment", value = "true")
 class R2dbcSqlCommentInjectorAlwaysAppendForkedTest extends AbstractInstrumentationTest {
-
   @Test
   void alwaysAppendKeepsClosingSemicolon() {
     String injected =
@@ -95,10 +100,11 @@ class R2dbcSqlCommentInjectorAlwaysAppendForkedTest extends AbstractInstrumentat
   }
 }
 
-/** Verifies {@link R2dbcSqlCommentInjector#inject} is a no-op when DBM propagation is disabled. */
+/**
+ * Verifies {@link R2dbcSqlCommentInjector#inject} is a no-op when DBM propagation is disabled.
+ */
 @WithConfig(key = "dbm.propagation.mode", value = "disabled")
 class R2dbcSqlCommentInjectorDisabledForkedTest extends AbstractInstrumentationTest {
-
   @Test
   void doesNotInjectWhenDbmDisabled() {
     String sql = "SELECT * FROM items";
@@ -106,10 +112,11 @@ class R2dbcSqlCommentInjectorDisabledForkedTest extends AbstractInstrumentationT
   }
 }
 
-/** Verifies {@link R2dbcSqlCommentInjector#inject} embeds the base hash in dynamic_service mode. */
+/**
+ * Verifies {@link R2dbcSqlCommentInjector#inject} embeds the base hash in dynamic_service mode.
+ */
 @WithConfig(key = "dbm.propagation.mode", value = "dynamic_service")
 class R2dbcSqlCommentInjectorDynamicServiceForkedTest extends AbstractInstrumentationTest {
-
   @Test
   void dynamicServiceInjectsBaseHashInComment() {
     BaseHash.updateBaseHash(123456789L);

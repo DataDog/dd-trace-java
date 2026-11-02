@@ -5,11 +5,8 @@ import datadog.trace.api.appsec.RaspCallSites;
 import java.io.File;
 import javax.annotation.Nullable;
 
-@CallSite(
-    spi = {RaspCallSites.class},
-    helpers = FileIORaspHelper.class)
+@CallSite(spi = {RaspCallSites.class}, helpers = FileIORaspHelper.class)
 public class FileReaderCallSite {
-
   @CallSite.Before("void java.io.FileReader.<init>(java.lang.String)")
   // Java 11+: FileReader(String, Charset)
   @CallSite.Before("void java.io.FileReader.<init>(java.lang.String, java.nio.charset.Charset)")

@@ -12,7 +12,6 @@ import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.DEC
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientHelpers.AkkaHttpHeaders;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientHelpers.OnCompleteHandler;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import akka.http.scaladsl.HttpExt;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
@@ -27,7 +26,9 @@ import scala.concurrent.Future;
 
 @AutoService(InstrumenterModule.class)
 public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public AkkaHttpSingleRequestInstrumentation() {
     super("akka-http", "akka-http-client");
   }
@@ -40,11 +41,11 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AkkaHttpClientHelpers",
-      packageName + ".AkkaHttpClientHelpers$OnCompleteHandler",
-      packageName + ".AkkaHttpClientHelpers$AkkaHttpHeaders",
-      packageName + ".AkkaHttpClientHelpers$HasSpanHeader",
-      packageName + ".AkkaHttpClientDecorator",
+        packageName + ".AkkaHttpClientHelpers",
+        packageName + ".AkkaHttpClientHelpers$OnCompleteHandler",
+        packageName + ".AkkaHttpClientHelpers$AkkaHttpHeaders",
+        packageName + ".AkkaHttpClientHelpers$HasSpanHeader",
+        packageName + ".AkkaHttpClientDecorator"
     };
   }
 
@@ -54,15 +55,16 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
     transformer.applyAdvices(
         named("singleRequest").and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
         AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
-        AkkaHttpSingleRequestInstrumentation.class.getName()
-            + "$SingleRequestContextPropagationAdvice");
+        AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestContextPropagationAdvice"
+    );
     // This is for 10.1+
     transformer.applyAdvices(
-        named("singleRequestImpl")
-            .and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
+        named("singleRequestImpl").and(
+            takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))
+        ),
         AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
-        AkkaHttpSingleRequestInstrumentation.class.getName()
-            + "$SingleRequestContextPropagationAdvice");
+        AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestContextPropagationAdvice"
+    );
   }
 
   public static class SingleRequestAdvice {
@@ -90,7 +92,8 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
         @Advice.This final HttpExt thiz,
         @Advice.Return final Future<HttpResponse> responseFuture,
         @Advice.Enter final ContextScope scope,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }
@@ -113,7 +116,8 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
   public static class SingleRequestContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(
-        @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+        @Advice.Argument(value = 0, readOnly = false) HttpRequest request
+    ) {
       if (request == null) {
         return;
       }

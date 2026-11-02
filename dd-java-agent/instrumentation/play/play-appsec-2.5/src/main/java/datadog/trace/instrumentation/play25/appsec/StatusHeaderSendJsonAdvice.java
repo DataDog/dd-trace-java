@@ -11,11 +11,11 @@ import play.mvc.StatusHeader;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class StatusHeaderSendJsonAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static void before(
-      @Advice.Argument(0) final JsonNode json, @ActiveRequestContext final RequestContext reqCtx) {
-
+      @Advice.Argument(0) final JsonNode json,
+      @ActiveRequestContext final RequestContext reqCtx
+  ) {
     if (CallDepthThreadLocalMap.incrementCallDepth(StatusHeader.class) > 0) {
       return;
     }

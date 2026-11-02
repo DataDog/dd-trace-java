@@ -5,7 +5,6 @@ import datadog.trace.api.civisibility.domain.TestContext;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class TestContextImpl implements TestContext {
-
   private final CoverageStore coverageStore;
   private final CopyOnWriteArrayList<Entry> entries = new CopyOnWriteArrayList<>();
 

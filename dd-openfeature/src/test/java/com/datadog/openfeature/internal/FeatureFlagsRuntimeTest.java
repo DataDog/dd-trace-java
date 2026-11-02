@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
@@ -45,25 +44,20 @@ class FeatureFlagsRuntimeTest {
 
   @Test
   void disabledProductIsRejected() {
-    final IllegalStateException error =
-        assertThrows(
-            IllegalStateException.class,
-            () ->
-                FeatureFlagsRuntime.create(
-                    AgentBridge.NONE, TestSettings.of("feature.flags.enabled", "false")));
+    final IllegalStateException error = assertThrows(IllegalStateException.class, () -> FeatureFlagsRuntime.create(
+        AgentBridge.NONE,
+        TestSettings.of("feature.flags.enabled", "false")
+    ));
 
     assertEquals("Feature Flags is disabled", error.getMessage());
   }
 
   @Test
   void remoteConfigurationRequiresTheJavaAgent() {
-    final IllegalStateException error =
-        assertThrows(
-            IllegalStateException.class,
-            () ->
-                FeatureFlagsRuntime.create(
-                    AgentBridge.NONE,
-                    TestSettings.of("feature.flags.configuration.source", "remote_config")));
+    final IllegalStateException error = assertThrows(IllegalStateException.class, () -> FeatureFlagsRuntime.create(
+        AgentBridge.NONE,
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    ));
 
     assertTrue(error.getMessage().contains("requires a compatible Datadog Java agent"));
   }
@@ -78,20 +72,20 @@ class FeatureFlagsRuntimeTest {
 
   @Test
   void evaluationCountsKillSwitchDisablesTheEvaluationPipeline() {
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(
-            new TestAgentBridge(null, (route, json) -> {}),
-            TestSettings.of("flagging.evaluation.counts.enabled", "false"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.create(
+        new TestAgentBridge(null, (route, json) -> {}),
+        TestSettings.of("flagging.evaluation.counts.enabled", "false")
+    );
 
     assertNull(runtime.evaluations());
   }
 
   @Test
   void exposuresDatadogLoggingKillSwitchDisablesTheExposurePipelineButKeepsTheCache() {
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(
-            new TestAgentBridge(null, (route, json) -> {}),
-            TestSettings.of("feature.flags.exposures.datadog.logging.enabled", "false"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.create(
+        new TestAgentBridge(null, (route, json) -> {}),
+        TestSettings.of("feature.flags.exposures.datadog.logging.enabled", "false")
+    );
 
     assertFalse(runtime.isExposureDeliveryEnabled());
     assertNotNull(runtime.exposureCache());
@@ -111,7 +105,9 @@ class FeatureFlagsRuntimeTest {
   void eventProxyEnablesBothPipelines() {
     final FeatureFlagsRuntime runtime =
         FeatureFlagsRuntime.create(
-            new TestAgentBridge(null, (route, json) -> {}), TestSettings.of());
+            new TestAgentBridge(null, (route, json) -> {}),
+            TestSettings.of()
+    );
 
     assertNotNull(runtime.evaluations());
     assertTrue(runtime.isExposureDeliveryEnabled());
@@ -120,18 +116,18 @@ class FeatureFlagsRuntimeTest {
   @Test
   void remoteConfigurationDeliversParsedConfigurationsAndReplaysToLateListeners() {
     final TestConfigurationSource source = new TestConfigurationSource();
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(
-            new TestAgentBridge(source, null),
-            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.create(
+        new TestAgentBridge(source, null),
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     final List<ServerConfiguration> early = new CopyOnWriteArrayList<>();
     runtime.addConfigurationListener(early::add);
     runtime.start();
     try {
       source.listener.accept(EMPTY_UFC);
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> source.listener.accept("{not json".getBytes(StandardCharsets.UTF_8)));
+      assertThrows(IllegalArgumentException.class, () -> source.listener.accept("{not json"
+        .getBytes(StandardCharsets.UTF_8)
+      ));
       final List<ServerConfiguration> late = new CopyOnWriteArrayList<>();
       runtime.addConfigurationListener(late::add);
 
@@ -159,10 +155,10 @@ class FeatureFlagsRuntimeTest {
     CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
     CapturingServiceProvider.failOn("Feature Flags runtime stopped");
     final TestConfigurationSource source = new TestConfigurationSource();
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(
-            new TestAgentBridge(source, null),
-            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.create(
+        new TestAgentBridge(source, null),
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     runtime.start();
 
     assertThrows(IllegalStateException.class, runtime::stop);
@@ -175,10 +171,10 @@ class FeatureFlagsRuntimeTest {
     CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
     CapturingServiceProvider.failOn("Feature Flags configuration");
     final TestConfigurationSource source = new TestConfigurationSource();
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(
-            new TestAgentBridge(source, null),
-            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.create(
+        new TestAgentBridge(source, null),
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     final List<ServerConfiguration> received = new CopyOnWriteArrayList<>();
     runtime.addConfigurationListener(received::add);
     runtime.start();
@@ -202,10 +198,10 @@ class FeatureFlagsRuntimeTest {
   void reportsAppliedAndRemovedConfigurations() {
     CapturingServiceProvider.enable("com.datadog.openfeature", Level.DEBUG);
     final TestConfigurationSource source = new TestConfigurationSource();
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(
-            new TestAgentBridge(source, null),
-            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.create(
+        new TestAgentBridge(source, null),
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     runtime.start();
     try {
       source.listener.accept(EMPTY_UFC);
@@ -215,11 +211,18 @@ class FeatureFlagsRuntimeTest {
     }
 
     final List<String> messages =
-        CapturingServiceProvider.events().stream().map(e -> e.message).collect(Collectors.toList());
+        CapturingServiceProvider
+      .events()
+      .stream()
+      .map(e -> e.message)
+      .collect(Collectors.toList());
     assertTrue(
         messages.contains(
-            "Feature Flags configuration applied: flags=0, invalidFlags=0, configurationEnv=Test, createdAt=null"),
-        messages.toString());
+            "Feature Flags configuration applied: flags=0, invalidFlags=0, "
+            + "configurationEnv=Test, createdAt=null"
+        ),
+        messages.toString()
+    );
     assertTrue(messages.contains("Feature Flags configuration removed"), messages.toString());
     assertTrue(messages.contains("Feature Flags runtime stopped"), messages.toString());
   }
@@ -227,10 +230,10 @@ class FeatureFlagsRuntimeTest {
   @Test
   void concurrentRemovalIsDeliveredAfterTheInitialReplay() throws Exception {
     final TestConfigurationSource source = new TestConfigurationSource();
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(
-            new TestAgentBridge(source, null),
-            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.create(
+        new TestAgentBridge(source, null),
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     runtime.start();
     source.listener.accept(EMPTY_UFC);
     final List<ServerConfiguration> received = new CopyOnWriteArrayList<>();
@@ -240,28 +243,23 @@ class FeatureFlagsRuntimeTest {
     final ExecutorService executor = Executors.newFixedThreadPool(2);
     try {
       final Future<?> registration =
-          executor.submit(
-              () ->
-                  runtime.addConfigurationListener(
-                      configuration -> {
-                        if (configuration != null) {
-                          replayStarted.countDown();
-                          try {
-                            assertTrue(finishReplay.await(5, SECONDS));
-                          } catch (final InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            throw new AssertionError(e);
-                          }
-                        }
-                        received.add(configuration);
-                      }));
+          executor.submit(() -> runtime.addConfigurationListener(configuration -> {
+        if (configuration != null) {
+          replayStarted.countDown();
+          try {
+            assertTrue(finishReplay.await(5, SECONDS));
+          } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(e);
+          }
+        }
+        received.add(configuration);
+      }));
       assertTrue(replayStarted.await(5, SECONDS));
-      final Future<?> removal =
-          executor.submit(
-              () -> {
-                removalStarted.countDown();
-                source.listener.accept(null);
-              });
+      final Future<?> removal = executor.submit(() -> {
+        removalStarted.countDown();
+        source.listener.accept(null);
+      });
       assertTrue(removalStarted.await(5, SECONDS));
       assertThrows(TimeoutException.class, () -> removal.get(100, MILLISECONDS));
 
@@ -282,10 +280,10 @@ class FeatureFlagsRuntimeTest {
   @Test
   void removedListenersAreNotNotified() {
     final TestConfigurationSource source = new TestConfigurationSource();
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(
-            new TestAgentBridge(source, null),
-            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.create(
+        new TestAgentBridge(source, null),
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     @SuppressWarnings("unchecked")
     final Consumer<ServerConfiguration> listener = mock(Consumer.class);
     runtime.addConfigurationListener(listener);
@@ -303,15 +301,14 @@ class FeatureFlagsRuntimeTest {
   @Test
   void failingListenerDoesNotStarveOtherListeners() {
     final TestConfigurationSource source = new TestConfigurationSource();
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(
-            new TestAgentBridge(source, null),
-            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.create(
+        new TestAgentBridge(source, null),
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     final List<ServerConfiguration> received = new CopyOnWriteArrayList<>();
-    runtime.addConfigurationListener(
-        configuration -> {
-          throw new IllegalStateException("listener failure");
-        });
+    runtime.addConfigurationListener(configuration -> {
+      throw new IllegalStateException("listener failure");
+    });
     runtime.addConfigurationListener(received::add);
     runtime.start();
     try {
@@ -327,9 +324,10 @@ class FeatureFlagsRuntimeTest {
   void sharedRuntimeIsReferenceCounted() {
     final TestConfigurationSource source = new TestConfigurationSource();
     final AgentBridge bridge = new TestAgentBridge(source, null);
-    final FeatureFlagsRuntime first =
-        FeatureFlagsRuntime.acquire(
-            bridge, TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime first = FeatureFlagsRuntime.acquire(
+        bridge,
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     final FeatureFlagsRuntime second = FeatureFlagsRuntime.acquire(bridge, TestSettings.of());
     try {
       assertSame(first, second);
@@ -347,19 +345,19 @@ class FeatureFlagsRuntimeTest {
   void lastReleaseFlushesPendingExposures() {
     final TestConfigurationSource source = new TestConfigurationSource();
     final List<Map<String, Object>> requests = new CopyOnWriteArrayList<>();
-    final AgentBridge bridge =
-        new TestAgentBridge(
-            source,
-            (route, json) -> {
-              assertEquals("exposures", route);
-              requests.add(JsonReading.readObject(json));
-            });
-    final FeatureFlagsRuntime first =
-        FeatureFlagsRuntime.acquire(
-            bridge,
-            TestSettings.of(
-                "feature.flags.configuration.source", "remote_config",
-                "flagging.evaluation.counts.enabled", "false"));
+    final AgentBridge bridge = new TestAgentBridge(source, (route, json) -> {
+      assertEquals("exposures", route);
+      requests.add(JsonReading.readObject(json));
+    });
+    final FeatureFlagsRuntime first = FeatureFlagsRuntime.acquire(
+        bridge,
+        TestSettings.of(
+            "feature.flags.configuration.source",
+            "remote_config",
+            "flagging.evaluation.counts.enabled",
+            "false"
+        )
+    );
     try {
       final FeatureFlagsRuntime second = FeatureFlagsRuntime.acquire(bridge, TestSettings.of());
       try {
@@ -375,7 +373,9 @@ class FeatureFlagsRuntimeTest {
               new com.datadog.openfeature.internal.exposure.Flag("f"),
               new com.datadog.openfeature.internal.exposure.Variant("v"),
               new com.datadog.openfeature.internal.exposure.Subject("s", emptyMap()),
-              null));
+              null
+          )
+      );
     } finally {
       FeatureFlagsRuntime.release();
     }
@@ -389,15 +389,19 @@ class FeatureFlagsRuntimeTest {
   void agentShutdownFlushesPendingExposuresOnce() {
     final TestConfigurationSource source = new TestConfigurationSource();
     final List<Map<String, Object>> requests = new CopyOnWriteArrayList<>();
-    final TestAgentBridge bridge =
-        new TestAgentBridge(source, (route, json) -> requests.add(JsonReading.readObject(json)))
-            .withAgentShutdown();
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.acquire(
-            bridge,
-            TestSettings.of(
-                "feature.flags.configuration.source", "remote_config",
-                "flagging.evaluation.counts.enabled", "false"));
+    final TestAgentBridge bridge = new TestAgentBridge(source, (route, json) -> requests.add(JsonReading.readObject(
+        json
+    )))
+      .withAgentShutdown();
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.acquire(
+        bridge,
+        TestSettings.of(
+            "feature.flags.configuration.source",
+            "remote_config",
+            "flagging.evaluation.counts.enabled",
+            "false"
+        )
+    );
     try {
       assertNotNull(bridge.shutdownFlush, "the runtime registers its flush with the agent");
       runtime.recordExposure(exposure());
@@ -418,7 +422,9 @@ class FeatureFlagsRuntimeTest {
     final TestAgentBridge bridge =
         new TestAgentBridge(new TestConfigurationSource(), null).withAgentShutdown();
     FeatureFlagsRuntime.acquire(
-        bridge, TestSettings.of("feature.flags.configuration.source", "remote_config"));
+        bridge,
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
 
     FeatureFlagsRuntime.release();
 
@@ -432,17 +438,17 @@ class FeatureFlagsRuntimeTest {
     final CountDownLatch releasePosts = new CountDownLatch(1);
     final EventTransport stalledTransport =
         (route, json) -> {
-          ("exposures".equals(route) ? exposuresPosted : evaluationsPosted).countDown();
-          try {
-            releasePosts.await(10, SECONDS);
-          } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-          }
-        };
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.create(
-            new TestAgentBridge(new TestConfigurationSource(), stalledTransport),
-            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+      ("exposures".equals(route) ? exposuresPosted : evaluationsPosted).countDown();
+      try {
+        releasePosts.await(10, SECONDS);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    };
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.create(
+        new TestAgentBridge(new TestConfigurationSource(), stalledTransport),
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     runtime.start();
     try {
       runtime.recordExposure(exposure());
@@ -463,13 +469,13 @@ class FeatureFlagsRuntimeTest {
   @Test
   void failingAgentShutdownSubscriptionFallsBackToTheJvmShutdownHook() {
     final TestConfigurationSource source = new TestConfigurationSource();
-    final TestAgentBridge bridge =
-        new TestAgentBridge(source, null)
-            .withFailingAgentShutdown(new IllegalStateException("Shutdown in progress"));
+    final TestAgentBridge bridge = new TestAgentBridge(source, null)
+      .withFailingAgentShutdown(new IllegalStateException("Shutdown in progress"));
 
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.acquire(
-            bridge, TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.acquire(
+        bridge,
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     assertNotNull(runtime);
     FeatureFlagsRuntime.release();
 
@@ -480,20 +486,18 @@ class FeatureFlagsRuntimeTest {
   void failedStartDoesNotCacheTheSharedRuntime() {
     final ConfigurationSource failing =
         listener -> {
-          throw new IllegalStateException("subscription failed");
-        };
-    assertThrows(
-        IllegalStateException.class,
-        () ->
-            FeatureFlagsRuntime.acquire(
-                new TestAgentBridge(failing, null),
-                TestSettings.of("feature.flags.configuration.source", "remote_config")));
+      throw new IllegalStateException("subscription failed");
+    };
+    assertThrows(IllegalStateException.class, () -> FeatureFlagsRuntime.acquire(
+        new TestAgentBridge(failing, null),
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    ));
 
     final TestConfigurationSource source = new TestConfigurationSource();
-    final FeatureFlagsRuntime runtime =
-        FeatureFlagsRuntime.acquire(
-            new TestAgentBridge(source, null),
-            TestSettings.of("feature.flags.configuration.source", "remote_config"));
+    final FeatureFlagsRuntime runtime = FeatureFlagsRuntime.acquire(
+        new TestAgentBridge(source, null),
+        TestSettings.of("feature.flags.configuration.source", "remote_config")
+    );
     try {
       assertNotNull(runtime);
       assertNotNull(source.listener, "a later acquisition starts a new runtime");
@@ -514,7 +518,9 @@ class FeatureFlagsRuntimeTest {
             new com.datadog.openfeature.internal.exposure.Flag("f"),
             new com.datadog.openfeature.internal.exposure.Variant("v"),
             new com.datadog.openfeature.internal.exposure.Subject("s", emptyMap()),
-            null));
+            null
+        )
+    );
   }
 
   private static com.datadog.openfeature.internal.exposure.ExposureEvent exposure() {
@@ -524,7 +530,8 @@ class FeatureFlagsRuntimeTest {
         new com.datadog.openfeature.internal.exposure.Flag("f"),
         new com.datadog.openfeature.internal.exposure.Variant("v"),
         new com.datadog.openfeature.internal.exposure.Subject("s", emptyMap()),
-        null);
+        null
+    );
   }
 
   private static final class TestConfigurationSource implements ConfigurationSource {
@@ -546,8 +553,7 @@ class FeatureFlagsRuntimeTest {
     volatile Runnable shutdownFlush;
     volatile boolean shutdownUnregistered;
 
-    TestAgentBridge(
-        final ConfigurationSource remoteConfiguration, final EventTransport eventProxy) {
+    TestAgentBridge(final ConfigurationSource remoteConfiguration, final EventTransport eventProxy) {
       this.remoteConfiguration = remoteConfiguration;
       this.eventProxy = eventProxy;
     }

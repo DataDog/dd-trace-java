@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
@@ -29,7 +28,6 @@ import org.junit.jupiter.api.Test;
  * IllegalStateException}.
  */
 class GatewayBridgeReloadRegistrationTest {
-
   private InstrumentationGateway instrumentationGateway;
   private CallbackProvider callbackProvider;
   private StubEventProducerService producerService;
@@ -52,11 +50,10 @@ class GatewayBridgeReloadRegistrationTest {
     bridge.init();
 
     assertNull(callbackProvider.getCallback(EVENTS.requestPathParams()));
-
     // reload: the new ruleset requires request path params
     producerService.subscribedAddresses = singletonList(KnownAddresses.REQUEST_PATH_PARAMS);
-    bridge.registerAdditionalIGCallbacksIfNeeded(
-        GatewayBridge.additionalIGEventTypes(producerService.allSubscribedDataAddresses()));
+    bridge.registerAdditionalIGCallbacksIfNeeded(GatewayBridge.additionalIGEventTypes(producerService.allSubscribedDataAddresses()
+    ));
 
     assertNotNull(callbackProvider.getCallback(EVENTS.requestPathParams()));
   }
@@ -66,26 +63,25 @@ class GatewayBridgeReloadRegistrationTest {
     // startup: no ruleset requires the conditional addresses
     producerService.subscribedAddresses = emptyList();
     bridge.init();
-
     // reload: the new ruleset requires request path params and the request body object
-    producerService.subscribedAddresses =
-        asList(KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT);
+    producerService.subscribedAddresses = asList(
+        KnownAddresses.REQUEST_PATH_PARAMS,
+        KnownAddresses.REQUEST_BODY_OBJECT
+    );
     reload();
 
     Object pathParamsCallback = callbackProvider.getCallback(EVENTS.requestPathParams());
     Object bodyProcessedCallback = callbackProvider.getCallback(EVENTS.requestBodyProcessed());
     assertNotNull(pathParamsCallback);
     assertNotNull(bodyProcessedCallback);
-
     // AppSec triggers the reload twice per Remote Config update (WAFModule and
     // AppSecConfigServiceImpl), this time with a growing address set
-    producerService.subscribedAddresses =
-        asList(
-            KnownAddresses.REQUEST_PATH_PARAMS,
-            KnownAddresses.REQUEST_BODY_OBJECT,
-            KnownAddresses.REQUEST_FILES_FILENAMES);
+    producerService.subscribedAddresses = asList(
+        KnownAddresses.REQUEST_PATH_PARAMS,
+        KnownAddresses.REQUEST_BODY_OBJECT,
+        KnownAddresses.REQUEST_FILES_FILENAMES
+    );
     assertDoesNotThrow(this::reload);
-
     // already registered callbacks are left untouched, the new one is registered
     assertSame(pathParamsCallback, callbackProvider.getCallback(EVENTS.requestPathParams()));
     assertSame(bodyProcessedCallback, callbackProvider.getCallback(EVENTS.requestBodyProcessed()));
@@ -104,16 +100,15 @@ class GatewayBridgeReloadRegistrationTest {
     assertNull(callbackProvider.getCallback(EVENTS.requestBodyProcessed()));
     assertNull(callbackProvider.getCallback(EVENTS.requestFilesFilenames()));
     assertNull(callbackProvider.getCallback(EVENTS.requestFilesContent()));
-
     // activation: Remote Config delivers a ruleset requiring every conditional address, plus the
     // raw request body, whose events are already registered unconditionally by init()
-    producerService.subscribedAddresses =
-        asList(
-            KnownAddresses.REQUEST_PATH_PARAMS,
-            KnownAddresses.REQUEST_BODY_OBJECT,
-            KnownAddresses.REQUEST_FILES_FILENAMES,
-            KnownAddresses.REQUEST_FILES_CONTENT,
-            KnownAddresses.REQUEST_BODY_RAW);
+    producerService.subscribedAddresses = asList(
+        KnownAddresses.REQUEST_PATH_PARAMS,
+        KnownAddresses.REQUEST_BODY_OBJECT,
+        KnownAddresses.REQUEST_FILES_FILENAMES,
+        KnownAddresses.REQUEST_FILES_CONTENT,
+        KnownAddresses.REQUEST_BODY_RAW
+    );
     assertDoesNotThrow(this::reload);
 
     assertNotNull(callbackProvider.getCallback(EVENTS.requestPathParams()));
@@ -123,8 +118,8 @@ class GatewayBridgeReloadRegistrationTest {
   }
 
   private void reload() {
-    bridge.registerAdditionalIGCallbacksIfNeeded(
-        GatewayBridge.additionalIGEventTypes(producerService.allSubscribedDataAddresses()));
+    bridge.registerAdditionalIGCallbacksIfNeeded(GatewayBridge.additionalIGEventTypes(producerService.allSubscribedDataAddresses()
+    ));
   }
 
   /**
@@ -133,7 +128,6 @@ class GatewayBridgeReloadRegistrationTest {
    * registration logic under test.
    */
   private static final class StubEventProducerService implements EventProducerService {
-
     private Collection<Address<?>> subscribedAddresses = emptyList();
 
     @Override
@@ -146,7 +140,8 @@ class GatewayBridgeReloadRegistrationTest {
         DataSubscriberInfo subscribers,
         AppSecRequestContext appSecRequestContext,
         DataBundle newData,
-        GatewayContext gatewayContext) {
+        GatewayContext gatewayContext
+    ) {
       throw new UnsupportedOperationException();
     }
 

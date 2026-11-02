@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.googlepubsub;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.CONSUMER_DECORATE;
-
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.pubsub.v1.PubsubMessage;

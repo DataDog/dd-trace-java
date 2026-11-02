@@ -14,7 +14,6 @@ public class StreamingContext {
   // each topic may be up to 256bytes in size, which results in:
   // 2 * 3 * 500 * 256 = 750KB in the worst case.
   private static final Integer MAX_TOPICS_PER_TYPE = 500;
-
   public static final StreamingContext STREAMING_CONTEXT = new StreamingContext();
 
   private void addAllLimit(Set<String> from, Set<String> to) {
@@ -27,11 +26,13 @@ public class StreamingContext {
   }
 
   public void registerTopics(
-      Set<String> sourceTopics, Set<String> sinkTopics, Set<String> internalTopics) {
+      Set<String> sourceTopics,
+      Set<String> sinkTopics,
+      Set<String> internalTopics
+  ) {
     addAllLimit(sourceTopics, allSourceTopics);
     addAllLimit(sinkTopics, allSinkTopics);
     addAllLimit(internalTopics, allInternalTopics);
-
     // remap source/sink between sub topologies
     ConcurrentHashMap<String, Integer> newTopics = new ConcurrentHashMap<>();
     for (String sourceTopic : allSourceTopics) {
@@ -47,7 +48,6 @@ public class StreamingContext {
         newTopics.put(sinkTopic, SINK_TOPIC);
       }
     }
-
     // add internal topics
     for (String internalTopic : allInternalTopics) {
       newTopics.put(internalTopic, INTERNAL_TOPIC);
@@ -71,10 +71,7 @@ public class StreamingContext {
   }
 
   private final Set<String> allSourceTopics = ConcurrentHashMap.newKeySet();
-
   private final Set<String> allSinkTopics = ConcurrentHashMap.newKeySet();
-
   private final Set<String> allInternalTopics = ConcurrentHashMap.newKeySet();
-
   private ConcurrentHashMap<String, Integer> topics = new ConcurrentHashMap<>();
 }

@@ -13,7 +13,6 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -32,7 +31,10 @@ import org.eclipse.jetty.client.api.Response;
 
 @AutoService(InstrumenterModule.class)
 public class JettyClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider
+{
   public JettyClientInstrumentation() {
     super("jetty-client");
   }
@@ -45,9 +47,9 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JettyClientDecorator",
-      "datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter",
-      packageName + ".SpanFinishingCompleteListener"
+        packageName + ".JettyClientDecorator",
+        "datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter",
+        packageName + ".SpanFinishingCompleteListener"
     };
   }
 
@@ -65,16 +67,20 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("send"))
-            .and(
-                takesArgument(
-                    0,
-                    namedOneOf(
-                        "org.eclipse.jetty.client.api.Request",
-                        "org.eclipse.jetty.client.HttpRequest")))
-            .and(takesArgument(1, List.class)),
+          .and(named("send"))
+          .and(
+              takesArgument(
+                  0,
+                  namedOneOf(
+                      "org.eclipse.jetty.client.api.Request",
+                      "org.eclipse.jetty.client.HttpRequest"
+                  )
+              )
+          )
+          .and(takesArgument(1, List.class)),
         JettyClientInstrumentation.class.getName() + "$SendAdvice",
-        JettyClientInstrumentation.class.getName() + "$ContextPropagationAdvice");
+        JettyClientInstrumentation.class.getName() + "$ContextPropagationAdvice"
+    );
   }
 
   @Override
@@ -86,7 +92,8 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan methodEnter(
         @Advice.Argument(0) Request request,
-        @Advice.Argument(1) List<Response.ResponseListener> responseListeners) {
+        @Advice.Argument(1) List<Response.ResponseListener> responseListeners
+    ) {
       AgentSpan span = startSpan("jetty-client", HTTP_REQUEST);
       InstrumentationContext.get(Request.class, AgentSpan.class).put(request, span);
       // make sure the span is finished before onComplete callbacks execute
@@ -98,7 +105,9 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentSpan span,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (throwable != null) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
@@ -111,8 +120,9 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
   public static class ContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.Argument(0) final Request request) {
-      final AgentSpan span =
-          InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
+      final AgentSpan span = InstrumentationContext
+        .get(Request.class, AgentSpan.class)
+        .get(request);
       Context destination = currentContext();
       if (span != null) {
         destination = destination.with(span);

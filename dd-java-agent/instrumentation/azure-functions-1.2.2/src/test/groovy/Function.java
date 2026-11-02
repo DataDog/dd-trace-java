@@ -12,11 +12,12 @@ public class Function {
   @FunctionName("HttpTest")
   public HttpResponseMessage run(
       @HttpTrigger(
-              name = "req",
-              methods = {HttpMethod.GET},
-              authLevel = AuthorizationLevel.ANONYMOUS)
-          HttpRequestMessage<Optional<String>> request,
-      final ExecutionContext context) {
+          name = "req",
+          methods = {HttpMethod.GET},
+          authLevel = AuthorizationLevel.ANONYMOUS
+      ) HttpRequestMessage<Optional<String>> request,
+      final ExecutionContext context
+  ) {
     return request.createResponseBuilder(HttpStatus.OK).body("Hello Datadog test!").build();
   }
 }

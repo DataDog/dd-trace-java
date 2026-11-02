@@ -7,7 +7,6 @@ import javax.annotation.Nullable;
  * single test command issued by a user or by a CI script
  */
 public interface DDTestSession {
-
   /**
    * Adds an arbitrary tag to the session
    *

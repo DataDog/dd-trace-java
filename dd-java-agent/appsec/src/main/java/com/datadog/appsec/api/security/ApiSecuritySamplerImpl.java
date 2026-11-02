@@ -16,28 +16,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
-
   private static final Logger log = LoggerFactory.getLogger(ApiSecuritySamplerImpl.class);
-
   /**
    * A maximum number of request contexts we'll keep open past the end of request at any given time.
    * This will avoid excessive memory usage in case of a high number of concurrent requests, and
    * should also prevent memory leaks.
    */
   private static final int MAX_POST_PROCESSING_TASKS = 4;
-
-  /** Maximum number of entries in the access map. */
+  /**
+   * Maximum number of entries in the access map.
+   */
   private static final int MAX_SIZE = 4096;
-
-  /** Mapping from endpoint hash to last access timestamp in millis. */
+  /**
+   * Mapping from endpoint hash to last access timestamp in millis.
+   */
   private final ConcurrentHashMap<Long, Long> accessMap;
-
-  /** Deque of endpoint hashes ordered by access time. Oldest is first. Guarded by accessLock. */
+  /**
+   * Deque of endpoint hashes ordered by access time. Oldest is first. Guarded by accessLock.
+   */
   private final Deque<Long> accessDeque;
-
-  /** Guards map/deque updates together; preliminary map lookups remain lock-free. */
+  /**
+   * Guards map/deque updates together; preliminary map lookups remain lock-free.
+   */
   private final Object accessLock = new Object();
-
   private final long expirationTimeInMs;
   private final int capacity;
   private final TimeSource timeSource;
@@ -47,11 +48,15 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     this(
         MAX_SIZE,
         (long) (Config.get().getApiSecuritySampleDelay() * 1_000),
-        SystemTimeSource.INSTANCE);
+        SystemTimeSource.INSTANCE
+    );
   }
 
   public ApiSecuritySamplerImpl(
-      int capacity, long expirationTimeInMs, @Nonnull TimeSource timeSource) {
+      int capacity,
+      long expirationTimeInMs,
+      @Nonnull TimeSource timeSource
+  ) {
     this.capacity = capacity;
     this.expirationTimeInMs = expirationTimeInMs;
     this.accessMap = new ConcurrentHashMap<>();
@@ -60,9 +65,8 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
   }
 
   @Override
-  public boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx, final String framework) {
+  public boolean preSampleRequest(@Nonnull final AppSecRequestContext ctx, final String framework) {
     String route = ctx.getRoute();
-
     // If route is absent, use http.endpoint as fallback (RFC-1076)
     if (route == null) {
       // Don't sample blocked requests - they represent attacks, not valid API endpoints
@@ -114,7 +118,8 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     log.debug(
         "API security sampling skipped, no post-processing permit available (max={}): hash={}",
         MAX_POST_PROCESSING_TASKS,
-        hash);
+        hash
+    );
     return false;
   }
 
@@ -172,7 +177,9 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     return lastAccess == null || currentTime - lastAccess >= expirationTimeInMs;
   }
 
-  /** Called with accessLock held. */
+  /**
+   * Called with accessLock held.
+   */
   private void cleanupExpiredEntries(final long currentTime) {
     // Purge all expired entries.
     while (!accessDeque.isEmpty()) {
@@ -197,7 +204,6 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       accessDeque.pollFirst();
       accessMap.remove(oldestHash);
     }
-
     // If we went over capacity, remove the oldest entries until we are within the limit.
     // This should never be more than 1.
     final int toRemove = accessMap.size() - this.capacity;
@@ -229,10 +235,14 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
           method,
           hash,
           activeSpan.getTraceId(),
-          activeSpan.getSpanId());
+          activeSpan.getSpanId()
+      );
     } else {
       log.debug(
-          "API security sampling decision in {}: hash={}, traceId=null, spanId=null", method, hash);
+          "API security sampling decision in {}: hash={}, traceId=null, spanId=null",
+          method,
+          hash
+      );
     }
   }
 }

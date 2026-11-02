@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling.muzzle;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.tooling.AdviceShader;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -28,21 +27,25 @@ class ReferenceCreatorConversionTest {
       Reference type = references.get(Type.class.getName());
       assertNotNull(type, advice.getName());
       assertTrue(
-          Stream.of(type.methods)
-              .anyMatch(
-                  method ->
-                      method.name.equals("getType")
-                          && method.methodType.equals(
-                              "(Ljava/lang/Class;)Lnet/bytebuddy/jar/asm/Type;")),
-          advice.getName());
-      assertFalse(references.keySet().stream().anyMatch(name -> name.startsWith("[")));
+          Stream
+            .of(type.methods)
+            .anyMatch(method -> method.name.equals("getType")
+            && method.methodType.equals("(Ljava/lang/Class;)Lnet/bytebuddy/jar/asm/Type;")),
+          advice.getName()
+      );
+      assertFalse(references
+        .keySet()
+        .stream()
+        .anyMatch(name -> name.startsWith("[")));
     }
   }
 
   @Test
   void ignoresPrimitiveArrayOwners() {
-    assertTrue(
-        ReferenceCreatorTestSupport.referencesFrom(PrimitiveArrayCloneAdvice.class).isEmpty());
+    assertTrue(ReferenceCreatorTestSupport
+      .referencesFrom(PrimitiveArrayCloneAdvice.class)
+      .isEmpty()
+    );
   }
 
   @Test
@@ -56,12 +59,16 @@ class ReferenceCreatorConversionTest {
 
     assertTrue(references.containsKey("relocated.library.TestInfo"));
     assertFalse(references.containsKey(TestInfo.class.getName()));
-    assertFalse(references.keySet().stream().anyMatch(name -> name.startsWith("[")));
+    assertFalse(references
+      .keySet()
+      .stream()
+      .anyMatch(name -> name.startsWith("[")));
     assertNotNull(scan.getClassInfo(TestInfo.class.getName()));
   }
 
   public static final class ShadingModule extends InstrumenterModule
-      implements Instrumenter.HasMethodAdvice {
+      implements Instrumenter.HasMethodAdvice
+  {
     public ShadingModule() {
       super("muzzle-shading");
     }

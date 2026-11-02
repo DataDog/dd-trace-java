@@ -2,10 +2,14 @@ package com.datadog.openfeature.internal.bridge.v1;
 
 import javax.annotation.Nullable;
 
-/** Records SDK health counters. */
+/**
+ * Records SDK health counters.
+ */
 @FunctionalInterface
 public interface HealthMetrics {
-  /** The sink discarding all counters. */
+  /**
+   * The sink discarding all counters.
+   */
   HealthMetrics NOOP = (metric, value, reason) -> {};
 
   /**

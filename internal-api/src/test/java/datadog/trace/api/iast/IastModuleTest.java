@@ -3,7 +3,6 @@ package datadog.trace.api.iast;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.api.iast.sink.ApplicationModule;
 import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
@@ -22,22 +21,21 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class IastModuleTest {
-
-  private static final Set<Class<?>> OPT_OUT_MODULES =
-      new HashSet<>(
-          Arrays.asList(
-              HttpResponseHeaderModule.class,
-              InsecureCookieModule.class,
-              NoHttpOnlyCookieModule.class,
-              NoSameSiteCookieModule.class,
-              HstsMissingHeaderModule.class,
-              XContentTypeModule.class,
-              ApplicationModule.class,
-              StacktraceLeakModule.class));
+  private static final Set<Class<?>> OPT_OUT_MODULES = new HashSet<>(Arrays.asList(
+      HttpResponseHeaderModule.class,
+      InsecureCookieModule.class,
+      NoHttpOnlyCookieModule.class,
+      NoSameSiteCookieModule.class,
+      HstsMissingHeaderModule.class,
+      XContentTypeModule.class,
+      ApplicationModule.class,
+      StacktraceLeakModule.class
+  ));
 
   @Test
   void exceptionsAreLogged() {
-    IastModule module = new IastModule() {};
+    IastModule module = new IastModule() {
+    };
 
     assertDoesNotThrow(() -> module.onUnexpectedException("hello", new Error("Boom!!!")));
   }
@@ -53,7 +51,9 @@ class IastModuleTest {
   }
 
   static Stream<Arguments> testOptOutModulesArguments() {
-    return InstrumentationBridge.getIastModules().stream()
-        .map(clazz -> arguments(clazz.getSimpleName(), clazz));
+    return InstrumentationBridge
+      .getIastModules()
+      .stream()
+      .map(clazz -> arguments(clazz.getSimpleName(), clazz));
   }
 }

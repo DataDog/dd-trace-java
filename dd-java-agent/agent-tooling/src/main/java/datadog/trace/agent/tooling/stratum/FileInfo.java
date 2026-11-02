@@ -6,9 +6,7 @@ package datadog.trace.agent.tooling.stratum;
  */
 public class FileInfo {
   private final String fileId;
-
   private final String inputFileName;
-
   private final String inputFilePath;
 
   public FileInfo(String fileId, String inputFileName, String inputFilePath) {

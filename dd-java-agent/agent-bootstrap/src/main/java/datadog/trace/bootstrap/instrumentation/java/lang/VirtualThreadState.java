@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.lang;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.Config;
@@ -32,32 +31,34 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
  * context listener, so we simply swap in on mount and out on unmount.
  */
 public final class VirtualThreadState {
-  private static final ClassValue<Boolean> PROPAGATE_CONTEXT =
-      GenericClassValue.of(
-          type -> {
-            String name = type.getName();
-            return !name.equals("jdk.internal.net.http.HttpClientImpl$SelectorManager")
-                && !name.startsWith("java.lang.VirtualThread$$Lambda/");
-          });
+  private static final ClassValue<Boolean> PROPAGATE_CONTEXT = GenericClassValue.of(type -> {
+    String name = type.getName();
+    return !name.equals("jdk.internal.net.http.HttpClientImpl$SelectorManager")
+        && !name.startsWith("java.lang.VirtualThread$$Lambda/");
+  });
 
-  /** Internal selector and virtual-thread timeout tasks do not consume the creating context. */
+  /**
+   * Internal selector and virtual-thread timeout tasks do not consume the creating context.
+   */
   public static boolean shouldPropagateContext(Runnable task) {
     return PROPAGATE_CONTEXT.get(task.getClass());
   }
 
   // CWS observes scope changes through listeners, so retain context swaps on mount and unmount.
-  private static final boolean USE_PER_MOUNT_CONTEXT =
-      isJavaVersion(21)
-          || !InstrumenterConfig.get().isLegacyContextManagerEnabled()
-          || Config.get().isCwsEnabled();
-
-  /** The virtual thread's saved context (scope stack snapshot). */
+  private static final boolean USE_PER_MOUNT_CONTEXT = isJavaVersion(21)
+      || !InstrumenterConfig.get().isLegacyContextManagerEnabled()
+      || Config.get().isCwsEnabled();
+  /**
+   * The virtual thread's saved context (scope stack snapshot).
+   */
   private Context context;
-
-  /** Prevents the enclosing context scope from completing before the virtual thread finishes. */
+  /**
+   * Prevents the enclosing context scope from completing before the virtual thread finishes.
+   */
   private final ContextContinuation continuation;
-
-  /** The carrier thread's saved context, set between mount and unmount. */
+  /**
+   * The carrier thread's saved context, set between mount and unmount.
+   */
   private Context previousContext;
 
   public VirtualThreadState(Context context, ContextContinuation continuation) {
@@ -65,18 +66,24 @@ public final class VirtualThreadState {
     this.continuation = continuation;
   }
 
-  /** Whether context propagation must retain the state-backed mount/unmount path. */
+  /**
+   * Whether context propagation must retain the state-backed mount/unmount path.
+   */
   public static boolean usePerMountContext() {
     return USE_PER_MOUNT_CONTEXT;
   }
 
-  /** Seeds context before the JDK invokes the virtual thread's task on JDK 22 and later. */
+  /**
+   * Seeds context before the JDK invokes the virtual thread's task on JDK 22 and later.
+   */
   public void onRun() {
     previousContext = context.swap();
     context = null;
   }
 
-  /** Restores the preceding context after the virtual thread's task exits. */
+  /**
+   * Restores the preceding context after the virtual thread's task exits.
+   */
   public void afterRun() {
     if (previousContext != null) {
       previousContext.swap();
@@ -84,7 +91,9 @@ public final class VirtualThreadState {
     }
   }
 
-  /** Rebinds carrier-local profiler state after the virtual thread mounts. */
+  /**
+   * Rebinds carrier-local profiler state after the virtual thread mounts.
+   */
   public static void onMountWithoutStore() {
     ProfilingContextIntegration profilingContext = AgentTracer.get().getProfilingContext();
     if (profilingContext.isThreadContextBindingRequired()) {
@@ -92,7 +101,9 @@ public final class VirtualThreadState {
     }
   }
 
-  /** Clears carrier-local profiler state before the virtual thread unmounts. */
+  /**
+   * Clears carrier-local profiler state before the virtual thread unmounts.
+   */
   public static void onUnmountWithoutStore() {
     ProfilingContextIntegration profilingContext = AgentTracer.get().getProfilingContext();
     if (profilingContext.isThreadContextBindingRequired()) {
@@ -100,12 +111,16 @@ public final class VirtualThreadState {
     }
   }
 
-  /** Activates the virtual thread's context after it mounts on the state-backed path. */
+  /**
+   * Activates the virtual thread's context after it mounts on the state-backed path.
+   */
   public void onMount() {
     previousContext = context.swap();
   }
 
-  /** Restores the preceding context before the virtual thread unmounts. */
+  /**
+   * Restores the preceding context before the virtual thread unmounts.
+   */
   public void onUnmount() {
     if (previousContext != null) {
       context = previousContext.swap();
@@ -113,7 +128,9 @@ public final class VirtualThreadState {
     }
   }
 
-  /** Releases the retained continuation as virtual-thread termination begins. */
+  /**
+   * Releases the retained continuation as virtual-thread termination begins.
+   */
   public void onTerminate() {
     if (this.continuation != null) {
       this.continuation.release();

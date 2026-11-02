@@ -81,7 +81,6 @@ public class AtomicsBenchmark {
   static final class FieldHolder {
     static final AtomicIntegerFieldUpdater<FieldHolder> AFU_FIELD =
         AtomicIntegerFieldUpdater.newUpdater(FieldHolder.class, "field");
-
     volatile int field;
 
     FieldHolder(int num) {
@@ -101,25 +100,20 @@ public class AtomicsBenchmark {
     }
   }
 
-  static final AtomicHolder[] atomicHolders =
-      init(
-          () -> {
-            AtomicHolder[] holders = new AtomicHolder[SIZE];
-            for (int i = 0; i < holders.length; ++i) {
-              holders[i] = new AtomicHolder(i * 2);
-            }
-            return holders;
-          });
-
-  static final FieldHolder[] fieldHolders =
-      init(
-          () -> {
-            FieldHolder[] holders = new FieldHolder[SIZE];
-            for (int i = 0; i < holders.length; ++i) {
-              holders[i] = new FieldHolder(i * 2);
-            }
-            return holders;
-          });
+  static final AtomicHolder[] atomicHolders = init(() -> {
+    AtomicHolder[] holders = new AtomicHolder[SIZE];
+    for (int i = 0; i < holders.length; ++i) {
+      holders[i] = new AtomicHolder(i * 2);
+    }
+    return holders;
+  });
+  static final FieldHolder[] fieldHolders = init(() -> {
+    FieldHolder[] holders = new FieldHolder[SIZE];
+    for (int i = 0; i < holders.length; ++i) {
+      holders[i] = new FieldHolder(i * 2);
+    }
+    return holders;
+  });
 
   static final <T> T init(Supplier<T> supplier) {
     return supplier.get();
@@ -130,7 +124,9 @@ public class AtomicsBenchmark {
     int index = 0;
 
     <T> T next(T[] holders) {
-      if (++index >= holders.length) index = 0;
+      if (++index >= holders.length) {
+        index = 0;
+      }
       return holders[index];
     }
   }

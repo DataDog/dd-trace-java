@@ -15,9 +15,7 @@ import datadog.context.Context;
  * another thread.
  */
 public final class HandoffContext {
-
   private static final long ANY_THREAD = 0L;
-
   private final long threadId;
   private final Context context;
 
@@ -34,7 +32,9 @@ public final class HandoffContext {
     return new HandoffContext(context, Thread.currentThread().getId());
   }
 
-  /** The context, or {@code null} if this is a thread-confined deposit read on another thread. */
+  /**
+   * The context, or {@code null} if this is a thread-confined deposit read on another thread.
+   */
   public Context contextForCurrentThread() {
     return threadId == ANY_THREAD || threadId == Thread.currentThread().getId() ? context : null;
   }

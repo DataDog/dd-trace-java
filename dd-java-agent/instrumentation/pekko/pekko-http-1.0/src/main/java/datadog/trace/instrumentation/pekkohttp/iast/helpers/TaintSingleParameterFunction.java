@@ -14,7 +14,8 @@ import scala.collection.Iterator;
 import scala.compat.java8.JFunction1;
 
 public class TaintSingleParameterFunction<Magnet>
-    implements JFunction1<Tuple1<Object>, Tuple1<Object>> {
+    implements JFunction1<Tuple1<Object>, Tuple1<Object>>
+{
   private final String paramName;
 
   public TaintSingleParameterFunction(Magnet pmag) throws Exception {

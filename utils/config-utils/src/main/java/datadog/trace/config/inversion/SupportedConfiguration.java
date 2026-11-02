@@ -14,7 +14,8 @@ public class SupportedConfiguration {
       String type,
       String defaultValue,
       List<String> aliases,
-      List<String> propertyKeys) {
+      List<String> propertyKeys
+  ) {
     this.version = version;
     this.type = type;
     this.defaultValue = defaultValue;

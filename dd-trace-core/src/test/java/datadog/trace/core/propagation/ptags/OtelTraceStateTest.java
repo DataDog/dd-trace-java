@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 class OtelTraceStateTest {
@@ -65,13 +64,16 @@ class OtelTraceStateTest {
 
   @Test
   void correctsOnlySerializedRandomValueAtDropBoundary() {
-    OtelTraceState state =
-        OtelTraceState.fromProbabilityDecision(
-            DROP_PRECISION_BOUNDARY_TRACE_ID, DROP_PRECISION_BOUNDARY_RATE, SAMPLER_DROP);
+    OtelTraceState state = OtelTraceState.fromProbabilityDecision(
+        DROP_PRECISION_BOUNDARY_TRACE_ID,
+        DROP_PRECISION_BOUNDARY_RATE,
+        SAMPLER_DROP
+    );
 
     assertEquals(
         "rv:" + DROP_PRECISION_BOUNDARY_RANDOM_VALUE + ";th:" + DROP_PRECISION_BOUNDARY_THRESHOLD,
-        state.toString());
+        state.toString()
+    );
     assertTrue(state.isConsistentWith(false));
   }
 

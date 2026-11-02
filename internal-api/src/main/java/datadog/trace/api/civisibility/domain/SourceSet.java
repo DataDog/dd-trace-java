@@ -6,7 +6,6 @@ import java.util.Collection;
 import javax.annotation.Nonnull;
 
 public class SourceSet implements Serializable {
-
   public enum Type {
     CODE,
     TEST
@@ -17,7 +16,10 @@ public class SourceSet implements Serializable {
   private final Collection<File> destinations;
 
   public SourceSet(
-      Type type, @Nonnull Collection<File> sources, @Nonnull Collection<File> destinations) {
+      Type type,
+      @Nonnull Collection<File> sources,
+      @Nonnull Collection<File> destinations
+  ) {
     this.type = type;
     this.sources = sources;
     this.destinations = destinations;

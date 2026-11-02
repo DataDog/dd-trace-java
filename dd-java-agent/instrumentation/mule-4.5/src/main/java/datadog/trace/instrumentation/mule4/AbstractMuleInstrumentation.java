@@ -20,7 +20,8 @@ public abstract class AbstractMuleInstrumentation extends InstrumenterModule.Tra
     contextStore.put("org.mule.runtime.api.event.EventContext", packageName + ".SpanState");
     contextStore.put(
         "org.mule.runtime.tracer.api.span.info.InitialSpanInfo",
-        "org.mule.runtime.api.component.Component");
+        "org.mule.runtime.api.component.Component"
+    );
     return contextStore;
   }
 }

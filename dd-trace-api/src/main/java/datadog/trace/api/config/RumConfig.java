@@ -17,5 +17,6 @@ public final class RumConfig {
   public static final String RUM_SESSION_REPLAY_SAMPLE_RATE = "rum.session.replay.sample.rate";
   public static final String RUM_REMOTE_CONFIGURATION_ID = "rum.remote.configuration.id";
 
-  private RumConfig() {}
+  private RumConfig() {
+  }
 }

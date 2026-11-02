@@ -2,7 +2,6 @@ package com.datadog.iast;
 
 import static com.datadog.iast.IastTag.Enabled.ANALYZED;
 import static com.datadog.iast.IastTag.Enabled.SKIPPED;
-
 import com.datadog.iast.overhead.OverheadController;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -16,7 +15,6 @@ import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 
 public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
-
   private final OverheadController overheadController;
   private final IastContext.Provider contextProvider;
 
@@ -49,9 +47,9 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
 
   private HttpRequestEndModule[] requestEndModules() {
     return new HttpRequestEndModule[] {
-      InstrumentationBridge.HSTS_MISSING_HEADER_MODULE,
-      InstrumentationBridge.X_CONTENT_TYPE_HEADER_MODULE,
-      InstrumentationBridge.INSECURE_AUTH_PROTOCOL
+        InstrumentationBridge.HSTS_MISSING_HEADER_MODULE,
+        InstrumentationBridge.X_CONTENT_TYPE_HEADER_MODULE,
+        InstrumentationBridge.INSECURE_AUTH_PROTOCOL
     };
   }
 }

@@ -15,6 +15,8 @@ public class CompletionModule extends InstrumenterModule.Tracing {
   @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
-        new CompletionServiceAsyncInstrumentation(), new CompletionServiceInstrumentation());
+        new CompletionServiceAsyncInstrumentation(),
+        new CompletionServiceInstrumentation()
+    );
   }
 }

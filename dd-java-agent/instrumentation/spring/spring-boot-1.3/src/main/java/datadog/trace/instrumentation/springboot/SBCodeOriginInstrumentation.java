@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springboot;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.instrumentation.codeorigin.CodeOriginInstrumentation;
@@ -23,6 +22,8 @@ public class SBCodeOriginInstrumentation extends CodeOriginInstrumentation {
             WEB_BIND_ANNOTATION + "GetMapping",
             WEB_BIND_ANNOTATION + "PostMapping",
             WEB_BIND_ANNOTATION + "PutMapping",
-            WEB_BIND_ANNOTATION + "PatchMapping"));
+            WEB_BIND_ANNOTATION + "PatchMapping"
+        )
+    );
   }
 }

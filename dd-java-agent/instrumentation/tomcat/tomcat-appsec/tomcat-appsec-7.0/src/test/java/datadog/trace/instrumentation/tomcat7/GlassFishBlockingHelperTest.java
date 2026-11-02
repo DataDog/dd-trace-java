@@ -11,7 +11,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -33,9 +32,7 @@ import javax.servlet.http.Part;
 import org.junit.jupiter.api.Test;
 
 class GlassFishBlockingHelperTest {
-
   // ------- commitBlocking() -------
-
   @Test
   void commitBlocking_nullResponse_returnsFalse() {
     assertFalse(GlassFishBlockingHelper.commitBlocking(null, null, rba(403)));
@@ -53,9 +50,11 @@ class GlassFishBlockingHelperTest {
     HttpServletResponse resp = mock(HttpServletResponse.class);
     when(resp.isCommitted()).thenReturn(false);
 
-    assertTrue(
-        GlassFishBlockingHelper.commitBlocking(
-            null, resp, new Flow.Action.RequestBlockingAction(403, BlockingContentType.NONE)));
+    assertTrue(GlassFishBlockingHelper.commitBlocking(
+        null,
+        resp,
+        new Flow.Action.RequestBlockingAction(403, BlockingContentType.NONE)
+    ));
 
     verify(resp).setStatus(403);
     verify(resp).flushBuffer();
@@ -119,7 +118,6 @@ class GlassFishBlockingHelperTest {
   }
 
   // ------- tryBlock() -------
-
   @Test
   void tryBlock_withBrf_commitsViaFunctionAndReturnsTrue() throws Exception {
     TraceSegment segment = mock(TraceSegment.class);
@@ -161,9 +159,11 @@ class GlassFishBlockingHelperTest {
     BlockResponseFunction brf = mock(BlockResponseFunction.class);
     RequestContext reqCtx = mockReqCtx(brf, segment);
     doThrow(new RuntimeException("commit failed"))
-        .when(brf)
-        .tryCommitBlockingResponse(
-            any(TraceSegment.class), any(Flow.Action.RequestBlockingAction.class));
+      .when(brf)
+      .tryCommitBlockingResponse(
+          any(TraceSegment.class),
+          any(Flow.Action.RequestBlockingAction.class)
+      );
 
     assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
     verify(segment, never()).effectivelyBlocked();
@@ -180,11 +180,11 @@ class GlassFishBlockingHelperTest {
   }
 
   // ------- tryBlock() block_failure telemetry -------
-
   @Test
   void tryBlock_brfCommitFails_reportsBlockFailure() {
     TraceSegment segment = mock(TraceSegment.class);
-    BlockResponseFunction brf = mock(BlockResponseFunction.class); // tryCommit... returns false
+    // tryCommit... returns false
+    BlockResponseFunction brf = mock(BlockResponseFunction.class);
     RequestContext reqCtx = mockReqCtx(brf, segment);
     AppSecContext appSecCtx = mockAppSecCtx(reqCtx);
 
@@ -196,7 +196,8 @@ class GlassFishBlockingHelperTest {
   @Test
   void tryBlock_brfCommitFails_doesNotMarkEffectivelyBlocked() {
     TraceSegment segment = mock(TraceSegment.class);
-    BlockResponseFunction brf = mock(BlockResponseFunction.class); // tryCommit... returns false
+    // tryCommit... returns false
+    BlockResponseFunction brf = mock(BlockResponseFunction.class);
     RequestContext reqCtx = mockReqCtx(brf, segment);
     mockAppSecCtx(reqCtx);
 
@@ -225,7 +226,6 @@ class GlassFishBlockingHelperTest {
     TraceSegment segment = mock(TraceSegment.class);
     RequestContext reqCtx = mockReqCtx(null, segment);
     AppSecContext appSecCtx = mockAppSecCtx(reqCtx);
-
     // brf == null and fallbackResp == null: no response was ever available to commit through,
     // so nothing was genuinely attempted and no block_failure should be reported.
     assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
@@ -240,9 +240,11 @@ class GlassFishBlockingHelperTest {
     RequestContext reqCtx = mockReqCtx(brf, segment);
     AppSecContext appSecCtx = mockAppSecCtx(reqCtx);
     doThrow(new RuntimeException("commit failed"))
-        .when(brf)
-        .tryCommitBlockingResponse(
-            any(TraceSegment.class), any(Flow.Action.RequestBlockingAction.class));
+      .when(brf)
+      .tryCommitBlockingResponse(
+          any(TraceSegment.class),
+          any(Flow.Action.RequestBlockingAction.class)
+      );
 
     assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
 
@@ -264,16 +266,19 @@ class GlassFishBlockingHelperTest {
   }
 
   // ------- processPartsAndBlock() -------
-
   @Test
   void processPartsAndBlock_formField_skipped() throws Exception {
     Part formField = mockPart(null, "text/plain", new byte[0]);
     RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
 
-    assertFalse(
-        GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(formField), reqCtx, null, filenamesCb, null));
+    assertFalse(GlassFishBlockingHelper.processPartsAndBlock(
+        Collections.singletonList(formField),
+        reqCtx,
+        null,
+        filenamesCb,
+        null
+    ));
     verify(formField).getSubmittedFileName();
     verify(formField, never()).getInputStream();
   }
@@ -286,9 +291,13 @@ class GlassFishBlockingHelperTest {
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
 
-    assertFalse(
-        GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, filenamesCb, contentCb));
+    assertFalse(GlassFishBlockingHelper.processPartsAndBlock(
+        Collections.singletonList(filePart),
+        reqCtx,
+        null,
+        filenamesCb,
+        contentCb
+    ));
 
     verify(filePart).getInputStream();
     verify(filenamesCb, never()).apply(any(), any());
@@ -301,9 +310,13 @@ class GlassFishBlockingHelperTest {
     RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
 
-    assertFalse(
-        GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, filenamesCb, null));
+    assertFalse(GlassFishBlockingHelper.processPartsAndBlock(
+        Collections.singletonList(filePart),
+        reqCtx,
+        null,
+        filenamesCb,
+        null
+    ));
 
     verify(filenamesCb).apply(eq(reqCtx), eq(Collections.singletonList("file.txt")));
   }
@@ -314,9 +327,13 @@ class GlassFishBlockingHelperTest {
     RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
 
-    assertFalse(
-        GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, null, contentCb));
+    assertFalse(GlassFishBlockingHelper.processPartsAndBlock(
+        Collections.singletonList(filePart),
+        reqCtx,
+        null,
+        null,
+        contentCb
+    ));
 
     verify(contentCb).apply(eq(reqCtx), any());
   }
@@ -331,9 +348,13 @@ class GlassFishBlockingHelperTest {
     RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
 
-    assertFalse(
-        GlassFishBlockingHelper.processPartsAndBlock(
-            Arrays.asList(tooMany), reqCtx, null, null, contentCb));
+    assertFalse(GlassFishBlockingHelper.processPartsAndBlock(
+        Arrays.asList(tooMany),
+        reqCtx,
+        null,
+        null,
+        contentCb
+    ));
 
     verify(contentCb).apply(eq(reqCtx), any(List.class));
     verify(tooMany[limit], never()).getInputStream();
@@ -348,9 +369,13 @@ class GlassFishBlockingHelperTest {
     RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
 
-    assertFalse(
-        GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, null, contentCb));
+    assertFalse(GlassFishBlockingHelper.processPartsAndBlock(
+        Collections.singletonList(filePart),
+        reqCtx,
+        null,
+        null,
+        contentCb
+    ));
 
     verify(contentCb).apply(eq(reqCtx), eq(Collections.singletonList("")));
   }
@@ -364,9 +389,13 @@ class GlassFishBlockingHelperTest {
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockBlockingCb(403);
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
 
-    assertTrue(
-        GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, filenamesCb, contentCb));
+    assertTrue(GlassFishBlockingHelper.processPartsAndBlock(
+        Collections.singletonList(filePart),
+        reqCtx,
+        null,
+        filenamesCb,
+        contentCb
+    ));
 
     verify(contentCb, never()).apply(any(), any());
   }
@@ -380,9 +409,13 @@ class GlassFishBlockingHelperTest {
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockBlockingCb(403);
 
-    assertTrue(
-        GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, filenamesCb, contentCb));
+    assertTrue(GlassFishBlockingHelper.processPartsAndBlock(
+        Collections.singletonList(filePart),
+        reqCtx,
+        null,
+        filenamesCb,
+        contentCb
+    ));
   }
 
   @Test
@@ -390,15 +423,18 @@ class GlassFishBlockingHelperTest {
     RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
 
-    assertFalse(
-        GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList("not-a-part"), reqCtx, null, filenamesCb, null));
+    assertFalse(GlassFishBlockingHelper.processPartsAndBlock(
+        Collections.singletonList("not-a-part"),
+        reqCtx,
+        null,
+        filenamesCb,
+        null
+    ));
 
     verify(filenamesCb, never()).apply(any(), any());
   }
 
   // ------- Helpers -------
-
   private static Flow.Action.RequestBlockingAction rba(int statusCode) {
     return new Flow.Action.RequestBlockingAction(statusCode, BlockingContentType.AUTO);
   }
@@ -410,16 +446,22 @@ class GlassFishBlockingHelperTest {
     return reqCtx;
   }
 
-  /** A {@link BlockResponseFunction} whose commit attempt succeeds. */
+  /**
+   * A {@link BlockResponseFunction} whose commit attempt succeeds.
+   */
   private static BlockResponseFunction mockCommittingBrf() {
     BlockResponseFunction brf = mock(BlockResponseFunction.class);
     when(brf.tryCommitBlockingResponse(
-            any(TraceSegment.class), any(Flow.Action.RequestBlockingAction.class)))
-        .thenReturn(true);
+        any(TraceSegment.class),
+        any(Flow.Action.RequestBlockingAction.class)
+    ))
+      .thenReturn(true);
     return brf;
   }
 
-  /** Binds an {@link AppSecContext} mock to the APPSEC slot of the given request context. */
+  /**
+   * Binds an {@link AppSecContext} mock to the APPSEC slot of the given request context.
+   */
   private static AppSecContext mockAppSecCtx(RequestContext reqCtx) {
     AppSecContext appSecCtx = mock(AppSecContext.class);
     doReturn(appSecCtx).when(reqCtx).getData(RequestContextSlot.APPSEC);
@@ -445,12 +487,11 @@ class GlassFishBlockingHelperTest {
   }
 
   @SuppressWarnings("unchecked")
-  private static BiFunction<RequestContext, List<String>, Flow<Void>> mockBlockingCb(
-      int statusCode) {
+  private static BiFunction<RequestContext, List<String>, Flow<Void>> mockBlockingCb(int statusCode) {
     BiFunction<RequestContext, List<String>, Flow<Void>> cb = mock(BiFunction.class);
     Flow<Void> flow = mock(Flow.class);
     when(flow.getAction())
-        .thenReturn(new Flow.Action.RequestBlockingAction(statusCode, BlockingContentType.AUTO));
+      .thenReturn(new Flow.Action.RequestBlockingAction(statusCode, BlockingContentType.AUTO));
     when(cb.apply(any(), any())).thenReturn(flow);
     return cb;
   }

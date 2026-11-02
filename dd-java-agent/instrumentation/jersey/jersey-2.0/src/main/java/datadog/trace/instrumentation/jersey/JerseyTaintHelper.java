@@ -7,14 +7,15 @@ import java.util.List;
 import java.util.Map;
 
 public abstract class JerseyTaintHelper {
-
-  private JerseyTaintHelper() {}
+  private JerseyTaintHelper() {
+  }
 
   public static void taintMultiValuedMap(
       final IastContext ctx,
       final PropagationModule module,
       final byte type,
-      final Map<String, List<String>> target) {
+      final Map<String, List<String>> target
+  ) {
     final byte nameType = SourceTypes.namedSource(type);
     final boolean reportName = nameType != type;
     for (Map.Entry<String, List<String>> entry : target.entrySet()) {
@@ -32,7 +33,8 @@ public abstract class JerseyTaintHelper {
       final IastContext ctx,
       final PropagationModule module,
       final byte type,
-      final Map<?, ?> target) {
+      final Map<?, ?> target
+  ) {
     final byte nameType = SourceTypes.namedSource(type);
     final boolean reportName = nameType != type;
     for (final Map.Entry<?, ?> entry : target.entrySet()) {

@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -12,7 +11,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class PathCursorTest {
-
   private static PathCursor p() {
     return new PathCursor(10);
   }
@@ -20,7 +18,10 @@ class PathCursorTest {
   @ParameterizedTest(name = "{index}: {0}")
   @MethodSource("printPathCursorInDotNotationWithCustomPrefixArguments")
   void printPathCursorInDotNotationWithCustomPrefix(
-      String description, PathCursor pathCursor, String expected) {
+      String description,
+      PathCursor pathCursor,
+      String expected
+  ) {
     assertEquals(expected, pathCursor.toString("dd"));
   }
 
@@ -29,21 +30,26 @@ class PathCursorTest {
         arguments(
             "string and numeric segments",
             p().push("phoneNumbers").push(10).push("number"),
-            "dd.phoneNumbers.10.number"),
+            "dd.phoneNumbers.10.number"
+        ),
         arguments("single segment", p().push("number"), "dd.number"),
         arguments(
             "three string segments",
             p().push("foo").push("bar").push("number"),
-            "dd.foo.bar.number"),
+            "dd.foo.bar.number"
+        ),
         arguments(
             "string and int index segments",
             p().push("phoneNumbers").push(3).push("number"),
-            "dd.phoneNumbers.3.number"),
+            "dd.phoneNumbers.3.number"
+        ),
         arguments(
             "string index segment normalized like an int",
             p().push("phoneNumbers").push("3").push("number"),
-            "dd.phoneNumbers.3.number"),
-        arguments("segment containing a dot is escaped", p().push("foo.bar"), "dd.foo\\.bar"));
+            "dd.phoneNumbers.3.number"
+        ),
+        arguments("segment containing a dot is escaped", p().push("foo.bar"), "dd.foo\\.bar")
+    );
   }
 
   @Test

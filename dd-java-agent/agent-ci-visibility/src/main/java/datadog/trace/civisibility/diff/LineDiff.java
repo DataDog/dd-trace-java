@@ -7,11 +7,11 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
-/** Diff data with per-line granularity. */
+/**
+ * Diff data with per-line granularity.
+ */
 public class LineDiff implements Diff {
-
   public static final LineDiff EMPTY = new LineDiff(Collections.emptyMap());
-
   private final Map<String, BitSet> linesByRelativePath;
 
   public LineDiff(Map<String, BitSet> linesByRelativePath) {

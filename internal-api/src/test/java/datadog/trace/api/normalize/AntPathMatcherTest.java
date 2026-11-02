@@ -1,11 +1,9 @@
 package datadog.trace.api.normalize;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.tabletest.junit.TableTest;
 
 class AntPathMatcherTest {
-
   private static final AntPathMatcher MATCHER = new AntPathMatcher();
 
   @TableTest({

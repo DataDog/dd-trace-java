@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.NETTY_CLIENT;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAdapter.SETTER;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -88,7 +87,6 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       if (socketAddress instanceof InetSocketAddress) {
         decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
       }
-
       // AWS calls are often signed, so we can't add headers without breaking the signature.
       if (!awsClientCall) {
         DECORATE.injectContext(Context.current(), request.headers(), SETTER);
@@ -111,14 +109,15 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     }
   }
 
-  private static ContextContinuation takeConnectParentContinuation(
-      final ChannelHandlerContext ctx) {
+  private static ContextContinuation takeConnectParentContinuation(final ChannelHandlerContext ctx) {
     final Channel channel = ctx.channel();
     ContextContinuation continuation =
         channel.attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
     if (continuation == null && channel.parent() != null) {
-      continuation =
-          channel.parent().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
+      continuation = channel
+        .parent()
+        .attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY)
+        .getAndRemove();
     }
     return continuation;
   }

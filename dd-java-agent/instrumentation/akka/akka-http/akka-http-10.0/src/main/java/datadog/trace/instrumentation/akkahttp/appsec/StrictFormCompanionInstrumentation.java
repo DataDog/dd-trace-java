@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.http.scaladsl.common.StrictForm;
 import akka.http.scaladsl.model.HttpEntity;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
@@ -22,7 +21,9 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class StrictFormCompanionInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public StrictFormCompanionInstrumentation() {
     super("akka-http");
   }
@@ -41,13 +42,14 @@ public class StrictFormCompanionInstrumentation extends InstrumenterModule.AppSe
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("unmarshaller"))
-            .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
-            .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
-        StrictFormCompanionInstrumentation.class.getName() + "$UnmarshallerAdvice");
+          .and(not(isStatic()))
+          .and(named("unmarshaller"))
+          .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
+          .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
+        StrictFormCompanionInstrumentation.class.getName() + "$UnmarshallerAdvice"
+    );
   }
 
   static class UnmarshallerAdvice {

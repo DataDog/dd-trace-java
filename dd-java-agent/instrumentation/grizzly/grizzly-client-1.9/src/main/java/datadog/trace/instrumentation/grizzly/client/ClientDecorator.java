@@ -8,11 +8,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 public class ClientDecorator extends HttpClientDecorator<Request, Response> {
-
   private static final CharSequence GRIZZLY_HTTP_ASYNC_CLIENT =
       UTF8BytesString.create("grizzly-http-async-client");
   public static final ClientDecorator DECORATE = new ClientDecorator();
-
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override

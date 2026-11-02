@@ -12,10 +12,12 @@ import java.util.function.Supplier;
 import net.bytebuddy.jar.asm.ClassReader;
 
 final class AdviceScanningFixtures {
-  private AdviceScanningFixtures() {}
+  private AdviceScanningFixtures() {
+  }
 
   static class AdviceSuperclass {
-    AdviceSuperclass(String value) {}
+    AdviceSuperclass(String value) {
+    }
   }
 
   static class AdviceRoot extends AdviceSuperclass {
@@ -34,13 +36,14 @@ final class AdviceScanningFixtures {
       Class<?> externalLibrary = ClassReader.class;
       return dependency.method(
           array.length
-              + matrix.length
-              + type.getName()
-              + constructor.get()
-              + library
-              + externalLibrary
-              + AdviceScanningHelper.localClass()
-              + ExternalHelper.typeName());
+          + matrix.length
+          + type.getName()
+          + constructor.get()
+          + library
+          + externalLibrary
+          + AdviceScanningHelper.localClass()
+          + ExternalHelper.typeName()
+      );
     }
   }
 
@@ -57,7 +60,8 @@ final class AdviceScanningFixtures {
   }
 
   static class HierarchyAdvice extends AdviceHierarchy.Superclass
-      implements AdviceHierarchy.Interface {
+      implements AdviceHierarchy.Interface
+  {
     static void apply() {}
   }
 
@@ -95,7 +99,8 @@ final class AdviceScanningFixtures {
   }
 
   public static class ScanModule extends InstrumenterModule
-      implements Instrumenter.HasMethodAdvice {
+      implements Instrumenter.HasMethodAdvice
+  {
     static int adviceRegistrations;
 
     public ScanModule() {

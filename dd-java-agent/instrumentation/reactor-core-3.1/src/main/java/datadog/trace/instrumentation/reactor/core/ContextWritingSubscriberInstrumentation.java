@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.reactor.core;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -22,19 +21,20 @@ import reactor.core.CoreSubscriber;
  * lookup.
  */
 public class ContextWritingSubscriberInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "reactor.core.publisher.FluxContextWrite$ContextWriteSubscriber",
-      "reactor.core.publisher.FluxContextStart$ContextStartSubscriber",
-      "reactor.core.publisher.FluxContextWriteRestoringThreadLocals"
-          + "$ContextWriteRestoringThreadLocalsSubscriber",
-      "reactor.core.publisher.FluxContextWriteRestoringThreadLocalsFuseable"
-          + "$FuseableContextWriteRestoringThreadLocalsSubscriber",
-      "reactor.core.publisher.MonoContextWriteRestoringThreadLocals"
-          + "$ContextWriteRestoringThreadLocalsSubscriber",
+        "reactor.core.publisher.FluxContextWrite$ContextWriteSubscriber",
+        "reactor.core.publisher.FluxContextStart$ContextStartSubscriber",
+        "reactor.core.publisher.FluxContextWriteRestoringThreadLocals"
+        + "$ContextWriteRestoringThreadLocalsSubscriber",
+        "reactor.core.publisher.FluxContextWriteRestoringThreadLocalsFuseable"
+        + "$FuseableContextWriteRestoringThreadLocalsSubscriber",
+        "reactor.core.publisher.MonoContextWriteRestoringThreadLocals"
+        + "$ContextWriteRestoringThreadLocalsSubscriber"
     };
   }
 
@@ -43,14 +43,17 @@ public class ContextWritingSubscriberInstrumentation
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureContextAdvice");
     transformer.applyAdvice(
         namedOneOf("onNext", "onComplete", "onError"),
-        getClass().getName() + "$ActivateContextAdvice");
+        getClass().getName() + "$ActivateContextAdvice"
+    );
   }
 
   public static class CaptureContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstructed(@Advice.This final CoreSubscriber<?> self) {
       ReactorContextBridge.captureSubscriberContext(
-          self, InstrumentationContext.get(Subscriber.class, Context.class));
+          self,
+          InstrumentationContext.get(Subscriber.class, Context.class)
+      );
     }
   }
 
@@ -58,7 +61,9 @@ public class ContextWritingSubscriberInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(@Advice.This final CoreSubscriber<?> self) {
       return ReactorContextBridge.activateStoredContext(
-          self, InstrumentationContext.get(Subscriber.class, Context.class));
+          self,
+          InstrumentationContext.get(Subscriber.class, Context.class)
+      );
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

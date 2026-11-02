@@ -1,8 +1,9 @@
 package datadog.trace.api.config;
 
-/** Constant with names of configuration options for appsec. */
+/**
+ * Constant with names of configuration options for appsec.
+ */
 public final class AppSecConfig {
-
   public static final String APPSEC_ENABLED = "appsec.enabled";
   public static final String APPSEC_AGENTIC_ONBOARDING = "appsec.agentic_onboarding";
   public static final String APPSEC_RULES_FILE = "appsec.rules";
@@ -14,18 +15,15 @@ public final class AppSecConfig {
       "appsec.obfuscation.parameter_key_regexp";
   public static final String APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP =
       "appsec.obfuscation.parameter_value_regexp";
-  public static final String APPSEC_HTTP_BLOCKED_TEMPLATE_HTML =
-      "appsec.http.blocked.template.html";
-  public static final String APPSEC_HTTP_BLOCKED_TEMPLATE_JSON =
-      "appsec.http.blocked.template.json";
+  public static final String APPSEC_HTTP_BLOCKED_TEMPLATE_HTML = "appsec.http.blocked.template.html";
+  public static final String APPSEC_HTTP_BLOCKED_TEMPLATE_JSON = "appsec.http.blocked.template.json";
   public static final String APPSEC_AUTOMATED_USER_EVENTS_TRACKING =
       "appsec.automated-user-events-tracking";
   public static final String APPSEC_AUTO_USER_INSTRUMENTATION_MODE =
       "appsec.auto-user-instrumentation-mode";
   public static final String APPSEC_BODY_PARSING_SIZE_LIMIT = "appsec.body-parsing-size-limit";
   public static final String API_SECURITY_ENABLED = "api-security.enabled";
-  public static final String API_SECURITY_ENABLED_EXPERIMENTAL =
-      "experimental.api-security.enabled";
+  public static final String API_SECURITY_ENABLED_EXPERIMENTAL = "experimental.api-security.enabled";
   public static final String API_SECURITY_SAMPLE_DELAY = "api-security.sample.delay";
   public static final String API_SECURITY_ENDPOINT_COLLECTION_ENABLED =
       "api-security.endpoint.collection.enabled";
@@ -39,22 +37,25 @@ public final class AppSecConfig {
       "api-security.downstream.request.body.analysis.sample_rate";
   public static final String API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS =
       "api-security.max.downstream.request.body.analysis";
-
   public static final String APPSEC_SCA_ENABLED = "appsec.sca.enabled";
   public static final String APPSEC_RASP_ENABLED = "appsec.rasp.enabled";
   public static final String APPSEC_STACK_TRACE_ENABLED = "appsec.stack-trace.enabled";
   public static final String APPSEC_STACKTRACE_ENABLED_DEPRECATED =
-      "appsec.stacktrace.enabled"; // old non-standard as a fallback alias
+      // old non-standard as a fallback alias
+  "appsec.stacktrace.enabled";
   public static final String APPSEC_MAX_STACK_TRACES = "appsec.max.stack-traces";
   public static final String APPSEC_MAX_STACKTRACES_DEPRECATED =
-      "appsec.max.stacktraces"; // old non-standard as a fallback alias
+      // old non-standard as a fallback alias
+  "appsec.max.stacktraces";
   public static final String APPSEC_MAX_STACK_TRACE_DEPTH = "appsec.max.stack-trace.depth";
   public static final String APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED =
-      "appsec.max.stacktrace.depth"; // old non-standard as a fallback alias
+      // old non-standard as a fallback alias
+  "appsec.max.stacktrace.depth";
   public static final String APPSEC_MAX_FILE_CONTENT_BYTES = "appsec.max.file-content.bytes";
   public static final String APPSEC_MAX_FILE_CONTENT_COUNT = "appsec.max.file-content.count";
   public static final String APPSEC_SCA_MAX_TRACKED_DEPENDENCIES =
       "appsec.sca.max-tracked-dependencies";
 
-  private AppSecConfig() {}
+  private AppSecConfig() {
+  }
 }

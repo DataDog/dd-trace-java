@@ -6,16 +6,16 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-/** Tests the resolution of {@link Config#isOtelThreadContextEnabled()}. */
+/**
+ * Tests the resolution of {@link Config#isOtelThreadContextEnabled()}.
+ */
 @ExtendWith(WithConfigExtension.class)
 class ConfigOtelContextExposureTest {
-
   /**
    * The Datadog profiler raw predicate is vetoed outright on platforms and JVM versions that cannot
    * run it, regardless of any explicit opt-in. Tests that expect the feature to be enabled are only
@@ -24,7 +24,8 @@ class ConfigOtelContextExposureTest {
   private static void assumeDatadogProfilerNotVetoed() {
     assumeTrue(
         !Config.isDatadogProfilerEnablementOverridden(),
-        "Datadog profiler is unavailable on this platform/JVM version");
+        "Datadog profiler is unavailable on this platform/JVM version"
+    );
   }
 
   @Test

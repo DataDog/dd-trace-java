@@ -3,7 +3,8 @@ package com.datadog.appsec.gateway;
 import datadog.trace.api.gateway.Flow;
 
 public final class NoopFlow implements Flow<Void> {
-  private NoopFlow() {}
+  private NoopFlow() {
+  }
 
   public static final NoopFlow INSTANCE = new NoopFlow();
 

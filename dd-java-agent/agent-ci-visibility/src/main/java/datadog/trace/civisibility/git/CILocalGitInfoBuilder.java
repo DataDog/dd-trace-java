@@ -14,9 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CILocalGitInfoBuilder implements GitInfoBuilder {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(CILocalGitInfoBuilder.class);
-
   private final GitClient.Factory gitClientFactory;
   private final String gitFolderName;
 

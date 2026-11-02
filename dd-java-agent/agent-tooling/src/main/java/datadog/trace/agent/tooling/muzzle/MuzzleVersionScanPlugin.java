@@ -39,11 +39,10 @@ public class MuzzleVersionScanPlugin {
       final ClassLoader instrumentationLoader,
       final ClassLoader testApplicationLoader,
       final boolean assertPass,
-      final String muzzleDirective)
-      throws Exception {
+      final String muzzleDirective
+  ) throws Exception {
     List<InstrumenterModule> toBeTested = toBeTested(instrumentationLoader, muzzleDirective);
     for (InstrumenterModule module : toBeTested) {
-
       // verify muzzle result matches expectation
       final ReferenceMatcher muzzle = module.getInstrumentationMuzzle();
       final List<Reference.Mismatch> mismatches =
@@ -56,11 +55,13 @@ public class MuzzleVersionScanPlugin {
       final boolean passed = mismatches.isEmpty() && classLoaderMatch;
       if (passed && !assertPass) {
         System.err.println(
-            "MUZZLE PASSED " + module.getClass().getSimpleName() + " BUT FAILURE WAS EXPECTED");
+            "MUZZLE PASSED " + module.getClass().getSimpleName() + " BUT FAILURE WAS EXPECTED"
+        );
         throw new RuntimeException("Instrumentation unexpectedly passed Muzzle validation");
       } else if (!passed && assertPass) {
         System.err.println(
-            "FAILED MUZZLE VALIDATION: " + module.getClass().getName() + " mismatches:");
+            "FAILED MUZZLE VALIDATION: " + module.getClass().getName() + " mismatches:"
+        );
         if (!classLoaderMatch) {
           System.err.println("-- classloader mismatch");
         }
@@ -84,7 +85,8 @@ public class MuzzleVersionScanPlugin {
           }
         } catch (final Throwable e) {
           System.err.println(
-              "FAILED HELPER INJECTION. Are Helpers being injected in the correct order?");
+              "FAILED HELPER INJECTION. Are Helpers being injected in the correct order?"
+          );
           System.err.println(e.getMessage());
           throw e;
         }
@@ -92,13 +94,14 @@ public class MuzzleVersionScanPlugin {
     }
   }
 
-  /** Simulates instrumentation-based access to defineClass feature. */
+  /**
+   * Simulates instrumentation-based access to defineClass feature.
+   */
   private static BiConsumer<String, byte[]> injectClassHelper(ClassLoader cl) {
     try {
       Method findLoadedClass = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
-      Method defineClass =
-          ClassLoader.class.getDeclaredMethod(
-              "defineClass", String.class, byte[].class, int.class, int.class);
+      Method defineClass = ClassLoader.class
+        .getDeclaredMethod("defineClass", String.class, byte[].class, int.class, int.class);
       findLoadedClass.setAccessible(true);
       defineClass.setAccessible(true);
       return (name, bytes) -> {
@@ -117,7 +120,9 @@ public class MuzzleVersionScanPlugin {
 
   // build modules to test while single-threaded to match installer assumptions
   private static synchronized List<InstrumenterModule> toBeTested(
-      ClassLoader instrumentationLoader, String muzzleDirective) {
+      ClassLoader instrumentationLoader,
+      String muzzleDirective
+  ) {
     List<InstrumenterModule> toBeTested = new ArrayList<>();
     for (InstrumenterModule module :
         ServiceLoader.load(InstrumenterModule.class, instrumentationLoader)) {
@@ -126,7 +131,8 @@ public class MuzzleVersionScanPlugin {
         // pre-build class-loader matcher while single-threaded
         module.classLoaderMatcher();
         toBeTested.add(module);
-      } // this module wants to validate against a different named directive
+      }
+      // this module wants to validate against a different named directive
     }
     return toBeTested;
   }
@@ -162,10 +168,11 @@ public class MuzzleVersionScanPlugin {
         if (!helperClassNames.contains(parent)) {
           throw new IllegalArgumentException(
               "Nested helper "
-                  + helperName
-                  + " must have the parent class "
-                  + parent
-                  + " also defined as a helper");
+              + helperName
+              + " must have the parent class "
+              + parent
+              + " also defined as a helper"
+          );
         }
       }
       final ClassFileLocator locator =
@@ -181,7 +188,9 @@ public class MuzzleVersionScanPlugin {
 
   @SuppressForbidden
   public static void printMuzzleReferences(
-      final ClassLoader instrumentationLoader, final PrintWriter out) {
+      final ClassLoader instrumentationLoader,
+      final PrintWriter out
+  ) {
     for (InstrumenterModule module :
         ServiceLoader.load(InstrumenterModule.class, instrumentationLoader)) {
       final ReferenceMatcher muzzle = module.getInstrumentationMuzzle();
@@ -193,7 +202,9 @@ public class MuzzleVersionScanPlugin {
   }
 
   public static Set<String> listInstrumentationNames(
-      final ClassLoader instrumentationLoader, String directive) {
+      final ClassLoader instrumentationLoader,
+      String directive
+  ) {
     final Set<String> ret = new HashSet<>();
     for (final InstrumenterModule module : toBeTested(instrumentationLoader, directive)) {
       ret.add(module.name());
@@ -233,5 +244,6 @@ public class MuzzleVersionScanPlugin {
     return builder.toString();
   }
 
-  private MuzzleVersionScanPlugin() {}
+  private MuzzleVersionScanPlugin() {
+  }
 }

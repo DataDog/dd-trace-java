@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -78,9 +77,11 @@ class LocalSessionStoreInstrumentationTest extends AbstractInstrumentationTest {
   void failedSchedulingRestoresPropagation() throws Exception {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope ignored = activateSpan(parent)) {
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> LocalSessionStore.create(vertx, "invalid-interval", -1));
+      assertThrows(IllegalArgumentException.class, () -> LocalSessionStore.create(
+          vertx,
+          "invalid-interval",
+          -1
+      ));
       assertSame(parent, activeSpan());
       assertTrue(isAsyncPropagationEnabled());
     } finally {

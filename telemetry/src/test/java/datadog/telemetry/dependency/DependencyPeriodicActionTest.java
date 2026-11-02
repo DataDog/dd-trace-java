@@ -7,13 +7,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.telemetry.TelemetryService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class DependencyPeriodicActionTest {
-
   private final DependencyService depService = mock(DependencyService.class);
   private final DependencyPeriodicAction periodicAction = new DependencyPeriodicAction(depService);
   private final TelemetryService telemetryService = mock(TelemetryService.class);

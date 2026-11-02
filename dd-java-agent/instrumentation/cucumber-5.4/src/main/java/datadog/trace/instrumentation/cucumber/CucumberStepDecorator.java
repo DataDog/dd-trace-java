@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.cucumber;
 
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -10,7 +9,6 @@ import io.cucumber.core.backend.StepDefinition;
 import java.util.Arrays;
 
 public class CucumberStepDecorator extends BaseDecorator {
-
   public static CucumberStepDecorator DECORATE = new CucumberStepDecorator();
 
   @Override

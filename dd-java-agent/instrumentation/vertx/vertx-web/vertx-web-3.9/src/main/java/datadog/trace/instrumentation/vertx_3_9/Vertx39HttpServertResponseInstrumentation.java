@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,7 +18,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class Vertx39HttpServertResponseInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public Vertx39HttpServertResponseInstrumentation() {
     super("vertx", "vertx-3.9", "response");
   }
@@ -27,10 +28,9 @@ public class Vertx39HttpServertResponseInstrumentation extends InstrumenterModul
   @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("addCookie")
-            .and(takesArgument(0, named("io.vertx.core.http.Cookie")))
-            .and(isPublic()),
-        Vertx39HttpServertResponseInstrumentation.class.getName() + "$InstrumenterAdvice");
+        named("addCookie").and(takesArgument(0, named("io.vertx.core.http.Cookie"))).and(isPublic()),
+        Vertx39HttpServertResponseInstrumentation.class.getName() + "$InstrumenterAdvice"
+    );
   }
 
   @Override

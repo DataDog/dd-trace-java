@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DD64bTraceId;
@@ -51,7 +50,9 @@ import org.tabletest.junit.TableTest;
 class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   @Override
   protected HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier
+  ) {
     return DatadogHttpCodec.newExtractor(config, traceConfigSupplier);
   }
 
@@ -66,7 +67,8 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
       @ConvertWith(TraceIdConverter.class) String traceId,
       @ConvertWith(TraceIdConverter.class) String spanId,
       @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
-      String origin) {
+      String origin
+  ) {
     // spotless:off
     Map<String, String> headers = headers(
         "", "empty key",
@@ -81,7 +83,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
         ORIGIN_KEY, origin
     );
     // spotless:on
-
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.from(traceId), context.getTraceId());
@@ -114,7 +115,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, headerWithComma
     );
     // spotless:on
-
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
@@ -142,7 +142,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
         X_AMZN_TRACE_ID, awsTraceHeader
     );
     // spotless:on
-
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
@@ -160,7 +159,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertFalse(context instanceof ExtractedContext);
@@ -181,7 +179,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   void extractHttpHeadersWith128BitTraceId(String hexId) {
     DD128bTraceId traceId = DD128bTraceId.fromHex(hexId);
     boolean is128bTrace = traceId.toHighOrderLong() != 0;
-
     // spotless:off
     Map<String, String> headers = headers(
         TRACE_ID_KEY, traceId.toString(),
@@ -194,7 +191,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
             : null
     );
     // spotless:on
-
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
@@ -219,7 +215,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
@@ -236,7 +231,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
@@ -253,7 +247,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
@@ -279,14 +272,14 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   void moreIdRangeValidation(
       @ConvertWith(TraceIdConverter.class) String traceId,
       @ConvertWith(TraceIdConverter.class) String spanId,
-      boolean expectExtraction) {
+      boolean expectExtraction
+  ) {
     // spotless:off
     Map<String, String> headers = headers(
         TRACE_ID_KEY, traceId,
         SPAN_ID_KEY, spanId
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     if (expectExtraction) {
@@ -317,7 +310,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2"
     );
     // spotless:on
-
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
@@ -343,7 +335,8 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
   void baggageIsMappedOnContextCreation(
       @ConvertWith(TraceIdConverter.class) String traceId,
       @ConvertWith(TraceIdConverter.class) String spanId,
-      boolean ctxCreated) {
+      boolean ctxCreated
+  ) {
     // spotless:off
     Map<String, String> headers = headers(
         TRACE_ID_KEY, traceId,
@@ -354,7 +347,6 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_ARBITRARY_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     if (ctxCreated) {

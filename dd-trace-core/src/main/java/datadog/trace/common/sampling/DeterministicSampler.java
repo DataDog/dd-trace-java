@@ -7,10 +7,10 @@ import datadog.trace.core.CoreSpan;
  * tracers for other languages
  */
 public abstract class DeterministicSampler implements RateSampler {
-
-  /** Uses trace-id as a sampling id */
+  /**
+   * Uses trace-id as a sampling id
+   */
   public static final class TraceSampler extends DeterministicSampler {
-
     public TraceSampler(double rate) {
       super(rate);
     }
@@ -21,9 +21,10 @@ public abstract class DeterministicSampler implements RateSampler {
     }
   }
 
-  /** Uses span-id as a sampling id */
+  /**
+   * Uses span-id as a sampling id
+   */
   public static final class SpanSampler extends DeterministicSampler {
-
     public SpanSampler(double rate) {
       super(rate);
     }
@@ -35,9 +36,7 @@ public abstract class DeterministicSampler implements RateSampler {
   }
 
   private static final long KNUTH_FACTOR = 1111111111111111111L;
-
   private static final double MAX = Math.pow(2, 64) - 1;
-
   private final double rate;
   private final long threshold;
 

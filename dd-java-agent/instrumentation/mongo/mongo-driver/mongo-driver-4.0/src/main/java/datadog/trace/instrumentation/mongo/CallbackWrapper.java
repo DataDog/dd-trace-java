@@ -7,11 +7,11 @@ import datadog.context.ContextScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public class CallbackWrapper<T> implements SingleResultCallback<Object> {
-  private static final AtomicReferenceFieldUpdater<CallbackWrapper, ContextContinuation>
-      CONTINUATION =
-          AtomicReferenceFieldUpdater.newUpdater(
-              CallbackWrapper.class, ContextContinuation.class, "continuation");
-
+  private static final AtomicReferenceFieldUpdater<CallbackWrapper, ContextContinuation> CONTINUATION = AtomicReferenceFieldUpdater.newUpdater(
+      CallbackWrapper.class,
+      ContextContinuation.class,
+      "continuation"
+  );
   private volatile ContextContinuation continuation = null;
   private final SingleResultCallback<Object> wrapped;
 

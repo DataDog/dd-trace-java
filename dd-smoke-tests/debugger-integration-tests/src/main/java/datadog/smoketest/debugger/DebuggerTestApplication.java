@@ -3,7 +3,6 @@ package datadog.smoketest.debugger;
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForInstrumentation;
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForTransformerInstalled;
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForUpload;
-
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.util.ArrayList;
@@ -90,7 +89,12 @@ class Main {
   }
 
   private static String fullMethod(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar
+  ) {
     try {
       System.out.println("fullMethod");
       return argInt

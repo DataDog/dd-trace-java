@@ -12,23 +12,24 @@ public class ResourceNameExtractor {
   private static final DDCache<CharSequence, CharSequence> CACHE = DDCaches.newFixedSizeCache(128);
   private static final Function<CharSequence, CharSequence> EXTRACTOR =
       s -> {
-        if (s == null || s.length() == 0) {
-          return HttpResourceNames.DEFAULT_RESOURCE_NAME;
-        }
-        int idx = s.toString().indexOf(SPACE);
-        if (idx < 0 || idx == s.length() - 1) {
-          return s;
-        }
-        final CharSequence ret = s.subSequence(idx + 1, s.length());
-        if (ret.length() == 0) {
-          return HttpResourceNames.DEFAULT_RESOURCE_NAME;
-        }
-        return ret;
-      };
+    if (s == null || s.length() == 0) {
+      return HttpResourceNames.DEFAULT_RESOURCE_NAME;
+    }
+    int idx = s.toString().indexOf(SPACE);
+    if (idx < 0 || idx == s.length() - 1) {
+      return s;
+    }
+    final CharSequence ret = s.subSequence(idx + 1, s.length());
+    if (ret.length() == 0) {
+      return HttpResourceNames.DEFAULT_RESOURCE_NAME;
+    }
+    return ret;
+  };
   private static final Function<CharSequence, CharSequence> ADDER =
       EXTRACTOR.andThen(new Functions.Prefix(WEBSOCKET_SPACE));
 
-  private ResourceNameExtractor() {}
+  private ResourceNameExtractor() {
+  }
 
   public static CharSequence extractResourceName(CharSequence handshakeResourceName) {
     return CACHE.computeIfAbsent(handshakeResourceName, ADDER);

@@ -6,14 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.Config;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class ServiceNameCollectorTest {
-
   @Test
   void testAddExtraService() {
     ServiceNameCollector provider = newServiceNameCollector();

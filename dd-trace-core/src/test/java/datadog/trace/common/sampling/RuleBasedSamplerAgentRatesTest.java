@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
-
 import datadog.trace.api.Config;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -25,7 +24,6 @@ import org.junit.jupiter.api.Test;
  * RuleBasedTraceSampler#agentSampler()}.
  */
 class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
-
   private static final String RULE_MISSING_SERVICE =
       "[{\"service\": \"other-service\", \"sample_rate\": 1}]";
 
@@ -35,7 +33,6 @@ class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
     properties.setProperty(TRACE_SAMPLING_RULES, RULE_MISSING_SERVICE);
     Sampler sampler = Sampler.Builder.forConfig(properties);
     assertInstanceOf(RuleBasedTraceSampler.class, sampler);
-
     // The agent asks for everything to be dropped for this service.
     sampler.agentSampler().onResponse("traces", rateByService("service", "bar", 0.0));
 
@@ -54,8 +51,7 @@ class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
   @Test
   void agentRatesDoNotOverrideMatchedRules() {
     Properties properties = new Properties();
-    properties.setProperty(
-        TRACE_SAMPLING_RULES, "[{\"service\": \"service\", \"sample_rate\": 1}]");
+    properties.setProperty(TRACE_SAMPLING_RULES, "[{\"service\": \"service\", \"sample_rate\": 1}]");
     Sampler sampler = Sampler.Builder.forConfig(properties);
 
     sampler.agentSampler().onResponse("traces", rateByService("service", "bar", 0.0));
@@ -120,7 +116,6 @@ class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
   void ratesLearnedBeforeARebuildStillApplyAfterIt() {
     RateByServiceTraceSampler agentSampler = new RateByServiceTraceSampler();
     agentSampler.onResponse("traces", rateByService("service", "bar", 0.0));
-
     // Rebuilding the sampler with the same agent sampler keeps the rates it has already learned.
     Properties properties = new Properties();
     properties.setProperty(TRACE_SAMPLING_RULES, RULE_MISSING_SERVICE);
@@ -165,12 +160,11 @@ class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
   }
 
   private static DDSpan buildSpan(CoreTracer tracer, String serviceName) {
-    return (DDSpan)
-        tracer
-            .buildSpan("datadog", "operation")
-            .withServiceName(serviceName)
-            .withTag("env", "bar")
-            .ignoreActiveSpan()
-            .start();
+    return (DDSpan) tracer
+      .buildSpan("datadog", "operation")
+      .withServiceName(serviceName)
+      .withTag("env", "bar")
+      .ignoreActiveSpan()
+      .start();
   }
 }

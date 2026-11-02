@@ -8,7 +8,6 @@ import javax.annotation.Nullable;
  * corresponds to a class that contains a number of test method
  */
 public interface DDTestSuite {
-
   /**
    * Adds an arbitrary tag to the suite
    *

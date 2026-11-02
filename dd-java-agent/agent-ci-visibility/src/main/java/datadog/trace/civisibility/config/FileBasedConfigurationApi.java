@@ -29,15 +29,17 @@ import org.slf4j.LoggerFactory;
  * returns. Used in Bazel mode.
  */
 public class FileBasedConfigurationApi implements ConfigurationApi {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(FileBasedConfigurationApi.class);
-
-  @Nullable private final Path settingsPath;
-  @Nullable private final Path skippableTestsPath;
-  @Nullable private final Path flakyTestsPath;
-  @Nullable private final Path knownTestsPath;
-  @Nullable private final Path testManagementPath;
-
+  @Nullable
+  private final Path settingsPath;
+  @Nullable
+  private final Path skippableTestsPath;
+  @Nullable
+  private final Path flakyTestsPath;
+  @Nullable
+  private final Path knownTestsPath;
+  @Nullable
+  private final Path testManagementPath;
   private final JsonAdapter<Envelope<CiVisibilitySettings>> settingsAdapter;
   private final JsonAdapter<Envelope<KnownTestsResponse>> knownTestsAdapter;
   private final JsonAdapter<Envelope<TestManagementTestsResponse>> testManagementAdapter;
@@ -48,7 +50,8 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
       @Nullable Path skippableTestsPath,
       @Nullable Path flakyTestsPath,
       @Nullable Path knownTestsPath,
-      @Nullable Path testManagementPath) {
+      @Nullable Path testManagementPath
+  ) {
     this.settingsPath = settingsPath;
     this.skippableTestsPath = skippableTestsPath;
     this.flakyTestsPath = flakyTestsPath;
@@ -114,7 +117,9 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
     Map<String, Collection<TestFQN>> result =
         TestIdentifierJson.toTestFQNsByModule(envelope.data, tracerEnvironment);
     LOGGER.debug(
-        "Read {} flaky tests from file", result.values().stream().mapToInt(Collection::size).sum());
+        "Read {} flaky tests from file",
+        result.values().stream().mapToInt(Collection::size).sum()
+    );
     return result;
   }
 
@@ -138,14 +143,17 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
         KnownTestsResponse.toTestFQNsByModule(envelope.data.attributes.tests);
     LOGGER.debug(
         "Read {} known tests from file",
-        result != null ? result.values().stream().mapToInt(Collection::size).sum() : 0);
+        result != null ? result.values().stream().mapToInt(Collection::size).sum() : 0
+    );
     return result;
   }
 
   @Override
   public Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
-      TracerEnvironment tracerEnvironment, String commitSha, String commitMessage)
-      throws IOException {
+      TracerEnvironment tracerEnvironment,
+      String commitSha,
+      String commitMessage
+  ) throws IOException {
     if (testManagementPath == null) {
       LOGGER.debug("Test management file path not provided, returning empty");
       return Collections.emptyMap();

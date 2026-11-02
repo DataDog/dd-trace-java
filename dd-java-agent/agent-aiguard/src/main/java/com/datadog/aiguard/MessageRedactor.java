@@ -15,17 +15,21 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 public interface MessageRedactor {
-
-  /** Outcome of a redaction pass. */
+  /**
+   * Outcome of a redaction pass.
+   */
   final class Result {
-
-    /** The redacted messages, or the very same list that was passed in when nothing was applied. */
+    /**
+     * The redacted messages, or the very same list that was passed in when nothing was applied.
+     */
     final List<Message> messages;
-
-    /** Number of paths successfully overwritten. */
+    /**
+     * Number of paths successfully overwritten.
+     */
     final int applied;
-
-    /** Number of entries skipped fail-safe (unresolvable, non-string, missing or conflicting). */
+    /**
+     * Number of entries skipped fail-safe (unresolvable, non-string, missing or conflicting).
+     */
     final int skipped;
 
     private Result(final List<Message> messages, final int applied, final int skipped) {
@@ -34,7 +38,9 @@ public interface MessageRedactor {
       this.skipped = skipped;
     }
 
-    /** Whether at least one replacement was applied. */
+    /**
+     * Whether at least one replacement was applied.
+     */
     boolean redacted() {
       return applied > 0;
     }
@@ -59,9 +65,8 @@ public interface MessageRedactor {
   boolean enabled();
 
   class NoOp implements MessageRedactor {
-
     @Override
-    public Result redact(final List<Message> messages, final @Nullable Object replacements) {
+    public Result redact(final List<Message> messages, @Nullable final Object replacements) {
       // The kill switch is off, so no redaction work is attempted and no redaction error is
       // reported, not even for a malformed payload.
       return Result.nothingApplied(messages, 0);
@@ -95,7 +100,6 @@ public interface MessageRedactor {
    * </ul>
    */
   class DefaultRedactor implements MessageRedactor {
-
     @Override
     public boolean enabled() {
       return true;
@@ -107,14 +111,15 @@ public interface MessageRedactor {
      */
     private static final Pattern SEGMENT =
         Pattern.compile("\\A([A-Za-z0-9_]+)(?:\\[([0-9]+)\\])?\\z");
-
-    /** No supported target is deeper than {@code messages[i].tool_calls[k].function.arguments}. */
+    /**
+     * No supported target is deeper than {@code messages[i].tool_calls[k].function.arguments}.
+     */
     private static final int MAX_SEGMENTS = 4;
-
     private static final int NO_INDEX = -1;
     private static final int INVALID_INDEX = -2;
-
-    /** Longest index we bother parsing; anything longer cannot address a real list. */
+    /**
+     * Longest index we bother parsing; anything longer cannot address a real list.
+     */
     private static final int MAX_INDEX_DIGITS = 9;
 
     /**
@@ -140,7 +145,6 @@ public interface MessageRedactor {
       }
 
       int skipped = 0;
-
       // Collect one authoritative replacement per path, dropping the ones the backend contradicts
       // itself on. Insertion ordered so that a malformed response yields reproducible counters.
       final Map<String, String> byPath = new LinkedHashMap<>();
@@ -226,8 +230,8 @@ public interface MessageRedactor {
         final String[] names,
         final int[] indices,
         final int count,
-        final String replacement) {
-
+        final String replacement
+    ) {
       if ("content".equals(names[1])) {
         if (indices[1] == NO_INDEX) {
           // messages[i].content
@@ -277,7 +281,8 @@ public interface MessageRedactor {
         final List<ToolCall> updated = new ArrayList<>(toolCalls);
         updated.set(
             indices[1],
-            new ToolCall(toolCall.getId(), new Function(function.getName(), replacement)));
+            new ToolCall(toolCall.getId(), new Function(function.getName(), replacement))
+        );
         return withToolCalls(message, updated);
       }
 
@@ -286,13 +291,23 @@ public interface MessageRedactor {
 
     private static Message withContent(final Message message, final String content) {
       return new Message(
-          message.getRole(), content, message.getToolCalls(), message.getToolCallId());
+          message.getRole(),
+          content,
+          message.getToolCalls(),
+          message.getToolCallId()
+      );
     }
 
     private static Message withContentParts(
-        final Message message, final List<ContentPart> contentParts) {
+        final Message message,
+        final List<ContentPart> contentParts
+    ) {
       return new Message(
-          message.getRole(), contentParts, message.getToolCalls(), message.getToolCallId());
+          message.getRole(),
+          contentParts,
+          message.getToolCalls(),
+          message.getToolCallId()
+      );
     }
 
     private static Message withToolCalls(final Message message, final List<ToolCall> toolCalls) {
@@ -300,8 +315,7 @@ public interface MessageRedactor {
       // A message carries either content parts or a content string, never both; preserve whichever.
       return contentParts != null
           ? new Message(message.getRole(), contentParts, toolCalls, message.getToolCallId())
-          : new Message(
-              message.getRole(), message.getContent(), toolCalls, message.getToolCallId());
+          : new Message(message.getRole(), message.getContent(), toolCalls, message.getToolCallId());
     }
 
     /**

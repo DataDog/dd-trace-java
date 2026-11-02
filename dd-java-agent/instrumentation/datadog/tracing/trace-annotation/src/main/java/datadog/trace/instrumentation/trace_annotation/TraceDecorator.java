@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.trace_annotation;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -12,14 +11,10 @@ import java.lang.reflect.Method;
 public class TraceDecorator extends AsyncResultDecorator {
   public static TraceDecorator DECORATE = new TraceDecorator();
   private static final String INSTRUMENTATION_NAME = "trace";
-
   private static final boolean USE_LEGACY_OPERATION_NAME =
       InstrumenterConfig.get().isLegacyInstrumentationEnabled(true, "trace.annotations");
-
   private static final boolean ASYNC_SUPPORT = InstrumenterConfig.get().isTraceAnnotationAsync();
-
   private static final CharSequence TRACE = UTF8BytesString.create("trace");
-
   private static final String DEFAULT_OPERATION_NAME = "trace.annotation";
 
   @Override
@@ -82,10 +77,9 @@ public class TraceDecorator extends AsyncResultDecorator {
       resourceName = spanNameForMethod(method);
     }
 
-    AgentSpan span =
-        noParent
-            ? startSpan(INSTRUMENTATION_NAME, operationName, null)
-            : startSpan(INSTRUMENTATION_NAME, operationName);
+    AgentSpan span = noParent
+        ? startSpan(INSTRUMENTATION_NAME, operationName, null)
+        : startSpan(INSTRUMENTATION_NAME, operationName);
 
     afterStart(span);
     span.setResourceName(resourceName);
@@ -99,7 +93,10 @@ public class TraceDecorator extends AsyncResultDecorator {
 
   @Override
   public Object wrapAsyncResultOrFinishSpan(
-      Object result, Class<?> methodReturnType, AgentSpan span) {
+      Object result,
+      Class<?> methodReturnType,
+      AgentSpan span
+  ) {
     if (ASYNC_SUPPORT) {
       return super.wrapAsyncResultOrFinishSpan(result, methodReturnType, span);
     } else {

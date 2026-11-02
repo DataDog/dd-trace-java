@@ -6,4 +6,5 @@ import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
 @JsonQualifier
-public @interface SourceTypeString {}
+public @interface SourceTypeString {
+}

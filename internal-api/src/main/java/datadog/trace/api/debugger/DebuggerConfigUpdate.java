@@ -2,7 +2,6 @@ package datadog.trace.api.debugger;
 
 public class DebuggerConfigUpdate {
   public static final DebuggerConfigUpdate EMPTY = new DebuggerConfigUpdate();
-
   private final Boolean dynamicInstrumentationEnabled;
   private final Boolean exceptionReplayEnabled;
   private final Boolean codeOriginEnabled;
@@ -16,7 +15,8 @@ public class DebuggerConfigUpdate {
       Boolean dynamicInstrumentationEnabled,
       Boolean exceptionReplayEnabled,
       Boolean codeOriginEnabled,
-      Boolean distributedDebuggerEnabled) {
+      Boolean distributedDebuggerEnabled
+  ) {
     this.dynamicInstrumentationEnabled = dynamicInstrumentationEnabled;
     this.exceptionReplayEnabled = exceptionReplayEnabled;
     this.codeOriginEnabled = codeOriginEnabled;
@@ -61,17 +61,22 @@ public class DebuggerConfigUpdate {
   }
 
   public static DebuggerConfigUpdate coalesce(
-      DebuggerConfigUpdate existing, DebuggerConfigUpdate update) {
+      DebuggerConfigUpdate existing,
+      DebuggerConfigUpdate update
+  ) {
     if (existing == null) {
       return update;
     }
 
     return new DebuggerConfigUpdate(
         coalesceSetting(
-            existing.dynamicInstrumentationEnabled, update.dynamicInstrumentationEnabled),
+            existing.dynamicInstrumentationEnabled,
+            update.dynamicInstrumentationEnabled
+        ),
         coalesceSetting(existing.exceptionReplayEnabled, update.exceptionReplayEnabled),
         coalesceSetting(existing.codeOriginEnabled, update.codeOriginEnabled),
-        coalesceSetting(existing.distributedDebuggerEnabled, update.distributedDebuggerEnabled));
+        coalesceSetting(existing.distributedDebuggerEnabled, update.distributedDebuggerEnabled)
+    );
   }
 
   private static Boolean coalesceSetting(Boolean existing, Boolean update) {

@@ -3,7 +3,6 @@ package datadog.trace.core;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.common.writer.ListWriter;
 import org.junit.jupiter.api.AfterEach;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Test;
  * construction seam) vs {@code AgentSpan#applyOverwriting} (unconditional, decorator seam).
  */
 public class DecoratorPrototypeGlobalTagPrecedenceTest extends DDCoreJavaSpecification {
-
   private ListWriter writer;
 
   @BeforeEach
@@ -43,7 +41,6 @@ public class DecoratorPrototypeGlobalTagPrecedenceTest extends DDCoreJavaSpecifi
       try {
         // Global tag is seeded at construction time, before any decorator runs.
         assertEquals("global-value", span.getTags().get(COMPONENT));
-
         // Decorator's afterStart mirrors BaseDecorator.doAfterStart: applyOverwriting must win.
         SpanPrototype decoratorPrototype =
             SpanPrototype.builder().initComponentAndIntegration("decorator-component").build();
@@ -72,7 +69,6 @@ public class DecoratorPrototypeGlobalTagPrecedenceTest extends DDCoreJavaSpecifi
         SpanPrototype decoratorPrototype =
             SpanPrototype.builder().initComponentAndIntegration("decorator-component").build();
         span.apply(decoratorPrototype);
-
         // Fill-absent semantics: the key is already present (global tag), so it is left alone.
         assertEquals("global-value", span.getTags().get(COMPONENT));
       } finally {

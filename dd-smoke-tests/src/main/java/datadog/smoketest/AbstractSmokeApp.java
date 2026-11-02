@@ -9,7 +9,6 @@ import static java.util.Arrays.asList;
 import static java.util.Locale.ROOT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.joining;
-
 import datadog.environment.OperatingSystem;
 import datadog.smoketest.backend.AgentBackend;
 import datadog.smoketest.backend.Traces;
@@ -66,8 +65,11 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * </ul>
  */
 public abstract class AbstractSmokeApp
-    implements BeforeAllCallback, AfterAllCallback, BeforeEachCallback, AfterEachCallback {
-
+    implements BeforeAllCallback,
+    AfterAllCallback,
+    BeforeEachCallback,
+    AfterEachCallback
+{
   // Defaults mirroring the Groovy ProcessManager base so ported tests behave the same.
   private static final String SERVICE_NAME = "smoke-test-java-app";
   private static final String ENV = "smoketest";
@@ -82,7 +84,6 @@ public abstract class AbstractSmokeApp
   private static final String BUILD_DIR_PROPERTY = "datadog.smoketest.builddir";
   private static final DateTimeFormatter LOG_FILE_TIMESTAMP =
       DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss.SSS", ROOT).withZone(UTC);
-
   private final String name;
   private final String jar;
   private final String mainClass;
@@ -93,7 +94,8 @@ public abstract class AbstractSmokeApp
   private final Map<String, String> extraEnv;
   private final File workingDirectory;
   private final AgentBackend backend;
-  private final String agentJar; // null => launch without -javaagent
+  // null => launch without -javaagent
+  private final String agentJar;
   private final long startupTimeoutSeconds;
   private final Predicate<String> errorLogFilter;
   private final boolean checkErrorLogs;
@@ -103,7 +105,6 @@ public abstract class AbstractSmokeApp
   private final boolean checkScopeContinuations;
   private final ScopeDiagnosticsCheck[] disabledScopeContinuationChecks;
   private final String disabledScopeContinuationChecksReason;
-
   private final OutputThreads outputThreads = new OutputThreads();
   private Process process;
   private File logFile;
@@ -114,8 +115,9 @@ public abstract class AbstractSmokeApp
     this.name = builder.name;
     this.jar = builder.jar;
     this.mainClass = builder.mainClass;
-    this.classpath =
-        builder.classpath != null ? builder.classpath : System.getProperty("java.class.path");
+    this.classpath = builder.classpath != null
+        ? builder.classpath
+        : System.getProperty("java.class.path");
     this.jvmArgs = new ArrayList<>(builder.jvmArgs);
     this.programArgs = new ArrayList<>(builder.programArgs);
     this.placeholders = new LinkedHashMap<>(builder.placeholders);
@@ -131,14 +133,12 @@ public abstract class AbstractSmokeApp
     this.checkScopeContinuations = builder.scopeContinuationSkipReason == null;
     this.disabledScopeContinuationChecks = builder.disabledScopeContinuationChecks.clone();
     this.disabledScopeContinuationChecksReason = builder.disabledScopeContinuationChecksReason;
-    this.errorLogFilter =
-        builder.errorLogFilter != null
-            ? builder.errorLogFilter
-            : defaultErrorLogFilter(builder.allowedErrorLogs);
+    this.errorLogFilter = builder.errorLogFilter != null
+        ? builder.errorLogFilter
+        : defaultErrorLogFilter(builder.allowedErrorLogs);
   }
 
   // --- Handle API (field access) ---
-
   /**
    * Returns the trace query/assert facade of this app's backend.
    *
@@ -197,7 +197,6 @@ public abstract class AbstractSmokeApp
   }
 
   // --- Shared state exposed to subclasses (start-up / per-method hooks) ---
-
   /**
    * Returns the app's (log/diagnostic) name.
    *
@@ -236,7 +235,6 @@ public abstract class AbstractSmokeApp
   }
 
   // --- Lifecycle (per-class start, per-method reset, teardown) ---
-
   @Override
   public final void beforeAll(ExtensionContext context) throws Exception {
     this.backend.start();
@@ -322,7 +320,9 @@ public abstract class AbstractSmokeApp
     }
   }
 
-  /** Validates the companion's completed CLI report after an explicit process-exit assertion. */
+  /**
+   * Validates the companion's completed CLI report after an explicit process-exit assertion.
+   */
   protected final void verifyScopeDiagnostics() {
     if (this.scopeDiagnostics != null) {
       this.scopeDiagnostics.verifyCompleted(this.process);
@@ -335,12 +335,16 @@ public abstract class AbstractSmokeApp
    */
   protected void onStarted() {}
 
-  /** Whether diagnostics cover the whole application run rather than individual tests. */
+  /**
+   * Whether diagnostics cover the whole application run rather than individual tests.
+   */
   protected boolean recordsProcessLifetime() {
     return false;
   }
 
-  /** Invoked before each test method (in {@link #beforeEach}) for the app's per-test reset. */
+  /**
+   * Invoked before each test method (in {@link #beforeEach}) for the app's per-test reset.
+   */
   protected void onBeforeEach() {}
 
   /**
@@ -352,13 +356,13 @@ public abstract class AbstractSmokeApp
   private void launch() throws IOException {
     this.logFile = resolveLogFile();
     if (this.checkScopeContinuations && this.agentJar != null) {
-      this.scopeDiagnostics =
-          new ScopeDiagnosticsClient(
-              this.logFile.getParentFile().toPath(),
-              this.name,
-              recordsProcessLifetime(),
-              this.disabledScopeContinuationChecksReason,
-              this.disabledScopeContinuationChecks);
+      this.scopeDiagnostics = new ScopeDiagnosticsClient(
+          this.logFile.getParentFile().toPath(),
+          this.name,
+          recordsProcessLifetime(),
+          this.disabledScopeContinuationChecksReason,
+          this.disabledScopeContinuationChecks
+      );
     }
     List<String> command = javaCommand();
     appendMemoryTuningArguments(command);
@@ -465,9 +469,10 @@ public abstract class AbstractSmokeApp
         if (!this.process.waitFor(10, SECONDS)) {
           throw new IllegalStateException(
               "App '"
-                  + name()
-                  + "' did not terminate after destroy. A lingering process may retain"
-                  + " its port and files and interfere with later tests.");
+              + name()
+              + "' did not terminate after destroy. A lingering process may retain"
+              + " its port and files and interfere with later tests."
+          );
         }
       }
     } catch (InterruptedException e) {
@@ -489,10 +494,9 @@ public abstract class AbstractSmokeApp
 
   private File resolveLogFile() {
     String buildDir = System.getProperty(BUILD_DIR_PROPERTY);
-    File dir =
-        buildDir != null
-            ? new File(buildDir, "reports")
-            : new File(System.getProperty("java.io.tmpdir"));
+    File dir = buildDir != null
+        ? new File(buildDir, "reports")
+        : new File(System.getProperty("java.io.tmpdir"));
     dir.mkdirs();
     return new File(dir, logFileName(this.name, Instant.now()));
   }
@@ -519,7 +523,8 @@ public abstract class AbstractSmokeApp
    */
   public void assertNoErrorLogs() {
     if (this.logFile == null) {
-      return; // never launched / nothing captured
+      // never launched / nothing captured
+      return;
     }
     try (Stream<String> errorLines =
         Files.lines(this.logFile.toPath(), UTF_8).filter(this.errorLogFilter)) {
@@ -844,7 +849,9 @@ public abstract class AbstractSmokeApp
       return self();
     }
 
-    /** Excludes named checks from enforcement while retaining diagnostic recording. */
+    /**
+     * Excludes named checks from enforcement while retaining diagnostic recording.
+     */
     public B disableScopeContinuationChecks(String reason, ScopeDiagnosticsCheck... checks) {
       if (reason == null || reason.trim().isEmpty()) {
         throw new IllegalArgumentException("Disabling scope diagnostic checks requires a reason");
@@ -859,7 +866,9 @@ public abstract class AbstractSmokeApp
       return self();
     }
 
-    /** Disables scope diagnostics for this app; a nonblank explanation is required. */
+    /**
+     * Disables scope diagnostics for this app; a nonblank explanation is required.
+     */
     public B skipScopeContinuationCheck(String reason) {
       if (reason == null || reason.trim().isEmpty()) {
         throw new IllegalArgumentException("Skipping scope continuation checks requires a reason");
@@ -900,16 +909,20 @@ public abstract class AbstractSmokeApp
           : System.getProperty(AGENT_JAR_PROPERTY);
     }
 
-    /** Validates common invariants; concrete {@link #build()} implementations must call this. */
+    /**
+     * Validates common invariants; concrete {@link #build()} implementations must call this.
+     */
     protected void validate() {
       if (this.scopeContinuationSkipReason != null
           && this.disabledScopeContinuationChecks.length > 0) {
         throw new IllegalArgumentException(
-            "Skipping scope diagnostics requires empty disabled checks");
+            "Skipping scope diagnostics requires empty disabled checks"
+        );
       }
       if (this.backend == null) {
         throw new IllegalStateException(
-            "A AgentBackend is required. Use backend(...) to build your app");
+            "A AgentBackend is required. Use backend(...) to build your app"
+        );
       }
       if ((this.jar == null) == (this.mainClass == null)) {
         throw new IllegalStateException("Exactly one of jar(...) or mainClass(...) must be set");
@@ -917,9 +930,10 @@ public abstract class AbstractSmokeApp
       if (!this.noAgent && resolveAgentJar() == null) {
         throw new IllegalStateException(
             "Agent jar not found: system property '"
-                + AGENT_JAR_PROPERTY
-                + "' is not set. Gradle sets it automatically; on other runners call javaAgent(path)"
-                + " to point at an agent jar, or noAgent() to run without the tracer.");
+            + AGENT_JAR_PROPERTY
+            + "' is not set. Gradle sets it automatically; on other runners call javaAgent(path)"
+            + " to point at an agent jar, or noAgent() to run without the tracer."
+        );
       }
     }
   }

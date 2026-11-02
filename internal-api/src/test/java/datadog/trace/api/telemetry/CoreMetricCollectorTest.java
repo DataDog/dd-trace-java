@@ -3,7 +3,6 @@ package datadog.trace.api.telemetry;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.metrics.SpanMetricRegistryImpl;
 import datadog.trace.api.metrics.SpanMetrics;
 import datadog.trace.api.telemetry.CoreMetricCollector.CoreMetric;
@@ -14,8 +13,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class CoreMetricCollectorTest extends DDJavaSpecification {
-
-  /** Flushes metrics left over by previous tests, as the collector and registry are singletons. */
+  /**
+   * Flushes metrics left over by previous tests, as the collector and registry are singletons.
+   */
   @BeforeEach
   void drainPendingMetrics() {
     CoreMetricCollector collector = CoreMetricCollector.getInstance();
@@ -32,11 +32,9 @@ class CoreMetricCollectorTest extends DDJavaSpecification {
     spanMetrics.onSpanCreated();
     spanMetrics.onSpanFinished();
     CoreMetricCollector collector = CoreMetricCollector.getInstance();
-
     // when
     collector.prepareMetrics();
     List<CoreMetric> metrics = new ArrayList<>(collector.drain());
-
     // then
     assertEquals(2, metrics.size());
 
@@ -61,18 +59,15 @@ class CoreMetricCollectorTest extends DDJavaSpecification {
     SpanMetricRegistryImpl registry = SpanMetricRegistryImpl.getInstance();
     CoreMetricCollector collector = CoreMetricCollector.getInstance();
     int limit = 1024;
-
     // when
-    assertDoesNotThrow(
-        () -> {
-          for (int index = 0; index <= limit * 2; index++) {
-            SpanMetrics spanMetrics = registry.get("instr-" + index);
-            spanMetrics.onSpanCreated();
-            spanMetrics.onSpanCreated();
-            spanMetrics.onSpanFinished();
-          }
-        });
-
+    assertDoesNotThrow(() -> {
+      for (int index = 0; index <= limit * 2; index++) {
+        SpanMetrics spanMetrics = registry.get("instr-" + index);
+        spanMetrics.onSpanCreated();
+        spanMetrics.onSpanCreated();
+        spanMetrics.onSpanFinished();
+      }
+    });
     // then
     collector.prepareMetrics();
     assertEquals(limit, collector.drain().size());
@@ -82,11 +77,9 @@ class CoreMetricCollectorTest extends DDJavaSpecification {
   void directCountCoreMetric() {
     // setup
     CoreMetricCollector collector = CoreMetricCollector.getInstance();
-
     // when
     collector.count("flagevaluation.rows.dropped", 3, "reason:queue_overflow");
     List<CoreMetric> metrics = new ArrayList<>(collector.drain());
-
     // then
     assertEquals(1, metrics.size());
 

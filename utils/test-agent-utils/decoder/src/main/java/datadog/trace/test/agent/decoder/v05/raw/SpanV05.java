@@ -1,7 +1,6 @@
 package datadog.trace.test.agent.decoder.v05.raw;
 
 import static java.util.Collections.emptyMap;
-
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanEvent;
 import datadog.trace.test.agent.decoder.DecodedSpanEvents;
@@ -42,11 +41,15 @@ public class SpanV05 implements DecodedSpan {
       int size = unpacker.unpackArrayHeader();
       if (size != 12) {
         throw new IllegalArgumentException(
-            "Wrong span element array size " + size + ". Expected 12.");
+            "Wrong span element array size " + size + ". Expected 12."
+        );
       }
-      String service = unpackString(unpacker, dictionary); // index into dictionary
-      String name = unpackString(unpacker, dictionary); // index into dictionary
-      String resource = unpackString(unpacker, dictionary); // index into dictionary
+      // index into dictionary
+      String service = unpackString(unpacker, dictionary);
+      // index into dictionary
+      String name = unpackString(unpacker, dictionary);
+      // index into dictionary
+      String resource = unpackString(unpacker, dictionary);
       long traceId = unpacker.unpackLong();
       long spanId = unpacker.unpackLong();
       long parentId = unpacker.unpackLong();
@@ -56,7 +59,8 @@ public class SpanV05 implements DecodedSpan {
       int metaSize = unpacker.unpackMapHeader();
       if (metaSize < 0) {
         throw new IllegalArgumentException(
-            "Negative meta map size " + metaSize + " for span " + spanId);
+            "Negative meta map size " + metaSize + " for span " + spanId
+        );
       }
       Map<String, String> meta = new HashMap<>(metaSize);
       for (int i = 0; i < metaSize; i++) {
@@ -65,20 +69,35 @@ public class SpanV05 implements DecodedSpan {
       int metricsSize = unpacker.unpackMapHeader();
       if (metricsSize < 0) {
         throw new IllegalArgumentException(
-            "Negative metrics map size " + metaSize + " for span " + spanId);
+            "Negative metrics map size " + metaSize + " for span " + spanId
+        );
       }
       Map<String, Number> metrics = new HashMap<>(metricsSize);
       for (int i = 0; i < metricsSize; i++) {
         metrics.put(unpackString(unpacker, dictionary), unpackNumber(unpacker));
       }
-      String type = unpackString(unpacker, dictionary); // index into dictionary
+      // index into dictionary
+      String type = unpackString(unpacker, dictionary);
 
       List<DecodedSpanLink> links = DecodedSpanLinks.fromMeta(meta);
       List<DecodedSpanEvent> events = DecodedSpanEvents.fromMeta(meta);
 
       return new SpanV05(
-          service, name, resource, traceId, spanId, parentId, start, duration, error, meta, metrics,
-          type, links, events);
+          service,
+          name,
+          resource,
+          traceId,
+          spanId,
+          parentId,
+          start,
+          duration,
+          error,
+          meta,
+          metrics,
+          type,
+          links,
+          events
+      );
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -88,8 +107,7 @@ public class SpanV05 implements DecodedSpan {
     }
   }
 
-  static String unpackString(MessageUnpacker unpacker, DictionaryV05 dictionary)
-      throws IOException {
+  static String unpackString(MessageUnpacker unpacker, DictionaryV05 dictionary) throws IOException {
     return dictionary.at(unpacker.unpackInt());
   }
 
@@ -110,7 +128,8 @@ public class SpanV05 implements DecodedSpan {
           break;
         default:
           throw new IllegalArgumentException(
-              "Failed to decode number. Unexpected value type " + valueType);
+              "Failed to decode number. Unexpected value type " + valueType
+          );
       }
     } catch (IOException e) {
       throw new IllegalArgumentException("Failed to decode number.", e);
@@ -118,18 +137,24 @@ public class SpanV05 implements DecodedSpan {
     return result;
   }
 
-  private final String service; // index into dictionary
-  private final String name; // index into dictionary
-  private final String resource; // index into dictionary
+  // index into dictionary
+  private final String service;
+  // index into dictionary
+  private final String name;
+  // index into dictionary
+  private final String resource;
   private final long traceId;
   private final long spanId;
   private final long parentId;
   private final long start;
   private final long duration;
   private final int error;
-  private final Map<String, String> meta; // index -> index
-  private final Map<String, Number> metrics; // index -> metric
-  private final String type; // index into dictionary
+  // index -> index
+  private final Map<String, String> meta;
+  // index -> metric
+  private final Map<String, Number> metrics;
+  // index into dictionary
+  private final String type;
   private final List<DecodedSpanLink> links;
   private final List<DecodedSpanEvent> events;
 
@@ -147,7 +172,8 @@ public class SpanV05 implements DecodedSpan {
       Map<String, Number> metrics,
       String type,
       List<DecodedSpanLink> links,
-      List<DecodedSpanEvent> events) {
+      List<DecodedSpanEvent> events
+  ) {
     this.service = service;
     this.name = name;
     this.resource = resource;

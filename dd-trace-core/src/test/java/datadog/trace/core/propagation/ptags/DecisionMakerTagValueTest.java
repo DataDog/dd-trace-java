@@ -3,7 +3,6 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.core.propagation.ptags.PTagsFactory.PTags.decisionMakerTagValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import org.junit.jupiter.api.Test;
@@ -31,9 +30,11 @@ class DecisionMakerTagValueTest {
   void reusesInstanceForKnownMechanisms() {
     assertSame(
         decisionMakerTagValue(SamplingMechanism.MANUAL),
-        decisionMakerTagValue(SamplingMechanism.MANUAL));
+        decisionMakerTagValue(SamplingMechanism.MANUAL)
+    );
     assertSame(
         decisionMakerTagValue(SamplingMechanism.AI_GUARD),
-        decisionMakerTagValue(SamplingMechanism.AI_GUARD));
+        decisionMakerTagValue(SamplingMechanism.AI_GUARD)
+    );
   }
 }

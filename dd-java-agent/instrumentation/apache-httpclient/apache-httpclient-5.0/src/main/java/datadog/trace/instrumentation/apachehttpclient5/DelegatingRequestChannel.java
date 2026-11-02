@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.apachehttpclient5;
 import static datadog.context.Context.current;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.HttpHeadersInjectAdapter.SETTER;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import org.apache.hc.core5.http.EntityDetails;
@@ -18,7 +17,10 @@ public class DelegatingRequestChannel implements RequestChannel {
   private final boolean injectContext;
 
   public DelegatingRequestChannel(
-      RequestChannel requestChannel, AgentSpan span, boolean injectContext) {
+      RequestChannel requestChannel,
+      AgentSpan span,
+      boolean injectContext
+  ) {
     this.delegate = requestChannel;
     this.span = span;
     this.injectContext = injectContext;
@@ -26,7 +28,8 @@ public class DelegatingRequestChannel implements RequestChannel {
 
   @Override
   public void sendRequest(HttpRequest request, EntityDetails entityDetails, HttpContext context)
-      throws HttpException, IOException {
+      throws HttpException,
+      IOException {
     DECORATE.onRequest(span, request);
     if (injectContext) {
       DECORATE.injectContext(current().with(span), request, SETTER);

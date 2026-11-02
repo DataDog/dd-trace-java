@@ -7,7 +7,6 @@ import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 
 public abstract class ExtractAdapter<T> implements AgentPropagation.ContextVisitor<T> {
-
   abstract HeaderIterator getHeaders(T carrier);
 
   @Override

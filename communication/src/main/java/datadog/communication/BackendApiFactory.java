@@ -3,7 +3,6 @@ package datadog.communication;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
@@ -20,11 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BackendApiFactory {
-
   private static final Logger log = LoggerFactory.getLogger(BackendApiFactory.class);
   private static final int MAX_DNS_LABEL_LENGTH = 63;
   private static final int MAX_DNS_HOST_LENGTH = 253;
-
   private final Config config;
   private final SharedCommunicationObjects sharedCommunicationObjects;
   private final Map<String, String> requestHeaders;
@@ -34,9 +31,14 @@ public class BackendApiFactory {
     this(config, sharedCommunicationObjects, emptyMap(), false);
   }
 
-  /** Creates a backend factory with optional send-once transport semantics and no extra headers. */
+  /**
+   * Creates a backend factory with optional send-once transport semantics and no extra headers.
+   */
   public BackendApiFactory(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects, boolean sendOnce) {
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      boolean sendOnce
+  ) {
     this(config, sharedCommunicationObjects, emptyMap(), sendOnce);
   }
 
@@ -52,7 +54,8 @@ public class BackendApiFactory {
       Config config,
       SharedCommunicationObjects sharedCommunicationObjects,
       Map<String, String> requestHeaders,
-      boolean sendOnce) {
+      boolean sendOnce
+  ) {
     this.config = config;
     this.sharedCommunicationObjects = sharedCommunicationObjects;
     this.requestHeaders = unmodifiableMap(new HashMap<>(requestHeaders));
@@ -72,29 +75,40 @@ public class BackendApiFactory {
     if (backendApi == null) {
       log.warn(
           "Cannot create backend API client since agentless mode is disabled, "
-              + "and agent does not support EVP proxy");
+          + "and agent does not support EVP proxy"
+      );
     }
     return backendApi;
   }
 
-  /** Creates an authenticated API client that sends data directly to a Datadog intake. */
+  /**
+   * Creates an authenticated API client that sends data directly to a Datadog intake.
+   */
   public BackendApi createDirectIntakeApi(Intake intake) {
     return createDirectIntakeApi(intake, true);
   }
 
-  /** Creates an authenticated API client that sends data directly to a Datadog intake. */
+  /**
+   * Creates an authenticated API client that sends data directly to a Datadog intake.
+   */
   public BackendApi createDirectIntakeApi(Intake intake, boolean responseCompression) {
     return createDirectIntakeApi(intake, responseCompression, true);
   }
 
-  /** Creates an authenticated API client that sends data directly to a Datadog intake. */
+  /**
+   * Creates an authenticated API client that sends data directly to a Datadog intake.
+   */
   public BackendApi createDirectIntakeApi(
-      Intake intake, boolean responseCompression, boolean followRedirects) {
+      Intake intake,
+      boolean responseCompression,
+      boolean followRedirects
+  ) {
     HttpUrl agentlessUrl = buildDirectIntakeUrl(intake, config);
     String apiKey = config.getApiKey();
     if (apiKey == null || apiKey.isEmpty()) {
       throw new FatalAgentMisconfigurationError(
-          "Agentless mode is enabled and API key is not set. Please set DD_API_KEY");
+          "Agentless mode is enabled and API key is not set. Please set DD_API_KEY"
+      );
     }
     String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
     return new IntakeApi(
@@ -104,12 +118,18 @@ public class BackendApiFactory {
         retryPolicyFactory(),
         configureHttpClient(
             directIntakeHttpClient(
-                sharedCommunicationObjects.getIntakeHttpClient(), followRedirects)),
-        responseCompression);
+                sharedCommunicationObjects.getIntakeHttpClient(),
+                followRedirects
+            )
+        ),
+        responseCompression
+    );
   }
 
   static OkHttpClient directIntakeHttpClient(
-      final OkHttpClient intakeHttpClient, final boolean followRedirects) {
+      final OkHttpClient intakeHttpClient,
+      final boolean followRedirects
+  ) {
     if (followRedirects) {
       return intakeHttpClient;
     }
@@ -132,14 +152,13 @@ public class BackendApiFactory {
     if (expectedHost.length() > MAX_DNS_HOST_LENGTH) {
       throw new IllegalArgumentException("Invalid Datadog site");
     }
-    HttpUrl url =
-        new HttpUrl.Builder()
-            .scheme("https")
-            .host(expectedHost)
-            .addPathSegment("api")
-            .addPathSegment(Intake.EVENT_PLATFORM.getVersion())
-            .addPathSegment("")
-            .build();
+    HttpUrl url = new HttpUrl.Builder()
+      .scheme("https")
+      .host(expectedHost)
+      .addPathSegment("api")
+      .addPathSegment(Intake.EVENT_PLATFORM.getVersion())
+      .addPathSegment("")
+      .build();
     if (!url.host().equalsIgnoreCase(expectedHost)) {
       throw new IllegalArgumentException("Invalid Datadog site");
     }
@@ -178,19 +197,28 @@ public class BackendApiFactory {
         || (character >= '0' && character <= '9');
   }
 
-  /** Creates an API client that uses the specified retry policy with a compatible local proxy. */
+  /**
+   * Creates an API client that uses the specified retry policy with a compatible local proxy.
+   */
   public @Nullable BackendApi createEvpProxyApi(Intake intake) {
     return createEvpProxyApi(intake, true);
   }
 
-  /** Creates an API client that sends data through a compatible local EVP proxy. */
+  /**
+   * Creates an API client that sends data through a compatible local EVP proxy.
+   */
   public @Nullable BackendApi createEvpProxyApi(Intake intake, boolean responseCompression) {
     return createEvpProxyApi(intake, responseCompression, retryPolicyFactory());
   }
 
-  /** Creates an API client that sends data through a compatible local EVP proxy. */
+  /**
+   * Creates an API client that sends data through a compatible local EVP proxy.
+   */
   public @Nullable BackendApi createEvpProxyApi(
-      Intake intake, boolean responseCompression, HttpRetryPolicy.Factory retryPolicyFactory) {
+      Intake intake,
+      boolean responseCompression,
+      HttpRetryPolicy.Factory retryPolicyFactory
+  ) {
     return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, false, emptyList());
   }
 
@@ -208,7 +236,8 @@ public class BackendApiFactory {
       boolean responseCompression,
       HttpRetryPolicy.Factory retryPolicyFactory,
       boolean forceDiscovery,
-      Iterable<String> requiredProxyHeaders) {
+      Iterable<String> requiredProxyHeaders
+  ) {
     String endpoint = discoverEvpProxyEndpoint(forceDiscovery, requiredProxyHeaders);
     return endpoint == null
         ? null
@@ -219,7 +248,9 @@ public class BackendApiFactory {
    * Discovers a capability-validated endpoint that related senders can share without re-probing.
    */
   public @Nullable String discoverEvpProxyEndpoint(
-      boolean forceDiscovery, Iterable<String> requiredProxyHeaders) {
+      boolean forceDiscovery,
+      Iterable<String> requiredProxyHeaders
+  ) {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
     if (forceDiscovery) {
@@ -235,12 +266,15 @@ public class BackendApiFactory {
     return evpProxyEndpoint;
   }
 
-  /** Creates a client for a fixed compatibility or previously discovered endpoint, without I/O. */
+  /**
+   * Creates a client for a fixed compatibility or previously discovered endpoint, without I/O.
+   */
   public BackendApi createEvpProxyApiForEndpoint(
       Intake intake,
       boolean responseCompression,
       HttpRetryPolicy.Factory retryPolicyFactory,
-      String evpProxyEndpoint) {
+      String evpProxyEndpoint
+  ) {
     return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, evpProxyEndpoint);
   }
 
@@ -248,13 +282,15 @@ public class BackendApiFactory {
       Intake intake,
       boolean responseCompression,
       HttpRetryPolicy.Factory retryPolicyFactory,
-      String evpProxyEndpoint) {
+      String evpProxyEndpoint
+  ) {
     String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
     log.debug(
         "Creating EVP proxy client for {} using endpoint {} with responseCompression={}",
         intake,
         evpProxyEndpoint,
-        responseCompression);
+        responseCompression
+    );
     HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
     String subdomain = intake.getUrlPrefix();
     return new EvpProxyApi(
@@ -263,7 +299,8 @@ public class BackendApiFactory {
         subdomain,
         retryPolicyFactory,
         configureHttpClient(sharedCommunicationObjects.agentHttpClient),
-        responseCompression);
+        responseCompression
+    );
   }
 
   OkHttpClient configureHttpClient(final OkHttpClient httpClient) {
@@ -275,14 +312,13 @@ public class BackendApiFactory {
       builder.retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false);
     }
     if (!requestHeaders.isEmpty()) {
-      builder.addInterceptor(
-          chain -> {
-            final Request.Builder requestBuilder = chain.request().newBuilder();
-            for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
-              requestBuilder.header(header.getKey(), header.getValue());
-            }
-            return chain.proceed(requestBuilder.build());
-          });
+      builder.addInterceptor(chain -> {
+        final Request.Builder requestBuilder = chain.request().newBuilder();
+        for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
+          requestBuilder.header(header.getKey(), header.getValue());
+        }
+        return chain.proceed(requestBuilder.build());
+      });
     }
     return builder.build();
   }

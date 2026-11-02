@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -16,8 +15,10 @@ import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
 
 public class JavaForkJoinPoolInstrumentation
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "java.util.concurrent.ForkJoinPool";
@@ -27,12 +28,16 @@ public class JavaForkJoinPoolInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     String name = getClass().getName();
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("externalPush", "externalSubmit")), name + "$ExternalPush");
+        isMethod().and(namedOneOf("externalPush", "externalSubmit")),
+        name + "$ExternalPush"
+    );
     // Java 21 has a new method name and changed signature
     transformer.applyAdvice(isMethod().and(named("poolSubmit")), name + "$PoolSubmit");
     // Java 25 delayed tasks capture at construction and bypass the normal submission methods.
     transformer.applyAdvice(
-        isMethod().and(named("scheduleDelayedTask")), name + "$ScheduleDelayedTask");
+        isMethod().and(named("scheduleDelayedTask")),
+        name + "$ScheduleDelayedTask"
+    );
   }
 
   public static final class ExternalPush {
@@ -48,7 +53,9 @@ public class JavaForkJoinPoolInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static <T> void cleanup(
-        @Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
+        @Advice.Argument(0) ForkJoinTask<T> task,
+        @Advice.Thrown Throwable thrown
+    ) {
       if (null != thrown && !exclude(FORK_JOIN_TASK, task)) {
         cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }
@@ -67,7 +74,9 @@ public class JavaForkJoinPoolInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static <T> void cleanup(
-        @Advice.Argument(1) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
+        @Advice.Argument(1) ForkJoinTask<T> task,
+        @Advice.Thrown Throwable thrown
+    ) {
       if (null != thrown && !exclude(FORK_JOIN_TASK, task)) {
         cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }
@@ -77,7 +86,9 @@ public class JavaForkJoinPoolInstrumentation
   public static final class ScheduleDelayedTask {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void cleanup(
-        @Advice.Argument(0) ForkJoinTask<?> task, @Advice.Thrown Throwable thrown) {
+        @Advice.Argument(0) ForkJoinTask<?> task,
+        @Advice.Thrown Throwable thrown
+    ) {
       if (thrown != null) {
         cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.squareup.okhttp.Headers;
 import java.util.HashMap;
 import java.util.List;
@@ -27,13 +26,12 @@ class AppSecHeadersTest {
 
   @Test
   void preservesFirstSpellingValueOrderAndCaseSensitiveLookup() {
-    Headers headers =
-        new Headers.Builder()
-            .add("X-Example", "one")
-            .add("Other", "")
-            .add("x-example", "two")
-            .add("X-EXAMPLE", "three")
-            .build();
+    Headers headers = new Headers.Builder()
+      .add("X-Example", "one")
+      .add("Other", "")
+      .add("x-example", "two")
+      .add("X-EXAMPLE", "three")
+      .build();
     Map<String, List<String>> result = AppSecInterceptor.mapHeaders(headers);
     assertEquals(2, result.size());
     assertEquals(asList("one", "two", "three"), result.get("X-Example"));

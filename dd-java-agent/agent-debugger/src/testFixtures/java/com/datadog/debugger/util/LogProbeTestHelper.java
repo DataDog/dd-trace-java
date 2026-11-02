@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.List;
 
 public class LogProbeTestHelper {
-
   public static List<LogProbe.Segment> parseTemplate(String template) {
     if (template == null) {
       return Collections.emptyList();

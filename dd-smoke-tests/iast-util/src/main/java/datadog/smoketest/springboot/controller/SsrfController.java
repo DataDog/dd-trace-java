@@ -28,11 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/ssrf")
 public class SsrfController {
-
   @PostMapping
   public String ssrf(
       @RequestParam(value = "url", required = false) final String url,
-      @RequestParam(value = "host", required = false) final String host) {
+      @RequestParam(value = "host", required = false) final String host
+  ) {
     try {
       final URL target = url != null ? new URL(url) : new URL("https", host, 443, "/test");
       final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
@@ -45,7 +45,8 @@ public class SsrfController {
   @PostMapping("/uri")
   public String uri(
       @RequestParam(value = "url", required = false) final String url,
-      @RequestParam(value = "host", required = false) final String host) {
+      @RequestParam(value = "host", required = false) final String host
+  ) {
     try {
       final URI uri =
           url != null ? new URI(url) : new URI("https", null, host, 443, "/test", null, null);
@@ -60,7 +61,8 @@ public class SsrfController {
   @PostMapping("/apache-httpclient4")
   public String apacheHttpClient4(
       @RequestParam(value = "url", required = false) final String url,
-      @RequestParam(value = "host", required = false) final String host) {
+      @RequestParam(value = "host", required = false) final String host
+  ) {
     final DefaultHttpClient client = new DefaultHttpClient();
     try {
       if (host != null) {
@@ -121,7 +123,8 @@ public class SsrfController {
   public String apacheHttpClient5(
       @RequestParam(value = "url", required = false) final String url,
       @RequestParam(value = "urlHandler", required = false) final String urlHandler,
-      @RequestParam(value = "host", required = false) final String host) {
+      @RequestParam(value = "host", required = false) final String host
+  ) {
     CloseableHttpClient client = HttpClients.createDefault();
     try {
       if (host != null) {
@@ -149,7 +152,8 @@ public class SsrfController {
   public String apacheHttpAsyncClient(
       @RequestParam(value = "url", required = false) final String url,
       @RequestParam(value = "host", required = false) final String host,
-      @RequestParam(value = "urlProducer", required = false) final String urlProducer) {
+      @RequestParam(value = "urlProducer", required = false) final String urlProducer
+  ) {
     final CloseableHttpAsyncClient client = HttpAsyncClients.createDefault();
     client.start();
     try {

@@ -3,7 +3,6 @@ package datadog.telemetry;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -22,7 +21,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class EventSourceTest {
-
   private static class EventQueues {
     final Queue<ConfigSetting> configChangeQueue = new LinkedBlockingQueue<>();
     final Queue<Integration> integrationQueue = new LinkedBlockingQueue<>();
@@ -42,31 +40,30 @@ class EventSourceTest {
   @ParameterizedTest(name = "test isEmpty when adding and clearing {0}")
   @MethodSource("testIsEmptyWhenAddingAndClearingArguments")
   void testIsEmptyWhenAddingAndClearing(
-      String eventType, Function<EventQueues, Queue<?>> queueSelector, Object eventInstance) {
+      String eventType,
+      Function<EventQueues, Queue<?>> queueSelector,
+      Object eventInstance
+  ) {
     EventQueues eventQueues = new EventQueues();
-    EventSource eventSource =
-        new EventSource.Queued(
-            eventQueues.configChangeQueue,
-            eventQueues.integrationQueue,
-            eventQueues.dependencyQueue,
-            eventQueues.metricQueue,
-            eventQueues.distributionSeriesQueue,
-            eventQueues.logMessageQueue,
-            eventQueues.productChanges,
-            eventQueues.endpointQueue);
+    EventSource eventSource = new EventSource.Queued(
+        eventQueues.configChangeQueue,
+        eventQueues.integrationQueue,
+        eventQueues.dependencyQueue,
+        eventQueues.metricQueue,
+        eventQueues.distributionSeriesQueue,
+        eventQueues.logMessageQueue,
+        eventQueues.productChanges,
+        eventQueues.endpointQueue
+    );
 
     assertTrue(eventSource.isEmpty());
-
     // add an event to the queue
     Queue<?> queue = queueSelector.apply(eventQueues);
     addInstance(queue, eventInstance);
-
     // eventSource should not be empty
     assertFalse(eventSource.isEmpty());
-
     // clear the queue
     queue.clear();
-
     // eventSource should be empty again
     assertTrue(eventSource.isEmpty());
   }
@@ -76,32 +73,43 @@ class EventSourceTest {
         arguments(
             "Config Change",
             (Function<EventQueues, Queue<?>>) queues -> queues.configChangeQueue,
-            ConfigSetting.of("key", "value", ConfigOrigin.ENV)),
+            ConfigSetting.of("key", "value", ConfigOrigin.ENV)
+        ),
         arguments(
             "Integration",
             (Function<EventQueues, Queue<?>>) queues -> queues.integrationQueue,
-            new Integration("name", true)),
+            new Integration("name", true)
+        ),
         arguments(
             "Dependency",
             (Function<EventQueues, Queue<?>>) queues -> queues.dependencyQueue,
-            new Dependency("name", "version", "type", null)),
+            new Dependency("name", "version", "type", null)
+        ),
         arguments(
-            "Metric", (Function<EventQueues, Queue<?>>) queues -> queues.metricQueue, new Metric()),
+            "Metric",
+            (Function<EventQueues, Queue<?>>) queues -> queues.metricQueue,
+            new Metric()
+        ),
         arguments(
             "Distribution Series",
             (Function<EventQueues, Queue<?>>) queues -> queues.distributionSeriesQueue,
-            new DistributionSeries()),
+            new DistributionSeries()
+        ),
         arguments(
             "Log Message",
             (Function<EventQueues, Queue<?>>) queues -> queues.logMessageQueue,
-            new LogMessage()),
+            new LogMessage()
+        ),
         arguments(
             "Product Change",
             (Function<EventQueues, Queue<?>>) queues -> queues.productChanges,
-            new ProductChange()),
+            new ProductChange()
+        ),
         arguments(
             "Endpoint",
             (Function<EventQueues, Queue<?>>) queues -> queues.endpointQueue,
-            new Endpoint()));
+            new Endpoint()
+        )
+    );
   }
 }

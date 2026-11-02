@@ -2,7 +2,6 @@ package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -83,7 +82,8 @@ public class HashingUtilsTest {
 
     assertEquals(
         HashingUtils.hash(str0, str1, str2, str3),
-        HashingUtils.hash(clone0, clone1, clone2, clone3));
+        HashingUtils.hash(clone0, clone1, clone2, clone3)
+    );
   }
 
   @Test
@@ -109,12 +109,13 @@ public class HashingUtilsTest {
 
     assertEquals(
         HashingUtils.hash(str0, str1, str2, str3, str4),
-        HashingUtils.hash(clone0, clone1, clone2, clone3, clone4));
-
+        HashingUtils.hash(clone0, clone1, clone2, clone3, clone4)
+    );
     // The 5th argument must actually affect the hash (regression for a missing-arg bug).
     assertNotEquals(
         HashingUtils.hash(str0, str1, str2, str3, str4),
-        HashingUtils.hash(str0, str1, str2, str3, "different"));
+        HashingUtils.hash(str0, str1, str2, str3, "different")
+    );
   }
 
   @Test
@@ -146,10 +147,8 @@ public class HashingUtilsTest {
   @Test
   public void addToHashArrayFoldsFromSeedLikeChainedAddToHash() {
     Object[] array = new Object[] {"foo", "bar", "quux"};
-
     // Full-array overload folds every element onto the seed; from zero it matches hash(Object[]).
     assertEquals(HashingUtils.hash(array), HashingUtils.addToHash(0, array));
-
     // A non-zero seed carries through, so the result differs from the zero-seed fold.
     assertNotEquals(HashingUtils.addToHash(0, array), HashingUtils.addToHash(1, array));
   }
@@ -157,12 +156,12 @@ public class HashingUtilsTest {
   @Test
   public void addToHashArrayRespectsLen() {
     Object[] array = new Object[] {"foo", "bar", "quux"};
-
     // The len override folds only the first len elements.
     assertEquals(
-        HashingUtils.hash(new Object[] {"foo", "bar"}), HashingUtils.addToHash(0, array, 2));
+        HashingUtils.hash(new Object[] {"foo", "bar"}),
+        HashingUtils.addToHash(0, array, 2)
+    );
     assertNotEquals(HashingUtils.addToHash(0, array), HashingUtils.addToHash(0, array, 2));
-
     // len==0 never enters the loop and returns the seed unchanged.
     assertEquals(42, HashingUtils.addToHash(42, array, 0));
   }
@@ -189,46 +188,51 @@ public class HashingUtilsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      shorts = {Short.MIN_VALUE, Byte.MIN_VALUE, -1, 0, 1, Byte.MAX_VALUE, Short.MAX_VALUE})
+  @ValueSource(shorts = {
+      Short.MIN_VALUE,
+      Byte.MIN_VALUE,
+      -1,
+      0,
+      1,
+      Byte.MAX_VALUE,
+      Short.MAX_VALUE
+  })
   public void shorts(short value) {
     assertEquals(Short.hashCode(value), HashingUtils.hash(value));
     assertEquals(Short.hashCode(value), HashingUtils.addToHash(0, value));
   }
 
   @ParameterizedTest
-  @ValueSource(
-      ints = {
-        Integer.MIN_VALUE,
-        Short.MIN_VALUE,
-        Byte.MIN_VALUE,
-        -1,
-        0,
-        1,
-        Byte.MAX_VALUE,
-        Short.MAX_VALUE,
-        Integer.MAX_VALUE
-      })
+  @ValueSource(ints = {
+      Integer.MIN_VALUE,
+      Short.MIN_VALUE,
+      Byte.MIN_VALUE,
+      -1,
+      0,
+      1,
+      Byte.MAX_VALUE,
+      Short.MAX_VALUE,
+      Integer.MAX_VALUE
+  })
   public void ints(int value) {
     assertEquals(Integer.hashCode(value), HashingUtils.hash(value));
     assertEquals(Integer.hashCode(value), HashingUtils.addToHash(0, value));
   }
 
   @ParameterizedTest
-  @ValueSource(
-      longs = {
-        Long.MIN_VALUE,
-        Integer.MIN_VALUE,
-        Short.MIN_VALUE,
-        Byte.MIN_VALUE,
-        -1,
-        0,
-        1,
-        Byte.MAX_VALUE,
-        Short.MAX_VALUE,
-        Integer.MAX_VALUE,
-        Long.MAX_VALUE
-      })
+  @ValueSource(longs = {
+      Long.MIN_VALUE,
+      Integer.MIN_VALUE,
+      Short.MIN_VALUE,
+      Byte.MIN_VALUE,
+      -1,
+      0,
+      1,
+      Byte.MAX_VALUE,
+      Short.MAX_VALUE,
+      Integer.MAX_VALUE,
+      Long.MAX_VALUE
+  })
   public void longs(long value) {
     assertEquals(Long.hashCode(value), HashingUtils.hash(value));
     assertEquals(Long.hashCode(value), HashingUtils.addToHash(0, value));
@@ -242,18 +246,17 @@ public class HashingUtilsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      doubles = {
-        Double.MIN_VALUE,
-        Float.MIN_VALUE,
-        -1,
-        0,
-        1,
-        2.71828,
-        3.1415,
-        Float.MAX_VALUE,
-        Double.MAX_VALUE
-      })
+  @ValueSource(doubles = {
+      Double.MIN_VALUE,
+      Float.MIN_VALUE,
+      -1,
+      0,
+      1,
+      2.71828,
+      3.1415,
+      Float.MAX_VALUE,
+      Double.MAX_VALUE
+  })
   public void floats(double value) {
     assertEquals(Double.hashCode(value), HashingUtils.hash(value));
     assertEquals(Double.hashCode(value), HashingUtils.addToHash(0, value));

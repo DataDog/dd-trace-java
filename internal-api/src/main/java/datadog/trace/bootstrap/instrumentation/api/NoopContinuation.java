@@ -7,7 +7,8 @@ import datadog.context.ContextScope;
 public final class NoopContinuation implements ContextContinuation {
   public static final NoopContinuation INSTANCE = new NoopContinuation();
 
-  private NoopContinuation() {}
+  private NoopContinuation() {
+  }
 
   @Override
   public NoopContinuation hold() {

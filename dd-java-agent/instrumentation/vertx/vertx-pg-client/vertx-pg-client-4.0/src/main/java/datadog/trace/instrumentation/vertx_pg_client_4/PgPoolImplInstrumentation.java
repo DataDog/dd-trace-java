@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,7 +15,9 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class PgPoolImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public PgPoolImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
@@ -35,11 +36,12 @@ public class PgPoolImplInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isStatic()
-            .and(isPublic())
-            .and(isMethod())
-            .and(named("create"))
-            .and(takesArguments(4))
-            .and(takesArgument(2, named("io.vertx.pgclient.PgConnectOptions"))),
-        packageName + ".PgPoolImplAdvice");
+          .and(isPublic())
+          .and(isMethod())
+          .and(named("create"))
+          .and(takesArguments(4))
+          .and(takesArgument(2, named("io.vertx.pgclient.PgConnectOptions"))),
+        packageName + ".PgPoolImplAdvice"
+    );
   }
 }

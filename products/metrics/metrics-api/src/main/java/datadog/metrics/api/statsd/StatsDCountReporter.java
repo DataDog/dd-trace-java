@@ -30,19 +30,21 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public final class StatsDCountReporter<E extends Enum<E> & StatsDCounterKey> {
   private static final Logger log = LoggerFactory.getLogger(StatsDCountReporter.class);
-
   private final StatsDClient statsDClient;
   private final Accumulator<E> accumulator;
   private final Accumulator.RunningTotal<E> runningTotal;
-
-  /** Undelivered from the last {@link #flush}, to retry on the next one; {@code null} if none. */
+  /**
+   * Undelivered from the last {@link #flush}, to retry on the next one; {@code null} if none.
+   */
   private Accumulator.Counts<E> pending;
 
   /**
    * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
    */
   public static <E extends Enum<E> & StatsDCounterKey> StatsDCountReporter<E> of(
-      StatsDClient statsDClient, Class<E> enumType) {
+      StatsDClient statsDClient,
+      Class<E> enumType
+  ) {
     return new StatsDCountReporter<>(statsDClient, Accumulator.of(enumType));
   }
 
@@ -52,12 +54,16 @@ public final class StatsDCountReporter<E extends Enum<E> & StatsDCounterKey> {
     this.runningTotal = Accumulator.RunningTotal.of(accumulator);
   }
 
-  /** Increments the counter named by {@code key} by one. */
+  /**
+   * Increments the counter named by {@code key} by one.
+   */
   public void inc(E key) {
     accumulator.inc(key);
   }
 
-  /** Adds {@code delta} to the counter named by {@code key}. */
+  /**
+   * Adds {@code delta} to the counter named by {@code key}.
+   */
   public void add(E key, long delta) {
     accumulator.add(key, delta);
   }
@@ -98,7 +104,8 @@ public final class StatsDCountReporter<E extends Enum<E> & StatsDCounterKey> {
               "Failed to report {}, compensating {} undelivered counter(s)",
               key,
               keys.size() - i,
-              e);
+              e
+          );
           return counts.from(i);
         }
       }
@@ -111,7 +118,10 @@ public final class StatsDCountReporter<E extends Enum<E> & StatsDCounterKey> {
    * compensation.
    */
   public static <E extends Enum<E> & StatsDCounterKey> void report(
-      StatsDClient statsDClient, E[] values, ToLongFunction<E> counts) {
+      StatsDClient statsDClient,
+      E[] values,
+      ToLongFunction<E> counts
+  ) {
     for (E value : values) {
       long delta = counts.applyAsLong(value);
       if (delta != 0) {

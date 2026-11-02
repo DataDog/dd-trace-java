@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.javax.mail;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JavaxMailPartInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public JavaxMailPartInstrumentation() {
     super("javax-mail", "javax-mail-body");
   }
@@ -27,10 +27,12 @@ public class JavaxMailPartInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("setContent").and(takesArgument(0, Object.class)),
-        JavaxMailPartInstrumentation.class.getName() + "$ContentInjectionAdvice");
+        JavaxMailPartInstrumentation.class.getName() + "$ContentInjectionAdvice"
+    );
     transformer.applyAdvice(
         named("setText").and(takesArgument(0, String.class)),
-        JavaxMailPartInstrumentation.class.getName() + "$TextInjectionAdvice");
+        JavaxMailPartInstrumentation.class.getName() + "$TextInjectionAdvice"
+    );
   }
 
   @Override
@@ -47,7 +49,9 @@ public class JavaxMailPartInstrumentation extends InstrumenterModule.Iast
     @Propagation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     private static void onSetContent(
-        @Advice.This Part part, @Advice.Argument(0) final Object content) {
+        @Advice.This Part part,
+        @Advice.Argument(0) final Object content
+    ) {
       PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
       if (propagationModule != null && content != null) {
         propagationModule.taintObjectIfTainted(part, content);

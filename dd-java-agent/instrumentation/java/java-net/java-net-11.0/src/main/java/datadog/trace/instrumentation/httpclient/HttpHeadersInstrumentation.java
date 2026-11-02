@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,9 +15,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public class HttpHeadersInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public HttpHeadersInstrumentation() {
     super("java-http-client");
   }
@@ -41,14 +40,15 @@ public class HttpHeadersInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("java.net.")
-        .or(nameStartsWith("jdk.internal."))
-        .and(extendsClass(named("java.net.http.HttpRequest")));
+      .or(nameStartsWith("jdk.internal."))
+      .and(extendsClass(named("java.net.http.HttpRequest")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpHeadersInjectAdapter", packageName + ".JavaNetClientDecorator",
+        packageName + ".HttpHeadersInjectAdapter",
+        packageName + ".JavaNetClientDecorator"
     };
   }
 

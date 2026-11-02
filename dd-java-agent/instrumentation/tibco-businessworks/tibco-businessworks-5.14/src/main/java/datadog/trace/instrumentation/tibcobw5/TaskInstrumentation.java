@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.DECORATE;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.TIBCO_ACTIVITY_OPERATION;
-
 import com.google.auto.service.AutoService;
 import com.tibco.pe.core.ActivityGroup;
 import com.tibco.pe.core.ProcessGroup;
@@ -24,7 +23,9 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 @AutoService(InstrumenterModule.class)
 public class TaskInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "com.tibco.pe.core.TaskImpl";
@@ -34,7 +35,9 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(NameMatchers.named("eval"), getClass().getName() + "$EvalAdvice");
     transformer.applyAdvice(
-        NameMatchers.named("handleError"), getClass().getName() + "$ErrorAdvice");
+        NameMatchers.named("handleError"),
+        getClass().getName() + "$ErrorAdvice"
+    );
   }
 
   public static class ErrorAdvice {
@@ -53,8 +56,8 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
         @Advice.This Task self,
         @Advice.Argument(0) ProcessContext processContext,
         @Advice.Local("ddActivityInfo") ActivityHelper.ActivityInfo ddActivityInfo,
-        @Advice.Local("ddScope") ContextScope ddScope) {
-
+        @Advice.Local("ddScope") ContextScope ddScope
+    ) {
       ContextStore<ProcessContext, Map> store =
           InstrumentationContext.get(ProcessContext.class, Map.class);
       Map<String, AgentSpan> map = store.get(processContext);
@@ -66,9 +69,11 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
       AgentSpan span = map.get(ddActivityInfo.id);
       if (span == null) {
         AgentSpan parent = map.getOrDefault(ddActivityInfo.parent, activeSpan());
-        span =
-            startSpan(
-                "tibco_bw", TIBCO_ACTIVITY_OPERATION, parent != null ? parent.spanContext() : null);
+        span = startSpan(
+            "tibco_bw",
+            TIBCO_ACTIVITY_OPERATION,
+            parent != null ? parent.spanContext() : null
+        );
         DECORATE.afterStart(span);
         DECORATE.onActivityStart(span, ddActivityInfo.name);
         map.put(ddActivityInfo.id, span);
@@ -86,7 +91,8 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
         @Advice.Return String ret,
         @Advice.Enter boolean traced,
         @Advice.Local("ddActivityInfo") ActivityHelper.ActivityInfo ddActivityInfo,
-        @Advice.Local("ddScope") ContextScope ddScope) {
+        @Advice.Local("ddScope") ContextScope ddScope
+    ) {
       try (ContextScope closeMe = ddScope) {
         if (!traced) {
           return;
@@ -94,8 +100,8 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
 
         if ("STAY_HERE".equals(ret)
             || ("DEAD".equals(ret)
-                && self.getActivity() instanceof ActivityGroup
-                && !(self.getActivity() instanceof ProcessGroup))) {
+            && self.getActivity() instanceof ActivityGroup
+            && !(self.getActivity() instanceof ProcessGroup))) {
           return;
         }
 

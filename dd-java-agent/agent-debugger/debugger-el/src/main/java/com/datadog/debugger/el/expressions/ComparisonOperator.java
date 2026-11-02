@@ -39,10 +39,11 @@ public enum ComparisonOperator {
       }
       throw new EvaluationException(
           "Equality operator is not supported for the given types: "
-              + left.getValue().getClass().getName()
-              + " and "
-              + right.getValue().getClass().getName(),
-          null);
+          + left.getValue().getClass().getName()
+          + " and "
+          + right.getValue().getClass().getName(),
+          null
+      );
     }
 
     private Boolean doApplyEqualityForEnum(Value<?> enumExpr, Value<?> enumValueExpr) {
@@ -122,10 +123,11 @@ public enum ComparisonOperator {
         return clazz.isInstance(left.getValue());
       }
       throw new EvaluationException(
-          "Right operand of instanceof operator must be a string literal", null);
+          "Right operand of instanceof operator must be a string literal",
+          null
+      );
     }
   };
-
   private final String symbol;
 
   ComparisonOperator(String symbol) {
@@ -180,14 +182,21 @@ public enum ComparisonOperator {
   }
 
   private static BigDecimal toBigDecimal(Number number) throws NumberFormatException {
-    if (number instanceof BigDecimal) return (BigDecimal) number;
-    if (number instanceof BigInteger) return new BigDecimal((BigInteger) number);
+    if (number instanceof BigDecimal) {
+      return (BigDecimal) number;
+    }
+    if (number instanceof BigInteger) {
+      return new BigDecimal((BigInteger) number);
+    }
     if (number instanceof Byte
         || number instanceof Short
         || number instanceof Integer
-        || number instanceof Long) return BigDecimal.valueOf(number.longValue());
-    if (number instanceof Float || number instanceof Double)
+        || number instanceof Long) {
+      return BigDecimal.valueOf(number.longValue());
+    }
+    if (number instanceof Float || number instanceof Double) {
       return BigDecimal.valueOf(number.doubleValue());
+    }
 
     return new BigDecimal(number.toString());
   }

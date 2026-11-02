@@ -7,7 +7,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-/** Groups the instrumentations for AWS SDK 1.11.0+. */
+/**
+ * Groups the instrumentations for AWS SDK 1.11.0+.
+ */
 @AutoService(InstrumenterModule.class)
 public class AwsSdkModule extends InstrumenterModule.Tracing {
   private final String namespace;
@@ -34,6 +36,7 @@ public class AwsSdkModule extends InstrumenterModule.Tracing {
     return Arrays.asList(
         new AWSHttpClientInstrumentation(namespace),
         new RequestExecutorInstrumentation(namespace),
-        new HandlerChainFactoryInstrumentation(namespace));
+        new HandlerChainFactoryInstrumentation(namespace)
+    );
   }
 }

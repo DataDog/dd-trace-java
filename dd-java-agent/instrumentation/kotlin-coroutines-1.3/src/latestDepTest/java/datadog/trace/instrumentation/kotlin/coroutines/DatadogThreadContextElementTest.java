@@ -1,3 +1,4 @@
 package datadog.trace.instrumentation.kotlin.coroutines;
 
-class DatadogThreadContextElementTest extends AbstractDatadogThreadContextElementTest {}
+class DatadogThreadContextElementTest extends AbstractDatadogThreadContextElementTest {
+}

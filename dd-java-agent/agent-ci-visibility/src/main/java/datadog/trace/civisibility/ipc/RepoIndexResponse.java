@@ -4,7 +4,6 @@ import datadog.trace.civisibility.source.index.RepoIndex;
 import java.nio.ByteBuffer;
 
 public class RepoIndexResponse implements SignalResponse {
-
   private final RepoIndex index;
 
   public RepoIndexResponse(RepoIndex index) {

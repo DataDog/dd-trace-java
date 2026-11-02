@@ -1,7 +1,6 @@
 package datadog.trace.core.otlp.metrics;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.telemetry.OtlpTelemetry;
@@ -17,21 +16,18 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Periodic service to collect OpenTelemetry metrics and export them over OTLP. */
+/**
+ * Periodic service to collect OpenTelemetry metrics and export them over OTLP.
+ */
 public final class OtlpMetricsService {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtlpMetricsService.class);
-
   public static final OtlpMetricsService INSTANCE = new OtlpMetricsService(Config.get());
-
   private static final int FINAL_EXPORT_TIMEOUT_SECONDS = 10;
-
   private final AgentTaskScheduler scheduler;
   private final OtlpMetricsCollector collector;
   private final OtlpSender sender;
   private final int intervalMillis;
-
   private final Object lifecycleLock = new Object();
-
   private AgentTaskScheduler.Scheduled<?> scheduledTask;
   private CountDownLatch shutdownLatch;
 
@@ -42,10 +38,9 @@ public final class OtlpMetricsService {
       LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
       this.collector = null;
     } else {
-      this.collector =
-          config.getOtlpMetricsProtocol() == OtlpConfig.Protocol.HTTP_JSON
-              ? new OtlpMetricsJsonCollector(SystemTimeSource.INSTANCE)
-              : new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
+      this.collector = config.getOtlpMetricsProtocol() == OtlpConfig.Protocol.HTTP_JSON
+          ? new OtlpMetricsJsonCollector(SystemTimeSource.INSTANCE)
+          : new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
     }
 
     this.intervalMillis = config.getMetricsOtelInterval();
@@ -55,7 +50,8 @@ public final class OtlpMetricsService {
       AgentTaskScheduler scheduler,
       OtlpMetricsCollector collector,
       OtlpSender sender,
-      int intervalMillis) {
+      int intervalMillis
+  ) {
     this.scheduler = scheduler;
     this.collector = collector;
     this.sender = sender;
@@ -74,24 +70,25 @@ public final class OtlpMetricsService {
     if (sender == null) {
       return;
     }
-
     // add random jitter of up to 5 seconds to initial delay; avoids a fleet
     // of apps starting at the same time from exporting OTLP metrics in sync
-    long initialMillis =
-        intervalMillis
-            + Math.min(
-                (long)
-                    (500d
-                        * Math.log(ThreadLocalRandom.current().nextDouble())
-                        / Math.log(1 - 0.25)),
-                5_000);
+    long initialMillis = intervalMillis
+        + Math.min(
+            (long) (500d * Math.log(ThreadLocalRandom.current().nextDouble()) / Math.log(1 - 0.25)),
+            5_000
+        );
 
-    scheduledTask =
-        scheduler.scheduleAtFixedRate(
-            this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
+    scheduledTask = scheduler.scheduleAtFixedRate(
+        this::export,
+        initialMillis,
+        intervalMillis,
+        TimeUnit.MILLISECONDS
+    );
 
-    OtelMetricRegistry.INSTANCE.registerShutdownHook(
-        () -> exportThenShutdown(FINAL_EXPORT_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+    OtelMetricRegistry.INSTANCE.registerShutdownHook(() -> exportThenShutdown(
+        FINAL_EXPORT_TIMEOUT_SECONDS,
+        TimeUnit.SECONDS
+    ));
   }
 
   public void flush() {
@@ -130,7 +127,9 @@ public final class OtlpMetricsService {
     }
   }
 
-  /** Shutdown on JVM exit; avoids I/O and any waiting or joining on threads. */
+  /**
+   * Shutdown on JVM exit; avoids I/O and any waiting or joining on threads.
+   */
   public void shutdown() {
     if (scheduledTask != null) {
       scheduledTask.cancel();

@@ -7,9 +7,10 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 
-/** Decodes multipart file content bytes to String using the per-part Content-Type charset. */
+/**
+ * Decodes multipart file content bytes to String using the per-part Content-Type charset.
+ */
 public final class MultipartContentDecoder {
-
   public static String readInputStream(InputStream is, int maxBytes, String contentType)
       throws IOException {
     byte[] buf = new byte[maxBytes];
@@ -23,14 +24,16 @@ public final class MultipartContentDecoder {
 
   public static String decodeBytes(byte[] buf, int length, String contentType) {
     Charset charset = extractCharset(contentType);
-    if (charset == null) charset = Charset.defaultCharset();
+    if (charset == null) {
+      charset = Charset.defaultCharset();
+    }
     try {
       return charset
-          .newDecoder()
-          .onMalformedInput(CodingErrorAction.REPLACE)
-          .onUnmappableCharacter(CodingErrorAction.REPLACE)
-          .decode(ByteBuffer.wrap(buf, 0, length))
-          .toString();
+        .newDecoder()
+        .onMalformedInput(CodingErrorAction.REPLACE)
+        .onUnmappableCharacter(CodingErrorAction.REPLACE)
+        .decode(ByteBuffer.wrap(buf, 0, length))
+        .toString();
     } catch (CharacterCodingException e) {
       // unreachable: CodingErrorAction.REPLACE never throws CharacterCodingException
       throw new IllegalStateException(e);
@@ -46,12 +49,15 @@ public final class MultipartContentDecoder {
    * charset name, the search continues to any later {@code charset} parameter instead of giving up.
    */
   public static Charset extractCharset(String contentType) {
-    if (contentType == null) return null;
+    if (contentType == null) {
+      return null;
+    }
     int len = contentType.length();
     // Skip the media type itself (e.g. "text/plain") up to the first parameter delimiter.
     int i = skipToDelimiter(contentType, 0, len);
     while (i < len) {
-      i++; // consume the ';' or ',' that ends the previous token
+      // consume the ';' or ',' that ends the previous token
+      i++;
       i = skipOws(contentType, i, len);
       int nameStart = i;
       while (i < len
@@ -66,7 +72,9 @@ public final class MultipartContentDecoder {
         continue;
       }
       int nameEnd = i;
-      while (nameEnd > nameStart && isOws(contentType.charAt(nameEnd - 1))) nameEnd--;
+      while (nameEnd > nameStart && isOws(contentType.charAt(nameEnd - 1))) {
+        nameEnd--;
+      }
       String name = contentType.substring(nameStart, nameEnd);
       i = skipOws(contentType, i + 1, len);
       String value;
@@ -82,14 +90,19 @@ public final class MultipartContentDecoder {
           sb.append(c);
           i++;
         }
-        if (i < len) i++; // consume closing quote
+        // consume closing quote
+        if (i < len) {
+          i++;
+        }
         value = sb.toString();
         i = skipToDelimiter(contentType, i, len);
       } else {
         int valStart = i;
         i = skipToDelimiter(contentType, i, len);
         int valEnd = i;
-        while (valEnd > valStart && isOws(contentType.charAt(valEnd - 1))) valEnd--;
+        while (valEnd > valStart && isOws(contentType.charAt(valEnd - 1))) {
+          valEnd--;
+        }
         value = contentType.substring(valStart, valEnd);
       }
       if (name.equalsIgnoreCase("charset")) {
@@ -104,7 +117,9 @@ public final class MultipartContentDecoder {
   }
 
   private static int skipToDelimiter(String s, int i, int len) {
-    while (i < len && s.charAt(i) != ';' && s.charAt(i) != ',') i++;
+    while (i < len && s.charAt(i) != ';' && s.charAt(i) != ',') {
+      i++;
+    }
     return i;
   }
 
@@ -113,9 +128,12 @@ public final class MultipartContentDecoder {
   }
 
   private static int skipOws(String s, int i, int len) {
-    while (i < len && isOws(s.charAt(i))) i++;
+    while (i < len && isOws(s.charAt(i))) {
+      i++;
+    }
     return i;
   }
 
-  private MultipartContentDecoder() {}
+  private MultipartContentDecoder() {
+  }
 }

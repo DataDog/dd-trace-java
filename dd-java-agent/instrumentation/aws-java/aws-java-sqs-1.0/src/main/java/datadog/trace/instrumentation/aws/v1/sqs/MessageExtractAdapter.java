@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
-
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.fasterxml.jackson.core.JsonParser;
@@ -46,8 +45,10 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
         ByteBuffer value = datadog.getBinaryValue();
         if (value != null) {
           ByteBuffer duplicate = value.duplicate();
-          hasPathwayContext =
-              StandardCharsets.UTF_8.decode(duplicate).toString().contains(PROPAGATION_KEY_BASE64);
+          hasPathwayContext = StandardCharsets.UTF_8
+            .decode(duplicate)
+            .toString()
+            .contains(PROPAGATION_KEY_BASE64);
         }
         DatadogAttributeParser.forEachProperty(classifier, value);
       }
@@ -87,7 +88,6 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
     if (messageAttributes == null) {
       return;
     }
-
     // Extract Value and Type
     String value = messageAttributes.path("Value").asText();
     String type = messageAttributes.path("Type").asText();

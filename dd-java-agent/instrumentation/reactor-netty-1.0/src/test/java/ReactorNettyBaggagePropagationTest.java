@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.sun.net.httpserver.HttpServer;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -53,7 +52,6 @@ import reactor.netty.resources.LoopResources;
  * not in any one of them, so per-integration tests would not catch it.
  */
 class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
-
   private static HttpServer mockServer;
   private static ExecutorService serverExecutor;
   private static String baseUrl;
@@ -63,35 +61,30 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
   static void startServer() throws IOException {
     capturedBaggage.set(null);
     mockServer = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-    mockServer.createContext(
-        "/capture",
-        exchange -> {
-          capturedBaggage.set(exchange.getRequestHeaders().getFirst("baggage"));
-          byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
-          exchange.sendResponseHeaders(200, body.length);
-          exchange.getResponseBody().write(body);
-          exchange.close();
-        });
-    mockServer.createContext(
-        "/fail-body",
-        exchange -> {
-          try {
-            byte[] buffer = new byte[256];
-            while (exchange.getRequestBody().read(buffer) != -1) {
-              // Wait for the request body to fail before closing the exchange.
-            }
-          } finally {
-            exchange.close();
-          }
-        });
+    mockServer.createContext("/capture", exchange -> {
+      capturedBaggage.set(exchange.getRequestHeaders().getFirst("baggage"));
+      byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
+      exchange.sendResponseHeaders(200, body.length);
+      exchange.getResponseBody().write(body);
+      exchange.close();
+    });
+    mockServer.createContext("/fail-body", exchange -> {
+      try {
+        byte[] buffer = new byte[256];
+        while (exchange.getRequestBody().read(buffer) != -1) {
+          // Wait for the request body to fail before closing the exchange.
+        }
+      } finally {
+        exchange.close();
+      }
+    });
     serverExecutor = Executors.newCachedThreadPool();
     mockServer.setExecutor(serverExecutor);
     mockServer.start();
-    baseUrl =
-        "http://"
-            + mockServer.getAddress().getHostString()
-            + ":"
-            + mockServer.getAddress().getPort();
+    baseUrl = "http://"
+        + mockServer.getAddress().getHostString()
+        + ":"
+        + mockServer.getAddress().getPort();
   }
 
   @AfterAll
@@ -116,27 +109,22 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
     AtomicReference<Baggage> eventBaggage = new AtomicReference<>();
     Object idleEvent = new Object();
     HttpClient client =
-        HttpClient.create(connections)
-            .runOn(eventLoops)
-            .doOnConnected(
-                connection -> {
-                  channel.set(connection.channel());
-                  connection
-                      .channel()
-                      .pipeline()
-                      .addLast(
-                          new ChannelInboundHandlerAdapter() {
-                            @Override
-                            public void userEventTriggered(ChannelHandlerContext ctx, Object event)
-                                throws Exception {
-                              if (event == idleEvent) {
-                                eventSpan.set(AgentTracer.activeSpan());
-                                eventBaggage.set(Baggage.fromContext(Context.current()));
-                              }
-                              super.userEventTriggered(ctx, event);
-                            }
-                          });
-                });
+        HttpClient
+      .create(connections)
+      .runOn(eventLoops)
+      .doOnConnected(connection -> {
+        channel.set(connection.channel());
+        connection.channel().pipeline().addLast(new ChannelInboundHandlerAdapter() {
+          @Override
+          public void userEventTriggered(ChannelHandlerContext ctx, Object event) throws Exception {
+            if (event == idleEvent) {
+              eventSpan.set(AgentTracer.activeSpan());
+              eventBaggage.set(Baggage.fromContext(Context.current()));
+            }
+            super.userEventTriggered(ctx, event);
+          }
+        });
+      });
     Channel firstChannel = null;
     try {
       for (int request = 0; request < 2; request++) {
@@ -150,14 +138,14 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
         }
         try (ContextScope scope = requestContext.attach()) {
           client
-              .doOnResponse((response, connection) -> responseSpan.set(AgentTracer.activeSpan()))
-              .doOnDisconnected(connection -> released.countDown())
-              .get()
-              .uri(baseUrl + "/capture")
-              .responseContent()
-              .aggregate()
-              .asString()
-              .block(Duration.ofSeconds(10));
+            .doOnResponse((response, connection) -> responseSpan.set(AgentTracer.activeSpan()))
+            .doOnDisconnected(connection -> released.countDown())
+            .get()
+            .uri(baseUrl + "/capture")
+            .responseContent()
+            .aggregate()
+            .asString()
+            .block(Duration.ofSeconds(10));
         } finally {
           if (parent != null) {
             parent.finish();
@@ -172,18 +160,20 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
           firstChannel = currentChannel;
         } else {
           assertSame(
-              firstChannel, currentChannel, "the second request must reuse the pooled channel");
+              firstChannel,
+              currentChannel,
+              "the second request must reuse the pooled channel"
+          );
         }
         currentChannel
-            .eventLoop()
-            .submit(
-                () -> {
-                  assertNull(AgentTracer.activeSpan());
-                  assertNull(currentChannel.attr(CONTEXT_ATTRIBUTE_KEY).get());
-                  assertNull(currentChannel.attr(CLIENT_PARENT_ATTRIBUTE_KEY).get());
-                  currentChannel.pipeline().fireUserEventTriggered(idleEvent);
-                })
-            .get(10, TimeUnit.SECONDS);
+          .eventLoop()
+          .submit(() -> {
+            assertNull(AgentTracer.activeSpan());
+            assertNull(currentChannel.attr(CONTEXT_ATTRIBUTE_KEY).get());
+            assertNull(currentChannel.attr(CLIENT_PARENT_ATTRIBUTE_KEY).get());
+            currentChannel.pipeline().fireUserEventTriggered(idleEvent);
+          })
+          .get(10, TimeUnit.SECONDS);
         assertNull(eventSpan.get(), "an idle channel event must not activate the previous request");
         assertNull(eventBaggage.get(), "an idle channel event must not reactivate request baggage");
       }
@@ -203,76 +193,71 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
     AtomicReference<Channel> channel = new AtomicReference<>();
     AtomicReference<AgentSpan> disconnectSpan = new AtomicReference<>();
     CountDownLatch inactive = new CountDownLatch(1);
-    HttpClient client =
-        HttpClient.create(connections)
-            .runOn(eventLoops)
-            .doOnConnected(
-                connection -> {
-                  channel.set(connection.channel());
-                  connection
-                      .channel()
-                      .pipeline()
-                      .addFirst(
-                          new ChannelInboundHandlerAdapter() {
-                            @Override
-                            public void channelInactive(ChannelHandlerContext ctx)
-                                throws Exception {
-                              try {
-                                super.channelInactive(ctx);
-                              } finally {
-                                inactive.countDown();
-                              }
-                            }
-                          });
-                })
-            .doOnDisconnected(
-                connection ->
-                    disconnectSpan.compareAndSet(
-                        null,
-                        AgentSpan.fromContext(
-                            connection.channel().attr(CONTEXT_ATTRIBUTE_KEY).get())));
+    HttpClient client = HttpClient
+      .create(connections)
+      .runOn(eventLoops)
+      .doOnConnected(connection -> {
+        channel.set(connection.channel());
+        connection.channel().pipeline().addFirst(new ChannelInboundHandlerAdapter() {
+          @Override
+          public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            try {
+              super.channelInactive(ctx);
+            } finally {
+              inactive.countDown();
+            }
+          }
+        });
+      })
+      .doOnDisconnected(connection -> disconnectSpan.compareAndSet(
+          null,
+          AgentSpan.fromContext(connection.channel().attr(CONTEXT_ATTRIBUTE_KEY).get())
+      ));
     AgentSpan parent = AgentTracer.startSpan("test", "failed-body-parent");
     IllegalStateException failure = new IllegalStateException("request body failed");
     try {
       try (ContextScope scope = AgentTracer.activateSpan(parent)) {
         assertSame(
             failure,
-            assertThrows(
-                IllegalStateException.class,
-                () ->
-                    client
-                        .post()
-                        .uri(baseUrl + "/fail-body")
-                        .send(
-                            (request, outbound) ->
-                                outbound.sendString(
-                                    Flux.concat(Mono.just("payload"), Mono.error(failure))))
-                        .responseContent()
-                        .aggregate()
-                        .asString()
-                        .block(Duration.ofSeconds(10))));
+            assertThrows(IllegalStateException.class, () -> client
+              .post()
+              .uri(baseUrl + "/fail-body")
+              .send((request, outbound) -> outbound.sendString(Flux.concat(
+                  Mono.just("payload"),
+                  Mono.error(failure)
+              )))
+              .responseContent()
+              .aggregate()
+              .asString()
+              .block(Duration.ofSeconds(10)))
+        );
       } finally {
         parent.finish();
       }
       assertTrue(inactive.await(10, TimeUnit.SECONDS));
       assertNotNull(disconnectSpan.get(), "disconnect must occur while the client span is stored");
       assertNotSame(
-          parent, disconnectSpan.get(), "exercise disconnect before Netty restores the parent");
+          parent,
+          disconnectSpan.get(),
+          "exercise disconnect before Netty restores the parent"
+      );
       channel
-          .get()
-          .eventLoop()
-          .submit(
-              () -> {
-                assertNull(channel.get().attr(CONTEXT_ATTRIBUTE_KEY).get());
-                assertNull(channel.get().attr(CLIENT_PARENT_ATTRIBUTE_KEY).get());
-              })
-          .get(10, TimeUnit.SECONDS);
+        .get()
+        .eventLoop()
+        .submit(() -> {
+          assertNull(channel.get().attr(CONTEXT_ATTRIBUTE_KEY).get());
+          assertNull(channel.get().attr(CLIENT_PARENT_ATTRIBUTE_KEY).get());
+        })
+        .get(10, TimeUnit.SECONDS);
       writer.waitForTraces(1);
       long parentId = parent.getSpanId();
       assertTrue(
-          writer.get(0).stream()
-              .anyMatch(span -> span.getParentId() == parentId && span.isFinished()),
-          "Netty must still finish the client span");
+          writer
+            .get(0)
+            .stream()
+            .anyMatch(span -> span.getParentId() == parentId && span.isFinished()),
+          "Netty must still finish the client span"
+      );
     } finally {
       try {
         connections.disposeLater().block(Duration.ofSeconds(10));
@@ -291,13 +276,14 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
       // Active context now carries both the span and the baggage — the exact shape the connect-span
       // path must carry across the subscription -> I/O thread hand-off.
       try (ContextScope baggageScope = Context.current().with(baggage).attach()) {
-        HttpClient.create()
-            .get()
-            .uri(baseUrl + "/capture")
-            .responseContent()
-            .aggregate()
-            .asString()
-            .block(Duration.ofSeconds(10));
+        HttpClient
+          .create()
+          .get()
+          .uri(baseUrl + "/capture")
+          .responseContent()
+          .aggregate()
+          .asString()
+          .block(Duration.ofSeconds(10));
       }
     } finally {
       span.finish();
@@ -307,9 +293,11 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
     assertNotNull(
         header,
         "outgoing request must carry a W3C 'baggage' header when baggage is in the active context;"
-            + " null means the connect-span path dropped the context (carried only the span)");
+        + " null means the connect-span path dropped the context (carried only the span)"
+    );
     assertTrue(
         header.contains("user.id=abc123"),
-        "baggage header should contain the propagated item, was: " + header);
+        "baggage header should contain the propagated item, was: " + header
+    );
   }
 }

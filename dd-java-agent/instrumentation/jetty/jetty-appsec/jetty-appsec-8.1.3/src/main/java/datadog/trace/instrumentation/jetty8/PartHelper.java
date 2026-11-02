@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jetty8;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -38,13 +37,12 @@ import org.slf4j.LoggerFactory;
  * must parse the {@code Content-Disposition} header manually.
  */
 public class PartHelper {
-
   private static final Logger log = LoggerFactory.getLogger(PartHelper.class);
-
   public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
   public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
-  private PartHelper() {}
+  private PartHelper() {
+  }
 
   // Lazily resolves MultiPartInputStream.getParts() as a MethodHandle on first class access.
   // Uses IODH so no volatile is needed; the JVM class-loading guarantee ensures safe publication.
@@ -54,11 +52,11 @@ public class PartHelper {
     static {
       MethodHandle h = null;
       try {
-        Class<?> cls =
-            Class.forName(
-                "org.eclipse.jetty.util.MultiPartInputStream",
-                false,
-                MpiGetPartsHolder.class.getClassLoader());
+        Class<?> cls = Class.forName(
+            "org.eclipse.jetty.util.MultiPartInputStream",
+            false,
+            MpiGetPartsHolder.class.getClassLoader()
+        );
         h = MethodHandles.lookup().unreflect(cls.getMethod("getParts"));
       } catch (Exception ignored) {
         // class or method not available — getAllParts() falls back to singleton
@@ -131,7 +129,8 @@ public class PartHelper {
       try {
         Part part = (Part) obj;
         if (filenameFromPart(part) != null) {
-          continue; // file-upload part — skip
+          // file-upload part — skip
+          continue;
         }
         String name = part.getName();
         if (name == null) {
@@ -141,7 +140,9 @@ public class PartHelper {
         if (value == null) {
           continue;
         }
-        result.computeIfAbsent(name, k -> new ArrayList<>()).add(value);
+        result
+          .computeIfAbsent(name, k -> new ArrayList<>())
+          .add(value);
         count++;
       } catch (Exception e) {
         log.debug(EXCLUDE_TELEMETRY, "extractFormFields: skipping malformed part", e);
@@ -169,7 +170,9 @@ public class PartHelper {
       while (i < len && (cd.charAt(i) == ';' || cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) {
         i++;
       }
-      if (i >= len) break;
+      if (i >= len) {
+        break;
+      }
       // Read parameter name (up to '=' or ';')
       int nameStart = i;
       while (i < len && cd.charAt(i) != '=' && cd.charAt(i) != ';') {
@@ -180,18 +183,24 @@ public class PartHelper {
         // Value-less token (e.g. "form-data") — skip
         continue;
       }
-      i++; // skip '='
+      // skip '='
+      i++;
       String value;
       if (i < len && cd.charAt(i) == '"') {
-        i++; // skip opening quote
+        // skip opening quote
+        i++;
         StringBuilder sb = new StringBuilder();
         while (i < len && cd.charAt(i) != '"') {
           if (cd.charAt(i) == '\\' && i + 1 < len) {
-            i++; // consume escape backslash, add next char literally
+            // consume escape backslash, add next char literally
+            i++;
           }
           sb.append(cd.charAt(i++));
         }
-        if (i < len) i++; // skip closing quote
+        // skip closing quote
+        if (i < len) {
+          i++;
+        }
         value = sb.toString();
       } else {
         int valueStart = i;
@@ -214,8 +223,7 @@ public class PartHelper {
    * Fires the {@code requestBodyProcessed} IG event for form-field parts in {@code parts} and
    * returns a {@link BlockingException} if the WAF requests blocking, or {@code null} otherwise.
    */
-  public static BlockingException fireBodyProcessedEvent(
-      Collection<?> parts, RequestContext reqCtx) {
+  public static BlockingException fireBodyProcessedEvent(Collection<?> parts, RequestContext reqCtx) {
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, Object, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestBodyProcessed());
@@ -290,7 +298,8 @@ public class PartHelper {
       try {
         Part part = (Part) obj;
         if (filenameFromPart(part) == null) {
-          continue; // form field — skip
+          // form field — skip
+          continue;
         }
         contents.add(readFileContent(part));
       } catch (Exception e) {
@@ -313,8 +322,7 @@ public class PartHelper {
    * Fires the {@code requestFilesContent} IG event for file-upload parts in {@code parts} and
    * returns a {@link BlockingException} if the WAF requests blocking, or {@code null} otherwise.
    */
-  public static BlockingException fireFilesContentEvent(
-      Collection<?> parts, RequestContext reqCtx) {
+  public static BlockingException fireFilesContentEvent(Collection<?> parts, RequestContext reqCtx) {
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, List<String>, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestFilesContent());
@@ -375,7 +383,9 @@ public class PartHelper {
         if (!name.isEmpty() && name.charAt(0) == '"') {
           name = name.substring(1);
           int end = name.indexOf('"');
-          if (end >= 0) name = name.substring(0, end);
+          if (end >= 0) {
+            name = name.substring(0, end);
+          }
         } else {
           int end = 0;
           while (end < name.length()

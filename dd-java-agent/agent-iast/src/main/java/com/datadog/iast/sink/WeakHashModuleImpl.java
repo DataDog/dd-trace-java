@@ -9,7 +9,6 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 
 public class WeakHashModuleImpl extends SinkModuleBase implements WeakHashModule {
-
   private Config config;
 
   public WeakHashModuleImpl(final Dependencies dependencies) {

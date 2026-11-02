@@ -4,9 +4,12 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.tools.Diagnostic.Kind;
 
-/** Utility class for logging from annotation processor to the ProcessingEnvironment */
+/**
+ * Utility class for logging from annotation processor to the ProcessingEnvironment
+ */
 public final class LogUtils {
-  private LogUtils() {}
+  private LogUtils() {
+  }
 
   private static final boolean NOTE = false;
 
@@ -19,12 +22,20 @@ public final class LogUtils {
   }
 
   public static void warning(
-      ProcessingEnvironment processingEnv, Element element, String formatStr, Object... args) {
+      ProcessingEnvironment processingEnv,
+      Element element,
+      String formatStr,
+      Object... args
+  ) {
     message(processingEnv, element, Kind.WARNING, formatStr, args);
   }
 
   public static void error(
-      ProcessingEnvironment processingEnv, Element element, String formatStr, Object... args) {
+      ProcessingEnvironment processingEnv,
+      Element element,
+      String formatStr,
+      Object... args
+  ) {
     message(processingEnv, element, Kind.ERROR, formatStr, args);
   }
 
@@ -33,7 +44,8 @@ public final class LogUtils {
       Element element,
       Kind kind,
       String formatStr,
-      Object... args) {
+      Object... args
+  ) {
     String msg = String.format(formatStr, args);
 
     if (kind != Kind.NOTE || NOTE) {

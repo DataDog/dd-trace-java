@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Strings;
 
 public class CiVisibilityWellKnownTags {
-
   private final UTF8BytesString runtimeId;
   private final UTF8BytesString env;
   private final UTF8BytesString language;
@@ -26,7 +25,8 @@ public class CiVisibilityWellKnownTags {
       CharSequence osArch,
       CharSequence osPlatform,
       CharSequence osVersion,
-      CharSequence isUserProvidedService) {
+      CharSequence isUserProvidedService
+  ) {
     this.runtimeId = truncated(runtimeId);
     this.env = truncated(env);
     this.language = truncated(language);
@@ -44,8 +44,7 @@ public class CiVisibilityWellKnownTags {
    * pre-encoded so the intake serializers can marshal it as-is on every payload without truncating.
    */
   private static UTF8BytesString truncated(CharSequence value) {
-    return UTF8BytesString.create(
-        Strings.truncate(value, CIConstants.MAX_META_STRING_VALUE_LENGTH));
+    return UTF8BytesString.create(Strings.truncate(value, CIConstants.MAX_META_STRING_VALUE_LENGTH));
   }
 
   public UTF8BytesString getEnv() {

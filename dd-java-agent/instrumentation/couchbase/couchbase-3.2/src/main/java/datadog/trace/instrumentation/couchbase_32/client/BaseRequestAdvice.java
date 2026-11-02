@@ -9,7 +9,8 @@ public class BaseRequestAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onExit(
       @Advice.FieldValue(value = "response", readOnly = false) CompletableFuture<?> response,
-      @Advice.FieldValue(value = "requestSpan") RequestSpan requestSpan) {
+      @Advice.FieldValue(value = "requestSpan") RequestSpan requestSpan
+  ) {
     if (requestSpan instanceof DatadogRequestSpan) {
       response = new StatusSettingCompletableFuture<>((DatadogRequestSpan) requestSpan);
     }

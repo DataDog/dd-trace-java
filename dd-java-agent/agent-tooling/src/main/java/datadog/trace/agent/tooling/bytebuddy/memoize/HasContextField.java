@@ -5,7 +5,9 @@ import java.util.BitSet;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Matches types that should have context-store fields injected. */
+/**
+ * Matches types that should have context-store fields injected.
+ */
 final class HasContextField extends ElementMatcher.Junction.ForNonNullValues<TypeDescription> {
   private final ElementMatcher<TypeDescription> storeMatcher;
   private final ElementMatcher<TypeDescription> skipMatcher;
@@ -16,7 +18,9 @@ final class HasContextField extends ElementMatcher.Junction.ForNonNullValues<Typ
   }
 
   HasContextField(
-      ElementMatcher<TypeDescription> storeMatcher, ElementMatcher<TypeDescription> skipMatcher) {
+      ElementMatcher<TypeDescription> storeMatcher,
+      ElementMatcher<TypeDescription> skipMatcher
+  ) {
     this.storeMatcher = storeMatcher;
     this.skipMatcher = skipMatcher;
   }
@@ -45,7 +49,9 @@ final class HasContextField extends ElementMatcher.Junction.ForNonNullValues<Typ
     return hasSuperStore;
   }
 
-  /** Matches types that would have had fields injected, but were explicitly excluded. */
+  /**
+   * Matches types that would have had fields injected, but were explicitly excluded.
+   */
   static final class Skip extends ElementMatcher.Junction.ForNonNullValues<TypeDescription> {
     private final ExcludeFilter.ExcludeType excludeType;
 

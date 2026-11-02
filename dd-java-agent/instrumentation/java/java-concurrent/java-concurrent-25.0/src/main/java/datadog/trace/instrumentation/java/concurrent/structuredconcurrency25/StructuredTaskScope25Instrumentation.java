@@ -4,7 +4,6 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.bootstrap.InstrumentationContext.get;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,7 +18,6 @@ import net.bytebuddy.asm.Advice.This;
 // compatibility. Check
 // dd-java-agent/instrumentation/java/java-concurrent/java-concurrent-25.0 for this
 // instrumentation test suite.
-
 /**
  * This instrumentation captures the active span scope at StructuredTaskScope task creation
  * (SubtaskImpl). The scope is then activate and close through the {@link Runnable} instrumentation
@@ -28,8 +26,10 @@ import net.bytebuddy.asm.Advice.This;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public class StructuredTaskScope25Instrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public StructuredTaskScope25Instrumentation() {
     super("java_concurrent", "structured-task-scope", "structured-task-scope-25");
   }

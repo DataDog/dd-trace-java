@@ -25,7 +25,9 @@ import javax.jms.TopicPublisher;
 import javax.jms.TopicSession;
 import javax.jms.TopicSubscriber;
 
-/** Wraps a real {@link Session} but simulates a JMS 1.0 provider. */
+/**
+ * Wraps a real {@link Session} but simulates a JMS 1.0 provider.
+ */
 public class Jms10Session implements QueueSession, TopicSession {
   private final Session delegate;
 
@@ -34,7 +36,6 @@ public class Jms10Session implements QueueSession, TopicSession {
   }
 
   // --- JMS 1.1-only unified Session methods — not present in JMS 1.0 ---
-
   @Override
   public MessageProducer createProducer(Destination destination) throws JMSException {
     return delegate.createProducer(destination);
@@ -53,12 +54,14 @@ public class Jms10Session implements QueueSession, TopicSession {
 
   @Override
   public MessageConsumer createConsumer(
-      Destination destination, String messageSelector, boolean noLocal) throws JMSException {
+      Destination destination,
+      String messageSelector,
+      boolean noLocal
+  ) throws JMSException {
     return delegate.createConsumer(destination, messageSelector, noLocal);
   }
 
   // --- JMS 1.0 QueueSession methods ---
-
   @Override
   public Queue createQueue(String queueName) throws JMSException {
     return delegate.createQueue(queueName);
@@ -95,7 +98,6 @@ public class Jms10Session implements QueueSession, TopicSession {
   }
 
   // --- JMS 1.0 TopicSession methods ---
-
   @Override
   public Topic createTopic(String topicName) throws JMSException {
     return delegate.createTopic(topicName);
@@ -110,7 +112,10 @@ public class Jms10Session implements QueueSession, TopicSession {
   public TopicSubscriber createSubscriber(Topic topic, String messageSelector, boolean noLocal)
       throws JMSException {
     return new Jms10TopicSubscriber(
-        delegate.createConsumer(topic, messageSelector, noLocal), topic, noLocal);
+        delegate.createConsumer(topic, messageSelector, noLocal),
+        topic,
+        noLocal
+    );
   }
 
   @Override
@@ -120,9 +125,16 @@ public class Jms10Session implements QueueSession, TopicSession {
 
   @Override
   public TopicSubscriber createDurableSubscriber(
-      Topic topic, String name, String messageSelector, boolean noLocal) throws JMSException {
+      Topic topic,
+      String name,
+      String messageSelector,
+      boolean noLocal
+  ) throws JMSException {
     return new Jms10TopicSubscriber(
-        delegate.createDurableSubscriber(topic, name, messageSelector, noLocal), topic, noLocal);
+        delegate.createDurableSubscriber(topic, name, messageSelector, noLocal),
+        topic,
+        noLocal
+    );
   }
 
   @Override
@@ -141,7 +153,6 @@ public class Jms10Session implements QueueSession, TopicSession {
   }
 
   // --- Common Session methods ---
-
   @Override
   public BytesMessage createBytesMessage() throws JMSException {
     return delegate.createBytesMessage();

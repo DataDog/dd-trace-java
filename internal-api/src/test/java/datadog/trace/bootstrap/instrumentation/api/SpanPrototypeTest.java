@@ -3,12 +3,10 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.TagMap;
 import org.junit.jupiter.api.Test;
 
 class SpanPrototypeTest {
-
   @Test
   void noneHasNoIdentityAndNoTags() {
     assertNull(SpanPrototype.NONE.instrumentationName());
@@ -20,13 +18,15 @@ class SpanPrototypeTest {
 
   @Test
   void gettersReflectBuilderState() {
-    final SpanPrototype proto =
-        SpanPrototype.builder()
-            .initInstrumentationName("instr")
-            .initOperationName("op")
-            .initSpanType("web")
-            .initComponentAndIntegration("netty") // sets integration name + component tag
-            .build();
+    final SpanPrototype proto = SpanPrototype
+      .builder()
+      .initInstrumentationName("instr")
+      .initOperationName("op")
+      .initSpanType("web")
+      .initComponentAndIntegration("netty"
+      // sets integration name + component tag
+      )
+      .build();
 
     assertEquals("instr", proto.instrumentationName());
     assertEquals("op", proto.operationName());
@@ -38,7 +38,10 @@ class SpanPrototypeTest {
   @Test
   void initInstrumentationNamesTakesFirstElement() {
     final SpanPrototype proto =
-        SpanPrototype.builder().initInstrumentationNames(new String[] {"first", "second"}).build();
+        SpanPrototype
+      .builder()
+      .initInstrumentationNames(new String[] {"first", "second"})
+      .build();
 
     assertEquals("first", proto.instrumentationName());
   }
@@ -71,14 +74,16 @@ class SpanPrototypeTest {
 
   @Test
   void extendsCopiesAllIdentityAndTags() {
-    final SpanPrototype base =
-        SpanPrototype.builder()
-            .initInstrumentationName("base")
-            .initOperationName("base.op")
-            .initSpanType("base-type")
-            .initComponentAndIntegration("base-comp") // integration name + component tag
-            .initKind("server")
-            .build();
+    final SpanPrototype base = SpanPrototype
+      .builder()
+      .initInstrumentationName("base")
+      .initOperationName("base.op")
+      .initSpanType("base-type")
+      .initComponentAndIntegration("base-comp"
+      // integration name + component tag
+      )
+      .initKind("server")
+      .build();
     final SpanPrototype derived = SpanPrototype.builder().extends_(base).build();
 
     assertEquals("base", derived.instrumentationName());
@@ -91,29 +96,35 @@ class SpanPrototypeTest {
 
   @Test
   void extendsInheritsBaseIdentityAndTagsThenOverrides() {
-    final SpanPrototype base =
-        SpanPrototype.builder()
-            .initInstrumentationName("base")
-            .initSpanType("base-type")
-            .initKind("server")
-            .build();
+    final SpanPrototype base = SpanPrototype
+      .builder()
+      .initInstrumentationName("base")
+      .initSpanType("base-type")
+      .initKind("server")
+      .build();
     final SpanPrototype derived =
-        SpanPrototype.builder()
-            .extends_(base)
-            .initComponentOnly("netty")
-            .initSpanType("http")
-            .build();
-
-    assertEquals("base", derived.instrumentationName()); // inherited
-    assertEquals("http", derived.spanType()); // overridden
-    assertEquals("server", derived.tags().getString(Tags.SPAN_KIND)); // inherited tag
-    assertEquals("netty", derived.tags().getString(Tags.COMPONENT)); // added tag
+        SpanPrototype
+      .builder()
+      .extends_(base)
+      .initComponentOnly("netty")
+      .initSpanType("http")
+      .build();
+    // inherited
+    assertEquals("base", derived.instrumentationName());
+    // overridden
+    assertEquals("http", derived.spanType());
+    // inherited tag
+    assertEquals("server", derived.tags().getString(Tags.SPAN_KIND));
+    // added tag
+    assertEquals("netty", derived.tags().getString(Tags.COMPONENT));
   }
 
   @Test
   void initComponentAndIntegrationSetsBothComponentTagAndIntegrationName() {
-    final SpanPrototype proto =
-        SpanPrototype.builder().initComponentAndIntegration("netty").build();
+    final SpanPrototype proto = SpanPrototype
+      .builder()
+      .initComponentAndIntegration("netty")
+      .build();
 
     assertEquals("netty", proto.tags().getString(Tags.COMPONENT));
     assertEquals("netty", proto.integrationName());
@@ -138,22 +149,35 @@ class SpanPrototypeTest {
   void emptyOrNullConstantsAreDroppedNotBaked() {
     // Match AgentSpan.setTag / the cached-Entry path: a null or empty constant is "no tag", not an
     // empty tag. A raw tags.set would otherwise bake a tag that per-span stamping never emits.
-    final SpanPrototype proto =
-        SpanPrototype.builder()
-            .initComponentOnly("") // empty -> dropped
-            .initKind("") // empty -> dropped
-            .initTag("empty.cs", "") // empty CharSequence -> dropped
-            .initTag("null.cs", (CharSequence) null) // null -> dropped
-            .initTag("null.obj", (Object) null) // null -> dropped
-            .initTag("kept", "v") // non-empty -> present
-            .build();
+    final SpanPrototype proto = SpanPrototype
+      .builder()
+      .initComponentOnly(""
+      // empty -> dropped
+      )
+      .initKind(""
+      // empty -> dropped
+      )
+      .initTag("empty.cs", ""
+      // empty CharSequence -> dropped
+      )
+      .initTag("null.cs", (CharSequence) null
+      // null -> dropped
+      )
+      .initTag("null.obj", (Object) null
+      // null -> dropped
+      )
+      .initTag("kept", "v"
+      // non-empty -> present
+      )
+      .build();
 
     assertNull(proto.tags().getString(Tags.COMPONENT));
     assertNull(proto.tags().getString(Tags.SPAN_KIND));
     assertNull(proto.tags().getString("empty.cs"));
     assertNull(proto.tags().getString("null.cs"));
     assertNull(proto.tags().getString("null.obj"));
-    assertEquals("v", proto.tags().getString("kept")); // sanity: non-empty still stored
+    // sanity: non-empty still stored
+    assertEquals("v", proto.tags().getString("kept"));
   }
 
   @Test
@@ -173,7 +197,10 @@ class SpanPrototypeTest {
 
   @Test
   void initTagNullEntryReaderIsNoOp() {
-    final SpanPrototype proto = SpanPrototype.builder().initTag((TagMap.EntryReader) null).build();
+    final SpanPrototype proto = SpanPrototype
+      .builder()
+      .initTag((TagMap.EntryReader) null)
+      .build();
 
     assertTrue(proto.tags().isEmpty());
   }

@@ -16,7 +16,6 @@ import java.util.function.Consumer;
 
 public class SpanTagsPropagator {
   public static final Consumer<AgentSpan> NOOP_PROPAGATOR = span -> {};
-
   private final AgentSpan parentSpan;
   private final Object tagPropagationLock = new Object();
 
@@ -65,7 +64,6 @@ public class SpanTagsPropagator {
     Collection<TestFramework> frameworks = new ArrayList<>();
     if (nameTag instanceof String) {
       frameworks.add(new TestFramework((String) nameTag, (String) versionTag));
-
     } else if (nameTag instanceof Collection) {
       Iterator<String> names = ((Collection<String>) nameTag).iterator();
       Iterator<String> versions =
@@ -74,24 +72,26 @@ public class SpanTagsPropagator {
         String version = (versions != null && versions.hasNext()) ? versions.next() : null;
         frameworks.add(new TestFramework(names.next(), version));
       }
-
     } else {
       throw new IllegalArgumentException(
           "Unexpected tag type(s): "
-              + Tags.TEST_FRAMEWORK
-              + " ("
-              + nameTag
-              + ") "
-              + Tags.TEST_FRAMEWORK_VERSION
-              + " ("
-              + versionTag
-              + ")");
+          + Tags.TEST_FRAMEWORK
+          + " ("
+          + nameTag
+          + ") "
+          + Tags.TEST_FRAMEWORK_VERSION
+          + " ("
+          + versionTag
+          + ")"
+      );
     }
     return frameworks;
   }
 
   private static Collection<TestFramework> merge(
-      Collection<TestFramework> parentFrameworks, Collection<TestFramework> childFrameworks) {
+      Collection<TestFramework> parentFrameworks,
+      Collection<TestFramework> childFrameworks
+  ) {
     if (parentFrameworks.isEmpty()) {
       return childFrameworks;
     }

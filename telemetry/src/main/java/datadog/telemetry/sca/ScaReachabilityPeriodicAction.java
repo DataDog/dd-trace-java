@@ -51,10 +51,9 @@ import java.util.Objects;
  * backend already received.
  */
 public final class ScaReachabilityPeriodicAction
-    implements TelemetryRunnable.TelemetryPeriodicAction {
-
+    implements TelemetryRunnable.TelemetryPeriodicAction
+{
   private final DependencyService dependencyService;
-
   /**
    * Persistent across heartbeats: accumulates every dep resolved by {@link DependencyService}.
    * Keyed by {@link ScaReachabilityDependencyRegistry#depKey(String, String)}.
@@ -77,7 +76,8 @@ public final class ScaReachabilityPeriodicAction
   void addKnownDepForTesting(String name, String version) {
     knownDeps.put(
         ScaReachabilityDependencyRegistry.depKey(name, version),
-        new Dependency(name, version, null, null));
+        new Dependency(name, version, null, null)
+    );
   }
 
   @Override
@@ -88,16 +88,16 @@ public final class ScaReachabilityPeriodicAction
     if (work != null) {
       work.run();
     }
-
     // Step 1: drain registry → map keyed by "artifact@version" for O(1) lookup below.
     List<DependencySnapshot> pending =
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     Map<String, DependencySnapshot> snapshotByKey = new HashMap<>(pending.size() * 2);
     for (DependencySnapshot snapshot : pending) {
       snapshotByKey.put(
-          ScaReachabilityDependencyRegistry.depKey(snapshot.artifact, snapshot.version), snapshot);
+          ScaReachabilityDependencyRegistry.depKey(snapshot.artifact, snapshot.version),
+          snapshot
+      );
     }
-
     // Step 2: drain DependencyService (newly detected JARs this heartbeat).
     // Store each dep in knownDeps regardless of whether it has a CVE match — future heartbeats
     // with CVE hits will look it up in Step 3.
@@ -115,18 +115,19 @@ public final class ScaReachabilityPeriodicAction
         }
         if (snapshot != null) {
           telService.addDependency(
-              new Dependency(dep.name, dep.version, dep.source, dep.hash, buildMetadata(snapshot)));
+              new Dependency(dep.name, dep.version, dep.source, dep.hash, buildMetadata(snapshot))
+          );
         } else if (isNewPhysicalCopy(previous, dep)) {
           // First detection of this physical copy, no CVE state yet — metadata:[] signals "SCA is
           // monitoring this dep".
           telService.addDependency(
-              new Dependency(dep.name, dep.version, dep.source, dep.hash, Collections.emptyList()));
+              new Dependency(dep.name, dep.version, dep.source, dep.hash, Collections.emptyList())
+          );
         }
         // Re-detection of the same physical copy (same source/hash) with no state change: nothing
         // to emit. The backend already received this dep.
       }
     }
-
     // Step 3: handle CVE state changes for deps not in DependencyService this heartbeat.
     // Always emit — never block CVE data. Use knownDeps for source/hash enrichment when the JAR
     // was resolved in a prior heartbeat; otherwise emit without source/hash so the backend still
@@ -140,14 +141,20 @@ public final class ScaReachabilityPeriodicAction
         // Dep was resolved in a prior heartbeat — emit enriched with source/hash.
         telService.addDependency(
             new Dependency(
-                known.name, known.version, known.source, known.hash, buildMetadata(snapshot)));
+                known.name,
+                known.version,
+                known.source,
+                known.hash,
+                buildMetadata(snapshot)
+            )
+        );
       } else {
         // Dep not yet resolved — emit without source/hash so CVE data is not delayed.
         // When the dep is eventually resolved (stored in knownDeps via Step 2), subsequent
         // CVE emissions (e.g., after a method hit) will include source/hash automatically.
         telService.addDependency(
-            new Dependency(
-                snapshot.artifact, snapshot.version, null, null, buildMetadata(snapshot)));
+            new Dependency(snapshot.artifact, snapshot.version, null, null, buildMetadata(snapshot))
+        );
       }
     }
   }
@@ -231,10 +238,13 @@ public final class ScaReachabilityPeriodicAction
         + "}]}";
   }
 
-  /** Escapes a string for embedding in a JSON string literal. */
+  /**
+   * Escapes a string for embedding in a JSON string literal.
+   */
   private static String jsonEscape(String value) {
     if (value.indexOf('"') == -1 && value.indexOf('\\') == -1) {
-      return value; // fast path: no escaping needed (the common case)
+      // fast path: no escaping needed (the common case)
+      return value;
     }
     return value.replace("\\", "\\\\").replace("\"", "\\\"");
   }

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.amazonaws.handlers.RequestHandler2;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -14,7 +13,9 @@ import net.bytebuddy.asm.Advice;
  * is tested. It could possibly be extended earlier.
  */
 public final class HandlerChainFactoryInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private final String namespace;
 
   public HandlerChainFactoryInstrumentation(String namespace) {
@@ -30,7 +31,8 @@ public final class HandlerChainFactoryInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("newRequestHandler2Chain")),
-        HandlerChainFactoryInstrumentation.class.getName() + "$HandlerChainAdvice");
+        HandlerChainFactoryInstrumentation.class.getName() + "$HandlerChainAdvice"
+    );
   }
 
   public static class HandlerChainAdvice {
@@ -44,9 +46,15 @@ public final class HandlerChainFactoryInstrumentation
       handlers.add(
           new TracingRequestHandler(
               InstrumentationContext.get(
-                  "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String"),
+                  "com.amazonaws.services.sqs.model.ReceiveMessageResult",
+                  "java.lang.String"
+              ),
               InstrumentationContext.get(
-                  "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
+                  "com.amazonaws.AmazonWebServiceRequest",
+                  "datadog.context.Context"
+              )
+          )
+      );
     }
   }
 }

@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
@@ -58,10 +57,11 @@ class DatadogProfilerConfigTest {
         expectedStackwalker,
         result,
         "J9 JVM with configured stackwalker '"
-            + configuredStackwalker
-            + "' should return '"
-            + expectedStackwalker
-            + "'");
+        + configuredStackwalker
+        + "' should return '"
+        + expectedStackwalker
+        + "'"
+    );
   }
 
   @ParameterizedTest
@@ -79,10 +79,11 @@ class DatadogProfilerConfigTest {
         expectedStackwalker,
         result,
         "Zing JVM with configured stackwalker '"
-            + configuredStackwalker
-            + "' should return '"
-            + expectedStackwalker
-            + "'");
+        + configuredStackwalker
+        + "' should return '"
+        + expectedStackwalker
+        + "'"
+    );
   }
 
   @ParameterizedTest
@@ -100,10 +101,11 @@ class DatadogProfilerConfigTest {
         expectedStackwalker,
         result,
         "HotSpot JVM with configured stackwalker '"
-            + configuredStackwalker
-            + "' should return '"
-            + expectedStackwalker
-            + "'");
+        + configuredStackwalker
+        + "' should return '"
+        + expectedStackwalker
+        + "'"
+    );
   }
 
   @Test
@@ -113,22 +115,24 @@ class DatadogProfilerConfigTest {
 
     assertEquals(
         "cpu=10m",
-        DatadogProfilerConfig.getProfilerOptions(ConfigProvider.withPropertiesOverride(props)));
+        DatadogProfilerConfig.getProfilerOptions(ConfigProvider.withPropertiesOverride(props))
+    );
   }
 
   @Test
   void profilerOptionsAreNullWhenUnset() {
-    assertNull(
-        DatadogProfilerConfig.getProfilerOptions(
-            ConfigProvider.withPropertiesOverride(new Properties())));
+    assertNull(DatadogProfilerConfig.getProfilerOptions(ConfigProvider.withPropertiesOverride(
+        new Properties()
+    )));
   }
 
   @ParameterizedTest
   @MethodSource("profilerOptionMergeCases")
-  void mergeProfilerOptions(
-      String derivedOptions, String configuredOptions, String expectedOptions) {
+  void mergeProfilerOptions(String derivedOptions, String configuredOptions, String expectedOptions) {
     assertEquals(
-        expectedOptions, DatadogProfiler.mergeProfilerOptions(derivedOptions, configuredOptions));
+        expectedOptions,
+        DatadogProfiler.mergeProfilerOptions(derivedOptions, configuredOptions)
+    );
   }
 
   @Test
@@ -155,14 +159,19 @@ class DatadogProfilerConfigTest {
         Arguments.of(
             ",cpu=10m,wall=50m,loglevel=INFO",
             "cpu=7m,nativemem=131072",
-            ",wall=50m,loglevel=INFO,cpu=7m,nativemem=131072"),
+            ",wall=50m,loglevel=INFO,cpu=7m,nativemem=131072"
+        ),
         Arguments.of(
-            ",loglevel=INFO,cpu=10m,loglevel=INFO", "loglevel=DEBUG", ",cpu=10m,loglevel=DEBUG"),
+            ",loglevel=INFO,cpu=10m,loglevel=INFO",
+            "loglevel=DEBUG",
+            ",cpu=10m,loglevel=DEBUG"
+        ),
         Arguments.of(",natsock=100us,wall=50m", "natsock", ",wall=50m,natsock"),
         Arguments.of(
             ",cpu=10m,wall=50m",
             " , cpu=7m, , nativemem=131072, ",
-            ",wall=50m,cpu=7m,nativemem=131072"),
+            ",wall=50m,cpu=7m,nativemem=131072"
+        ),
         Arguments.of(",cpu=10m,wall=50m", "  ", ",cpu=10m,wall=50m"),
         Arguments.of(",cpu=10m,wall=50m", "cpu=5m,cpu=7m", ",wall=50m,cpu=7m"),
         Arguments.of(",cpu=10m", "CPU=7m", ",cpu=7m"),
@@ -173,17 +182,23 @@ class DatadogProfilerConfigTest {
         Arguments.of(
             ",event=cycles,interval=1000000",
             "event=instructions",
-            ",interval=1000000,event=instructions"),
+            ",interval=1000000,event=instructions"
+        ),
         Arguments.of(
             ",cpu=10m,attributes=foo",
             "START,Resume,stop,CHECK,status,List,VERSION,JFR,File=other.jfr,ATTRIBUTES=bar,cpu=7m",
-            ",attributes=foo,cpu=7m"));
+            ",attributes=foo,cpu=7m"
+        )
+    );
   }
 
   @ParameterizedTest
   @MethodSource("profilerOptionModeCases")
   void applyProfilerOptionModes(
-      Set<ProfilingMode> initialModes, String configuredOptions, Set<ProfilingMode> expectedModes) {
+      Set<ProfilingMode> initialModes,
+      String configuredOptions,
+      Set<ProfilingMode> expectedModes
+  ) {
     DatadogProfiler.applyProfilerOptionModes(initialModes, configuredOptions);
 
     assertEquals(expectedModes, initialModes);
@@ -198,77 +213,99 @@ class DatadogProfilerConfigTest {
                 ProfilingMode.CPU,
                 ProfilingMode.WALL,
                 ProfilingMode.NATIVEMEM,
-                ProfilingMode.NATIVESOCKET)),
+                ProfilingMode.NATIVESOCKET
+            )
+        ),
         Arguments.of(
             EnumSet.of(ProfilingMode.ALLOCATION),
             "memory=262144b:l:0.1",
-            EnumSet.of(ProfilingMode.MEMLEAK)),
+            EnumSet.of(ProfilingMode.MEMLEAK)
+        ),
         Arguments.of(
             EnumSet.of(ProfilingMode.MEMLEAK),
             "memory=262144b:a",
-            EnumSet.of(ProfilingMode.ALLOCATION)),
+            EnumSet.of(ProfilingMode.ALLOCATION)
+        ),
         Arguments.of(
             EnumSet.of(ProfilingMode.ALLOCATION, ProfilingMode.MEMLEAK),
             "memory=262144b:",
-            EnumSet.noneOf(ProfilingMode.class)),
+            EnumSet.noneOf(ProfilingMode.class)
+        ),
         Arguments.of(
             EnumSet.noneOf(ProfilingMode.class),
             "memory=262144b:aL:0.1",
-            EnumSet.of(ProfilingMode.ALLOCATION, ProfilingMode.MEMLEAK)),
+            EnumSet.of(ProfilingMode.ALLOCATION, ProfilingMode.MEMLEAK)
+        ),
         Arguments.of(
             EnumSet.noneOf(ProfilingMode.class),
             "memory=262144b:a,memory=262144b:l",
-            EnumSet.of(ProfilingMode.MEMLEAK)),
+            EnumSet.of(ProfilingMode.MEMLEAK)
+        ),
         Arguments.of(
             EnumSet.noneOf(ProfilingMode.class),
             "event=noop,memory=262144b:,generations=true",
-            EnumSet.of(ProfilingMode.MEMLEAK)),
+            EnumSet.of(ProfilingMode.MEMLEAK)
+        ),
         Arguments.of(
-            EnumSet.of(ProfilingMode.CPU), "event=noop", EnumSet.noneOf(ProfilingMode.class)),
+            EnumSet.of(ProfilingMode.CPU),
+            "event=noop",
+            EnumSet.noneOf(ProfilingMode.class)
+        ),
         Arguments.of(EnumSet.of(ProfilingMode.CPU), "event=cycles", EnumSet.of(ProfilingMode.CPU)),
         Arguments.of(
             EnumSet.of(ProfilingMode.CPU),
             "cpu=7m,event=noop",
-            EnumSet.noneOf(ProfilingMode.class)),
+            EnumSet.noneOf(ProfilingMode.class)
+        ),
         Arguments.of(
             EnumSet.noneOf(ProfilingMode.class),
             "event=noop,cpu=7m",
-            EnumSet.of(ProfilingMode.CPU)));
+            EnumSet.of(ProfilingMode.CPU)
+        )
+    );
   }
 
   private static Stream<Arguments> j9StackwalkerTestCases() {
     return Stream.of(
-        // Unsupported stackwalkers - should fall back to dwarf
-        Arguments.of("vm", "dwarf"),
+        Arguments
+          // Unsupported stackwalkers - should fall back to dwarf
+          .of("vm", "dwarf"),
         Arguments.of("vmx", "dwarf"),
-        // Supported stackwalkers - should pass through
-        Arguments.of("dwarf", "dwarf"),
+        Arguments
+          // Supported stackwalkers - should pass through
+          .of("dwarf", "dwarf"),
         Arguments.of("fp", "fp"),
         Arguments.of("lbr", "lbr"),
-        Arguments.of("no", "no"));
+        Arguments.of("no", "no")
+    );
   }
 
   private static Stream<Arguments> zingStackwalkerTestCases() {
     return Stream.of(
-        // Unsupported stackwalkers - should fall back to dwarf
-        Arguments.of("vm", "dwarf"),
+        Arguments
+          // Unsupported stackwalkers - should fall back to dwarf
+          .of("vm", "dwarf"),
         Arguments.of("vmx", "dwarf"),
-        // Supported stackwalkers - should pass through
-        Arguments.of("dwarf", "dwarf"),
+        Arguments
+          // Supported stackwalkers - should pass through
+          .of("dwarf", "dwarf"),
         Arguments.of("fp", "fp"),
         Arguments.of("lbr", "lbr"),
-        Arguments.of("no", "no"));
+        Arguments.of("no", "no")
+    );
   }
 
   private static Stream<Arguments> hotspotStackwalkerTestCases() {
     return Stream.of(
-        // All stackwalkers should pass through unchanged
-        Arguments.of("vm", "vm"),
+        Arguments
+          // All stackwalkers should pass through unchanged
+          .of("vm", "vm"),
         Arguments.of("vmx", "vmx"),
         Arguments.of("dwarf", "dwarf"),
         Arguments.of("fp", "fp"),
         Arguments.of("lbr", "lbr"),
-        Arguments.of("no", "no"));
+        Arguments.of("no", "no")
+    );
   }
 
   @Test

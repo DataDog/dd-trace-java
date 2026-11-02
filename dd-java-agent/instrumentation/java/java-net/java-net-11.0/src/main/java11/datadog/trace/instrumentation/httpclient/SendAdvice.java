@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.INSTRUMENTATION_NAME;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.OPERATION_NAME;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -18,8 +17,7 @@ import net.bytebuddy.asm.Advice;
 
 public class SendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope methodEnter(
-      @Advice.Argument(value = 0) final HttpRequest httpRequest) {
+  public static ContextScope methodEnter(@Advice.Argument(value = 0) final HttpRequest httpRequest) {
     ContextScope scope = null;
     try {
       if (DECORATE.isAgentRequest(httpRequest)) {
@@ -39,7 +37,6 @@ public class SendAdvice {
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, httpRequest);
-
       // propagation is done by another instrumentation since Headers are immutable
       return scope;
     } catch (BlockingException e) {
@@ -64,7 +61,8 @@ public class SendAdvice {
   public static void methodExit(
       @Advice.Enter final ContextScope scope,
       @Advice.Return final HttpResponse<?> httpResponse,
-      @Advice.Thrown final Throwable throwable) {
+      @Advice.Thrown final Throwable throwable
+  ) {
     if (scope == null) {
       return;
     }

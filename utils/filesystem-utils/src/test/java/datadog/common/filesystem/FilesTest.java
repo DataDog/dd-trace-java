@@ -2,7 +2,6 @@ package datadog.common.filesystem;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.environment.JavaVirtualMachine;
 import java.io.File;
 import java.io.IOException;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
 public class FilesTest {
-
   private SecurityManager originalSM;
 
   @Test
@@ -25,7 +23,8 @@ public class FilesTest {
   @Test
   void existsReturnsFalseWhenFileDoesNotExist() throws IOException {
     File file = File.createTempFile("missing", "txt");
-    assertTrue(file.delete()); // ensure it does not exist
+    // ensure it does not exist
+    assertTrue(file.delete());
 
     assertFalse(Files.exists(file));
   }
@@ -35,30 +34,28 @@ public class FilesTest {
   void existsReturnsFalseWhenSecurityManagerForbidsFileAccess() throws IOException {
     File file = File.createTempFile("test", "txt");
     file.deleteOnExit();
-
     // --- install restrictive SecurityManager only in this test ---
     SecurityManager originalSM = System.getSecurityManager();
 
-    System.setSecurityManager(
-        new SecurityManager() {
-          @Override
-          public void checkRead(String filePath) {
-            // Deny only THIS file so classloading still works
-            if (filePath.equals(file.getAbsolutePath())) {
-              throw new SecurityException("Access denied");
-            }
-          }
+    System.setSecurityManager(new SecurityManager() {
+      @Override
+      public void checkRead(String filePath) {
+        // Deny only THIS file so classloading still works
+        if (filePath.equals(file.getAbsolutePath())) {
+          throw new SecurityException("Access denied");
+        }
+      }
 
-          @Override
-          public void checkPermission(Permission perm) {
-            // allow everything else
-          }
+      @Override
+      public void checkPermission(Permission perm) {
+        // allow everything else
+      }
 
-          @Override
-          public void checkPermission(Permission perm, Object context) {
-            // allow everything else
-          }
-        });
+      @Override
+      public void checkPermission(Permission perm, Object context) {
+        // allow everything else
+      }
+    });
 
     try {
       boolean result = Files.exists(file);

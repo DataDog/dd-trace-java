@@ -14,7 +14,6 @@ import java.util.function.Consumer;
  */
 public final class EventQueue<E> {
   private static final long PARK_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
-
   private final ConcurrentLinkedQueue<E> queue = new ConcurrentLinkedQueue<>();
   private final AtomicInteger size = new AtomicInteger();
   private final int capacity;

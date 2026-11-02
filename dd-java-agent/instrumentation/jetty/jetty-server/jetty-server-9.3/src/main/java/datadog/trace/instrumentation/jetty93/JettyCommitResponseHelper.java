@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jetty93;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.Flow;
@@ -31,7 +30,8 @@ public class JettyCommitResponseHelper {
       MetaData.Response metaDataResponse /* nullable */,
       HttpTransport transport,
       AtomicBoolean _committed,
-      Callback cb) {
+      Callback cb
+  ) {
     if (metaDataResponse == null) {
       metaDataResponse = newMetaDataResponse(connection.getResponse());
       if (metaDataResponse == null) {
@@ -46,9 +46,7 @@ public class JettyCommitResponseHelper {
     if (wasCommitted) {
       return false;
     }
-
     // henceforth we need to reset _committed to false when we don't want to skip the body
-
     Request req = connection.getRequest();
 
     Object contextObj;
@@ -64,9 +62,12 @@ public class JettyCommitResponseHelper {
     }
 
     Response resp = connection.getResponse();
-    Flow<Void> flow =
-        DECORATE.callIGCallbackResponseAndHeaders(
-            span, resp, resp.getStatus(), ExtractAdapter.Response.GETTER);
+    Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+        span,
+        resp,
+        resp.getStatus(),
+        ExtractAdapter.Response.GETTER
+    );
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;

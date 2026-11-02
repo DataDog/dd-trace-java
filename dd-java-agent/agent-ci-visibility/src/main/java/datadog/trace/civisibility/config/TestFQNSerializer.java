@@ -14,6 +14,7 @@ public abstract class TestFQNSerializer {
     String suiteName = Serializer.readString(buffer);
     return new TestFQN(
         // suite name repeats a lot; interning it to save memory
-        suiteName != null ? suiteName.intern() : null, Serializer.readString(buffer));
+    suiteName != null ? suiteName.intern() : null,
+        Serializer.readString(buffer));
   }
 }

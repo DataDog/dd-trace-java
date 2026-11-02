@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import datadog.context.Context;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
@@ -54,11 +53,11 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
 public class VirtualThreadContextBenchmark {
-
   static final CoreTracer TRACER = CoreTracer.builder().build();
-
-  ContinuableScopeManager plainManager; // profiling off
-  ContinuableScopeManager profiledManager; // profiling on
+  // profiling off
+  ContinuableScopeManager plainManager;
+  // profiling on
+  ContinuableScopeManager profiledManager;
   StubProfiling stubProfiling;
 
   @Setup
@@ -121,21 +120,19 @@ public class VirtualThreadContextBenchmark {
 
   static final class StubProfiling implements ProfilingContextIntegration {
     private final ThreadLocal<StubState> threadState = ThreadLocal.withInitial(StubState::new);
+    private final Stateful contextManager = new Stateful() {
+      @Override
+      public void activate(Object context) {
+        if (context instanceof ProfilerContext) {
+          threadState.get().activate((ProfilerContext) context);
+        }
+      }
 
-    private final Stateful contextManager =
-        new Stateful() {
-          @Override
-          public void activate(Object context) {
-            if (context instanceof ProfilerContext) {
-              threadState.get().activate((ProfilerContext) context);
-            }
-          }
-
-          @Override
-          public void close() {
-            threadState.get().close();
-          }
-        };
+      @Override
+      public void close() {
+        threadState.get().close();
+      }
+    };
 
     @Override
     public Stateful newScopeState(ProfilerContext profilerContext) {

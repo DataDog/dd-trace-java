@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 
 public final class DebuggerConfigBridge {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerConfigBridge.class);
-
   private static DebuggerConfigUpdate DEFERRED_UPDATE;
   private static volatile DebuggerConfigUpdater UPDATER;
   private static final Object LOCK = new Object();
@@ -38,7 +37,9 @@ public final class DebuggerConfigBridge {
               config.isDebuggerExceptionEnabled(),
               // if DI is enabled it enables also CodeOrigin, so we check both for initial state
               config.isDebuggerCodeOriginEnabled() || config.isDynamicInstrumentationEnabled(),
-              config.isDistributedDebuggerEnabled()));
+              config.isDistributedDebuggerEnabled()
+          )
+      );
     }
   }
 

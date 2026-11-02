@@ -4,7 +4,6 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static utils.TestClassFileHelper.getClassFileBytes;
-
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -46,12 +45,12 @@ public class TransformerDefinitionMatcherTest {
   public void simpleClassNameNoClassRedefined() {
     LogProbe probe = createProbe(PROBE_ID1, "String", "indexOf");
     TransformerDefinitionMatcher matcher = createMatcher(probe);
-    List<ProbeDefinition> probeDefinitions =
-        matcher.match(
-            null,
-            getClassPath(String.class),
-            String.class.getTypeName(),
-            getClassFileBytes(String.class));
+    List<ProbeDefinition> probeDefinitions = matcher.match(
+        null,
+        getClassPath(String.class),
+        String.class.getTypeName(),
+        getClassFileBytes(String.class)
+    );
     assertEquals(1, probeDefinitions.size());
     assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
   }
@@ -95,9 +94,11 @@ public class TransformerDefinitionMatcherTest {
 
   @Test
   public void sourceFileWindowsStyleAbsoluteFileName() {
-    LogProbe probe =
-        createProbe(
-            PROBE_ID1, "C:\\Users\\user\\project\\src\\main\\java\\java\\lang\\String.java", 23);
+    LogProbe probe = createProbe(
+        PROBE_ID1,
+        "C:\\Users\\user\\project\\src\\main\\java\\java\\lang\\String.java",
+        23
+    );
     TransformerDefinitionMatcher matcher = createMatcher(probe);
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());
@@ -211,19 +212,21 @@ public class TransformerDefinitionMatcherTest {
   }
 
   private LogProbe createProbe(ProbeId probeId, String sourceFileName, int line) {
-    return LogProbe.builder()
-        .probeId(probeId)
-        .where(null, null, null, line, sourceFileName)
-        .build();
+    return LogProbe
+      .builder()
+      .probeId(probeId)
+      .where(null, null, null, line, sourceFileName)
+      .build();
   }
 
   private MetricProbe createMetric(ProbeId probeId, String typeName, String methodName) {
-    return MetricProbe.builder()
-        .probeId(probeId)
-        .where(typeName, methodName)
-        .metricName("count")
-        .kind(MetricProbe.MetricKind.COUNT)
-        .build();
+    return MetricProbe
+      .builder()
+      .probeId(probeId)
+      .where(typeName, methodName)
+      .metricName("count")
+      .kind(MetricProbe.MetricKind.COUNT)
+      .build();
   }
 
   private static String getClassPath(Class<?> clazz) {

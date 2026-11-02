@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springweb6;
 
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.handlerSpanKeys;
-
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
@@ -15,10 +14,10 @@ import org.springframework.web.method.support.InvocableHandlerMethod;
 public class WrapContinuableResultAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void after(
-      @Advice.Argument(value = 0, typing = Assigner.Typing.DYNAMIC)
-          final NativeWebRequest nativeWebRequest,
+      @Advice.Argument(value = 0, typing = Assigner.Typing.DYNAMIC) final NativeWebRequest nativeWebRequest,
       @Advice.Return(readOnly = false) Object result,
-      @Advice.This final InvocableHandlerMethod self) {
+      @Advice.This final InvocableHandlerMethod self
+  ) {
     if (!(nativeWebRequest instanceof ServletWebRequest) || !(result instanceof CompletionStage)) {
       return;
     }
@@ -26,9 +25,10 @@ public class WrapContinuableResultAdvice {
     ServletWebRequest servletWebRequest = (ServletWebRequest) nativeWebRequest;
     final Pair<String, String> handlerSpanKeys = handlerSpanKeys(self.getBean().getClass());
 
-    if (Boolean.TRUE.equals(
-        servletWebRequest.getAttribute(
-            handlerSpanKeys.getRight(), ServletWebRequest.SCOPE_REQUEST))) {
+    if (Boolean.TRUE.equals(servletWebRequest.getAttribute(
+        handlerSpanKeys.getRight(),
+        ServletWebRequest.SCOPE_REQUEST
+    ))) {
       return;
     }
     Object span =
@@ -37,9 +37,11 @@ public class WrapContinuableResultAdvice {
       return;
     }
     servletWebRequest.setAttribute(
-        handlerSpanKeys.getRight(), true, ServletWebRequest.SCOPE_REQUEST);
-    result =
-        ((CompletionStage<?>) result)
-            .whenComplete(AsyncResultExtensions.finishSpan((AgentSpan) span));
+        handlerSpanKeys.getRight(),
+        true,
+        ServletWebRequest.SCOPE_REQUEST
+    );
+    result = ((CompletionStage<?>) result)
+      .whenComplete(AsyncResultExtensions.finishSpan((AgentSpan) span));
   }
 }

@@ -3,8 +3,10 @@ import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.telemetry.Verbosity;
 
 public class MockCallSitesWithTelemetry
-    implements CallSites, IastCallSites, IastCallSites.HasTelemetry {
-
+    implements CallSites,
+    IastCallSites,
+    IastCallSites.HasTelemetry
+{
   private Verbosity verbosity;
 
   @Override

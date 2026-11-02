@@ -10,7 +10,6 @@ import datadog.trace.api.iast.sink.WeakRandomnessModule;
 @Sink(VulnerabilityTypes.WEAK_RANDOMNESS)
 @CallSite(spi = IastCallSites.class)
 public class MathCallSite {
-
   @CallSite.Before("double java.lang.Math.random()")
   public static void before() {
     final WeakRandomnessModule module = InstrumentationBridge.WEAK_RANDOMNESS;

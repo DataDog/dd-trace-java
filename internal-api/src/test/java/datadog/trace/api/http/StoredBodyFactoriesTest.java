@@ -12,7 +12,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -30,10 +29,8 @@ import org.mockito.ArgumentCaptor;
 @SuppressWarnings("unchecked")
 class StoredBodyFactoriesTest extends DDJavaSpecification {
   private AgentTracer.TracerAPI originalTracer;
-
   private AgentTracer.TracerAPI tracerAPI;
   private AgentSpan agentSpan;
-
   private RequestContext requestContext;
   private CallbackProvider callbackProvider;
 
@@ -58,7 +55,9 @@ class StoredBodyFactoriesTest extends DDJavaSpecification {
     assertNull(StoredBodyFactories.maybeCreateForByte(null, null));
     assertNull(StoredBodyFactories.maybeCreateForChar(null));
     assertSame(
-        Flow.ResultFlow.empty(), StoredBodyFactories.maybeDeliverBodyInOneGo("", requestContext));
+        Flow.ResultFlow.empty(),
+        StoredBodyFactories.maybeDeliverBodyInOneGo("", requestContext)
+    );
   }
 
   @Test
@@ -80,7 +79,9 @@ class StoredBodyFactoriesTest extends DDJavaSpecification {
     assertNull(StoredBodyFactories.maybeCreateForByte(null, null));
     assertNull(StoredBodyFactories.maybeCreateForChar(null));
     assertSame(
-        Flow.ResultFlow.empty(), StoredBodyFactories.maybeDeliverBodyInOneGo("", requestContext));
+        Flow.ResultFlow.empty(),
+        StoredBodyFactories.maybeDeliverBodyInOneGo("", requestContext)
+    );
   }
 
   @Test
@@ -102,11 +103,12 @@ class StoredBodyFactoriesTest extends DDJavaSpecification {
     when(callbackProvider.getCallback(EVENTS.requestBodyStart())).thenReturn(mockRequestBodyStart);
     when(callbackProvider.getCallback(EVENTS.requestBodyDone())).thenReturn(mockRequestBodyDone);
     when(mockRequestBodyDone.apply(eq(requestContext), any(StoredBodySupplier.class)))
-        .thenReturn(mockFlow);
+      .thenReturn(mockFlow);
 
-    Flow<Void> flow =
-        StoredBodyFactories.maybeDeliverBodyInOneGo(
-            (Supplier<CharSequence>) () -> "body", requestContext);
+    Flow<Void> flow = StoredBodyFactories.maybeDeliverBodyInOneGo(
+        (Supplier<CharSequence>) () -> "body",
+        requestContext
+    );
 
     verify(callbackProvider).getCallback(EVENTS.requestBodyStart());
     verify(callbackProvider).getCallback(EVENTS.requestBodyDone());
@@ -132,7 +134,7 @@ class StoredBodyFactoriesTest extends DDJavaSpecification {
     when(callbackProvider.getCallback(EVENTS.requestBodyStart())).thenReturn(mockRequestBodyStart);
     when(callbackProvider.getCallback(EVENTS.requestBodyDone())).thenReturn(mockRequestBodyDone);
     when(mockRequestBodyDone.apply(eq(requestContext), any(StoredBodySupplier.class)))
-        .thenReturn(mockFlow);
+      .thenReturn(mockFlow);
 
     Flow<Void> flow = StoredBodyFactories.maybeDeliverBodyInOneGo("body", requestContext);
 
@@ -180,8 +182,7 @@ class StoredBodyFactoriesTest extends DDJavaSpecification {
 
   private void givenRequestContextAndCallbacks() {
     when(agentSpan.getRequestContext()).thenReturn(requestContext);
-    when(callbackProvider.getCallback(EVENTS.requestBodyStart()))
-        .thenReturn(mock(BiFunction.class));
+    when(callbackProvider.getCallback(EVENTS.requestBodyStart())).thenReturn(mock(BiFunction.class));
     when(callbackProvider.getCallback(EVENTS.requestBodyDone())).thenReturn(mock(BiFunction.class));
   }
 

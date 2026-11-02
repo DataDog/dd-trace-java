@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.springsecurity5;
 
 import static datadog.trace.api.UserIdCollectionMode.IDENTIFICATION;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import datadog.trace.api.EventTracker;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.UserIdCollectionMode;
@@ -24,14 +23,11 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 
 public class SpringSecurityUserEventDecorator {
-
   public static final SpringSecurityUserEventDecorator DECORATE =
       new SpringSecurityUserEventDecorator();
   private static final String SPRING_SECURITY_PACKAGE = "org.springframework.security";
-
   private static final Logger LOGGER =
       LoggerFactory.getLogger(SpringSecurityUserEventDecorator.class);
-
   private static final Set<Class<?>> SKIPPED_AUTHS =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
 
@@ -66,7 +62,8 @@ public class SpringSecurityUserEventDecorator {
       metadata.put("enabled", String.valueOf(user.isEnabled()));
       metadata.put(
           "authorities",
-          user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(",")));
+          user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(","))
+      );
     }
 
     tracker.onSignupEvent(mode, username, metadata);
@@ -100,7 +97,8 @@ public class SpringSecurityUserEventDecorator {
         metadata.put("enabled", String.valueOf(user.isEnabled()));
         metadata.put(
             "authorities",
-            user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(",")));
+            user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(","))
+        );
         metadata.put("accountNonExpired", String.valueOf(user.isAccountNonExpired()));
         metadata.put("accountNonLocked", String.valueOf(user.isAccountNonLocked()));
         metadata.put("credentialsNonExpired", String.valueOf(user.isCredentialsNonExpired()));
@@ -153,7 +151,10 @@ public class SpringSecurityUserEventDecorator {
     if (SKIPPED_AUTHS.add(authentication.getClass())) {
       final Class<?> authClass = authentication.getClass();
       LOGGER.debug(
-          SEND_TELEMETRY, "Skipped authentication, auth={}", findRootAuthentication(authClass));
+          SEND_TELEMETRY,
+          "Skipped authentication, auth={}",
+          findRootAuthentication(authClass)
+      );
     }
     return true;
   }
@@ -165,7 +166,8 @@ public class SpringSecurityUserEventDecorator {
       }
       authentication = authentication.getSuperclass();
     }
-    return Authentication.class.getName(); // set this a default for really custom impls
+    // set this a default for really custom impls
+    return Authentication.class.getName();
   }
 
   private static boolean missingUserId(final String username) {

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -22,9 +21,9 @@ import org.reactivestreams.Subscriber;
  */
 public class SubscriberInstrumentation
     implements Instrumenter.ForTypeHierarchy,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.WithTypeStructure,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public ElementMatcher<TypeDescription> structureMatcher() {
     return declaresMethod(isMethod().and(namedOneOf("onNext", "onError", "onComplete")));
@@ -34,9 +33,12 @@ public class SubscriberInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(namedOneOf("onNext", "onError")),
-        getClass().getName() + "$SubscriberDownStreamAdvice");
+        getClass().getName() + "$SubscriberDownStreamAdvice"
+    );
     transformer.applyAdvice(
-        isMethod().and(named("onComplete")), getClass().getName() + "$SubscriberCompleteAdvice");
+        isMethod().and(named("onComplete")),
+        getClass().getName() + "$SubscriberCompleteAdvice"
+    );
   }
 
   @Override
@@ -59,7 +61,9 @@ public class SubscriberInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(@Advice.This final Subscriber self) {
       return ReactiveStreamsContextPropagation.activateOnSignal(
-          self, InstrumentationContext.get(Subscriber.class, Context.class));
+          self,
+          InstrumentationContext.get(Subscriber.class, Context.class)
+      );
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -79,7 +83,9 @@ public class SubscriberInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(@Advice.This final Subscriber self) {
       return ReactiveStreamsContextPropagation.activateOnComplete(
-          self, InstrumentationContext.get(Subscriber.class, Context.class));
+          self,
+          InstrumentationContext.get(Subscriber.class, Context.class)
+      );
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

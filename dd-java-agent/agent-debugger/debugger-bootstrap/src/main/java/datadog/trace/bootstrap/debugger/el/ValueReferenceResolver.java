@@ -3,7 +3,9 @@ package datadog.trace.bootstrap.debugger.el;
 import datadog.trace.bootstrap.debugger.CapturedContext.CapturedValue;
 import java.util.Map;
 
-/** Debugger EL specific value reference resolver. */
+/**
+ * Debugger EL specific value reference resolver.
+ */
 public interface ValueReferenceResolver {
   CapturedValue lookup(String name);
 

@@ -46,10 +46,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * whichever variants run first. Adopting that setup requires remeasuring affected benchmarks.
  */
 public final class BenchmarkUtils {
-  private BenchmarkUtils() {}
+  private BenchmarkUtils() {
+  }
 
   private static final Object[] DECOY_KEYS = {"decoy", 1, 1L, 1.0d, Boolean.TRUE, new Object()};
-
   /**
    * Number of pollution passes {@link #warmUpHashDispatch} runs before a trial starts. Driving
    * enough calls at {@code Level.Trial} -- entirely before JMH's warmup, let alone measurement,
@@ -66,7 +66,6 @@ public final class BenchmarkUtils {
    * this method at tier N").
    */
   private static final int WARM_UP_ITERATIONS = 50_000;
-
   /**
    * Guards {@link #warmUpHashDispatch} so the passes run once per JVM rather than once per caller.
    * Receiver profiles live in the per-method MDO and are JVM-global, so a single pass is sufficient
@@ -241,11 +240,9 @@ public final class BenchmarkUtils {
    * @return a distinct-but-equal copy, or {@code key} itself if it has no distinct-but-equal form
    */
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  @SuppressWarnings({
-    "deprecation",
-    "removal"
-  }) // boxed-type constructors: only way to force a non-cached instance
-  private static Object distinctEqualCopy(Object key) {
+  @SuppressWarnings({"deprecation", "removal"})
+  private static // boxed-type constructors: only way to force a non-cached instance
+  Object distinctEqualCopy(Object key) {
     if (key instanceof String) {
       return new String((String) key);
     } else if (key instanceof Integer) {

@@ -1,7 +1,6 @@
 package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.SpanDecorationProbe;
@@ -35,7 +34,6 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   protected static final String FULL_METHOD_NAME = "fullMethod";
   protected static final String TRACED_METHOD_NAME = "tracedMethod";
   protected static final Duration HTTP_CLIENT_TIMEOUT = Duration.ofSeconds(30);
-
   protected MockWebServer controlServer;
   protected HttpUrl controlUrl;
   private OkHttpClient httpClient =
@@ -85,9 +83,10 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   protected Snapshot waitForOneSnapshot() throws Exception {
     AtomicReference<Snapshot> snapshotReceived = new AtomicReference<>();
     registerSnapshotListener(snapshotReceived::set);
-    processRequests(
-        () -> snapshotReceived.get() != null,
-        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
+    processRequests(() -> snapshotReceived.get() != null, () -> String.format(
+        "timeout snapshotReceived=%s",
+        snapshotReceived.get()
+    ));
     return snapshotReceived.get();
   }
 
@@ -96,7 +95,8 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected void execute(String appUrl, String methodName, String arg) throws IOException {
-    datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect 1 snapshot
+    // expect 1 snapshot
+    datadogAgentServer.enqueue(EMPTY_200_RESPONSE);
     String executeFormat = arg != null ? "/execute?methodname=%s&arg=%s" : "/execute?methodname=%s";
     String url = String.format(appUrl + executeFormat, methodName, arg);
     sendRequest(url);
@@ -108,25 +108,29 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected void waitForInstrumentation(
-      String appUrl, String className, boolean waitOnProbeStatuses) throws Exception {
+      String appUrl,
+      String className,
+      boolean waitOnProbeStatuses
+  ) throws Exception {
     String url = String.format(appUrl + "/waitForInstrumentation?classname=%s", className);
     LOG.info("waitForInstrumentation with url={}", url);
     sendRequest(url);
     if (waitOnProbeStatuses) {
       AtomicBoolean received = new AtomicBoolean();
       AtomicBoolean installed = new AtomicBoolean();
-      registerProbeStatusListener(
-          probeStatus -> {
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-              received.set(true);
-            }
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
-              installed.set(true);
-            }
-          });
-      processRequests(
-          () -> received.get() && installed.get(),
-          () -> String.format("timeout received=%s installed=%s", received.get(), installed.get()));
+      registerProbeStatusListener(probeStatus -> {
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+          received.set(true);
+        }
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+          installed.set(true);
+        }
+      });
+      processRequests(() -> received.get() && installed.get(), () -> String.format(
+          "timeout received=%s installed=%s",
+          received.get(),
+          installed.get()
+      ));
     }
     LOG.info("instrumentation done");
   }
@@ -140,12 +144,13 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
 
   protected void waitForAProbeStatus(ProbeStatus.Status status) throws Exception {
     AtomicBoolean statusResult = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          statusResult.set(probeStatus.getDiagnostics().getStatus() == status);
-        });
-    processRequests(
-        statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
+    registerProbeStatusListener(probeStatus -> {
+      statusResult.set(probeStatus.getDiagnostics().getStatus() == status);
+    });
+    processRequests(statusResult::get, () -> String.format(
+        "timeout statusResult=%s",
+        statusResult.get()
+    ));
   }
 
   protected void waitForReTransformation(String appUrl) throws IOException {
@@ -164,7 +169,8 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected String startAppAndAndGetUrl() throws InterruptedException, IOException {
-    controlServer.enqueue(EMPTY_200_RESPONSE); // ack response
+    // ack response
+    controlServer.enqueue(EMPTY_200_RESPONSE);
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
     RecordedRequest recordedRequest = controlServer.takeRequest(30, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
@@ -174,20 +180,25 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected void addProbe(LogProbe logProbe) {
-    datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect RECEIVED status
-    datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect INSTALLED status
+    // expect RECEIVED status
+    datadogAgentServer.enqueue(EMPTY_200_RESPONSE);
+    // expect INSTALLED status
+    datadogAgentServer.enqueue(EMPTY_200_RESPONSE);
     setCurrentConfiguration(createConfig(logProbe));
   }
 
   protected void addProbe(SpanDecorationProbe spanDecorationProbe) {
-    datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect RECEIVED status
-    datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect INSTALLED status
+    // expect RECEIVED status
+    datadogAgentServer.enqueue(EMPTY_200_RESPONSE);
+    // expect INSTALLED status
+    datadogAgentServer.enqueue(EMPTY_200_RESPONSE);
     setCurrentConfiguration(createSpanDecoConfig(spanDecorationProbe));
   }
 
   protected void sendRequest(String url) throws IOException {
     Request request = new Request.Builder().url(url).get().build();
-    try (Response response = httpClient.newCall(request).execute()) {}
+    try (Response response = httpClient.newCall(request).execute()) {
+    }
   }
 
   protected boolean isTracedFullMethodSpan(DecodedSpan span) {

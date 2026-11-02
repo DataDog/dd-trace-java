@@ -12,7 +12,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.MonitoringImpl;
@@ -34,17 +33,18 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class DDIntakeWriterTest extends DDCoreJavaSpecification {
-
   HealthMetrics healthMetrics = mock(HealthMetrics.class);
   TraceProcessingWorker worker = mock(TraceProcessingWorker.class);
   DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
   DDAgentApi api = mock(DDAgentApi.class);
   MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
-  PayloadDispatcherImpl dispatcher =
-      new PayloadDispatcherImpl(
-          new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+  PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(
+      new DDAgentMapperDiscovery(discovery),
+      api,
+      healthMetrics,
+      monitoring
+  );
   DDIntakeWriter writer = new DDIntakeWriter(worker, dispatcher, healthMetrics, false);
-
   // Only used to create spans
   CoreTracer dummyTracer;
 
@@ -86,20 +86,16 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
   @Test
   void testWriterFlush() {
     when(worker.flush(1, TimeUnit.SECONDS)).thenReturn(true, false);
-
     // first flush succeeds
     writer.flush();
-
     // monitor is notified
     verify(worker).flush(1, TimeUnit.SECONDS);
     verify(healthMetrics).onFlush(false);
     verifyNoMoreInteractions(healthMetrics, worker, discovery, api);
 
     clearInvocations(healthMetrics, worker, discovery, api);
-
     // second flush returns false
     writer.flush();
-
     // no additional monitor notifications
     verify(worker).flush(1, TimeUnit.SECONDS);
     verifyNoMoreInteractions(healthMetrics, worker, discovery, api);
@@ -119,13 +115,12 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
   void testWriterWritePublishSucceeds() {
     List<DDSpan> trace =
         Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
-
+            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start()
+    );
     // publish succeeds
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SERIALIZATION);
     when(worker.flush(anyLong(), any(TimeUnit.class))).thenReturn(true);
     writer.write(trace);
-
     // monitor is notified of successful publication
     verify(worker).publish(any(), anyInt(), eq(trace));
     verify(healthMetrics).onPublish(any(), anyInt());
@@ -136,13 +131,12 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
   void testWriterWritePublishForSingleSpanSampling() {
     List<DDSpan> trace =
         Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
-
+            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start()
+    );
     // publish succeeds for single span sampling
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SINGLE_SPAN_SAMPLING);
     when(worker.flush(anyLong(), any(TimeUnit.class))).thenReturn(true);
     writer.write(trace);
-
     // monitor should not call onPublish for single span sampling
     verify(worker).publish(any(), anyInt(), eq(trace));
     verifyNoMoreInteractions(healthMetrics);
@@ -157,13 +151,12 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
   void testWriterWritePublishFails(PublishResult publishResult) {
     List<DDSpan> trace =
         Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
-
+            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start()
+    );
     // publish fails
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(publishResult);
     when(worker.flush(anyLong(), any(TimeUnit.class))).thenReturn(true);
     writer.write(trace);
-
     // monitor is notified of unsuccessful publication
     verify(worker).publish(any(), anyInt(), eq(trace));
     verify(healthMetrics).onFailedPublish(anyInt(), eq(1));
@@ -175,7 +168,6 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
     // trace is empty
     when(worker.flush(anyLong(), any(TimeUnit.class))).thenReturn(true);
     writer.write(Collections.emptyList());
-
     // monitor is notified of unsuccessful publication
     verify(healthMetrics).onFailedPublish(anyInt(), eq(0));
     verifyNoMoreInteractions(healthMetrics);
@@ -187,7 +179,8 @@ class DDIntakeWriterTest extends DDCoreJavaSpecification {
     clearInvocations(healthMetrics, worker, discovery, api);
     List<DDSpan> trace =
         Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start()
+    );
 
     when(worker.flush(anyLong(), any(TimeUnit.class))).thenReturn(true);
     writer.write(trace);

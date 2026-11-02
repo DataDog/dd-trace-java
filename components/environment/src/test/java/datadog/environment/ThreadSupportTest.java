@@ -3,7 +3,6 @@ package datadog.environment;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.condition.JRE.JAVA_21;
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -42,7 +41,8 @@ class ThreadSupportTest {
     assertEquals(
         JavaVirtualMachine.isJavaVersionAtLeast(21),
         ThreadSupport.supportsVirtualThreads(),
-        "expected virtual threads support status");
+        "expected virtual threads support status"
+    );
   }
 
   @Test
@@ -58,12 +58,10 @@ class ThreadSupportTest {
 
   static void assertVirtualThread(ExecutorService executorService, boolean expected) {
     Future<Boolean> futureCurrent = executorService.submit(() -> ThreadSupport.isVirtual());
-    Future<Boolean> futureGiven =
-        executorService.submit(
-            () -> {
-              Thread thread = Thread.currentThread();
-              return ThreadSupport.isVirtual(thread);
-            });
+    Future<Boolean> futureGiven = executorService.submit(() -> {
+      Thread thread = Thread.currentThread();
+      return ThreadSupport.isVirtual(thread);
+    });
     try {
       assertEquals(expected, futureCurrent.get(), "invalid current thread virtual status");
       assertEquals(expected, futureGiven.get(), "invalid given thread virtual status");

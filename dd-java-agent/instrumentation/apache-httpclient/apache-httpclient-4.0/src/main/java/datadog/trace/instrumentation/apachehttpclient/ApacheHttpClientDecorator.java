@@ -8,10 +8,8 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 
 public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriRequest, HttpResponse> {
-
   public static final CharSequence APACHE_HTTP_CLIENT = UTF8BytesString.create("apache-httpclient");
   public static final ApacheHttpClientDecorator DECORATE = new ApacheHttpClientDecorator();
-
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override

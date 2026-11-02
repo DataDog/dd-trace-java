@@ -7,10 +7,8 @@ import java.util.concurrent.ConcurrentMap;
 import org.eclipse.jetty.server.HttpChannel;
 
 public final class AttributeKeys {
-
   private static final ClassValue<ConcurrentHashMap<String, AttributeKey<?>>> MAPS =
       GenericClassValue.constructing(ConcurrentHashMap.class);
-
   public static final AttributeKey<HttpChannel> HTTP_CHANNEL_ATTRIBUTE_KEY =
       attributeKey("dd.armeria.jetty.channel");
 

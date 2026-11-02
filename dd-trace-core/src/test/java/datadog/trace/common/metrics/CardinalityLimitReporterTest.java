@@ -8,7 +8,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -21,7 +20,6 @@ import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
 
 class CardinalityLimitReporterTest {
-
   private Logger logger;
   private Level previousLevel;
   private ListAppender<ILoggingEvent> appender;
@@ -75,8 +73,8 @@ class CardinalityLimitReporterTest {
   void rateLimitsRepeatedReportsWithinTheWindow() {
     CardinalityLimitReporter reporter = new CardinalityLimitReporter();
     reporter.record("resource", 1);
-    reporter.reportIfDue(); // first call in the window logs immediately
-
+    // first call in the window logs immediately
+    reporter.reportIfDue();
     // A later cycle within the 5-minute window records more but must not emit a second line.
     reporter.record("resource", 4);
     reporter.reportIfDue();
@@ -94,16 +92,17 @@ class CardinalityLimitReporterTest {
     CardinalityLimitReporter reporter = new CardinalityLimitReporter(rlLog);
 
     reporter.record("resource", 3);
-    reporter.reportIfDue(); // suppressed: nothing cleared
+    // suppressed: nothing cleared
+    reporter.reportIfDue();
     reporter.record("resource", 4);
-    reporter.reportIfDue(); // permitted: emits the retained 3 + new 4
+    // permitted: emits the retained 3 + new 4
+    reporter.reportIfDue();
 
     ArgumentCaptor<Object> summary = ArgumentCaptor.forClass(Object.class);
     verify(rlLog, times(2)).warn(anyString(), summary.capture());
     // First (suppressed) attempt still saw only 3; the emitting attempt carries the full 7.
     assertEquals("resource=3", summary.getAllValues().get(0));
     assertEquals("resource=7", summary.getAllValues().get(1));
-
     // A successful emit cleared the store: with nothing recorded since, the next due-check
     // short-circuits and never touches the logger again.
     reporter.reportIfDue();

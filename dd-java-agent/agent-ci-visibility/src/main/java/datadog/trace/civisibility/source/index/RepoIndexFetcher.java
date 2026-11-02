@@ -7,9 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RepoIndexFetcher implements RepoIndexProvider {
-
   private static final Logger log = LoggerFactory.getLogger(RepoIndexFetcher.class);
-
   private final SignalClient.Factory signalClientFactory;
   private final Object indexInitializationLock = new Object();
   private volatile RepoIndex index;

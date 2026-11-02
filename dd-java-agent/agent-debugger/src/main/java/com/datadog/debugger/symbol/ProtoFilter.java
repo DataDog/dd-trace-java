@@ -47,11 +47,11 @@ public class ProtoFilter implements ScopeFilter {
   private boolean hasProtoDescriptorField(Scope scope) {
     return scope.getScopeType() == ScopeType.CLASS
         && scope.getSymbols() != null
-        && scope.getSymbols().stream()
-            .anyMatch(
-                it ->
-                    it.getSymbolType() == SymbolType.STATIC_FIELD
-                        && it.getType() != null
-                        && it.getType().contains("com.google.protobuf.Descriptors"));
+        && scope
+          .getSymbols()
+          .stream()
+          .anyMatch(it -> it.getSymbolType() == SymbolType.STATIC_FIELD
+              && it.getType() != null
+              && it.getType().contains("com.google.protobuf.Descriptors"));
   }
 }

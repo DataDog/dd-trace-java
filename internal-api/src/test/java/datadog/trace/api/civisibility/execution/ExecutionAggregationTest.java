@@ -5,11 +5,9 @@ import static datadog.trace.api.civisibility.execution.ExecutionAggregation.NONE
 import static datadog.trace.api.civisibility.execution.ExecutionAggregation.ONLY_FAILED;
 import static datadog.trace.api.civisibility.execution.ExecutionAggregation.ONLY_PASSED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
 
 class ExecutionAggregationTest {
-
   @Test
   void noneAfterFailIsOnlyFailed() {
     assertEquals(ONLY_FAILED, NONE.withExecution(TestStatus.fail));

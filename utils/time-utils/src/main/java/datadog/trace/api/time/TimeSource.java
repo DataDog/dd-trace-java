@@ -11,12 +11,18 @@ public interface TimeSource {
    */
   long getNanoTicks();
 
-  /** Milliseconds since the start of the epoch */
+  /**
+   * Milliseconds since the start of the epoch
+   */
   long getCurrentTimeMillis();
 
-  /** Microseconds since the start of the epoch */
+  /**
+   * Microseconds since the start of the epoch
+   */
   long getCurrentTimeMicros();
 
-  /** Nanoseconds since the start of the epoch. Valid for the time range 1/1/1970 +/- 270 years */
+  /**
+   * Nanoseconds since the start of the epoch. Valid for the time range 1/1/1970 +/- 270 years
+   */
   long getCurrentTimeNanos();
 }

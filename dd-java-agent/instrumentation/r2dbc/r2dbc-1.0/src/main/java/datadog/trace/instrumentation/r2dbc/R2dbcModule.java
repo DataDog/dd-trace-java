@@ -2,17 +2,17 @@ package datadog.trace.instrumentation.r2dbc;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.List;
 import java.util.Map;
 
-/** Groups the R2DBC tracing and SQL comment injection instrumentations. */
+/**
+ * Groups the R2DBC tracing and SQL comment injection instrumentations.
+ */
 @AutoService(InstrumenterModule.class)
 public final class R2dbcModule extends InstrumenterModule.Tracing {
-
   public R2dbcModule() {
     super("r2dbc");
   }

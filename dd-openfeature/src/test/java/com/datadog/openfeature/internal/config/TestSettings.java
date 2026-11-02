@@ -4,9 +4,12 @@ import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Builds {@link Settings} from explicit values, ignoring the JVM system properties and env. */
+/**
+ * Builds {@link Settings} from explicit values, ignoring the JVM system properties and env.
+ */
 public final class TestSettings {
-  private TestSettings() {}
+  private TestSettings() {
+  }
 
   /**
    * @param keyValues alternating setting keys, without the {@code dd.} prefix, and values.

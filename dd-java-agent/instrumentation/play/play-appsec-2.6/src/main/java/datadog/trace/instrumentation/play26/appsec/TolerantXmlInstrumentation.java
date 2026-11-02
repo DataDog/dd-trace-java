@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.util.ByteString;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
@@ -20,7 +19,9 @@ import play.mvc.Http;
  */
 @AutoService(InstrumenterModule.class)
 public class TolerantXmlInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public TolerantXmlInstrumentation() {
     super("play");
   }
@@ -44,17 +45,20 @@ public class TolerantXmlInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parse")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
-            .and(takesArgument(1, named("akka.util.ByteString")))
-            .and(returns(named("org.w3c.dom.Document"))),
-        TolerantXmlInstrumentation.class.getName() + "$ParseAdvice");
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
+          .and(takesArgument(1, named("akka.util.ByteString")))
+          .and(returns(named("org.w3c.dom.Document"))),
+        TolerantXmlInstrumentation.class.getName() + "$ParseAdvice"
+    );
   }
 
   static class ParseAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
-        @Advice.Return org.w3c.dom.Document ret, @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Return org.w3c.dom.Document ret,
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null) {
         return;
       }

@@ -21,21 +21,22 @@ public class TestSparkComputation {
 
   public static void generateTestFailingSparkComputation(SparkSession sparkSession) {
     sparkSession
-        .sparkContext()
-        .range(1, 10, 1, 2)
-        .toJavaRDD()
-        .map(x -> ((Long) null).toString())
-        .collect();
+      .sparkContext()
+      .range(1, 10, 1, 2)
+      .toJavaRDD()
+      .map(x -> ((Long) null).toString())
+      .collect();
   }
 
   public static StreamingQuery generateTestFailingStreamingComputation(Dataset<String> ds)
       throws TimeoutException {
-    return ds.map((MapFunction<String, String>) x -> ((Long) null).toString(), Encoders.STRING())
-        .writeStream()
-        .queryName("failing-query")
-        .outputMode("append")
-        .format("console")
-        .start();
+    return ds
+      .map((MapFunction<String, String>) x -> ((Long) null).toString(), Encoders.STRING())
+      .writeStream()
+      .queryName("failing-query")
+      .outputMode("append")
+      .format("console")
+      .start();
   }
 
   static class IdentityMapFunction implements MapFunction<String, String> {

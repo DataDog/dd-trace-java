@@ -29,7 +29,8 @@ class JarReader {
         final Map<String, Properties> pomProperties,
         final Attributes manifest,
         final boolean isDirectory,
-        final InputStreamSupplier inputStreamSupplier) {
+        final InputStreamSupplier inputStreamSupplier
+    ) {
       this.jarName = jarName;
       this.pomProperties = pomProperties;
       this.manifest = manifest;
@@ -63,12 +64,9 @@ class JarReader {
       final Manifest manifest = jar.getManifest();
       final Attributes attributes =
           (manifest == null) ? new Attributes() : manifest.getMainAttributes();
-      return new Extracted(
-          new File(jar.getName()).getName(),
-          pomProperties,
-          attributes,
-          false,
-          () -> Files.newInputStream(Paths.get(jarPath)));
+      return new Extracted(new File(jar.getName()).getName(), pomProperties, attributes, false, () -> Files.newInputStream(Paths.get(
+          jarPath
+      )));
     }
   }
 
@@ -80,11 +78,11 @@ class JarReader {
         throw new NoSuchFileException("Nested jar not found: " + innerJarPath);
       }
       if (entry.isDirectory()) {
-        return new Extracted(
-            new File(innerJarPath).getName(), new HashMap<>(), new Attributes(), true, () -> null);
+        return new Extracted(new File(innerJarPath).getName(), new HashMap<>(), new Attributes(), true, () -> null);
       }
       try (final InputStream is = outerJar.getInputStream(entry);
-          final JarInputStream innerJar = new JarInputStream(is, false /* no verify */)) {
+          final JarInputStream innerJar = new JarInputStream(is, false /* no verify */)
+      ) {
         final Map<String, Properties> pomProperties = new HashMap<>();
         ZipEntry innerEntry;
         while ((innerEntry = innerJar.getNextEntry()) != null) {
@@ -97,12 +95,10 @@ class JarReader {
         final Manifest manifest = innerJar.getManifest();
         final Attributes attributes =
             (manifest == null) ? new Attributes() : manifest.getMainAttributes();
-        return new Extracted(
-            new File(innerJarPath).getName(),
-            pomProperties,
-            attributes,
-            false,
-            () -> new NestedJarInputStream(outerJarPath, innerJarPath));
+        return new Extracted(new File(innerJarPath).getName(), pomProperties, attributes, false, () -> new NestedJarInputStream(
+            outerJarPath,
+            innerJarPath
+        ));
       }
     }
   }

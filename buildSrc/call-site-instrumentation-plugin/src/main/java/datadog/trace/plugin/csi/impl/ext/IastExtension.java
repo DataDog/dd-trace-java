@@ -6,7 +6,6 @@ import static datadog.trace.plugin.csi.util.JavaParserUtils.accessLocalField;
 import static datadog.trace.plugin.csi.util.JavaParserUtils.getPrimaryType;
 import static datadog.trace.plugin.csi.util.JavaParserUtils.implementsInterface;
 import static datadog.trace.plugin.csi.util.JavaParserUtils.intLiteral;
-
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
@@ -60,25 +59,20 @@ import org.objectweb.asm.Type;
 
 @SuppressWarnings("OptionalGetWithoutIsPresent")
 public class IastExtension implements Extension {
-
   private static final String IAST_CALL_SITES_CLASS = "IastCallSites";
   static final String IAST_CALL_SITES_FQCN = "datadog.trace.api.iast." + IAST_CALL_SITES_CLASS;
   private static final String HAS_TELEMETRY_INTERFACE = IAST_CALL_SITES_CLASS + ".HasTelemetry";
   private static final String IAST_METRIC_COLLECTOR_CLASS = "IastMetricCollector";
   private static final String IAST_METRIC_COLLECTOR_FQCN =
       "datadog.trace.api.iast.telemetry." + IAST_METRIC_COLLECTOR_CLASS;
-
   private static final String IAST_METRIC_COLLECTOR_INTERNAL_NAME =
       IAST_METRIC_COLLECTOR_FQCN.replaceAll("\\.", "/");
-
   private static final String VERBOSITY_CLASS = "Verbosity";
-  private static final String VERBOSITY_FQCN =
-      "datadog.trace.api.iast.telemetry." + VERBOSITY_CLASS;
-
+  private static final String VERBOSITY_FQCN = "datadog.trace.api.iast.telemetry."
+      + VERBOSITY_CLASS;
   private static final String IAST_METRIC_CLASS = "IastMetric";
   private static final String IAST_METRIC_FQCN =
       "datadog.trace.api.iast.telemetry." + IAST_METRIC_CLASS;
-
   private static final String IAST_METRIC_INTERNAL_NAME = IAST_METRIC_FQCN.replaceAll("\\.", "/");
 
   @Override
@@ -93,15 +87,15 @@ public class IastExtension implements Extension {
 
   @Override
   public void apply(
-      @Nonnull final Configuration configuration, @Nonnull final CallSiteResult result)
-      throws Exception {
+      @Nonnull final Configuration configuration,
+      @Nonnull final CallSiteResult result
+  ) throws Exception {
     addTelemetry(configuration, result);
   }
 
   private void addTelemetry(final Configuration configuration, final CallSiteResult result)
       throws Exception {
     final TypeResolver resolver = getTypeResolver(configuration);
-
     // class with the addAdvices methods
     final CompilationUnit providerJavaFile = parseJavaFile(resolver, result.getFile());
     final ClassOrInterfaceDeclaration provider = getPrimaryType(providerJavaFile);
@@ -109,16 +103,13 @@ public class IastExtension implements Extension {
       // already processed
       return;
     }
-
     // find all the advices in the provider
     final Map<AdviceSpecification, LambdaExpr> advices = findAdvices(result, provider);
-
     // parse current call site class and fetch all metadata regarding telemetry
     final CompilationUnit originalCallSiteFile =
         findOriginalCallSite(configuration, resolver, result);
     final ClassOrInterfaceDeclaration originalCallSite = getPrimaryType(originalCallSiteFile);
     final AdviceMetadata globalMetadata = AdviceMetadata.findAdviceMetadata(originalCallSite);
-
     // add telemetry to each of the advices
     boolean hasTelemetry = false;
     for (final MethodDeclaration callSiteMethod : originalCallSite.getMethods()) {
@@ -139,7 +130,6 @@ public class IastExtension implements Extension {
     if (hasTelemetry) {
       // add telemetry support to the provider class
       addTelemetryInterface(providerJavaFile);
-
       // save the result
       providerJavaFile.getStorage().get().save();
     }
@@ -154,25 +144,25 @@ public class IastExtension implements Extension {
     final FieldDeclaration verbosityField =
         mainType.addField(VERBOSITY_CLASS, "verbosity", Modifier.Keyword.PRIVATE);
     verbosityField
-        .getVariable(0)
-        .setInitializer(
-            new FieldAccessExpr().setScope(new NameExpr(VERBOSITY_CLASS)).setName("OFF"));
-    final MethodDeclaration enableTelemetry =
-        mainType
-            .addMethod("setVerbosity", Modifier.Keyword.PUBLIC)
-            .addParameter(VERBOSITY_CLASS, "verbosity")
-            .addAnnotation(Override.class);
+      .getVariable(0)
+      .setInitializer(new FieldAccessExpr().setScope(new NameExpr(VERBOSITY_CLASS)).setName("OFF"));
+    final MethodDeclaration enableTelemetry = mainType
+      .addMethod("setVerbosity", Modifier.Keyword.PUBLIC)
+      .addParameter(VERBOSITY_CLASS, "verbosity")
+      .addAnnotation(Override.class);
     final BlockStmt enableTelemetryBody = new BlockStmt();
-    enableTelemetryBody.addStatement(
-        new AssignExpr()
-            .setTarget(accessLocalField("verbosity"))
-            .setValue(new NameExpr("verbosity")));
+    enableTelemetryBody.addStatement(new AssignExpr()
+      .setTarget(accessLocalField("verbosity"))
+      .setValue(new NameExpr("verbosity"))
+    );
     enableTelemetry.setBody(enableTelemetryBody);
   }
 
   private CompilationUnit findOriginalCallSite(
-      final Configuration configuration, final TypeResolver resolver, final CallSiteResult result)
-      throws FileNotFoundException {
+      final Configuration configuration,
+      final TypeResolver resolver,
+      final CallSiteResult result
+  ) throws FileNotFoundException {
     final String originalClass = result.getSpecification().getClazz().getClassName();
     final String separator = File.separator.equals("\\") ? "\\\\" : File.separator;
     final String javaFile = originalClass.replaceAll("\\.", separator);
@@ -180,46 +170,47 @@ public class IastExtension implements Extension {
   }
 
   private void addTelemetryToAdvice(
-      final TypeResolver resolver, final LambdaExpr adviceLambda, final AdviceMetadata metaData) {
+      final TypeResolver resolver,
+      final LambdaExpr adviceLambda,
+      final AdviceMetadata metaData
+  ) {
     final BlockStmt lambdaBody = adviceLambda.getBody().asBlockStmt();
     final String metric = getMetricName(metaData);
     final Byte tagValue = getMetricTagValue(resolver, metaData);
     final String instrumentedMetric = "INSTRUMENTED_" + metric;
-    final IfStmt instrumentedStatement =
-        new IfStmt()
-            .setCondition(isEnabledCondition(instrumentedMetric))
-            .setThenStmt(
-                new BlockStmt()
-                    .addStatement(addTelemetryCollectorMethod(instrumentedMetric, tagValue)));
+    final IfStmt instrumentedStatement = new IfStmt()
+      .setCondition(isEnabledCondition(instrumentedMetric))
+      .setThenStmt(new BlockStmt()
+        .addStatement(addTelemetryCollectorMethod(instrumentedMetric, tagValue))
+      );
     lambdaBody.addStatement(0, instrumentedStatement);
     final String executedMetric = "EXECUTED_" + metric;
-    final IfStmt executedStatement =
-        new IfStmt()
-            .setCondition(isEnabledCondition(executedMetric))
-            .setThenStmt(addTelemetryCollectorByteCode(executedMetric, tagValue));
+    final IfStmt executedStatement = new IfStmt()
+      .setCondition(isEnabledCondition(executedMetric))
+      .setThenStmt(addTelemetryCollectorByteCode(executedMetric, tagValue));
     lambdaBody.addStatement(1, executedStatement);
   }
 
   private static Expression isEnabledCondition(final String metric) {
     return new MethodCallExpr()
-        .setScope(new FieldAccessExpr().setScope(new NameExpr(IAST_METRIC_CLASS)).setName(metric))
-        .setName("isEnabled")
-        .addArgument(accessLocalField("verbosity"));
+      .setScope(new FieldAccessExpr().setScope(new NameExpr(IAST_METRIC_CLASS)).setName(metric))
+      .setName("isEnabled")
+      .addArgument(accessLocalField("verbosity"));
   }
 
   private static MethodCallExpr addTelemetryCollectorMethod(
-      final String metric, final Byte tagValue) {
-    final MethodCallExpr method =
-        new MethodCallExpr()
-            .setScope(new NameExpr(IAST_METRIC_COLLECTOR_CLASS))
-            .setName("add")
-            .addArgument(
-                new FieldAccessExpr().setScope(new NameExpr(IAST_METRIC_CLASS)).setName(metric));
+      final String metric,
+      final Byte tagValue
+  ) {
+    final MethodCallExpr method = new MethodCallExpr()
+      .setScope(new NameExpr(IAST_METRIC_COLLECTOR_CLASS))
+      .setName("add")
+      .addArgument(new FieldAccessExpr().setScope(new NameExpr(IAST_METRIC_CLASS)).setName(metric));
     if (tagValue != null) {
-      method.addArgument(
-          new CastExpr()
-              .setExpression(new IntegerLiteralExpr(Byte.toString(tagValue)))
-              .setType(byte.class));
+      method.addArgument(new CastExpr()
+        .setExpression(new IntegerLiteralExpr(Byte.toString(tagValue)))
+        .setType(byte.class)
+      );
     }
     method.addArgument(intLiteral(1));
     return method;
@@ -230,38 +221,37 @@ public class IastExtension implements Extension {
     // this code generates the java source code needed to provide the bytecode for the statement
     // IastTelemetryCollector.add(${metric}, 1); or IastTelemetryCollector.add(${metric}, ${tag},
     // 1);
-    stmt.addStatement(
-        new MethodCallExpr()
-            .setScope(new NameExpr("handler"))
-            .setName("field")
-            .addArgument(
-                new FieldAccessExpr().setScope(new NameExpr(OPCODES_FQDN)).setName("GETSTATIC"))
-            .addArgument(new StringLiteralExpr(IAST_METRIC_INTERNAL_NAME))
-            .addArgument(new StringLiteralExpr(metric))
-            .addArgument(new StringLiteralExpr("L" + IAST_METRIC_INTERNAL_NAME + ";")));
+    stmt.addStatement(new MethodCallExpr()
+      .setScope(new NameExpr("handler"))
+      .setName("field")
+      .addArgument(new FieldAccessExpr().setScope(new NameExpr(OPCODES_FQDN)).setName("GETSTATIC"))
+      .addArgument(new StringLiteralExpr(IAST_METRIC_INTERNAL_NAME))
+      .addArgument(new StringLiteralExpr(metric))
+      .addArgument(new StringLiteralExpr("L" + IAST_METRIC_INTERNAL_NAME + ";"))
+    );
     if (tagValue != null) {
       stmt.addStatement(pushByteExpression(tagValue));
     }
-    stmt.addStatement(
-        new MethodCallExpr()
-            .setScope(new NameExpr("handler"))
-            .setName("instruction")
-            .addArgument(
-                new FieldAccessExpr().setScope(new NameExpr(OPCODES_FQDN)).setName("ICONST_1")));
-    final String descriptor =
-        tagValue != null
-            ? "(L" + IAST_METRIC_INTERNAL_NAME + ";BI)V"
-            : "(L" + IAST_METRIC_INTERNAL_NAME + ";I)V";
-    stmt.addStatement(
-        new MethodCallExpr()
-            .setScope(new NameExpr("handler"))
-            .setName("method")
-            .addArgument(
-                new FieldAccessExpr().setScope(new NameExpr(OPCODES_FQDN)).setName("INVOKESTATIC"))
-            .addArgument(new StringLiteralExpr(IAST_METRIC_COLLECTOR_INTERNAL_NAME))
-            .addArgument(new StringLiteralExpr("add"))
-            .addArgument(new StringLiteralExpr(descriptor))
-            .addArgument(new BooleanLiteralExpr(false)));
+    stmt.addStatement(new MethodCallExpr()
+      .setScope(new NameExpr("handler"))
+      .setName("instruction")
+      .addArgument(new FieldAccessExpr().setScope(new NameExpr(OPCODES_FQDN)).setName("ICONST_1"))
+    );
+    final String descriptor = tagValue != null
+        ? "(L" + IAST_METRIC_INTERNAL_NAME + ";BI)V"
+        : "(L" + IAST_METRIC_INTERNAL_NAME + ";I)V";
+    stmt.addStatement(new MethodCallExpr()
+      .setScope(new NameExpr("handler"))
+      .setName("method")
+      .addArgument(new FieldAccessExpr()
+        .setScope(new NameExpr(OPCODES_FQDN))
+        .setName("INVOKESTATIC")
+      )
+      .addArgument(new StringLiteralExpr(IAST_METRIC_COLLECTOR_INTERNAL_NAME))
+      .addArgument(new StringLiteralExpr("add"))
+      .addArgument(new StringLiteralExpr(descriptor))
+      .addArgument(new BooleanLiteralExpr(false))
+    );
     return stmt;
   }
 
@@ -270,8 +260,7 @@ public class IastExtension implements Extension {
     return kind.getName().getId().toUpperCase();
   }
 
-  private static Byte getMetricTagValue(
-      final TypeResolver resolver, final AdviceMetadata metadata) {
+  private static Byte getMetricTagValue(final TypeResolver resolver, final AdviceMetadata metadata) {
     if (metadata.getTag() == null) {
       return null;
     }
@@ -305,21 +294,30 @@ public class IastExtension implements Extension {
     }
   }
 
-  /** Find all advice lambdas in the generated call site provider */
+  /**
+   * Find all advice lambdas in the generated call site provider
+   */
   private static Map<AdviceSpecification, LambdaExpr> findAdvices(
-      final CallSiteResult result, final ClassOrInterfaceDeclaration callSiteProvider) {
+      final CallSiteResult result,
+      final ClassOrInterfaceDeclaration callSiteProvider
+  ) {
     final MethodDeclaration acceptMethod =
         callSiteProvider.getMethodsBySignature("accept", "Container").get(0);
     final BlockStmt body = acceptMethod.getBody().get().asBlockStmt();
-    final List<MethodCallExpr> addAdviceMethods =
-        body.getStatements().stream()
-            .filter(IastExtension::isAddAdviceMethodCall)
-            .map(it -> it.asExpressionStmt().getExpression().asMethodCallExpr())
-            .collect(Collectors.toList());
-    return result.getSpecification().getAdvices().stream()
-        .collect(
-            Collectors.toMap(
-                Function.identity(), spec -> findAdviceLambda(spec, addAdviceMethods)));
+    final List<MethodCallExpr> addAdviceMethods = body
+      .getStatements()
+      .stream()
+      .filter(IastExtension::isAddAdviceMethodCall)
+      .map(it -> it.asExpressionStmt().getExpression().asMethodCallExpr())
+      .collect(Collectors.toList());
+    return result
+      .getSpecification()
+      .getAdvices()
+      .stream()
+      .collect(Collectors.toMap(Function.identity(), spec -> findAdviceLambda(
+          spec,
+          addAdviceMethods
+      )));
   }
 
   /**
@@ -327,8 +325,9 @@ public class IastExtension implements Extension {
    * signatures
    */
   private static List<LambdaExpr> filterAdviceLambdas(
-      final Map<AdviceSpecification, LambdaExpr> advices, final MethodDeclaration callSiteMethod) {
-
+      final Map<AdviceSpecification, LambdaExpr> advices,
+      final MethodDeclaration callSiteMethod
+  ) {
     final List<LambdaExpr> result = new ArrayList<>();
     for (final Map.Entry<AdviceSpecification, LambdaExpr> entry : advices.entrySet()) {
       final AdviceSpecification spec = entry.getKey();
@@ -363,7 +362,9 @@ public class IastExtension implements Extension {
   }
 
   private static LambdaExpr findAdviceLambda(
-      final AdviceSpecification spec, final List<MethodCallExpr> addAdvices) {
+      final AdviceSpecification spec,
+      final List<MethodCallExpr> addAdvices
+  ) {
     final MethodType pointcut = spec.getPointcut();
     for (final MethodCallExpr add : addAdvices) {
       final NodeList<Expression> arguments = add.getArguments();
@@ -385,9 +386,10 @@ public class IastExtension implements Extension {
   }
 
   private static boolean isCallSite(final MethodDeclaration method) {
-    return Stream.of("Before", "Around", "After")
-        .map(method::getAnnotationByName)
-        .anyMatch(Optional::isPresent);
+    return Stream
+      .of("Before", "Around", "After")
+      .map(method::getAnnotationByName)
+      .anyMatch(Optional::isPresent);
   }
 
   private static TypeResolver getTypeResolver(final Configuration configuration) {
@@ -398,8 +400,10 @@ public class IastExtension implements Extension {
   }
 
   private static CompilationUnit parseSourceFile(
-      final Configuration configuration, final TypeResolver resolver, final String file)
-      throws FileNotFoundException {
+      final Configuration configuration,
+      final TypeResolver resolver,
+      final String file
+  ) throws FileNotFoundException {
     final Path callSiteSource = configuration.getSrcFolder().resolve(file + ".java");
     if (!Files.exists(callSiteSource)) {
       throw new RuntimeException("Error finding original call site at " + callSiteSource);
@@ -421,11 +425,12 @@ public class IastExtension implements Extension {
       return expr.asSingleMemberAnnotationExpr().getMemberValue();
     } else {
       final List<MemberValuePair> pairs = expr.asNormalAnnotationExpr().getPairs();
-      return pairs.stream()
-          .filter(it -> it.getName().toString().equals("value"))
-          .map(MemberValuePair::getValue)
-          .findFirst()
-          .orElse(null);
+      return pairs
+        .stream()
+        .filter(it -> it.getName().toString().equals("value"))
+        .map(MemberValuePair::getValue)
+        .findFirst()
+        .orElse(null);
     }
   }
 
@@ -447,8 +452,8 @@ public class IastExtension implements Extension {
         break;
       default:
         result
-            .addArgument(opCodes.setName("BIPUSH"))
-            .addArgument(new IntegerLiteralExpr(Integer.toString(value)));
+          .addArgument(opCodes.setName("BIPUSH"))
+          .addArgument(new IntegerLiteralExpr(Integer.toString(value)));
         break;
     }
     return result;
@@ -464,15 +469,16 @@ public class IastExtension implements Extension {
     }
 
     private static AdviceMetadata findAdviceMetadata(final BodyDeclaration<?> target) {
-      return target.getAnnotations().stream()
-          .filter(AdviceMetadata::isAdviceAnnotation)
-          .map(
-              annotation -> {
-                final Expression tag = getAnnotationExpression(annotation);
-                return new AdviceMetadata(annotation, tag);
-              })
-          .findFirst()
-          .orElse(null);
+      return target
+        .getAnnotations()
+        .stream()
+        .filter(AdviceMetadata::isAdviceAnnotation)
+        .map(annotation -> {
+          final Expression tag = getAnnotationExpression(annotation);
+          return new AdviceMetadata(annotation, tag);
+        })
+        .findFirst()
+        .orElse(null);
     }
 
     private static boolean isAdviceAnnotation(final AnnotationExpr expr) {

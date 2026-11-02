@@ -6,9 +6,12 @@ import java.net.http.HttpResponse;
 import java.util.function.BooleanSupplier;
 import javax.annotation.Nullable;
 
-/** Sends HTTP requests, retrying the failures that can succeed on a later attempt. */
+/**
+ * Sends HTTP requests, retrying the failures that can succeed on a later attempt.
+ */
 final class Retries {
-  private Retries() {}
+  private Retries() {
+  }
 
   /**
    * Sends a request until it gets a non-retryable response, the attempts are exhausted, or the
@@ -29,8 +32,8 @@ final class Retries {
       final Policy policy,
       final int maxAttempts,
       final Sleeper sleeper,
-      final BooleanSupplier cancelled)
-      throws IOException, InterruptedException {
+      final BooleanSupplier cancelled
+  ) throws IOException, InterruptedException {
     for (int attempt = 1; ; attempt++) {
       if (cancelled.getAsBoolean()) {
         throw new IOException("HTTP request cancelled");

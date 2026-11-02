@@ -11,7 +11,6 @@ import static datadog.crashtracking.Initializer.restrictDirectoryToOwnerOnly;
 import static datadog.crashtracking.Initializer.restrictScriptToOwnerOnly;
 import static datadog.crashtracking.Initializer.stripGroupAndWorldBits;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.PidHelper;
 import java.io.File;
@@ -23,29 +22,34 @@ import java.util.Set;
 public final class OOMENotifierScriptInitializer {
   private static final String OOME_NOTIFIER_SCRIPT_PREFIX = "dd_oome_notifier.";
 
-  private OOMENotifierScriptInitializer() {}
+  private OOMENotifierScriptInitializer() {
+  }
 
   @VisibleForTesting
   static boolean initialize(String onOutOfMemoryVal) {
     if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
       LOG.debug(
           SEND_TELEMETRY,
-          "'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
+          "'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled."
+      );
       return false;
     }
     File scriptFile = getOOMEScriptFile(onOutOfMemoryVal);
     if (scriptFile == null) {
       LOG.error(
           SEND_TELEMETRY,
-          "OOME notifier script value ({}) does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
-          onOutOfMemoryVal);
+          "OOME notifier script value ({}) does not follow the expected format: <path>/dd_"
+          + "oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
+          onOutOfMemoryVal
+      );
       return false;
     }
     String agentJar = findAgentJar();
     if (agentJar == null) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Unable to locate the agent jar. OOME notification will not work properly.");
+          "Unable to locate the agent jar. OOME notification will not work properly."
+      );
       return false;
     }
     if (!copyOOMEscript(scriptFile)) {
@@ -67,8 +71,10 @@ public final class OOMENotifierScriptInitializer {
       if (!isSafeToRepair(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
-            "Untrusted OOME script folder {} (wrong owner or group/world-writable). OOME notification will not work properly.",
-            scriptDirectory);
+            "Untrusted OOME script folder {} (wrong owner or group/world-writable). OOME "
+            + "notification will not work properly.",
+            scriptDirectory
+        );
         return false;
       }
       // owned by us but possibly left over from an older, less restrictive version: strip any
@@ -77,8 +83,10 @@ public final class OOMENotifierScriptInitializer {
       if (!stripGroupAndWorldBits(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
-            "Unable to strip group/world permissions from OOME script folder {}. OOME notification will not work properly.",
-            scriptDirectory);
+            "Unable to strip group/world permissions from OOME script folder {}. OOME "
+            + "notification will not work properly.",
+            scriptDirectory
+        );
         return false;
       }
       // cleanup all stale process-specific generated files in the parent folder of the given OOME
@@ -88,7 +96,8 @@ public final class OOMENotifierScriptInitializer {
         LOG.warn(
             SEND_TELEMETRY,
             "Read only directory {}. OOME notification will not work properly.",
-            scriptDirectory);
+            scriptDirectory
+        );
         return false;
       }
     } else {
@@ -96,14 +105,17 @@ public final class OOMENotifierScriptInitializer {
         LOG.warn(
             SEND_TELEMETRY,
             "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
-            scriptDirectory);
+            scriptDirectory
+        );
         return false;
       }
       if (!restrictDirectoryToOwnerOnly(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
-            "Unable to restrict OOME script folder {} to owner-only permissions. OOME notification will not work properly.",
-            scriptDirectory);
+            "Unable to restrict OOME script folder {} to owner-only permissions. OOME "
+            + "notification will not work properly.",
+            scriptDirectory
+        );
         return false;
       }
     }
@@ -130,15 +142,19 @@ public final class OOMENotifierScriptInitializer {
         if (!isSafeToRepair(scriptFile)) {
           LOG.warn(
               SEND_TELEMETRY,
-              "Untrusted OOME script {} (wrong owner or group/world-writable). OOME notification will not work properly.",
-              scriptFile);
+              "Untrusted OOME script {} (wrong owner or group/world-writable). OOME notification "
+              + "will not work properly.",
+              scriptFile
+          );
           return false;
         }
         if (!stripGroupAndWorldBits(scriptFile)) {
           LOG.warn(
               SEND_TELEMETRY,
-              "Unable to strip group/world permissions from OOME script {}. OOME notification will not work properly.",
-              scriptFile);
+              "Unable to strip group/world permissions from OOME script {}. OOME notification "
+              + "will not work properly.",
+              scriptFile
+          );
           return false;
         }
       }
@@ -147,7 +163,8 @@ public final class OOMENotifierScriptInitializer {
           SEND_TELEMETRY,
           "Failed to copy OOME script {} ({}). OOME notification will not work properly.",
           scriptFile,
-          e.getMessage());
+          e.getMessage()
+      );
       return false;
     }
     return true;
@@ -155,7 +172,8 @@ public final class OOMENotifierScriptInitializer {
 
   private static void copyStream(InputStream in, File dest) throws IOException {
     try (InputStream src = in;
-        FileOutputStream out = new FileOutputStream(dest)) {
+        FileOutputStream out = new FileOutputStream(dest)
+    ) {
       byte[] buf = new byte[4096];
       int n;
       while ((n = src.read(buf)) >= 0) {

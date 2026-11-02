@@ -4,6 +4,5 @@ public enum DirectAllocationSource {
   ALLOCATE_DIRECT,
   MMAP,
   JNI;
-
   static final DirectAllocationSource[] VALUES = values();
 }

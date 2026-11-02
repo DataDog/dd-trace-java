@@ -1,10 +1,13 @@
 package datadog.context;
 
-/** Test class that always delegates to the latest registered {@link ContextBinder}. */
+/**
+ * Test class that always delegates to the latest registered {@link ContextBinder}.
+ */
 final class TestContextBinder implements ContextBinder {
   private static final ContextBinder TEST_INSTANCE = new TestContextBinder();
 
-  private TestContextBinder() {}
+  private TestContextBinder() {
+  }
 
   static boolean register() {
     // attempt to register before binder choice is locked, then check if we succeeded

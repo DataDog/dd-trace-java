@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import datadog.trace.util.Hashtable.BucketIterator;
 import datadog.trace.util.Hashtable.MutatingBucketIterator;
 import datadog.trace.util.Hashtable.MutatingTableIterator;
@@ -27,12 +26,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class HashtableTest {
-
   // ============ Static building blocks ============
-
   @Nested
   class StaticBuildingBlockTests {
-
     @Test
     void createRoundsCapacityUpToPowerOfTwo() {
       // The Hashtable.D1 / D2 size() reflects entries, but the bucket array length is
@@ -93,7 +89,9 @@ class HashtableTest {
     void capacityForMatchesDefaultLoadFactorConstant() {
       assertEquals(0.75f, Hashtable.DEFAULT_LOAD_FACTOR);
       assertEquals(
-          Hashtable.capacityFor(20), Hashtable.capacityFor(20, Hashtable.DEFAULT_LOAD_FACTOR));
+          Hashtable.capacityFor(20),
+          Hashtable.capacityFor(20, Hashtable.DEFAULT_LOAD_FACTOR)
+      );
     }
 
     @Test
@@ -112,7 +110,6 @@ class HashtableTest {
     // removeMatching and the size-tracked insertHeadEntryFor are blessed building blocks for
     // external composers (e.g. client-side stats) rather than something D1/D2 delegate to, so they
     // are covered directly here.
-
     @Test
     void insertHeadEntryForTracksSizeAndRefusesAtCapacity() {
       Hashtable.Entry[] buckets = Hashtable.create(2);
@@ -128,7 +125,8 @@ class HashtableTest {
 
       assertFalse(
           Hashtable.insertHeadEntryFor(size, buckets, c.keyHash, c),
-          "refused once the tracker is at capacity");
+          "refused once the tracker is at capacity"
+      );
       assertEquals(2, size.estimateSize(), "a refused insert must not consume a slot");
     }
 
@@ -154,9 +152,9 @@ class HashtableTest {
       StringIntEntry a = new StringIntEntry("a", 1);
       Hashtable.insertHeadEntryFor(size, buckets, a.keyHash, a);
 
-      assertNull(
-          Hashtable.<StringIntEntry>removeMatching(
-              size, buckets, a.keyHash, e -> e.matches("nope")));
+      assertNull(Hashtable.<StringIntEntry>removeMatching(size, buckets, a.keyHash, e -> e.matches(
+          "nope"
+      )));
       assertEquals(1, size.estimateSize(), "a non-matching scan must not decrement");
       assertSame(a, Hashtable.bucketFor(buckets, a.keyHash));
     }
@@ -222,16 +220,17 @@ class HashtableTest {
       StringIntEntry a = new StringIntEntry("a", 1);
       StringIntEntry b = new StringIntEntry("b", 2);
       Hashtable.insertHeadEntryAt(buckets, 0, a);
-      Hashtable.insertHeadEntryAt(buckets, 0, b); // chain is now b -> a, so b.next() != null
+      // chain is now b -> a, so b.next() != null
+      Hashtable.insertHeadEntryAt(buckets, 0, b);
       assertThrows(
           AssertionError.class,
           () -> Hashtable.insertHeadEntryAt(buckets, 1, b),
-          "re-inserting an already-linked entry corrupts the chain and must be caught");
+          "re-inserting an already-linked entry corrupts the chain and must be caught"
+      );
     }
   }
 
   // ============ Deprecated Support facade ============
-
   /**
    * The scaled {@code create(int, float)} factory and {@code MAX_RATIO} are deprecated-only: they
    * have no blessed equivalent on {@link Hashtable} but remain in use by client-side statistics, so
@@ -240,7 +239,6 @@ class HashtableTest {
   @Nested
   @SuppressWarnings("deprecation")
   class DeprecatedSupportTests {
-
     @Test
     void maxRatioScalesTargetForLoadFactor() {
       // 75% load factor => bucket array sized at requestedSize * 4/3, rounded up to power of 2.
@@ -368,10 +366,8 @@ class HashtableTest {
   }
 
   // ============ BucketIterator ============
-
   @Nested
   class BucketIteratorTests {
-
     @Test
     void walksOnlyMatchingHash() {
       // Build a bucket array with two entries that share a bucket but have different hashes.
@@ -409,10 +405,8 @@ class HashtableTest {
   }
 
   // ============ MutatingBucketIterator ============
-
   @Nested
   class MutatingBucketIteratorTests {
-
     @Test
     void removeFromHeadOfChainUnlinks() {
       // Make three entries with the same hash so they chain in one bucket
@@ -427,7 +421,8 @@ class HashtableTest {
 
       MutatingBucketIterator<CollidingKeyEntry> it =
           Hashtable.mutatingBucketIterator(table.buckets, 17L);
-      it.next(); // first match (head of chain in insertion-reverse order)
+      // first match (head of chain in insertion-reverse order)
+      it.next();
       it.remove();
       // Two should remain
       int remaining = 0;
@@ -483,10 +478,8 @@ class HashtableTest {
   }
 
   // ============ MutatingTableIterator ============
-
   @Nested
   class MutatingTableIteratorTests {
-
     @Test
     void walksEveryEntryAcrossBuckets() {
       Hashtable.D1<String, StringIntEntry> table =
@@ -496,9 +489,10 @@ class HashtableTest {
       table.insert(new StringIntEntry("c", 3));
 
       Set<String> seen = new HashSet<>();
-      for (MutatingTableIterator<StringIntEntry> it =
-              Hashtable.mutatingTableIterator(table.buckets);
-          it.hasNext(); ) {
+      for (
+          MutatingTableIterator<StringIntEntry> it = Hashtable.mutatingTableIterator(table.buckets);
+          it.hasNext();
+          ) {
         seen.add(it.next().key);
       }
       assertEquals(3, seen.size());
@@ -524,12 +518,10 @@ class HashtableTest {
       CollidingKey k2 = new CollidingKey("second", 17);
       table.insert(new CollidingKeyEntry(k1, 1));
       table.insert(new CollidingKeyEntry(k2, 2));
-
       // The head of the chain is whichever was inserted last (insert prepends).
       MutatingTableIterator<CollidingKeyEntry> it = Hashtable.mutatingTableIterator(table.buckets);
       CollidingKeyEntry head = it.next();
       it.remove();
-
       // Survivor still reachable via the table; removed one is not.
       CollidingKey survivorKey = head.key.equals(k1) ? k2 : k1;
       assertNotNull(table.get(survivorKey));
@@ -546,7 +538,6 @@ class HashtableTest {
       table.insert(new CollidingKeyEntry(k1, 1));
       table.insert(new CollidingKeyEntry(k2, 2));
       table.insert(new CollidingKeyEntry(k3, 3));
-
       // Walk to the second entry, remove it.
       MutatingTableIterator<CollidingKeyEntry> it = Hashtable.mutatingTableIterator(table.buckets);
       it.next();
@@ -562,7 +553,6 @@ class HashtableTest {
         }
       }
       assertEquals(2, remaining);
-
       // Iteration can continue past a remove and yield the third entry.
       assertTrue(it.hasNext());
       assertNotNull(it.next());
@@ -624,9 +614,11 @@ class HashtableTest {
       table.insert(new CollidingKeyEntry(new CollidingKey("b10", 10), 3));
 
       Set<String> seen = new HashSet<>();
-      for (MutatingTableIterator<CollidingKeyEntry> it =
-              Hashtable.mutatingTableIterator(table.buckets, 5, 10);
-          it.hasNext(); ) {
+      for (
+          MutatingTableIterator<CollidingKeyEntry> it =
+          Hashtable.mutatingTableIterator(table.buckets, 5, 10);
+          it.hasNext();
+          ) {
         seen.add(it.next().key.label);
       }
       assertEquals(1, seen.size());
@@ -649,17 +641,22 @@ class HashtableTest {
     void rangeBoundsOutOfOrderThrows() {
       Hashtable.D1<String, StringIntEntry> table =
           Hashtable.D1.createBounded(StringIntEntry.class, 8);
-      assertThrows(
-          IndexOutOfBoundsException.class,
-          () -> Hashtable.mutatingTableIterator(table.buckets, -1, 4));
-      assertThrows(
-          IndexOutOfBoundsException.class,
-          () -> Hashtable.mutatingTableIterator(table.buckets, 4, 2)); // end < start
-      assertThrows(
-          IndexOutOfBoundsException.class,
-          () ->
-              Hashtable.mutatingTableIterator(
-                  table.buckets, 0, table.buckets.length + 1)); // end > len
+      assertThrows(IndexOutOfBoundsException.class, () -> Hashtable.mutatingTableIterator(
+          table.buckets,
+          -1,
+          4
+      ));
+      assertThrows(IndexOutOfBoundsException.class, () -> Hashtable.mutatingTableIterator(
+          table.buckets,
+          4,
+          2
+      )
+      // end < start
+      );
+      assertThrows(IndexOutOfBoundsException.class, () -> Hashtable
+        .mutatingTableIterator(table.buckets, 0, table.buckets.length + 1
+        // end > len
+        ));
     }
 
     @Test
@@ -678,10 +675,8 @@ class HashtableTest {
   }
 
   // ============ Eviction (SizeManager) ============
-
   @Nested
   class EvictionTests {
-
     @Test
     void evictOneRemovesFirstMatchAndAdvancesCursor() {
       Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
@@ -712,7 +707,6 @@ class HashtableTest {
       assertTrue(Hashtable.insertHeadEntryFor(table, stale.keyHash, stale));
       assertTrue(Hashtable.insertHeadEntryFor(table, hot.keyHash, hot));
       assertTrue(table.sizeManager.isFull());
-
       // Full, but one entry is evictable -- the slot it frees becomes the reservation.
       assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
       assertEquals(2, table.sizeManager.estimateSize(), "one out, one reserved");
@@ -752,14 +746,16 @@ class HashtableTest {
       Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       assertTrue(Hashtable.isLikelyEmpty(table));
       assertEquals(0, Hashtable.estimateSize(table));
-
       // Reserve first, build second -- a refused reservation must cost no allocation.
       assertTrue(Hashtable.tryReserveOrEvict(table, e -> e.value == 0));
       StringIntEntry a = new StringIntEntry("a", 1);
       Hashtable.insertReserved(table, a.keyHash, a);
 
       assertEquals(
-          1, Hashtable.estimateSize(table), "insertReserved must not count the entry twice");
+          1,
+          Hashtable.estimateSize(table),
+          "insertReserved must not count the entry twice"
+      );
       assertFalse(Hashtable.isLikelyEmpty(table));
       assertSame(a, Hashtable.bucketFor(table, a.keyHash), "typed, no witness needed");
 
@@ -803,25 +799,22 @@ class HashtableTest {
         assertTrue(Hashtable.insertHeadEntryFor(table, e.keyHash, e));
       }
       assertEquals(4, Hashtable.estimateSize(table));
-
       // Removes some entries, then blows up. The count must reflect what actually left the table.
-      assertThrows(
-          IllegalStateException.class,
-          () ->
-              Hashtable.evictAll(
-                  table,
-                  e -> {
-                    if (e.value == 3) {
-                      throw new IllegalStateException("boom");
-                    }
-                    return true;
-                  }));
+      assertThrows(IllegalStateException.class, () -> Hashtable.evictAll(table, e -> {
+        if (e.value == 3) {
+          throw new IllegalStateException("boom");
+        }
+        return true;
+      }));
 
       int counted = Hashtable.estimateSize(table);
       Set<String> actuallyThere = new HashSet<>();
       Hashtable.forEach(table, e -> actuallyThere.add(e.key));
       assertEquals(
-          actuallyThere.size(), counted, "count must match the spine after a partial evictAll");
+          actuallyThere.size(),
+          counted,
+          "count must match the spine after a partial evictAll"
+      );
     }
 
     @Test
@@ -851,38 +844,30 @@ class HashtableTest {
         assertTrue(Hashtable.insertHeadEntryFor(table, e.keyHash, e));
       }
       assertEquals(4, Hashtable.estimateSize(table));
-
       // Drains some entries, then blows up. The count must reflect what actually left the table.
-      assertThrows(
-          IllegalStateException.class,
-          () ->
-              Hashtable.drain(
-                  table,
-                  e -> {
-                    if (e.value == 3) {
-                      throw new IllegalStateException("boom");
-                    }
-                  }));
+      assertThrows(IllegalStateException.class, () -> Hashtable.drain(table, e -> {
+        if (e.value == 3) {
+          throw new IllegalStateException("boom");
+        }
+      }));
 
       int counted = Hashtable.estimateSize(table);
       Set<String> actuallyThere = new HashSet<>();
       Hashtable.forEach(table, e -> actuallyThere.add(e.key));
       assertEquals(
-          actuallyThere.size(), counted, "count must match the spine after a partial drain");
+          actuallyThere.size(),
+          counted,
+          "count must match the spine after a partial drain"
+      );
     }
 
     @Test
     void drainKeepsTheUndeliveredRestOfAChainWhenTheSinkThrows() {
       Hashtable.State<CollidingKeyEntry> table = threeCollidingEntries();
 
-      assertThrows(
-          IllegalStateException.class,
-          () ->
-              Hashtable.drain(
-                  table,
-                  e -> {
-                    throw new IllegalStateException("boom");
-                  }));
+      assertThrows(IllegalStateException.class, () -> Hashtable.drain(table, e -> {
+        throw new IllegalStateException("boom");
+      }));
 
       assertUndeliveredEntriesRemain(table);
     }
@@ -891,20 +876,16 @@ class HashtableTest {
     void contextDrainKeepsTheUndeliveredRestOfAChainWhenTheSinkThrows() {
       Hashtable.State<CollidingKeyEntry> table = threeCollidingEntries();
 
-      assertThrows(
-          IllegalStateException.class,
-          () ->
-              Hashtable.drain(
-                  table,
-                  "context",
-                  (ctx, e) -> {
-                    throw new IllegalStateException("boom");
-                  }));
+      assertThrows(IllegalStateException.class, () -> Hashtable.drain(table, "context", (ctx, e) -> {
+        throw new IllegalStateException("boom");
+      }));
 
       assertUndeliveredEntriesRemain(table);
     }
 
-    /** Three entries forced into one bucket, so a drain walks them as a single chain. */
+    /**
+     * Three entries forced into one bucket, so a drain walks them as a single chain.
+     */
     private Hashtable.State<CollidingKeyEntry> threeCollidingEntries() {
       Hashtable.State<CollidingKeyEntry> table = Hashtable.createBounded(4);
       for (int i = 0; i < 3; i++) {
@@ -914,7 +895,9 @@ class HashtableTest {
       return table;
     }
 
-    /** The sink threw on the first entry: it left the table, the other two must still be there. */
+    /**
+     * The sink threw on the first entry: it left the table, the other two must still be there.
+     */
     private void assertUndeliveredEntriesRemain(Hashtable.State<CollidingKeyEntry> table) {
       List<CollidingKeyEntry> remaining = new ArrayList<>();
       Hashtable.forEach(table, remaining::add);
@@ -930,10 +913,8 @@ class HashtableTest {
       CollidingKeyEntry head = new CollidingKeyEntry(new CollidingKey("head", 17), 1);
       assertTrue(Hashtable.insertHeadEntryFor(table, tail.keyHash, tail));
       assertTrue(Hashtable.insertHeadEntryFor(table, head.keyHash, head));
-
       // Evicting the tail leaves the cursor resuming after the head, which was not evictable then.
       assertSame(tail, Hashtable.evictOne(table, e -> e.value == 2));
-
       // The head has become evictable since; the scan must still find it.
       assertSame(head, Hashtable.evictOne(table, e -> e.value == 1));
       assertEquals(0, Hashtable.estimateSize(table));
@@ -948,7 +929,6 @@ class HashtableTest {
       assertTrue(Hashtable.insertHeadEntryFor(source, head.keyHash, head));
       // Leaves the cursor resuming after head.
       assertSame(tail, Hashtable.evictOne(source, e -> e.value == 2));
-
       // The sink moves head into another table, in front of an entry already there.
       Hashtable.State<CollidingKeyEntry> destination = Hashtable.createBounded(4);
       CollidingKeyEntry other = new CollidingKeyEntry(new CollidingKey("other", 17), 3);
@@ -957,7 +937,6 @@ class HashtableTest {
 
       CollidingKeyEntry fresh = new CollidingKeyEntry(new CollidingKey("fresh", 17), 4);
       assertTrue(Hashtable.insertHeadEntryFor(source, fresh.keyHash, fresh));
-
       // Eviction on the source must scan the source, not follow head into the destination.
       assertSame(fresh, Hashtable.evictOne(source, e -> true));
       assertEquals(2, Hashtable.estimateSize(destination));
@@ -988,29 +967,26 @@ class HashtableTest {
         CollidingKeyEntry head = new CollidingKeyEntry(headKey, 1);
         assertTrue(table.insert(head));
         // Full: evicting the tail to make room leaves the cursor resuming after head.
-        assertNotNull(
-            table.tryGetOrCreateOrEvictOrNull(
-                new CollidingKey("added", 17),
-                k -> new CollidingKeyEntry(k, 3),
-                e -> e.value == 2));
+        assertNotNull(table.tryGetOrCreateOrEvictOrNull(new CollidingKey("added", 17), k -> new CollidingKeyEntry(
+            k,
+            3
+        ), e -> e.value == 2));
 
         if (replace) {
           assertTrue(table.tryInsertOrReplace(new CollidingKeyEntry(headKey, 4)));
         } else {
           assertSame(head, table.remove(headKey));
         }
-
         // head now leads another table's chain; eviction here must not follow it there.
         Hashtable.State<CollidingKeyEntry> destination = Hashtable.createBounded(4);
         CollidingKeyEntry other = new CollidingKeyEntry(new CollidingKey("other", 17), 5);
         assertTrue(Hashtable.insertHeadEntryFor(destination, other.keyHash, other));
         assertTrue(Hashtable.insertHeadEntryFor(destination, head.keyHash, head));
 
-        assertNotNull(
-            table.tryGetOrCreateOrEvictOrNull(
-                new CollidingKey("fresh", 17),
-                k -> new CollidingKeyEntry(k, 6),
-                e -> e.value != 6));
+        assertNotNull(table.tryGetOrCreateOrEvictOrNull(new CollidingKey("fresh", 17), k -> new CollidingKeyEntry(
+            k,
+            6
+        ), e -> e.value != 6));
         assertEquals(2, Hashtable.estimateSize(destination), "replace=" + replace);
         List<CollidingKeyEntry> inDestination = new ArrayList<>();
         Hashtable.forEach(destination, inDestination::add);
@@ -1018,9 +994,13 @@ class HashtableTest {
       }
     }
 
-    /** {@code moved} left {@code source}; it now leads another table's chain. */
+    /**
+     * {@code moved} left {@code source}; it now leads another table's chain.
+     */
     private void assertEvictionStaysInTheSourceTable(
-        Hashtable.State<CollidingKeyEntry> source, CollidingKeyEntry moved) {
+        Hashtable.State<CollidingKeyEntry> source,
+        CollidingKeyEntry moved
+    ) {
       Hashtable.State<CollidingKeyEntry> destination = Hashtable.createBounded(4);
       CollidingKeyEntry other = new CollidingKeyEntry(new CollidingKey("other", 17), 3);
       assertTrue(Hashtable.insertHeadEntryFor(destination, other.keyHash, other));
@@ -1038,11 +1018,9 @@ class HashtableTest {
       Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       StringIntEntry a = new StringIntEntry("a", 1);
       assertTrue(Hashtable.insertHeadEntryFor(table, a.keyHash, a));
-
       // Nothing is evictable, so the scan fails -- but the cursor must still move on.
       assertNull(Hashtable.evictOne(table, e -> e.value == 999));
       assertEquals(1, Hashtable.estimateSize(table), "a failed scan evicts nothing");
-
       // The cursor has stepped past where the entry sits, so finding it again needs the
       // wrap-around pass; that it is still found proves the step did not strand it.
       StringIntEntry evicted = Hashtable.evictOne(table, e -> e.value == 1);
@@ -1059,7 +1037,6 @@ class HashtableTest {
       // First eviction matches bucket 3, advancing the cursor there.
       StringIntEntry first = Hashtable.evictOne(table, e -> e.value == 4);
       assertEquals("d", first.key);
-
       // Only remaining candidate is bucket 0, before the cursor -- requires wrap-around.
       StringIntEntry second = Hashtable.evictOne(table, e -> e.value == 1);
       assertEquals("a", second.key);
@@ -1077,7 +1054,6 @@ class HashtableTest {
       CollidingKeyEntry e3 = new CollidingKeyEntry(new CollidingKey("e3", hash), 3);
       CollidingKeyEntry e4 = new CollidingKeyEntry(new CollidingKey("e4", hash), 4);
       CollidingKeyEntry e5 = new CollidingKeyEntry(new CollidingKey("e5", hash), 5);
-
       // insertHeadEntryFor prepends, so inserting in this order chains them head-to-tail as
       // sticky1, sticky2, sticky3, e1, e2, e3, e4, e5 -- a non-evictable prefix followed by a run
       // of evictable entries, the shape that made evictOne's prefix rescan quadratic.
@@ -1089,9 +1065,9 @@ class HashtableTest {
       int[] predicateCalls = {0};
       Predicate<CollidingKeyEntry> evictable =
           e -> {
-            predicateCalls[0]++;
-            return e.value >= 0;
-          };
+        predicateCalls[0]++;
+        return e.value >= 0;
+      };
 
       List<Integer> evictedInOrder = new ArrayList<>();
       for (int i = 0; i < 5; i++) {
@@ -1104,7 +1080,10 @@ class HashtableTest {
       // 20 calls. Resuming right after the last removal costs 4 (the first pass, prefix + e1) plus
       // 1 per subsequent eviction (straight to the next entry) = 8.
       assertEquals(
-          8, predicateCalls[0], "must resume after the last eviction, not rescan the prefix");
+          8,
+          predicateCalls[0],
+          "must resume after the last eviction, not rescan the prefix"
+      );
       assertEquals(3, Hashtable.estimateSize(table), "only the sticky prefix remains");
     }
 
@@ -1122,7 +1101,6 @@ class HashtableTest {
       assertEquals(2, removed);
       assertNull(buckets[0]);
       assertNull(buckets[1]);
-
       // drain resets the cursor to the start, so a fresh scan finds bucket 0 without wrapping.
       buckets[0] = new StringIntEntry("a2", 1);
       StringIntEntry evicted = Hashtable.evictOne(table, e -> e.value == 1);
@@ -1145,10 +1123,8 @@ class HashtableTest {
   }
 
   // ============ Table ============
-
   @Nested
   class StateTests {
-
     @Test
     void createTableSizesBucketsWithHeadroomAndCapsSize() {
       Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
@@ -1176,9 +1152,7 @@ class HashtableTest {
       Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       table.buckets[0] = new StringIntEntry("a", 1);
 
-      StringIntEntry evicted =
-          (StringIntEntry)
-              table.sizeManager.evictOne(table.buckets, e -> ((StringIntEntry) e).value == 1);
+      StringIntEntry evicted = (StringIntEntry) table.sizeManager.evictOne(table.buckets, e -> ((StringIntEntry) e).value == 1);
 
       assertEquals("a", evicted.key);
       assertNull(table.buckets[0]);

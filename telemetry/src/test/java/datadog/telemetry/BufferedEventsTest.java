@@ -3,7 +3,6 @@ package datadog.telemetry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -15,7 +14,6 @@ import datadog.trace.api.telemetry.Endpoint;
 import org.junit.jupiter.api.Test;
 
 class BufferedEventsTest {
-
   @Test
   void emptyEvents() {
     BufferedEvents events = new BufferedEvents();
@@ -40,70 +38,56 @@ class BufferedEventsTest {
     LogMessage logMessage = new LogMessage();
     Metric metric = new Metric();
     Endpoint endpoint = new Endpoint();
-
     // when
     events.addConfigChangeEvent(configSetting);
-
     // then
     assertFalse(events.isEmpty());
     assertTrue(events.hasConfigChangeEvent());
     assertEquals(configSetting, events.nextConfigChangeEvent());
     assertFalse(events.hasConfigChangeEvent());
     assertTrue(events.isEmpty());
-
     // when
     events.addDependencyEvent(dependency);
-
     // then
     assertFalse(events.isEmpty());
     assertTrue(events.hasDependencyEvent());
     assertEquals(dependency, events.nextDependencyEvent());
     assertFalse(events.hasDependencyEvent());
     assertTrue(events.isEmpty());
-
     // when
     events.addDistributionSeriesEvent(series);
-
     // then
     assertFalse(events.isEmpty());
     assertTrue(events.hasDistributionSeriesEvent());
     assertEquals(series, events.nextDistributionSeriesEvent());
     assertFalse(events.hasDistributionSeriesEvent());
     assertTrue(events.isEmpty());
-
     // when
     events.addIntegrationEvent(integration);
-
     // then
     assertFalse(events.isEmpty());
     assertTrue(events.hasIntegrationEvent());
     assertEquals(integration, events.nextIntegrationEvent());
     assertFalse(events.hasIntegrationEvent());
     assertTrue(events.isEmpty());
-
     // when
     events.addLogMessageEvent(logMessage);
-
     // then
     assertFalse(events.isEmpty());
     assertTrue(events.hasLogMessageEvent());
     assertEquals(logMessage, events.nextLogMessageEvent());
     assertFalse(events.hasLogMessageEvent());
     assertTrue(events.isEmpty());
-
     // when
     events.addMetricEvent(metric);
-
     // then
     assertFalse(events.isEmpty());
     assertTrue(events.hasMetricEvent());
     assertEquals(metric, events.nextMetricEvent());
     assertFalse(events.hasMetricEvent());
     assertTrue(events.isEmpty());
-
     // when
     events.addEndpointEvent(endpoint);
-
     // then
     assertFalse(events.isEmpty());
     assertTrue(events.hasEndpoint());

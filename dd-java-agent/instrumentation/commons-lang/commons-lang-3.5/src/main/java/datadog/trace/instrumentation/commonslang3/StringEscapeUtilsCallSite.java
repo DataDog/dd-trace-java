@@ -11,19 +11,26 @@ import javax.annotation.Nullable;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class StringEscapeUtilsCallSite {
-
   @CallSite.After(
-      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeHtml3(java.lang.String)")
+      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeHtml3(java.lang.String)"
+  )
   @CallSite.After(
-      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeHtml4(java.lang.String)")
+      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeHtml4(java.lang.String)"
+  )
   @CallSite.After(
-      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeXml10(java.lang.String)")
+      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeXml10(java.lang.String)"
+  )
   @CallSite.After(
-      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeXml11(java.lang.String)")
+      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeXml11(java.lang.String)"
+  )
   @CallSite.After(
-      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeEcmaScript(java.lang.String)")
+      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeEcmaScript(java."
+      + "lang.String)"
+  )
   public static String afterEscape(
-      @CallSite.Argument(0) @Nullable final String input, @CallSite.Return final String result) {
+      @CallSite.Argument(0) @Nullable final String input,
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
@@ -36,9 +43,12 @@ public class StringEscapeUtilsCallSite {
   }
 
   @CallSite.After(
-      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeJson(java.lang.String)")
+      "java.lang.String org.apache.commons.lang3.StringEscapeUtils.escapeJson(java.lang.String)"
+  )
   public static String afterEscapeJson(
-      @CallSite.Argument(0) @Nullable final String input, @CallSite.Return final String result) {
+      @CallSite.Argument(0) @Nullable final String input,
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {

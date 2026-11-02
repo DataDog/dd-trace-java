@@ -3,7 +3,6 @@ package datadog.communication.http;
 import static datadog.communication.http.SocketUtils.discoverApmSocket;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
@@ -41,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 public final class OkHttpUtils {
   private static final Logger log = LoggerFactory.getLogger(OkHttpUtils.class);
-
   private static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
   private static final String DATADOG_META_LANG_VERSION = "Datadog-Meta-Lang-Version";
   private static final String DATADOG_META_LANG_INTERPRETER = "Datadog-Meta-Lang-Interpreter";
@@ -50,9 +48,7 @@ public final class OkHttpUtils {
   public static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
   private static final String DATADOG_ENTITY_ID = "Datadog-Entity-ID";
   public static final String DATADOG_CONTAINER_TAGS_HASH = "Datadog-Container-Tags-Hash";
-
   private static final String DD_API_KEY = "DD-API-KEY";
-
   private static final String JAVA_VERSION =
       SystemProperties.getOrDefault("java.version", "unknown");
   private static final String JAVA_VM_NAME =
@@ -68,7 +64,8 @@ public final class OkHttpUtils {
       final boolean isPlainHttp,
       final String unixDomainSocketPath,
       final String namedPipe,
-      final long timeoutMillis) {
+      final long timeoutMillis
+  ) {
     return buildHttpClient(
         unixDomainSocketPath,
         Config.get().isJdkSocketEnabled(),
@@ -83,14 +80,16 @@ public final class OkHttpUtils {
         null,
         null,
         timeoutMillis,
-        Config.get().isAgentConfiguredUsingDefault());
+        Config.get().isAgentConfiguredUsingDefault()
+    );
   }
 
   public static OkHttpClient buildHttp2Client(
       final boolean isPlainHttp,
       final String unixDomainSocketPath,
       final String namedPipe,
-      final long timeoutMillis) {
+      final long timeoutMillis
+  ) {
     return buildHttpClient(
         unixDomainSocketPath,
         Config.get().isJdkSocketEnabled(),
@@ -105,7 +104,8 @@ public final class OkHttpUtils {
         null,
         null,
         timeoutMillis,
-        Config.get().isAgentConfiguredUsingDefault());
+        Config.get().isAgentConfiguredUsingDefault()
+    );
   }
 
   public static OkHttpClient buildHttpClient(
@@ -118,7 +118,8 @@ public final class OkHttpUtils {
       final Integer proxyPort,
       final String proxyUsername,
       final String proxyPassword,
-      final long timeoutMillis) {
+      final long timeoutMillis
+  ) {
     return buildHttpClient(
         discoverApmSocket(config),
         config.isJdkSocketEnabled(),
@@ -133,10 +134,12 @@ public final class OkHttpUtils {
         proxyUsername,
         proxyPassword,
         timeoutMillis,
-        config.isAgentConfiguredUsingDefault());
+        config.isAgentConfiguredUsingDefault()
+    );
   }
 
-  public abstract static class CustomListener extends EventListener {}
+  public abstract static class CustomListener extends EventListener {
+  }
 
   private static OkHttpClient buildHttpClient(
       final String unixDomainSocketPath,
@@ -152,16 +155,16 @@ public final class OkHttpUtils {
       final String proxyUsername,
       final String proxyPassword,
       final long timeoutMillis,
-      final boolean agentConfiguredUsingDefault) {
+      final boolean agentConfiguredUsingDefault
+  ) {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
     try {
-      builder.eventListenerFactory(
-          call -> {
-            Request request = call.request();
-            CustomListener listener = request.tag(CustomListener.class);
-            return listener != null ? listener : EventListener.NONE;
-          });
+      builder.eventListenerFactory(call -> {
+        Request request = call.request();
+        CustomListener listener = request.tag(CustomListener.class);
+        return listener != null ? listener : EventListener.NONE;
+      });
     } catch (NoSuchMethodError e) {
       // A workaround for OKHTTP instrumentation tests
       // where the version of OKHTTP conflicts with the one used in this module.
@@ -170,17 +173,22 @@ public final class OkHttpUtils {
     }
 
     builder
-        .connectTimeout(timeoutMillis, MILLISECONDS)
-        .writeTimeout(timeoutMillis, MILLISECONDS)
-        .readTimeout(timeoutMillis, MILLISECONDS)
-        .proxySelector(AgentProxySelector.INSTANCE)
-        .dispatcher(
-            dispatcher != null ? dispatcher : new Dispatcher(RejectingExecutorService.INSTANCE));
+      .connectTimeout(timeoutMillis, MILLISECONDS)
+      .writeTimeout(timeoutMillis, MILLISECONDS)
+      .readTimeout(timeoutMillis, MILLISECONDS)
+      .proxySelector(AgentProxySelector.INSTANCE)
+      .dispatcher(
+          dispatcher != null ? dispatcher : new Dispatcher(RejectingExecutorService.INSTANCE)
+      );
 
     if (unixDomainSocketPath != null) {
       builder.socketFactory(
           new UnixDomainSocketFactory(
-              new File(unixDomainSocketPath), useJdkUnixDomainSocket, agentConfiguredUsingDefault));
+              new File(unixDomainSocketPath),
+              useJdkUnixDomainSocket,
+              agentConfiguredUsingDefault
+          )
+      );
       log.debug("Using UnixDomainSocket as http transport");
     } else if (namedPipe != null) {
       builder.socketFactory(new NamedPipeSocketFactory(namedPipe));
@@ -213,17 +221,16 @@ public final class OkHttpUtils {
     if (proxyHost != null) {
       builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort)));
       if (proxyUsername != null) {
-        builder.proxyAuthenticator(
-            (route, response) -> {
-              final String credential =
-                  Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
+        builder.proxyAuthenticator((route, response) -> {
+          final String credential =
+              Credentials.basic(proxyUsername, proxyPassword == null ? "" : proxyPassword);
 
-              return response
-                  .request()
-                  .newBuilder()
-                  .header("Proxy-Authorization", credential)
-                  .build();
-            });
+          return response
+            .request()
+            .newBuilder()
+            .header("Proxy-Authorization", credential)
+            .build();
+        });
       }
     }
 
@@ -239,14 +246,12 @@ public final class OkHttpUtils {
   }
 
   public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
-
-    final Request.Builder builder =
-        new Request.Builder()
-            .url(url)
-            .addHeader(DATADOG_META_LANG, "java")
-            .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
-            .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
-            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
+    final Request.Builder builder = new Request.Builder()
+      .url(url)
+      .addHeader(DATADOG_META_LANG, "java")
+      .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
+      .addHeader(DATADOG_META_LANG_INTERPRETER, JAVA_VM_NAME)
+      .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, JAVA_VM_VENDOR);
 
     final String containerId = ContainerInfo.get().getContainerId();
     final String entityId = ContainerInfo.getEntityId();
@@ -268,7 +273,8 @@ public final class OkHttpUtils {
       final HttpUrl url,
       final Map<String, String> headers,
       final Config config,
-      final boolean agentless) {
+      final boolean agentless
+  ) {
     Request.Builder builder = prepareRequest(url, headers);
 
     final String apiKey = config.getApiKey();
@@ -298,9 +304,7 @@ public final class OkHttpUtils {
   }
 
   private static class JsonRequestBody extends RequestBody {
-
     private static final MediaType JSON = MediaType.get("application/json");
-
     private final byte[] json;
 
     private JsonRequestBody(byte[] json) {
@@ -324,9 +328,7 @@ public final class OkHttpUtils {
   }
 
   private static class ByteBufferRequestBody extends RequestBody {
-
     private static final MediaType MSGPACK = MediaType.get("application/msgpack");
-
     private final List<ByteBuffer> buffers;
 
     private ByteBufferRequestBody(List<ByteBuffer> buffers) {
@@ -404,14 +406,18 @@ public final class OkHttpUtils {
   }
 
   public static Response sendWithRetries(
-      OkHttpClient httpClient, HttpRetryPolicy.Factory retryPolicyFactory, Request request)
-      throws IOException {
+      OkHttpClient httpClient,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      Request request
+  ) throws IOException {
     return sendWithRetries((Call.Factory) httpClient, retryPolicyFactory, request);
   }
 
   public static Response sendWithRetries(
-      Call.Factory callFactory, HttpRetryPolicy.Factory retryPolicyFactory, Request request)
-      throws IOException {
+      Call.Factory callFactory,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      Request request
+  ) throws IOException {
     return sendWithRetries(callFactory, retryPolicyFactory, request, response -> response);
   }
 
@@ -419,8 +425,8 @@ public final class OkHttpUtils {
       Call.Factory callFactory,
       HttpRetryPolicy.Factory retryPolicyFactory,
       Request request,
-      ResponseMapper<T> responseMapper)
-      throws IOException {
+      ResponseMapper<T> responseMapper
+  ) throws IOException {
     try (HttpRetryPolicy retryPolicy = retryPolicyFactory.create()) {
       while (true) {
         Response response = null;

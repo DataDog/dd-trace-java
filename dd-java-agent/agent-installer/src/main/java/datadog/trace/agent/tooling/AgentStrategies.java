@@ -26,12 +26,11 @@ public class AgentStrategies {
   private static TransformerDecorator loadTransformerDecorator() {
     if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
-        return (TransformerDecorator)
-            Instrumenter.class
-                .getClassLoader()
-                .loadClass("datadog.trace.agent.tooling.bytebuddy.DDJava9ClassFileTransformer")
-                .getField("DECORATOR")
-                .get(null);
+        return (TransformerDecorator) Instrumenter.class
+          .getClassLoader()
+          .loadClass("datadog.trace.agent.tooling.bytebuddy.DDJava9ClassFileTransformer")
+          .getField("DECORATOR")
+          .get(null);
       } catch (Throwable e) {
         log.warn("Problem loading Java9 Module support, falling back to legacy transformer", e);
       }
@@ -42,7 +41,6 @@ public class AgentStrategies {
   private static final TransformerDecorator TRANSFORMER_DECORATOR = loadTransformerDecorator();
   private static final DiscoveryStrategy REDISCOVERY_STRATEGY = new DDRediscoveryStrategy();
   private static final LocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
-
   private static final PoolStrategy POOL_STRATEGY = DDOutlinePoolStrategy.INSTANCE;
   private static final ClassFileBufferStrategy BUFFER_STRATEGY = DDOutlineTypeStrategy.INSTANCE;
   private static final TypeStrategy TYPE_STRATEGY = DDOutlineTypeStrategy.INSTANCE;

@@ -12,7 +12,6 @@ import static datadog.trace.core.propagation.B3TestHelper.traceIdOrPadded;
 import static datadog.trace.core.propagation.B3TestHelper.trimHex;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -26,7 +25,6 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class B3HttpInjectorTest extends AbstractHttpInjectorTest {
-
   private static final CarrierSetter<Map<String, String>> MAP_SETTER = Map::put;
 
   protected boolean tracePropagationB3Padding() {
@@ -52,10 +50,9 @@ class B3HttpInjectorTest extends AbstractHttpInjectorTest {
       long traceId,
       long spanId,
       @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
-      @ConvertWith(PrioritySamplingConverter.class) Byte expectedSamplingPriority) {
-
-    DDSpanContext spanContext =
-        mockedSpanContext(DDTraceId.from(traceId), spanId, samplingPriority);
+      @ConvertWith(PrioritySamplingConverter.class) Byte expectedSamplingPriority
+  ) {
+    DDSpanContext spanContext = mockedSpanContext(DDTraceId.from(traceId), spanId, samplingPriority);
 
     Map<String, String> carrier = new HashMap<>();
     this.injector.inject(spanContext, carrier, MAP_SETTER);
@@ -69,7 +66,9 @@ class B3HttpInjectorTest extends AbstractHttpInjectorTest {
       assertEquals(4, carrier.size());
       assertEquals(expectedSamplingPriority.toString(), carrier.get(SAMPLING_PRIORITY_KEY));
       assertEquals(
-          traceIdHex + "-" + spanIdHex + "-" + expectedSamplingPriority, carrier.get(B3_KEY));
+          traceIdHex + "-" + spanIdHex + "-" + expectedSamplingPriority,
+          carrier.get(B3_KEY)
+      );
     } else {
       assertEquals(3, carrier.size());
       assertEquals(traceIdHex + "-" + spanIdHex, carrier.get(B3_KEY));
@@ -122,7 +121,8 @@ class B3HttpInjectorTest extends AbstractHttpInjectorTest {
         samplingPriority,
         "fakeOrigin",
         baggage,
-        PropagationTags.factory().empty());
+        PropagationTags.factory().empty()
+    );
   }
 
   static class B3HttpInjectorNonPaddedTest extends B3HttpInjectorTest {

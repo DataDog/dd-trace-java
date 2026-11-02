@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -24,8 +23,9 @@ import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 @AutoService(InstrumenterModule.class)
 public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public MultipartFormDataReaderInstrumentation() {
     super("resteasy");
   }
@@ -44,12 +44,14 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("readFrom")
-            .and(takesArguments(6))
-            .and(
-                returns(
-                    named(
-                        "org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput"))),
-        MultipartFormDataReaderInstrumentation.class.getName() + "$ReadFromAdvice");
+          .and(takesArguments(6))
+          .and(
+              returns(
+                  named("org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput")
+              )
+          ),
+        MultipartFormDataReaderInstrumentation.class.getName() + "$ReadFromAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -58,7 +60,8 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
     static void after(
         @Advice.Return final MultipartFormDataInput ret,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (ret == null || t != null) {
         return;
       }
@@ -78,9 +81,11 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
         Map<String, List<String>> m = MultipartHelper.collectBodyMap(ret);
 
         Flow<Void> flow = callback.apply(reqCtx, m);
-        BlockingException be =
-            MultipartHelper.tryBlock(
-                reqCtx, flow, "Blocked request (for MultipartFormDataInput/readFrom)");
+        BlockingException be = MultipartHelper.tryBlock(
+            reqCtx,
+            flow,
+            "Blocked request (for MultipartFormDataInput/readFrom)"
+        );
         if (be != null) {
           t = be;
         }
@@ -93,7 +98,10 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
           if (t == null) {
             BlockingException be =
                 MultipartHelper.tryBlock(
-                    reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
+                    reqCtx,
+                    filenamesFlow,
+                    "Blocked request (multipart file upload)"
+            );
             if (be != null) {
               t = be;
             }
@@ -105,9 +113,11 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
         List<String> filesContent = MultipartHelper.collectFilesContent(ret);
         if (!filesContent.isEmpty()) {
           Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-          BlockingException be =
-              MultipartHelper.tryBlock(
-                  reqCtx, contentFlow, "Blocked request (multipart file upload content)");
+          BlockingException be = MultipartHelper.tryBlock(
+              reqCtx,
+              contentFlow,
+              "Blocked request (multipart file upload content)"
+          );
           if (be != null) {
             t = be;
           }

@@ -7,12 +7,10 @@ import java.util.Objects;
 
 public final class GitInfo {
   public static final GitInfo NOOP = new GitInfo(null, null, null, CommitInfo.NOOP);
-
   private final String repositoryURL;
   private final String branch;
   private final String tag;
   private final CommitInfo commit;
-
   private final TagMap.Entry repositoryEntry;
   private final TagMap.Entry commitEntry;
 
@@ -21,14 +19,12 @@ public final class GitInfo {
     this.branch = branch;
     this.tag = tag;
     this.commit = commit;
-
     // GitInfo is reused across many traces, so create entries once and reuse them (see addTags)
     // null & empty values result in null entries which nop when added to a span
     this.repositoryEntry = TagMap.Entry.create(DDTags.INTERNAL_GIT_REPOSITORY_URL, repositoryURL);
-    this.commitEntry =
-        commit == null
-            ? null
-            : TagMap.Entry.create(DDTags.INTERNAL_GIT_COMMIT_SHA, commit.getSha());
+    this.commitEntry = commit == null
+        ? null
+        : TagMap.Entry.create(DDTags.INTERNAL_GIT_COMMIT_SHA, commit.getSha());
   }
 
   public String getRepositoryURL() {

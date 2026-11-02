@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import com.datadog.debugger.el.RedactedException;
 import com.datadog.debugger.el.Value;
 import datadog.trace.api.Config;
@@ -75,7 +74,8 @@ class GetMemberExpressionTest {
         assertThrows(RedactedException.class, () -> expr.evaluate(createEvalContext(instance)));
     assertEquals(
         "Could not evaluate the expression because 'store.password' was redacted",
-        redactedException.getMessage());
+        redactedException.getMessage()
+    );
   }
 
   @Test
@@ -84,7 +84,8 @@ class GetMemberExpressionTest {
     setFieldInConfig(
         config,
         "dynamicInstrumentationRedactedTypes",
-        "com.datadog.debugger.el.expressions.GetMemberExpressionTest*");
+        "com.datadog.debugger.el.expressions.GetMemberExpressionTest*"
+    );
     try {
       Redaction.addUserDefinedTypes(Config.get());
       GetMemberExpression expr = new GetMemberExpression(new ValueRefExpression("store"), "str");
@@ -93,7 +94,8 @@ class GetMemberExpressionTest {
           assertThrows(RedactedException.class, () -> expr.evaluate(createEvalContext(instance)));
       assertEquals(
           "Could not evaluate the expression because 'store' was redacted",
-          redactedException.getMessage());
+          redactedException.getMessage()
+      );
     } finally {
       Redaction.clearUserDefinedTypes();
     }

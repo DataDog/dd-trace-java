@@ -13,7 +13,9 @@ public class Decoder {
     return MessageV1.unpack(buffer);
   }
 
-  /** Decodes the JSON trace format exposed by the dd-apm-test-agent. */
+  /**
+   * Decodes the JSON trace format exposed by the dd-apm-test-agent.
+   */
   public static DecodedMessage decodeJson(String json) {
     return MessageJson.fromJson(json);
   }
@@ -29,12 +31,10 @@ public class Decoder {
   public static List<DecodedSpan> sortByStart(Collection<DecodedSpan> spans) {
     DecodedSpan[] spanArray = new DecodedSpan[spans.size()];
     spanArray = spans.toArray(spanArray);
-    Arrays.sort(
-        spanArray,
-        (o1, o2) -> {
-          long res = o1.getStart() - o2.getStart();
-          return res == 0 ? 0 : res > 0 ? 1 : -1;
-        });
+    Arrays.sort(spanArray, (o1, o2) -> {
+      long res = o1.getStart() - o2.getStart();
+      return res == 0 ? 0 : res > 0 ? 1 : -1;
+    });
     return Arrays.asList(spanArray);
   }
 }

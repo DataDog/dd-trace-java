@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.H2_QUERY;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanTypes;
@@ -27,26 +26,27 @@ class R2dbcFilteredResultTest extends AbstractInstrumentationTest {
 
   @Test
   void filteredResultConsumptionFinishesQuerySpan() {
-    Connection connection =
-        Mono.from(
-                ConnectionFactories.get("r2dbc:h2:mem:///filtered_result_" + UUID.randomUUID())
-                    .create())
-            .block(TIMEOUT);
+    Connection connection = Mono
+      .from(ConnectionFactories
+        .get("r2dbc:h2:mem:///filtered_result_" + UUID.randomUUID())
+        .create()
+      )
+      .block(TIMEOUT);
     DDSpan parent = (DDSpan) startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
       assertEquals(
           singletonList(42),
-          Flux.from(connection.createStatement("SELECT 42").execute())
-              .flatMap(
-                  result ->
-                      result
-                          .filter(segment -> segment instanceof Result.RowSegment)
-                          .flatMap(
-                              segment ->
-                                  Mono.just(
-                                      ((Result.RowSegment) segment).row().get(0, Integer.class))))
-              .collectList()
-              .block(TIMEOUT));
+          Flux
+            .from(connection.createStatement("SELECT 42").execute())
+            .flatMap(result -> result
+              .filter(segment -> segment instanceof Result.RowSegment)
+              .flatMap(segment -> Mono.just(((Result.RowSegment) segment)
+                .row()
+                .get(0, Integer.class)
+              )))
+            .collectList()
+            .block(TIMEOUT)
+      );
     } finally {
       parent.finish();
       Mono.from(connection.close()).block(TIMEOUT);
@@ -57,10 +57,12 @@ class R2dbcFilteredResultTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
             span()
-                .childOf(parent.getSpanId())
-                .operationName(H2_QUERY)
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .error(false)));
+              .childOf(parent.getSpanId())
+              .operationName(H2_QUERY)
+              .type(DDSpanTypes.SQL)
+              .measured()
+              .error(false)
+        )
+    );
   }
 }

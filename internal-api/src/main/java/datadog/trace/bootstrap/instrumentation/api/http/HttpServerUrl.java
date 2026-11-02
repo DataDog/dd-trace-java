@@ -5,19 +5,25 @@ import static datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics.pars
 import static datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics.portFromHost;
 import static datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics.serverPort;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.decode;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import java.net.URI;
 
-/** Captured server URL data shared by the Datadog and OpenTelemetry extractors. */
+/**
+ * Captured server URL data shared by the Datadog and OpenTelemetry extractors.
+ */
 public abstract class HttpServerUrl {
-  private HttpServerUrl() {}
+  private HttpServerUrl() {
+  }
 
   public static HttpServerUrl fromRequest(
-      URIDataAdapter uri, String path, AgentSpanContext.Extracted extracted, String hostHeader) {
+      URIDataAdapter uri,
+      String path,
+      AgentSpanContext.Extracted extracted,
+      String hostHeader
+  ) {
     return new Request(uri, path, extracted, hostHeader);
   }
 
@@ -49,7 +55,9 @@ public abstract class HttpServerUrl {
 
   abstract Origin origin();
 
-  /** The effective origin, resolved independently of client-IP collection. */
+  /**
+   * The effective origin, resolved independently of client-IP collection.
+   */
   static final class Origin {
     final String scheme;
     final String address;
@@ -62,7 +70,12 @@ public abstract class HttpServerUrl {
     }
 
     private static Origin resolve(
-        String scheme, String host, int requestPort, String forwardedHost, String forwardedPort) {
+        String scheme,
+        String host,
+        int requestPort,
+        String forwardedHost,
+        String forwardedPort
+    ) {
       forwardedHost = forwardedValue(forwardedHost);
       int hostPort = -1;
       if (forwardedHost != null) {
@@ -102,7 +115,11 @@ public abstract class HttpServerUrl {
     private final String hostHeader;
 
     private Request(
-        URIDataAdapter uri, String path, AgentSpanContext.Extracted extracted, String hostHeader) {
+        URIDataAdapter uri,
+        String path,
+        AgentSpanContext.Extracted extracted,
+        String hostHeader
+    ) {
       this.uri = uri;
       this.path = path;
       this.extracted = extracted;
@@ -185,7 +202,8 @@ public abstract class HttpServerUrl {
           uri.host(),
           port,
           extracted == null ? null : extracted.getXForwardedHost(),
-          extracted == null ? null : extracted.getXForwardedPort());
+          extracted == null ? null : extracted.getXForwardedPort()
+      );
     }
   }
 

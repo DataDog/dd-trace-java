@@ -2,7 +2,6 @@ package datadog.opentracing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
@@ -13,7 +12,9 @@ import java.util.Properties;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** Smoke tests for the shaded OpenTracing distribution and its public dependencies. */
+/**
+ * Smoke tests for the shaded OpenTracing distribution and its public dependencies.
+ */
 class ShadowJarSmokeTest {
   @ParameterizedTest
   @ValueSource(strings = {"datadog", "tracecontext", "datadog,tracecontext"})
@@ -25,10 +26,11 @@ class ShadowJarSmokeTest {
     properties.setProperty("trace.propagation.style.extract", propagationStyle);
 
     try (DDTracer tracer =
-        DDTracer.builder()
-            .serviceName("shadow-jar-smoke-test")
-            .withProperties(properties)
-            .build()) {
+        DDTracer
+      .builder()
+      .serviceName("shadow-jar-smoke-test")
+      .withProperties(properties)
+      .build()) {
       Span span = tracer.buildSpan("propagate").start();
       try {
         Map<String, String> headers = new HashMap<>();

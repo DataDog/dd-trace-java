@@ -16,7 +16,6 @@ public class SnapshotPruner {
   private static final String NOT_CAPTURED_REASON = "notCapturedReason";
   private static final String DEPTH = "depth";
   private static final String PRUNED = "{\"pruned\":true}";
-
   private State state = State.OBJECT;
   private final Deque<Node> stack = new ArrayDeque<>(32);
   private int currentLevel;
@@ -32,13 +31,13 @@ public class SnapshotPruner {
     }
     SnapshotPruner snapshotPruner = new SnapshotPruner(snapshot);
     Collection<Node> leaves = snapshotPruner.getLeaves(minLevel);
-    PriorityQueue<Node> sortedLeaves =
-        new PriorityQueue<>(
-            Comparator.comparing((Node n) -> n.notCapturedDepth)
-                .thenComparingInt((Node n) -> n.level)
-                .thenComparing((Node n) -> n.notCaptured)
-                .thenComparingInt(Node::size)
-                .reversed());
+    PriorityQueue<Node> sortedLeaves = new PriorityQueue<>(Comparator
+      .comparing((Node n) -> n.notCapturedDepth)
+      .thenComparingInt((Node n) -> n.level)
+      .thenComparing((Node n) -> n.notCaptured)
+      .thenComparingInt(Node::size)
+      .reversed()
+    );
     sortedLeaves.addAll(leaves);
     int total = 0;
     Map<Integer, Node> nodes = new HashMap<>();
@@ -46,7 +45,9 @@ public class SnapshotPruner {
       Node leaf = sortedLeaves.poll();
       nodes.put(leaf.start, leaf);
       total += leaf.size() - PRUNED.length();
-      if (total > delta) break;
+      if (total > delta) {
+        break;
+      }
       Node parent = leaf.parent;
       if (parent == null) {
         break;
@@ -124,15 +125,14 @@ public class SnapshotPruner {
             {
               pruner.strMatchIdx = 0;
               pruner.matchingString = NOT_CAPTURED_REASON;
-              pruner.onStringMatches =
-                  () -> {
-                    Node n = pruner.stack.peekLast();
-                    if (n == null) {
-                      throw new IllegalStateException("empty stack");
-                    }
-                    n.notCaptured = true;
-                    return NOT_CAPTURED;
-                  };
+              pruner.onStringMatches = () -> {
+                Node n = pruner.stack.peekLast();
+                if (n == null) {
+                  throw new IllegalStateException("empty stack");
+                }
+                n.notCaptured = true;
+                return NOT_CAPTURED;
+              };
               return STRING;
             }
           default:
@@ -175,15 +175,14 @@ public class SnapshotPruner {
             {
               pruner.strMatchIdx = 0;
               pruner.matchingString = DEPTH;
-              pruner.onStringMatches =
-                  () -> {
-                    Node n = pruner.stack.peekLast();
-                    if (n == null) {
-                      throw new IllegalStateException("empty stack");
-                    }
-                    n.notCapturedDepth = true;
-                    return OBJECT;
-                  };
+              pruner.onStringMatches = () -> {
+                Node n = pruner.stack.peekLast();
+                if (n == null) {
+                  throw new IllegalStateException("empty stack");
+                }
+                n.notCapturedDepth = true;
+                return OBJECT;
+              };
               return STRING;
             }
           case ' ':
@@ -203,7 +202,6 @@ public class SnapshotPruner {
         return STRING;
       }
     };
-
     public abstract State parse(SnapshotPruner pruner, char c, int index);
   }
 

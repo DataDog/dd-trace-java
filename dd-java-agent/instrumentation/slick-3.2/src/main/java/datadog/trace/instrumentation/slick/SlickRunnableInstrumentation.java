@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -20,10 +19,14 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Instruments runnables from the slick framework, which are excluded elsewhere. */
+/**
+ * Instruments runnables from the slick framework, which are excluded elsewhere.
+ */
 @AutoService(InstrumenterModule.class)
 public final class SlickRunnableInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public SlickRunnableInstrumentation() {
     super("slick");
   }
@@ -35,7 +38,8 @@ public final class SlickRunnableInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public String hierarchyMarkerType() {
-    return "slick.util.AsyncExecutor"; // implies existence of the various slick-runnables
+    // implies existence of the various slick-runnables
+    return "slick.util.AsyncExecutor";
   }
 
   @Override

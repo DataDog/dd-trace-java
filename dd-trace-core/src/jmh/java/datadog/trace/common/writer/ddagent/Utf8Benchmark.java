@@ -3,7 +3,6 @@ package datadog.trace.common.writer.ddagent;
 import static datadog.trace.common.writer.ddagent.Utf8Workload.NUM_LOOKUPS;
 import static datadog.trace.common.writer.ddagent.Utf8Workload.nextTag;
 import static datadog.trace.common.writer.ddagent.Utf8Workload.nextValue;
-
 import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.SimpleUtf8Cache;
 import java.nio.charset.StandardCharsets;
@@ -44,7 +43,9 @@ public class Utf8Benchmark {
     String tag = nextTag();
 
     byte[] cache = TAG_CACHE.getUtf8(tag);
-    if (cache != null) return cache;
+    if (cache != null) {
+      return cache;
+    }
 
     return tag.getBytes(StandardCharsets.UTF_8);
   }
@@ -65,7 +66,8 @@ public class Utf8Benchmark {
   @Benchmark
   public static final void valueUtf8_cache_generational(Blackhole bh) {
     GenerationalUtf8Cache valueCache = VALUE_CACHE;
-    valueCache.recalibrate(); // single thread drives recalibrate inline, at a transaction boundary
+    // single thread drives recalibrate inline, at a transaction boundary
+    valueCache.recalibrate();
 
     for (int i = 0; i < NUM_LOOKUPS; ++i) {
       String tag = nextTag();
@@ -81,7 +83,8 @@ public class Utf8Benchmark {
   @Benchmark
   public static final void valueUtf8_cache_simple(Blackhole bh) {
     SimpleUtf8Cache valueCache = SIMPLE_VALUE_CACHE;
-    valueCache.recalibrate(); // single thread drives recalibrate inline, at a transaction boundary
+    // single thread drives recalibrate inline, at a transaction boundary
+    valueCache.recalibrate();
 
     for (int i = 0; i < NUM_LOOKUPS; ++i) {
       String tag = nextTag();

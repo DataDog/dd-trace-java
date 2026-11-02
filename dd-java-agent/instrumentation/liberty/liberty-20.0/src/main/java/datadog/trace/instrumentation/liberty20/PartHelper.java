@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.List;
 
 public class PartHelper {
-
   public static List<String> extractFilenames(Collection<?> parts) {
     if (parts == null || parts.isEmpty()) {
       return Collections.emptyList();
@@ -49,7 +48,8 @@ public class PartHelper {
     }
   }
 
-  @SuppressForbidden // split on single-character uses a fast path
+  // split on single-character uses a fast path
+  @SuppressForbidden
   private static String getFilenameFromContentDisposition(Method getHeader, Object part) {
     if (getHeader == null) {
       return null;

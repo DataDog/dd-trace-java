@@ -21,7 +21,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.reactivestreams.Publisher;
 
-/** Keeps results returned by filter attached to the proxy's query lifecycle. */
+/**
+ * Keeps results returned by filter attached to the proxy's query lifecycle.
+ */
 public final class R2dbcProxyFactory implements ProxyFactory, ProxyFactoryFactory {
   private final ProxyFactory delegate;
 
@@ -51,13 +53,15 @@ public final class R2dbcProxyFactory implements ProxyFactory, ProxyFactoryFactor
 
   @Override
   public Statement wrapStatement(
-      Statement statement, StatementInfo statementInfo, ConnectionInfo info) {
+      Statement statement,
+      StatementInfo statementInfo,
+      ConnectionInfo info
+  ) {
     return delegate.wrapStatement(statement, statementInfo, info);
   }
 
   @Override
-  public Result wrapResult(
-      Result result, QueryExecutionInfo info, QueriesExecutionContext context) {
+  public Result wrapResult(Result result, QueryExecutionInfo info, QueriesExecutionContext context) {
     return new FilterAwareResult(delegate.wrapResult(result, info, context), this, info, context);
   }
 
@@ -81,7 +85,8 @@ public final class R2dbcProxyFactory implements ProxyFactory, ProxyFactoryFactor
         Result delegate,
         R2dbcProxyFactory factory,
         QueryExecutionInfo info,
-        QueriesExecutionContext context) {
+        QueriesExecutionContext context
+    ) {
       this.delegate = delegate;
       this.factory = factory;
       this.info = info;

@@ -15,7 +15,9 @@ import javax.jms.Topic;
 import javax.jms.TopicConnection;
 import javax.jms.TopicSession;
 
-/** Wraps a real {@link Connection} but simulates a JMS 1.0 provider. */
+/**
+ * Wraps a real {@link Connection} but simulates a JMS 1.0 provider.
+ */
 public class Jms10Connection implements QueueConnection, TopicConnection {
   private final Connection delegate;
 
@@ -24,15 +26,14 @@ public class Jms10Connection implements QueueConnection, TopicConnection {
   }
 
   // --- JMS 1.1-only unified Connection method ---
-
   @Override
   public Session createSession(boolean transacted, int acknowledgeMode) throws JMSException {
     throw new AbstractMethodError(
-        "JMS 1.0 provider does not implement createSession(boolean, int) on Connection");
+        "JMS 1.0 provider does not implement createSession(boolean, int) on Connection"
+    );
   }
 
   // --- JMS 1.0 QueueConnection methods ---
-
   @Override
   public QueueSession createQueueSession(boolean transacted, int acknowledgeMode)
       throws JMSException {
@@ -40,7 +41,6 @@ public class Jms10Connection implements QueueConnection, TopicConnection {
   }
 
   // --- JMS 1.0 TopicConnection methods ---
-
   @Override
   public TopicSession createTopicSession(boolean transacted, int acknowledgeMode)
       throws JMSException {
@@ -48,7 +48,6 @@ public class Jms10Connection implements QueueConnection, TopicConnection {
   }
 
   // --- Common Connection methods ---
-
   @Override
   public String getClientID() throws JMSException {
     return delegate.getClientID();
@@ -90,29 +89,35 @@ public class Jms10Connection implements QueueConnection, TopicConnection {
   }
 
   // --- ConnectionConsumer methods — not commonly used, throw for JMS 1.1 unified form ---
-
   @Override
   public ConnectionConsumer createConnectionConsumer(
       Destination destination,
       String messageSelector,
       ServerSessionPool sessionPool,
-      int maxMessages)
-      throws JMSException {
+      int maxMessages
+  ) throws JMSException {
     throw new AbstractMethodError(
-        "JMS 1.0 provider does not implement createConnectionConsumer(Destination, ...)");
+        "JMS 1.0 provider does not implement createConnectionConsumer(Destination, ...)"
+    );
   }
 
   @Override
   public ConnectionConsumer createConnectionConsumer(
-      Queue queue, String messageSelector, ServerSessionPool sessionPool, int maxMessages)
-      throws JMSException {
+      Queue queue,
+      String messageSelector,
+      ServerSessionPool sessionPool,
+      int maxMessages
+  ) throws JMSException {
     return delegate.createConnectionConsumer(queue, messageSelector, sessionPool, maxMessages);
   }
 
   @Override
   public ConnectionConsumer createConnectionConsumer(
-      Topic topic, String messageSelector, ServerSessionPool sessionPool, int maxMessages)
-      throws JMSException {
+      Topic topic,
+      String messageSelector,
+      ServerSessionPool sessionPool,
+      int maxMessages
+  ) throws JMSException {
     return delegate.createConnectionConsumer(topic, messageSelector, sessionPool, maxMessages);
   }
 
@@ -122,9 +127,14 @@ public class Jms10Connection implements QueueConnection, TopicConnection {
       String subscriptionName,
       String messageSelector,
       ServerSessionPool sessionPool,
-      int maxMessages)
-      throws JMSException {
+      int maxMessages
+  ) throws JMSException {
     return delegate.createDurableConnectionConsumer(
-        topic, subscriptionName, messageSelector, sessionPool, maxMessages);
+        topic,
+        subscriptionName,
+        messageSelector,
+        sessionPool,
+        maxMessages
+    );
   }
 }

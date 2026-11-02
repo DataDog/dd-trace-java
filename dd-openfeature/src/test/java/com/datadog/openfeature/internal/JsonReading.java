@@ -1,7 +1,6 @@
 package com.datadog.openfeature.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -12,13 +11,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Reads JSON documents as generic trees for test assertions. */
+/**
+ * Reads JSON documents as generic trees for test assertions.
+ */
 public final class JsonReading {
   private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
-  private JsonReading() {}
+  private JsonReading() {
+  }
 
-  /** Reads a JSON document. Integral numbers are read as {@link Long}, others as {@link Double}. */
+  /**
+   * Reads a JSON document. Integral numbers are read as {@link Long}, others as {@link Double}.
+   */
   public static Object read(final byte[] json) {
     try (JsonParser parser = JSON_FACTORY.createParser(json)) {
       parser.nextToken();
@@ -42,7 +46,9 @@ public final class JsonReading {
     return (Map<String, Object>) read(json);
   }
 
-  /** Reads a JSON object with all numbers as {@link Double}, like Moshi's generic adapters. */
+  /**
+   * Reads a JSON object with all numbers as {@link Double}, like Moshi's generic adapters.
+   */
   @SuppressWarnings("unchecked")
   public static Map<String, Object> readObjectWithDoubles(final byte[] json) {
     return (Map<String, Object>) toDoubles(read(json));

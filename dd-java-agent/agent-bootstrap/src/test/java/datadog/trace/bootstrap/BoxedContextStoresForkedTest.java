@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
@@ -18,11 +17,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
-/** Forked to isolate the static context-store registry from other tests. */
+/**
+ * Forked to isolate the static context-store registry from other tests.
+ */
 class BoxedContextStoresForkedTest {
-
   private static final int THREAD_COUNT = 8;
-
   // enough stores to go past the pre-allocated stores, grow the array, and keep threads contending
   private static final int STORE_COUNT = ContextStores.FAST_STORE_ID_LIMIT + 2000;
 
@@ -43,16 +42,13 @@ class BoxedContextStoresForkedTest {
     BoxedContextStore[] allocatedStores = new BoxedContextStore[testAllocations];
     AtomicInteger keyIds = new AtomicInteger();
 
-    runConcurrently(
-        10,
-        testAllocations,
-        () -> {
-          int keyId = keyIds.getAndIncrement();
-          int storeId = BoxedContextStores.getContextStoreId("key" + keyId, "value" + keyId);
-          int index = storeId - firstStoreId;
-          assertNull(allocatedStores[index]);
-          allocatedStores[index] = BoxedContextStores.getContextStore(storeId);
-        });
+    runConcurrently(10, testAllocations, () -> {
+      int keyId = keyIds.getAndIncrement();
+      int storeId = BoxedContextStores.getContextStoreId("key" + keyId, "value" + keyId);
+      int index = storeId - firstStoreId;
+      assertNull(allocatedStores[index]);
+      allocatedStores[index] = BoxedContextStores.getContextStore(storeId);
+    });
 
     assertEquals(testAllocations, keyIds.get());
     assertEquals(testAllocations, allocatedStores.length);
@@ -75,21 +71,19 @@ class BoxedContextStoresForkedTest {
       List<Future<int[]>> results = new ArrayList<>();
       for (int t = 0; t < THREAD_COUNT; t++) {
         // every thread requests the same names in the same order to maximise contention
-        results.add(
-            executor.submit(
-                () -> {
-                  start.await();
-                  int[] storeIds = new int[STORE_COUNT];
-                  for (int i = 0; i < STORE_COUNT; i++) {
-                    int storeId = BoxedContextStores.getContextStoreId(keys.get(i), "context");
-                    // store must be visible as soon as its id is returned
-                    BoxedContextStore store = BoxedContextStores.getContextStore(storeId);
-                    assertNotNull(store, "Missing store for id " + storeId);
-                    assertEquals(storeId, store.storeId);
-                    storeIds[i] = storeId;
-                  }
-                  return storeIds;
-                }));
+        results.add(executor.submit(() -> {
+          start.await();
+          int[] storeIds = new int[STORE_COUNT];
+          for (int i = 0; i < STORE_COUNT; i++) {
+            int storeId = BoxedContextStores.getContextStoreId(keys.get(i), "context");
+            // store must be visible as soon as its id is returned
+            BoxedContextStore store = BoxedContextStores.getContextStore(storeId);
+            assertNotNull(store, "Missing store for id " + storeId);
+            assertEquals(storeId, store.storeId);
+            storeIds[i] = storeId;
+          }
+          return storeIds;
+        }));
       }
       start.countDown();
 
@@ -108,8 +102,7 @@ class BoxedContextStoresForkedTest {
         assertNotNull(store, "Missing store for id " + storeId);
         assertEquals(storeId, store.storeId);
       }
-      assertEquals(
-          STORE_COUNT - 1, distinctIds.last() - distinctIds.first(), "Store ids have gaps");
+      assertEquals(STORE_COUNT - 1, distinctIds.last() - distinctIds.first(), "Store ids have gaps");
     } finally {
       executor.shutdownNow();
     }

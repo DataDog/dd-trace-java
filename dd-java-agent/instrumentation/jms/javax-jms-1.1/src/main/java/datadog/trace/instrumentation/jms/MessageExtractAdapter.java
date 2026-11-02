@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jms;
 
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_BATCH_ID_KEY;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCED_KEY;
-
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -17,17 +16,14 @@ import org.slf4j.LoggerFactory;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
   private static final Logger log = LoggerFactory.getLogger(MessageExtractAdapter.class);
-  private static final Function<String, String> KEY_MAPPER =
-      new Function<String, String>() {
-        @SuppressForbidden
-        @Override
-        public String apply(String key) {
-          return key.replace("__dash__", "-").replace('$', '-').toLowerCase(Locale.ROOT);
-        }
-      };
-
+  private static final Function<String, String> KEY_MAPPER = new Function<String, String>() {
+    @SuppressForbidden
+    @Override
+    public String apply(String key) {
+      return key.replace("__dash__", "-").replace('$', '-').toLowerCase(Locale.ROOT);
+    }
+  };
   private final DDCache<String, String> cache = DDCaches.newFixedSizeCache(32);
-
   public static final MessageExtractAdapter GETTER = new MessageExtractAdapter();
 
   @Override

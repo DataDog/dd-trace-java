@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
  * <p>All work is wrapped in try/catch — enrichment must NEVER break flag evaluation.
  */
 public final class SpanEnrichmentWriter implements AutoCloseable {
-
   private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentWriter.class);
 
   public static SpanEnrichmentWriter getInstance() {
@@ -95,7 +94,9 @@ public final class SpanEnrichmentWriter implements AutoCloseable {
 
   // Visible for tests: also inject the registrar to exercise the not-registered path.
   SpanEnrichmentWriter(
-      final RootSpanResolver rootSpanResolver, final InterceptorRegistrar registrar) {
+      final RootSpanResolver rootSpanResolver,
+      final InterceptorRegistrar registrar
+  ) {
     this.rootSpanResolver = rootSpanResolver;
     this.registrar = registrar;
     this.states = new SpanEnrichmentStates();
@@ -157,7 +158,8 @@ public final class SpanEnrichmentWriter implements AutoCloseable {
   private SpanEnrichmentAccumulator activeRootState() {
     final AgentSpan root = rootSpanResolver.activeLocalRoot();
     if (root == null) {
-      return null; // no active span → nothing to enrich (and nothing to register the interceptor
+      // no active span → nothing to enrich (and nothing to register the interceptor
+      return null;
       // for)
     }
     if (!ensureInterceptorRegistered()) {
@@ -194,7 +196,6 @@ public final class SpanEnrichmentWriter implements AutoCloseable {
   }
 
   // ---- test-only accessors ----
-
   SpanEnrichmentStates states() {
     return states;
   }

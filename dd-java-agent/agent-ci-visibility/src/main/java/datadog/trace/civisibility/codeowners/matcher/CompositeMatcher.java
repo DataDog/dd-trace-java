@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.codeowners.matcher;
 
 public class CompositeMatcher implements Matcher {
-
   private final Matcher[] delegates;
 
   public CompositeMatcher(Matcher[] delegates) {

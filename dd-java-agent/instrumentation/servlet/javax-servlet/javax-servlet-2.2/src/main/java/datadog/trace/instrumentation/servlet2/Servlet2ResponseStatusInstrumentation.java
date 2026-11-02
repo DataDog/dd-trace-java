@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,7 +14,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class Servlet2ResponseStatusInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public Servlet2ResponseStatusInstrumentation() {
     super("servlet", "servlet-2");
   }
@@ -53,7 +54,9 @@ public final class Servlet2ResponseStatusInstrumentation extends InstrumenterMod
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         namedOneOf("sendError", "setStatus").and(takesArgument(0, int.class)),
-        packageName + ".Servlet2ResponseStatusAdvice");
-    transformer.applyAdvice(named("sendRedirect"), packageName + ".Servlet2ResponseRedirectAdvice");
+        packageName + ".Servlet2ResponseStatusAdvice"
+    );
+    transformer.applyAdvice(named("sendRedirect"), packageName
+        + ".Servlet2ResponseRedirectAdvice");
   }
 }

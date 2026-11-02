@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,8 +16,9 @@ import io.reactivex.CompletableObserver;
 import net.bytebuddy.asm.Advice;
 
 public final class CompletableInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "io.reactivex.Completable";
@@ -29,10 +29,11 @@ public final class CompletableInstrumentation
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("subscribe"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.reactivex.CompletableObserver"))),
-        getClass().getName() + "$PropagateParentSpanAdvice");
+          .and(named("subscribe"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("io.reactivex.CompletableObserver"))),
+        getClass().getName() + "$PropagateParentSpanAdvice"
+    );
   }
 
   public static class CaptureParentSpanAdvice {
@@ -40,8 +41,7 @@ public final class CompletableInstrumentation
     public static void onConstruct(@Advice.This final Completable completable) {
       Context parentContext = currentContext();
       if (parentContext != rootContext()) {
-        InstrumentationContext.get(Completable.class, Context.class)
-            .put(completable, parentContext);
+        InstrumentationContext.get(Completable.class, Context.class).put(completable, parentContext);
       }
     }
   }
@@ -50,7 +50,8 @@ public final class CompletableInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onSubscribe(
         @Advice.This final Completable completable,
-        @Advice.Argument(value = 0, readOnly = false) CompletableObserver observer) {
+        @Advice.Argument(value = 0, readOnly = false) CompletableObserver observer
+    ) {
       if (observer != null) {
         Context parentContext =
             InstrumentationContext.get(Completable.class, Context.class).get(completable);

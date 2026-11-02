@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadHelper.VIRTUAL_THREAD_STATE_CLASS_NAME;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,10 +15,15 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
 
-/** Captures context for one-shot tasks scheduled through ForkJoinPool's delay scheduler. */
+/**
+ * Captures context for one-shot tasks scheduled through ForkJoinPool's delay scheduler.
+ */
 @AutoService(InstrumenterModule.class)
 public final class ScheduledForkJoinTaskInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ScheduledForkJoinTaskInstrumentation() {
     super("java_concurrent", "fjp");
   }
@@ -56,7 +60,8 @@ public final class ScheduledForkJoinTaskInstrumentation extends InstrumenterModu
         @Advice.This ForkJoinTask<?> task,
         @Advice.FieldValue("runnable") Runnable runnable,
         @Advice.FieldValue("nextDelay") long nextDelay,
-        @Advice.FieldValue("isImmediate") boolean isImmediate) {
+        @Advice.FieldValue("isImmediate") boolean isImmediate
+    ) {
       // Periodic tasks must not retain their creator; immediate tasks and virtual-thread timeout
       // callbacks need no context.
       if (nextDelay == 0

@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import java.util.HashMap;
@@ -21,35 +20,31 @@ import org.junit.jupiter.api.Test;
 
 class PropagatorsTest {
   static final MapCarrierAccessor ACCESSOR = new MapCarrierAccessor();
-
   static final Concern TRACING = Concern.named("tracing");
   static final ContextKey<String> TRACING_KEY = ContextKey.named("tracing");
   static final Propagator TRACING_PROPAGATOR = new BasicPropagator(TRACING_KEY, "tracing");
-
   static final Concern IAST = Concern.named("iast");
   static final ContextKey<String> IAST_KEY = ContextKey.named("iast");
   static final Propagator IAST_PROPAGATOR = new BasicPropagator(IAST_KEY, "iast");
-
   static final Concern DEBUGGER = Concern.withPriority("debugger", DEFAULT_PRIORITY - 10);
   static final ContextKey<String> DEBUGGER_KEY = ContextKey.named("debugger");
   static final DependentPropagator DEBUGGER_PROPAGATOR =
       new DependentPropagator(DEBUGGER_KEY, "debugger", TRACING_KEY);
-
   static final Concern PROFILING = Concern.withPriority("profiling", DEFAULT_PRIORITY + 10);
   static final ContextKey<String> PROFILING_KEY = ContextKey.named("profiling");
   static final DependentPropagator PROFILING_PROPAGATOR =
       new DependentPropagator(PROFILING_KEY, "profiling", TRACING_KEY);
-
-  static final Context CONTEXT =
-      root()
-          .with(TRACING_KEY, "sampled")
-          .with(IAST_KEY, "standalone")
-          .with(DEBUGGER_KEY, "debug")
-          .with(PROFILING_KEY, "profile");
+  static final Context CONTEXT = root()
+    .with(TRACING_KEY, "sampled")
+    .with(IAST_KEY, "standalone")
+    .with(DEBUGGER_KEY, "debug")
+    .with(PROFILING_KEY, "profile");
 
   @ParametersAreNonnullByDefault
   static class MapCarrierAccessor
-      implements CarrierSetter<Map<String, String>>, CarrierVisitor<Map<String, String>> {
+      implements CarrierSetter<Map<String, String>>,
+      CarrierVisitor<Map<String, String>>
+  {
     @Override
     public void set(Map<String, String> carrier, String key, String value) {
       if (carrier != null && key != null && value != null) {
@@ -83,13 +78,11 @@ class PropagatorsTest {
     @Override
     public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
       String[] valueRef = new String[1];
-      visitor.forEachKeyValue(
-          carrier,
-          (key, value) -> {
-            if (this.carrierKey.equals(key)) {
-              valueRef[0] = value;
-            }
-          });
+      visitor.forEachKeyValue(carrier, (key, value) -> {
+        if (this.carrierKey.equals(key)) {
+          valueRef[0] = value;
+        }
+      });
       if (valueRef[0] != null) {
         context = context.with(this.contextKey, valueRef[0]);
       }
@@ -102,7 +95,10 @@ class PropagatorsTest {
     private boolean keyFound;
 
     public DependentPropagator(
-        ContextKey<String> contextKey, String carrierKey, ContextKey<String> requiredContextKey) {
+        ContextKey<String> contextKey,
+        String carrierKey,
+        ContextKey<String> requiredContextKey
+    ) {
       super(contextKey, carrierKey);
       this.requiredContextKey = requiredContextKey;
       this.keyFound = false;
@@ -131,7 +127,9 @@ class PropagatorsTest {
   void testDefaultPropagator() {
     Propagator noopPropagator = Propagators.defaultPropagator();
     assertNotNull(
-        noopPropagator, "Default propagator should not be null when no propagator is registered");
+        noopPropagator,
+        "Default propagator should not be null when no propagator is registered"
+    );
     assertInjectExtractContext(CONTEXT, noopPropagator);
 
     Propagators.register(TRACING, TRACING_PROPAGATOR);
@@ -146,10 +144,12 @@ class PropagatorsTest {
     assertInjectExtractContext(CONTEXT, composite, TRACING_KEY, DEBUGGER_KEY, PROFILING_KEY);
     assertFalse(
         DEBUGGER_PROPAGATOR.keyFound,
-        "Debugger propagator should have run before tracing propagator");
+        "Debugger propagator should have run before tracing propagator"
+    );
     assertTrue(
         PROFILING_PROPAGATOR.keyFound,
-        "Profiling propagator should have run after tracing propagator");
+        "Profiling propagator should have run after tracing propagator"
+    );
 
     Propagator cached = Propagators.defaultPropagator();
     assertEquals(composite, cached, "default propagator should be cached");
@@ -191,10 +191,12 @@ class PropagatorsTest {
     assertInjectExtractContext(CONTEXT, propagator, PROFILING_KEY, TRACING_KEY, DEBUGGER_KEY);
     assertFalse(
         PROFILING_PROPAGATOR.keyFound,
-        "Profiling propagator should have run before tracing propagator");
+        "Profiling propagator should have run before tracing propagator"
+    );
     assertTrue(
         DEBUGGER_PROPAGATOR.keyFound,
-        "Debugger propagator should have run before tracing propagator");
+        "Debugger propagator should have run before tracing propagator"
+    );
   }
 
   @Test
@@ -218,12 +220,18 @@ class PropagatorsTest {
     Context extracted = propagator.extract(root(), carrier, ACCESSOR);
     for (ContextKey<?> key : keys) {
       assertEquals(
-          context.get(key), extracted.get(key), "Key " + key + " not injected nor extracted");
+          context.get(key),
+          extracted.get(key),
+          "Key " + key + " not injected nor extracted"
+      );
     }
   }
 
   private void assertDoNotInjectExtractContext(
-      Context context, Propagator propagator, ContextKey<?>... keys) {
+      Context context,
+      Propagator propagator,
+      ContextKey<?>... keys
+  ) {
     Map<String, String> carrier = new HashMap<>();
     propagator.inject(context, carrier, ACCESSOR);
     Context extracted = propagator.extract(root(), carrier, ACCESSOR);

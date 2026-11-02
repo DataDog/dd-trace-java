@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEAD
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.charset.StandardCharsets;
 import org.apache.coyote.Request;

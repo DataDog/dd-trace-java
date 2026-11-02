@@ -5,10 +5,10 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import javax.annotation.Nullable;
 
 public class NoOpCoverageStore implements CoverageStore {
-
   public static final NoOpCoverageStore INSTANCE = new NoOpCoverageStore();
 
-  private NoOpCoverageStore() {}
+  private NoOpCoverageStore() {
+  }
 
   @Override
   public CoverageProbes getProbes() {

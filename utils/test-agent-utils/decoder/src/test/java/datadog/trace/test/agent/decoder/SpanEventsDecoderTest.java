@@ -6,7 +6,6 @@ import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,11 +37,11 @@ class SpanEventsDecoderTest {
 
   @Test
   void decodesTypedAttributes() {
-    List<DecodedSpanEvent> events =
-        fromTag(
-            "[{\"time_unix_nano\":1,\"name\":\"event\",\"attributes\":{"
-                + "\"str\":\"value\",\"int\":42,\"double\":12.5,\"whole\":2.0,\"exp\":1e3,"
-                + "\"bool\":true,\"arr\":[\"x\",7,2.5,false],\"unsupported\":null}}]");
+    List<DecodedSpanEvent> events = fromTag(
+        "[{\"time_unix_nano\":1,\"name\":\"event\",\"attributes\":{"
+        + "\"str\":\"value\",\"int\":42,\"double\":12.5,\"whole\":2.0,\"exp\":1e3,"
+        + "\"bool\":true,\"arr\":[\"x\",7,2.5,false],\"unsupported\":null}}]"
+    );
 
     Map<String, Object> expected = new LinkedHashMap<>();
     expected.put("str", "value");
@@ -58,10 +57,10 @@ class SpanEventsDecoderTest {
 
   @Test
   void preservesEventOrderAndIgnoresUnknownFields() {
-    List<DecodedSpanEvent> events =
-        fromTag(
-            "[{\"time_unix_nano\":1,\"name\":\"first\",\"extra\":{\"a\":1}},"
-                + "{\"name\":\"second\",\"time_unix_nano\":2}]");
+    List<DecodedSpanEvent> events = fromTag(
+        "[{\"time_unix_nano\":1,\"name\":\"first\",\"extra\":{\"a\":1}},"
+        + "{\"name\":\"second\",\"time_unix_nano\":2}]"
+    );
 
     assertEquals(2, events.size());
     assertEquals("first", events.get(0).getName());
@@ -77,16 +76,22 @@ class SpanEventsDecoderTest {
     assertThrows(IllegalStateException.class, () -> fromTag("[][]"), "concatenated arrays");
     assertThrows(IllegalStateException.class, () -> fromTag("null x"), "trailing data after null");
     assertThrows(
-        IllegalStateException.class, () -> fromTag("[{\"name\":\"event\"}]"), "missing time");
-    assertThrows(
-        IllegalStateException.class, () -> fromTag("[{\"time_unix_nano\":1}]"), "missing name");
+        IllegalStateException.class,
+        () -> fromTag("[{\"name\":\"event\"}]"),
+        "missing time"
+    );
     assertThrows(
         IllegalStateException.class,
-        () ->
-            fromTag(
-                "[{\"time_unix_nano\":1,\"name\":\"event\","
-                    + "\"attributes\":{\"big\":9223372036854775808}}]"),
-        "integer beyond the long range");
+        () -> fromTag("[{\"time_unix_nano\":1}]"),
+        "missing name"
+    );
+    assertThrows(
+        IllegalStateException.class,
+        () -> fromTag(
+            "[{\"time_unix_nano\":1,\"name\":\"event\"," + "\"attributes\":{\"big\":9223372036854775808}}]"
+        ),
+        "integer beyond the long range"
+    );
   }
 
   @Test

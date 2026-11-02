@@ -5,7 +5,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 
 public class HttpRequestMessageExtractAdapter
-    implements AgentPropagation.ContextVisitor<HttpRequestMessage> {
+    implements AgentPropagation.ContextVisitor<HttpRequestMessage>
+{
   public static final HttpRequestMessageExtractAdapter GETTER =
       new HttpRequestMessageExtractAdapter();
 

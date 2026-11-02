@@ -16,7 +16,6 @@ public enum ProductActivation {
    * greatest extent possible. It can be enabled and disabled at runtime through remote config.
    */
   ENABLED_INACTIVE;
-
   public static ProductActivation fromString(String s) {
     if ("true".equalsIgnoreCase(s) || "1".equals(s)) {
       return FULLY_ENABLED;

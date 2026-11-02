@@ -1,15 +1,15 @@
 package org.example;
 
 import static org.testng.AssertJUnit.assertEquals;
-
 import java.util.HashSet;
 import java.util.Set;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-/** Inspired by a real-world example */
+/**
+ * Inspired by a real-world example
+ */
 public class TestParameterizedModifiesParams {
-
   @DataProvider(name = "dataProvider")
   public static Object[][] data() {
     return new Object[][] {{"I will modify this set", new HashSet<>()}};

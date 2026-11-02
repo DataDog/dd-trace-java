@@ -13,7 +13,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -31,41 +30,46 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 public final class JavaForkJoinTaskInstrumentation
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
-        .and(declaresMethod(namedOneOf("doExec", "exec", "fork", "cancel")))
-        .and(extendsClass(named("java.util.concurrent.ForkJoinTask")));
+      .and(declaresMethod(namedOneOf("doExec", "exec", "fork", "cancel")))
+      .and(extendsClass(named("java.util.concurrent.ForkJoinTask")));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
+        isMethod().and(namedOneOf("doExec", "exec")),
+        getClass().getName() + "$Exec"
+    );
     transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
     // The delay scheduler cancels tasks internally without calling the public cancel method.
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("cancel")
-                    .or(
-                        named("trySetCancelled")
-                            .and(isDeclaredBy(named("java.util.concurrent.ForkJoinTask"))))),
-        getClass().getName() + "$Cancel");
+          .and(named("cancel")
+            .or(named("trySetCancelled")
+              .and(isDeclaredBy(named("java.util.concurrent.ForkJoinTask")))
+            )
+          ),
+        getClass().getName() + "$Cancel"
+    );
     // A delayed task can be completed before it ever executes or is cancelled.
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("complete", "quietlyComplete", "completeExceptionally"))
-            .and(isDeclaredBy(named("java.util.concurrent.ForkJoinTask"))),
-        getClass().getName() + "$Complete");
+          .and(namedOneOf("complete", "quietlyComplete", "completeExceptionally"))
+          .and(isDeclaredBy(named("java.util.concurrent.ForkJoinTask"))),
+        getClass().getName() + "$Complete"
+    );
   }
 
   public static final class Exec {

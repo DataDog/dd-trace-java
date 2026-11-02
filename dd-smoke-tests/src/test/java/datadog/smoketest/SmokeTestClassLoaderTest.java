@@ -1,7 +1,6 @@
 package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import datadog.context.Context;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;

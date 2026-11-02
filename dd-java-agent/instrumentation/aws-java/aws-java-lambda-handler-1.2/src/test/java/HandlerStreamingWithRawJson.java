@@ -5,7 +5,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
-/** Writes valid JSON that is not in API Gateway response format (no statusCode/headers/body). */
+/**
+ * Writes valid JSON that is not in API Gateway response format (no statusCode/headers/body).
+ */
 public class HandlerStreamingWithRawJson implements RequestStreamHandler {
   @Override
   public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)

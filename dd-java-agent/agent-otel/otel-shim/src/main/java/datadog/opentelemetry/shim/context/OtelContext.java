@@ -16,18 +16,18 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @SuppressWarnings({"rawtypes", "unchecked"})
 @ParametersAreNonnullByDefault
 public class OtelContext implements Context {
-
-  /** Overridden root context. */
+  /**
+   * Overridden root context.
+   */
   public static final Context ROOT = new OtelContext(datadog.context.Context.root());
-
   private static final String OTEL_CONTEXT_BAGGAGE_KEY = "opentelemetry-baggage-key";
   private static final String OTEL_CONTEXT_SPAN_KEY = "opentelemetry-trace-span-key";
   private static final String OTEL_CONTEXT_ROOT_SPAN_KEY = "opentelemetry-traces-local-root-span";
-
-  /** Records the keys needed to access the delegate context, mapped by key name. */
+  /**
+   * Records the keys needed to access the delegate context, mapped by key name.
+   */
   private static final Map<ContextKey<?>, datadog.context.ContextKey<?>> DELEGATE_KEYS =
       new ConcurrentHashMap<>();
-
   private final datadog.context.Context delegate;
 
   public OtelContext(datadog.context.Context delegate) {
@@ -83,8 +83,10 @@ public class OtelContext implements Context {
       } else if (value instanceof io.opentelemetry.api.baggage.Baggage) {
         Baggage baggage = Baggage.empty();
         // transfer baggage to our internal container for propagation purposes
-        ((io.opentelemetry.api.baggage.Baggage) value)
-            .forEach((k, b) -> baggage.addItem(k, b.getValue()));
+        ((io.opentelemetry.api.baggage.Baggage) value).forEach((k, b) -> baggage.addItem(
+            k,
+            b.getValue()
+        ));
         return new OtelContext(delegate.with(baggage));
       }
       // fall-through and store as non-datadog baggage

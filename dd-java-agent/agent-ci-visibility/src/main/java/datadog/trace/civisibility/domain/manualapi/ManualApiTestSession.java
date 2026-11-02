@@ -18,7 +18,6 @@ import javax.annotation.Nullable;
  * datadog.trace.api.civisibility.CIVisibility})
  */
 public class ManualApiTestSession extends AbstractTestSession implements DDTestSession {
-
   private final CoverageStore.Factory coverageStoreFactory;
 
   public ManualApiTestSession(
@@ -31,7 +30,8 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       LinesResolver linesResolver,
-      CoverageStore.Factory coverageStoreFactory) {
+      CoverageStore.Factory coverageStoreFactory
+  ) {
     super(
         projectName,
         startTime,
@@ -42,7 +42,8 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
         testDecorator,
         sourcePathResolver,
         codeowners,
-        linesResolver);
+        linesResolver
+    );
     this.coverageStoreFactory = coverageStoreFactory;
   }
 
@@ -59,6 +60,7 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
         codeowners,
         linesResolver,
         coverageStoreFactory,
-        tagPropagator::propagateCiVisibilityTags);
+        tagPropagator::propagateCiVisibilityTags
+    );
   }
 }

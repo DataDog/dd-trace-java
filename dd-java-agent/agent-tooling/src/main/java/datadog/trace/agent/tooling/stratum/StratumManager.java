@@ -16,11 +16,8 @@ import org.slf4j.LoggerFactory;
  * href="https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection">...</a>
  */
 public class StratumManager {
-
   private static final Logger LOG = LoggerFactory.getLogger(StratumManager.class);
-
   private static volatile StratumManager INSTANCE;
-
   private final LimitedConcurrentHashMap map;
 
   public static StratumManager init(int sourceMappingLimit, IntConsumer limitReachedCallback) {
@@ -57,8 +54,8 @@ public class StratumManager {
       SourceMap result = Resolver.resolve(sourceMaps.get(0));
       // clean result object to minimize memory usage
       result
-          .getStratumList()
-          .forEach(stratum -> stratum.getLineInfo().forEach(li -> li.setFileInfo(null)));
+        .getStratumList()
+        .forEach(stratum -> stratum.getLineInfo().forEach(li -> li.setFileInfo(null)));
       return result;
     } catch (Exception e) {
       LOG.debug("Could not get resolved source map from smap", e);
@@ -87,7 +84,9 @@ public class StratumManager {
     return null;
   }
 
-  /** Get name and debug info */
+  /**
+   * Get name and debug info
+   */
   private String[] extractSourceDebugExtensionASM(final byte[] classBytes) {
     ClassReader cr = new ClassReader(classBytes);
     final String[] result = new String[2];
@@ -100,7 +99,8 @@ public class StratumManager {
               final String name,
               final String signature,
               final String superName,
-              final String[] interfaces) {
+              final String[] interfaces
+          ) {
             result[0] = name.replace('/', '.');
           }
 
@@ -109,7 +109,8 @@ public class StratumManager {
             result[1] = debug;
           }
         },
-        ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
+        ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES
+    );
 
     return result;
   }

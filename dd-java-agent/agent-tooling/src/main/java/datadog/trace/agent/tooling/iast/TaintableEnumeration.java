@@ -8,19 +8,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TaintableEnumeration implements Enumeration<String> {
-
   private static final String CLASS_NAME = TaintableEnumeration.class.getName();
-
   private final IastContext context;
-
   private final PropagationModule module;
-
   private final byte origin;
-
   private final CharSequence name;
-
   private final boolean useValueAsName;
-
   private final Enumeration<String> delegate;
 
   private TaintableEnumeration(
@@ -29,7 +22,8 @@ public class TaintableEnumeration implements Enumeration<String> {
       @Nonnull final PropagationModule module,
       final byte origin,
       @Nullable final CharSequence name,
-      final boolean useValueAsName) {
+      final boolean useValueAsName
+  ) {
     this.context = ctx;
     this.delegate = delegate;
     this.module = module;
@@ -81,7 +75,8 @@ public class TaintableEnumeration implements Enumeration<String> {
       @Nonnull final Enumeration<String> delegate,
       @Nonnull final PropagationModule module,
       final byte origin,
-      @Nullable final CharSequence name) {
+      @Nullable final CharSequence name
+  ) {
     return new TaintableEnumeration(ctx, delegate, module, origin, name, false);
   }
 
@@ -90,7 +85,8 @@ public class TaintableEnumeration implements Enumeration<String> {
       @Nonnull final Enumeration<String> delegate,
       @Nonnull final PropagationModule module,
       final byte origin,
-      boolean useValueAsName) {
+      boolean useValueAsName
+  ) {
     return new TaintableEnumeration(ctx, delegate, module, origin, null, useValueAsName);
   }
 }

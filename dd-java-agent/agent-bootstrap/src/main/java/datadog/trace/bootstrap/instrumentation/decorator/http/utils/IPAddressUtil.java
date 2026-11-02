@@ -124,7 +124,11 @@ public class IPAddressUtil {
     colonp = -1;
     int i = 0, j = 0;
     /* Leading :: requires some special handling. */
-    if (srcb[i] == ':') if (srcb[++i] != ':') return null;
+    if (srcb[i] == ':') {
+      if (srcb[++i] != ':') {
+        return null;
+      }
+    }
     int curtok = i;
     saw_xdigit = false;
     val = 0;
@@ -134,20 +138,26 @@ public class IPAddressUtil {
       if (chval != -1) {
         val <<= 4;
         val |= chval;
-        if (val > 0xffff) return null;
+        if (val > 0xffff) {
+          return null;
+        }
         saw_xdigit = true;
         continue;
       }
       if (ch == ':') {
         curtok = i;
         if (!saw_xdigit) {
-          if (colonp != -1) return null;
+          if (colonp != -1) {
+            return null;
+          }
           colonp = j;
           continue;
         } else if (i == srcb_length) {
           return null;
         }
-        if (j + INT16SZ > INADDR16SZ) return null;
+        if (j + INT16SZ > INADDR16SZ) {
+          return null;
+        }
         dst[j++] = (byte) ((val >> 8) & 0xff);
         dst[j++] = (byte) (val & 0xff);
         saw_xdigit = false;
@@ -173,12 +183,15 @@ public class IPAddressUtil {
           dst[j++] = v4addr[k];
         }
         saw_xdigit = false;
-        break; /* '\0' was seen by inet_pton4(). */
+        break;
+        /* '\0' was seen by inet_pton4(). */
       }
       return null;
     }
     if (saw_xdigit) {
-      if (j + INT16SZ > INADDR16SZ) return null;
+      if (j + INT16SZ > INADDR16SZ) {
+        return null;
+      }
       dst[j++] = (byte) ((val >> 8) & 0xff);
       dst[j++] = (byte) (val & 0xff);
     }
@@ -186,14 +199,18 @@ public class IPAddressUtil {
     if (colonp != -1) {
       int n = j - colonp;
 
-      if (j == INADDR16SZ) return null;
+      if (j == INADDR16SZ) {
+        return null;
+      }
       for (i = 1; i <= n; i++) {
         dst[INADDR16SZ - i] = dst[colonp + n - i];
         dst[colonp + n - i] = 0;
       }
       j = INADDR16SZ;
     }
-    if (j != INADDR16SZ) return null;
+    if (j != INADDR16SZ) {
+      return null;
+    }
     byte[] newdst = convertFromIPv4MappedAddress(dst);
     if (newdst != null) {
       return newdst;

@@ -6,13 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.nio.ByteBuffer;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ChunkedBufferTest {
-
   private static final int TWO_CHUNKS = 2 * CHUNK_SIZE;
   private static final int THREE_CHUNKS = 3 * CHUNK_SIZE;
 
@@ -38,7 +36,6 @@ class ChunkedBufferTest {
     buffer.putLong(5L);
     assertTrue(buffer.mark());
     assertEquals(CHUNK_SIZE + 10, buffer.completedBytes());
-
     // a short last chunk can still be too small for the next primitive
     buffer.putShort((short) 1);
     assertFalse(buffer.mark());
@@ -67,7 +64,6 @@ class ChunkedBufferTest {
     assertTrue(buffer.mark());
     buffer.reset();
     assertEquals(2, buffer.allocatedChunks());
-
     // a 4 byte tail in the first chunk means this payload needs 14 bytes of the second
     buffer.put(new byte[CHUNK_SIZE - 4]);
     buffer.putLong(1L);
@@ -239,7 +235,6 @@ class ChunkedBufferTest {
     byte[] first = sequence(CHUNK_SIZE + 10);
     buffer.put(first);
     assertTrue(buffer.mark());
-
     // runs past capacity with every kind of write: none of them throw
     buffer.put(new byte[CHUNK_SIZE]);
     for (int i = 0; i < 1000; ++i) {
@@ -257,7 +252,6 @@ class ChunkedBufferTest {
     assertFalse(buffer.mark());
     assertArrayEquals(first, concat(buffer.completedChunks()));
     assertEquals(1, buffer.messageCount());
-
     // the failure is cleared and the buffer takes writes again
     buffer.putInt(99);
     assertTrue(buffer.mark());
@@ -317,7 +311,6 @@ class ChunkedBufferTest {
     buffer.mark();
     buffer.reset();
     assertEquals(19, buffer.allocatedChunks());
-
     // quiet cycles that each need one chunk: the surplus halves each time
     int[] expected = {10, 5, 3, 2, 1, 1};
     for (int kept : expected) {
@@ -385,18 +378,16 @@ class ChunkedBufferTest {
 
   @Test
   void subclassCanThrowWhenCapacityIsExceeded() {
-    ChunkedBuffer buffer =
-        new ChunkedBuffer(CHUNK_SIZE) {
-          @Override
-          protected void onCapacityExceeded() {
-            throw new IllegalStateException("full");
-          }
-        };
+    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE) {
+      @Override
+      protected void onCapacityExceeded() {
+        throw new IllegalStateException("full");
+      }
+    };
     buffer.putInt(1);
     assertTrue(buffer.mark());
 
     assertThrows(IllegalStateException.class, () -> buffer.put(new byte[CHUNK_SIZE]));
-
     // the writer stopped at the failure point; rewinding clears it
     buffer.rewind();
     buffer.putInt(2);

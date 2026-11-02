@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.util.IntStringUtils.REJECT_LEADING_PLUS;
 import static datadog.trace.util.IntStringUtils.parseNonNegativeInt;
-
 import javax.annotation.Nullable;
 
 /**
@@ -10,8 +9,8 @@ import javax.annotation.Nullable;
  * {@code [ipv6]:port}) without throwing. The value comes from the client, so it may be malformed.
  */
 public final class HostHeader {
-
-  private HostHeader() {}
+  private HostHeader() {
+  }
 
   /**
    * @return the index of the ':' separating the host from the port, or {@code -1} if there is no
@@ -42,9 +41,12 @@ public final class HostHeader {
     if (separator == -1) {
       return 0;
     }
-    final int port =
-        parseNonNegativeInt(
-            hostHeader, separator + 1, hostHeader.length() - separator - 1, REJECT_LEADING_PLUS);
+    final int port = parseNonNegativeInt(
+        hostHeader,
+        separator + 1,
+        hostHeader.length() - separator - 1,
+        REJECT_LEADING_PLUS
+    );
     return port == -1 ? 0 : port;
   }
 }

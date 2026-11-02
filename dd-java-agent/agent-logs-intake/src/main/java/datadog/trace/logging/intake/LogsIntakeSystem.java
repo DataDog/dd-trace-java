@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LogsIntakeSystem {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(LogsIntakeSystem.class);
 
   public static void install(SharedCommunicationObjects sco, Intake intake) {

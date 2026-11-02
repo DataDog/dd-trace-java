@@ -7,7 +7,6 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
-
 import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.JsonReader;
 import java.io.IOException;
@@ -30,7 +29,8 @@ import okio.Buffer;
 public final class DecodedSpanEvents {
   private static final String SPAN_EVENTS_TAG = "events";
 
-  private DecodedSpanEvents() {}
+  private DecodedSpanEvents() {
+  }
 
   /**
    * Decodes the span events from meta tags.
@@ -46,7 +46,8 @@ public final class DecodedSpanEvents {
       return emptyList();
     }
     try (Buffer buffer = new Buffer();
-        JsonReader reader = JsonReader.of(buffer.writeUtf8(tagValue))) {
+        JsonReader reader = JsonReader.of(buffer.writeUtf8(tagValue))
+    ) {
       List<DecodedSpanEvent> events = new ArrayList<>();
       if (reader.peek() == NULL) {
         reader.nextNull();
@@ -75,13 +76,17 @@ public final class DecodedSpanEvents {
    * @return The event.
    */
   public static DecodedSpanEvent event(
-      String name, long timeUnixNano, Map<String, Object> attributes) {
+      String name,
+      long timeUnixNano,
+      Map<String, Object> attributes
+  ) {
     return new SpanEvent(name, timeUnixNano, attributes);
   }
 
   private static DecodedSpanEvent readEvent(JsonReader reader, String tagValue) throws IOException {
     if (reader.peek() != BEGIN_OBJECT) {
-      throw new IllegalStateException("Malformed span events with a non-object event: " + tagValue);
+      throw new IllegalStateException("Malformed span events with a non-object event: "
+          + tagValue);
     }
     String name = null;
     Long timeUnixNano = null;
@@ -106,7 +111,8 @@ public final class DecodedSpanEvents {
     reader.endObject();
     if (name == null || timeUnixNano == null) {
       throw new IllegalStateException(
-          "Span event missing a required field (name, time_unix_nano): " + tagValue);
+          "Span event missing a required field (name, time_unix_nano): " + tagValue
+      );
     }
     return new SpanEvent(name, timeUnixNano, attributes);
   }
@@ -162,10 +168,9 @@ public final class DecodedSpanEvents {
     private SpanEvent(String name, long timeUnixNano, Map<String, Object> attributes) {
       this.name = name;
       this.timeUnixNano = timeUnixNano;
-      this.attributes =
-          attributes == null || attributes.isEmpty()
-              ? emptyMap()
-              : unmodifiableMap(new LinkedHashMap<>(attributes));
+      this.attributes = attributes == null || attributes.isEmpty()
+          ? emptyMap()
+          : unmodifiableMap(new LinkedHashMap<>(attributes));
     }
 
     @Override

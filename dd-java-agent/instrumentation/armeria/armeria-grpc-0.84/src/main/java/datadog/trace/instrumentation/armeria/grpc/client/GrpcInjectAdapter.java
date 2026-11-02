@@ -13,15 +13,16 @@ public final class GrpcInjectAdapter implements CarrierSetter<Metadata> {
       key -> Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
   private static final DDCache<String, Metadata.Key<String>> KEY_CACHE =
       DDCaches.newFixedSizeCache(64);
-
   public static final GrpcInjectAdapter SETTER = new GrpcInjectAdapter();
 
   @Override
   public void set(final Metadata carrier, final String key, final String value) {
     Metadata.Key<String> metadataKey = KEY_CACHE.computeIfAbsent(key, KEY_MAKER);
     if (carrier.containsKey(metadataKey)) {
-      carrier.removeAll(
-          metadataKey); // Remove existing to ensure identical behavior with other carriers
+      carrier
+        .removeAll(metadataKey
+        // Remove existing to ensure identical behavior with other carriers
+        );
     }
     carrier.put(metadataKey, value);
   }

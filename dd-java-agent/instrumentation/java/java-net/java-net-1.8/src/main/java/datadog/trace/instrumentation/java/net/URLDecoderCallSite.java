@@ -10,11 +10,11 @@ import javax.annotation.Nullable;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class URLDecoderCallSite {
-
   @CallSite.After("java.lang.String java.net.URLDecoder.decode(java.lang.String)")
   public static String afterDecode(
       @CallSite.Argument @Nullable final String value,
-      @CallSite.Return @Nullable final String result) {
+      @CallSite.Return @Nullable final String result
+  ) {
     if (value != null && result != null) {
       final CodecModule module = InstrumentationBridge.CODEC;
       if (module != null) {
@@ -32,7 +32,8 @@ public class URLDecoderCallSite {
   public static String afterDecode(
       @CallSite.Argument @Nullable final String value,
       @CallSite.Argument @Nullable final String encoding,
-      @CallSite.Return @Nullable final String result) {
+      @CallSite.Return @Nullable final String result
+  ) {
     if (value != null && result != null) {
       final CodecModule module = InstrumentationBridge.CODEC;
       if (module != null) {

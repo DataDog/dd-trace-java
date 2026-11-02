@@ -3,7 +3,6 @@ package datadog.trace.common.writer.ddintake;
 import static datadog.trace.api.intake.TrackType.NOOP;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_TIMEOUT;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_VERSION;
-
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
@@ -22,11 +21,11 @@ import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The API pointing to a DD Intake endpoint */
+/**
+ * The API pointing to a DD Intake endpoint
+ */
 public class DDIntakeApi extends RemoteApi {
-
   private static final Logger log = LoggerFactory.getLogger(DDIntakeApi.class);
-
   private static final String DD_API_KEY_HEADER = "dd-api-key";
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
   private static final String GZIP_CONTENT_TYPE = "gzip";
@@ -40,11 +39,9 @@ public class DDIntakeApi extends RemoteApi {
     private String apiVersion = DEFAULT_INTAKE_VERSION;
     private TrackType trackType = TrackType.NOOP;
     private long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
-
     HttpUrl hostUrl = null;
     OkHttpClient httpClient = null;
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
-
     private String apiKey;
 
     public DDIntakeApiBuilder trackType(final TrackType trackType) {
@@ -109,7 +106,8 @@ public class DDIntakeApi extends RemoteApi {
       OkHttpClient httpClient,
       HttpUrl intakeUrl,
       String apiKey,
-      HttpRetryPolicy.Factory retryPolicyFactory) {
+      HttpRetryPolicy.Factory retryPolicyFactory
+  ) {
     super(true);
     this.telemetryListener = new TelemetryListener(trackType.endpoint);
     this.trackType = trackType;
@@ -123,14 +121,13 @@ public class DDIntakeApi extends RemoteApi {
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
 
-    final Request request =
-        new Request.Builder()
-            .url(intakeUrl)
-            .addHeader(DD_API_KEY_HEADER, apiKey)
-            .addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE)
-            .post(payload.toRequest())
-            .tag(OkHttpUtils.CustomListener.class, telemetryListener)
-            .build();
+    final Request request = new Request.Builder()
+      .url(intakeUrl)
+      .addHeader(DD_API_KEY_HEADER, apiKey)
+      .addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE)
+      .post(payload.toRequest())
+      .tag(OkHttpUtils.CustomListener.class, telemetryListener)
+      .build();
     totalTraces += payload.traceCount();
     receivedTraces += payload.traceCount();
 
@@ -140,21 +137,22 @@ public class DDIntakeApi extends RemoteApi {
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
         return Response.success(response.code());
       } else {
-        InstrumentationBridge.getMetricCollector()
-            .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_DROPPED, 1, trackType.endpoint);
+        InstrumentationBridge
+          .getMetricCollector()
+          .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_DROPPED, 1, trackType.endpoint);
         countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
         return Response.failed(response.code());
       }
-
     } catch (ConnectException e) {
-      InstrumentationBridge.getMetricCollector()
-          .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_DROPPED, 1, trackType.endpoint);
+      InstrumentationBridge
+        .getMetricCollector()
+        .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_DROPPED, 1, trackType.endpoint);
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, null);
       return Response.failed(e);
-
     } catch (IOException e) {
-      InstrumentationBridge.getMetricCollector()
-          .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_DROPPED, 1, trackType.endpoint);
+      InstrumentationBridge
+        .getMetricCollector()
+        .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_DROPPED, 1, trackType.endpoint);
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
     }

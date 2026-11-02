@@ -8,15 +8,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Immutable scope and continuation lifecycle snapshot with derived failures. */
+/**
+ * Immutable scope and continuation lifecycle snapshot with derived failures.
+ */
 public final class ScopeDiagnosticsReport {
-  private static final EnumSet<ScopeDiagnosticsCheck> ENFORCED_CHECKS =
-      EnumSet.of(
-          ScopeDiagnosticsCheck.LEAKED,
-          ScopeDiagnosticsCheck.DOUBLE_FINISH,
-          ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
-          ScopeDiagnosticsCheck.NEVER_CLOSED);
-
+  private static final EnumSet<ScopeDiagnosticsCheck> ENFORCED_CHECKS = EnumSet.of(
+      ScopeDiagnosticsCheck.LEAKED,
+      ScopeDiagnosticsCheck.DOUBLE_FINISH,
+      ScopeDiagnosticsCheck.ACTIVATE_AFTER_RESOLVE,
+      ScopeDiagnosticsCheck.NEVER_CLOSED
+  );
   private final List<ContinuationRecord> continuations;
   private final List<ScopeRecord> scopes;
   private final long t0;
@@ -27,7 +28,8 @@ public final class ScopeDiagnosticsReport {
   ScopeDiagnosticsReport(
       List<ContinuationRecord> continuations,
       List<ScopeRecord> scopes,
-      Map<DDTraceId, Long> rootWrittenNanos) {
+      Map<DDTraceId, Long> rootWrittenNanos
+  ) {
     this.continuations = new ArrayList<>(continuations.size());
     for (ContinuationRecord continuation : continuations) {
       this.continuations.add(continuation.snapshot());
@@ -59,7 +61,9 @@ public final class ScopeDiagnosticsReport {
   }
 
   private static Map<ContinuationRecord, EnumSet<ScopeDiagnosticsCheck>> classifyContinuations(
-      List<ContinuationRecord> records, Map<DDTraceId, Long> rootWrittenNanos) {
+      List<ContinuationRecord> records,
+      Map<DDTraceId, Long> rootWrittenNanos
+  ) {
     Map<ContinuationRecord, EnumSet<ScopeDiagnosticsCheck>> result = new LinkedHashMap<>();
     for (ContinuationRecord r : records) {
       EnumSet<ScopeDiagnosticsCheck> failures = r.failures(rootWrittenNanos.get(r.traceId));
@@ -71,7 +75,8 @@ public final class ScopeDiagnosticsReport {
   }
 
   private static Map<ScopeRecord, EnumSet<ScopeDiagnosticsCheck>> classifyScopes(
-      List<ScopeRecord> scopes) {
+      List<ScopeRecord> scopes
+  ) {
     Map<ScopeRecord, EnumSet<ScopeDiagnosticsCheck>> result = new LinkedHashMap<>();
     for (ScopeRecord s : scopes) {
       EnumSet<ScopeDiagnosticsCheck> failures = s.failures();
@@ -137,7 +142,9 @@ public final class ScopeDiagnosticsReport {
   }
 
   private static <K> int countWith(
-      Map<K, EnumSet<ScopeDiagnosticsCheck>> findings, ScopeDiagnosticsCheck check) {
+      Map<K, EnumSet<ScopeDiagnosticsCheck>> findings,
+      ScopeDiagnosticsCheck check
+  ) {
     int n = 0;
     for (EnumSet<ScopeDiagnosticsCheck> f : findings.values()) {
       if (f.contains(check)) {
@@ -147,7 +154,9 @@ public final class ScopeDiagnosticsReport {
     return n;
   }
 
-  /** Returns whether the report contains a violation that should fail the test. */
+  /**
+   * Returns whether the report contains a violation that should fail the test.
+   */
   public boolean hasViolations() {
     return hasViolations(EnumSet.allOf(ScopeDiagnosticsCheck.class));
   }
@@ -158,7 +167,9 @@ public final class ScopeDiagnosticsReport {
     return enforced;
   }
 
-  /** Returns whether an enabled check contains a finding enforced by the current policy. */
+  /**
+   * Returns whether an enabled check contains a finding enforced by the current policy.
+   */
   boolean hasViolations(Set<ScopeDiagnosticsCheck> enabledChecks) {
     for (ScopeDiagnosticsCheck check : enforcedChecks(enabledChecks)) {
       if (count(check) > 0) {
@@ -187,40 +198,47 @@ public final class ScopeDiagnosticsReport {
     }
   }
 
-  /** True when the report contains either a failing problem or an advisory signal. */
+  /**
+   * True when the report contains either a failing problem or an advisory signal.
+   */
   public boolean hasFindings() {
     return !continuationFailures.isEmpty() || !scopeFailures.isEmpty();
   }
 
   private void appendHeader(StringBuilder sb, String title) {
-    sb.append(title)
-        .append(" (")
-        .append(continuations.size())
-        .append(" continuations, ")
-        .append(scopes.size())
-        .append(" scopes; ")
-        .append(leakCount())
-        .append(" leaked, ")
-        .append(lateCount())
-        .append(" late, ")
-        .append(doubleCount())
-        .append(" double, ")
-        .append(activateAfterResolveCount())
-        .append(" activate-after-resolve | scopes: ")
-        .append(neverClosedScopeCount())
-        .append(" never-closed, ")
-        .append(deferredCleanupScopeCount())
-        .append(" deferred, ")
-        .append(closeWrongThreadCount())
-        .append(" wrong-thread)\n");
+    sb
+      .append(title)
+      .append(" (")
+      .append(continuations.size())
+      .append(" continuations, ")
+      .append(scopes.size())
+      .append(" scopes; ")
+      .append(leakCount())
+      .append(" leaked, ")
+      .append(lateCount())
+      .append(" late, ")
+      .append(doubleCount())
+      .append(" double, ")
+      .append(activateAfterResolveCount())
+      .append(" activate-after-resolve | scopes: ")
+      .append(neverClosedScopeCount())
+      .append(" never-closed, ")
+      .append(deferredCleanupScopeCount())
+      .append(" deferred, ")
+      .append(closeWrongThreadCount())
+      .append(" wrong-thread)\n");
   }
 
-  /** Renders flagged continuations and scopes with their call sites. */
+  /**
+   * Renders flagged continuations and scopes with their call sites.
+   */
   public String renderSummary() {
     return renderSummary(EnumSet.allOf(ScopeDiagnosticsCheck.class));
   }
 
-  /** Renders enforced violations first, followed by advisory and excluded findings. */
+  /**
+   * Renders enforced violations first, followed by advisory and excluded findings.
+   */
   String renderSummary(Set<ScopeDiagnosticsCheck> checks) {
     StringBuilder sb = new StringBuilder("Scope/continuation findings\n");
     EnumSet<ScopeDiagnosticsCheck> enforced = enforcedChecks(checks);
@@ -247,17 +265,18 @@ public final class ScopeDiagnosticsReport {
       }
       ContinuationRecord r = e.getKey();
       ScopeEvent capture = r.capture();
-      sb.append("  ")
-          .append(findings)
-          .append(" #")
-          .append(r.seq)
-          .append(" trace=")
-          .append(r.traceId)
-          .append(" src=")
-          .append(r.sourceName())
-          .append(" captured at ")
-          .append(capture == null || capture.callsite() == null ? "<unknown>" : capture.callsite())
-          .append('\n');
+      sb
+        .append("  ")
+        .append(findings)
+        .append(" #")
+        .append(r.seq)
+        .append(" trace=")
+        .append(r.traceId)
+        .append(" src=")
+        .append(r.sourceName())
+        .append(" captured at ")
+        .append(capture == null || capture.callsite() == null ? "<unknown>" : capture.callsite())
+        .append('\n');
     }
     for (Map.Entry<ScopeRecord, EnumSet<ScopeDiagnosticsCheck>> e : scopeFailures.entrySet()) {
       EnumSet<ScopeDiagnosticsCheck> findings = e.getValue().clone();
@@ -267,17 +286,18 @@ public final class ScopeDiagnosticsReport {
       }
       ScopeRecord s = e.getKey();
       ScopeEvent open = s.open();
-      sb.append("  ")
-          .append(findings)
-          .append(" scope#")
-          .append(s.seq)
-          .append(" trace=")
-          .append(s.traceId)
-          .append(" src=")
-          .append(s.sourceName())
-          .append(" opened at ")
-          .append(open == null || open.callsite() == null ? "<unknown>" : open.callsite())
-          .append('\n');
+      sb
+        .append("  ")
+        .append(findings)
+        .append(" scope#")
+        .append(s.seq)
+        .append(" trace=")
+        .append(s.traceId)
+        .append(" src=")
+        .append(s.sourceName())
+        .append(" opened at ")
+        .append(open == null || open.callsite() == null ? "<unknown>" : open.callsite())
+        .append('\n');
     }
     if (sb.length() == start) {
       sb.append("  (none)\n");
@@ -286,7 +306,9 @@ public final class ScopeDiagnosticsReport {
 
   private static final int TIMELINE_FRAMES = 3;
 
-  /** Renders all events with relative times, threads, call sites, and linked scopes. */
+  /**
+   * Renders all events with relative times, threads, call sites, and linked scopes.
+   */
   public String renderTimeline() {
     StringBuilder sb = new StringBuilder();
     appendHeader(sb, "Scope/continuation timeline");
@@ -298,14 +320,15 @@ public final class ScopeDiagnosticsReport {
     for (ContinuationRecord r : continuations) {
       EnumSet<ScopeDiagnosticsCheck> failures =
           continuationFailures.getOrDefault(r, EnumSet.noneOf(ScopeDiagnosticsCheck.class));
-      sb.append("\n#")
-          .append(r.seq)
-          .append(' ')
-          .append(r.status())
-          .append(" trace=")
-          .append(r.traceId)
-          .append(" span=")
-          .append(r.spanId);
+      sb
+        .append("\n#")
+        .append(r.seq)
+        .append(' ')
+        .append(r.status())
+        .append(" trace=")
+        .append(r.traceId)
+        .append(" span=")
+        .append(r.spanId);
       if (r.spanName != null) {
         sb.append(" \"").append(r.spanName).append('"');
       }
@@ -333,7 +356,8 @@ public final class ScopeDiagnosticsReport {
         appendEvent(
             sb,
             terminal.type == ScopeEvent.Type.RESOLVE_RELEASE ? "release " : "finish  ",
-            terminal);
+            terminal
+        );
       }
       for (ScopeEvent extra : r.extraTerminals()) {
         appendEvent(sb, "DOUBLE  ", extra);
@@ -390,10 +414,7 @@ public final class ScopeDiagnosticsReport {
       sb.append("  open +").append(relMillis(open.nanos)).append("ms @ ").append(open.threadName);
     }
     if (close != null) {
-      sb.append("  close +")
-          .append(relMillis(close.nanos))
-          .append("ms @ ")
-          .append(close.threadName);
+      sb.append("  close +").append(relMillis(close.nanos)).append("ms @ ").append(close.threadName);
       Long active = scope.activeDurationNanos();
       if (active != null) {
         sb.append(" (active ").append(millis(active)).append("ms)");
@@ -419,15 +440,16 @@ public final class ScopeDiagnosticsReport {
       sb.append("  ").append(label).append("  (not observed)\n");
       return;
     }
-    sb.append("  ")
-        .append(label)
-        .append("  +")
-        .append(relMillis(event.nanos))
-        .append("ms  @ ")
-        .append(event.threadName)
-        .append("  at ")
-        .append(event.callsite() == null ? "<filtered>" : event.callsite())
-        .append('\n');
+    sb
+      .append("  ")
+      .append(label)
+      .append("  +")
+      .append(relMillis(event.nanos))
+      .append("ms  @ ")
+      .append(event.threadName)
+      .append("  at ")
+      .append(event.callsite() == null ? "<filtered>" : event.callsite())
+      .append('\n');
     StackTraceElement[] stack = event.stack;
     if (stack != null) {
       for (int i = 1; i < stack.length && i < TIMELINE_FRAMES; i++) {

@@ -4,7 +4,6 @@ import static datadog.context.Context.current;
 import static datadog.context.Context.root;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -58,12 +57,16 @@ abstract class ContextTestBase {
       return value != null ? value : "{root}";
     }
 
-    /** Asserts the full sequence of recorded events equals {@code expected}. */
+    /**
+     * Asserts the full sequence of recorded events equals {@code expected}.
+     */
     void assertEvents(String... expected) {
       assertEquals(asList(expected), new ArrayList<>(this.events));
     }
 
-    /** Asserts that no events have been recorded at all. */
+    /**
+     * Asserts that no events have been recorded at all.
+     */
     void assertNoEvents() {
       assertEvents();
     }

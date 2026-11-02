@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -20,7 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ScopeDiagnosticsClientTest {
-  @TempDir Path temporary;
+  @TempDir
+  Path temporary;
 
   @Test
   void serverWindowsUseDistinctSequences() throws Exception {
@@ -142,8 +142,9 @@ class ScopeDiagnosticsClientTest {
     assertThrows(AssertionError.class, () -> client.verifyCompleted(new StubProcess(false)));
     ScopeDiagnosticsClient incorrectSequence = client(true);
     response(incorrectSequence, "final", 12, "ok");
-    assertThrows(
-        AssertionError.class, () -> incorrectSequence.verifyCompleted(new StubProcess(false)));
+    assertThrows(AssertionError.class, () -> incorrectSequence.verifyCompleted(
+        new StubProcess(false)
+    ));
   }
 
   @Test
@@ -168,14 +169,15 @@ class ScopeDiagnosticsClientTest {
 
   @Test
   void optOutRequiresAnExplanation() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> SmokeCliApp.named("cli").skipScopeContinuationCheck("  "));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> SmokeServerApp.named("server").skipScopeContinuationCheck(null));
-    assertDoesNotThrow(
-        () -> SmokeCliApp.named("cli").skipScopeContinuationCheck("Expected Runtime.halt"));
+    assertThrows(IllegalArgumentException.class, () -> SmokeCliApp
+      .named("cli")
+      .skipScopeContinuationCheck("  "));
+    assertThrows(IllegalArgumentException.class, () -> SmokeServerApp
+      .named("server")
+      .skipScopeContinuationCheck(null));
+    assertDoesNotThrow(() -> SmokeCliApp
+      .named("cli")
+      .skipScopeContinuationCheck("Expected Runtime.halt"));
   }
 
   @Test
@@ -190,9 +192,11 @@ class ScopeDiagnosticsClientTest {
     assertTrue(client.javaAgentArgument().endsWith("=" + client.directory()));
     assertThrows(IllegalArgumentException.class, () -> client(true, "  ", LEAKED));
     assertThrows(IllegalArgumentException.class, () -> client(true, null, LEAKED));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> client(true, "fixture", (ScopeDiagnosticsCheck) null));
+    assertThrows(IllegalArgumentException.class, () -> client(
+        true,
+        "fixture",
+        (ScopeDiagnosticsCheck) null
+    ));
   }
 
   @Test
@@ -219,33 +223,28 @@ class ScopeDiagnosticsClientTest {
 
   @Test
   void builderRejectsInvalidOrContradictoryExclusions() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> SmokeCliApp.named("cli").disableScopeContinuationChecks("", LEAKED));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> SmokeServerApp.named("server").disableScopeContinuationChecks(null, LEAKED));
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            SmokeCliApp.named("cli")
-                .disableScopeContinuationChecks(
-                    "Known fixture",
-                    (datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck) null));
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            SmokeCliApp.named("cli")
-                .skipScopeContinuationCheck("No premain")
-                .disableScopeContinuationChecks("Known fixture", LEAKED)
-                .build());
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            SmokeCliApp.named("cli")
-                .disableScopeContinuationChecks("Known fixture", LEAKED)
-                .skipScopeContinuationCheck("No premain")
-                .build());
+    assertThrows(IllegalArgumentException.class, () -> SmokeCliApp
+      .named("cli")
+      .disableScopeContinuationChecks("", LEAKED));
+    assertThrows(IllegalArgumentException.class, () -> SmokeServerApp
+      .named("server")
+      .disableScopeContinuationChecks(null, LEAKED));
+    assertThrows(IllegalArgumentException.class, () -> SmokeCliApp
+      .named("cli")
+      .disableScopeContinuationChecks(
+          "Known fixture",
+          (datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck) null
+      ));
+    assertThrows(IllegalArgumentException.class, () -> SmokeCliApp
+      .named("cli")
+      .skipScopeContinuationCheck("No premain")
+      .disableScopeContinuationChecks("Known fixture", LEAKED)
+      .build());
+    assertThrows(IllegalArgumentException.class, () -> SmokeCliApp
+      .named("cli")
+      .disableScopeContinuationChecks("Known fixture", LEAKED)
+      .skipScopeContinuationCheck("No premain")
+      .build());
   }
 
   private ScopeDiagnosticsClient client(boolean cli) throws IOException {
@@ -277,7 +276,8 @@ class ScopeDiagnosticsClientTest {
         "timeline",
         "test timeline",
         "eventCount",
-        "0");
+        "0"
+    );
   }
 
   private static void write(ScopeDiagnosticsClient client, String file, String... entries)

@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.sofarpc.SofaRpcInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.alipay.sofa.rpc.client.AbstractCluster;
 import com.alipay.sofa.rpc.config.ConsumerConfig;
 import com.alipay.sofa.rpc.core.request.SofaRequest;
@@ -22,8 +21,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 public class AbstractClusterInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "com.alipay.sofa.rpc.client.AbstractCluster";
@@ -33,16 +33,19 @@ public class AbstractClusterInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("invoke"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("com.alipay.sofa.rpc.core.request.SofaRequest"))),
-        getClass().getName() + "$InvokeAdvice");
+          .and(named("invoke"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("com.alipay.sofa.rpc.core.request.SofaRequest"))),
+        getClass().getName() + "$InvokeAdvice"
+    );
   }
 
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope enter(
-        @Advice.This AbstractCluster self, @Advice.Argument(0) SofaRequest request) {
+        @Advice.This AbstractCluster self,
+        @Advice.Argument(0) SofaRequest request
+    ) {
       ConsumerConfig config = self.getConsumerConfig();
       String protocol = config != null ? config.getProtocol() : null;
       AgentSpan span = startSpan("sofarpc-client", SOFA_RPC_CLIENT);
@@ -60,7 +63,8 @@ public class AbstractClusterInstrumentation
     public static void exit(
         @Advice.Enter ContextScope scope,
         @Advice.Return SofaResponse response,
-        @Advice.Thrown Throwable throwable) {
+        @Advice.Thrown Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

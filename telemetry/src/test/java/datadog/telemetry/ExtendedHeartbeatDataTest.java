@@ -3,7 +3,6 @@ package datadog.telemetry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigOrigin;
@@ -12,10 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class ExtendedHeartbeatDataTest {
-
   private final Dependency dependency = new Dependency("name", "version", "source", "hash");
-  private final ConfigSetting configSetting =
-      ConfigSetting.of("key", "value", ConfigOrigin.DEFAULT);
+  private final ConfigSetting configSetting = ConfigSetting.of("key", "value", ConfigOrigin.DEFAULT);
   private final Integration integration = new Integration("integration", true);
 
   @TableTest({
@@ -43,17 +40,14 @@ class ExtendedHeartbeatDataTest {
   @Test
   void returnAllCollectedData() {
     ExtendedHeartbeatData extHeartbeatData = new ExtendedHeartbeatData();
-
     // when
     EventSource emptySnapshot = extHeartbeatData.snapshot();
     // then
     assertTrue(emptySnapshot.isEmpty());
-
     // when
     extHeartbeatData.pushDependency(dependency);
     extHeartbeatData.pushConfigSetting(configSetting);
     extHeartbeatData.pushIntegration(integration);
-
     // then
     EventSource snapshot = extHeartbeatData.snapshot();
 
@@ -76,10 +70,8 @@ class ExtendedHeartbeatDataTest {
     assertFalse(snapshot.hasIntegrationEvent());
 
     assertTrue(snapshot.isEmpty());
-
     // when another snapshot includes all data
     EventSource anotherSnapshot = extHeartbeatData.snapshot();
-
     // then
     assertFalse(anotherSnapshot.isEmpty());
     assertTrue(anotherSnapshot.hasDependencyEvent());

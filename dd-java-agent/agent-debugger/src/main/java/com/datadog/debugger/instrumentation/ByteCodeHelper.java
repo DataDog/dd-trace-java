@@ -18,9 +18,10 @@ import org.objectweb.asm.tree.TableSwitchInsnNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-/** Helper class for bytecode analysis */
+/**
+ * Helper class for bytecode analysis
+ */
 public class ByteCodeHelper {
-
   /**
    * @return positive integer for number of slots that are pushed onto the stack and negative
    *     integer for slot consumed from the stack see
@@ -269,9 +270,11 @@ public class ByteCodeHelper {
     Type type = Type.getType(((FieldInsnNode) currentInsn).desc);
     switch (currentInsn.getOpcode()) {
       case Opcodes.GETFIELD:
-        return type.getSize() - 1; // consume instance field
+        // consume instance field
+        return type.getSize() - 1;
       case Opcodes.PUTFIELD:
-        return -type.getSize() - 1; // consume instance field
+        // consume instance field
+        return -type.getSize() - 1;
       case Opcodes.GETSTATIC:
         return type.getSize();
       case Opcodes.PUTSTATIC:
@@ -334,8 +337,8 @@ public class ByteCodeHelper {
       case Opcodes.JSR:
         return 1;
       case Opcodes.GOTO:
-        // no change
     }
+    // no change
     return 0;
   }
 

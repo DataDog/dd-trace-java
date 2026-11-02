@@ -1,7 +1,6 @@
 package com.datadog.openfeature.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -19,7 +18,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.zip.GZIPOutputStream;
 
-/** A local HTTP server replaying scripted responses and recording the received requests. */
+/**
+ * A local HTTP server replaying scripted responses and recording the received requests.
+ */
 public final class LocalHttpServer implements AutoCloseable {
   private final HttpServer server;
   private final ConcurrentLinkedQueue<Response> responses = new ConcurrentLinkedQueue<>();
@@ -40,25 +41,32 @@ public final class LocalHttpServer implements AutoCloseable {
   public URI uri(final String path) {
     return URI.create(
         "http://"
-            + this.server.getAddress().getHostString()
-            + ":"
-            + this.server.getAddress().getPort()
-            + path);
+        + this.server.getAddress().getHostString()
+        + ":"
+        + this.server.getAddress().getPort()
+        + path
+    );
   }
 
-  /** Queues a response. */
+  /**
+   * Queues a response.
+   */
   public LocalHttpServer enqueue(final int status, final String body, final String... headers) {
     this.responses.add(response(status, body, false, headers));
     return this;
   }
 
-  /** Queues a gzip encoded response. */
+  /**
+   * Queues a gzip encoded response.
+   */
   public LocalHttpServer enqueueGzip(final int status, final String body, final String... headers) {
     this.responses.add(response(status, body, true, headers));
     return this;
   }
 
-  /** Sets the response returned once queued responses are exhausted. */
+  /**
+   * Sets the response returned once queued responses are exhausted.
+   */
   public LocalHttpServer otherwise(final int status, final String body, final String... headers) {
     this.fallback = response(status, body, false, headers);
     return this;
@@ -78,7 +86,11 @@ public final class LocalHttpServer implements AutoCloseable {
   }
 
   private static Response response(
-      final int status, final String body, final boolean gzip, final String... headers) {
+      final int status,
+      final String body,
+      final boolean gzip,
+      final String... headers
+  ) {
     final Map<String, String> headerMap = new java.util.HashMap<>();
     for (int i = 0; i < headers.length; i += 2) {
       headerMap.put(headers[i], headers[i + 1]);
@@ -87,12 +99,12 @@ public final class LocalHttpServer implements AutoCloseable {
   }
 
   private void handle(final HttpExchange exchange) throws IOException {
-    final Request request =
-        new Request(
-            exchange.getRequestMethod(),
-            exchange.getRequestURI(),
-            exchange.getRequestHeaders(),
-            exchange.getRequestBody().readAllBytes());
+    final Request request = new Request(
+        exchange.getRequestMethod(),
+        exchange.getRequestURI(),
+        exchange.getRequestHeaders(),
+        exchange.getRequestBody().readAllBytes()
+    );
     this.requests.add(request);
     this.received.add(request);
     Response response = this.responses.poll();
@@ -120,7 +132,9 @@ public final class LocalHttpServer implements AutoCloseable {
     exchange.close();
   }
 
-  /** A received request. */
+  /**
+   * A received request.
+   */
   public static final class Request {
     public final String method;
     public final URI uri;
@@ -153,7 +167,8 @@ public final class LocalHttpServer implements AutoCloseable {
         final int status,
         final String body,
         final Map<String, String> headers,
-        final boolean gzip) {
+        final boolean gzip
+    ) {
       this.status = status;
       this.body = body;
       this.headers = headers;

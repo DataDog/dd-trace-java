@@ -11,18 +11,17 @@ import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/** Simple test UDP Server. Not for production use but good enough for tests */
+/**
+ * Simple test UDP Server. Not for production use but good enough for tests
+ */
 public class TestUDPServer implements Closeable {
   public static final int DEFAULT_TIMEOUT_MS = 30 * 1000;
   public static final int DEFAULT_PACKET_SIZE = 2000;
-
   private static final byte[] END_MESSAGE = "END____".getBytes();
-
   private final BlockingQueue<String> dataPackets = new LinkedBlockingQueue<>();
   private final int timeout;
   private final int packetSize;
   private final int port;
-
   private volatile boolean closed = false;
   private volatile boolean closing = false;
   private DatagramSocket socket;
@@ -49,38 +48,33 @@ public class TestUDPServer implements Closeable {
 
     socket = new DatagramSocket(port);
     socket.setSoTimeout(timeout);
-    readerThread =
-        new Thread(
-            () -> {
-              while (!closed && !closing) {
-                byte[] data = new byte[packetSize];
-                try {
-                  DatagramPacket packet = new DatagramPacket(data, packetSize);
-                  socket.receive(packet);
+    readerThread = new Thread(() -> {
+      while (!closed && !closing) {
+        byte[] data = new byte[packetSize];
+        try {
+          DatagramPacket packet = new DatagramPacket(data, packetSize);
+          socket.receive(packet);
 
-                  byte[] trimmedData = new byte[packet.getLength()];
-                  System.arraycopy(
-                      packet.getData(), packet.getOffset(), trimmedData, 0, packet.getLength());
+          byte[] trimmedData = new byte[packet.getLength()];
+          System.arraycopy(packet.getData(), packet.getOffset(), trimmedData, 0, packet.getLength());
 
-                  if (Arrays.equals(trimmedData, END_MESSAGE)) {
-                    System.err.println("[TestUDPServer] Received message to close");
-                    break;
-                  }
-                  System.err.println(
-                      "[TestUDPServer] Received message: " + new String(trimmedData));
-                  dataPackets.add(new String(trimmedData));
-                } catch (SocketTimeoutException e) {
-                  System.err.println("[TestUDPServer] Timeout waiting for message");
-                  // ignore no data sent
-                } catch (IOException e) {
-                  System.err.println("[TestUDPServer] Error in receiving packet " + e.getMessage());
-                  e.printStackTrace();
-                  break;
-                }
-              }
-              closed = true;
-            },
-            "Test UDP Server Receiver");
+          if (Arrays.equals(trimmedData, END_MESSAGE)) {
+            System.err.println("[TestUDPServer] Received message to close");
+            break;
+          }
+          System.err.println("[TestUDPServer] Received message: " + new String(trimmedData));
+          dataPackets.add(new String(trimmedData));
+        } catch (SocketTimeoutException e) {
+          System.err.println("[TestUDPServer] Timeout waiting for message");
+          // ignore no data sent
+        } catch (IOException e) {
+          System.err.println("[TestUDPServer] Error in receiving packet " + e.getMessage());
+          e.printStackTrace();
+          break;
+        }
+      }
+      closed = true;
+    }, "Test UDP Server Receiver");
 
     readerThread.setDaemon(true);
     readerThread.start();
@@ -101,13 +95,18 @@ public class TestUDPServer implements Closeable {
     try (DatagramSocket clientSocket = new DatagramSocket()) {
       clientSocket.send(
           new DatagramPacket(
-              END_MESSAGE, END_MESSAGE.length, InetAddress.getByName("localhost"), getPort()));
+              END_MESSAGE,
+              END_MESSAGE.length,
+              InetAddress.getByName("localhost"),
+              getPort()
+          )
+      );
     } catch (IOException e) {
       System.err.println(
-          "[TestUDPServer] Exception sending close message. Will rely on socket timeout");
+          "[TestUDPServer] Exception sending close message. Will rely on socket timeout"
+      );
       e.printStackTrace();
     }
-
     // Closed state is set by the reader thread. Wait for it to finish
     try {
       readerThread.join();

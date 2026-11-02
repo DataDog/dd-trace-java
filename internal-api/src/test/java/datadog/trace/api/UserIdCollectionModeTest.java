@@ -4,14 +4,12 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTA
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.tabletest.junit.TableTest;
 
 @ExtendWith(WithConfigExtension.class)
 class UserIdCollectionModeTest {
-
   @TableTest({
     "scenario                  | mode                          | expected      ",
     "unset                     |                               | IDENTIFICATION",
@@ -50,8 +48,7 @@ class UserIdCollectionModeTest {
     // by default
     "neither set              |       |          | IDENTIFICATION"
   })
-  void userIdCollectionModeWithTracking(
-      String mode, String tracking, UserIdCollectionMode expected) {
+  void userIdCollectionModeWithTracking(String mode, String tracking, UserIdCollectionMode expected) {
     UserIdCollectionMode result = UserIdCollectionMode.fromString(mode, tracking);
 
     assertEquals(expected, result);

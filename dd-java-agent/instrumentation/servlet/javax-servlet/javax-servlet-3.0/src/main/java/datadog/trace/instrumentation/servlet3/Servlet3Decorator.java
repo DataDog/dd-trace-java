@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
-
 import datadog.context.Context;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -19,9 +18,12 @@ import org.slf4j.LoggerFactory;
 
 public class Servlet3Decorator
     extends HttpServerDecorator<
-        HttpServletRequest, HttpServletRequest, HttpServletResponse, HttpServletRequest> {
+    HttpServletRequest,
+    HttpServletRequest,
+    HttpServletResponse,
+    HttpServletRequest>
+{
   public static final CharSequence JAVA_WEB_SERVLET = UTF8BytesString.create("java-web-servlet");
-
   public static final Servlet3Decorator DECORATE = new Servlet3Decorator();
   public static final CharSequence SERVLET_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
@@ -77,8 +79,10 @@ public class Servlet3Decorator
       LOGGER.debug(
           EXCLUDE_TELEMETRY,
           "Method not implemented when trying to get the request remote port",
-          e);
-      return 0; // 0 will be handled as `no port` by the caller
+          e
+      );
+      // 0 will be handled as `no port` by the caller
+      return 0;
     }
   }
 
@@ -102,7 +106,8 @@ public class Servlet3Decorator
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
-      final Context parentContext) {
+      final Context parentContext
+  ) {
     assert span != null;
     ClassloaderConfigurationOverrides.maybeEnrichSpan(span);
     if (request != null) {
@@ -111,7 +116,6 @@ public class Servlet3Decorator
 
       span.setTag("servlet.context", contextPath);
       span.setTag("servlet.path", servletPath);
-
       // Used by AsyncContextInstrumentation because the context path may be reset
       // (eg by jetty) by the time the async context is dispatched.
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
@@ -122,7 +126,10 @@ public class Servlet3Decorator
 
   @Override
   protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
+      @Nonnull final AgentSpan span,
+      @Nonnull final Throwable throwable,
+      byte errorPriority
+  ) {
     if (throwable instanceof ServletException && throwable.getCause() != null) {
       super.doOnError(span, throwable.getCause(), errorPriority);
     } else {

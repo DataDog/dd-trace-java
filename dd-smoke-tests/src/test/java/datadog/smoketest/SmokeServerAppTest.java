@@ -3,7 +3,6 @@ package datadog.smoketest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.smoketest.backend.AgentBackend;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -15,16 +14,15 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * only); a real agent + instrumented app + trace assertions land in the S8 pilot.
  */
 class SmokeServerAppTest {
-
   @RegisterExtension
-  static final SmokeServerApp app =
-      SmokeServerApp.named("test-server")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .placeholder("marker", () -> "resolved-at-launch")
-          .args("--server.port=${app.httpPort}", "--marker=${marker}")
-          .backend(AgentBackend.mockAgent())
-          .noAgent()
-          .build();
+  static final SmokeServerApp app = SmokeServerApp
+    .named("test-server")
+    .mainClass("datadog.smoketest.TestServerApp")
+    .placeholder("marker", () -> "resolved-at-launch")
+    .args("--server.port=${app.httpPort}", "--marker=${marker}")
+    .backend(AgentBackend.mockAgent())
+    .noAgent()
+    .build();
 
   @Test
   void respondsOnTheAllocatedPort() {
@@ -38,7 +36,8 @@ class SmokeServerAppTest {
     app.get("/ping");
     assertTrue(
         app.waitForLogLine(line -> line.contains("REQUEST GET /ping")),
-        "app stdout is captured during the test");
+        "app stdout is captured during the test"
+    );
   }
 
   @Test
@@ -48,7 +47,8 @@ class SmokeServerAppTest {
     // placeholder was substituted from its Supplier when the app launched.
     assertTrue(
         app.waitForLogLine(line -> line.contains("marker=resolved-at-launch")),
-        "custom placeholder was substituted into the launch args");
+        "custom placeholder was substituted into the launch args"
+    );
   }
 
   @Test

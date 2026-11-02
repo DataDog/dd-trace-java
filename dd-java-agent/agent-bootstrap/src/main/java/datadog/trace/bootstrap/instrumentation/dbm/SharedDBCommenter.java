@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.dbm;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -14,15 +13,15 @@ import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Shared database comment builder for generating trace context comments for SQL DBs and MongoDB */
+/**
+ * Shared database comment builder for generating trace context comments for SQL DBs and MongoDB
+ */
 public class SharedDBCommenter {
   private static final Logger log = LoggerFactory.getLogger(SharedDBCommenter.class);
   private static final String UTF8 = StandardCharsets.UTF_8.toString();
-
   private static final char EQUALS = '=';
   private static final char COMMA = ',';
   private static final char QUOTE = '\'';
-
   // Injected fields. When adding a new one, be sure to update this and the methods below.
   private static final String PARENT_SERVICE = encode("ddps");
   private static final String DATABASE_SERVICE = encode("dddbs");
@@ -33,7 +32,6 @@ public class SharedDBCommenter {
   private static final String DD_VERSION = encode("ddpv");
   private static final String TRACEPARENT = encode("traceparent");
   private static final String DD_SERVICE_HASH = encode("ddsh");
-
   // Pre-built "<key>=" needles for containsTraceComment, computed once at class init. The keys
   // are assigned via encode(...), so "KEY + =" is a runtime concat, not a compile-time constant;
   // doing it per call allocated nine throwaway Strings on every non-matching check.
@@ -46,7 +44,6 @@ public class SharedDBCommenter {
   private static final String DD_VERSION_EQ = DD_VERSION + "=";
   private static final String TRACEPARENT_EQ = TRACEPARENT + "=";
   private static final String DD_SERVICE_HASH_EQ = DD_SERVICE_HASH + "=";
-
   // Pre-encoded "key='encoded_value'" fragments for the invariant fields (the values
   // come from Config are effectively immutable post-init in production).
   // Note about the visibility: needs to be visible but can tolerate races (reason why it's not
@@ -81,7 +78,12 @@ public class SharedDBCommenter {
 
   // Build database comment content without comment delimiters such as /* */
   public static String buildComment(
-      String dbService, String dbType, String hostname, String dbName, String traceParent) {
+      String dbService,
+      String dbType,
+      String hostname,
+      String dbName,
+      String traceParent
+  ) {
     ensureStaticPrefixComputed();
     String service = encode(dbService);
     String host = encode(hostname);
@@ -89,18 +91,17 @@ public class SharedDBCommenter {
     String peerService = encode(getPeerService());
     String parent = encode(traceParent);
     Config config = Config.get();
-    String serviceHash =
-        config.isDbmInjectSqlBaseHash() && config.isExperimentalPropagateProcessTagsEnabled()
-            ? encode(BaseHash.getBaseHashStr())
-            : null;
-    long capacity =
-        staticPrefix.length()
-            + fieldSize(DATABASE_SERVICE, service)
-            + fieldSize(DD_HOSTNAME, host)
-            + fieldSize(DD_DB_NAME, database)
-            + fieldSize(DD_PEER_SERVICE, peerService)
-            + fieldSize(TRACEPARENT, parent)
-            + fieldSize(DD_SERVICE_HASH, serviceHash);
+    String serviceHash = config.isDbmInjectSqlBaseHash()
+        && config.isExperimentalPropagateProcessTagsEnabled()
+        ? encode(BaseHash.getBaseHashStr())
+        : null;
+    long capacity = staticPrefix.length()
+        + fieldSize(DATABASE_SERVICE, service)
+        + fieldSize(DD_HOSTNAME, host)
+        + fieldSize(DD_DB_NAME, database)
+        + fieldSize(DD_PEER_SERVICE, peerService)
+        + fieldSize(TRACEPARENT, parent)
+        + fieldSize(DD_SERVICE_HASH, serviceHash);
     StringBuilder sb =
         new StringBuilder((int) Math.min(capacity, Integer.MAX_VALUE)).append(staticPrefix);
     appendEncoded(sb, DATABASE_SERVICE, service);
@@ -117,7 +118,8 @@ public class SharedDBCommenter {
       return;
     }
     Config config = Config.get();
-    final StringBuilder sb = new StringBuilder(512); // big enough not to be resized
+    // big enough not to be resized
+    final StringBuilder sb = new StringBuilder(512);
 
     appendEncoded(sb, PARENT_SERVICE, encode(config.getServiceName()));
     appendEncoded(sb, DD_ENV, encode(config.getEnv()));
@@ -155,7 +157,9 @@ public class SharedDBCommenter {
     return val;
   }
 
-  /** Includes a possible separator, equals sign and quotes for a nonempty encoded field. */
+  /**
+   * Includes a possible separator, equals sign and quotes for a nonempty encoded field.
+   */
   private static long fieldSize(String key, String value) {
     return value == null ? 0 : (long) key.length() + value.length() + 4;
   }

@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 class SimpleSpan implements CoreSpan<SimpleSpan> {
-
   private final String serviceName;
   private final String operationName;
   private final CharSequence resourceName;
@@ -37,7 +36,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
       boolean error,
       long startTime,
       long duration,
-      int statusCode) {
+      int statusCode
+  ) {
     this(
         serviceName,
         operationName,
@@ -51,7 +51,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
         statusCode,
         false,
         0,
-        null);
+        null
+    );
   }
 
   SimpleSpan(
@@ -65,7 +66,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
       long startTime,
       long duration,
       int statusCode,
-      boolean traceRoot) {
+      boolean traceRoot
+  ) {
     this(
         serviceName,
         operationName,
@@ -79,7 +81,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
         statusCode,
         traceRoot,
         0,
-        null);
+        null
+    );
   }
 
   SimpleSpan(
@@ -94,7 +97,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
       long duration,
       int statusCode,
       boolean traceRoot,
-      long longRunningVersion) {
+      long longRunningVersion
+  ) {
     this(
         serviceName,
         operationName,
@@ -108,7 +112,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
         statusCode,
         traceRoot,
         longRunningVersion,
-        null);
+        null
+    );
   }
 
   SimpleSpan(
@@ -124,7 +129,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
       int statusCode,
       boolean traceRoot,
       long longRunningVersion,
-      CharSequence serviceNameSource) {
+      CharSequence serviceNameSource
+  ) {
     this.serviceName = serviceName;
     this.operationName = operationName;
     this.resourceName = resourceName;
@@ -333,7 +339,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   public SimpleSpan setSamplingPriority(
-      int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+      int samplingPriority,
+      CharSequence rate,
+      double sampleRate,
+      int samplingMechanism
+  ) {
     return this;
   }
 

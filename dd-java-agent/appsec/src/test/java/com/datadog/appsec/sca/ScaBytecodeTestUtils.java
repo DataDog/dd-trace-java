@@ -1,15 +1,14 @@
 package com.datadog.appsec.sca;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassWriter;
 
 final class ScaBytecodeTestUtils {
-
-  private ScaBytecodeTestUtils() {}
+  private ScaBytecodeTestUtils() {
+  }
 
   static byte[] bytecodeOf(Class<?> clazz) throws Exception {
     String path = clazz.getName().replace('.', '/') + ".class";

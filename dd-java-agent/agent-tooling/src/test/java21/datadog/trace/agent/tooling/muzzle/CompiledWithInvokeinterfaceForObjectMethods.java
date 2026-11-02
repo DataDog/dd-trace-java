@@ -1,7 +1,8 @@
 package datadog.trace.agent.tooling.muzzle;
 
 public class CompiledWithInvokeinterfaceForObjectMethods {
-  interface DatadogInterface {}
+  interface DatadogInterface {
+  }
 
   public void doSomething(DatadogInterface itf) {
     itf.hashCode();

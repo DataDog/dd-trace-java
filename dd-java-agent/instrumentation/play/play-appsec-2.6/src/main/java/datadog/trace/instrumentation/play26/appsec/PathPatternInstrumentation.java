@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -28,7 +27,9 @@ import scala.util.Either;
  */
 @AutoService(InstrumenterModule.class)
 public class PathPatternInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public PathPatternInstrumentation() {
     super("play");
   }
@@ -40,9 +41,7 @@ public class PathPatternInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
-    };
+    return new String[] {"datadog.trace.instrumentation.play.appsec.PathExtractionHelpers"};
   }
 
   @Override
@@ -59,23 +58,24 @@ public class PathPatternInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("apply")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class))
-            .and(returns(named("scala.Option"))),
-        PathPatternInstrumentation.class.getName() + "$ApplyAdvice");
+          .and(not(isStatic()))
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class))
+          .and(returns(named("scala.Option"))),
+        PathPatternInstrumentation.class.getName() + "$ApplyAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ApplyAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
-        @Advice.Return(readOnly = false)
-            scala.Option<
-                    scala.collection.immutable.Map<String, scala.util.Either<Throwable, String>>>
-                ret,
+        @Advice.Return(readOnly = false) scala.Option<scala.collection.immutable.Map<
+        String,
+        scala.util.Either<Throwable, String>>> ret,
         @Advice.Thrown(readOnly = false) Throwable t,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (t != null) {
         return;
       }

@@ -14,7 +14,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -30,8 +29,9 @@ import org.springframework.web.method.HandlerMethod;
 
 @AutoService(InstrumenterModule.class)
 public final class HandlerAdapterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public HandlerAdapterInstrumentation() {
     super("spring-web");
   }
@@ -50,21 +50,21 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(nameStartsWith("handle"))
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
-            .and(takesArguments(3)),
-        HandlerAdapterInstrumentation.class.getName() + "$ControllerAdvice");
+          .and(isPublic())
+          .and(nameStartsWith("handle"))
+          .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
+          .and(takesArguments(3)),
+        HandlerAdapterInstrumentation.class.getName() + "$ControllerAdvice"
+    );
   }
 
   public static class ControllerAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope nameResourceAndStartSpan(
         @Advice.Argument(0) final HttpServletRequest request,
         @Advice.Argument(2) final Object handler,
-        @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys) {
-
+        @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys
+    ) {
       // Name the parent span based on the matching pattern
       Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
       if (contextObj instanceof Context) {
@@ -78,9 +78,7 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
       if (activeSpan() == null) {
         return null;
       }
-
       // Now create a span for handler/controller execution.
-
       final Class<?> handlerClass;
       if (handler instanceof HandlerMethod) {
         handlerClass = ((HandlerMethod) handler).getBean().getClass();
@@ -88,7 +86,6 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
         handlerClass = handler.getClass();
       }
       handlerSpanKeys = handlerSpanKeys(handlerClass);
-
       // If the context already exists, return it
       final Object existingContext = request.getAttribute(handlerSpanKeys.getLeft());
       if (existingContext instanceof Context) {
@@ -109,7 +106,8 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
         @Advice.Argument(0) final HttpServletRequest request,
         @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys) {
+        @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys
+    ) {
       if (scope == null) {
         return;
       }

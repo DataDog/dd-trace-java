@@ -2,7 +2,6 @@ package datadog.trace.llmobs.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
@@ -21,10 +20,8 @@ import org.junit.jupiter.api.Test;
  * so metadata annotations and manifest annotations must not destroy each other in either order.
  */
 class DDLLMObsSpanMetadataTest {
-
   private static final String METADATA_TAG = "_ml_obs_tag.metadata";
   private static final Field SPAN_FIELD;
-
   private static CoreTracer tracer;
 
   static {
@@ -51,8 +48,7 @@ class DDLLMObsSpanMetadataTest {
   private static DDLLMObsSpan newAgentSpan(String name) {
     WellKnownTags tags =
         new WellKnownTags("runtime-id", "hostname", "test", "service", "version", "java");
-    return new DDLLMObsSpan(
-        Tags.LLMOBS_AGENT_SPAN_KIND, name, "test-ml-app", null, "service", tags);
+    return new DDLLMObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, name, "test-ml-app", null, "service", tags);
   }
 
   @SuppressWarnings("unchecked")

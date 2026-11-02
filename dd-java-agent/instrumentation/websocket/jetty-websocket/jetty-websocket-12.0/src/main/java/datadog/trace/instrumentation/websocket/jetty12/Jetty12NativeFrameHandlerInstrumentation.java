@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static org.eclipse.jetty.websocket.core.util.InvokerUtils.bindTo;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,7 +16,9 @@ import org.eclipse.jetty.websocket.core.Behavior;
 import org.eclipse.jetty.websocket.core.CoreSession;
 
 public class Jetty12NativeFrameHandlerInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "org.eclipse.jetty.websocket.common.JettyWebSocketFrameHandler";
@@ -27,21 +28,26 @@ public class Jetty12NativeFrameHandlerInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("onOpen")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.eclipse.jetty.websocket.core.CoreSession"))),
-        getClass().getName() + "$OpenAdvice");
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("org.eclipse.jetty.websocket.core.CoreSession"))),
+        getClass().getName() + "$OpenAdvice"
+    );
     transformer.applyAdvice(
         named("createMessageSink").and(takesArguments(4)),
-        getClass().getName() + "$MessageSinkAdvice");
+        getClass().getName() + "$MessageSinkAdvice"
+    );
     transformer.applyAdvice(
-        named("notifyOnClose").and(takesArguments(2)), getClass().getName() + "$CloseAdvice");
+        named("notifyOnClose").and(takesArguments(2)),
+        getClass().getName() + "$CloseAdvice"
+    );
   }
 
   public static class OpenAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) CoreSession session,
-        @Advice.FieldValue(value = "closeHandle", readOnly = false) MethodHandle closeHandle) {
+        @Advice.FieldValue(value = "closeHandle", readOnly = false) MethodHandle closeHandle
+    ) {
       AgentSpan span = activeSpan();
       if (span != null && session.getBehavior() == Behavior.SERVER && closeHandle != null) {
         closeHandle = NativeMethodHandleWrappers.wrapClose(closeHandle, span, session);
@@ -64,15 +70,16 @@ public class Jetty12NativeFrameHandlerInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(1) WebSocketSession session,
-        @Advice.Argument(value = 2, readOnly = false) MethodHandle handle) {
+        @Advice.Argument(value = 2, readOnly = false) MethodHandle handle
+    ) {
       AgentSpan span = activeSpan();
       if (span != null && handle != null) {
-        handle =
-            NativeMethodHandleWrappers.wrapMessage(
-                handle,
-                span,
-                session.getCoreSession(),
-                InstrumentationContext.get(CoreSession.class, ReceiveContexts.class));
+        handle = NativeMethodHandleWrappers.wrapMessage(
+            handle,
+            span,
+            session.getCoreSession(),
+            InstrumentationContext.get(CoreSession.class, ReceiveContexts.class)
+        );
       }
     }
   }
@@ -82,14 +89,15 @@ public class Jetty12NativeFrameHandlerInstrumentation
     public static void onEnter(@Advice.FieldValue("session") WebSocketSession session) {
       if (session != null) {
         NativeSendContext sends =
-            InstrumentationContext.get(WebSocketSession.class, NativeSendContext.class)
-                .remove(session);
+            InstrumentationContext
+          .get(WebSocketSession.class, NativeSendContext.class)
+          .remove(session);
         if (sends != null) {
           sends.finish();
         }
-        ReceiveContexts contexts =
-            InstrumentationContext.get(CoreSession.class, ReceiveContexts.class)
-                .remove(session.getCoreSession());
+        ReceiveContexts contexts = InstrumentationContext
+          .get(CoreSession.class, ReceiveContexts.class)
+          .remove(session.getCoreSession());
         if (contexts != null) {
           contexts.finish();
         }

@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.api.civisibility.execution.TestExecutionTracker.ExecutionOutcome;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
@@ -21,7 +20,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class DynamicAutoTestRetryTest {
-
   @ParameterizedTest(name = "duration={0}ms -> retries={1}")
   @MethodSource("backendBuckets")
   void usesBackendRetryBudgets(long durationMillis, int expectedRetries) {
@@ -32,7 +30,11 @@ class DynamicAutoTestRetryTest {
 
   static Stream<Arguments> backendBuckets() {
     return Stream.of(
-        arguments(1_000L, 10), arguments(6_000L, 2), arguments(31_000L, 4), arguments(301_000L, 1));
+        arguments(1_000L, 10),
+        arguments(6_000L, 2),
+        arguments(31_000L, 4),
+        arguments(301_000L, 1)
+    );
   }
 
   @ParameterizedTest(name = "duration={0}ms -> retries={1}")
@@ -45,7 +47,11 @@ class DynamicAutoTestRetryTest {
 
   static Stream<Arguments> customBuckets() {
     return Stream.of(
-        arguments(1_000L, 4), arguments(6_000L, 1), arguments(31_000L, 1), arguments(301_000L, 1));
+        arguments(1_000L, 4),
+        arguments(6_000L, 1),
+        arguments(31_000L, 1),
+        arguments(301_000L, 1)
+    );
   }
 
   @Test
@@ -133,12 +139,12 @@ class DynamicAutoTestRetryTest {
   }
 
   private static DynamicAutoTestRetrySettings settings(List<Integer> customBuckets) {
-    List<ExecutionsByDuration> backendRetries =
-        Arrays.asList(
-            new ExecutionsByDuration(5_000, 10),
-            new ExecutionsByDuration(10_000, 2),
-            new ExecutionsByDuration(30_000, 3),
-            new ExecutionsByDuration(300_000, 4));
+    List<ExecutionsByDuration> backendRetries = Arrays.asList(
+        new ExecutionsByDuration(5_000, 10),
+        new ExecutionsByDuration(10_000, 2),
+        new ExecutionsByDuration(30_000, 3),
+        new ExecutionsByDuration(300_000, 4)
+    );
     return DynamicAutoTestRetrySettings.create(true, customBuckets, backendRetries);
   }
 }

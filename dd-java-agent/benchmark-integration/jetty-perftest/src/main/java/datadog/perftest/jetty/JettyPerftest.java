@@ -24,26 +24,25 @@ public class JettyPerftest {
     jettyServer.setHandler(servletContext);
     jettyServer.start();
 
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread() {
-              @Override
-              public void run() {
-                try {
-                  jettyServer.stop();
-                  jettyServer.destroy();
-                } catch (final Exception e) {
-                  throw new IllegalStateException(e);
-                }
-              }
-            });
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        try {
+          jettyServer.stop();
+          jettyServer.destroy();
+        } catch (final Exception e) {
+          throw new IllegalStateException(e);
+        }
+      }
+    });
   }
 
   @WebServlet
   public static class PerfServlet extends HttpServlet {
     @Override
     protected void doGet(final HttpServletRequest request, final HttpServletResponse response)
-        throws ServletException, IOException {
+        throws ServletException,
+        IOException {
       if (request.getParameter("error") != null) {
         throw new RuntimeException("some sync error");
       }

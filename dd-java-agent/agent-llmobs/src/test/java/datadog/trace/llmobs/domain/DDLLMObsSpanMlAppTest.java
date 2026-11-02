@@ -1,7 +1,6 @@
 package datadog.trace.llmobs.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
@@ -25,9 +24,7 @@ import org.junit.jupiter.api.Test;
  */
 class DDLLMObsSpanMlAppTest {
   private static final String ML_APP_TAG = "_ml_obs_tag." + LLMObsTags.ML_APP;
-
   private static final Field SPAN_FIELD;
-
   private static CoreTracer tracer;
 
   static {
@@ -71,7 +68,6 @@ class DDLLMObsSpanMlAppTest {
       } finally {
         child.finish();
       }
-
       // An empty ml_app is not a value, so it inherits the same way a null one does.
       DDLLMObsSpan blank = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool2", "");
       try {

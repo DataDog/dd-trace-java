@@ -24,7 +24,8 @@ public class NoOpDDTestModule implements DDTestModule {
       String testSuiteName,
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
-      boolean parallelized) {
+      boolean parallelized
+  ) {
     return NoOpDDTestSuite.INSTANCE;
   }
 }

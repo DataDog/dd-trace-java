@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import datadog.trace.agent.tooling.context.ShouldInjectFieldsMatcher;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import net.bytebuddy.description.NamedElement;
@@ -23,21 +22,24 @@ public class DDElementMatchers implements HierarchyMatchers.Supplier {
   @Override
   @SuppressForbidden
   public ElementMatcher.Junction<TypeDescription> declaresAnnotation(
-      ElementMatcher<? super NamedElement> matcher) {
+      ElementMatcher<? super NamedElement> matcher
+  ) {
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
   @Override
   @SuppressForbidden
   public ElementMatcher.Junction<TypeDescription> declaresField(
-      ElementMatcher<? super FieldDescription> matcher) {
+      ElementMatcher<? super FieldDescription> matcher
+  ) {
     return ElementMatchers.declaresField(matcher);
   }
 
   @Override
   @SuppressForbidden
   public ElementMatcher.Junction<TypeDescription> declaresMethod(
-      ElementMatcher<? super MethodDescription> matcher) {
+      ElementMatcher<? super MethodDescription> matcher
+  ) {
     return ElementMatchers.declaresMethod(matcher);
   }
 
@@ -49,37 +51,44 @@ public class DDElementMatchers implements HierarchyMatchers.Supplier {
 
   @Override
   public ElementMatcher.Junction<TypeDescription> extendsClass(
-      ElementMatcher<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher
+  ) {
     return new SafeHasSuperTypeMatcher<>(matcher, false, true, false);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> implementsInterface(
-      ElementMatcher<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher
+  ) {
     return new SafeHasSuperTypeMatcher<>(matcher, true, true, true);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> hasInterface(
-      ElementMatcher<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher
+  ) {
     return new SafeHasSuperTypeMatcher<>(matcher, true, false, true);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> hasSuperType(
-      ElementMatcher<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher
+  ) {
     return new SafeHasSuperTypeMatcher<>(matcher, false, true, true);
   }
 
   @Override
   public ElementMatcher.Junction<MethodDescription> hasSuperMethod(
-      ElementMatcher<? super MethodDescription> matcher) {
+      ElementMatcher<? super MethodDescription> matcher
+  ) {
     return new HasSuperMethodMatcher<>(matcher);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> declaresContextField(
-      String keyClassName, String contextClassName) {
+      String keyClassName,
+      String contextClassName
+  ) {
     return new ShouldInjectFieldsMatcher(keyClassName, contextClassName);
   }
 

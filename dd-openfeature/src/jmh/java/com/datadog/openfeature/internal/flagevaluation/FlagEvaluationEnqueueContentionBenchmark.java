@@ -2,7 +2,6 @@ package com.datadog.openfeature.internal.flagevaluation;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.bridge.v1.HealthMetrics;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -53,20 +52,21 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(NANOSECONDS)
 @Fork(value = 1)
 public class FlagEvaluationEnqueueContentionBenchmark {
-
-  /** Events the single consumer drains per invocation, so it can keep up with N producers. */
+  /**
+   * Events the single consumer drains per invocation, so it can keep up with N producers.
+   */
   static final int DRAIN_BATCH = 32;
-
   private static final int NUM_FLAGS = 100;
   private static final int NUM_USERS = 50;
   private static final int NUM_FIELDS = 10;
-
   private Map<String, Object> attrs;
   private String[] flagKeys;
   private String[] targetingKeys;
   private FlagEvaluationPipeline writer;
 
-  /** Per-producer cursor: a shared counter would add its own cache-line contention. */
+  /**
+   * Per-producer cursor: a shared counter would add its own cache-line contention.
+   */
   @State(Scope.Thread)
   public static class ProducerCursor {
     int cursor;
@@ -80,16 +80,15 @@ public class FlagEvaluationEnqueueContentionBenchmark {
     }
     flagKeys = keys("bench-flag-", NUM_FLAGS);
     targetingKeys = keys("bench-user-", NUM_USERS);
-
     // Capacity well above what the batch-draining consumer should ever let build up.
-    writer =
-        new FlagEvaluationPipeline(
-            1 << 20,
-            Long.MAX_VALUE,
-            NANOSECONDS,
-            (route, json) -> {},
-            new HashMap<>(),
-            new RuntimeServices(HealthMetrics.NOOP));
+    writer = new FlagEvaluationPipeline(
+        1 << 20,
+        Long.MAX_VALUE,
+        NANOSECONDS,
+          (route, json) -> {},
+        new HashMap<>(),
+        new RuntimeServices(HealthMetrics.NOOP)
+    );
   }
 
   /**
@@ -103,14 +102,14 @@ public class FlagEvaluationEnqueueContentionBenchmark {
     if (dropped > 0) {
       System.out.println(
           "\nWARNING: queue overflowed "
-              + dropped
-              + " times - consumer could not keep up, enqueue timings for this iteration are"
-              + " measuring overflow accounting, not the enqueue path.");
+          + dropped
+          + " times - consumer could not keep up, enqueue timings for this iteration are"
+          + " measuring overflow accounting, not the enqueue path."
+      );
     }
   }
 
   // ---- 1 producer: uncontended baseline ----
-
   @Benchmark
   @Group("producers1")
   @GroupThreads(1)
@@ -126,7 +125,6 @@ public class FlagEvaluationEnqueueContentionBenchmark {
   }
 
   // ---- 4 producers ----
-
   @Benchmark
   @Group("producers4")
   @GroupThreads(4)
@@ -142,7 +140,6 @@ public class FlagEvaluationEnqueueContentionBenchmark {
   }
 
   // ---- 16 producers ----
-
   @Benchmark
   @Group("producers16")
   @GroupThreads(16)
@@ -176,7 +173,8 @@ public class FlagEvaluationEnqueueContentionBenchmark {
         targetingKeys[Math.floorMod(i, targetingKeys.length)],
         null,
         1_700_000_000_000L + i,
-        attrs);
+        attrs
+    );
   }
 
   private static String[] keys(final String prefix, final int count) {

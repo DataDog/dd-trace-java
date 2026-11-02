@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -49,7 +48,6 @@ import scala.util.Try;
  * retention deterministic.
  */
 abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrumentationTest {
-
   /**
    * The operation name is a {@code UTF8BytesString}; {@link SpanMatcher#operationName(String)}
    * compares object types, while the {@link Pattern} overload compares {@code CharSequence}
@@ -67,12 +65,13 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
         expectedCompletionPriority(),
         readStaticBoolean(
             Class.forName("datadog.trace.instrumentation.scala.PromiseHelper"),
-            "completionPriority"),
-        "Unexpected Scala Promise propagation mode");
+            "completionPriority"
+        ),
+        "Unexpected Scala Promise propagation mode"
+    );
   }
 
-  private static boolean readStaticBoolean(final Class<?> type, final String name)
-      throws Exception {
+  private static boolean readStaticBoolean(final Class<?> type, final String name) throws Exception {
     final Field field = type.getDeclaredField(name);
     field.setAccessible(true);
     return (Boolean) field.get(null);
@@ -88,7 +87,8 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
   void doesNotPropagateRequestContextWhenHandlerFails() throws Exception {
     assertRequestTraceIsNotRetained(
         new Failure<>(new Exception("controller exception")),
-        span().root().operationName(OPERATION_NAME).type(HTTP_SERVER).error());
+        span().root().operationName(OPERATION_NAME).type(HTTP_SERVER).error()
+    );
   }
 
   /**
@@ -100,19 +100,22 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
   void doesNotPropagateRequestContextWhenHandlerSucceeds() throws Exception {
     assertRequestTraceIsNotRetained(
         new Success<>(emptyResponse()),
-        span().root().operationName(OPERATION_NAME).type(HTTP_SERVER).error(false));
+        span().root().operationName(OPERATION_NAME).type(HTTP_SERVER).error(false)
+    );
   }
 
   private void assertRequestTraceIsNotRetained(
-      final Try<HttpResponse> handlerResult, final SpanMatcher expectedSpan) throws Exception {
-    try (AsyncHandlerWrapperReproducer reproducer =
-        new AsyncHandlerWrapperReproducer(handlerResult)) {
+      final Try<HttpResponse> handlerResult,
+      final SpanMatcher expectedSpan
+  ) throws Exception {
+    try (AsyncHandlerWrapperReproducer reproducer = new AsyncHandlerWrapperReproducer(handlerResult)) {
       reproducer.start();
 
       assertTrue(reproducer.awaitFrameworkCallback(), "Framework callback did not start");
       assertTrue(
           writer.waitForTracesMax(1, 5),
-          "Request trace was held by the contextless framework callback");
+          "Request trace was held by the contextless framework callback"
+      );
       assertTraces(trace(expectedSpan));
     }
   }
@@ -131,16 +134,16 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
   private void assertCallbackFailure(final Throwable failure, final boolean fatal) {
     Future<HttpResponse> handlerFuture = mock(Future.class);
     Context[] requestContext = new Context[1];
-    DatadogAsyncHandlerWrapper wrapper =
-        new DatadogAsyncHandlerWrapper(
-            new AbstractFunction1<HttpRequest, Future<HttpResponse>>() {
-              @Override
-              public Future<HttpResponse> apply(HttpRequest request) {
-                requestContext[0] = Context.current();
-                return handlerFuture;
-              }
-            },
-            mock(ExecutionContext.class));
+    DatadogAsyncHandlerWrapper wrapper = new DatadogAsyncHandlerWrapper(
+        new AbstractFunction1<HttpRequest, Future<HttpResponse>>() {
+          @Override
+          public Future<HttpResponse> apply(HttpRequest request) {
+            requestContext[0] = Context.current();
+            return handlerFuture;
+          }
+        },
+        mock(ExecutionContext.class)
+    );
     Future<HttpResponse> response = wrapper.apply(emptyRequest());
     try {
       ArgumentCaptor<Function1> callback = ArgumentCaptor.forClass(Function1.class);
@@ -151,7 +154,9 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
       when(result.get()).thenThrow(failure);
       if (fatal) {
         assertSame(
-            failure, assertThrows(LinkageError.class, () -> callback.getValue().apply(result)));
+            failure,
+            assertThrows(LinkageError.class, () -> callback.getValue().apply(result))
+        );
         assertFalse(response.isCompleted());
       } else {
         callback.getValue().apply(result);
@@ -162,7 +167,11 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
       // The injected failure happens before finishSpan can finish the request span.
       fromContext(requestContext[0]).finish();
     }
-    assertTraces(trace(span().root().operationName(OPERATION_NAME).type(HTTP_SERVER).error(false)));
+    assertTraces(trace(span()
+      .root()
+      .operationName(OPERATION_NAME)
+      .type(HTTP_SERVER)
+      .error(false)));
   }
 
   private static HttpRequest emptyRequest() {
@@ -171,7 +180,8 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
         Uri$.MODULE$.apply("/exception"),
         HttpRequest$.MODULE$.apply$default$3(),
         HttpRequest$.MODULE$.apply$default$4(),
-        HttpRequest$.MODULE$.apply$default$5());
+        HttpRequest$.MODULE$.apply$default$5()
+    );
   }
 
   private static HttpResponse emptyResponse() {
@@ -179,7 +189,8 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
         HttpResponse$.MODULE$.apply$default$1(),
         HttpResponse$.MODULE$.apply$default$2(),
         HttpResponse$.MODULE$.apply$default$3(),
-        HttpResponse$.MODULE$.apply$default$4());
+        HttpResponse$.MODULE$.apply$default$4()
+    );
   }
 
   private static final class AsyncHandlerWrapperReproducer implements AutoCloseable {
@@ -188,7 +199,6 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
     private Context requestContext;
     private final CountDownLatch callbackStarted = new CountDownLatch(1);
     private final CountDownLatch releaseCallback = new CountDownLatch(1);
-
     private final ExecutionContextExecutorService handlerExecutor =
         ExecutionContext$.MODULE$.fromExecutorService(Executors.newSingleThreadExecutor());
     private final ExecutionContextExecutorService frameworkExecutor =
@@ -199,36 +209,32 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
     }
 
     void start() {
-      DatadogAsyncHandlerWrapper wrapper =
-          new DatadogAsyncHandlerWrapper(
-              new AbstractFunction1<HttpRequest, Future<HttpResponse>>() {
-                @Override
-                public Future<HttpResponse> apply(HttpRequest request) {
-                  requestContext = Context.current();
-                  return handlerPromise.future();
-                }
-              },
-              handlerExecutor);
-
-      Future<HttpResponse> response = wrapper.apply(emptyRequest());
-
-      // Model a callback registered by Pekko after the wrapper has closed the request scope. It
-      // should not inherit the request context when the handler Future completes.
-      response.onComplete(
-          new AbstractFunction1<Try<HttpResponse>, Void>() {
+      DatadogAsyncHandlerWrapper wrapper = new DatadogAsyncHandlerWrapper(
+          new AbstractFunction1<HttpRequest, Future<HttpResponse>>() {
             @Override
-            public Void apply(Try<HttpResponse> result) {
-              callbackStarted.countDown();
-              try {
-                releaseCallback.await();
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              }
-              return null;
+            public Future<HttpResponse> apply(HttpRequest request) {
+              requestContext = Context.current();
+              return handlerPromise.future();
             }
           },
-          frameworkExecutor);
+          handlerExecutor
+      );
 
+      Future<HttpResponse> response = wrapper.apply(emptyRequest());
+      // Model a callback registered by Pekko after the wrapper has closed the request scope. It
+      // should not inherit the request context when the handler Future completes.
+      response.onComplete(new AbstractFunction1<Try<HttpResponse>, Void>() {
+        @Override
+        public Void apply(Try<HttpResponse> result) {
+          callbackStarted.countDown();
+          try {
+            releaseCallback.await();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          return null;
+        }
+      }, frameworkExecutor);
       // Application futures normally complete from callbacks running with the propagated request
       // context. Model that completion path so the test also covers context captured at promise
       // dispatch time, not only at callback construction time.
@@ -248,17 +254,20 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
       frameworkExecutor.shutdown();
       assertTrue(
           handlerExecutor.awaitTermination(5, TimeUnit.SECONDS),
-          "Handler executor did not terminate");
+          "Handler executor did not terminate"
+      );
       assertTrue(
           frameworkExecutor.awaitTermination(5, TimeUnit.SECONDS),
-          "Framework executor did not terminate");
+          "Framework executor did not terminate"
+      );
     }
   }
 }
 
-/** Runs the async-handler context-retention reproducer with default Scala Promise propagation. */
+/**
+ * Runs the async-handler context-retention reproducer with default Scala Promise propagation.
+ */
 class PekkoHttpAsyncHandlerWrapperTest extends AbstractPekkoHttpAsyncHandlerWrapperTest {
-
   @Override
   protected boolean expectedCompletionPriority() {
     return false;
@@ -274,7 +283,6 @@ class PekkoHttpAsyncHandlerWrapperTest extends AbstractPekkoHttpAsyncHandlerWrap
  */
 @WithConfig(key = "trace.integration.scala_promise_completion_priority.enabled", value = "true")
 class PekkoHttpAsyncHandlerWrapperForkedTest extends AbstractPekkoHttpAsyncHandlerWrapperTest {
-
   @Override
   protected boolean expectedCompletionPriority() {
     return true;

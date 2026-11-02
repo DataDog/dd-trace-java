@@ -10,14 +10,10 @@ import java.util.Objects;
 public class LanguageSpecifics {
   @Json(name = "access_modifiers")
   private final List<String> accessModifiers;
-
   private final List<String> annotations;
-
   @Json(name = "super_class")
   private final String superClass;
-
   private final List<String> interfaces;
-
   @Json(name = "return_type")
   private final String returnType;
 
@@ -26,7 +22,8 @@ public class LanguageSpecifics {
       List<String> annotations,
       String superClass,
       List<String> interfaces,
-      String returnType) {
+      String returnType
+  ) {
     this.accessModifiers = accessModifiers;
     this.annotations = annotations;
     this.superClass = superClass;
@@ -57,8 +54,12 @@ public class LanguageSpecifics {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     LanguageSpecifics that = (LanguageSpecifics) o;
     return Objects.equals(accessModifiers, that.accessModifiers)
         && Objects.equals(annotations, that.annotations)
@@ -137,8 +138,7 @@ public class LanguageSpecifics {
     }
 
     public LanguageSpecifics build() {
-      return new LanguageSpecifics(
-          accessModifiers, annotations, superClass, interfaces, returnType);
+      return new LanguageSpecifics(accessModifiers, annotations, superClass, interfaces, returnType);
     }
   }
 }

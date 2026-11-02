@@ -4,10 +4,12 @@ import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.ChunkedBufferConsumer;
 import java.nio.ByteBuffer;
 
-/** Adapts a single-buffer test consumer to a chunked buffer by joining the chunks. */
+/**
+ * Adapts a single-buffer test consumer to a chunked buffer by joining the chunks.
+ */
 public final class ChunkJoiner {
-
-  private ChunkJoiner() {}
+  private ChunkJoiner() {
+  }
 
   public static ChunkedBufferConsumer joining(ByteBufferConsumer consumer) {
     return (messageCount, chunks) -> {

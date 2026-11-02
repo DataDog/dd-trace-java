@@ -1,7 +1,6 @@
 package datadog.trace.api.openfeature;
 
 import static java.util.Objects.requireNonNull;
-
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
@@ -26,16 +25,17 @@ public final class ExposureHook implements Hook<Object> {
    */
   public ExposureHook(final Consumer<Evaluation> callback) {
     requireNonNull(callback, "callback");
-    this.delegate =
-        new com.datadog.openfeature.ExposureHook(
-            evaluation -> callback.accept(new Evaluation(evaluation)));
+    this.delegate = new com.datadog.openfeature.ExposureHook(evaluation -> callback.accept(
+        new Evaluation(evaluation)
+    ));
   }
 
   @Override
   public void finallyAfter(
       final HookContext<Object> context,
       final FlagEvaluationDetails<Object> details,
-      final Map<String, Object> hints) {
+      final Map<String, Object> hints
+  ) {
     this.delegate.finallyAfter(context, details, hints);
   }
 

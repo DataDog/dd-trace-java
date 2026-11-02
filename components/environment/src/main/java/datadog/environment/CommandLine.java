@@ -1,7 +1,6 @@
 package datadog.environment;
 
 import static java.util.Collections.emptyList;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Arrays;
 import java.util.List;
@@ -28,7 +27,8 @@ class CommandLine {
   final String name = getCommandName();
   final List<String> arguments = getCommandArguments();
 
-  @SuppressForbidden // split on single-character uses a fast path
+  // split on single-character uses a fast path
+  @SuppressForbidden
   private List<String> findFullCommand() {
     String command = SystemProperties.getOrDefault(SUN_JAVA_COMMAND_PROPERTY, "").trim();
     return command.isEmpty() ? emptyList() : Arrays.asList(command.split(" "));

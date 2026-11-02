@@ -26,7 +26,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.HttpResponseException;
@@ -42,7 +41,6 @@ import org.tabletest.junit.TableTest;
 class EventProxyTest {
   private static final byte[] PAYLOAD = "{}".getBytes(UTF_8);
   private static final String ENDPOINT = "evp_proxy/v4/";
-
   private final BackendApiFactory factory = mock(BackendApiFactory.class);
   private final BackendApi exposures = mock(BackendApi.class);
   private final BackendApi flagEvaluations = mock(BackendApi.class);
@@ -58,9 +56,9 @@ class EventProxyTest {
     assertTrue(proxy.post("flagevaluation", PAYLOAD));
 
     verify(this.factory)
-        .createEvpProxyApiForEndpoint(EVENT_PLATFORM, true, PRE_SEND_RETRY, V2_EVP_PROXY_ENDPOINT);
+      .createEvpProxyApiForEndpoint(EVENT_PLATFORM, true, PRE_SEND_RETRY, V2_EVP_PROXY_ENDPOINT);
     verify(this.factory)
-        .createEvpProxyApiForEndpoint(EVENT_PLATFORM, false, PRE_SEND_RETRY, V2_EVP_PROXY_ENDPOINT);
+      .createEvpProxyApiForEndpoint(EVENT_PLATFORM, false, PRE_SEND_RETRY, V2_EVP_PROXY_ENDPOINT);
     verify(this.factory, never()).discoverEvpProxyEndpoint(anyBoolean(), anyIterable());
     verify(this.exposures).post(eq("exposures"), any(), any(), any(), eq(false));
     verify(this.flagEvaluations).post(eq("flagevaluation"), any(), any(), any(), eq(false));
@@ -110,7 +108,7 @@ class EventProxyTest {
   @Test
   void failedDiscoveryRetriesAtMostOncePerRecoveryInterval() throws IOException {
     when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES))
-        .thenThrow(new IllegalStateException("discovery failed"));
+      .thenThrow(new IllegalStateException("discovery failed"));
     final EventProxy proxy = proxy(true, false);
 
     assertTrue(proxy.isAvailable());
@@ -137,8 +135,8 @@ class EventProxyTest {
     when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
     clientsFor(ENDPOINT);
     when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
-        .thenThrow(new ConnectException("refused"))
-        .thenReturn(null);
+      .thenThrow(new ConnectException("refused"))
+      .thenReturn(null);
     final EventProxy proxy = proxy(true, true);
 
     assertFalse(proxy.post("exposures", PAYLOAD));
@@ -169,7 +167,7 @@ class EventProxyTest {
     when(this.factory.discoverEvpProxyEndpoint(false, IDENTITY_HEADER_NAMES)).thenReturn(ENDPOINT);
     clientsFor(ENDPOINT);
     when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
-        .thenThrow(new ConnectException("refused"));
+      .thenThrow(new ConnectException("refused"));
     final EventProxy proxy = proxy(true, false);
 
     assertFalse(proxy.post("exposures", PAYLOAD));
@@ -189,7 +187,7 @@ class EventProxyTest {
   void classifiesProxyRejections(final int status, final boolean definitive) throws IOException {
     clientsFor(V2_EVP_PROXY_ENDPOINT);
     when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
-        .thenThrow(new HttpResponseException(status, "rejected"));
+      .thenThrow(new HttpResponseException(status, "rejected"));
     final EventProxy proxy = proxy(false, false);
 
     if (definitive) {
@@ -203,7 +201,7 @@ class EventProxyTest {
   void reportsConnectionRefusalAsDefinitive() throws IOException {
     clientsFor(V2_EVP_PROXY_ENDPOINT);
     when(this.exposures.post(any(), any(), any(), any(), anyBoolean()))
-        .thenThrow(new ConnectException("refused"));
+      .thenThrow(new ConnectException("refused"));
 
     assertFalse(proxy(false, false).post("exposures", PAYLOAD));
   }
@@ -219,8 +217,10 @@ class EventProxyTest {
   void discoversOnlyAgentlessEndpointsForwardingTheIdentity() {
     proxy(true, true).isAvailable();
 
-    verify(this.factory)
-        .discoverEvpProxyEndpoint(false, asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER));
+    verify(this.factory).discoverEvpProxyEndpoint(
+        false,
+        asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)
+    );
   }
 
   @Test
@@ -241,10 +241,18 @@ class EventProxyTest {
 
   private void clientsFor(final String endpoint) {
     when(this.factory.createEvpProxyApiForEndpoint(
-            eq(EVENT_PLATFORM), eq(true), any(), eq(endpoint)))
-        .thenReturn(this.exposures);
+        eq(EVENT_PLATFORM),
+        eq(true),
+        any(),
+        eq(endpoint)
+    ))
+      .thenReturn(this.exposures);
     when(this.factory.createEvpProxyApiForEndpoint(
-            eq(EVENT_PLATFORM), eq(false), any(), eq(endpoint)))
-        .thenReturn(this.flagEvaluations);
+        eq(EVENT_PLATFORM),
+        eq(false),
+        any(),
+        eq(endpoint)
+    ))
+      .thenReturn(this.flagEvaluations);
   }
 }

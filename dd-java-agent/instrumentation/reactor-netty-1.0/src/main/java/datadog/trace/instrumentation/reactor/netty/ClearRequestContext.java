@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.reactor.netty;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,7 +15,9 @@ import reactor.netty.Connection;
 import reactor.netty.channel.ChannelOperations;
 import reactor.netty.http.client.HttpClientRequest;
 
-/** Clears request context when a connection is released or disconnected. */
+/**
+ * Clears request context when a connection is released or disconnected.
+ */
 public class ClearRequestContext implements Consumer<Connection> {
   private final ContextStore<HttpClientRequest, Context> requestContexts;
 
@@ -40,7 +41,8 @@ public class ClearRequestContext implements Consumer<Connection> {
   private static boolean clear(Connection connection, Channel channel, Context requestContext) {
     ChannelOperations<?, ?> current = ChannelOperations.get(channel);
     if (current != null && current != connection) {
-      return true; // The pooled channel already belongs to another request.
+      // The pooled channel already belongs to another request.
+      return true;
     }
     AgentSpan parent = AgentSpan.fromContext(requestContext);
     AgentSpan restoredParent = parent == null ? noopSpan() : parent;
@@ -51,7 +53,8 @@ public class ClearRequestContext implements Consumer<Connection> {
     }
     AgentSpan storedSpan = AgentSpan.fromContext(stored);
     if (storedSpan != parent && storedSpan != restoredParent) {
-      return false; // Leave a live client span for Netty's error/close handler to finish.
+      // Leave a live client span for Netty's error/close handler to finish.
+      return false;
     }
     if (attribute.compareAndSet(stored, null)) {
       channel.attr(CLIENT_PARENT_ATTRIBUTE_KEY).compareAndSet(restoredParent, null);
@@ -59,7 +62,9 @@ public class ClearRequestContext implements Consumer<Connection> {
     return true;
   }
 
-  /** Clears the restored parent after Netty has processed the next response, error, or close. */
+  /**
+   * Clears the restored parent after Netty has processed the next response, error, or close.
+   */
   public static class DeferredCleanup extends ChannelInboundHandlerAdapter {
     private final Connection connection;
     private final Context requestContext;

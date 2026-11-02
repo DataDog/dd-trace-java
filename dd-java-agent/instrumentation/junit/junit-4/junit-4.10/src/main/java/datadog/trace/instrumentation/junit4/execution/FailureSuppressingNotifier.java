@@ -9,7 +9,6 @@ import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
 public class FailureSuppressingNotifier extends RunNotifier {
-
   private final TestExecutionPolicy executionPolicy;
 
   public FailureSuppressingNotifier(TestExecutionPolicy executionPolicy, RunNotifier notifier) {

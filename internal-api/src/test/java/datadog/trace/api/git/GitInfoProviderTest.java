@@ -11,7 +11,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
@@ -22,9 +21,7 @@ import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
 import org.junit.jupiter.api.Test;
 
 class GitInfoProviderTest {
-
   private static final String REPO_PATH = "/repo/path";
-
   private static final PersonInfo AUTHOR =
       new PersonInfo("author name", "author email", "author date");
   private static final PersonInfo COMMITTER =
@@ -110,18 +107,18 @@ class GitInfoProviderTest {
 
   @Test
   void testFallsBackToTheSecondGitInfoBuilderForCommitInfo() {
-    GitInfoBuilder gitInfoBuilderA =
-        givenABuilderReturning(
-            new GitInfo(
-                "repoUrl",
-                null,
-                null,
-                new CommitInfo("sha", PersonInfo.NOOP, PersonInfo.NOOP, null)));
+    GitInfoBuilder gitInfoBuilderA = givenABuilderReturning(
+        new GitInfo(
+            "repoUrl",
+            null,
+            null,
+            new CommitInfo("sha", PersonInfo.NOOP, PersonInfo.NOOP, null)
+        )
+    );
 
-    GitInfoBuilder gitInfoBuilderB =
-        givenABuilderReturning(
-            new GitInfo(
-                "repoUrl", null, null, new CommitInfo("sha", AUTHOR, COMMITTER, "message")));
+    GitInfoBuilder gitInfoBuilderB = givenABuilderReturning(
+        new GitInfo("repoUrl", null, null, new CommitInfo("sha", AUTHOR, COMMITTER, "message"))
+    );
 
     GitInfoProvider gitInfoProvider = new GitInfoProvider();
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA);
@@ -134,18 +131,18 @@ class GitInfoProviderTest {
 
   @Test
   void testFallsBackToTheSecondGitInfoBuilderForEmptyStringsInCommitInfo() {
-    GitInfoBuilder gitInfoBuilderA =
-        givenABuilderReturning(
-            new GitInfo(
-                "repoUrl",
-                null,
-                null,
-                new CommitInfo("sha", new PersonInfo("", "", ""), new PersonInfo("", "", ""), "")));
+    GitInfoBuilder gitInfoBuilderA = givenABuilderReturning(
+        new GitInfo(
+            "repoUrl",
+            null,
+            null,
+            new CommitInfo("sha", new PersonInfo("", "", ""), new PersonInfo("", "", ""), "")
+        )
+    );
 
-    GitInfoBuilder gitInfoBuilderB =
-        givenABuilderReturning(
-            new GitInfo(
-                "repoUrl", null, null, new CommitInfo("sha", AUTHOR, COMMITTER, "message")));
+    GitInfoBuilder gitInfoBuilderB = givenABuilderReturning(
+        new GitInfo("repoUrl", null, null, new CommitInfo("sha", AUTHOR, COMMITTER, "message"))
+    );
 
     GitInfoProvider gitInfoProvider = new GitInfoProvider();
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA);
@@ -158,19 +155,18 @@ class GitInfoProviderTest {
 
   @Test
   void testFallsBackToTheSecondGitInfoBuilderForBlankStringsInCommitInfo() {
-    GitInfoBuilder gitInfoBuilderA =
-        givenABuilderReturning(
-            new GitInfo(
-                "repoUrl",
-                null,
-                null,
-                new CommitInfo(
-                    "sha", new PersonInfo(" ", " ", " "), new PersonInfo(" ", " ", " "), " ")));
+    GitInfoBuilder gitInfoBuilderA = givenABuilderReturning(
+        new GitInfo(
+            "repoUrl",
+            null,
+            null,
+            new CommitInfo("sha", new PersonInfo(" ", " ", " "), new PersonInfo(" ", " ", " "), " ")
+        )
+    );
 
-    GitInfoBuilder gitInfoBuilderB =
-        givenABuilderReturning(
-            new GitInfo(
-                "repoUrl", null, null, new CommitInfo("sha", AUTHOR, COMMITTER, "message")));
+    GitInfoBuilder gitInfoBuilderB = givenABuilderReturning(
+        new GitInfo("repoUrl", null, null, new CommitInfo("sha", AUTHOR, COMMITTER, "message"))
+    );
 
     GitInfoProvider gitInfoProvider = new GitInfoProvider();
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA);
@@ -183,21 +179,23 @@ class GitInfoProviderTest {
 
   @Test
   void testDoesNotFallBackToTheSecondGitInfoBuilderForCommitInfoIfShasDoNotMatch() {
-    GitInfoBuilder gitInfoBuilderA =
-        givenABuilderReturning(
-            new GitInfo(
-                "repoUrl",
-                null,
-                null,
-                new CommitInfo("sha", PersonInfo.NOOP, PersonInfo.NOOP, "message")));
+    GitInfoBuilder gitInfoBuilderA = givenABuilderReturning(
+        new GitInfo(
+            "repoUrl",
+            null,
+            null,
+            new CommitInfo("sha", PersonInfo.NOOP, PersonInfo.NOOP, "message")
+        )
+    );
 
-    GitInfoBuilder gitInfoBuilderB =
-        givenABuilderReturning(
-            new GitInfo(
-                "repoUrl",
-                null,
-                null,
-                new CommitInfo("different sha", AUTHOR, COMMITTER, "message")));
+    GitInfoBuilder gitInfoBuilderB = givenABuilderReturning(
+        new GitInfo(
+            "repoUrl",
+            null,
+            null,
+            new CommitInfo("different sha", AUTHOR, COMMITTER, "message")
+        )
+    );
 
     GitInfoProvider gitInfoProvider = new GitInfoProvider();
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA);
@@ -224,26 +222,35 @@ class GitInfoProviderTest {
     CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
     InstrumentationBridge.registerMetricCollector(metricCollector);
 
-    GitInfo gitInfoA =
-        new GitInfo(
-            "repoUrlA",
-            null,
-            null,
-            new CommitInfo("shaA", PersonInfo.NOOP, PersonInfo.NOOP, "message"));
+    GitInfo gitInfoA = new GitInfo(
+        "repoUrlA",
+        null,
+        null,
+        new CommitInfo("shaA", PersonInfo.NOOP, PersonInfo.NOOP, "message")
+    );
     GitInfo gitInfoB =
         new GitInfo("repoUrlA", null, null, new CommitInfo("shaB", AUTHOR, COMMITTER, "message"));
     GitInfo gitInfoC =
         new GitInfo("repoUrlB", null, null, new CommitInfo("shaC", AUTHOR, COMMITTER, "message"));
 
-    GitInfoBuilder gitInfoBuilderA =
-        givenABuilderReturning(
-            gitInfoA, 1, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.CI_PROVIDER);
-    GitInfoBuilder gitInfoBuilderB =
-        givenABuilderReturning(
-            gitInfoB, 2, GitProviderExpected.LOCAL_GIT, GitProviderDiscrepant.LOCAL_GIT);
-    GitInfoBuilder gitInfoBuilderC =
-        givenABuilderReturning(
-            gitInfoC, 3, GitProviderExpected.GIT_CLIENT, GitProviderDiscrepant.GIT_CLIENT);
+    GitInfoBuilder gitInfoBuilderA = givenABuilderReturning(
+        gitInfoA,
+        1,
+        GitProviderExpected.CI_PROVIDER,
+        GitProviderDiscrepant.CI_PROVIDER
+    );
+    GitInfoBuilder gitInfoBuilderB = givenABuilderReturning(
+        gitInfoB,
+        2,
+        GitProviderExpected.LOCAL_GIT,
+        GitProviderDiscrepant.LOCAL_GIT
+    );
+    GitInfoBuilder gitInfoBuilderC = givenABuilderReturning(
+        gitInfoC,
+        3,
+        GitProviderExpected.GIT_CLIENT,
+        GitProviderDiscrepant.GIT_CLIENT
+    );
 
     GitInfoProvider gitInfoProvider = new GitInfoProvider();
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA);
@@ -254,19 +261,21 @@ class GitInfoProviderTest {
 
     verify(metricCollector).add(GIT_COMMIT_SHA_MATCH, 1L, GitShaMatch.FALSE);
     verify(metricCollector)
-        .add(
-            GIT_COMMIT_SHA_DISCREPANCY,
-            1L,
-            GitProviderExpected.CI_PROVIDER,
-            GitProviderDiscrepant.LOCAL_GIT,
-            GitShaDiscrepancyType.COMMIT_DISCREPANCY);
+      .add(
+          GIT_COMMIT_SHA_DISCREPANCY,
+          1L,
+          GitProviderExpected.CI_PROVIDER,
+          GitProviderDiscrepant.LOCAL_GIT,
+          GitShaDiscrepancyType.COMMIT_DISCREPANCY
+      );
     verify(metricCollector)
-        .add(
-            GIT_COMMIT_SHA_DISCREPANCY,
-            1L,
-            GitProviderExpected.CI_PROVIDER,
-            GitProviderDiscrepant.GIT_CLIENT,
-            GitShaDiscrepancyType.REPOSITORY_DISCREPANCY);
+      .add(
+          GIT_COMMIT_SHA_DISCREPANCY,
+          1L,
+          GitProviderExpected.CI_PROVIDER,
+          GitProviderDiscrepant.GIT_CLIENT,
+          GitShaDiscrepancyType.REPOSITORY_DISCREPANCY
+      );
   }
 
   @Test
@@ -274,21 +283,27 @@ class GitInfoProviderTest {
     CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
     InstrumentationBridge.registerMetricCollector(metricCollector);
 
-    GitInfo gitInfoA =
-        new GitInfo(
-            "repoUrlA",
-            null,
-            null,
-            new CommitInfo("shaA", PersonInfo.NOOP, PersonInfo.NOOP, "message"));
+    GitInfo gitInfoA = new GitInfo(
+        "repoUrlA",
+        null,
+        null,
+        new CommitInfo("shaA", PersonInfo.NOOP, PersonInfo.NOOP, "message")
+    );
     GitInfo gitInfoB =
         new GitInfo("repoUrlA", null, null, new CommitInfo("shaA", AUTHOR, COMMITTER, "message"));
 
-    GitInfoBuilder gitInfoBuilderA =
-        givenABuilderReturning(
-            gitInfoA, 1, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.CI_PROVIDER);
-    GitInfoBuilder gitInfoBuilderB =
-        givenABuilderReturning(
-            gitInfoB, 2, GitProviderExpected.LOCAL_GIT, GitProviderDiscrepant.LOCAL_GIT);
+    GitInfoBuilder gitInfoBuilderA = givenABuilderReturning(
+        gitInfoA,
+        1,
+        GitProviderExpected.CI_PROVIDER,
+        GitProviderDiscrepant.CI_PROVIDER
+    );
+    GitInfoBuilder gitInfoBuilderB = givenABuilderReturning(
+        gitInfoB,
+        2,
+        GitProviderExpected.LOCAL_GIT,
+        GitProviderDiscrepant.LOCAL_GIT
+    );
 
     GitInfoProvider gitInfoProvider = new GitInfoProvider();
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA);
@@ -298,18 +313,19 @@ class GitInfoProviderTest {
 
     verify(metricCollector).add(GIT_COMMIT_SHA_MATCH, 1L, GitShaMatch.TRUE);
     verify(metricCollector, never())
-        .add(eq(GIT_COMMIT_SHA_DISCREPANCY), anyLong(), (TagValue[]) any());
+      .add(eq(GIT_COMMIT_SHA_DISCREPANCY), anyLong(), (TagValue[]) any());
   }
 
   @Test
   void testIgnoresRemoteUrlsStartingWithFileProtocol() {
     GitInfoBuilder gitInfoBuilderA =
         givenABuilderReturning(
-            new GitInfo("file://uselessUrl", null, null, new CommitInfo(null)), 1);
+            new GitInfo("file://uselessUrl", null, null, new CommitInfo(null)),
+            1
+    );
 
     GitInfoBuilder gitInfoBuilderB =
-        givenABuilderReturning(
-            new GitInfo("http://usefulUrl", null, null, new CommitInfo(null)), 2);
+        givenABuilderReturning(new GitInfo("http://usefulUrl", null, null, new CommitInfo(null)), 2);
 
     GitInfoProvider gitInfoProvider = new GitInfoProvider();
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA);
@@ -344,11 +360,19 @@ class GitInfoProviderTest {
 
   private static GitInfoBuilder givenABuilderReturning(GitInfo gitInfo, int order) {
     return givenABuilderReturning(
-        gitInfo, order, GitProviderExpected.USER_SUPPLIED, GitProviderDiscrepant.USER_SUPPLIED);
+        gitInfo,
+        order,
+        GitProviderExpected.USER_SUPPLIED,
+        GitProviderDiscrepant.USER_SUPPLIED
+    );
   }
 
   private static GitInfoBuilder givenABuilderReturning(
-      GitInfo gitInfo, int order, GitProviderExpected expected, GitProviderDiscrepant discrepant) {
+      GitInfo gitInfo,
+      int order,
+      GitProviderExpected expected,
+      GitProviderDiscrepant discrepant
+  ) {
     GitInfoBuilder gitInfoBuilder = mock(GitInfoBuilder.class);
     when(gitInfoBuilder.build(REPO_PATH)).thenReturn(gitInfo);
     when(gitInfoBuilder.order()).thenReturn(order);

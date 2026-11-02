@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v2.sfn;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-
 import datadog.context.Context;
 import datadog.json.JsonWriter;
 
@@ -27,7 +26,8 @@ public class InputAttributeInjector {
 
   public static String getModifiedInput(String request, String ddTraceContextJSON) {
     if (request == null || ddTraceContextJSON == null) {
-      return request; // leave request unmodified
+      // leave request unmodified
+      return request;
     }
 
     final String traceContextProperty = "\"" + DATADOG_KEY + "\":" + ddTraceContextJSON;
@@ -35,9 +35,9 @@ public class InputAttributeInjector {
     int endPos = request.lastIndexOf('}');
 
     if (startPos < 0 || endPos < startPos) {
-      return request; // leave request unmodified
+      // leave request unmodified
+      return request;
     }
-
     // If input is an empty {}
     if (endPos == startPos + 1) {
       return "{" + traceContextProperty + "}";

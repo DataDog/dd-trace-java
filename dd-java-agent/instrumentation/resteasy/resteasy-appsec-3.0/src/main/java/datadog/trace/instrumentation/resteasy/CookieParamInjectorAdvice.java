@@ -19,7 +19,8 @@ public class CookieParamInjectorAdvice {
   public static void onExit(
       @Advice.Return Object result,
       @Advice.FieldValue("paramName") String paramName,
-      @ActiveRequestContext RequestContext reqCtx) {
+      @ActiveRequestContext RequestContext reqCtx
+  ) {
     if (result instanceof String || result instanceof Collection) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {

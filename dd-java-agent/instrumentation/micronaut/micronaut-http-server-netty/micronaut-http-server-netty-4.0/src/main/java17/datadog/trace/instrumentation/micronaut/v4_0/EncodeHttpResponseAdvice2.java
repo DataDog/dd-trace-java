@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.micronaut.v4_0;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.SPAN_ATTRIBUTE;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.HttpResponse;
@@ -14,7 +13,8 @@ public class EncodeHttpResponseAdvice2 {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void finishHandlerSpan(
       @Advice.Argument(0) final NettyHttpRequest<?> request,
-      @Advice.Argument(1) final HttpResponse<?> message) {
+      @Advice.Argument(1) final HttpResponse<?> message
+  ) {
     AgentSpan span = request.removeAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
     if (null == span) {
       return;

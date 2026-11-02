@@ -15,8 +15,8 @@ import scala.collection.immutable.Seq;
 import scala.compat.java8.JFunction1;
 
 public class TaintSeqFunction
-    implements JFunction1<
-        Tuple1<Seq<Tuple2<String, String>>>, Tuple1<Seq<Tuple2<String, String>>>> {
+    implements JFunction1<Tuple1<Seq<Tuple2<String, String>>>, Tuple1<Seq<Tuple2<String, String>>>>
+{
   public static final TaintSeqFunction INSTANCE = new TaintSeqFunction();
 
   @Override

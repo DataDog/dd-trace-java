@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.junit4;
 
 import static datadog.json.JsonMapper.toJson;
-
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -36,20 +35,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class JUnit4Utils {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnit4Utils.class);
-
   private static final String SYNCHRONIZED_LISTENER =
       "org.junit.runner.notification.SynchronizedRunListener";
   private static final String BAZEL_RUN_NOTIFIER_WRAPPER =
       "com.google.testing.junit.junit4.runner.RunNotifierWrapper";
-
   // Regex for the final brackets with its content in the test name. E.g. test_name[0] --> [0]
   private static final Pattern testNameNormalizerRegex = Pattern.compile("\\[[^\\[]*\\]$");
-
   private static final Pattern METHOD_AND_CLASS_NAME_PATTERN =
       Pattern.compile("([\\s\\S]*)\\((.*)\\)");
-
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(ParentRunner.class.getClassLoader());
   private static final MethodHandle PARENT_RUNNER_DESCRIBE_CHILD =
@@ -61,18 +55,17 @@ public abstract class JUnit4Utils {
       accessDelegateFieldInBazelRunNotifierWrapper();
   private static final MethodHandle DESCRIPTION_UNIQUE_ID =
       METHOD_HANDLES.privateFieldGetter(Description.class, "fUniqueId");
-
   public static final ComparableVersion junitV413 = new ComparableVersion("4.13");
-  public static final List<LibraryCapability> BASE_CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> BASE_CAPABILITIES = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX
+  );
 
   private static MethodHandle accessListenersFieldInRunNotifier() {
     MethodHandle listeners = METHOD_HANDLES.privateFieldGetter(RunNotifier.class, "listeners");
@@ -90,7 +83,7 @@ public abstract class JUnit4Utils {
     }
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     return new MethodHandles(contextClassLoader)
-        .privateFieldGetter(SYNCHRONIZED_LISTENER, "listener");
+      .privateFieldGetter(SYNCHRONIZED_LISTENER, "listener");
   }
 
   private static MethodHandle accessDelegateFieldInBazelRunNotifierWrapper() {
@@ -100,7 +93,7 @@ public abstract class JUnit4Utils {
     }
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     return new MethodHandles(contextClassLoader)
-        .privateFieldGetter(BAZEL_RUN_NOTIFIER_WRAPPER, "delegate");
+      .privateFieldGetter(BAZEL_RUN_NOTIFIER_WRAPPER, "delegate");
   }
 
   public static List<RunListener> runListenersFromRunNotifier(final RunNotifier runNotifier) {
@@ -173,10 +166,8 @@ public abstract class JUnit4Utils {
       // in that case method name will have the following structure:
       // methodName(param1, param2, param3) [test case number]
       // e.g. test_parameterized(1, 2, 3) [0]
-
       int parameterCount = countCharacter(methodName, ',') + 1;
       methodName = methodName.substring(0, junitParamsStartIdx);
-
       // below is a best-effort attempt to find a matching method with the information we have
       // this is not terribly efficient, but this case should be rare
       for (Method declaredMethod : testClass.getDeclaredMethods()) {
@@ -229,13 +220,11 @@ public abstract class JUnit4Utils {
         // [test case number] param1, param2, param3 (methodName)
         // e.g. [0] 2, 2, 4 (shouldReturnCorrectSum)
         return methodName.substring(actualMethodNameStart + 1, actualMethodNameEnd);
-
       } else {
         // For "regular" parameterized tests, the test name contains a custom test name
         // within the brackets. e.g. parameterized_test[0].
         // For the test.name tag, we need to normalize the test names.
         // "parameterized_test[0]" must be "parameterized_test".
-
         // We could use a simple .endsWith function for pure JUnit4 tests,
         // however, we need to use a regex to find the trailing brackets specifically because if the
         // test is based on Spock v1 (that runs JUnit4 listeners under the hood)
@@ -264,7 +253,6 @@ public abstract class JUnit4Utils {
     if (methodName == null || !methodName.contains("[")) {
       return null;
     }
-
     // No public access to the test parameters map in JUnit4.
     // In this case, we store the fullTestName in the "metadata.test_name" object.
     return "{\"metadata\":{\"test_name\":" + toJson(methodName) + "}}";

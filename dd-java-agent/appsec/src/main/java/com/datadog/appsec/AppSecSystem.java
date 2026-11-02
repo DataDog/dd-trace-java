@@ -35,12 +35,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AppSecSystem {
-
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
   private static final AtomicBoolean STARTED = new AtomicBoolean();
   private static final Map<AppSecModule, String> STARTED_MODULES_INFO = new HashMap<>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
-  private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
+  // testing
+  private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER;
   private static Runnable STOP_SUBSCRIPTION_SERVICE;
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
   private static volatile GatewayBridge GATEWAY_BRIDGE;
@@ -74,23 +74,26 @@ public class AppSecSystem {
 
     ConfigurationPoller configurationPoller = sco.configurationPoller(config);
     // may throw and abort startup
-    APP_SEC_CONFIG_SERVICE =
-        new AppSecConfigServiceImpl(
-            config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
+    APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(config, configurationPoller, () -> reloadSubscriptions(
+        REPLACEABLE_EVENT_PRODUCER
+    ));
     if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
       APP_SEC_CONFIG_SERVICE.init();
     }
     sco.createRemaining(config);
 
-    GatewayBridge gatewayBridge =
-        new GatewayBridge(
-            gw,
-            REPLACEABLE_EVENT_PRODUCER,
-            () -> API_SECURITY_SAMPLER,
-            APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
+    GatewayBridge gatewayBridge = new GatewayBridge(
+        gw,
+        REPLACEABLE_EVENT_PRODUCER,
+        () -> API_SECURITY_SAMPLER,
+        APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors()
+    );
 
     loadModules(
-        eventDispatcher, sco.monitoring, appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
+        eventDispatcher,
+        sco.monitoring,
+        appSecEnabledConfig == ProductActivation.FULLY_ENABLED
+    );
 
     gatewayBridge.init();
     GATEWAY_BRIDGE = gatewayBridge;
@@ -121,8 +124,9 @@ public class AppSecSystem {
     ActiveSubsystems.APPSEC_ACTIVE = status;
     // Report to the product change via telemetry
     log.debug("AppSec is now {}", status ? "active" : "inactive");
-    ProductChangeCollector.get()
-        .update(new ProductChange().productType(ProductChange.ProductType.APPSEC).enabled(status));
+    ProductChangeCollector
+      .get()
+      .update(new ProductChange().productType(ProductChange.ProductType.APPSEC).enabled(status));
     if (status) {
       maybeInitializeApiSecurity();
     }
@@ -145,7 +149,10 @@ public class AppSecSystem {
   }
 
   private static void loadModules(
-      EventDispatcher eventDispatcher, Monitoring monitoring, boolean appSecEnabledConfig) {
+      EventDispatcher eventDispatcher,
+      Monitoring monitoring,
+      boolean appSecEnabledConfig
+  ) {
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
@@ -178,7 +185,8 @@ public class AppSecSystem {
   }
 
   private static void reloadSubscriptions(
-      ReplaceableEventProducerService replaceableEventProducerService) {
+      ReplaceableEventProducerService replaceableEventProducerService
+  ) {
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
@@ -193,7 +201,6 @@ public class AppSecSystem {
     newEd.subscribeDataAvailable(dataSubscriptionSet);
 
     replaceableEventProducerService.replaceEventProducerService(newEd);
-
     // The new ruleset may require IG events that were not needed when the bridge was initialized,
     // so the conditionally registered callbacks have to be re-evaluated against the new state.
     // Kept in its own try/catch so a failure here cannot prevent the rest of the reload from
@@ -201,9 +208,8 @@ public class AppSecSystem {
     final GatewayBridge gatewayBridge = GATEWAY_BRIDGE;
     if (gatewayBridge != null) {
       try {
-        gatewayBridge.registerAdditionalIGCallbacksIfNeeded(
-            GatewayBridge.additionalIGEventTypes(
-                replaceableEventProducerService.allSubscribedDataAddresses()));
+        gatewayBridge.registerAdditionalIGCallbacksIfNeeded(GatewayBridge.additionalIGEventTypes(replaceableEventProducerService.allSubscribedDataAddresses()
+        ));
       } catch (RuntimeException e) {
         log.warn("Error registering additional instrumentation gateway callbacks", e);
       }
@@ -227,8 +233,10 @@ public class AppSecSystem {
     if (API_SECURITY_INITIALIZED.compareAndSet(false, true)) {
       if (SpanPostProcessor.Holder.INSTANCE == SpanPostProcessor.Holder.NOOP) {
         ApiSecuritySampler requestSampler = new ApiSecuritySamplerImpl();
-        SpanPostProcessor.Holder.INSTANCE =
-            new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
+        SpanPostProcessor.Holder.INSTANCE = new AppSecSpanPostProcessor(
+            requestSampler,
+            REPLACEABLE_EVENT_PRODUCER
+        );
         API_SECURITY_SAMPLER = requestSampler;
       }
     }
@@ -240,9 +248,11 @@ public class AppSecSystem {
 
   public static Set<String> getStartedModulesInfo() {
     if (isStarted()) {
-      return STARTED_MODULES_INFO.keySet().stream()
-          .map(AppSecModule::getName)
-          .collect(Collectors.toSet());
+      return STARTED_MODULES_INFO
+        .keySet()
+        .stream()
+        .map(AppSecModule::getName)
+        .collect(Collectors.toSet());
     } else {
       return Collections.emptySet();
     }

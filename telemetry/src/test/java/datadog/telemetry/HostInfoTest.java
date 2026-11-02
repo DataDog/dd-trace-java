@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import datadog.environment.OperatingSystem;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -16,7 +15,6 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class HostInfoTest {
-
   @Test
   void getHostname() {
     String hostname = HostInfo.getHostname();
@@ -51,7 +49,6 @@ class HostInfoTest {
       // uname -r will return X.Y.Z version, while JVM will report just X.Y
       // disabled, the uname -r gives the Kernel version which is different from Mac OS version
       // assertTrue(runCommand("uname", "-r").startsWith(HostInfo.getKernelRelease()));
-
       // No /proc in macOS, so using property os.version like for KernelRelease
       assertEquals(HostInfo.getKernelRelease(), HostInfo.getKernelVersion());
     } else {
@@ -65,8 +62,7 @@ class HostInfoTest {
     Process process = new ProcessBuilder(command).start();
     String output;
     try (BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+        new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
       output = reader.lines().collect(Collectors.joining("\n"));
     }
     process.waitFor();

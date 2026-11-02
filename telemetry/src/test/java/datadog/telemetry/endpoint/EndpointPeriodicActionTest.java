@@ -10,7 +10,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.telemetry.TelemetryService;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.EndpointCollector;
@@ -18,7 +17,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class EndpointPeriodicActionTest {
-
   @Test
   void testThatEndpointsAreCapturedByThePeriodicAction() {
     Endpoint endpoint =
@@ -36,21 +34,15 @@ class EndpointPeriodicActionTest {
 
   @Test
   void testThatEndpointsAreNotLostIfTheServiceIsAtCapacity() {
-    List<Endpoint> endpoints =
-        asList(
-            new Endpoint()
-                .first(true)
-                .type(REST)
-                .method(GET)
-                .operation(HTTP_REQUEST)
-                .path("/test1"),
-            new Endpoint().type(REST).method(GET).operation(HTTP_REQUEST).path("/test2"),
-            new Endpoint().type(REST).method(GET).operation(HTTP_REQUEST).path("/test3"));
+    List<Endpoint> endpoints = asList(
+        new Endpoint().first(true).type(REST).method(GET).operation(HTTP_REQUEST).path("/test1"),
+        new Endpoint().type(REST).method(GET).operation(HTTP_REQUEST).path("/test2"),
+        new Endpoint().type(REST).method(GET).operation(HTTP_REQUEST).path("/test3")
+    );
     TelemetryService service = mock(TelemetryService.class);
     EndpointCollector endpointCollector = new EndpointCollector();
     endpointCollector.supplier(endpoints.iterator());
     EndpointPeriodicAction action = new EndpointPeriodicAction(endpointCollector);
-
     // first iteration: the service accepts endpoints[0] but rejects endpoints[1] (at capacity)
     when(service.addEndpoint(endpoints.get(0))).thenReturn(true);
     when(service.addEndpoint(endpoints.get(1))).thenReturn(false);
@@ -60,7 +52,6 @@ class EndpointPeriodicActionTest {
     verify(service).addEndpoint(endpoints.get(0));
     verify(service).addEndpoint(endpoints.get(1));
     verifyNoMoreInteractions(service);
-
     // second iteration: the rejected endpoints[1] is retried first, then endpoints[2] follows
     when(service.addEndpoint(endpoints.get(1))).thenReturn(true);
     when(service.addEndpoint(endpoints.get(2))).thenReturn(true);

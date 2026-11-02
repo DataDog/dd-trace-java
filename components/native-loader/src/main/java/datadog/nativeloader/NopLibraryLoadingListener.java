@@ -5,7 +5,8 @@ import java.util.Arrays;
 final class NopLibraryLoadingListener extends SafeLibraryLoadingListener {
   static final NopLibraryLoadingListener INSTANCE = new NopLibraryLoadingListener();
 
-  private NopLibraryLoadingListener() {}
+  private NopLibraryLoadingListener() {
+  }
 
   @Override
   public boolean isNop() {

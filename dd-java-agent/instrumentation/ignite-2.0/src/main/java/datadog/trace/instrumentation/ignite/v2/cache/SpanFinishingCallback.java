@@ -9,8 +9,9 @@ import org.apache.ignite.lang.IgniteInClosure;
  * on a potential failure.
  */
 public class SpanFinishingCallback implements IgniteInClosure<IgniteFuture<?>> {
-
-  /** Span that we should finish and annotate when the future is complete. */
+  /**
+   * Span that we should finish and annotate when the future is complete.
+   */
   private final AgentSpan span;
 
   public SpanFinishingCallback(final AgentSpan span) {
@@ -22,7 +23,8 @@ public class SpanFinishingCallback implements IgniteInClosure<IgniteFuture<?>> {
     IgniteCacheDecorator.DECORATE.beforeFinish(span);
 
     try {
-      igniteFuture.get(); // propagates failure to the catch block below
+      // propagates failure to the catch block below
+      igniteFuture.get();
       IgniteCacheDecorator.DECORATE.beforeFinish(span);
     } catch (Exception e) {
       IgniteCacheDecorator.DECORATE.onError(span, e);

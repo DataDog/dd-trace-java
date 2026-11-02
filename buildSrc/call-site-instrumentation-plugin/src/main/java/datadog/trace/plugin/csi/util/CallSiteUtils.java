@@ -11,8 +11,8 @@ import javax.annotation.Nonnull;
 import org.objectweb.asm.Type;
 
 public abstract class CallSiteUtils {
-
-  private CallSiteUtils() {}
+  private CallSiteUtils() {
+  }
 
   public static Type classNameToType(@Nonnull final String className) {
     return Type.getType(classNameToDescriptor(className));
@@ -39,7 +39,10 @@ public abstract class CallSiteUtils {
     if (count == 1) {
       return value;
     }
-    return IntStream.range(0, count).mapToObj(i -> value).collect(Collectors.joining());
+    return IntStream
+      .range(0, count)
+      .mapToObj(i -> value)
+      .collect(Collectors.joining());
   }
 
   public static String repeat(final char value, int count) {

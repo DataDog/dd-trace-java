@@ -1,6 +1,8 @@
 package datadog.trace.logging;
 
-/** Log level enum. */
+/**
+ * Log level enum.
+ */
 public enum LogLevel {
   TRACE,
   DEBUG,
@@ -8,7 +10,6 @@ public enum LogLevel {
   WARN,
   ERROR,
   OFF;
-
   /**
    * Case insensitive conversion from {@link String} to {@link LogLevel}.
    *

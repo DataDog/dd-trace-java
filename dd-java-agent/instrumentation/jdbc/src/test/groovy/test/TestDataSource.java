@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package test;
 
 import java.io.PrintWriter;
@@ -51,36 +50,48 @@ public class TestDataSource implements DataSource {
     // we don't care
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public PrintWriter getLogWriter() throws SQLException {
     return logWriter;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void setLogWriter(PrintWriter out) throws SQLException {
     this.logWriter = out;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void setLoginTimeout(int seconds) throws SQLException {
     this.loginTimeout = seconds;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getLoginTimeout() throws SQLException {
     return loginTimeout;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   public Logger getParentLogger() throws SQLFeatureNotSupportedException {
     return null;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @SuppressWarnings("unchecked")
   @Override
   public <T> T unwrap(Class<T> iface) throws SQLException {
@@ -91,19 +102,25 @@ public class TestDataSource implements DataSource {
     throw new SQLException("Wrapped DataSource is not an instance of " + iface);
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean isWrapperFor(Class<?> iface) throws SQLException {
     return false;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Connection getConnection() throws SQLException {
     return new TestConnection(false);
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Connection getConnection(String username, String password) throws SQLException {
     return new TestConnection(false);

@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SPAN_KEY;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
@@ -23,12 +22,12 @@ import javax.annotation.Nullable;
 
 public interface AgentSpan
     extends MutableSpan,
-        AppendableSpanLinks,
-        ImplicitContextKeyed,
-        Context,
-        IGSpanInfo,
-        WithAgentSpan {
-
+    AppendableSpanLinks,
+    ImplicitContextKeyed,
+    Context,
+    IGSpanInfo,
+    WithAgentSpan
+{
   /**
    * Extracts the span from the current {@link Context}.
    *
@@ -143,7 +142,9 @@ public interface AgentSpan
     return setTag(KnownTagCodec.nameOf(tagId), value);
   }
 
-  /** entry may be null - in which case the tags remained unchanged */
+  /**
+   * entry may be null - in which case the tags remained unchanged
+   */
   AgentSpan setTag(TagMap.EntryReader entry);
 
   AgentSpan setAllTags(Map<String, ?> map);
@@ -192,7 +193,9 @@ public interface AgentSpan
   @Override
   AgentSpan setMetric(CharSequence key, double value);
 
-  /** metricEntry may be null - in which case the tags remained unchanged */
+  /**
+   * metricEntry may be null - in which case the tags remained unchanged
+   */
   AgentSpan setMetric(TagMap.EntryReader metricEntry);
 
   @Override
@@ -237,7 +240,9 @@ public interface AgentSpan
 
   void finishWithDuration(long durationNanos);
 
-  /** Marks the start of a message pipeline where we want to track end-to-end processing time. */
+  /**
+   * Marks the start of a message pipeline where we want to track end-to-end processing time.
+   */
   void beginEndToEnd();
 
   /**
@@ -283,7 +288,9 @@ public interface AgentSpan
    */
   AgentSpan setResourceName(final CharSequence resourceName, byte priority);
 
-  /** RequestContext for the Instrumentation Gateway */
+  /**
+   * RequestContext for the Instrumentation Gateway
+   */
   RequestContext getRequestContext();
 
   Integer forceSamplingDecision();
@@ -339,17 +346,12 @@ public interface AgentSpan
         setSpanType(spanType);
       }
     }
-
     // Prototype tags are fallback defaults: only fill keys this span has not already set.
-    prototype
-        .tags()
-        .forEach(
-            (tag, value) -> {
-              if (getTag(tag) == null) {
-                setTag(tag, value);
-              }
-            });
-
+    prototype.tags().forEach((tag, value) -> {
+      if (getTag(tag) == null) {
+        setTag(tag, value);
+      }
+    });
     // Never-clobber: only stamp the integration name when the context reports none.
     if (spanContext().getIntegrationName() == null) {
       final CharSequence integrationName = prototype.integrationName();
@@ -377,7 +379,9 @@ public interface AgentSpan
       setSpanType(spanType);
     }
 
-    prototype.tags().forEach((tag, value) -> setTag(tag, value));
+    prototype
+      .tags()
+      .forEach((tag, value) -> setTag(tag, value));
 
     final CharSequence integrationName = prototype.integrationName();
     if (integrationName != null) {

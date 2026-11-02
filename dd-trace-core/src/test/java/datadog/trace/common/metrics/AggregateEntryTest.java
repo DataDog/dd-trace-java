@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.DDSketchHistograms;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class AggregateEntryTest {
-
   @BeforeAll
   static void initAgentMeter() {
     // recordOneDuration -> Histogram.accept needs AgentMeter to be initialized.
@@ -74,9 +72,8 @@ class AggregateEntryTest {
   @Test
   void okAndErrorLatenciesTrackedSeparately() {
     AggregateEntry entry = newEntry();
-    long[] durations = {
-      1L, 100L | ERROR_TAG, 2L, 99L | ERROR_TAG, 3L, 98L | ERROR_TAG, 4L, 97L | ERROR_TAG
-    };
+    long[] durations =
+        {1L, 100L | ERROR_TAG, 2L, 99L | ERROR_TAG, 3L, 98L | ERROR_TAG, 4L, 97L | ERROR_TAG};
     for (long d : durations) {
       entry.recordOneDuration(d);
     }
@@ -98,21 +95,21 @@ class AggregateEntryTest {
 
   @Test
   void presentOptionalFieldsCarryTheirValue() {
-    AggregateEntry entry =
-        AggregateEntryTestUtils.of(
-            "resource",
-            "svc",
-            "op",
-            "src",
-            "type",
-            200,
-            false,
-            true,
-            "client",
-            null,
-            "GET",
-            "/api/v1/foo",
-            "0");
+    AggregateEntry entry = AggregateEntryTestUtils.of(
+        "resource",
+        "svc",
+        "op",
+        "src",
+        "type",
+        200,
+        false,
+        true,
+        "client",
+        null,
+        "GET",
+        "/api/v1/foo",
+        "0"
+    );
     assertNotSame(EMPTY, entry.getServiceSource());
     assertNotSame(EMPTY, entry.getHttpMethod());
     assertNotSame(EMPTY, entry.getHttpEndpoint());
@@ -125,6 +122,19 @@ class AggregateEntryTest {
 
   private static AggregateEntry newEntry() {
     return AggregateEntryTestUtils.of(
-        "resource", "svc", "op", null, "type", 200, false, true, "client", null, null, null, null);
+        "resource",
+        "svc",
+        "op",
+        null,
+        "type",
+        200,
+        false,
+        true,
+        "client",
+        null,
+        null,
+        null,
+        null
+    );
   }
 }

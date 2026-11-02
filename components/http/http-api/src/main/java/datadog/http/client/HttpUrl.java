@@ -1,7 +1,6 @@
 package datadog.http.client;
 
 import static java.util.Objects.requireNonNull;
-
 import java.net.URI;
 import javax.annotation.Nullable;
 
@@ -87,7 +86,9 @@ public interface HttpUrl {
     return HttpProviders.get().newUrlBuilder();
   }
 
-  /** Builder for constructing {@link HttpUrl} instances. */
+  /**
+   * Builder for constructing {@link HttpUrl} instances.
+   */
   interface Builder {
     /**
      * Sets the scheme (protocol) for the URL.

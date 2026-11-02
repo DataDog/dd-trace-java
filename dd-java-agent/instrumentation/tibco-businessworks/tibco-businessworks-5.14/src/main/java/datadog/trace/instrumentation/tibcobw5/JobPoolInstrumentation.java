@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.DECORATE;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.TIBCO_PROCESS_OPERATION;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import com.tibco.pe.core.DDJobMate;
 import com.tibco.pe.core.JobPool;
@@ -24,7 +23,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "com.tibco.pe.core.JobPool";
@@ -34,13 +35,16 @@ public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("addJob")
-            .and(isPublic())
-            .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
-        getClass().getName() + "$JobStartAdvice");
+          .and(isPublic())
+          .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
+        getClass().getName() + "$JobStartAdvice"
+    );
     transformer.applyAdvice(
-        named("removeJob") // note: removeJob is a protected method (not public)
-            .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
-        getClass().getName() + "$JobEndAdvice");
+        named("removeJob")
+          // note: removeJob is a protected method (not public)
+          .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
+        getClass().getName() + "$JobEndAdvice"
+    );
   }
 
   public static class JobStartAdvice {
@@ -71,7 +75,8 @@ public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
     public static void after(
         @Advice.This final JobPool self,
         @Advice.Argument(value = 0) ProcessContext processContext,
-        @Advice.Thrown final Throwable thrown) {
+        @Advice.Thrown final Throwable thrown
+    ) {
       Map<String, AgentSpan> map =
           InstrumentationContext.get(ProcessContext.class, Map.class).remove(processContext);
       final String workflowName = DDJobMate.getJobWorkflow(processContext).getName();

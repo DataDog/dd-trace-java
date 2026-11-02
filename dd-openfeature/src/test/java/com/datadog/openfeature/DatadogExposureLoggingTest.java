@@ -7,7 +7,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.openfeature.Provider.Options;
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
@@ -37,9 +36,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Turns Datadog exposure logging off through the real setting, read by the runtime. */
+/**
+ * Turns Datadog exposure logging off through the real setting, read by the runtime.
+ */
 class DatadogExposureLoggingTest {
-
   private final List<ExposureEvent> sentToDatadog = new CopyOnWriteArrayList<>();
   private final List<ExposureHook.Evaluation> evaluations = new ArrayList<>();
   private LocalHttpServer cdn;
@@ -90,16 +90,16 @@ class DatadogExposureLoggingTest {
       settings.add("feature.flags.exposures.datadog.logging.enabled");
       settings.add(exposuresDatadogLoggingEnabled);
     }
-    final DDEvaluator evaluator =
-        new DDEvaluator(
-            () -> {},
-            new ProxyAgentBridge((route, json) -> {}),
-            TestSettings.of(settings.toArray(new String[0]))) {
-          @Override
-          void recordExposure(final ExposureEvent event) {
-            DatadogExposureLoggingTest.this.sentToDatadog.add(event);
-          }
-        };
+    final DDEvaluator evaluator = new DDEvaluator(
+          () -> {},
+        new ProxyAgentBridge((route, json) -> {}),
+        TestSettings.of(settings.toArray(new String[0]))
+    ) {
+      @Override
+      void recordExposure(final ExposureEvent event) {
+        DatadogExposureLoggingTest.this.sentToDatadog.add(event);
+      }
+    };
     evaluator.accept(configuration());
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     api.setProviderAndWait(new Provider(new Options().initTimeout(10, SECONDS), evaluator));
@@ -115,11 +115,15 @@ class DatadogExposureLoggingTest {
         new Allocation("allocation", null, null, null, singletonList(split), Boolean.TRUE);
     final Map<String, Flag> flags = new HashMap<>();
     flags.put(
-        "flag", new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation)));
+        "flag",
+        new Flag("flag", true, ValueType.INTEGER, variations, singletonList(allocation))
+    );
     return new ServerConfiguration("", "", false, null, flags);
   }
 
-  /** A bridge only providing an event platform proxy. */
+  /**
+   * A bridge only providing an event platform proxy.
+   */
   private static final class ProxyAgentBridge implements AgentBridge {
     private final EventTransport proxy;
 

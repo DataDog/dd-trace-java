@@ -5,7 +5,9 @@ import datadog.trace.api.DDTraceId;
 public interface ExtendedScopeListener extends ScopeListener {
   void afterScopeActivated(DDTraceId traceId, long spanId);
 
-  /** Called just after a scope is closed. */
+  /**
+   * Called just after a scope is closed.
+   */
   @Override
   void afterScopeClosed();
 }

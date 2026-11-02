@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DBM_ALWAYS_APPE
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.stringOption;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
 import io.r2dbc.spi.Connection;
@@ -23,8 +22,8 @@ import io.r2dbc.spi.ConnectionFactoryOptions;
  * dynamic trace context.
  */
 public final class R2dbcSqlCommentInjector {
-
-  private R2dbcSqlCommentInjector() {}
+  private R2dbcSqlCommentInjector() {
+  }
 
   /**
    * Resolves connection metadata for {@code connection} (via {@code connectionOptionsStore}) and
@@ -38,7 +37,8 @@ public final class R2dbcSqlCommentInjector {
   public static String injectForConnection(
       String sql,
       Connection connection,
-      ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore) {
+      ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore
+  ) {
     if (!INJECT_COMMENT) {
       return sql;
     }
@@ -74,13 +74,17 @@ public final class R2dbcSqlCommentInjector {
    * @return the SQL with injected comment, or the original SQL if DBM is disabled
    */
   public static String inject(
-      String sql, String dbService, String dbType, String hostname, String dbName) {
+      String sql,
+      String dbService,
+      String dbType,
+      String hostname,
+      String dbName
+  ) {
     if (!INJECT_COMMENT) {
       return sql;
     }
     // No traceparent: see the class-level javadoc.
-    return SQLCommenter.inject(
-        sql, dbService, dbType, hostname, dbName, null, preferAppend(dbType));
+    return SQLCommenter.inject(sql, dbService, dbType, hostname, dbName, null, preferAppend(dbType));
   }
 
   /**

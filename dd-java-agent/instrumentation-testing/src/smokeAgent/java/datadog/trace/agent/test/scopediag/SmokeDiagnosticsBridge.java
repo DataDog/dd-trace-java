@@ -6,7 +6,9 @@ import java.util.Map;
 import java.util.Properties;
 import net.bytebuddy.dynamic.ClassFileLocator;
 
-/** Runs in the tracer's loader so all recorded objects retain their actual type identity. */
+/**
+ * Runs in the tracer's loader so all recorded objects retain their actual type identity.
+ */
 public final class SmokeDiagnosticsBridge {
   private static Properties completed;
   private static boolean recording;
@@ -15,14 +17,16 @@ public final class SmokeDiagnosticsBridge {
   private static EnumSet<ScopeDiagnosticsCheck> enabledChecks =
       EnumSet.allOf(ScopeDiagnosticsCheck.class);
 
-  private SmokeDiagnosticsBridge() {}
+  private SmokeDiagnosticsBridge() {
+  }
 
   public static void install(
       Instrumentation instrumentation,
       Map<String, byte[]> classes,
       String disabledChecks,
       String reason,
-      long quiescenceMillis) {
+      long quiescenceMillis
+  ) {
     if (quiescenceMillis < 0 || quiescenceMillis > 10_000) {
       throw new IllegalArgumentException("quiescenceMillis must be between 0 and 10000");
     }
@@ -51,12 +55,16 @@ public final class SmokeDiagnosticsBridge {
       Class.forName(
           corePackage + ".scopemanager.ScopeContinuation",
           false,
-          SmokeDiagnosticsBridge.class.getClassLoader());
+          SmokeDiagnosticsBridge.class.getClassLoader()
+      );
     } catch (ClassNotFoundException unrelocatedAgent) {
       corePackage = "datadog.trace.core";
     }
     ScopeContinuationTransformer.install(
-        instrumentation, corePackage, new ClassFileLocator.Simple(classes));
+        instrumentation,
+        corePackage,
+        new ClassFileLocator.Simple(classes)
+    );
   }
 
   public static synchronized void start() {
@@ -86,18 +94,16 @@ public final class SmokeDiagnosticsBridge {
     result.setProperty("reason", exclusionReason);
     long events = 0;
     for (ContinuationRecord record : report.records()) {
-      events +=
-          (record.capture() == null ? 0 : 1)
-              + record.resumes().size()
-              + record.failedActivations().size()
-              + (record.terminal() == null ? 0 : 1)
-              + record.extraTerminals().size();
+      events += (record.capture() == null ? 0 : 1)
+          + record.resumes().size()
+          + record.failedActivations().size()
+          + (record.terminal() == null ? 0 : 1)
+          + record.extraTerminals().size();
     }
     for (ScopeRecord record : report.scopeRecords()) {
-      events +=
-          (record.open() == null ? 0 : 1)
-              + (record.close() == null ? 0 : 1)
-              + record.wrongThreadCloses().size();
+      events += (record.open() == null ? 0 : 1)
+          + (record.close() == null ? 0 : 1)
+          + record.wrongThreadCloses().size();
     }
     result.setProperty("eventCount", Long.toString(events));
     completed = result;

@@ -3,9 +3,10 @@ package datadog.trace.bootstrap.instrumentation.jms;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-/** Tracks message spans when consuming messages with {@code receive}. */
+/**
+ * Tracks message spans when consuming messages with {@code receive}.
+ */
 public final class MessageConsumerState {
-
   private final SessionState sessionState;
   private final CharSequence brokerResourceName;
   private final String brokerServiceName;
@@ -18,7 +19,8 @@ public final class MessageConsumerState {
       CharSequence brokerResourceName,
       CharSequence consumerBaseResourceName,
       CharSequence consumerResourceName,
-      boolean propagationDisabled) {
+      boolean propagationDisabled
+  ) {
     this.sessionState = sessionState;
     this.brokerResourceName = brokerResourceName;
     this.consumerBaseResourceName = consumerBaseResourceName;
@@ -62,18 +64,27 @@ public final class MessageConsumerState {
     return propagationDisabled;
   }
 
-  /** Gets the current time-in-queue span; returns {@code null} if this is a new batch. */
+  /**
+   * Gets the current time-in-queue span; returns {@code null} if this is a new batch.
+   */
   public AgentSpan getTimeInQueueSpan(long batchId) {
-    return sessionState.getTimeInQueueSpan(batchId); // tracked per-session-thread
+    // tracked per-session-thread
+    return sessionState.getTimeInQueueSpan(batchId);
   }
 
-  /** Starts tracking a new time-in-queue span. */
+  /**
+   * Starts tracking a new time-in-queue span.
+   */
   public void setTimeInQueueSpan(long batchId, AgentSpan span) {
-    sessionState.setTimeInQueueSpan(batchId, span); // tracked per-session-thread
+    // tracked per-session-thread
+    sessionState.setTimeInQueueSpan(batchId, span);
   }
 
-  /** Finishes the current time-in-queue span and optionally stops tracking it. */
+  /**
+   * Finishes the current time-in-queue span and optionally stops tracking it.
+   */
   public void finishTimeInQueueSpan(boolean clear) {
-    sessionState.finishTimeInQueueSpan(clear); // tracked per-session-thread
+    // tracked per-session-thread
+    sessionState.finishTimeInQueueSpan(clear);
   }
 }

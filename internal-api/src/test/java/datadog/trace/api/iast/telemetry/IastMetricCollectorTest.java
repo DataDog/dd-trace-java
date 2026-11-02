@@ -12,7 +12,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.iast.IastConstantConverter;
 import datadog.trace.api.iast.telemetry.IastMetric.Tag;
@@ -40,11 +39,8 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class IastMetricCollectorTest {
-
   private static final TracerAPI ORIGINAL_TRACER = AgentTracer.get();
-
   private static final IastMetricCollector ORIGINAL_COLLECTOR = IastMetricCollector.get();
-
   private HasMetricCollector iastCtx;
   private RequestContext ctx;
   private AgentSpan span;
@@ -96,19 +92,17 @@ class IastMetricCollectorTest {
 
     List<Future<?>> futures = new ArrayList<>(times);
     for (int i = 0; i < times; i++) {
-      futures.add(
-          executor.submit(
-              () -> {
-                IastMetric metric = metrics[random.nextInt(metrics.length)];
-                latch.await();
-                if (metric.getTag() == null) {
-                  IastMetricCollector.add(metric, value);
-                } else {
-                  byte tag = (byte) random.nextInt(metric.getTag().values.length);
-                  IastMetricCollector.add(metric, tag, value);
-                }
-                return null;
-              }));
+      futures.add(executor.submit(() -> {
+        IastMetric metric = metrics[random.nextInt(metrics.length)];
+        latch.await();
+        if (metric.getTag() == null) {
+          IastMetricCollector.add(metric, value);
+        } else {
+          byte tag = (byte) random.nextInt(metric.getTag().values.length);
+          IastMetricCollector.add(metric, tag, value);
+        }
+        return null;
+      }));
     }
     latch.countDown();
     for (Future<?> future : futures) {
@@ -131,14 +125,12 @@ class IastMetricCollectorTest {
     IastMetricCollector collector = newNoOpInstance();
     IastMetric metric = IastMetric.EXECUTED_SINK;
     byte tag = SQL_INJECTION;
-
     // adding a metric
     collector.addMetric(metric, tag, 1);
     collector.prepareMetrics();
     Collection<IastMetricData> collectorMetrics = collector.drain();
 
     assertTrue(collectorMetrics.isEmpty());
-
     // merging metrics
     collector.merge(singletonList(new IastMetricData(metric, tag, 100)));
     collector.prepareMetrics();
@@ -157,12 +149,10 @@ class IastMetricCollectorTest {
     when(iastCtx.getMetricCollector()).thenReturn(requestCollector);
 
     IastMetricCollector.add(globalMetric, tag, value);
-
     // global metrics do not access the request context
     verifyNoInteractions(api, span, ctx, iastCtx, requestCollector);
 
     IastMetricCollector.add(requestMetric, tag, value);
-
     // request metrics require access to the request context
     verify(api).activeSpan();
     verify(span).getRequestContext();
@@ -173,7 +163,6 @@ class IastMetricCollectorTest {
 
     clearInvocations(api, span, ctx, iastCtx, requestCollector);
     IastMetricCollector.add(requestMetric, tag, value, ctx);
-
     // if request context is provided no access to the active span is needed
     verify(ctx).getData(IAST);
     verify(iastCtx).getMetricCollector();
@@ -187,8 +176,7 @@ class IastMetricCollectorTest {
     "INSTRUMENTED_SOURCE | INSTRUMENTED_SOURCE | REQUEST_HEADER_NAME",
     "EXECUTED_TAINTED    | EXECUTED_TAINTED    | -1                 "
   })
-  void testMetricTagsSpanTags(
-      IastMetric metric, @ConvertWith(IastConstantConverter.class) byte tag) {
+  void testMetricTagsSpanTags(IastMetric metric, @ConvertWith(IastConstantConverter.class) byte tag) {
     IastMetricData data = new IastMetricData(metric, tag, 1);
 
     Tag metricTag = metric.getTag();
@@ -198,7 +186,8 @@ class IastMetricCollectorTest {
       assertEquals(metricTag.getName() + ":" + tagString, data.tags.get(0));
       assertEquals(
           TRACE_METRIC_PREFIX + metric.getName() + "." + tagString.toLowerCase().replace('.', '_'),
-          data.getSpanTag());
+          data.getSpanTag()
+      );
     } else {
       assertTrue(data.tags.isEmpty());
       assertEquals(TRACE_METRIC_PREFIX + metric.getName(), data.getSpanTag());
@@ -258,8 +247,9 @@ class IastMetricCollectorTest {
 
   private static IastMetricCollector newNoOpInstance() throws ReflectiveOperationException {
     Constructor<?> constructor =
-        Class.forName(IastMetricCollector.class.getName() + "$NoOpInstance")
-            .getDeclaredConstructor();
+        Class
+      .forName(IastMetricCollector.class.getName() + "$NoOpInstance")
+      .getDeclaredConstructor();
     constructor.setAccessible(true);
     return (IastMetricCollector) constructor.newInstance();
   }

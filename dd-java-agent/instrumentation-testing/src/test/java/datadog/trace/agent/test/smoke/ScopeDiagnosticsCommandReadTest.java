@@ -4,7 +4,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -16,15 +15,12 @@ class ScopeDiagnosticsCommandReadTest {
     AtomicInteger reads = new AtomicInteger();
     Properties command = new Properties();
 
-    Properties result =
-        ScopeDiagnosticsAgent.readCommand(
-            () -> {
-              if (reads.incrementAndGet() == 1) {
-                throw new IOException("temporary read failure");
-              }
-              return command;
-            },
-            SECONDS.toNanos(5));
+    Properties result = ScopeDiagnosticsAgent.readCommand(() -> {
+      if (reads.incrementAndGet() == 1) {
+        throw new IOException("temporary read failure");
+      }
+      return command;
+    }, SECONDS.toNanos(5));
 
     assertSame(command, result);
     assertEquals(2, reads.get());
@@ -35,14 +31,9 @@ class ScopeDiagnosticsCommandReadTest {
     IOException failure = new IOException("persistent read failure");
 
     IOException result =
-        assertThrows(
-            IOException.class,
-            () ->
-                ScopeDiagnosticsAgent.readCommand(
-                    () -> {
-                      throw failure;
-                    },
-                    0));
+        assertThrows(IOException.class, () -> ScopeDiagnosticsAgent.readCommand(() -> {
+      throw failure;
+    }, 0));
 
     assertSame(failure, result);
   }

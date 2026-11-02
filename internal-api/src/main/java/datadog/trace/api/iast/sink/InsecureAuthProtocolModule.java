@@ -1,3 +1,4 @@
 package datadog.trace.api.iast.sink;
 
-public interface InsecureAuthProtocolModule extends HttpRequestEndModule {}
+public interface InsecureAuthProtocolModule extends HttpRequestEndModule {
+}

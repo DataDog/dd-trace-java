@@ -4,7 +4,6 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
 abstract class NettyHttpServerTestSupport extends AbstractInstrumentationTest {
-
   private EventLoopGroup eventLoopGroup;
   private Channel serverChannel;
   private int port;
@@ -30,17 +28,15 @@ abstract class NettyHttpServerTestSupport extends AbstractInstrumentationTest {
   @BeforeAll
   void startServer() throws Exception {
     eventLoopGroup = new NioEventLoopGroup(1);
-    ServerBootstrap bootstrap =
-        new ServerBootstrap()
-            .group(eventLoopGroup)
-            .channel(NioServerSocketChannel.class)
-            .childHandler(
-                new ChannelInitializer<Channel>() {
-                  @Override
-                  protected void initChannel(Channel ch) {
-                    configurePipeline(ch);
-                  }
-                });
+    ServerBootstrap bootstrap = new ServerBootstrap()
+      .group(eventLoopGroup)
+      .channel(NioServerSocketChannel.class)
+      .childHandler(new ChannelInitializer<Channel>() {
+        @Override
+        protected void initChannel(Channel ch) {
+          configurePipeline(ch);
+        }
+      });
     serverChannel = bootstrap.bind(0).sync().channel();
     port = ((InetSocketAddress) serverChannel.localAddress()).getPort();
   }
@@ -82,7 +78,8 @@ abstract class NettyHttpServerTestSupport extends AbstractInstrumentationTest {
     while (true) {
       int chunkSize = Integer.parseInt(readLine(in), 16);
       if (chunkSize == 0) {
-        while (!readLine(in).isEmpty()) {}
+        while (!readLine(in).isEmpty()) {
+        }
         return body.toString(UTF_8.name());
       }
       byte[] chunk = new byte[chunkSize];

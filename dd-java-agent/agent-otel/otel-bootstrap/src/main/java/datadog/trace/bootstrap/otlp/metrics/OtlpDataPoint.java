@@ -1,3 +1,4 @@
 package datadog.trace.bootstrap.otlp.metrics;
 
-public abstract class OtlpDataPoint {}
+public abstract class OtlpDataPoint {
+}

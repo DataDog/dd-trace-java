@@ -26,7 +26,9 @@ public final class CapturingServiceProvider implements SLF4JServiceProvider {
   private static final List<Event> EVENTS = new CopyOnWriteArrayList<>();
   private static volatile String failOn;
 
-  /** A captured log event. */
+  /**
+   * A captured log event.
+   */
   public static final class Event {
     public final String logger;
     public final Level level;
@@ -75,7 +77,9 @@ public final class CapturingServiceProvider implements SLF4JServiceProvider {
     failOn = text;
   }
 
-  /** Disables every logger, stops the failures and forgets the captured events. */
+  /**
+   * Disables every logger, stops the failures and forgets the captured events.
+   */
   public static void reset() {
     LEVELS.clear();
     EVENTS.clear();
@@ -194,9 +198,12 @@ public final class CapturingServiceProvider implements SLF4JServiceProvider {
         final Marker marker,
         final String messagePattern,
         final Object[] arguments,
-        final Throwable throwable) {
+        final Throwable throwable
+    ) {
       if (isEnabled(level)) {
-        final String message = MessageFormatter.arrayFormat(messagePattern, arguments).getMessage();
+        final String message = MessageFormatter
+          .arrayFormat(messagePattern, arguments)
+          .getMessage();
         EVENTS.add(new Event(this.name, level, message, throwable));
         final String failing = failOn;
         if (failing != null && message.contains(failing)) {

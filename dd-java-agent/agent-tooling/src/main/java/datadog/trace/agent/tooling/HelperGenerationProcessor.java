@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.HelperScanner.isHelperClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.advice.AdviceScanResult;
 import datadog.trace.agent.tooling.advice.AdviceScanResult.ClassInfo;
 import datadog.trace.agent.tooling.advice.AdviceScanResult.Usage;
@@ -22,7 +21,9 @@ import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
 import net.bytebuddy.implementation.bytecode.constant.TextConstant;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 
-/** Resolves injectable helpers and generates {@code helperClassNames()} when none are declared. */
+/**
+ * Resolves injectable helpers and generates {@code helperClassNames()} when none are declared.
+ */
 public final class HelperGenerationProcessor {
   private static final String MUZZLE_REFERENCE_PREFIX = Reference.class.getName();
 
@@ -53,7 +54,10 @@ public final class HelperGenerationProcessor {
   }
 
   public DynamicType.Builder<?> transform(
-      DynamicType.Builder<?> builder, String[] helpers, InstrumenterModule module) {
+      DynamicType.Builder<?> builder,
+      String[] helpers,
+      InstrumenterModule module
+  ) {
     if (helpers.length == 0 || module.helperClassNames().length > 0) {
       return builder;
     }
@@ -62,13 +66,15 @@ public final class HelperGenerationProcessor {
       values.add(new TextConstant(helper));
     }
     return builder
-        .method(named("helperClassNames").and(takesArguments(0)).and(returns(String[].class)))
-        .intercept(
-            new Implementation.Simple(
-                ArrayFactory.forType(
-                        new TypeDescription.ForLoadedType(String.class).asGenericType())
-                    .withValues(values),
-                MethodReturn.REFERENCE));
+      .method(named("helperClassNames").and(takesArguments(0)).and(returns(String[].class)))
+      .intercept(
+          new Implementation.Simple(
+              ArrayFactory
+                .forType(new TypeDescription.ForLoadedType(String.class).asGenericType())
+                .withValues(values),
+              MethodReturn.REFERENCE
+          )
+      );
   }
 
   private static boolean isBuildTimeOnly(ClassInfo info) {
@@ -93,7 +99,8 @@ public final class HelperGenerationProcessor {
       Set<String> helpers,
       AdviceScanResult scanResult,
       Set<String> visited,
-      List<String> ordered) {
+      List<String> ordered
+  ) {
     if (!visited.add(className)) {
       return;
     }

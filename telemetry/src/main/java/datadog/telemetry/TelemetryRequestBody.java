@@ -26,7 +26,6 @@ import okio.Buffer;
 import okio.BufferedSink;
 
 public class TelemetryRequestBody extends RequestBody {
-
   public static class SerializationException extends RuntimeException {
     public SerializationException(String requestPartName, Throwable cause) {
       super("Failed serializing Telemetry " + requestPartName + " part!", cause);
@@ -35,12 +34,13 @@ public class TelemetryRequestBody extends RequestBody {
 
   private static final AtomicLong SEQ_ID = new AtomicLong();
   private static final String TELEMETRY_NAMESPACE_TAG_TRACER = "tracers";
-
   private final RequestType requestType;
   private final Buffer body;
   private final JsonWriter bodyWriter;
 
-  /** Exists in a separate class to avoid startup toll */
+  /**
+   * Exists in a separate class to avoid startup toll
+   */
   private static class CommonData {
     final Config config = Config.get();
     final String env = config.getEnv();
@@ -87,7 +87,8 @@ public class TelemetryRequestBody extends RequestBody {
       bodyWriter.name("language_version").value(commonData.langVersion);
       bodyWriter.name("runtime_name").value(commonData.runtimeName);
       bodyWriter.name("runtime_version").value(commonData.runtimeVersion);
-      bodyWriter.name("runtime_patches").value(commonData.runtimePatches); // optional
+      // optional
+      bodyWriter.name("runtime_patches").value(commonData.runtimePatches);
       final CharSequence processTags = ProcessTags.getTagsForSerialization();
       if (processTags != null) {
         bodyWriter.name("process_tags").value(processTags.toString());
@@ -101,7 +102,8 @@ public class TelemetryRequestBody extends RequestBody {
       bodyWriter.beginObject();
       bodyWriter.name("hostname").value(commonData.hostname);
       bodyWriter.name("os").value(commonData.osName);
-      bodyWriter.name("os_version").value(commonData.osVersion); // optional
+      // optional
+      bodyWriter.name("os_version").value(commonData.osVersion);
       bodyWriter.name("architecture").value(commonData.architecture);
       // only applicable to UNIX based OS
       bodyWriter.name("kernel_name").value(commonData.kernelName);
@@ -136,14 +138,17 @@ public class TelemetryRequestBody extends RequestBody {
       switch (this.requestType) {
         case APP_STARTED:
         case APP_EXTENDED_HEARTBEAT:
-          bodyWriter.endObject(); // payload
+          // payload
+          bodyWriter.endObject();
           break;
         case MESSAGE_BATCH:
-          bodyWriter.endArray(); // payloads
+          // payloads
+          bodyWriter.endArray();
           break;
         default:
       }
-      bodyWriter.endObject(); // request
+      // request
+      bodyWriter.endObject();
       return body.size();
     } catch (Exception ex) {
       throw new SerializationException("end-request", ex);
@@ -166,10 +171,15 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("metric").value(m.getMetric());
     bodyWriter.name("points").jsonValue(m.getPoints());
     // interval - optional
-    if (m.getType() != null) bodyWriter.name("type").value(m.getType().toString());
-    bodyWriter.name("tags").jsonValue(m.getTags()); // optional
-    bodyWriter.name("common").value(m.getCommon()); // optional
-    bodyWriter.name("namespace").value(m.getNamespace()); // optional
+    if (m.getType() != null) {
+      bodyWriter.name("type").value(m.getType().toString());
+    }
+    // optional
+    bodyWriter.name("tags").jsonValue(m.getTags());
+    // optional
+    bodyWriter.name("common").value(m.getCommon());
+    // optional
+    bodyWriter.name("namespace").value(m.getNamespace());
     bodyWriter.endObject();
   }
 
@@ -208,10 +218,14 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.beginObject();
     bodyWriter.name("message").value(m.getMessage());
     bodyWriter.name("level").value(String.valueOf(m.getLevel()));
-    bodyWriter.name("tags").value(m.getTags()); // optional
-    bodyWriter.name("stack_trace").value(m.getStackTrace()); // optional
-    bodyWriter.name("tracer_time").value(m.getTracerTime()); // optional
-    bodyWriter.name("count").value(m.getCount()); // optional
+    // optional
+    bodyWriter.name("tags").value(m.getTags());
+    // optional
+    bodyWriter.name("stack_trace").value(m.getStackTrace());
+    // optional
+    bodyWriter.name("tracer_time").value(m.getTracerTime());
+    // optional
+    bodyWriter.name("count").value(m.getCount());
     bodyWriter.endObject();
   }
 
@@ -268,9 +282,11 @@ public class TelemetryRequestBody extends RequestBody {
 
   public void writeDependency(Dependency d) throws IOException {
     bodyWriter.beginObject();
-    bodyWriter.name("hash").value(d.hash); // optional
+    // optional
+    bodyWriter.name("hash").value(d.hash);
     bodyWriter.name("name").value(d.name);
-    bodyWriter.name("version").value(d.version); // optional
+    // optional
+    bodyWriter.name("version").value(d.version);
     if (d.reachabilityMetadata != null) {
       // Write metadata array even when empty: empty list signals "SCA is active for this dep"
       // (RFC: all deps get metadata:[] at startup when DD_APPSEC_SCA_ENABLED=true).
@@ -279,7 +295,8 @@ public class TelemetryRequestBody extends RequestBody {
       for (String value : d.reachabilityMetadata) {
         bodyWriter.beginObject();
         bodyWriter.name("type").value("reachability");
-        bodyWriter.name("value").value(value); // stringified JSON per RFC
+        // stringified JSON per RFC
+        bodyWriter.name("value").value(value);
         bodyWriter.endObject();
       }
       bodyWriter.endArray();
@@ -297,7 +314,6 @@ public class TelemetryRequestBody extends RequestBody {
   }
 
   public void writeProducts(final Map<ProductType, Boolean> products) throws IOException {
-
     if (products == null || products.isEmpty()) {
       return;
     }
@@ -315,8 +331,10 @@ public class TelemetryRequestBody extends RequestBody {
   }
 
   public void writeProducts(
-      boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled)
-      throws IOException {
+      boolean appsecEnabled,
+      boolean profilerEnabled,
+      boolean dynamicInstrumentationEnabled
+  ) throws IOException {
     Map<ProductType, Boolean> products = new EnumMap<>(ProductType.class);
     products.put(ProductType.APPSEC, appsecEnabled);
     products.put(ProductType.PROFILER, profilerEnabled);
@@ -421,9 +439,11 @@ public class TelemetryRequestBody extends RequestBody {
     }
     try {
       if (messageType != RequestType.APP_HEARTBEAT) {
-        bodyWriter.endObject(); // payload
+        // payload
+        bodyWriter.endObject();
       }
-      bodyWriter.endObject(); // message
+      // message
+      bodyWriter.endObject();
     } catch (Exception ex) {
       throw new SerializationException("end-message", ex);
     }

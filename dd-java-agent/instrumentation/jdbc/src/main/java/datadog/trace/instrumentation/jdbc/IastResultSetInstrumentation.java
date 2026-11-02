@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -30,8 +29,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class IastResultSetInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public IastResultSetInstrumentation() {
     super("jdbc", "jdbc-resultset", "iast-resultset");
   }
@@ -50,12 +50,14 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("next").and(takesArguments(0))),
-        IastResultSetInstrumentation.class.getName() + "$NextAdvice");
+        IastResultSetInstrumentation.class.getName() + "$NextAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("getString").or(named("getNString")))
-            .and(takesArguments(int.class).or(takesArguments(String.class))),
-        IastResultSetInstrumentation.class.getName() + "$GetParameterAdvice");
+          .and(named("getString").or(named("getNString")))
+          .and(takesArguments(int.class).or(takesArguments(String.class))),
+        IastResultSetInstrumentation.class.getName() + "$GetParameterAdvice"
+    );
   }
 
   @Override
@@ -90,7 +92,8 @@ public class IastResultSetInstrumentation extends InstrumenterModule.Iast
         @Advice.Argument(0) Object argument,
         @Advice.Return final String value,
         @Advice.This final ResultSet resultSet,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (CallDepthThreadLocalMap.decrementCallDepth(ResultSet.class) > 0) {
         return;
       }

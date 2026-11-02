@@ -27,13 +27,13 @@ public class UsmFilterOutputStream extends FilterOutputStream {
   @Override
   public void write(@Nonnull byte[] b, int off, int len) throws IOException {
     boolean isIPv6 = this.socket.getLocalAddress() instanceof Inet6Address;
-    UsmConnection connection =
-        new UsmConnection(
-            socket.getLocalAddress(),
-            socket.getLocalPort(),
-            socket.getInetAddress(),
-            socket.getPort(),
-            isIPv6);
+    UsmConnection connection = new UsmConnection(
+        socket.getLocalAddress(),
+        socket.getLocalPort(),
+        socket.getInetAddress(),
+        socket.getPort(),
+        isIPv6
+    );
     UsmMessage message = UsmMessageFactory.Supplier.getRequestMessage(connection, b, off, len);
     UsmExtractor.Supplier.send(message);
     super.write(b, off, len);

@@ -10,6 +10,8 @@ package datadog.trace.core.util;
 public interface SystemAccessProvider {
   SystemAccessProvider NONE = new NoneSystemAccessProvider();
 
-  /** Get the current thread CPU time */
+  /**
+   * Get the current thread CPU time
+   */
   long getThreadCpuTime();
 }

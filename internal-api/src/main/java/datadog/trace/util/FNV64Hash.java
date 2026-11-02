@@ -37,7 +37,12 @@ public class FNV64Hash {
   }
 
   public static long continueHash(
-      long currentHash, byte[] data, int start, int length, Version version) {
+      long currentHash,
+      byte[] data,
+      int start,
+      int length,
+      Version version
+  ) {
     if (version == Version.v1) {
       return generateFNV1Hash(currentHash, data, start, length);
     } else {

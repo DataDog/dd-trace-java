@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import java.util.Map;
@@ -20,7 +19,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class SpanLinkTest {
-
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   void testSpanLinkFromContext(boolean sampled) {
@@ -66,28 +64,30 @@ class SpanLinkTest {
 
   @Test
   void testSpanLinkAttributesEncoding() {
-    Map<String, String> map =
-        SpanAttributes.builder()
-            .put("string", "value")
-            .put("string-empty", "")
-            .put("string-null", (String) null)
-            .put("bool", true)
-            .put("bool-false", false)
-            .put("long", 12345L)
-            .put("long-negative", -12345L)
-            .put("double", 67.89)
-            .put("double-negative", -67.89)
-            .putStringArray("string-array", asList("abc", "", null, "def"))
-            .putStringArray("string-array-null", null)
-            .putBooleanArray("bool-array", asList(true, false, null, Boolean.TRUE, Boolean.FALSE))
-            .putStringArray("bool-array-null", null)
-            .putLongArray("long-array", asList(123L, 456L, null, Long.MIN_VALUE, Long.MAX_VALUE))
-            .putStringArray("long-array-null", null)
-            .putDoubleArray(
-                "double-array", asList(12.3D, 45.6D, null, Double.MIN_VALUE, Double.MAX_VALUE))
-            .putStringArray("double-array-null", null)
-            .build()
-            .asMap();
+    Map<String, String> map = SpanAttributes
+      .builder()
+      .put("string", "value")
+      .put("string-empty", "")
+      .put("string-null", (String) null)
+      .put("bool", true)
+      .put("bool-false", false)
+      .put("long", 12345L)
+      .put("long-negative", -12345L)
+      .put("double", 67.89)
+      .put("double-negative", -67.89)
+      .putStringArray("string-array", asList("abc", "", null, "def"))
+      .putStringArray("string-array-null", null)
+      .putBooleanArray("bool-array", asList(true, false, null, Boolean.TRUE, Boolean.FALSE))
+      .putStringArray("bool-array-null", null)
+      .putLongArray("long-array", asList(123L, 456L, null, Long.MIN_VALUE, Long.MAX_VALUE))
+      .putStringArray("long-array-null", null)
+      .putDoubleArray(
+          "double-array",
+          asList(12.3D, 45.6D, null, Double.MIN_VALUE, Double.MAX_VALUE)
+      )
+      .putStringArray("double-array-null", null)
+      .build()
+      .asMap();
 
     assertEquals("value", map.get("string"));
     assertEquals("", map.get("string-empty"));

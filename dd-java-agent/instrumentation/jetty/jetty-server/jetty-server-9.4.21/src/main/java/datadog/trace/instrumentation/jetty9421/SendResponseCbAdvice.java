@@ -12,7 +12,8 @@ public class SendResponseCbAdvice {
       @Advice.This HttpChannel connection,
       @Advice.Argument(0) MetaData.Response responseInfo,
       @Advice.Argument(3) Callback cb,
-      @Advice.FieldValue("_transport") HttpTransport _transport) {
+      @Advice.FieldValue("_transport") HttpTransport _transport
+  ) {
     return JettyCommitResponseHelper.before(connection, responseInfo, _transport, cb);
   }
 }

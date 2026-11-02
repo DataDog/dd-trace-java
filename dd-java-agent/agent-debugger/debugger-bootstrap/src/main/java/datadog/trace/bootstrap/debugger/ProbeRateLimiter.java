@@ -9,7 +9,9 @@ import java.util.function.DoubleFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Rate limiter for sending snapshot to backend Use a global rate limiter and one per probe */
+/**
+ * Rate limiter for sending snapshot to backend Use a global rate limiter and one per probe
+ */
 public class ProbeRateLimiter {
   private static final Logger LOGGER = LoggerFactory.getLogger(ProbeRateLimiter.class);
   public static final double DEFAULT_SNAPSHOT_RATE = 1.0;
@@ -53,8 +55,9 @@ public class ProbeRateLimiter {
   }
 
   public static void setSamplerSupplier(DoubleFunction<Sampler> samplerSupplier) {
-    ProbeRateLimiter.samplerSupplier =
-        samplerSupplier != null ? samplerSupplier : ProbeRateLimiter::defaultCreateSampler;
+    ProbeRateLimiter.samplerSupplier = samplerSupplier != null
+        ? samplerSupplier
+        : ProbeRateLimiter::defaultCreateSampler;
   }
 
   private static Sampler defaultCreateSampler(double rate) {

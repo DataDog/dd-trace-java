@@ -1,23 +1,22 @@
 package datadog.trace.api.git;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
 
 class GitInfoTest {
-
   @Test
   void testBuilderIsReturningCorrectObject() {
-    GitInfo gitInfo =
-        new GitInfo(
-            "https://some-host/some-user/some-repo.git",
-            "some-branch",
-            "some-tag",
-            new CommitInfo(
-                "0000000000000000000000000000000000000000",
-                new PersonInfo("author-name", "author@email.com", 1614169397000L, 1),
-                new PersonInfo("committer-name", "committer@email.com", 1614169397000L, 1),
-                "some commit message\n"));
+    GitInfo gitInfo = new GitInfo(
+        "https://some-host/some-user/some-repo.git",
+        "some-branch",
+        "some-tag",
+        new CommitInfo(
+            "0000000000000000000000000000000000000000",
+            new PersonInfo("author-name", "author@email.com", 1614169397000L, 1),
+            new PersonInfo("committer-name", "committer@email.com", 1614169397000L, 1),
+            "some commit message\n"
+        )
+    );
 
     assertEquals("https://some-host/some-user/some-repo.git", gitInfo.getRepositoryURL());
     assertEquals("some-branch", gitInfo.getBranch());

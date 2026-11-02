@@ -18,13 +18,10 @@ import jdk.jfr.StackTrace;
 @StackTrace(false)
 @Enabled
 public class DirectAllocationTotalEvent extends Event {
-
   @Label("Allocating Class")
   private final String allocatingClass;
-
   @Label("Allocation Type")
   private final String source;
-
   @Label("Allocated")
   @DataAmount
   private final long allocated;

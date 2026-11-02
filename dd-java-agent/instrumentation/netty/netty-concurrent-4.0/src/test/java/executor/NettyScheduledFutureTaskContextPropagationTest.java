@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.Trace;
@@ -44,14 +43,10 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
           List<ScheduledFuture<?>> futures = new ArrayList<>();
           try {
             for (int task = 0; task < 20; task++) {
-              futures.add(
-                  executor.schedule(
-                      () -> {
-                        assertTrue(proceed.await(5, SECONDS));
-                        return null;
-                      },
-                      1,
-                      MILLISECONDS));
+              futures.add(executor.schedule(() -> {
+                assertTrue(proceed.await(5, SECONDS));
+                return null;
+              }, 1, MILLISECONDS));
             }
             for (ScheduledFuture<?> future : futures) {
               future.cancel(false);
@@ -87,10 +82,9 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
       AgentSpan parent = startSpan("test", "parent");
       ScheduledFuture<?> future;
       try (ContextScope ignored = activateSpan(parent)) {
-        future =
-            fixedRate
-                ? executor.scheduleAtFixedRate(task, 0, 1, SECONDS)
-                : executor.scheduleWithFixedDelay(task, 0, 1, SECONDS);
+        future = fixedRate
+            ? executor.scheduleAtFixedRate(task, 0, 1, SECONDS)
+            : executor.scheduleWithFixedDelay(task, 0, 1, SECONDS);
       } finally {
         parent.finish();
       }
@@ -101,12 +95,16 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
         task.proceed.countDown();
       }
       assertTrue(task.finished.await(5, SECONDS));
-      assertNull(executor.submit(() -> (Object) activeSpan()).get(5, SECONDS));
+      assertNull(executor
+        .submit(() -> (Object) activeSpan())
+        .get(5, SECONDS));
       assertTraces(
           trace(
               SORT_BY_START_TIME,
               span().root().operationName("parent"),
-              span().childOfPrevious().operationName("asyncChild")));
+              span().childOfPrevious().operationName("asyncChild")
+          )
+      );
     }
   }
 
@@ -121,16 +119,12 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
       AgentSpan parent = startSpan("test", "parent");
       ScheduledFuture<?> future;
       try (ContextScope ignored = activateSpan(parent)) {
-        future =
-            executor.schedule(
-                () -> {
-                  started.countDown();
-                  assertTrue(proceed.await(5, SECONDS));
-                  taskSpan.set(activeSpan());
-                  return null;
-                },
-                0,
-                MILLISECONDS);
+        future = executor.schedule(() -> {
+          started.countDown();
+          assertTrue(proceed.await(5, SECONDS));
+          taskSpan.set(activeSpan());
+          return null;
+        }, 0, MILLISECONDS);
       } finally {
         parent.finish();
       }
@@ -142,7 +136,9 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
       }
       future.get(5, SECONDS);
       assertSame(parent, taskSpan.get());
-      assertNull(executor.submit(() -> (Object) activeSpan()).get(5, SECONDS));
+      assertNull(executor
+        .submit(() -> (Object) activeSpan())
+        .get(5, SECONDS));
       assertTraces(trace(span().root().operationName("parent")));
     }
   }
@@ -154,7 +150,6 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
       EventExecutor executor = group.next();
       BlockingTraceableTask task = new BlockingTraceableTask();
       AgentSpan parent = startSpan("test", "parent");
-
       // Netty 4.1.44+ calls ScheduledFutureTask.run() once while enqueueing a delayed task and
       // again when the delay expires. Context must only activate when runTask() executes.
       try (ContextScope ignored = activateSpan(parent)) {
@@ -162,7 +157,6 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
       } finally {
         parent.finish();
       }
-
       // When the delayed task actually runs, runTask() activates the captured continuation so
       // traced work in the task remains a child of the scheduling span.
       assertTrue(task.started.await(5, SECONDS));
@@ -177,7 +171,9 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
           trace(
               SORT_BY_START_TIME,
               span().root().operationName("parent"),
-              span().childOfPrevious().operationName("asyncChild")));
+              span().childOfPrevious().operationName("asyncChild")
+          )
+      );
     }
   }
 
@@ -204,7 +200,9 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
           trace(
               SORT_BY_START_TIME,
               span().root().operationName("parent"),
-              span().childOfPrevious().operationName("asyncChild")));
+              span().childOfPrevious().operationName("asyncChild")
+          )
+      );
     }
   }
 
@@ -229,7 +227,9 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
           trace(
               SORT_BY_START_TIME,
               span().root().operationName("parent"),
-              span().childOfPrevious().operationName("asyncChild")));
+              span().childOfPrevious().operationName("asyncChild")
+          )
+      );
     }
   }
 
@@ -254,43 +254,41 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
       AgentSpan parent = startSpan("test", "parent");
       ScheduledFuture<?> future;
       try (ContextScope ignored = activateSpan(parent)) {
-        future =
-            executor.schedule(
-                () -> {
-                  try {
-                    if (!proceed.await(5, SECONDS)) {
-                      throw new AssertionError("Listener was not registered");
-                    }
-                  } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new AssertionError(e);
-                  }
-                  if (fail) {
-                    throw new IllegalStateException("expected task failure");
-                  }
-                },
-                50,
-                MILLISECONDS);
+        future = executor.schedule(() -> {
+          try {
+            if (!proceed.await(5, SECONDS)) {
+              throw new AssertionError("Listener was not registered");
+            }
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(e);
+          }
+          if (fail) {
+            throw new IllegalStateException("expected task failure");
+          }
+        }, 50, MILLISECONDS);
       } finally {
         parent.finish();
       }
       // Register without a span so listener instrumentation cannot mask early scope closure.
-      future.addListener(
-          done -> {
-            listenerSpan.set(activeSpan());
-            completed.countDown();
-          });
+      future.addListener(done -> {
+        listenerSpan.set(activeSpan());
+        completed.countDown();
+      });
       proceed.countDown();
       assertTrue(completed.await(5, SECONDS));
       assertSame(parent, listenerSpan.get());
       assertTrue(fail != future.isSuccess());
-      assertNull(executor.submit(() -> (Object) activeSpan()).get(5, SECONDS));
+      assertNull(executor
+        .submit(() -> (Object) activeSpan())
+        .get(5, SECONDS));
       assertTraces(trace(span().root().operationName("parent")));
     }
   }
 
   static final class CloseableDefaultEventExecutorGroup extends DefaultEventExecutorGroup
-      implements AutoCloseable {
+      implements AutoCloseable
+  {
     CloseableDefaultEventExecutorGroup() {
       super(1);
     }
@@ -301,7 +299,8 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
         Future<?> termination = shutdownGracefully(0, 1, SECONDS);
         assertTrue(
             termination.await(5, SECONDS),
-            "Netty executor group did not terminate within 5 seconds");
+            "Netty executor group did not terminate within 5 seconds"
+        );
         termination.sync();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();

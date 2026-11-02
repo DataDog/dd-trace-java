@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -33,8 +32,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  * R2dbcInstrumentation}.
  */
 public class R2dbcConnectionInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
     return "io.r2dbc.spi.Connection";
@@ -49,19 +49,20 @@ public class R2dbcConnectionInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("createStatement"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class)),
-        getClass().getName() + "$CreateStatementAdvice");
+          .and(isPublic())
+          .and(named("createStatement"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class)),
+        getClass().getName() + "$CreateStatementAdvice"
+    );
   }
 
   public static class CreateStatementAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.This final Connection connection,
-        @Advice.Argument(value = 0, readOnly = false) String sql) {
+        @Advice.Argument(value = 0, readOnly = false) String sql
+    ) {
       ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore =
           InstrumentationContext.get(Connection.class, ConnectionFactoryOptions.class);
       sql = R2dbcSqlCommentInjector.injectForConnection(sql, connection, connectionOptionsStore);

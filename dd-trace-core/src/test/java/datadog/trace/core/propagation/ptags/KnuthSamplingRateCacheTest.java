@@ -4,7 +4,6 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.core.propagation.PropagationTags;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -14,7 +13,6 @@ class KnuthSamplingRateCacheTest {
   private static final double[] RATES = {0.5, 0.25, 0.1, 0.75};
   private static final int THREADS = 4;
   private static final int DECISIONS_PER_THREAD = 200_000;
-
   private final PropagationTags.Factory factory = PropagationTags.factory();
 
   @Test
@@ -40,19 +38,17 @@ class KnuthSamplingRateCacheTest {
     Thread[] threads = new Thread[THREADS];
     for (int t = 0; t < THREADS; ++t) {
       int offset = t;
-      threads[t] =
-          new Thread(
-              () -> {
-                awaitQuietly(start);
-                for (int i = 0; i < DECISIONS_PER_THREAD && mismatch.get() == null; ++i) {
-                  double rate = RATES[(i + offset) % RATES.length];
-                  String expected = PTagsFactory.PTags.formatKnuthSamplingRate(rate);
-                  String actual = knuthSamplingRate(rate);
-                  if (!expected.equals(actual)) {
-                    mismatch.compareAndSet(null, "rate " + rate + " got _dd.p.ksr=" + actual);
-                  }
-                }
-              });
+      threads[t] = new Thread(() -> {
+        awaitQuietly(start);
+        for (int i = 0; i < DECISIONS_PER_THREAD && mismatch.get() == null; ++i) {
+          double rate = RATES[(i + offset) % RATES.length];
+          String expected = PTagsFactory.PTags.formatKnuthSamplingRate(rate);
+          String actual = knuthSamplingRate(rate);
+          if (!expected.equals(actual)) {
+            mismatch.compareAndSet(null, "rate " + rate + " got _dd.p.ksr=" + actual);
+          }
+        }
+      });
       threads[t].start();
     }
     start.countDown();

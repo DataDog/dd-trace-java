@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.tomcat;
 
 import static java.util.Arrays.fill;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -34,9 +33,7 @@ import org.openjdk.jmh.annotations.Warmup;
  * String-backed                     26            29            ~0             ~0
  * </pre>
  */
-@Fork(
-    value = 3,
-    jvmArgsAppend = {"-Xms512m", "-Xmx512m"})
+@Fork(value = 3, jvmArgsAppend = {"-Xms512m", "-Xmx512m"})
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 4, time = 1)
 @Threads(1)
@@ -46,20 +43,16 @@ import org.openjdk.jmh.annotations.Warmup;
 public class SecurityTestingHeadersBenchmark {
   static final String SCAN = "x-datadog-endpoint-scan";
   static final String TEST = "x-datadog-security-test";
-  static final ExtractAdapter<MimeHeaders> ADAPTER =
-      new ExtractAdapter<MimeHeaders>() {
-        @Override
-        MimeHeaders getMimeHeaders(MimeHeaders headers) {
-          return headers;
-        }
-      };
-
+  static final ExtractAdapter<MimeHeaders> ADAPTER = new ExtractAdapter<MimeHeaders>() {
+    @Override
+    MimeHeaders getMimeHeaders(MimeHeaders headers) {
+      return headers;
+    }
+  };
   @Param({"bytesTypical", "bytesCookie4k", "stringsTypical", "bytesMarkers"})
   public String scenario;
-
   @Param({"false", "true"})
   public boolean stringCache;
-
   MimeHeaders[] requests;
   int cursor;
   final Tags tags = new Tags();
@@ -74,25 +67,31 @@ public class SecurityTestingHeadersBenchmark {
       MimeHeaders h = new MimeHeaders();
       boolean bytes = !scenario.startsWith("strings");
       String cookie =
-          "session=" + i + "; prefs=" + repeat('a', scenario.equals("bytesCookie4k") ? 4070 : 100);
+          "session="
+          + i
+          + "; prefs="
+          + repeat('a', scenario.equals("bytesCookie4k") ? 4070 : 100);
       String[][] fields = {
-        {"host", "service.example.test"},
-        {
-          "user-agent",
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36"
-        },
-        {"accept", "application/json"},
-        {"accept-encoding", "gzip, deflate, br"},
-        {"accept-language", "en-US,en;q=0.9"},
-        {"connection", "keep-alive"},
-        {"traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"},
-        {"tracestate", "dd=s:1;o:rum"},
-        {"authorization", "Bearer " + repeat('b', 180) + i},
-        {"cookie", cookie},
-        {"x-request-id", "request-" + i},
-        {"content-type", "application/json"}
+          {"host", "service.example.test"},
+          {
+              "user-agent",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/140.0.0."
+          + "0 Safari/537.36"
+          },
+          {"accept", "application/json"},
+          {"accept-encoding", "gzip, deflate, br"},
+          {"accept-language", "en-US,en;q=0.9"},
+          {"connection", "keep-alive"},
+          {"traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"},
+          {"tracestate", "dd=s:1;o:rum"},
+          {"authorization", "Bearer " + repeat('b', 180) + i},
+          {"cookie", cookie},
+          {"x-request-id", "request-" + i},
+          {"content-type", "application/json"}
       };
-      for (String[] f : fields) add(h, f[0], f[1], bytes);
+      for (String[] f : fields) {
+        add(h, f[0], f[1], bytes);
+      }
       if (scenario.equals("bytesMarkers")) {
         add(h, "X-Datadog-Endpoint-Scan", "scan-" + i, bytes);
         add(h, TEST, "test-" + i, bytes);
@@ -103,8 +102,9 @@ public class SecurityTestingHeadersBenchmark {
         ExtractAdapter.messageBytesToString(h.getName(k));
         ExtractAdapter.messageBytesToString(h.getValue(k));
       }
-      if (bytes && h.getValue(9).getType() != MessageBytes.T_BYTES)
+      if (bytes && h.getValue(9).getType() != MessageBytes.T_BYTES) {
         throw new AssertionError("representation changed");
+      }
       requests[i] = h;
     }
     if (stringCache) {
@@ -149,7 +149,9 @@ public class SecurityTestingHeadersBenchmark {
       }
     } else {
       v = h.addValue(name);
-      if (value != null) v.setString(value);
+      if (value != null) {
+        v.setString(value);
+      }
     }
   }
 
@@ -175,7 +177,9 @@ public class SecurityTestingHeadersBenchmark {
   static String firstValue(MimeHeaders h, String name) {
     for (int i = h.findHeader(name, 0); i >= 0; i = h.findHeader(name, i + 1)) {
       String value = ExtractAdapter.messageBytesToString(h.getValue(i));
-      if (value != null) return value;
+      if (value != null) {
+        return value;
+      }
     }
     return null;
   }
@@ -195,7 +199,9 @@ public class SecurityTestingHeadersBenchmark {
 
     @Override
     public boolean accept(String key, String value) {
-      if (key == null || value == null) return true;
+      if (key == null || value == null) {
+        return true;
+      }
       if (!scanSeen && SCAN.equalsIgnoreCase(key)) {
         tags.scan = value;
         scanSeen = true;

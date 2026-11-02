@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
@@ -9,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import ratpack.func.Action;
 
 public class ActionWrapper<T> implements Action<T> {
-
   private static final Logger log = LoggerFactory.getLogger(ActionWrapper.class);
   private final Action<T> delegate;
   private final AgentSpan span;

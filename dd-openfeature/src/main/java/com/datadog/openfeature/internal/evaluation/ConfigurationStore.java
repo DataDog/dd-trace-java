@@ -5,7 +5,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Atomically publishes one validated snapshot for synchronous evaluation. */
+/**
+ * Atomically publishes one validated snapshot for synchronous evaluation.
+ */
 public final class ConfigurationStore {
   private final AtomicReference<ServerConfiguration> current = new AtomicReference<>();
   private final CountDownLatch ready = new CountDownLatch(1);

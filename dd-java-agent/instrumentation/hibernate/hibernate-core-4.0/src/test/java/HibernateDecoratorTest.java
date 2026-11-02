@@ -4,7 +4,6 @@ import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.Entity;
@@ -36,8 +35,7 @@ class HibernateDecoratorTest {
   void handlesEmptyAndNestedLists() {
     assertNull(DECORATOR.entityName(emptyList()));
     assertNull(DECORATOR.entityName(singletonList(null)));
-    assertEquals(
-        "NestedEntity", DECORATOR.entityName(singletonList(singletonList("NestedEntity"))));
+    assertEquals("NestedEntity", DECORATOR.entityName(singletonList(singletonList("NestedEntity"))));
   }
 
   @Test
@@ -59,10 +57,13 @@ class HibernateDecoratorTest {
   }
 
   @Entity(name = "CustomEntityName")
-  static class TestEntity {}
+  static class TestEntity {
+  }
 
-  static class EntitySubclass extends TestEntity {}
+  static class EntitySubclass extends TestEntity {
+  }
 
   @Entity
-  static class EntityList extends ArrayList<Object> {}
+  static class EntityList extends ArrayList<Object> {
+  }
 }

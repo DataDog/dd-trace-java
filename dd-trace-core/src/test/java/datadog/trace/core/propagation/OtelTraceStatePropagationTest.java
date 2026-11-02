@@ -15,7 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -52,13 +51,16 @@ class OtelTraceStatePropagationTest {
         arguments("vendor=state,ot=simplefield;blah;foo", "vendor=state,ot=simplefield;blah;foo"),
         arguments(
             "vendor=state,ot=rv:invalid;th:" + TH + ";future:value",
-            "ot=future:value,vendor=state"),
+            "ot=future:value,vendor=state"
+        ),
         arguments("vendor=state,ot=rv:invalid;th:invalid", "vendor=state"),
         arguments("ot=rv:EF284ACE7A91E1;th:" + TH, null),
         arguments(
             "vendor=state,ot=rv:" + RV + ",ot=rv:1234567890abcd,other=state",
-            "ot=rv:" + RV + ",vendor=state,other=state"),
-        arguments("dd=s:1,dd=s:0,ot=rv:" + RV, "dd=s:1,ot=rv:" + RV));
+            "ot=rv:" + RV + ",vendor=state,other=state"
+        ),
+        arguments("dd=s:1,dd=s:0,ot=rv:" + RV, "dd=s:1,ot=rv:" + RV)
+    );
   }
 
   @Test
@@ -71,7 +73,9 @@ class OtelTraceStatePropagationTest {
     assertEquals("simplefield;blah;foo", tags.samplingState().getOtelTraceState().toString());
     assertTrue(tags.headerValue(W3C).contains("ot=simplefield;blah;foo"));
     assertEquals(
-        "ot=simplefield;blah;foo,vendor=state", tags.getW3CTracestate(tags.samplingState()));
+        "ot=simplefield;blah;foo,vendor=state",
+        tags.getW3CTracestate(tags.samplingState())
+    );
   }
 
   @Test
@@ -87,8 +91,14 @@ class OtelTraceStatePropagationTest {
     PropagationTags tags = PropagationTags.factory().empty();
     SamplingState before = tags.samplingState();
 
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        1.0,
+        false,
+        1L,
+        false
+    ));
     SamplingState after = tags.samplingState();
 
     assertEquals(SAMPLER_KEEP, after.getSamplingPriority());
@@ -104,15 +114,27 @@ class OtelTraceStatePropagationTest {
   @Test
   void reusesSamplingStateAndHeaderCachesForUnchangedProbabilityDecision() {
     PropagationTags tags = PropagationTags.factory().empty();
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        1.0,
+        false,
+        1L,
+        false
+    ));
     SamplingState expectedState = tags.samplingState();
     String expectedDatadogHeader = tags.headerValue(DATADOG);
     String expectedW3CHeader = tags.headerValue(W3C);
     String expectedTracestate = tags.getW3CTracestate(expectedState);
 
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, true));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        1.0,
+        false,
+        1L,
+        true
+    ));
 
     assertSame(expectedState, tags.samplingState());
     assertSame(expectedDatadogHeader, tags.headerValue(DATADOG));
@@ -123,12 +145,24 @@ class OtelTraceStatePropagationTest {
   @Test
   void rejectedSamplingAttemptCannotReplaceProbabilityState() {
     PropagationTags tags = PropagationTags.factory().empty();
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, false, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        0.5,
+        false,
+        1L,
+        false
+    ));
     SamplingState established = tags.samplingState();
 
-    assertFalse(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.1, false, 2L, false));
+    assertFalse(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_DROP,
+        AGENT_RATE,
+        0.1,
+        false,
+        2L,
+        false
+    ));
 
     assertEquals(established, tags.samplingState());
   }
@@ -150,8 +184,14 @@ class OtelTraceStatePropagationTest {
     PropagationTags tags =
         PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.dm=934086a686-4");
 
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.5, false, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_DROP,
+        AGENT_RATE,
+        0.5,
+        false,
+        1L,
+        false
+    ));
 
     SamplingState state = tags.samplingState();
     assertEquals(SAMPLER_DROP, state.getSamplingPriority());
@@ -162,14 +202,15 @@ class OtelTraceStatePropagationTest {
 
   @Test
   void inheritedStateRetainsItsPositionRelativeToVendors() {
-    PropagationTags tags =
-        PropagationTags.factory()
-            .fromHeaderValue(W3C, "vendor=state,ot=rv:ef284ace7a91e1;th:e6666666666668,dd=s:1");
+    PropagationTags tags = PropagationTags
+      .factory()
+      .fromHeaderValue(W3C, "vendor=state,ot=rv:ef284ace7a91e1;th:e6666666666668,dd=s:1");
     tags.updateTraceSamplingPriority(SAMPLER_KEEP, EXTERNAL_OVERRIDE);
 
     assertEquals(
         "dd=s:1;t.dm:-0,vendor=state,ot=rv:ef284ace7a91e1;th:e6666666666668",
-        tags.headerValue(W3C));
+        tags.headerValue(W3C)
+    );
   }
 
   @Test
@@ -182,9 +223,9 @@ class OtelTraceStatePropagationTest {
 
   @Test
   void compoundConflictRemovesThresholdAndRetainsRandomValue() {
-    PropagationTags tags =
-        PropagationTags.factory()
-            .fromHeaderValue(W3C, "dd=s:1,ot=rv:00000000000001;th:8,vendor=state");
+    PropagationTags tags = PropagationTags
+      .factory()
+      .fromHeaderValue(W3C, "dd=s:1,ot=rv:00000000000001;th:8,vendor=state");
 
     tags.updateTraceSamplingPriority(SAMPLER_KEEP, EXTERNAL_OVERRIDE);
 
@@ -193,9 +234,9 @@ class OtelTraceStatePropagationTest {
 
   @Test
   void unknownPriorityUpdateRemovesInconsistentThreshold() {
-    PropagationTags tags =
-        PropagationTags.factory()
-            .fromHeaderValue(W3C, "dd=s:0,ot=rv:00000000000001;th:8,vendor=state");
+    PropagationTags tags = PropagationTags
+      .factory()
+      .fromHeaderValue(W3C, "dd=s:0,ot=rv:00000000000001;th:8,vendor=state");
 
     tags.updateTraceSamplingPriority(SAMPLER_KEEP, UNKNOWN);
 
@@ -205,8 +246,14 @@ class OtelTraceStatePropagationTest {
   @Test
   void forceKeepRemovesLocallyGeneratedProbabilityState() {
     PropagationTags tags = PropagationTags.factory().empty();
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.0, false, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_DROP,
+        AGENT_RATE,
+        0.0,
+        false,
+        1L,
+        false
+    ));
 
     tags.forceKeep(MANUAL);
 
@@ -218,8 +265,14 @@ class OtelTraceStatePropagationTest {
   void limiterDemotionDoesNotFabricateState() {
     PropagationTags tags = PropagationTags.factory().empty();
 
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 1.0, true, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_DROP,
+        AGENT_RATE,
+        1.0,
+        true,
+        1L,
+        false
+    ));
 
     assertNull(tags.samplingState().getOtelTraceState());
   }
@@ -229,11 +282,19 @@ class OtelTraceStatePropagationTest {
     PropagationTags tags =
         PropagationTags.factory().fromHeaderValue(W3C, "ot=rv:00000000000000;th:8;future:value");
 
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        1.0,
+        false,
+        1L,
+        false
+    ));
 
     assertEquals(
-        "rv:00000000000000;future:value", tags.samplingState().getOtelTraceState().toString());
+        "rv:00000000000000;future:value",
+        tags.samplingState().getOtelTraceState().toString()
+    );
   }
 
   @Test
@@ -241,11 +302,19 @@ class OtelTraceStatePropagationTest {
     PropagationTags tags =
         PropagationTags.factory().fromHeaderValue(W3C, "ot=rv:ffffffffffffff;th:4;future:value");
 
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, false, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        0.5,
+        false,
+        1L,
+        false
+    ));
 
     assertEquals(
-        "rv:ffffffffffffff;future:value", tags.samplingState().getOtelTraceState().toString());
+        "rv:ffffffffffffff;future:value",
+        tags.samplingState().getOtelTraceState().toString()
+    );
   }
 
   @Test
@@ -253,19 +322,33 @@ class OtelTraceStatePropagationTest {
     PropagationTags tags =
         PropagationTags.factory().fromHeaderValue(W3C, "ot=rv:00000000000000;th:8;future:value");
 
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, false, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        0.5,
+        false,
+        1L,
+        false
+    ));
 
     assertEquals(
-        "rv:00000000000000;future:value", tags.samplingState().getOtelTraceState().toString());
+        "rv:00000000000000;future:value",
+        tags.samplingState().getOtelTraceState().toString()
+    );
   }
 
   @Test
   void localProbabilityDecisionDropsThresholdWithoutInheritedRandomValue() {
     PropagationTags tags = PropagationTags.factory().fromHeaderValue(W3C, "ot=th:8;future:value");
 
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        1.0,
+        false,
+        1L,
+        false
+    ));
 
     assertEquals("future:value", tags.samplingState().getOtelTraceState().toString());
   }
@@ -278,8 +361,14 @@ class OtelTraceStatePropagationTest {
     }
     PropagationTags tags = PropagationTags.factory().fromHeaderValue(W3C, original.toString());
 
-    assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, false, 1L, false));
+    assertTrue(tags.tryUpdateProbabilitySamplingDecision(
+        SAMPLER_KEEP,
+        AGENT_RATE,
+        0.5,
+        false,
+        1L,
+        false
+    ));
 
     String header = tags.headerValue(W3C);
     assertEquals(32, header.split(",").length);

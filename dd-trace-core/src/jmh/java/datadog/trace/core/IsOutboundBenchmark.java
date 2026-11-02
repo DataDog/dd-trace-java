@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -24,9 +23,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(NANOSECONDS)
 @Fork(value = 1)
 public class IsOutboundBenchmark {
-
   static final CoreTracer TRACER = CoreTracer.builder().build();
-
   private DDSpan clientSpan;
   private DDSpan serverSpan;
   private DDSpan unsetSpan;

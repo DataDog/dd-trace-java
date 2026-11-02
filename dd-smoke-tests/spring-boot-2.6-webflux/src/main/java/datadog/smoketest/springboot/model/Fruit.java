@@ -11,15 +11,16 @@ import javax.persistence.Table;
 @Entity
 @Table
 public class Fruit {
-
-  public Fruit() {}
+  public Fruit() {
+  }
 
   public Fruit(@Nonnull String name) {
     this.name = name;
   }
 
-  @Id @GeneratedValue private Long id;
-
+  @Id
+  @GeneratedValue
+  private Long id;
   @Column(nullable = false)
   private String name;
 
@@ -41,8 +42,12 @@ public class Fruit {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     Fruit fruit = (Fruit) o;
     return Objects.equals(id, fruit.id);
   }

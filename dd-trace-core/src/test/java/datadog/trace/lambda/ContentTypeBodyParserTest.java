@@ -10,7 +10,6 @@ import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.lambda.ContentTypeBodyParser.ParseContext;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +18,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class ContentTypeBodyParserTest {
-
   private static final String MULTIPART = "multipart/form-data; boundary=outer";
   private static final String URL_ENCODED = "application/x-www-form-urlencoded";
 
@@ -27,37 +25,38 @@ class ContentTypeBodyParserTest {
   @CsvSource(
       delimiter = '|',
       value = {
-        // content type absent or blank: best-effort JSON, as before content-type dispatch existed
-        "{\"a\":1}          |                                   | MAP",
-        "not json           |                                   | STRING",
-        // a header holding nothing but parameters declares no type either
-        "{\"a\":1}          | '; charset=utf-8'                 | MAP",
-        // JSON, including suffixed subtypes and parameters
-        "{\"a\":1}          | application/json                  | MAP",
-        "{\"a\":1}          | application/json; charset=utf-8   | MAP",
-        "{\"a\":1}          | APPLICATION/JSON                  | MAP",
-        "{\"a\":1}          | application/vnd.api+json          | MAP",
-        "{\"a\":1           | application/json                  | STRING",
-        // JSON-ish vendor types: no +json suffix, but the payload is JSON
-        "{\"a\":1}          | application/x-amz-json-1.1        | MAP",
-        "{\"a\":1}          | application/javascript            | MAP",
-        // urlencoded
-        "a=1                | application/x-www-form-urlencoded | MAP",
-        // a multipart body whose boundary happens to contain "json" must still reach the multipart
-        // parser rather than being handed to the JSON parser
-        "not multipart      | multipart/x; boundary=--json      | STRING",
-        // a json-ish subtype wins over the multipart branch, whatever the type says
-        "{\"a\":1}          | multipart/json                    | MAP",
-        // text/*: never structured, even when it holds JSON. A JSON parse of "12345" would yield a
-        // Double, which no string rule can match
-        "{\"a\":1}          | text/plain                        | STRING",
-        "12345              | text/plain                        | STRING",
-        // anything else
-        "{\"a\":1}          | application/xml                   | STRING",
-        "{\"a\":1}          | garbage                           | STRING",
-        // a slashless header declares a type but no subtype, so it is not JSON-ish
-        "{\"a\":1}          | json                              | STRING",
-      })
+      // content type absent or blank: best-effort JSON, as before content-type dispatch existed
+      "{\"a\":1}          |                                   | MAP",
+      "not json           |                                   | STRING",
+      // a header holding nothing but parameters declares no type either
+      "{\"a\":1}          | '; charset=utf-8'                 | MAP",
+      // JSON, including suffixed subtypes and parameters
+      "{\"a\":1}          | application/json                  | MAP",
+      "{\"a\":1}          | application/json; charset=utf-8   | MAP",
+      "{\"a\":1}          | APPLICATION/JSON                  | MAP",
+      "{\"a\":1}          | application/vnd.api+json          | MAP",
+      "{\"a\":1           | application/json                  | STRING",
+      // JSON-ish vendor types: no +json suffix, but the payload is JSON
+      "{\"a\":1}          | application/x-amz-json-1.1        | MAP",
+      "{\"a\":1}          | application/javascript            | MAP",
+      // urlencoded
+      "a=1                | application/x-www-form-urlencoded | MAP",
+      // a multipart body whose boundary happens to contain "json" must still reach the multipart
+      // parser rather than being handed to the JSON parser
+      "not multipart      | multipart/x; boundary=--json      | STRING",
+      // a json-ish subtype wins over the multipart branch, whatever the type says
+      "{\"a\":1}          | multipart/json                    | MAP",
+      // text/*: never structured, even when it holds JSON. A JSON parse of "12345" would yield a
+      // Double, which no string rule can match
+      "{\"a\":1}          | text/plain                        | STRING",
+      "12345              | text/plain                        | STRING",
+      // anything else
+      "{\"a\":1}          | application/xml                   | STRING",
+      "{\"a\":1}          | garbage                           | STRING",
+      // a slashless header declares a type but no subtype, so it is not JSON-ish
+      "{\"a\":1}          | json                              | STRING"
+      }
+  )
   void dispatchesOnContentType(String body, String contentType, String expectedKind) {
     Object parsed = parseBody(body, contentType);
 
@@ -85,7 +84,9 @@ class ContentTypeBodyParserTest {
 
     assertEquals(body, dispatch(body, "application/json", MAX_DEPTH, new ParseContext()));
     assertInstanceOf(
-        Map.class, dispatch(body, "application/json", MAX_DEPTH - 1, new ParseContext()));
+        Map.class,
+        dispatch(body, "application/json", MAX_DEPTH - 1, new ParseContext())
+    );
   }
 
   @Test
@@ -131,25 +132,26 @@ class ContentTypeBodyParserTest {
   @CsvSource(
       delimiter = '|',
       value = {
-        // %E9 is é in Latin-1 and an invalid sequence in UTF-8: the WAF has to see whichever one
-        // the handler will read, so the declared charset decides
-        "application/x-www-form-urlencoded; charset=iso-8859-1   | café",
-        "application/x-www-form-urlencoded; charset=ISO-8859-1   | café",
-        "application/x-www-form-urlencoded; charset=\"iso-8859-1\" | café",
-        // a parameter after the charset must not be read as part of its name
-        "application/x-www-form-urlencoded; charset=iso-8859-1; q=1 | café",
-        // RFC 7230 optional whitespace around the "="
-        "application/x-www-form-urlencoded; charset =iso-8859-1  | café",
-        // absent, empty, or not a charset this JVM has: UTF-8, which cannot decode %E9
-        "application/x-www-form-urlencoded                       | caf�",
-        "application/x-www-form-urlencoded; charset=              | caf�",
-        "application/x-www-form-urlencoded; charset=utf-42        | caf�",
-        "application/x-www-form-urlencoded; charset=not a charset | caf�",
-        // a parameter that merely ends in "charset" is not one
-        "application/x-www-form-urlencoded; xcharset=iso-8859-1   | caf�",
-        // nor is a "charset=" that only occurs inside another parameter's quoted value
-        "application/x-www-form-urlencoded; q=\"; charset=iso-8859-1\" | caf�",
-      })
+      // %E9 is é in Latin-1 and an invalid sequence in UTF-8: the WAF has to see whichever one
+      // the handler will read, so the declared charset decides
+      "application/x-www-form-urlencoded; charset=iso-8859-1   | café",
+      "application/x-www-form-urlencoded; charset=ISO-8859-1   | café",
+      "application/x-www-form-urlencoded; charset=\"iso-8859-1\" | café",
+      // a parameter after the charset must not be read as part of its name
+      "application/x-www-form-urlencoded; charset=iso-8859-1; q=1 | café",
+      // RFC 7230 optional whitespace around the "="
+      "application/x-www-form-urlencoded; charset =iso-8859-1  | café",
+      // absent, empty, or not a charset this JVM has: UTF-8, which cannot decode %E9
+      "application/x-www-form-urlencoded                       | caf�",
+      "application/x-www-form-urlencoded; charset=              | caf�",
+      "application/x-www-form-urlencoded; charset=utf-42        | caf�",
+      "application/x-www-form-urlencoded; charset=not a charset | caf�",
+      // a parameter that merely ends in "charset" is not one
+      "application/x-www-form-urlencoded; xcharset=iso-8859-1   | caf�",
+      // nor is a "charset=" that only occurs inside another parameter's quoted value
+      "application/x-www-form-urlencoded; q=\"; charset=iso-8859-1\" | caf�"
+      }
+  )
   void decodesFormValuesWithTheDeclaredCharset(String contentType, String expected) {
     Map<?, ?> parsed = asMap(parseBody("q=caf%E9", contentType));
 
@@ -169,8 +171,8 @@ class ContentTypeBodyParserTest {
     // The payloads rules actually target are ASCII, and percent-decode the same under either
     assertEquals(
         asMap(parseBody("q=%3Cscript%3E", URL_ENCODED)),
-        asMap(
-            parseBody("q=%3Cscript%3E", "application/x-www-form-urlencoded; charset=iso-8859-1")));
+        asMap(parseBody("q=%3Cscript%3E", "application/x-www-form-urlencoded; charset=iso-8859-1"))
+    );
   }
 
   @Test
@@ -201,7 +203,6 @@ class ContentTypeBodyParserTest {
     }
     body.append("attack=payload");
     String raw = body.toString();
-
     // Truncating would hide the trailing parameter from every WAF rule, so the whole body is kept
     // as a string instead — still matchable, just unstructured
     assertEquals(raw, parseBody(raw, "application/x-www-form-urlencoded"));
@@ -247,11 +248,11 @@ class ContentTypeBodyParserTest {
 
   @Test
   void dispatchesOnEachMultipartPartsOwnContentType() {
-    Map<?, ?> fields =
-        multipart(
-            part("form-data; name=payload", "application/json", "{\"a\":1}"),
-            part("form-data; name=plain", "text/plain", "12345"),
-            part("form-data; name=form", "application/x-www-form-urlencoded", "k=v"));
+    Map<?, ?> fields = multipart(
+        part("form-data; name=payload", "application/json", "{\"a\":1}"),
+        part("form-data; name=plain", "text/plain", "12345"),
+        part("form-data; name=form", "application/x-www-form-urlencoded", "k=v")
+    );
 
     assertInstanceOf(Map.class, fields.get("payload"));
     assertEquals("12345", fields.get("plain"));
@@ -263,11 +264,11 @@ class ContentTypeBodyParserTest {
     // A part with no Content-Type is text/plain per RFC 7578, section 4.4, not a body of unknown
     // type: a JSON parse would hand the WAF a Double no string rule can match. An empty header
     // reads the same way, and is the only other spelling to reach here — MultipartSplitter trims.
-    Map<?, ?> fields =
-        multipart(
-            field("amount", "12345"),
-            field("json", "{\"a\":1}"),
-            part("form-data; name=\"empty\"", "", "12345"));
+    Map<?, ?> fields = multipart(
+        field("amount", "12345"),
+        field("json", "{\"a\":1}"),
+        part("form-data; name=\"empty\"", "", "12345")
+    );
 
     assertEquals("12345", fields.get("amount"));
     assertEquals("{\"a\":1}", fields.get("json"));
@@ -312,10 +313,10 @@ class ContentTypeBodyParserTest {
   void sharesThePartAllowanceBetweenUrlEncodedParametersAndMultipartParts() {
     // Two thirds of the allowance each: the second only fails if both draw from one allowance
     String urlEncoded = urlEncodedPairs(MAX_PARTS * 2 / 3);
-    Map<?, ?> fields =
-        multipart(
-            part("form-data; name=first", URL_ENCODED, urlEncoded),
-            part("form-data; name=second", URL_ENCODED, urlEncoded));
+    Map<?, ?> fields = multipart(
+        part("form-data; name=first", URL_ENCODED, urlEncoded),
+        part("form-data; name=second", URL_ENCODED, urlEncoded)
+    );
 
     assertInstanceOf(Map.class, fields.get("first"));
     assertEquals(urlEncoded, fields.get("second"));
@@ -386,7 +387,6 @@ class ContentTypeBodyParserTest {
     // Unshared, a nested body is re-measured at every level: MAX_DEPTH times its size to copy
     String inner = body("inner", field("deep", "v"));
     String nested = outer(part("form-data; name=\"n\"", "multipart/mixed; boundary=inner", inner));
-
     // enough for the outer body alone, one character short of also covering the nested one
     ParseContext exhausted = new ParseContext(nested.length() + inner.length() - 1);
     Map<?, ?> fields = asMap(parseBody(nested, MULTIPART, exhausted));
@@ -399,11 +399,11 @@ class ContentTypeBodyParserTest {
 
   @Test
   void reportsTheFilenamesOfFileParts() {
-    String body =
-        outer(
-            field("user", "admin"),
-            file("avatar", "cat.png", "bytes"),
-            file("doc", "report.pdf", "bytes"));
+    String body = outer(
+        field("user", "admin"),
+        file("avatar", "cat.png", "bytes"),
+        file("doc", "report.pdf", "bytes")
+    );
 
     assertEquals(asList("cat.png", "report.pdf"), filenamesOf(body));
     // The file parts are not fields, so only the field survives into the body map
@@ -470,12 +470,16 @@ class ContentTypeBodyParserTest {
     return ContentTypeBodyParser.parseBody(body, contentType, context);
   }
 
-  /** Wraps the parts in a body with the default boundary and parses it. */
+  /**
+   * Wraps the parts in a body with the default boundary and parses it.
+   */
   private static Map<?, ?> multipart(String... parts) {
     return multipartBody(outer(parts));
   }
 
-  /** Distinct from {@link #multipart}, whose varargs would otherwise swallow a whole body. */
+  /**
+   * Distinct from {@link #multipart}, whose varargs would otherwise swallow a whole body.
+   */
   private static Map<?, ?> multipartBody(String body) {
     return asMap(parseBody(body, MULTIPART));
   }
@@ -489,7 +493,9 @@ class ContentTypeBodyParserTest {
     return (Map<?, ?>) parsed;
   }
 
-  /** Joins the parts with CRLF and appends the close delimiter, using the default boundary. */
+  /**
+   * Joins the parts with CRLF and appends the close delimiter, using the default boundary.
+   */
   private static String outer(String... parts) {
     return body("outer", parts);
   }

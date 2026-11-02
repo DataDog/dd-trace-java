@@ -4,7 +4,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_SOCKET_PATH;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.STATSD_CLIENT;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.timgroup.statsd.NoOpDirectStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
 import com.timgroup.statsd.StatsDClientErrorHandler;
@@ -23,31 +22,28 @@ import org.slf4j.LoggerFactory;
 final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   private static final Logger log = LoggerFactory.getLogger(DDAgentStatsDConnection.class);
   private static final IOLogger ioLogger = new IOLogger(log);
-
   private static final com.timgroup.statsd.StatsDClient NO_OP = new NoOpDirectStatsDClient();
-
   private static final String UNIX_DOMAIN_SOCKET_PREFIX = "unix://";
-
   private static final AgentThreadFactory STATSD_CLIENT_THREAD_FACTORY =
       new AgentThreadFactory(STATSD_CLIENT);
-
   private static final int RETRY_DELAY = 10;
   private static final int MAX_RETRIES = 20;
-
   private boolean usingDefaultPort;
   private volatile String host;
   private volatile Integer port;
   private final String namedPipe;
   private final boolean useAggregation;
-
   private final AtomicInteger clientCount = new AtomicInteger(0);
   private final AtomicInteger errorCount = new AtomicInteger(0);
   private final AtomicInteger retries = new AtomicInteger(0);
-
   volatile com.timgroup.statsd.StatsDClient statsd = NO_OP;
 
   DDAgentStatsDConnection(
-      final String host, final Integer port, final String namedPipe, boolean useAggregation) {
+      final String host,
+      final Integer port,
+      final String namedPipe,
+      boolean useAggregation
+  ) {
     this.host = host;
     this.port = port;
     this.namedPipe = namedPipe;
@@ -78,18 +74,24 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   }
 
   private void scheduleConnect() {
-    long remainingDelay =
-        Config.get().getDogStatsDStartDelay()
-            - MILLISECONDS.toSeconds(
-                System.currentTimeMillis() - Config.get().getStartTimeMillis());
+    long remainingDelay = Config.get().getDogStatsDStartDelay() - MILLISECONDS.toSeconds(
+        System.currentTimeMillis() - Config.get().getStartTimeMillis()
+    );
 
     if (remainingDelay > 0) {
       if (log.isDebugEnabled()) {
         log.debug(
-            "Scheduling StatsD connection in {} seconds - {}", remainingDelay, statsDAddress());
+            "Scheduling StatsD connection in {} seconds - {}",
+            remainingDelay,
+            statsDAddress()
+        );
       }
-      AgentTaskScheduler.get()
-          .scheduleWithJitter(ConnectTask.INSTANCE, this, remainingDelay, SECONDS);
+      AgentTaskScheduler.get().scheduleWithJitter(
+          ConnectTask.INSTANCE,
+          this,
+          remainingDelay,
+          SECONDS
+      );
     } else {
       doConnect();
     }
@@ -103,16 +105,14 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
           log.debug("Creating StatsD client - {}", statsDAddress());
         }
 
-        NonBlockingStatsDClientBuilder clientBuilder =
-            new NonBlockingStatsDClientBuilder()
-                .threadFactory(STATSD_CLIENT_THREAD_FACTORY)
-                .enableTelemetry(false)
-                .enableAggregation(useAggregation)
-                .hostname(host)
-                .port(port)
-                .namedPipe(namedPipe)
-                .errorHandler(this);
-
+        NonBlockingStatsDClientBuilder clientBuilder = new NonBlockingStatsDClientBuilder()
+          .threadFactory(STATSD_CLIENT_THREAD_FACTORY)
+          .enableTelemetry(false)
+          .enableAggregation(useAggregation)
+          .hostname(host)
+          .port(port)
+          .namedPipe(namedPipe)
+          .errorHandler(this);
         // when using UDS, set "entity-id" to "none" to avoid having the DogStatsD
         // server add origin tags (see https://github.com/DataDog/jmxfetch/pull/264)
         if (this.port == 0) {
@@ -125,7 +125,6 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
         if (queueSize != null) {
           clientBuilder.queueSize(queueSize);
         }
-
         // when using UDS set the datagram size to 8k (2k on Mac due to lower OS default)
         // but also make sure packet size isn't larger than the configured socket buffer
         if (this.port == 0) {
@@ -151,7 +150,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
                 clientBuilder.queueSize,
                 clientBuilder.maxPacketSizeBytes,
                 clientBuilder.socketBufferSize,
-                clientBuilder.timeout);
+                clientBuilder.timeout
+            );
           } else {
             log.debug("Configured StatsD client - queueSize={}", clientBuilder.queueSize);
           }
@@ -166,10 +166,17 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
           if (retries.getAndIncrement() < MAX_RETRIES) {
             if (log.isDebugEnabled()) {
               log.debug(
-                  "Scheduling StatsD connection in {} seconds - {}", RETRY_DELAY, statsDAddress());
+                  "Scheduling StatsD connection in {} seconds - {}",
+                  RETRY_DELAY,
+                  statsDAddress()
+              );
             }
-            AgentTaskScheduler.get()
-                .scheduleWithJitter(ConnectTask.INSTANCE, this, RETRY_DELAY, SECONDS);
+            AgentTaskScheduler.get().scheduleWithJitter(
+                ConnectTask.INSTANCE,
+                this,
+                RETRY_DELAY,
+                SECONDS
+            );
           } else {
             log.debug("Max retries have been reached. Will not attempt again.");
           }
@@ -179,7 +186,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
             log.warn("Unable to create StatsD client - {} - Will not retry", statsDAddress(), t);
           } else {
             Throwable rootCause = t;
-            int i = 100; // arbitrary limit to avoid infinite loops with cycling causes
+            // arbitrary limit to avoid infinite loops with cycling causes
+            int i = 100;
             do {
               rootCause = rootCause.getCause();
               i--;
@@ -188,7 +196,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
                 "Unable to create StatsD client - {} - Will not retry: {}, {}",
                 statsDAddress(),
                 t.getMessage(),
-                rootCause.getMessage());
+                rootCause.getMessage()
+            );
           }
         }
       }
@@ -205,7 +214,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
       if (!OperatingSystem.isWindows() && Files.exists(new File(DEFAULT_DOGSTATSD_SOCKET_PATH))) {
         log.info("Detected {}. Using it to send StatsD data.", DEFAULT_DOGSTATSD_SOCKET_PATH);
         host = DEFAULT_DOGSTATSD_SOCKET_PATH;
-        port = 0; // tells dogstatsd client to treat host as a socket path
+        // tells dogstatsd client to treat host as a socket path
+        port = 0;
       } else {
         host = Config.get().getAgentHost();
       }
@@ -213,7 +223,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
 
     if (host.startsWith(UNIX_DOMAIN_SOCKET_PREFIX)) {
       host = host.substring(UNIX_DOMAIN_SOCKET_PREFIX.length());
-      port = 0; // tells dogstatsd client to treat host as a socket path
+      // tells dogstatsd client to treat host as a socket path
+      port = 0;
     }
     if (null == port) {
       port = DDAgentStatsDClientManager.getDefaultStatsDPort();
@@ -231,7 +242,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
           statsd.close();
         } finally {
           statsd = NO_OP;
-          port = null; // clear so it will pickup latest default
+          // clear so it will pickup latest default
+          port = null;
           doConnect();
         }
       }
@@ -264,7 +276,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   }
 
   private static final class ConnectTask
-      implements AgentTaskScheduler.Task<DDAgentStatsDConnection> {
+      implements AgentTaskScheduler.Task<DDAgentStatsDConnection>
+  {
     public static final ConnectTask INSTANCE = new ConnectTask();
 
     @Override

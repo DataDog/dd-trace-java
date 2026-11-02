@@ -8,7 +8,6 @@ public enum GitProviderDiscrepant implements TagValue {
   LOCAL_GIT,
   GIT_CLIENT,
   EMBEDDED;
-
   @Override
   public String asString() {
     return "discrepant_provider:" + name().toLowerCase();

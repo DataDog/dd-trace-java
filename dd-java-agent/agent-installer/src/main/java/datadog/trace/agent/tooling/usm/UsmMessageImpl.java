@@ -14,29 +14,23 @@ public abstract class UsmMessageImpl {
     // message created from hooks on from read / write functions of AppInputStream
     // and AppOutputStream respectively
     REQUEST,
-
     // message created from a hook on close method of the SSLSocketImpl
-    CLOSE_CONNECTION,
+    CLOSE_CONNECTION
   }
 
   private static final Logger log = LoggerFactory.getLogger(BaseUsmMessage.class);
-
   // TODO: sync with systemprobe code
   static final NativeLong USM_IOCTL_ID = new NativeLong(0xda7ad09L);
 
   abstract static class BaseUsmMessage implements UsmMessage {
-
     // Message type [1 byte]
     static final int HEADER_SIZE = 1;
-
     // size of the connection struct:
     // SrcIP [16 bytes] || DstIP [16 bytes] || Src Port [2 bytes] || Dst port [2
     // bytes] || Reserved [4 bytes] || Pid [4 bytes] || Metadata [4 bytes]
     static final int CONNECTION_INFO_SIZE = 48;
-
     // pointer to native memory buffer
     protected Pointer pointer;
-
     protected int offset;
     private MessageType messageType;
     private int totalMessageSize;
@@ -65,7 +59,6 @@ public abstract class UsmMessageImpl {
       pointer = new Memory(totalMessageSize);
       pointer.clear(totalMessageSize);
       offset = 0;
-
       // encode message type
       pointer.setByte(offset, (byte) messageType.ordinal());
       offset += Byte.BYTES;
@@ -74,7 +67,6 @@ public abstract class UsmMessageImpl {
     }
 
     private void encodeConnection(UsmConnection connection) {
-
       // we reserve 2 long for ip, as IPv6 takes 128 bytes
       int ipReservedSize = Long.BYTES * 2;
       byte[] srcIPBuffer = connection.getSrcIP().getAddress();
@@ -98,13 +90,11 @@ public abstract class UsmMessageImpl {
       }
 
       offset += ipReservedSize;
-
       // encode src and dst ports
       pointer.setShort(offset, (short) connection.getSrcPort());
       offset += Short.BYTES;
       pointer.setShort(offset, (short) connection.getDstPort());
       offset += Short.BYTES;
-
       // we put 0 as netns
       pointer.setInt(offset, 0);
       offset += Integer.BYTES;
@@ -112,7 +102,6 @@ public abstract class UsmMessageImpl {
       // helper bpf_get_current_pid_tgid
       pointer.setInt(offset, 0);
       offset += Integer.BYTES;
-
       // we turn on the first bit - indicating it is a tcp connection
       int metadata = 1;
       if (connection.isIPV6()) {
@@ -125,7 +114,6 @@ public abstract class UsmMessageImpl {
   }
 
   static class CloseConnectionUsmMessage extends BaseUsmMessage {
-
     public CloseConnectionUsmMessage(UsmConnection connection) {
       super(MessageType.CLOSE_CONNECTION, connection);
       log.debug("close socket:");
@@ -145,7 +133,6 @@ public abstract class UsmMessageImpl {
   }
 
   static class RequestUsmMessage extends BaseUsmMessage {
-
     // This determines the size of the payload fragment that is captured for each
     // HTTPS request
     // should be equal to:
@@ -159,7 +146,6 @@ public abstract class UsmMessageImpl {
       log.debug("src host: {} src port: {}", connection.getSrcIP(), connection.getSrcPort());
       log.debug("dst host: {} dst port: {}", connection.getDstIP(), connection.getDstPort());
       log.debug("intercepted byte len: {}", len);
-
       // check the buffer is not larger than max allowed,
       if (len - bufferOffset <= MAX_HTTPS_BUFFER_SIZE) {
         pointer.setInt(offset, len);
@@ -167,10 +153,8 @@ public abstract class UsmMessageImpl {
 
         pointer.write(offset, buffer, bufferOffset, len);
         offset += len;
-
-      }
-      // if it is, use only max allowed bytes
-      else {
+      } else // if it is, use only max allowed bytes
+      {
         pointer.setInt(offset, MAX_HTTPS_BUFFER_SIZE);
         offset += Integer.BYTES;
         pointer.write(offset, buffer, bufferOffset, MAX_HTTPS_BUFFER_SIZE);

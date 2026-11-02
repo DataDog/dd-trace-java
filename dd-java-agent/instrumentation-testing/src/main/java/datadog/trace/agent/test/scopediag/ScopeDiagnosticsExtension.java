@@ -15,15 +15,17 @@ import org.junit.platform.commons.support.AnnotationSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Runs {@link ScopeDiagnostics} around JUnit instrumentation tests and suite fixtures. */
+/**
+ * Runs {@link ScopeDiagnostics} around JUnit instrumentation tests and suite fixtures.
+ */
 public final class ScopeDiagnosticsExtension
     implements BeforeAllCallback,
-        BeforeEachCallback,
-        AfterEachCallback,
-        AfterAllCallback,
-        InvocationInterceptor {
+    BeforeEachCallback,
+    AfterEachCallback,
+    AfterAllCallback,
+    InvocationInterceptor
+{
   private static final Logger log = LoggerFactory.getLogger(ScopeDiagnosticsExtension.class);
-
   private boolean suiteEnabled;
   private boolean suiteSetupPending;
 
@@ -36,8 +38,8 @@ public final class ScopeDiagnosticsExtension
   public void interceptBeforeAllMethod(
       Invocation<Void> invocation,
       ReflectiveInvocationContext<Method> invocationContext,
-      ExtensionContext extensionContext)
-      throws Throwable {
+      ExtensionContext extensionContext
+  ) throws Throwable {
     try {
       invocation.proceed();
     } catch (Throwable setupFailure) {
@@ -46,7 +48,8 @@ public final class ScopeDiagnosticsExtension
         try {
           report(
               extensionContext.getRequiredTestClass().getSimpleName() + " suite setup",
-              resolveClass(extensionContext));
+              resolveClass(extensionContext)
+          );
         } catch (Throwable diagnosticFailure) {
           setupFailure.addSuppressed(diagnosticFailure);
         } finally {
@@ -71,7 +74,9 @@ public final class ScopeDiagnosticsExtension
       if (suiteSetupPending) {
         suiteSetupPending = false;
         report(
-            context.getRequiredTestClass().getSimpleName() + " suite setup", resolveClass(context));
+            context.getRequiredTestClass().getSimpleName() + " suite setup",
+            resolveClass(context)
+        );
       } else {
         ScopeDiagnostics.reset();
       }
@@ -100,8 +105,8 @@ public final class ScopeDiagnosticsExtension
   public void interceptAfterAllMethod(
       Invocation<Void> invocation,
       ReflectiveInvocationContext<Method> invocationContext,
-      ExtensionContext extensionContext)
-      throws Throwable {
+      ExtensionContext extensionContext
+  ) throws Throwable {
     if (!suiteEnabled || !isHarnessLifecycleMethod(invocationContext)) {
       invocation.proceed();
       return;
@@ -109,7 +114,8 @@ public final class ScopeDiagnosticsExtension
     try {
       report(
           extensionContext.getRequiredTestClass().getSimpleName() + " suite cleanup",
-          resolveClass(extensionContext));
+          resolveClass(extensionContext)
+      );
     } catch (Throwable diagnosticFailure) {
       try {
         invocation.proceed();
@@ -132,16 +138,16 @@ public final class ScopeDiagnosticsExtension
   private static boolean isOutermostTestClass(ExtensionContext context) {
     Class<?> testClass = context.getRequiredTestClass();
     return !context
-        .getParent()
-        .flatMap(ExtensionContext::getTestClass)
-        .filter(parentClass -> parentClass != testClass)
-        .isPresent();
+      .getParent()
+      .flatMap(ExtensionContext::getTestClass)
+      .filter(parentClass -> parentClass != testClass)
+      .isPresent();
   }
 
   private static boolean isHarnessLifecycleMethod(
-      ReflectiveInvocationContext<Method> invocationContext) {
-    return invocationContext.getExecutable().getDeclaringClass()
-        == AbstractInstrumentationTest.class;
+      ReflectiveInvocationContext<Method> invocationContext
+  ) {
+    return invocationContext.getExecutable().getDeclaringClass() == AbstractInstrumentationTest.class;
   }
 
   private static void report(String displayName, TrackScopeContinuations config) {
@@ -157,7 +163,9 @@ public final class ScopeDiagnosticsExtension
     }
   }
 
-  /** Resolves method configuration before inherited class configuration. */
+  /**
+   * Resolves method configuration before inherited class configuration.
+   */
   private static TrackScopeContinuations resolve(ExtensionContext context) {
     Optional<AnnotatedElement> element = context.getElement();
     if (element.isPresent()) {
@@ -168,15 +176,15 @@ public final class ScopeDiagnosticsExtension
       }
     }
     return context
-        .getTestClass()
-        .flatMap(c -> AnnotationSupport.findAnnotation(c, TrackScopeContinuations.class))
-        .orElse(null);
+      .getTestClass()
+      .flatMap(c -> AnnotationSupport.findAnnotation(c, TrackScopeContinuations.class))
+      .orElse(null);
   }
 
   private static TrackScopeContinuations resolveClass(ExtensionContext context) {
     return context
-        .getTestClass()
-        .flatMap(c -> AnnotationSupport.findAnnotation(c, TrackScopeContinuations.class))
-        .orElse(null);
+      .getTestClass()
+      .flatMap(c -> AnnotationSupport.findAnnotation(c, TrackScopeContinuations.class))
+      .orElse(null);
   }
 }

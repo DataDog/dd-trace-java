@@ -10,13 +10,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
-/** A store that keeps track of coverage probes allocated for multiple threads. */
+/**
+ * A store that keeps track of coverage probes allocated for multiple threads.
+ */
 public abstract class ConcurrentCoverageStore<T extends CoverageProbes> implements CoverageStore {
-
   private final Thread testThread;
   private final Function<Boolean, T> probesFactory;
   private final Map<Thread, T> probes;
-
   private volatile TestReport report;
 
   protected ConcurrentCoverageStore(Function<Boolean, T> probesFactory) {
@@ -42,7 +42,11 @@ public abstract class ConcurrentCoverageStore<T extends CoverageProbes> implemen
 
   @Nullable
   protected abstract TestReport report(
-      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<T> probes);
+      DDTraceId testSessionId,
+      Long testSuiteId,
+      long testSpanId,
+      Collection<T> probes
+  );
 
   @Nullable
   @Override

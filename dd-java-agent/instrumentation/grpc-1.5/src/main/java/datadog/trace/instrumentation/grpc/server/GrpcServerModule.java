@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.grpc.server;
 
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -28,8 +27,9 @@ public class GrpcServerModule extends InstrumenterModule.Tracing {
     final List<Instrumenter> ret = new ArrayList<>(2);
     ret.add(new GrpcServerBuilderInstrumentation());
     if (!JavaVirtualMachine.isGraalVM()
-        && InstrumenterConfig.get()
-            .isIntegrationEnabled(singleton("grpc-server-code-origin"), true)) {
+        && InstrumenterConfig
+          .get()
+          .isIntegrationEnabled(singleton("grpc-server-code-origin"), true)) {
       ret.add(new MethodHandlersInstrumentation());
     }
     return ret;

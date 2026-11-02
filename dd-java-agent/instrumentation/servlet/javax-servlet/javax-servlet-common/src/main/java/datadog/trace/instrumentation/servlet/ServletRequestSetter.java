@@ -4,7 +4,9 @@ import datadog.context.propagation.CarrierSetter;
 import javax.annotation.ParametersAreNonnullByDefault;
 import javax.servlet.ServletRequest;
 
-/** Inject into request attributes since the request headers can't be modified. */
+/**
+ * Inject into request attributes since the request headers can't be modified.
+ */
 @ParametersAreNonnullByDefault
 public class ServletRequestSetter implements CarrierSetter<ServletRequest> {
   public static final ServletRequestSetter SETTER = new ServletRequestSetter();

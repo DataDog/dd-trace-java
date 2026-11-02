@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
-
   T getLocalRootSpan();
 
   String getServiceName();
@@ -96,19 +95,22 @@ public interface CoreSpan<T extends CoreSpan<T>> {
    */
   void processServiceTags();
 
-  /** The serialization protocol encodes span links natively, so they are not added as a tag. */
+  /**
+   * The serialization protocol encodes span links natively, so they are not added as a tag.
+   */
   int STRUCTURED_LINKS = 1;
-
-  /** The serialization protocol encodes span events natively, so they are not added as a tag. */
+  /**
+   * The serialization protocol encodes span events natively, so they are not added as a tag.
+   */
   int STRUCTURED_EVENTS = 1 << 1;
-
   /**
    * Serializes the span context own propagation tags. This is the default option, for tag-based
    * protocols that serialize each span independently.
    */
   int OWN_PROPAGATION_TAGS = 1 << 2;
-
-  /** Serializes the local root span context propagation tags, as for the first span of a chunk. */
+  /**
+   * Serializes the local root span context propagation tags, as for the first span of a chunk.
+   */
   int ROOT_PROPAGATION_TAGS = 1 << 3;
 
   /**
@@ -124,14 +126,19 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   T setSamplingPriority(int samplingPriority, int samplingMechanism);
 
   T setSamplingPriority(
-      int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism);
+      int samplingPriority,
+      CharSequence rate,
+      double sampleRate,
+      int samplingMechanism
+  );
 
   default T setSamplingPriority(
       int samplingPriority,
       CharSequence rate,
       double sampleRate,
       int samplingMechanism,
-      boolean rateLimiterRejected) {
+      boolean rateLimiterRejected
+  ) {
     return setSamplingPriority(samplingPriority, rate, sampleRate, samplingMechanism);
   }
 

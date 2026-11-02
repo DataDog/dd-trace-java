@@ -25,7 +25,8 @@ public class PrintStreamWrapper extends PrintStream {
 
   @Override
   public void println(String x) {
-    super.println(x); // log as usual
+    // log as usual
+    super.println(x);
     if (captureOutput) {
       int outputLength = x.length() + LINE_SEPARATOR_LENGTH;
       if (currentSize + outputLength < LogReporter.MAX_LOGFILE_SIZE_BYTES) {

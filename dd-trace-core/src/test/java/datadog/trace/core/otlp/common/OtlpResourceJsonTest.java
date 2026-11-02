@@ -16,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
@@ -40,9 +39,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * to keep the proto and JSON encoders in parity.
  */
 class OtlpResourceJsonTest {
-
   // ── test data ─────────────────────────────────────────────────────────────
-
   private static Properties props(String... keyValues) {
     Properties props = new Properties();
     for (int i = 0; i < keyValues.length; i += 2) {
@@ -80,38 +77,43 @@ class OtlpResourceJsonTest {
         Arguments.of(
             "service not set, no env, no version, no tags",
             props(),
-            attrs("service.name", Config.get().getServiceName())),
+            attrs("service.name", Config.get().getServiceName())
+        ),
         Arguments.of(
             "custom service name, no env, no version, no tags",
             props(SERVICE_NAME, "my-service"),
-            attrs("service.name", "my-service")),
+            attrs("service.name", "my-service")
+        ),
         Arguments.of(
             "env set to empty string",
             props(SERVICE_NAME, "my-service", ENV, ""),
-            attrs("service.name", "my-service")),
+            attrs("service.name", "my-service")
+        ),
         Arguments.of(
             "env set to non-empty value",
             props(SERVICE_NAME, "my-service", ENV, "prod"),
-            attrs("service.name", "my-service", "deployment.environment.name", "prod")),
+            attrs("service.name", "my-service", "deployment.environment.name", "prod")
+        ),
         Arguments.of(
             "version set to empty string",
             props(SERVICE_NAME, "my-service", VERSION, ""),
-            attrs("service.name", "my-service")),
+            attrs("service.name", "my-service")
+        ),
         Arguments.of(
             "version set to non-empty value",
             props(SERVICE_NAME, "my-service", VERSION, "1.0.0"),
-            attrs("service.name", "my-service", "service.version", "1.0.0")),
+            attrs("service.name", "my-service", "service.version", "1.0.0")
+        ),
         Arguments.of(
             "tags as comma-separated key:value pairs",
             props(SERVICE_NAME, "my-service", TAGS, "region:us-east,team:platform"),
-            attrs(
-                "service.name", "my-service",
-                "region", "us-east",
-                "team", "platform")),
+            attrs("service.name", "my-service", "region", "us-east", "team", "platform")
+        ),
         Arguments.of(
             "report-hostname enabled",
             props(SERVICE_NAME, "my-service", TRACE_REPORT_HOSTNAME, "true"),
-            attrs("service.name", "my-service", "host.name", Config.get().getHostName())),
+            attrs("service.name", "my-service", "host.name", Config.get().getHostName())
+        ),
         Arguments.of(
             "service, env, version, and tags all set",
             props(
@@ -123,37 +125,46 @@ class OtlpResourceJsonTest {
                 "2.0.0",
                 TAGS,
                 "region:eu-west,"
-                    + "service:ignored-service,"
-                    + "env:ignored-env,"
-                    + "version:ignored-version,"
-                    + "SERVICE:ignored-service,"
-                    + "ENV:ignored-env,"
-                    + "VERSION:ignored-version,"
-                    + "service.name:ignored-service,"
-                    + "deployment.environment.name:ignored-env,"
-                    + "service.version:ignored-version,"
-                    + "SERVICE.NAME:ignored-service,"
-                    + "DEPLOYMENT.ENVIRONMENT.NAME:ignored-env,"
-                    + "SERVICE.VERSION:ignored-version,"
-                    + "telemetry.sdk.name:ignored-sdk,"
-                    + "telemetry.sdk.version:ignored-version,"
-                    + "telemetry.sdk.language:ignored-language,"
-                    + "datadog.sdk.semantics:ignored-semantics,"
-                    + "_dd.sdk.otlp_export:ignored-export"),
+                + "service:ignored-service,"
+                + "env:ignored-env,"
+                + "version:ignored-version,"
+                + "SERVICE:ignored-service,"
+                + "ENV:ignored-env,"
+                + "VERSION:ignored-version,"
+                + "service.name:ignored-service,"
+                + "deployment.environment.name:ignored-env,"
+                + "service.version:ignored-version,"
+                + "SERVICE.NAME:ignored-service,"
+                + "DEPLOYMENT.ENVIRONMENT.NAME:ignored-env,"
+                + "SERVICE.VERSION:ignored-version,"
+                + "telemetry.sdk.name:ignored-sdk,"
+                + "telemetry.sdk.version:ignored-version,"
+                + "telemetry.sdk.language:ignored-language,"
+                + "datadog.sdk.semantics:ignored-semantics,"
+                + "_dd.sdk.otlp_export:ignored-export"
+            ),
             attrs(
-                "service.name", "my-service",
-                "deployment.environment.name", "staging",
-                "service.version", "2.0.0",
-                "region", "eu-west")));
+                "service.name",
+                "my-service",
+                "deployment.environment.name",
+                "staging",
+                "service.version",
+                "2.0.0",
+                "region",
+                "eu-west"
+            )
+        )
+    );
   }
 
   // ── tests ─────────────────────────────────────────────────────────────────
-
   @ParameterizedTest(name = "{0}")
   @MethodSource("resourceFragmentCases")
   void testBuildResourceFragment(
-      String caseName, Properties properties, Map<String, Object> expectedAttributes)
-      throws IOException {
+      String caseName,
+      Properties properties,
+      Map<String, Object> expectedAttributes
+  ) throws IOException {
     Config config = Config.get(properties);
     String fragment = OtlpResourceJson.buildResourceFragment(config, Collections.emptyMap());
 
@@ -169,9 +180,10 @@ class OtlpResourceJsonTest {
   void traceResourceAttributesCarryOtlpExportMarker() throws IOException {
     Config config = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, Object> attributes =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(config, traceResourceAttributes(config)));
+    Map<String, Object> attributes = parseResourceAttributes(OtlpResourceJson.buildResourceFragment(
+        config,
+        traceResourceAttributes(config)
+    ));
 
     assertEquals("true", attributes.get("_dd.sdk.otlp_export"));
   }
@@ -180,53 +192,62 @@ class OtlpResourceJsonTest {
   void usesOtelSdkSemanticsWhenEnabled() throws IOException {
     Config config = Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "true"));
 
-    Map<String, Object> attributes =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(config, traceResourceAttributes(config)));
+    Map<String, Object> attributes = parseResourceAttributes(OtlpResourceJson.buildResourceFragment(
+        config,
+        traceResourceAttributes(config)
+    ));
 
     assertEquals("otel", attributes.get("datadog.sdk.semantics"));
   }
 
-  /** The datadog-attrs variant carries {@code datadog.runtime_id}; the plain variant omits it. */
+  /**
+   * The datadog-attrs variant carries {@code datadog.runtime_id}; the plain variant omits it.
+   */
   @Test
   void datadogResourceAttributesVariantCarriesRuntimeId() throws IOException {
     Config config = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, Object> withDatadog =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(config, datadogResourceAttributes(config)));
-    Map<String, Object> plain =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(config, Collections.emptyMap()));
+    Map<String, Object> withDatadog = parseResourceAttributes(OtlpResourceJson.buildResourceFragment(
+        config,
+        datadogResourceAttributes(config)
+    ));
+    Map<String, Object> plain = parseResourceAttributes(OtlpResourceJson.buildResourceFragment(
+        config,
+        Collections.emptyMap()
+    ));
 
     assertTrue(
         withDatadog.containsKey("datadog.runtime_id"),
-        "datadog-attrs variant carries datadog.runtime_id");
+        "datadog-attrs variant carries datadog.runtime_id"
+    );
     assertEquals(
         config.getRuntimeId(),
         withDatadog.get("datadog.runtime_id"),
-        "runtime id matches the config value");
+        "runtime id matches the config value"
+    );
     assertFalse(plain.containsKey("datadog.runtime_id"), "plain variant omits datadog.runtime_id");
   }
 
   @Test
   void datadogResourceAttributesOverrideCollidingGlobalProcessTag() throws IOException {
-    Config config =
-        Config.get(
-            props(
-                SERVICE_NAME,
-                "my-service",
-                TAGS,
-                "datadog.process_tags:user-value",
-                EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
-                "true"));
+    Config config = Config.get(
+        props(
+            SERVICE_NAME,
+            "my-service",
+            TAGS,
+            "datadog.process_tags:user-value",
+            EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
+            "true"
+        )
+    );
     ProcessTags.reset(config);
     ProcessTags.addTag("entrypoint.name", "app");
     ProcessTags.addTag("entrypoint.type", "web");
 
-    Map<String, Object> withDatadog =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(config, datadogResourceAttributes(config)));
+    Map<String, Object> withDatadog = parseResourceAttributes(OtlpResourceJson.buildResourceFragment(
+        config,
+        datadogResourceAttributes(config)
+    ));
 
     Object processTags = withDatadog.get("datadog.process_tags");
     assertTrue(processTags instanceof List, "datadog.process_tags is a single arrayValue");
@@ -239,44 +260,43 @@ class OtlpResourceJsonTest {
         Config.get(props(SERVICE_NAME, "my-service", OTEL_TRACES_SPAN_METRICS_ENABLED, "true"));
     Config withoutMetrics = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, Object> withMarker =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(
-                withMetrics, traceResourceAttributes(withMetrics)));
-    Map<String, Object> without =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(
-                withoutMetrics, traceResourceAttributes(withoutMetrics)));
+    Map<String, Object> withMarker = parseResourceAttributes(OtlpResourceJson.buildResourceFragment(
+        withMetrics,
+        traceResourceAttributes(withMetrics)
+    ));
+    Map<String, Object> without = parseResourceAttributes(OtlpResourceJson.buildResourceFragment(
+        withoutMetrics,
+        traceResourceAttributes(withoutMetrics)
+    ));
 
-    assertEquals(
-        "true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
+    assertEquals("true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
     assertFalse(without.containsKey("_dd.stats_computed"), "marker absent when stats not computed");
     assertEquals("datadog", without.get("datadog.sdk.semantics"));
     assertEquals("true", without.get("_dd.sdk.otlp_export"));
   }
 
-  /** Snapshot global tags are named like span attributes, by the configured semantics. */
+  /**
+   * Snapshot global tags are named like span attributes, by the configured semantics.
+   */
   @Test
   void snapshotGlobalTagsFollowConfiguredSemantics() throws IOException {
     // a TagMap stores either spelling under the Datadog name
     TagMap globalTags =
         TagMap.fromMapImmutable(buildMap("http.request.method", "GET", "team", "core"));
 
-    Map<String, Object> otel =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(
-                Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "true")),
-                globalTags,
-                Collections.emptyMap()));
+    Map<String, Object> otel = parseResourceAttributes(OtlpResourceJson.buildResourceFragment(
+        Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "true")),
+        globalTags,
+        Collections.emptyMap()
+    ));
     assertEquals("GET", otel.get("http.request.method"));
     assertEquals("core", otel.get("team"));
 
-    Map<String, Object> datadog =
-        parseResourceAttributes(
-            OtlpResourceJson.buildResourceFragment(
-                Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "false")),
-                globalTags,
-                Collections.emptyMap()));
+    Map<String, Object> datadog = parseResourceAttributes(OtlpResourceJson.buildResourceFragment(
+        Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "false")),
+        globalTags,
+        Collections.emptyMap()
+    ));
     assertEquals("GET", datadog.get("http.method"));
     assertNull(datadog.get("http.request.method"));
     assertEquals("core", datadog.get("team"));
@@ -287,17 +307,19 @@ class OtlpResourceJsonTest {
     Map<String, String> globalTags = singletonMap("team", "checkout");
     assertEquals(
         parseResourceAttributesFromProto(OtlpResourceProto.RESOURCE_MESSAGE),
-        parseResourceAttributes(OtlpResourceJson.RESOURCE_FRAGMENT));
+        parseResourceAttributes(OtlpResourceJson.RESOURCE_FRAGMENT)
+    );
     assertEquals(
         parseResourceAttributesFromProto(OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS),
-        parseResourceAttributes(OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS));
+        parseResourceAttributes(OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS)
+    );
     assertEquals(
         parseResourceAttributesFromProto(OtlpResourceProto.buildTraceResourceMessage(globalTags)),
-        parseResourceAttributes(OtlpResourceJson.buildTraceResourceFragment(globalTags)));
+        parseResourceAttributes(OtlpResourceJson.buildTraceResourceFragment(globalTags))
+    );
   }
 
   // ── parsing helpers ───────────────────────────────────────────────────────
-
   @SuppressWarnings("unchecked")
   private static Map<String, Object> parseResourceAttributes(String fragment) throws IOException {
     Map<String, Object> resource = JsonMapper.fromJsonToMap(fragment);
@@ -351,15 +373,18 @@ class OtlpResourceJsonTest {
   private static Object readAnyValueFromProto(com.google.protobuf.CodedInputStream av)
       throws IOException {
     int tag = av.readTag();
-    if (com.google.protobuf.WireFormat.getTagFieldNumber(tag) == 5) { // array_value
+    if (com.google.protobuf.WireFormat.getTagFieldNumber(tag) == 5) {
+      // array_value
       com.google.protobuf.CodedInputStream arrayValue = av.readBytes().newCodedInput();
       List<String> values = new ArrayList<>();
       while (!arrayValue.isAtEnd()) {
-        arrayValue.readTag(); // ArrayValue.values (field 1, repeated AnyValue)
+        // ArrayValue.values (field 1, repeated AnyValue)
+        arrayValue.readTag();
         values.add((String) readAnyValueFromProto(arrayValue.readBytes().newCodedInput()));
       }
       return values;
     }
-    return av.readString(); // string_value (field 1)
+    // string_value (field 1)
+    return av.readString();
   }
 }

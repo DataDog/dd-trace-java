@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jetty10;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -22,9 +21,12 @@ public class SetRequestedSessionIdAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void setRequestedSessionId(
       @ActiveRequestContext RequestContext reqCtx,
-      @Advice.Argument(0) final String requestedSessionId) {
+      @Advice.Argument(0) final String requestedSessionId
+  ) {
     if (requestedSessionId != null && reqCtx != null) {
-      final CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      final CallbackProvider cbp = AgentTracer
+        .get()
+        .getCallbackProvider(RequestContextSlot.APPSEC);
       if (cbp == null) {
         return;
       }

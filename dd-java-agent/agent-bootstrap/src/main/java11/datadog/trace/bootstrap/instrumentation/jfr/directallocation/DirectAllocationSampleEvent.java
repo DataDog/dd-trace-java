@@ -13,20 +13,15 @@ import jdk.jfr.Name;
 @Description("Datadog event corresponding to a direct allocation.")
 @Category("Datadog")
 public class DirectAllocationSampleEvent extends Event implements ContextualEvent {
-
   @Label("Bytes Allocated")
   @DataAmount
   private final long allocated;
-
   @Label("Allocation Source")
   private final String source;
-
   @Label("Allocating Class")
   private final String allocatingClass;
-
   @Label("Local Root Span Id")
   private long localRootSpanId;
-
   @Label("Span Id")
   private long spanId;
 

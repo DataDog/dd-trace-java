@@ -6,7 +6,6 @@ import datadog.trace.api.iast.util.Cookie;
 import javax.annotation.Nonnull;
 
 public class NoSameSiteCookieModuleImpl implements NoSameSiteCookieModule<VulnerabilityType> {
-
   private static final String STRICT_VALUE = "Strict";
 
   @Override

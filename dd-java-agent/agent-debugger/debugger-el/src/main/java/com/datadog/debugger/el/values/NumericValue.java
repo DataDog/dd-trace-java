@@ -4,7 +4,9 @@ import com.datadog.debugger.el.Literal;
 import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 
-/** A numeric {@linkplain com.datadog.debugger.el.Value} */
+/**
+ * A numeric {@linkplain com.datadog.debugger.el.Value}
+ */
 public final class NumericValue extends Literal<Number> {
   public NumericValue(Number value, ValueType type) {
     super(value, type);

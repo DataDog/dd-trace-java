@@ -15,7 +15,8 @@ public interface LibraryLoadingListener {
       String optionalComponent,
       String libName,
       boolean isPreloaded,
-      URL optionalUrl) {}
+      URL optionalUrl
+  ) {}
 
   /**
    * Called when a dynamic library fails to resolve. This can occur because the library was not
@@ -25,7 +26,8 @@ public interface LibraryLoadingListener {
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      Throwable optionalCause) {}
+      Throwable optionalCause
+  ) {}
 
   /**
    * Called when a dynamic library loads successfully This includes loading a pre-loaded or already
@@ -36,31 +38,50 @@ public interface LibraryLoadingListener {
       String optionalComponent,
       String libName,
       boolean isPreloaded,
-      Path optionalLibPath) {}
+      Path optionalLibPath
+  ) {}
 
-  /** Called when a dynamic library fails to load */
+  /**
+   * Called when a dynamic library fails to load
+   */
   default void onLoadFailure(
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      Throwable optionalCause) {}
+      Throwable optionalCause
+  ) {}
 
-  /** Called when a temp file is successfully created to hold the library */
+  /**
+   * Called when a temp file is successfully created to hold the library
+   */
   default void onTempFileCreated(
-      PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {}
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Path tempFile
+  ) {}
 
-  /** Called when a temp file could not be created */
+  /**
+   * Called when a temp file could not be created
+   */
   default void onTempFileCreationFailure(
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
       Path tempDir,
       String libExt,
-      Throwable optionalCause) {}
+      Throwable optionalCause
+  ) {}
 
-  /** Called when a temp file is cleaned up */
+  /**
+   * Called when a temp file is cleaned up
+   */
   default void onTempFileCleanup(
-      PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {}
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Path tempFile
+  ) {}
 }
 
 /**
@@ -70,9 +91,13 @@ public interface LibraryLoadingListener {
  * listeners and {@link NopLibraryLoadingListener} used to optimize the nop case.
  */
 abstract class SafeLibraryLoadingListener implements LibraryLoadingListener {
-  /** Used to create a new safe listener with the provided listeners append onto this one */
+  /**
+   * Used to create a new safe listener with the provided listeners append onto this one
+   */
   public abstract SafeLibraryLoadingListener join(LibraryLoadingListener... listeners);
 
-  /** Indicates if all listener operates are nops */
+  /**
+   * Indicates if all listener operates are nops
+   */
   public abstract boolean isNop();
 }

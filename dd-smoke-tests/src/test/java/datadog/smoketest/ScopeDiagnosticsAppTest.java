@@ -5,7 +5,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.smoketest.backend.AgentBackend;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -59,14 +58,15 @@ class ScopeDiagnosticsAppTest {
   }
 
   private static SmokeCliApp.Builder appBuilder(String mode) {
-    return SmokeCliApp.named("scope-" + mode)
-        .mainClass(ScopeDiagnosticsTestApp.class)
-        .args(mode)
-        // Keep hostname discovery from starting an unrelated subprocess in this short fixture.
-        .env("HOSTNAME", "scope-diagnostics-test")
-        .env("COMPUTERNAME", "scope-diagnostics-test")
-        .backend(AgentBackend.mockAgent())
-        .jvmArgs("-Ddd.telemetry.enabled=false", "-Ddd.remote_config.enabled=false")
-        .skipTelemetryCheck();
+    return SmokeCliApp
+      .named("scope-" + mode)
+      .mainClass(ScopeDiagnosticsTestApp.class)
+      .args(mode)
+      // Keep hostname discovery from starting an unrelated subprocess in this short fixture.
+      .env("HOSTNAME", "scope-diagnostics-test")
+      .env("COMPUTERNAME", "scope-diagnostics-test")
+      .backend(AgentBackend.mockAgent())
+      .jvmArgs("-Ddd.telemetry.enabled=false", "-Ddd.remote_config.enabled=false")
+      .skipTelemetryCheck();
   }
 }

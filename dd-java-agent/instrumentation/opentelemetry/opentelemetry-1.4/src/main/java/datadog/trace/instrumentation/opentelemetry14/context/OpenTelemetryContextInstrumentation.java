@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,8 +17,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice
+{
   public OpenTelemetryContextInstrumentation() {
     super("opentelemetry.experimental", "opentelemetry-1");
   }
@@ -41,9 +41,7 @@ public class OpenTelemetryContextInstrumentation extends InstrumenterModule.Trac
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.opentelemetry.context.ArrayBasedContext",
-    };
+    return new String[] {"io.opentelemetry.context.ArrayBasedContext"};
   }
 
   @Override
@@ -56,10 +54,11 @@ public class OpenTelemetryContextInstrumentation extends InstrumenterModule.Trac
     // Context Context.root()
     transformer.applyAdvice(
         isMethod()
-            .and(named("root"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.context.Context"))),
-        OpenTelemetryContextInstrumentation.class.getName() + "$ContextRootAdvice");
+          .and(named("root"))
+          .and(takesNoArguments())
+          .and(returns(named("io.opentelemetry.context.Context"))),
+        OpenTelemetryContextInstrumentation.class.getName() + "$ContextRootAdvice"
+    );
   }
 
   public static class ContextRootAdvice {

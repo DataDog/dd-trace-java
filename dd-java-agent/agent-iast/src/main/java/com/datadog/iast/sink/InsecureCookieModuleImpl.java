@@ -6,12 +6,13 @@ import datadog.trace.api.iast.util.Cookie;
 import javax.annotation.Nonnull;
 
 public class InsecureCookieModuleImpl implements InsecureCookieModule<VulnerabilityType> {
-
   private static final int EXPIRES_YEAR_LIMIT = 2000;
 
   @Override
   public boolean isVulnerable(@Nonnull final Cookie cookie) {
-    return !cookie.isSecure() && !cookieValueIsEmpty(cookie.getCookieValue()) && !expired(cookie);
+    return !cookie.isSecure()
+        && !cookieValueIsEmpty(cookie.getCookieValue())
+        && !expired(cookie);
   }
 
   private boolean cookieValueIsEmpty(final String cookieValue) {

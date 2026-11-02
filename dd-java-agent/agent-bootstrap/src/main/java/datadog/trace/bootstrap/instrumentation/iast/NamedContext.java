@@ -14,7 +14,6 @@ import javax.annotation.Nullable;
  * JSON parsing)
  */
 public abstract class NamedContext {
-
   public abstract void taintValue(@Nullable String value);
 
   public abstract void taintName(@Nullable String name);
@@ -23,7 +22,9 @@ public abstract class NamedContext {
 
   @Nonnull
   public static <E> NamedContext getOrCreate(
-      @Nonnull final ContextStore<E, NamedContext> store, @Nonnull final E target) {
+      @Nonnull final ContextStore<E, NamedContext> store,
+      @Nonnull final E target
+  ) {
     NamedContext result = store.get(target);
     if (result != null) {
       return result;
@@ -41,7 +42,6 @@ public abstract class NamedContext {
   }
 
   private static class NoOp extends NamedContext {
-
     private static final NamedContext INSTANCE = new NoOp();
 
     @Override
@@ -55,12 +55,15 @@ public abstract class NamedContext {
   }
 
   private static class NamedContextImpl extends NamedContext {
-    @Nonnull private final PropagationModule module;
-    @Nonnull private final Source source;
-    @Nullable private String currentName;
-
+    @Nonnull
+    private final PropagationModule module;
+    @Nonnull
+    private final Source source;
+    @Nullable
+    private String currentName;
     private boolean fetched;
-    @Nullable private IastContext context;
+    @Nullable
+    private IastContext context;
 
     public NamedContextImpl(@Nonnull final PropagationModule module, @Nonnull final Source source) {
       this.module = module;

@@ -5,17 +5,19 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
-/** Records a scope's activation and close events. */
+/**
+ * Records a scope's activation and close events.
+ */
 public final class ScopeRecord {
   public final long seq;
   public final DDTraceId traceId;
   public final long spanId;
   public final String spanName;
   public final byte source;
-
-  /** The continuation that spawned this scope, or {@code null} for a plain activation. */
+  /**
+   * The continuation that spawned this scope, or {@code null} for a plain activation.
+   */
   public final Long continuationSeq;
-
   private final ScopeEvent open;
   private ScopeEvent close;
   private boolean deferredCleanup;
@@ -29,7 +31,8 @@ public final class ScopeRecord {
       byte source,
       Long continuationSeq,
       boolean deferredCleanup,
-      ScopeEvent open) {
+      ScopeEvent open
+  ) {
     this.seq = seq;
     this.traceId = traceId;
     this.spanId = spanId;
@@ -51,16 +54,16 @@ public final class ScopeRecord {
   }
 
   synchronized ScopeRecord snapshot() {
-    ScopeRecord copy =
-        new ScopeRecord(
-            seq,
-            traceId,
-            spanId,
-            spanName,
-            source,
-            continuationSeq,
-            deferredCleanup,
-            open == null ? null : open.snapshot());
+    ScopeRecord copy = new ScopeRecord(
+        seq,
+        traceId,
+        spanId,
+        spanName,
+        source,
+        continuationSeq,
+        deferredCleanup,
+        open == null ? null : open.snapshot()
+    );
     if (close != null) {
       copy.setClose(close.snapshot());
     }
@@ -94,12 +97,16 @@ public final class ScopeRecord {
     return deferredCleanup;
   }
 
-  /** {@code true} when the scope was opened and closed on different threads. */
+  /**
+   * {@code true} when the scope was opened and closed on different threads.
+   */
   public synchronized boolean threadHandoff() {
     return open != null && close != null && !open.threadName.equals(close.threadName);
   }
 
-  /** Nanos the scope was active, or {@code null} if it was never closed. */
+  /**
+   * Nanos the scope was active, or {@code null} if it was never closed.
+   */
   public synchronized Long activeDurationNanos() {
     if (open == null || close == null) {
       return null;

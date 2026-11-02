@@ -26,8 +26,7 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
   }
 
   @Override
-  public Supplier<String> outboundService(
-      @Nonnull String messagingSystem, boolean useLegacyTracing) {
+  public Supplier<String> outboundService(@Nonnull String messagingSystem, boolean useLegacyTracing) {
     return NULL_SUPPLIER;
   }
 
@@ -38,8 +37,7 @@ public class MessagingNamingV1 implements NamingSchema.ForMessaging {
   }
 
   @Override
-  public Supplier<String> inboundService(
-      @Nonnull String messagingSystem, boolean useLegacyTracing) {
+  public Supplier<String> inboundService(@Nonnull String messagingSystem, boolean useLegacyTracing) {
     return NULL_SUPPLIER;
   }
 

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -51,12 +50,10 @@ public class SimpleUtf8CacheTest {
 
     byte[] first = cache.getUtf8(value);
     assertArrayEquals(expected, first);
-
     // first request isn't cached - to avoid burning slots
     byte[] second = cache.getUtf8(value);
     assertArrayEquals(expected, second);
     assertNotSame(first, second);
-
     // after first request, the entry should be cached
     byte[] third = cache.getUtf8(value);
     assertArrayEquals(expected, third);
@@ -120,7 +117,6 @@ public class SimpleUtf8CacheTest {
   }
 
   static final String[] TAGS = {"foo", "bar", "baz"};
-
   static final String[] BASE_STRINGS = {"Hello", "world", "foo", "bar", "baz", "quux"};
 
   static final String nextTag() {

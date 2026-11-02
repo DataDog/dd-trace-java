@@ -5,12 +5,10 @@ import static datadog.trace.util.IntStringUtils.REJECT_LEADING_PLUS;
 import static datadog.trace.util.IntStringUtils.parseNonNegativeInt;
 import static datadog.trace.util.IntStringUtils.parseNonNegativeIntTrimmed;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class IntStringUtilsTest {
-
   @TableTest({
     "scenario         | input       | expected  ",
     "zero             | 0           | 0         ",
@@ -25,7 +23,7 @@ class IntStringUtilsTest {
     "letters          | abc         | -1        ",
     "trailing garbage | 12a         | -1        ",
     "whitespace       | ' 1'        | -1        ",
-    "non-ASCII digit  | '\u0661'    | -1        "
+    "non-ASCII digit  | '١'         | -1        "
   })
   void parseNonNegativeIntWholeSequence(String input, int expected) {
     assertEquals(expected, parseNonNegativeInt(input, REJECT_LEADING_PLUS));

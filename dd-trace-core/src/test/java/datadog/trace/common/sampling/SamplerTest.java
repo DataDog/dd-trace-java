@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.ProductTraceSource;
@@ -38,7 +37,6 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
 class SamplerTest extends DDJavaSpecification {
-
   @WithConfig(key = APM_TRACING_ENABLED, value = "false")
   @WithConfig(key = APPSEC_ENABLED, value = "true")
   @Test
@@ -100,7 +98,8 @@ class SamplerTest extends DDJavaSpecification {
 
     assertEquals(
         SAMPLER_DROP,
-        (int) samplingPriorityOfTrace(sampler, span -> span.setTag(DDTags.MANUAL_KEEP, true)));
+        (int) samplingPriorityOfTrace(sampler, span -> span.setTag(DDTags.MANUAL_KEEP, true))
+    );
   }
 
   /**
@@ -112,15 +111,10 @@ class SamplerTest extends DDJavaSpecification {
   void manuallyKeptTracesKeptWhenApmTracingDisabledAndMarkedForAsm() {
     Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
 
-    assertEquals(
-        USER_KEEP,
-        (int)
-            samplingPriorityOfTrace(
-                sampler,
-                span -> {
-                  span.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
-                  span.setTag(DDTags.MANUAL_KEEP, true);
-                }));
+    assertEquals(USER_KEEP, (int) samplingPriorityOfTrace(sampler, span -> {
+      span.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+      span.setTag(DDTags.MANUAL_KEEP, true);
+    }));
   }
 
   /**
@@ -135,9 +129,11 @@ class SamplerTest extends DDJavaSpecification {
 
     assertEquals(
         USER_KEEP,
-        (int)
-            samplingPriorityOfTrace(
-                sampler, span -> span.setSamplingPriority(USER_KEEP, SamplingMechanism.DATA_JOBS)));
+        (int) samplingPriorityOfTrace(sampler, span -> span.setSamplingPriority(
+            USER_KEEP,
+            SamplingMechanism.DATA_JOBS
+        ))
+    );
   }
 
   /**
@@ -151,25 +147,25 @@ class SamplerTest extends DDJavaSpecification {
   void apmTracesKeptOncePerMinuteWhenAppSecIsActivatedAtRuntime() {
     Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
     assertInstanceOf(ApmTracingDisabledSampler.class, sampler);
-
     // the trickle is one per minute, so only the first of the two traces is kept
-    withAppSecActive(
-        () ->
-            assertEquals(
-                asList((int) SAMPLER_KEEP, (int) SAMPLER_DROP),
-                samplingPrioritiesOfTraces(sampler, 2)));
+    withAppSecActive(() -> assertEquals(
+        asList((int) SAMPLER_KEEP, (int) SAMPLER_DROP),
+        samplingPrioritiesOfTraces(sampler, 2)
+    ));
   }
 
-  /** Deactivating AppSec at runtime puts the drop back. */
+  /**
+   * Deactivating AppSec at runtime puts the drop back.
+   */
   @WithConfig(key = APM_TRACING_ENABLED, value = "false")
   @Test
   void apmTracesDroppedWhenAppSecIsDeactivatedAtRuntime() {
     Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
 
-    withAppSecActive(
-        () ->
-            assertEquals(
-                singletonList((int) SAMPLER_KEEP), samplingPrioritiesOfTraces(sampler, 1)));
+    withAppSecActive(() -> assertEquals(
+        singletonList((int) SAMPLER_KEEP),
+        samplingPrioritiesOfTraces(sampler, 1)
+    ));
 
     assertEquals(singletonList((int) SAMPLER_DROP), samplingPrioritiesOfTraces(sampler, 1));
   }
@@ -219,8 +215,7 @@ class SamplerTest extends DDJavaSpecification {
 
   @WithConfig(key = TRACE_OTEL_EXPORTER, value = "otlp")
   @Test
-  void
-      parentBasedAlwaysOnSamplerReplacesRateByServiceTraceSamplerWhenOtlpEnabledWithDefaultPrioritySampling() {
+  void parentBasedAlwaysOnSamplerReplacesRateByServiceTraceSamplerWhenOtlpEnabledWithDefaultPrioritySampling() {
     Config config = Config.get();
 
     Sampler sampler = Sampler.Builder.forConfig(config, null);

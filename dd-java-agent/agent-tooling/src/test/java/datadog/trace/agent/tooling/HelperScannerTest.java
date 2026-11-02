@@ -3,23 +3,23 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.HelperScanner.isHelperClass;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 class HelperScannerTest {
   private static final String SHADED_CLASS = "datadog.trace.agent.tooling.shaded.somelib.Client";
-
   private static final InstrumenterModule DEFAULT_MODULE =
-      new InstrumenterModule("helper-scanner-test") {};
-
-  /** Mirrors a real module claiming third-party code shaded into its own package. */
+      new InstrumenterModule("helper-scanner-test") {
+  };
+  /**
+   * Mirrors a real module claiming third-party code shaded into its own package.
+   */
   private static final InstrumenterModule CLAIMING_MODULE =
       new InstrumenterModule("helper-scanner-test-claiming") {
-        @Override
-        public boolean isHelperClass(String className) {
-          return className.startsWith(packageName + ".shaded.");
-        }
-      };
+    @Override
+    public boolean isHelperClass(String className) {
+      return className.startsWith(packageName + ".shaded.");
+    }
+  };
 
   @Test
   void neverTreatsBootstrapClassesAsHelpers() {

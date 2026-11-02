@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
-
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -31,13 +30,13 @@ import org.slf4j.LoggerFactory;
  * @see net.bytebuddy.matcher.HasSuperTypeMatcher
  */
 class SafeHasSuperTypeMatcher<T extends TypeDescription>
-    extends ElementMatcher.Junction.ForNonNullValues<T> {
-
+    extends ElementMatcher.Junction.ForNonNullValues<T>
+{
   private static final Logger log = LoggerFactory.getLogger(SafeHasSuperTypeMatcher.class);
-
-  /** The matcher to apply to any super type of the matched type. */
+  /**
+   * The matcher to apply to any super type of the matched type.
+   */
   private final ElementMatcher<? super TypeDescription> matcher;
-
   private final boolean interfacesOnly;
   private final boolean rejectInterfaceTargets;
   private final boolean checkInterfaces;
@@ -51,7 +50,8 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
       ElementMatcher<? super TypeDescription> matcher,
       boolean interfacesOnly,
       boolean rejectInterfaceTargets,
-      boolean checkInterfaces) {
+      boolean checkInterfaces
+  ) {
     this.matcher = matcher;
     this.interfacesOnly = interfacesOnly;
     this.rejectInterfaceTargets = rejectInterfaceTargets;
@@ -100,13 +100,15 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
    * @return {@code true} if any interface matches the supplied matcher.
    */
   private boolean hasInterface(
-      final TypeDefinition typeDefinition, final Set<TypeDescription> checkedInterfaces) {
+      final TypeDefinition typeDefinition,
+      final Set<TypeDescription> checkedInterfaces
+  ) {
     for (final TypeDefinition interfaceType : safeGetInterfaces(typeDefinition)) {
       final TypeDescription erasure = safeAsErasure(interfaceType);
       if (erasure != null) {
         if (checkedInterfaces.add(interfaceType.asErasure())
             && (erasureMatches(interfaceType.asGenericType())
-                || hasInterface(interfaceType, checkedInterfaces))) {
+            || hasInterface(interfaceType, checkedInterfaces))) {
           return true;
         }
       }
@@ -127,7 +129,8 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
             "{} trying to check isInterface for target {}: {}",
             e.getClass().getSimpleName(),
             safeTypeDefinitionName(typeDefinition),
-            e.getMessage());
+            e.getMessage()
+        );
       }
       return false;
     }
@@ -142,7 +145,8 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
             "{} trying to get super class for target {}: {}",
             e.getClass().getSimpleName(),
             safeTypeDefinitionName(typeDefinition),
-            e.getMessage());
+            e.getMessage()
+        );
       }
       return null;
     }
@@ -180,7 +184,9 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
    * <p>This wrapper exists to allow getting interfaces even if the lookup on one fails.
    */
   private static class SafeInterfaceIterator
-      implements Iterator<TypeDefinition>, Iterable<TypeDefinition> {
+      implements Iterator<TypeDefinition>,
+      Iterable<TypeDefinition>
+  {
     private final TypeDefinition typeDefinition;
     private final Iterator<TypeDescription.Generic> it;
     private TypeDefinition next;
@@ -230,7 +236,8 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
             "{} trying to get interfaces for target {}: {}",
             e.getClass().getSimpleName(),
             safeTypeDefinitionName(typeDefinition),
-            e.getMessage());
+            e.getMessage()
+        );
       }
     }
   }
@@ -244,7 +251,8 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
             "{} trying to get erasure for target {}: {}",
             e.getClass().getSimpleName(),
             safeTypeDefinitionName(typeDefinition),
-            e.getMessage());
+            e.getMessage()
+        );
       }
       return null;
     }

@@ -6,7 +6,6 @@ import play.shaded.ahc.org.asynchttpclient.Request;
 
 @ParametersAreNonnullByDefault
 public class HeadersInjectAdapter implements CarrierSetter<Request> {
-
   public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 
   @Override

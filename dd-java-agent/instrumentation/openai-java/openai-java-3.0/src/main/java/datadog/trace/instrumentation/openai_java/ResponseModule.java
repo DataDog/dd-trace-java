@@ -15,6 +15,8 @@ public class ResponseModule extends InstrumenterModule.Tracing {
   @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
-        new ResponseServiceAsyncInstrumentation(), new ResponseServiceInstrumentation());
+        new ResponseServiceAsyncInstrumentation(),
+        new ResponseServiceInstrumentation()
+    );
   }
 }

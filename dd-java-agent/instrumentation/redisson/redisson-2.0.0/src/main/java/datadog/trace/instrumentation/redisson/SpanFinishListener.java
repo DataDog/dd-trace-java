@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.redisson;
 
 import static datadog.trace.instrumentation.redisson.RedissonClientDecorator.DECORATE;
-
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

@@ -3,11 +3,10 @@ package datadog.trace.api.iast;
 import javax.annotation.Nullable;
 
 public abstract class SourceTypes {
-
-  private SourceTypes() {}
+  private SourceTypes() {
+  }
 
   public static final byte NONE = -1;
-
   public static final byte REQUEST_PARAMETER_NAME = 0;
   public static final byte REQUEST_PARAMETER_VALUE = 1;
   public static final byte REQUEST_HEADER_NAME = 2;
@@ -25,26 +24,27 @@ public abstract class SourceTypes {
   public static final byte KAFKA_MESSAGE_KEY = 14;
   public static final byte KAFKA_MESSAGE_VALUE = 15;
   public static final byte SQL_TABLE = 16;
-
-  /** Array indexed with all source types, the index should match the source types values */
+  /**
+   * Array indexed with all source types, the index should match the source types values
+   */
   public static final String[] STRINGS = {
-    "http.request.parameter.name",
-    "http.request.parameter",
-    "http.request.header.name",
-    "http.request.header",
-    "http.request.cookie.name",
-    "http.request.cookie.value",
-    "http.request.body",
-    "http.request.query",
-    "http.request.path.parameter",
-    "http.request.matrix.parameter",
-    "http.request.multipart.parameter",
-    "http.request.uri",
-    "http.request.path",
-    "grpc.request.body",
-    "kafka.message.key",
-    "kafka.message.value",
-    "sql.row.value"
+      "http.request.parameter.name",
+      "http.request.parameter",
+      "http.request.header.name",
+      "http.request.header",
+      "http.request.cookie.name",
+      "http.request.cookie.value",
+      "http.request.body",
+      "http.request.query",
+      "http.request.path.parameter",
+      "http.request.matrix.parameter",
+      "http.request.multipart.parameter",
+      "http.request.uri",
+      "http.request.path",
+      "grpc.request.body",
+      "kafka.message.key",
+      "kafka.message.value",
+      "sql.row.value"
   };
 
   public static String toString(final byte source) {
@@ -75,8 +75,9 @@ public abstract class SourceTypes {
    * will be {@link #KAFKA_MESSAGE_TYPES}
    */
   public static final byte KAFKA_MESSAGE = -127;
-
-  /** Use for kafka key and values sources */
+  /**
+   * Use for kafka key and values sources
+   */
   public static final byte[] KAFKA_MESSAGE_TYPES = {KAFKA_MESSAGE_KEY, KAFKA_MESSAGE_VALUE};
 
   @Nullable

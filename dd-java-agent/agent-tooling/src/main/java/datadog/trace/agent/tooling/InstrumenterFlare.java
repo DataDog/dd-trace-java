@@ -11,7 +11,6 @@ public final class InstrumenterFlare implements TracerFlare.Reporter {
   private static final InstrumenterFlare INSTANCE = new InstrumenterFlare();
   private static final int MAX_TRANSFORMATION_ERRORS = 64;
   private static final int MAX_ERROR_LENGTH = 4096;
-
   // Debug-only entries may contain application class and method names of any size, so bound both
   // the number and length of entries retained for an explicitly requested tracer flare.
   private final Map<String, Integer> transformationErrors = new LinkedHashMap<>();
@@ -54,17 +53,16 @@ public final class InstrumenterFlare implements TracerFlare.Reporter {
       StringBuilder summary = new StringBuilder();
       for (Map.Entry<String, Integer> error : INSTANCE.transformationErrors.entrySet()) {
         summary
-            .append("count=")
-            .append(error.getValue())
-            .append(" detail=")
-            .append(error.getKey())
-            .append('\n');
+          .append("count=")
+          .append(error.getValue())
+          .append(" detail=")
+          .append(error.getKey())
+          .append('\n');
       }
       if (INSTANCE.droppedTransformationErrors > 0) {
-        summary
-            .append("dropped_error_count=")
-            .append(INSTANCE.droppedTransformationErrors)
-            .append('\n');
+        summary.append("dropped_error_count=").append(INSTANCE.droppedTransformationErrors).append(
+            '\n'
+        );
       }
       return summary.toString();
     }

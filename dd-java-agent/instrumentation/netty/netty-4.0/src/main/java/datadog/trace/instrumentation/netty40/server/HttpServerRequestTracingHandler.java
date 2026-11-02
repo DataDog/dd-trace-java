@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIB
 import static datadog.trace.instrumentation.netty40.AttributeKeys.PARENT_CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
@@ -24,15 +23,16 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
   @Override
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
-
     Channel channel = ctx.channel();
     if (!(msg instanceof HttpRequest)) {
       final Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
       if (storedContext == null) {
-        ctx.fireChannelRead(msg); // superclass does not throw
+        // superclass does not throw
+        ctx.fireChannelRead(msg);
       } else {
         try (final ContextScope scope = storedContext.attach()) {
-          ctx.fireChannelRead(msg); // superclass does not throw
+          // superclass does not throw
+          ctx.fireChannelRead(msg);
         }
       }
       return;
@@ -58,11 +58,13 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        ctx.pipeline()
-            .addAfter(
-                ctx.name(),
-                "blocking_handler",
-                new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba));
+        ctx
+          .pipeline()
+          .addAfter(
+              ctx.name(),
+              "blocking_handler",
+              new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba)
+          );
       }
 
       try {
@@ -70,7 +72,8 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(ignored.context());
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        // Finish the span manually since finishSpanOnClose was false
+        span.finish();
         ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
         throw throwable;
       }

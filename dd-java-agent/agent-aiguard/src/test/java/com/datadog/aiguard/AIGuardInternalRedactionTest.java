@@ -20,7 +20,6 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
 import datadog.trace.api.aiguard.AIGuard.AIGuardClientError;
@@ -49,21 +48,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-/** Covers how {@link AIGuardInternal} wires the backend redaction decision into an evaluation. */
+/**
+ * Covers how {@link AIGuardInternal} wires the backend redaction decision into an evaluation.
+ */
 @ExtendWith(WithConfigExtension.class)
 class AIGuardInternalRedactionTest {
-
   private static final HttpUrl URL =
       HttpUrl.parse("https://app.datadoghq.com/api/v2/ai-guard/evaluate");
-
   private static final String SENSITIVE = "My SSN is 123-45-6789";
   private static final String REDACTED = "My SSN is <REDACTED>";
-
-  private static final List<Message> MESSAGES =
-      asList(
-          Message.message("system", "You are a helpful assistant."),
-          Message.message("user", SENSITIVE));
-
+  private static final List<Message> MESSAGES = asList(
+      Message.message("system", "You are a helpful assistant."),
+      Message.message("user", SENSITIVE)
+  );
   private AgentSpan span;
   private AgentTracer.TracerAPI originalTracer;
   private Map<String, Object> metaStruct;
@@ -74,13 +71,10 @@ class AIGuardInternalRedactionTest {
 
     span = mock(AgentSpan.class);
     lenient().when(span.getLocalRootSpan()).thenReturn(mock(AgentSpan.class));
-    doAnswer(
-            invocation -> {
-              metaStruct = invocation.getArgument(1);
-              return span;
-            })
-        .when(span)
-        .setMetaStruct(eq(META_STRUCT_TAG), any());
+    doAnswer(invocation -> {
+      metaStruct = invocation.getArgument(1);
+      return span;
+    }).when(span).setMetaStruct(eq(META_STRUCT_TAG), any());
 
     final AgentTracer.SpanBuilder builder = mock(AgentTracer.SpanBuilder.class, RETURNS_DEEP_STUBS);
     lenient().when(builder.start()).thenReturn(span);
@@ -151,15 +145,12 @@ class AIGuardInternalRedactionTest {
 
   @Test
   void redactsMetaStructOnBlockedEvaluation() {
-    final AIGuardAbortError error =
-        assertThrows(
-            AIGuardAbortError.class,
-            () -> evaluate(responseWith("DENY", true, replacements(REDACTED))));
-
+    final AIGuardAbortError error = assertThrows(AIGuardAbortError.class, () -> evaluate(
+        responseWith("DENY", true, replacements(REDACTED))
+    ));
     // reporting is still redacted on the blocked path
     assertEquals(REDACTED, metaStructMessages().get(1).getContent());
     verify(span).setTag(REDACTED_TAG, true);
-
     // the abort error must not carry the conversation, redacted or otherwise
     assertFalse(errorText(error).contains(SENSITIVE));
     assertFalse(errorText(error).contains(REDACTED));
@@ -240,10 +231,9 @@ class AIGuardInternalRedactionTest {
 
   @Test
   void reportsTheServiceReplacementsVerbatimIncludingUnappliedEntries() {
-    final String replacements =
-        "[{\"path\":\"messages[1].content\",\"replacement\":\""
-            + REDACTED
-            + "\"},{\"path\":\"messages[9].content\",\"replacement\":\"never applied\"}]";
+    final String replacements = "[{\"path\":\"messages[1].content\",\"replacement\":\""
+        + REDACTED
+        + "\"},{\"path\":\"messages[9].content\",\"replacement\":\"never applied\"}]";
 
     final Evaluation evaluation = evaluate(responseWith("ALLOW", false, replacements));
 
@@ -258,7 +248,6 @@ class AIGuardInternalRedactionTest {
     WithConfigExtension.injectEnvConfig("DD_AI_GUARD_REDACTION_ENABLED", "false", false);
 
     final Evaluation evaluation = evaluate(responseWith("ALLOW", false, replacements(REDACTED)));
-
     // nothing was applied, but the service's request is still visible to the caller
     assertSame(MESSAGES, evaluation.getMessages());
     assertEquals(1, evaluation.getRedactionReplacements().size());
@@ -267,9 +256,9 @@ class AIGuardInternalRedactionTest {
   @Test
   void reportsNotRedactedWhenTheEvaluationFails() {
     // no action field, so the response is rejected before any redaction work happens
-    assertThrows(
-        AIGuardClientError.class, () -> evaluate("{\"data\":{\"attributes\":{\"tags\":[]}}}"));
-
+    assertThrows(AIGuardClientError.class, () -> evaluate(
+        "{\"data\":{\"attributes\":{\"tags\":[]}}}"
+    ));
     // a failed evaluation redacted nothing, and must not look like the kill switch is off
     verify(span).setTag(REDACTED_TAG, false);
     verify(span, never()).setTag(REDACTED_TAG, true);
@@ -278,13 +267,11 @@ class AIGuardInternalRedactionTest {
   @Test
   void redactsMetaStructWhenTheResponseFailsAfterCarryingReplacements() {
     // the replacements arrived, but the response is rejected for a missing action field
-    final String body =
-        "{\"data\":{\"attributes\":{\"tags\":[],\"redaction_replacements\":"
-            + replacements(REDACTED)
-            + "}}}";
+    final String body = "{\"data\":{\"attributes\":{\"tags\":[],\"redaction_replacements\":"
+        + replacements(REDACTED)
+        + "}}}";
 
     assertThrows(AIGuardClientError.class, () -> evaluate(body));
-
     // the tracer held the replacements, so what it reports must be redacted
     assertEquals(REDACTED, metaStructMessages().get(1).getContent());
   }
@@ -293,8 +280,9 @@ class AIGuardInternalRedactionTest {
   void emitsNoTagWhenTheEvaluationFailsAndTheKillSwitchIsOff() {
     WithConfigExtension.injectEnvConfig("DD_AI_GUARD_REDACTION_ENABLED", "false", false);
 
-    assertThrows(
-        AIGuardClientError.class, () -> evaluate("{\"data\":{\"attributes\":{\"tags\":[]}}}"));
+    assertThrows(AIGuardClientError.class, () -> evaluate(
+        "{\"data\":{\"attributes\":{\"tags\":[]}}}"
+    ));
 
     verify(span, never()).setTag(eq(REDACTED_TAG), anyBoolean());
   }
@@ -315,7 +303,7 @@ class AIGuardInternalRedactionTest {
   void reportsOneRedactionErrorPerReplacementItCouldNotApply() {
     final String unresolvable =
         "[{\"path\":\"messages[9].content\",\"replacement\":\"nope\"},"
-            + "{\"path\":\"not a path\",\"replacement\":\"nope\"}]";
+        + "{\"path\":\"not a path\",\"replacement\":\"nope\"}]";
     drainTelemetry();
 
     evaluate(responseWith("ALLOW", false, unresolvable));
@@ -336,14 +324,15 @@ class AIGuardInternalRedactionTest {
   void reportsNoRedactionErrorWhenTheKillSwitchIsOff() {
     WithConfigExtension.injectEnvConfig("DD_AI_GUARD_REDACTION_ENABLED", "false", false);
     drainTelemetry();
-
     // no redaction work is attempted, so a malformed payload is not even looked at
     evaluate(responseWith("ALLOW", false, "\"not-an-array\""));
 
     assertEquals(0, redactionErrors());
   }
 
-  /** A redaction error never counts as a failed request: it does not fail the evaluation. */
+  /**
+   * A redaction error never counts as a failed request: it does not fail the evaluation.
+   */
   @Test
   void doesNotCountARedactionErrorAsAFailedRequest() {
     final String unresolvable = "[{\"path\":\"messages[9].content\",\"replacement\":\"nope\"}]";
@@ -380,14 +369,17 @@ class AIGuardInternalRedactionTest {
   }
 
   private static String responseWith(
-      final String action, final boolean blocking, final String redactionReplacements) {
+      final String action,
+      final boolean blocking,
+      final String redactionReplacements
+  ) {
     final StringBuilder attributes = new StringBuilder();
     attributes
-        .append("{\"action\":\"")
-        .append(action)
-        .append("\",\"reason\":\"a reason\",\"is_blocking_enabled\":")
-        .append(blocking)
-        .append(",\"tags\":[]");
+      .append("{\"action\":\"")
+      .append(action)
+      .append("\",\"reason\":\"a reason\",\"is_blocking_enabled\":")
+      .append(blocking)
+      .append(",\"tags\":[]");
     if (redactionReplacements != null) {
       attributes.append(",\"redaction_replacements\":").append(redactionReplacements);
     }
@@ -405,16 +397,16 @@ class AIGuardInternalRedactionTest {
     }
     lenient().when(client.newCall(any(Request.class))).thenReturn(call);
     return new AIGuardInternal(URL, Collections.emptyMap(), client)
-        .evaluate(MESSAGES, new Options().block(true));
+      .evaluate(MESSAGES, new Options().block(true));
   }
 
   private static Response response(final String json) {
     return new Response.Builder()
-        .protocol(Protocol.HTTP_1_1)
-        .message("ok")
-        .request(new Request.Builder().url(URL).build())
-        .code(200)
-        .body(ResponseBody.create(MediaType.parse("application/json"), json))
-        .build();
+      .protocol(Protocol.HTTP_1_1)
+      .message("ok")
+      .request(new Request.Builder().url(URL).build())
+      .code(200)
+      .body(ResponseBody.create(MediaType.parse("application/json"), json))
+      .build();
   }
 }

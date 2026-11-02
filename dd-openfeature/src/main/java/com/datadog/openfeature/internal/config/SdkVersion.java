@@ -6,12 +6,17 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
-/** The version of this SDK, as written by the build. */
+/**
+ * The version of this SDK, as written by the build.
+ */
 public final class SdkVersion {
-  /** The SDK version, or {@code unknown} if the version file is missing. */
+  /**
+   * The SDK version, or {@code unknown} if the version file is missing.
+   */
   public static final String VERSION = readVersion();
 
-  private SdkVersion() {}
+  private SdkVersion() {
+  }
 
   private static String readVersion() {
     final InputStream stream = SdkVersion.class.getResourceAsStream("/dd-openfeature.version");

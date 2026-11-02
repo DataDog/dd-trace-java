@@ -11,8 +11,7 @@ public class TestTraceInterceptor implements TraceInterceptor {
   private List<List<? extends MutableSpan>> allTraces = new ArrayList<>();
 
   @Override
-  public Collection<? extends MutableSpan> onTraceComplete(
-      Collection<? extends MutableSpan> trace) {
+  public Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
     currentTrace = new ArrayList<>(trace);
     allTraces.add(new ArrayList<>(trace));
     return trace;

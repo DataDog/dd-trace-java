@@ -3,14 +3,12 @@ package datadog.trace.api.telemetry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.api.telemetry.CoreMetricCollector.CoreMetric;
 import java.util.Collection;
 import org.junit.jupiter.api.Test;
 
 class CoreMetricCollectorBaggageTest {
-
   private final CoreMetricCollector collector = CoreMetricCollector.getInstance();
   private final BaggageMetrics baggageMetrics = BaggageMetrics.getInstance();
 
@@ -21,7 +19,6 @@ class CoreMetricCollectorBaggageTest {
     baggageMetrics.onBaggageExtracted();
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
-
     // then
     CoreMetric baggageMetric = findMetric(metrics, "context_header_style.extracted");
     assertNotNull(baggageMetric);
@@ -38,7 +35,6 @@ class CoreMetricCollectorBaggageTest {
     baggageMetrics.onBaggageInjected();
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
-
     // then
     CoreMetric baggageMetric = findMetric(metrics, "context_header_style.injected");
     assertNotNull(baggageMetric);
@@ -52,7 +48,6 @@ class CoreMetricCollectorBaggageTest {
     baggageMetrics.onBaggageMalformed();
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
-
     // then
     CoreMetric baggageMetric = findMetric(metrics, "context_header_style.malformed");
     assertNotNull(baggageMetric);
@@ -66,7 +61,6 @@ class CoreMetricCollectorBaggageTest {
     baggageMetrics.onBaggageTruncatedByInjectByteLimit();
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
-
     // then
     CoreMetric baggageMetric =
         findTruncatedMetric(metrics, "truncation_reason:baggage_byte_count_exceeded");
@@ -80,7 +74,6 @@ class CoreMetricCollectorBaggageTest {
     baggageMetrics.onBaggageTruncatedByInjectItemLimit();
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
-
     // then
     CoreMetric baggageMetric =
         findTruncatedMetric(metrics, "truncation_reason:baggage_item_count_exceeded");
@@ -94,7 +87,6 @@ class CoreMetricCollectorBaggageTest {
     baggageMetrics.onBaggageTruncatedByExtractByteLimit();
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
-
     // then
     CoreMetric baggageMetric =
         findTruncatedMetric(metrics, "truncation_reason:baggage_extract_byte_exceeded");
@@ -108,7 +100,6 @@ class CoreMetricCollectorBaggageTest {
     baggageMetrics.onBaggageTruncatedByExtractItemLimit();
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
-
     // then
     CoreMetric baggageMetric =
         findTruncatedMetric(metrics, "truncation_reason:baggage_extract_item_exceeded");
@@ -121,7 +112,6 @@ class CoreMetricCollectorBaggageTest {
     // when
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
-
     // then
     assertTrue(metrics.stream().noneMatch(CoreMetricCollectorBaggageTest::isHeaderStyleMetric));
   }
@@ -135,25 +125,25 @@ class CoreMetricCollectorBaggageTest {
     collector.drain();
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
-
     // then
     assertTrue(metrics.stream().noneMatch(CoreMetricCollectorBaggageTest::isHeaderStyleMetric));
   }
 
   private static CoreMetric findMetric(Collection<CoreMetric> metrics, String metricName) {
-    return metrics.stream()
-        .filter(metric -> metricName.equals(metric.metricName))
-        .findFirst()
-        .orElse(null);
+    return metrics
+      .stream()
+      .filter(metric -> metricName.equals(metric.metricName))
+      .findFirst()
+      .orElse(null);
   }
 
   private static CoreMetric findTruncatedMetric(Collection<CoreMetric> metrics, String tag) {
-    return metrics.stream()
-        .filter(
-            metric ->
-                "context_header.truncated".equals(metric.metricName) && metric.tags.contains(tag))
-        .findFirst()
-        .orElse(null);
+    return metrics
+      .stream()
+      .filter(metric -> "context_header.truncated".equals(metric.metricName)
+          && metric.tags.contains(tag))
+      .findFirst()
+      .orElse(null);
   }
 
   private static boolean isHeaderStyleMetric(CoreMetric metric) {

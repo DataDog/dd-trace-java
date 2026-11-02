@@ -62,7 +62,10 @@ public class TunnelingJdkSocketBenchmark {
     while (received < connection.response.length) {
       int count =
           connection.input.read(
-              connection.response, received, connection.response.length - received);
+              connection.response,
+              received,
+              connection.response.length - received
+      );
       if (count <= 0) {
         throw new IOException("Peer closed or timed out", connection.peerFailure);
       }
@@ -104,7 +107,6 @@ public class TunnelingJdkSocketBenchmark {
   public static class Connection {
     @Param({"256", "8192", "65536"})
     public int bytes;
-
     private Socket socket;
     private SocketChannel peer;
     private InputStream input;

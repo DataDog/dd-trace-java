@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
-
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -25,35 +24,36 @@ public class RedisAPICallAdvice {
       @Advice.Origin final Method currentMethod,
       @Advice.This final RedisAPI self,
       @Advice.Argument(
-              value = 0,
-              readOnly = false,
-              optional = true,
-              typing = Assigner.Typing.DYNAMIC)
-          Object arg1,
+          value = 0,
+          readOnly = false,
+          optional = true,
+          typing = Assigner.Typing.DYNAMIC
+      ) Object arg1,
       @Advice.Argument(
-              value = 1,
-              readOnly = false,
-              optional = true,
-              typing = Assigner.Typing.DYNAMIC)
-          Object arg2,
+          value = 1,
+          readOnly = false,
+          optional = true,
+          typing = Assigner.Typing.DYNAMIC
+      ) Object arg2,
       @Advice.Argument(
-              value = 2,
-              readOnly = false,
-              optional = true,
-              typing = Assigner.Typing.DYNAMIC)
-          Object arg3,
+          value = 2,
+          readOnly = false,
+          optional = true,
+          typing = Assigner.Typing.DYNAMIC
+      ) Object arg3,
       @Advice.Argument(
-              value = 3,
-              readOnly = false,
-              optional = true,
-              typing = Assigner.Typing.DYNAMIC)
-          Object arg4,
+          value = 3,
+          readOnly = false,
+          optional = true,
+          typing = Assigner.Typing.DYNAMIC
+      ) Object arg4,
       @Advice.Argument(
-              value = 4,
-              readOnly = false,
-              optional = true,
-              typing = Assigner.Typing.DYNAMIC)
-          Object arg5) {
+          value = 4,
+          readOnly = false,
+          optional = true,
+          typing = Assigner.Typing.DYNAMIC
+      ) Object arg5
+  ) {
     // This API calls the underlying Redis.send or RedisConnection.send with a newly created
     // Request (where we would actually like to add the information that this has already
     // been handled) and a new Future as handler (so we can't look at the handler itself
@@ -62,7 +62,6 @@ public class RedisAPICallAdvice {
     if (CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0) {
       return null;
     }
-
     // TODO what is the recreated for every read about in the @Advice.Origin javadoc?
     Method method = currentMethod;
     int position = method.getParameterCount();
@@ -144,7 +143,8 @@ public class RedisAPICallAdvice {
   public static void afterCall(
       @Advice.Thrown final Throwable throwable,
       @Advice.This final RedisAPI self,
-      @Advice.Enter final ContextScope scope) {
+      @Advice.Enter final ContextScope scope
+  ) {
     CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
 
     if (null == scope) {
@@ -152,13 +152,13 @@ public class RedisAPICallAdvice {
     }
 
     scope.close();
-
     // Clean the response handler from the context
     InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).remove(self);
   }
 
   // Only apply this advice for versions that we instrument 3.9.x
   private static void muzzleCheck() {
-    Redis.createClient(null, "somehost"); // added in 3.9.x
+    // added in 3.9.x
+    Redis.createClient(null, "somehost");
   }
 }

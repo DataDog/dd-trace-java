@@ -3,7 +3,6 @@ package com.datadog.openfeature.internal.flagevaluation;
 import static com.datadog.openfeature.internal.JsonWriting.writeKeyObject;
 import static com.datadog.openfeature.internal.JsonWriting.writeValue;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.datadog.openfeature.internal.JsonWriting;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -14,10 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 final class FlagEvaluationPayloads {
-
   private static final byte[] PAYLOAD_SUFFIX = "]}".getBytes(UTF_8);
   private static final byte[] JSON_COMMA = ",".getBytes(UTF_8);
-
   /**
    * Wire prefix identifying a privacy-preserving, hashed targeting key. Emitted for full-tier rows
    * when {@code observeFullEvaluationData} is off. The suffix is the lower-case hex SHA-256 of the
@@ -25,24 +22,23 @@ final class FlagEvaluationPayloads {
    * it in sync with the other server SDKs and the UFC/EVP spec.
    */
   private static final String HASHED_TARGETING_KEY_PREFIX = "sha256_";
-
   // Per-thread SHA-256 instance as hashing runs for every full-tier row without consent.
-  private static final ThreadLocal<MessageDigest> SHA_256 =
-      ThreadLocal.withInitial(
-          () -> {
-            try {
-              return MessageDigest.getInstance("SHA-256");
-            } catch (final NoSuchAlgorithmException e) {
-              throw new IllegalStateException("SHA-256 not available", e);
-            }
-          });
+  private static final ThreadLocal<MessageDigest> SHA_256 = ThreadLocal.withInitial(() -> {
+    try {
+      return MessageDigest.getInstance("SHA-256");
+    } catch (final NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 not available", e);
+    }
+  });
 
-  private FlagEvaluationPayloads() {}
+  private FlagEvaluationPayloads() {
+  }
 
   static EncodedPayloads buildPayloads(
       final List<FlagEvaluationEvent> events,
       final Map<String, String> context,
-      final int payloadSizeLimitBytes) {
+      final int payloadSizeLimitBytes
+  ) {
     final byte[] prefix = payloadPrefix(context);
     EncodedPayloadBuilder current = new EncodedPayloadBuilder(prefix);
     final List<byte[]> payloads = new ArrayList<>();
@@ -88,43 +84,42 @@ final class FlagEvaluationPayloads {
   private static byte[] payloadPrefix(final Map<String, String> context) {
     final byte[] contextJson = JsonWriting.write(generator -> writeValue(generator, context));
     return ("{\"context\":" + new String(contextJson, UTF_8) + ",\"flagEvaluations\":[")
-        .getBytes(UTF_8);
+      .getBytes(UTF_8);
   }
 
   static byte[] encodeEvent(final FlagEvaluationEvent event) {
-    return JsonWriting.write(
-        generator -> {
-          generator.writeStartObject();
-          generator.writeNumberField("timestamp", event.timestamp);
-          writeKeyObject(generator, "flag", event.flag.key);
-          generator.writeNumberField("first_evaluation", event.first_evaluation);
-          generator.writeNumberField("last_evaluation", event.last_evaluation);
-          generator.writeNumberField("evaluation_count", event.evaluation_count);
-          writeKeyObject(generator, "variant", keyOf(event.variant));
-          writeKeyObject(generator, "allocation", keyOf(event.allocation));
-          if (event.targeting_key != null) {
-            generator.writeStringField("targeting_key", event.targeting_key);
-          }
-          if (event.runtime_default_used != null) {
-            generator.writeBooleanField("runtime_default_used", event.runtime_default_used);
-          }
-          if (event.context != null) {
-            generator.writeObjectFieldStart("context");
-            generator.writeFieldName("evaluation");
-            writeValue(generator, event.context.evaluation);
-            generator.writeEndObject();
-          }
-          if (event.error != null) {
-            generator.writeObjectFieldStart("error");
-            generator.writeStringField("message", event.error.message);
-            generator.writeEndObject();
-          }
-          if (event.features != null) {
-            generator.writeFieldName("features");
-            writeValue(generator, event.features);
-          }
-          generator.writeEndObject();
-        });
+    return JsonWriting.write(generator -> {
+      generator.writeStartObject();
+      generator.writeNumberField("timestamp", event.timestamp);
+      writeKeyObject(generator, "flag", event.flag.key);
+      generator.writeNumberField("first_evaluation", event.first_evaluation);
+      generator.writeNumberField("last_evaluation", event.last_evaluation);
+      generator.writeNumberField("evaluation_count", event.evaluation_count);
+      writeKeyObject(generator, "variant", keyOf(event.variant));
+      writeKeyObject(generator, "allocation", keyOf(event.allocation));
+      if (event.targeting_key != null) {
+        generator.writeStringField("targeting_key", event.targeting_key);
+      }
+      if (event.runtime_default_used != null) {
+        generator.writeBooleanField("runtime_default_used", event.runtime_default_used);
+      }
+      if (event.context != null) {
+        generator.writeObjectFieldStart("context");
+        generator.writeFieldName("evaluation");
+        writeValue(generator, event.context.evaluation);
+        generator.writeEndObject();
+      }
+      if (event.error != null) {
+        generator.writeObjectFieldStart("error");
+        generator.writeStringField("message", event.error.message);
+        generator.writeEndObject();
+      }
+      if (event.features != null) {
+        generator.writeFieldName("features");
+        writeValue(generator, event.features);
+      }
+      generator.writeEndObject();
+    });
   }
 
   /**
@@ -156,7 +151,8 @@ final class FlagEvaluationPayloads {
     private EncodedPayloads(
         final List<byte[]> bodies,
         final long droppedPayloadLimit,
-        final long degradedPayloadLimit) {
+        final long degradedPayloadLimit
+    ) {
       this.bodies = bodies;
       this.droppedPayloadLimit = droppedPayloadLimit;
       this.degradedPayloadLimit = degradedPayloadLimit;
@@ -231,23 +227,25 @@ final class FlagEvaluationPayloads {
         final boolean runtimeDefaultUsed,
         final String errorMessage,
         final Map<String, Object> evaluationAttrs,
-        final Map<String, Object> features) {
+        final Map<String, Object> features
+    ) {
       this.timestamp = timestamp;
       this.flag = new FlagKeyObject(flagKey);
       this.first_evaluation = firstEvalMs;
       this.last_evaluation = lastEvalMs;
       this.evaluation_count = count;
       this.variant = (variant != null && !variant.isEmpty()) ? new KeyObject(variant) : null;
-      this.allocation =
-          (allocation != null && !allocation.isEmpty()) ? new KeyObject(allocation) : null;
+      this.allocation = (allocation != null && !allocation.isEmpty())
+          ? new KeyObject(allocation)
+          : null;
       this.targeting_key = targetingKey;
       this.runtime_default_used = runtimeDefaultUsed ? Boolean.TRUE : null;
-      this.context =
-          (evaluationAttrs != null && !evaluationAttrs.isEmpty())
-              ? new EventContext(evaluationAttrs)
-              : null;
-      this.error =
-          (errorMessage != null && !errorMessage.isEmpty()) ? new ErrorObject(errorMessage) : null;
+      this.context = (evaluationAttrs != null && !evaluationAttrs.isEmpty())
+          ? new EventContext(evaluationAttrs)
+          : null;
+      this.error = (errorMessage != null && !errorMessage.isEmpty())
+          ? new ErrorObject(errorMessage)
+          : null;
       this.features = (features != null && !features.isEmpty()) ? features : null;
     }
 
@@ -255,7 +253,8 @@ final class FlagEvaluationPayloads {
         final FlagEvaluationAggregator.EvalBucket bucket,
         final boolean isFullTier,
         final boolean observeFullEvaluationData,
-        final long flushTimeMs) {
+        final long flushTimeMs
+    ) {
       final boolean includeRawContext = isFullTier && observeFullEvaluationData;
       return new FlagEvaluationEvent(
           flushTimeMs,
@@ -271,13 +270,15 @@ final class FlagEvaluationPayloads {
           includeRawContext ? bucket.prunedAttrs : null,
           // Features come from the flag configuration, so both tiers keep them whatever the
           // consent.
-          bucket.features);
+          bucket.features
+      );
     }
 
     private static String resolveTargetingKey(
         final String rawTargetingKey,
         final boolean isFullTier,
-        final boolean observeFullEvaluationData) {
+        final boolean observeFullEvaluationData
+    ) {
       if (!isFullTier || rawTargetingKey == null) {
         return null;
       }
@@ -303,7 +304,8 @@ final class FlagEvaluationPayloads {
           Boolean.TRUE.equals(runtime_default_used),
           messageOf(error),
           null,
-          features);
+          features
+      );
     }
   }
 

@@ -1,5 +1,4 @@
 // This file includes software developed at SignalFx
-
 package spring.jpa;
 
 import javax.sql.DataSource;
@@ -14,7 +13,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 @EnableJpaRepositories(basePackages = "spring.jpa")
 public class JpaPersistenceConfig {
-
   @Bean
   public PlatformTransactionManager transactionManager() {
     final JpaTransactionManager transactionManager = new JpaTransactionManager();

@@ -8,7 +8,6 @@ import org.springframework.web.context.support.AnnotationConfigWebApplicationCon
 import org.springframework.web.servlet.DispatcherServlet;
 
 public class Main {
-
   private static final String ROOT = "/";
   private static final String SERVLET = "dispatcherServlet";
 
@@ -24,10 +23,8 @@ public class Main {
               port = Integer.parseInt(kv[1]);
             } catch (NumberFormatException e) {
               System.out.println(
-                  "--server.port '"
-                      + kv[1]
-                      + "' is not valid port. Will be used default port "
-                      + port);
+                  "--server.port '" + kv[1] + "' is not valid port. Will be used default port " + port
+              );
             }
           }
         }
@@ -42,12 +39,12 @@ public class Main {
     Tomcat.addServlet(
         context,
         SERVLET,
-        new DispatcherServlet(
-            new AnnotationConfigWebApplicationContext() {
-              {
-                register(AppConfigurer.class);
-              }
-            }));
+        new DispatcherServlet(new AnnotationConfigWebApplicationContext() {
+          {
+            register(AppConfigurer.class);
+          }
+        })
+    );
     context.addServletMapping(ROOT, SERVLET);
 
     tomcat.start();

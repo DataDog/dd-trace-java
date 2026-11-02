@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -23,9 +22,8 @@ import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 
 class JfrScrubberTest {
-
-  @TempDir Path tempDir;
-
+  @TempDir
+  Path tempDir;
   private Path inputFile;
 
   @BeforeEach
@@ -47,7 +45,6 @@ class JfrScrubberTest {
 
     assertTrue(Files.exists(outputFile));
     assertTrue(Files.size(outputFile) > 0, "Scrubbed file should not be empty");
-
     // Verify scrubbed values contain only 'x' characters
     IItemCollection events = JfrLoaderToolkit.loadEvents(outputFile.toFile());
     IItemCollection systemPropertyEvents =
@@ -62,7 +59,8 @@ class JfrScrubberTest {
         if (value != null && !value.isEmpty()) {
           assertTrue(
               value.chars().allMatch(c -> c == 'x'),
-              "System property value should be scrubbed: " + value);
+              "System property value should be scrubbed: " + value
+          );
         }
       }
     }
@@ -74,7 +72,6 @@ class JfrScrubberTest {
     JfrScrubber scrubber = new JfrScrubber(name -> null);
     Path outputFile = tempDir.resolve("output.jfr");
     scrubber.scrubFile(inputFile, outputFile);
-
     // Output should be identical to input when no events match
     assertEquals(Files.size(inputFile), Files.size(outputFile));
   }
@@ -89,7 +86,6 @@ class JfrScrubberTest {
 
     assertTrue(Files.exists(outputFile));
     assertTrue(Files.size(outputFile) > 0);
-
     // Verify excluded event type values are preserved (not scrubbed to 'x')
     IItemCollection events = JfrLoaderToolkit.loadEvents(outputFile.toFile());
     IItemCollection systemPropertyEvents =
@@ -110,7 +106,6 @@ class JfrScrubberTest {
         }
       }
     }
-    assertTrue(
-        foundNonTrivialValue, "Excluded event type values should be preserved, not scrubbed");
+    assertTrue(foundNonTrivialValue, "Excluded event type values should be preserved, not scrubbed");
   }
 }

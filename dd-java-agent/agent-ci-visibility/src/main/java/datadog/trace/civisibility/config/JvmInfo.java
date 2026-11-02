@@ -7,17 +7,16 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class JvmInfo {
-
   public static final JvmInfo CURRENT_JVM;
 
   static {
     Config config = Config.get();
     CiVisibilityWellKnownTags wellKnownTags = config.getCiVisibilityWellKnownTags();
-    CURRENT_JVM =
-        new JvmInfo(
-            wellKnownTags.getRuntimeName().toString(),
-            wellKnownTags.getRuntimeVersion().toString(),
-            wellKnownTags.getRuntimeVendor().toString());
+    CURRENT_JVM = new JvmInfo(
+        wellKnownTags.getRuntimeName().toString(),
+        wellKnownTags.getRuntimeVersion().toString(),
+        wellKnownTags.getRuntimeVendor().toString()
+    );
   }
 
   private final String name;
@@ -84,6 +83,9 @@ public class JvmInfo {
 
   public static JvmInfo deserialize(ByteBuffer buf) {
     return new JvmInfo(
-        Serializer.readString(buf), Serializer.readString(buf), Serializer.readString(buf));
+        Serializer.readString(buf),
+        Serializer.readString(buf),
+        Serializer.readString(buf)
+    );
   }
 }

@@ -2,9 +2,10 @@ package datadog.trace.civisibility.codeowners;
 
 import javax.annotation.Nullable;
 
-/** Groups ownership and exclusion rules for a CODEOWNERS section while preserving rule order. */
+/**
+ * Groups ownership and exclusion rules for a CODEOWNERS section while preserving rule order.
+ */
 final class Section {
-
   private final EntryIndex entries = new EntryIndex();
   private final EntryIndex exclusions = new EntryIndex();
   private int entryOrder;

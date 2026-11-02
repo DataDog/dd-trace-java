@@ -45,7 +45,6 @@ import java.util.List;
  * <p>Not thread-safe: a buffer is written and read by one thread at a time.
  */
 public class ChunkedBuffer {
-
   /**
    * Usable bytes per chunk: 256 KiB less 32, so the whole array object, header included, is at most
    * 256 KiB with 12, 16 or 24 byte array headers. 256 KiB is exactly at ZGC's small-object limit
@@ -53,10 +52,10 @@ public class ChunkedBuffer {
    * exactly that size.
    */
   public static final int CHUNK_SIZE = 256 * 1024 - 32;
-
-  /** Where writes go once the buffer has failed; reused from the start whenever it fills. */
+  /**
+   * Where writes go once the buffer has failed; reused from the start whenever it fills.
+   */
   private static final int SCRATCH_SIZE = 64;
-
   private final int maxBytes;
   private final int maxChunks;
   private final byte[][] chunks;
@@ -68,18 +67,15 @@ public class ChunkedBuffer {
   private int allocatedChunks;
   // how many chunks the last reset kept, the baseline for halving a surplus
   private int keptChunks;
-
   // the chunk being written: current is -1 and limit 0 until the first write
   private int current = -1;
   private byte[] bytes;
   private ByteBuffer view;
   private int pos;
   private int limit;
-
   private int markChunk = -1;
   private int markPos;
   private int messageCount;
-
   private boolean failed;
   private byte[] scratchBytes;
   private ByteBuffer scratchView;
@@ -98,17 +94,23 @@ public class ChunkedBuffer {
     this.limits = new int[maxChunks];
   }
 
-  /** The most bytes this buffer can hold. */
+  /**
+   * The most bytes this buffer can hold.
+   */
   public final int capacity() {
     return maxBytes;
   }
 
-  /** Whether the buffer holds any completed messages. */
+  /**
+   * Whether the buffer holds any completed messages.
+   */
   public final boolean isDirty() {
     return messageCount > 0;
   }
 
-  /** The number of completed, non-empty messages. */
+  /**
+   * The number of completed, non-empty messages.
+   */
   public final int messageCount() {
     return messageCount;
   }
@@ -133,7 +135,9 @@ public class ChunkedBuffer {
     return true;
   }
 
-  /** Discards everything written since the last {@link #mark()}, keeping completed messages. */
+  /**
+   * Discards everything written since the last {@link #mark()}, keeping completed messages.
+   */
   public final void rewind() {
     failed = false;
     moveTo(markChunk);
@@ -183,7 +187,9 @@ public class ChunkedBuffer {
     return completed;
   }
 
-  /** The number of bytes in the completed messages. */
+  /**
+   * The number of bytes in the completed messages.
+   */
   public final int completedBytes() {
     return markChunk < 0 ? 0 : starts[markChunk] + markPos;
   }
@@ -281,7 +287,9 @@ public class ChunkedBuffer {
     }
   }
 
-  /** Number of chunks currently held. Visible for tests. */
+  /**
+   * Number of chunks currently held. Visible for tests.
+   */
   final int allocatedChunks() {
     return allocatedChunks;
   }
@@ -345,7 +353,9 @@ public class ChunkedBuffer {
    */
   protected void onCapacityExceeded() {}
 
-  /** Points writes at a chunk, or at nothing when {@code chunk} is -1. Doesn't change position. */
+  /**
+   * Points writes at a chunk, or at nothing when {@code chunk} is -1. Doesn't change position.
+   */
   private void moveTo(int chunk) {
     current = chunk;
     if (chunk < 0) {

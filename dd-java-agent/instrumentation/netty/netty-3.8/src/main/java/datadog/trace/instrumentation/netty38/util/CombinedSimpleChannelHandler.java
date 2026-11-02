@@ -12,10 +12,8 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.channel.WriteCompletionEvent;
 
 public class CombinedSimpleChannelHandler<
-        Upstream extends SimpleChannelUpstreamHandler,
-        Downstream extends SimpleChannelDownstreamHandler>
-    extends SimpleChannelHandler {
-
+    Upstream extends SimpleChannelUpstreamHandler,
+    Downstream extends SimpleChannelDownstreamHandler> extends SimpleChannelHandler {
   private final Upstream upstream;
   private final Downstream downstream;
 
@@ -25,8 +23,7 @@ public class CombinedSimpleChannelHandler<
   }
 
   @Override
-  public void handleUpstream(final ChannelHandlerContext ctx, final ChannelEvent e)
-      throws Exception {
+  public void handleUpstream(final ChannelHandlerContext ctx, final ChannelEvent e) throws Exception {
     upstream.handleUpstream(ctx, e);
   }
 
@@ -109,8 +106,7 @@ public class CombinedSimpleChannelHandler<
   }
 
   @Override
-  public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent e)
-      throws Exception {
+  public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent e) throws Exception {
     downstream.writeRequested(ctx, e);
   }
 

@@ -5,10 +5,9 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 class LegacyProviderIntegrationsDisabledSmokeTest extends AbstractLegacyProviderSmokeTest {
   @RegisterExtension
-  static final SmokeCliApp APP =
-      legacyProviderApp("openfeature-legacy-integrations-disabled")
-          .env("DD_INTEGRATIONS_ENABLED", "false")
-          .build();
+  static final SmokeCliApp APP = legacyProviderApp("openfeature-legacy-integrations-disabled")
+    .env("DD_INTEGRATIONS_ENABLED", "false")
+    .build();
 
   @Override
   SmokeCliApp app() {

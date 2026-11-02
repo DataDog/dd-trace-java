@@ -11,10 +11,8 @@ import java.util.Objects;
 public final class RuntimeInfo {
   @Json(name = "jre_version")
   public final String jreVersion;
-
   @Json(name = "java_vm")
   public final String javaVm;
-
   @Json(name = "vm_info")
   public final String vmInfo;
 

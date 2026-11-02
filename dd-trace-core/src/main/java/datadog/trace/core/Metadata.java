@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
-
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -17,7 +16,6 @@ public final class Metadata {
   private final TagMap globalTags;
   private final TagMap spanDefaultTags;
   private final Map<String, String> baggage;
-
   private final int samplingPriority;
   private final boolean measured;
   private final boolean topLevel;
@@ -44,7 +42,8 @@ public final class Metadata {
       UTF8BytesString processTags,
       UTF8BytesString otlpExportMarker,
       List<? extends AgentSpanLink> spanLinks,
-      List<DDSpanEvent> spanEvents) {
+      List<DDSpanEvent> spanEvents
+  ) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;

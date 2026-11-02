@@ -2,7 +2,6 @@ package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-
 import datadog.environment.JavaVirtualMachine;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -46,7 +45,6 @@ import org.openjdk.jol.info.GraphLayout;
  * speed and the {@code indexOf}-&gt;parallel-array capability, not footprint.
  */
 class StringIndexFootprintTest {
-
   @BeforeAll
   static void assumeNotJ9Jvm() {
     // JOL's GraphLayout relies on HotSpot-specific Unsafe internals and throws
@@ -71,14 +69,27 @@ class StringIndexFootprintTest {
   void footprintComparison() {
     System.out.printf(
         "%-6s %12s %12s %12s %12s %12s%n",
-        "n", "array", "hashSet", "treeSet", "copyOf", "stringIndex");
+        "n",
+        "array",
+        "hashSet",
+        "treeSet",
+        "copyOf",
+        "stringIndex"
+    );
     System.out.printf(
-        "%-6s %12s %12s %12s %12s %12s   (overhead above array)%n", "", "", "", "", "", "");
+        "%-6s %12s %12s %12s %12s %12s   (overhead above array)%n",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+    );
 
     for (int n : new int[] {8, 32, 128}) {
       String[] el = elements(n);
-
-      long array = bytes((Object) el); // baseline: strings + reference array
+      // baseline: strings + reference array
+      long array = bytes((Object) el);
       long hashSet = bytes(new HashSet<>(Arrays.asList(el)));
       long treeSet = bytes(new TreeSet<>(Arrays.asList(el)));
       Set<String> copy = CollectionUtils.tryMakeImmutableSet(Arrays.asList(el));
@@ -86,14 +97,28 @@ class StringIndexFootprintTest {
       long stringIndex = bytes(StringIndex.of(el));
 
       System.out.printf(
-          "%-6d %12d %12d %12d %12d %12d%n", n, array, hashSet, treeSet, copyOf, stringIndex);
+          "%-6d %12d %12d %12d %12d %12d%n",
+          n,
+          array,
+          hashSet,
+          treeSet,
+          copyOf,
+          stringIndex
+      );
       System.out.printf(
           "%-6s %12s %12d %12d %12d %12d%n",
-          "", "", hashSet - array, treeSet - array, copyOf - array, stringIndex - array);
-
+          "",
+          "",
+          hashSet - array,
+          treeSet - array,
+          copyOf - array,
+          stringIndex - array
+      );
       // Robust cross-JVM invariant: no per-element Node objects -> lighter than HashSet.
       assertTrue(
-          stringIndex < hashSet, "StringIndex should retain fewer bytes than HashSet at n=" + n);
+          stringIndex < hashSet,
+          "StringIndex should retain fewer bytes than HashSet at n=" + n
+      );
     }
   }
 }

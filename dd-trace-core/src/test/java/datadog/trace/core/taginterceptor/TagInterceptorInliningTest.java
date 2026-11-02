@@ -1,7 +1,6 @@
 package datadog.trace.core.taginterceptor;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.IOException;
 import java.io.InputStream;
 import org.junit.jupiter.api.Test;
@@ -28,24 +27,30 @@ class TagInterceptorInliningTest {
     assertTrue(
         length > FREQ_INLINE_SIZE,
         "interceptTag(span, long, value) is "
-            + length
-            + " bytes of bytecode, small enough for C2 to inline into DDSpanContext.setTag; keep"
-            + " its handlers in the switch (see this test's Javadoc)");
+        + length
+        + " bytes of bytecode, small enough for C2 to inline into DDSpanContext.setTag; keep"
+        + " its handlers in the switch (see this test's Javadoc)"
+    );
   }
 
-  /** The {@code code_length} of a method's Code attribute, read from the class file. */
+  /**
+   * The {@code code_length} of a method's Code attribute, read from the class file.
+   */
   private static int codeLength(String name, String descriptor) throws IOException {
     ClassReader reader;
     try (InputStream in = TagInterceptor.class.getResourceAsStream("TagInterceptor.class")) {
       reader = new ClassReader(in);
     }
     char[] buf = new char[reader.getMaxStringLength()];
-    int offset = reader.header + 6; // access_flags, this_class, super_class
-    offset += 2 + 2 * reader.readUnsignedShort(offset); // interfaces
+    // access_flags, this_class, super_class
+    int offset = reader.header + 6;
+    // interfaces
+    offset += 2 + 2 * reader.readUnsignedShort(offset);
     int fields = reader.readUnsignedShort(offset);
     offset += 2;
     for (int i = 0; i < fields; ++i) {
-      offset = skipAttributes(reader, offset + 6); // access_flags, name, descriptor
+      // access_flags, name, descriptor
+      offset = skipAttributes(reader, offset + 6);
     }
     int methods = reader.readUnsignedShort(offset);
     offset += 2;
@@ -56,7 +61,8 @@ class TagInterceptorInliningTest {
         int attribute = offset + 8;
         for (int j = 0; j < attributes; ++j) {
           if ("Code".equals(reader.readUTF8(attribute, buf))) {
-            return reader.readInt(attribute + 10); // name, length, max_stack, max_locals
+            // name, length, max_stack, max_locals
+            return reader.readInt(attribute + 10);
           }
           attribute += 6 + reader.readInt(attribute + 2);
         }
@@ -66,12 +72,15 @@ class TagInterceptorInliningTest {
     throw new AssertionError(name + descriptor + " not found");
   }
 
-  /** Skips the attributes whose count is at {@code offset}; returns the offset after them. */
+  /**
+   * Skips the attributes whose count is at {@code offset}; returns the offset after them.
+   */
   private static int skipAttributes(ClassReader reader, int offset) {
     int attributes = reader.readUnsignedShort(offset);
     offset += 2;
     for (int i = 0; i < attributes; ++i) {
-      offset += 6 + reader.readInt(offset + 2); // name, length, info
+      // name, length, info
+      offset += 6 + reader.readInt(offset + 2);
     }
     return offset;
   }

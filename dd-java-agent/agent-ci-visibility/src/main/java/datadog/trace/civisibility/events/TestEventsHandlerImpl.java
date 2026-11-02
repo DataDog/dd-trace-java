@@ -33,10 +33,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestEventsHandlerImpl<SuiteKey, TestKey>
-    implements TestEventsHandler<SuiteKey, TestKey> {
-
+    implements TestEventsHandler<SuiteKey, TestKey>
+{
   private static final Logger log = LoggerFactory.getLogger(TestEventsHandlerImpl.class);
-
   private final CiVisibilityMetricCollector metricCollector;
   private final Supplier<TestFrameworkSession> testSessionSupplier;
   private final String moduleName;
@@ -51,7 +50,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       String moduleName,
       boolean eagerSessionStart,
       ContextStore<SuiteKey, DDTestSuite> suiteStore,
-      ContextStore<TestKey, DDTest> testStore) {
+      ContextStore<TestKey, DDTest> testStore
+  ) {
     this.metricCollector = metricCollector;
     this.testSessionSupplier = testSessionSupplier;
     this.moduleName = moduleName;
@@ -84,13 +84,14 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   public void onTestSuiteStart(
       final SuiteKey descriptor,
       final String testSuiteName,
-      final @Nullable String testFramework,
-      final @Nullable String testFrameworkVersion,
-      final @Nullable Class<?> testClass,
-      final @Nullable Collection<String> categories,
+      @Nullable final String testFramework,
+      @Nullable final String testFrameworkVersion,
+      @Nullable final Class<?> testClass,
+      @Nullable final Collection<String> categories,
       boolean parallelized,
       TestFrameworkInstrumentation instrumentation,
-      @Nullable Long startTime) {
+      @Nullable Long startTime
+  ) {
     TestFrameworkModule testModule = getOrCreateTestModule();
     if (skipTrace(testClass)) {
       return;
@@ -98,7 +99,12 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
     TestSuiteImpl testSuite =
         testModule.testSuiteStart(
-            testSuiteName, testClass, startTime, parallelized, instrumentation);
+            testSuiteName,
+            testClass,
+            startTime,
+            parallelized,
+            instrumentation
+    );
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -162,13 +168,14 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final SuiteKey suiteDescriptor,
       final TestKey descriptor,
       final String testName,
-      final @Nullable String testFramework,
-      final @Nullable String testFrameworkVersion,
-      final @Nullable String testParameters,
-      final @Nullable Collection<String> categories,
-      final @Nonnull TestSourceData testSourceData,
-      final @Nullable Long startTime,
-      final @Nullable TestExecutionTracker testExecutionTracker) {
+      @Nullable final String testFramework,
+      @Nullable final String testFrameworkVersion,
+      @Nullable final String testParameters,
+      @Nullable final Collection<String> categories,
+      @Nonnull final TestSourceData testSourceData,
+      @Nullable final Long startTime,
+      @Nullable final TestExecutionTracker testExecutionTracker
+  ) {
     TestFrameworkModule testModule = getOrCreateTestModule();
     if (skipTrace(testSourceData.getTestClass())) {
       return;
@@ -178,9 +185,10 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     if (testSuite == null) {
       throw new IllegalStateException(
           "Could not find test suite with descriptor "
-              + suiteDescriptor
-              + "; test descriptor: "
-              + descriptor);
+          + suiteDescriptor
+          + "; test descriptor: "
+          + descriptor
+      );
     }
 
     TestImpl test =
@@ -223,8 +231,9 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     if (testSourceData.getTestMethodName() != null && testSourceData.getTestMethod() != null) {
       test.setTag(
           Tags.TEST_SOURCE_METHOD,
-          testSourceData.getTestMethodName()
-              + Type.getMethodDescriptor(testSourceData.getTestMethod()));
+          testSourceData.getTestMethodName() + Type.getMethodDescriptor(testSourceData.getTestMethod()
+          )
+      );
     }
     if (categories != null && !categories.isEmpty()) {
       test.setTag(Tags.TEST_TRAITS, getTestTraits(categories));
@@ -272,7 +281,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   public void onTestFinish(
       TestKey descriptor,
       @Nullable Long endTime,
-      @Nullable TestExecutionTracker testExecutionTracker) {
+      @Nullable TestExecutionTracker testExecutionTracker
+  ) {
     TestFrameworkModule testModule = getOrCreateTestModule();
     TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
@@ -306,7 +316,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         if (testModule.isAttemptToFix(test.getIdentifier())) {
           test.setTag(
               Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED,
-              outcome.aggregation() == ExecutionAggregation.ONLY_PASSED);
+              outcome.aggregation() == ExecutionAggregation.ONLY_PASSED
+          );
         }
       }
     } else {
@@ -321,13 +332,14 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final SuiteKey suiteDescriptor,
       final TestKey testDescriptor,
       final String testName,
-      final @Nullable String testFramework,
-      final @Nullable String testFrameworkVersion,
-      final @Nullable String testParameters,
-      final @Nullable Collection<String> categories,
+      @Nullable final String testFramework,
+      @Nullable final String testFrameworkVersion,
+      @Nullable final String testParameters,
+      @Nullable final Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      final @Nullable String reason,
-      @Nullable TestExecutionTracker testExecutionTracker) {
+      @Nullable final String reason,
+      @Nullable TestExecutionTracker testExecutionTracker
+  ) {
     onTestStart(
         suiteDescriptor,
         testDescriptor,
@@ -338,7 +350,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         categories,
         testSourceData,
         null,
-        testExecutionTracker);
+        testExecutionTracker
+    );
     onTestSkip(testDescriptor, reason);
     onTestFinish(testDescriptor, null, testExecutionTracker);
   }
@@ -346,7 +359,10 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   @Override
   @Nonnull
   public TestExecutionPolicy executionPolicy(
-      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+      TestIdentifier test,
+      TestSourceData testSource,
+      Collection<String> testTags
+  ) {
     return getOrCreateTestModule().executionPolicy(test, testSource, testTags);
   }
 

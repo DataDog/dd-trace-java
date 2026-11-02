@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.co
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonList;
-
 import datadog.trace.agent.tooling.HelperGenerationProcessor;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
@@ -18,7 +17,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
 
-/** Build-time plugin that scans each module once and runs ordered scan consumers. */
+/**
+ * Build-time plugin that scans each module once and runs ordered scan consumers.
+ */
 public class AdviceScanningGradlePlugin extends Plugin.ForElementMatcher {
   static {
     SharedTypePools.registerIfAbsent(SharedTypePools.simpleCache());
@@ -43,17 +44,21 @@ public class AdviceScanningGradlePlugin extends Plugin.ForElementMatcher {
   public DynamicType.Builder<?> apply(
       DynamicType.Builder<?> builder,
       TypeDescription typeDescription,
-      ClassFileLocator classFileLocator) {
+      ClassFileLocator classFileLocator
+  ) {
     ClassLoader loader = Thread.currentThread().getContextClassLoader();
     InstrumenterModule module;
     try {
       // The module instance is shared by scanning and every processor.
-      module =
-          (InstrumenterModule)
-              loader.loadClass(typeDescription.getName()).getConstructor().newInstance();
+      module = (InstrumenterModule) loader
+        .loadClass(typeDescription.getName())
+        .getConstructor()
+        .newInstance();
     } catch (ReflectiveOperationException error) {
       throw new IllegalStateException(
-          "Cannot instantiate instrumenter module " + typeDescription.getName(), error);
+          "Cannot instantiate instrumenter module " + typeDescription.getName(),
+          error
+      );
     }
 
     AdviceScanResult scanResult = AdviceScanner.scan(module, classFileLocator);

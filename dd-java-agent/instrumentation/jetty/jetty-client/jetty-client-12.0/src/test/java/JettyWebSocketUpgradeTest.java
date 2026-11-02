@@ -11,7 +11,6 @@ import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.core.DDSpan;
@@ -46,20 +45,21 @@ class JettyWebSocketUpgradeTest extends AbstractInstrumentationTest {
       assertTrue(session.isOpen());
       // The HTTP handshake must be reported before the WebSocket connection closes.
       assertTraces(
-          trace(
-              span()
-                  .operationName(compile(quote("http.request")))
-                  .resourceName(compile(quote("GET /upgrade")))
-                  .type(DDSpanTypes.HTTP_CLIENT)
-                  .root()
-                  .error(false)),
-          trace(span().type(DDSpanTypes.HTTP_SERVER).error(false)));
-      DDSpan handshake =
-          writer.stream()
-              .flatMap(List::stream)
-              .filter(s -> "client".equals(s.getTag("span.kind")))
-              .findFirst()
-              .orElseThrow(() -> new AssertionError("Missing client handshake span"));
+          trace(span()
+            .operationName(compile(quote("http.request")))
+            .resourceName(compile(quote("GET /upgrade")))
+            .type(DDSpanTypes.HTTP_CLIENT)
+            .root()
+            .error(false)
+          ),
+          trace(span().type(DDSpanTypes.HTTP_SERVER).error(false))
+      );
+      DDSpan handshake = writer
+        .stream()
+        .flatMap(List::stream)
+        .filter(s -> "client".equals(s.getTag("span.kind")))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("Missing client handshake span"));
       assertEquals("jetty-client", handshake.getTag("component").toString());
       assertEquals("client", handshake.getTag("span.kind"));
       assertEquals(101, handshake.getTag("http.status_code"));
@@ -81,40 +81,40 @@ class JettyWebSocketUpgradeTest extends AbstractInstrumentationTest {
       client.start();
       IllegalStateException upgradeFailure = new IllegalStateException("Endpoint upgrade failed");
       FrameHandler frameHandler = mock(FrameHandler.class);
-      CoreClientUpgradeRequest request =
-          new CoreClientUpgradeRequest(client, uri) {
-            @Override
-            public FrameHandler getFrameHandler() {
-              return frameHandler;
-            }
+      CoreClientUpgradeRequest request = new CoreClientUpgradeRequest(client, uri) {
+        @Override
+        public FrameHandler getFrameHandler() {
+          return frameHandler;
+        }
 
-            @Override
-            public void upgrade(Response response, EndPoint endPoint) {
-              EndPoint failingEndPoint = mock(EndPoint.class, delegatesTo(endPoint));
-              doThrow(upgradeFailure).when(failingEndPoint).upgrade(any(Connection.class));
-              super.upgrade(response, failingEndPoint);
-            }
-          };
+        @Override
+        public void upgrade(Response response, EndPoint endPoint) {
+          EndPoint failingEndPoint = mock(EndPoint.class, delegatesTo(endPoint));
+          doThrow(upgradeFailure).when(failingEndPoint).upgrade(any(Connection.class));
+          super.upgrade(response, failingEndPoint);
+        }
+      };
 
       ExecutionException failure =
           assertThrows(ExecutionException.class, () -> client.connect(request).get(5, SECONDS));
       assertSame(upgradeFailure, failure.getCause());
 
       assertTraces(
-          trace(
-              span()
-                  .operationName(compile(quote("http.request")))
-                  .resourceName(compile(quote("GET /upgrade")))
-                  .type(DDSpanTypes.HTTP_CLIENT)
-                  .root()
-                  .error(true)),
-          trace(span().type(DDSpanTypes.HTTP_SERVER).error(false)));
-      DDSpan handshake =
-          writer.stream()
-              .flatMap(List::stream)
-              .filter(s -> "client".equals(s.getTag("span.kind")))
-              .findFirst()
-              .orElseThrow(() -> new AssertionError("Missing client handshake span"));
+          trace(span()
+            .operationName(compile(quote("http.request")))
+            .resourceName(compile(quote("GET /upgrade")))
+            .type(DDSpanTypes.HTTP_CLIENT)
+            .root()
+            .error(true)
+          ),
+          trace(span().type(DDSpanTypes.HTTP_SERVER).error(false))
+      );
+      DDSpan handshake = writer
+        .stream()
+        .flatMap(List::stream)
+        .filter(s -> "client".equals(s.getTag("span.kind")))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("Missing client handshake span"));
       assertEquals(101, handshake.getTag("http.status_code"));
       assertEquals(IllegalStateException.class.getName(), handshake.getTag("error.type"));
       assertEquals(upgradeFailure.getMessage(), handshake.getTag("error.message"));
@@ -130,18 +130,16 @@ class JettyWebSocketUpgradeTest extends AbstractInstrumentationTest {
   private static URI startServer(Server server) throws Exception {
     ContextHandler context = new ContextHandler("/");
     server.setHandler(context);
-    context.setHandler(
-        WebSocketUpgradeHandler.from(server, context)
-            .configure(
-                container ->
-                    container.addMapping(
-                        "/upgrade", (request, response, callback) -> new Endpoint())));
+    context.setHandler(WebSocketUpgradeHandler
+      .from(server, context)
+      .configure(container -> container.addMapping("/upgrade", (request, response, callback) -> new Endpoint()))
+    );
     server.start();
     return URI.create(
-        "ws://localhost:"
-            + ((ServerConnector) server.getConnectors()[0]).getLocalPort()
-            + "/upgrade");
+        "ws://localhost:" + ((ServerConnector) server.getConnectors()[0]).getLocalPort() + "/upgrade"
+    );
   }
 
-  public static class Endpoint implements Session.Listener.AutoDemanding {}
+  public static class Endpoint implements Session.Listener.AutoDemanding {
+  }
 }

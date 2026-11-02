@@ -14,7 +14,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
@@ -44,13 +43,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class PartHelperTest {
-
   private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
   private CallbackProvider callbackProvider;
   private RequestContext reqCtx;
   private BlockResponseFunction brf;
   private TraceSegment traceSegment;
-
   // Same RequestBlockingAction used across the block-failure-reporting tests below.
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
@@ -90,12 +87,11 @@ class PartHelperTest {
 
   private <T> void stubCallback(EventType<BiFunction<RequestContext, T, Flow<Void>>> event) {
     doReturn((Object) (BiFunction<RequestContext, T, Flow<Void>>) (ctx, x) -> blockingFlow())
-        .when(callbackProvider)
-        .getCallback(event);
+      .when(callbackProvider)
+      .getCallback(event);
   }
 
   // ── fireBodyProcessedEvent: wiring to BlockResponseFunction ─────────────────
-
   @Test
   void fireBodyProcessedEventCommitFails() throws IOException {
     stubCallback(Events.get().requestBodyProcessed());
@@ -134,7 +130,6 @@ class PartHelperTest {
   }
 
   // ── fireFilenamesEvent: wiring to BlockResponseFunction ─────────────────────
-
   @Test
   void fireFilenamesEventCommitFails() {
     stubCallback(Events.get().requestFilesFilenames());
@@ -172,7 +167,6 @@ class PartHelperTest {
   }
 
   // ── fireFilesContentEvent: wiring to BlockResponseFunction ──────────────────
-
   @Test
   void fireFilesContentEventCommitFails() throws IOException {
     stubCallback(Events.get().requestFilesContent());
@@ -180,7 +174,7 @@ class PartHelperTest {
 
     Part p = filePart("photo.jpg");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
 
     BlockingException result = PartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
 
@@ -195,7 +189,7 @@ class PartHelperTest {
 
     Part p = filePart("photo.jpg");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
 
     BlockingException result = PartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
 
@@ -210,7 +204,7 @@ class PartHelperTest {
 
     Part p = filePart("photo.jpg");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
 
     BlockingException result = PartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
 
@@ -219,7 +213,6 @@ class PartHelperTest {
   }
 
   // ── extractFilenames ────────────────────────────────────────────────────────
-
   @Test
   void extractFilenamesReturnsEmptyListForNull() {
     assertEquals(emptyList(), PartHelper.extractFilenames(null));
@@ -261,7 +254,6 @@ class PartHelperTest {
   }
 
   // ── filenameFromPart ────────────────────────────────────────────────────────
-
   @Test
   void filenameFromPartReturnsNullWhenContentDispositionHeaderIsAbsent() {
     Part p = mock(Part.class);
@@ -279,8 +271,9 @@ class PartHelperTest {
   @Test
   void filenameFromPartExtractsUnquotedFilename() {
     Part p = mock(Part.class);
-    when(p.getHeader("Content-Disposition"))
-        .thenReturn("form-data; name=\"file\"; filename=photo.jpg");
+    when(p.getHeader("Content-Disposition")).thenReturn(
+        "form-data; name=\"file\"; filename=photo.jpg"
+    );
     assertEquals("photo.jpg", PartHelper.filenameFromPart(p));
   }
 
@@ -288,7 +281,7 @@ class PartHelperTest {
   void filenameFromPartStripsQuotesFromFilename() {
     Part p = mock(Part.class);
     when(p.getHeader("Content-Disposition"))
-        .thenReturn("form-data; name=\"file\"; filename=\"photo.jpg\"");
+      .thenReturn("form-data; name=\"file\"; filename=\"photo.jpg\"");
     assertEquals("photo.jpg", PartHelper.filenameFromPart(p));
   }
 
@@ -310,7 +303,7 @@ class PartHelperTest {
   void filenameFromPartPreservesSemicolonsInsideQuotedFilename() {
     Part p = mock(Part.class);
     when(p.getHeader("Content-Disposition"))
-        .thenReturn("form-data; name=\"file\"; filename=\"shell;evil.php\"");
+      .thenReturn("form-data; name=\"file\"; filename=\"shell;evil.php\"");
     assertEquals("shell;evil.php", PartHelper.filenameFromPart(p));
   }
 
@@ -318,7 +311,7 @@ class PartHelperTest {
   void filenameFromPartHandlesEscapedQuoteInsideFilename() {
     Part p = mock(Part.class);
     when(p.getHeader("Content-Disposition"))
-        .thenReturn("form-data; name=\"file\"; filename=\"file\\\"name.txt\"");
+      .thenReturn("form-data; name=\"file\"; filename=\"file\\\"name.txt\"");
     assertEquals("file\"name.txt", PartHelper.filenameFromPart(p));
   }
 
@@ -326,12 +319,11 @@ class PartHelperTest {
   void filenameFromPartHandlesFilenameBeforeOtherParameters() {
     Part p = mock(Part.class);
     when(p.getHeader("Content-Disposition"))
-        .thenReturn("form-data; filename=\"first.txt\"; name=\"file\"");
+      .thenReturn("form-data; filename=\"first.txt\"; name=\"file\"");
     assertEquals("first.txt", PartHelper.filenameFromPart(p));
   }
 
   // ── charsetFromContentType ──────────────────────────────────────────────────
-
   @Test
   void charsetFromContentTypeReturnsUtf8ForNull() {
     assertEquals(StandardCharsets.UTF_8, PartHelper.charsetFromContentType(null));
@@ -346,31 +338,35 @@ class PartHelperTest {
   void charsetFromContentTypeParsesUnquotedCharset() {
     assertEquals(
         Charset.forName("ISO-8859-1"),
-        PartHelper.charsetFromContentType("text/plain; charset=ISO-8859-1"));
+        PartHelper.charsetFromContentType("text/plain; charset=ISO-8859-1")
+    );
   }
 
   @Test
   void charsetFromContentTypeParsesQuotedCharset() {
     assertEquals(
         Charset.forName("ISO-8859-1"),
-        PartHelper.charsetFromContentType("text/plain; charset=\"ISO-8859-1\""));
+        PartHelper.charsetFromContentType("text/plain; charset=\"ISO-8859-1\"")
+    );
   }
 
   @Test
   void charsetFromContentTypeIsCaseInsensitive() {
     assertEquals(
-        StandardCharsets.UTF_16, PartHelper.charsetFromContentType("text/plain; CHARSET=UTF-16"));
+        StandardCharsets.UTF_16,
+        PartHelper.charsetFromContentType("text/plain; CHARSET=UTF-16")
+    );
   }
 
   @Test
   void charsetFromContentTypeReturnsUtf8ForUnknownCharset() {
     assertEquals(
         StandardCharsets.UTF_8,
-        PartHelper.charsetFromContentType("text/plain; charset=not-a-real-charset"));
+        PartHelper.charsetFromContentType("text/plain; charset=not-a-real-charset")
+    );
   }
 
   // ── extractFormFields ───────────────────────────────────────────────────────
-
   @Test
   void extractFormFieldsReturnsEmptyMapForNull() {
     assertEquals(Collections.emptyMap(), PartHelper.extractFormFields(null));
@@ -428,7 +424,8 @@ class PartHelperTest {
     byte[] iso88591Bytes = "café".getBytes("ISO-8859-1");
     List<Part> parts =
         singletonList(
-            fieldWithContentType("drink", iso88591Bytes, "text/plain; charset=ISO-8859-1"));
+            fieldWithContentType("drink", iso88591Bytes, "text/plain; charset=ISO-8859-1")
+    );
     Map<String, List<String>> result = PartHelper.extractFormFields(parts);
     assertEquals(singletonList("café"), result.get("drink"));
   }
@@ -460,7 +457,6 @@ class PartHelperTest {
   }
 
   // ── extractContents ─────────────────────────────────────────────────────────
-
   @Test
   void extractContentsReturnsEmptyListForNull() {
     assertEquals(emptyList(), PartHelper.extractContents(null));
@@ -482,7 +478,7 @@ class PartHelperTest {
     List<Part> parts = singletonList(emptyFilenamePart("upload"));
     Part p = parts.get(0);
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
     when(p.getContentType()).thenReturn("text/plain; charset=UTF-8");
     assertEquals(singletonList("data"), PartHelper.extractContents(parts));
   }
@@ -491,7 +487,7 @@ class PartHelperTest {
   void extractContentsReadsFileContent() throws IOException {
     Part p = filePart("photo.jpg");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("file-content".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("file-content".getBytes(StandardCharsets.UTF_8)));
     when(p.getContentType()).thenReturn("text/plain; charset=UTF-8");
     assertEquals(singletonList("file-content"), PartHelper.extractContents(singletonList(p)));
   }
@@ -521,8 +517,9 @@ class PartHelperTest {
     List<Part> parts = new ArrayList<>(count);
     for (int i = 0; i < count; i++) {
       Part p = filePart("file" + i + ".txt");
-      when(p.getInputStream())
-          .thenReturn(new ByteArrayInputStream("c".getBytes(StandardCharsets.UTF_8)));
+      when(p.getInputStream()).thenReturn(
+          new ByteArrayInputStream("c".getBytes(StandardCharsets.UTF_8))
+      );
       when(p.getContentType()).thenReturn(null);
       parts.add(p);
     }
@@ -531,7 +528,6 @@ class PartHelperTest {
   }
 
   // ── getAllParts ─────────────────────────────────────────────────────────────
-
   @Test
   void getAllPartsReturnsEmptyListWhenBothNull() {
     assertEquals(emptyList(), PartHelper.getAllParts(null, null));
@@ -570,18 +566,21 @@ class PartHelperTest {
   }
 
   // ── helpers ─────────────────────────────────────────────────────────────────
-
-  /** Creates a stub Part that looks like a plain form field (no filename). */
+  /**
+   * Creates a stub Part that looks like a plain form field (no filename).
+   */
   private Part field(String name, String value) throws IOException {
     Part p = mock(Part.class);
     when(p.getHeader("Content-Disposition")).thenReturn("form-data; name=\"" + name + "\"");
     when(p.getName()).thenReturn(name);
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8)));
     return p;
   }
 
-  /** Creates a stub Part with a specific Content-Type (for charset testing). */
+  /**
+   * Creates a stub Part with a specific Content-Type (for charset testing).
+   */
   private Part fieldWithContentType(String name, byte[] rawValue, String contentType)
       throws IOException {
     Part p = mock(Part.class);
@@ -592,7 +591,9 @@ class PartHelperTest {
     return p;
   }
 
-  /** Creates a stub Part for extractFilenames/extractFormFields tests that only need the header. */
+  /**
+   * Creates a stub Part for extractFilenames/extractFormFields tests that only need the header.
+   */
   private Part formField(String name) {
     Part p = mock(Part.class);
     when(p.getHeader("Content-Disposition")).thenReturn("form-data; name=\"" + name + "\"");
@@ -600,19 +601,23 @@ class PartHelperTest {
     return p;
   }
 
-  /** Creates a stub Part that looks like a file upload with the given filename. */
+  /**
+   * Creates a stub Part that looks like a file upload with the given filename.
+   */
   private Part filePart(String filename) {
     Part p = mock(Part.class);
     when(p.getHeader("Content-Disposition"))
-        .thenReturn("form-data; name=\"file\"; filename=\"" + filename + "\"");
+      .thenReturn("form-data; name=\"file\"; filename=\"" + filename + "\"");
     return p;
   }
 
-  /** Creates a stub Part that has filename="" — a file input submitted with no file chosen. */
+  /**
+   * Creates a stub Part that has filename="" — a file input submitted with no file chosen.
+   */
   private Part emptyFilenamePart(String name) {
     Part p = mock(Part.class);
     when(p.getHeader("Content-Disposition"))
-        .thenReturn("form-data; name=\"" + name + "\"; filename=\"\"");
+      .thenReturn("form-data; name=\"" + name + "\"; filename=\"\"");
     return p;
   }
 }

@@ -1,8 +1,9 @@
 package datadog.context;
 
-/** Listener of context events. */
+/**
+ * Listener of context events.
+ */
 public interface ContextListener {
-
   /**
    * Notifies that the context has been updated for the current execution unit.
    *

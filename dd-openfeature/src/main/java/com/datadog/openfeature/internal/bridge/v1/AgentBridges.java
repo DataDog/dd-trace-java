@@ -6,7 +6,8 @@ package com.datadog.openfeature.internal.bridge.v1;
  * their {@link AgentBridge} interface is itself being defined.
  */
 public final class AgentBridges {
-  private AgentBridges() {}
+  private AgentBridges() {
+  }
 
   /**
    * Detects the bridge to use. The Datadog Java agent instruments this method to return its own

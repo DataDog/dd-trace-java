@@ -5,7 +5,6 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATIO
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVAL_TIMESTAMP_MS;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALUATION_FEATURES;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
-
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.FlagEvaluationDetails;
@@ -37,8 +36,9 @@ import java.util.function.Supplier;
  * pipeline is absent (killswitch off or not yet started) it is a no-op.
  */
 class FlagEvalLoggingHook<T> implements Hook<T> {
-
-  /** Pipeline resolver, returning {@code null} when evaluation counts are not delivered. */
+  /**
+   * Pipeline resolver, returning {@code null} when evaluation counts are not delivered.
+   */
   private final Supplier<FlagEvaluationWriter> writerSupplier;
 
   FlagEvalLoggingHook(final Supplier<FlagEvaluationWriter> writerSupplier) {
@@ -56,7 +56,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
   public void finallyAfter(
       final HookContext<T> ctx,
       final FlagEvaluationDetails<T> details,
-      final Map<String, Object> hints) {
+      final Map<String, Object> hints
+  ) {
     try {
       if (details == null) {
         return;
@@ -65,7 +66,6 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       if (w == null) {
         return;
       }
-
       // Pre-queue guard: if the queue is already saturated, avoid the context-copy work whose
       // result would be discarded on offer(). Best-effort — the queue can still be full at
       // offer() time — but flips a full snapshot into an O(1) check on the drop path.
@@ -73,11 +73,9 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
         w.countPreQueueOverflow();
         return;
       }
-
       // Scalar extraction - individual typed metadata reads, no JSON, no flattening
       final String flagKey = details.getFlagKey();
       final ImmutableMetadata metadata = details.getFlagMetadata();
-
       // allocationKey: "allocationKey" (camelCase) - consistent with FlagEvalMetricsHook.java
       // The ImmutableMetadata getters build a debug message for every absent key.
       final Map<String, Object> values =
@@ -85,27 +83,23 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       final Object allocationValue = values.get(ALLOCATION_KEY);
       final String allocationKey =
           allocationValue instanceof String ? (String) allocationValue : null;
-
       // eval-time: from flag metadata "__dd_eval_timestamp_ms" (Long), fallback to hook-fire time.
       final Object evalTimeValue = values.get(EVAL_TIMESTAMP_MS);
       final Long evalTimeObj = evalTimeValue instanceof Long ? (Long) evalTimeValue : null;
       final long evalTimeMs = evalTimeObj != null ? evalTimeObj : System.currentTimeMillis();
-
       // variant: the OpenFeature variant key (same source as the OTel FlagEvalMetricsHook), NOT the
       // evaluated value. A null variant means no variant was selected (runtime default).
       final String variant = details.getVariant();
-
       // targetingKey from evaluation context
       final String targetingKey =
           ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
-
       // Consent is read from metadata stamped by DDEvaluator (pinned to its ServerConfiguration).
       // Missing key = non-DD provider → false, the privacy-preserving default.
       final Object consentValue = values.get(OBSERVE_FULL_EVALUATION_DATA);
       final Boolean consentFromMetadata =
           consentValue instanceof Boolean ? (Boolean) consentValue : null;
-      final boolean observeFullEvaluationData = consentFromMetadata != null && consentFromMetadata;
-
+      final boolean observeFullEvaluationData = consentFromMetadata != null
+          && consentFromMetadata;
       // Error message: prefer the human-readable message under consent-on; under consent-off the
       // provider's raw message can echo evaluation-context values (e.g. NumberFormatException:
       // "For input string: \"jane.doe@...\""), so replace it with the ErrorCode name — a stable,
@@ -118,7 +112,6 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       if (errorMessage != null && errorMessage.isEmpty()) {
         errorMessage = null;
       }
-
       // On the protected path (consent-off) the evaluation context is dropped on emit and never
       // consulted by the aggregator, so skip the bounded copy entirely — the copy cost only
       // applies under consent-on.
@@ -135,13 +128,11 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       } else {
         attrs = Collections.emptyMap();
       }
-
       // Features come from the flag configuration, not the evaluation context, so they are sent
       // whatever the consent.
-      final Map<String, Object> features =
-          Boolean.TRUE.equals(values.get(HAS_EVALUATION_FEATURES))
-              ? SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX)
-              : Collections.<String, Object>emptyMap();
+      final Map<String, Object> features = Boolean.TRUE.equals(values.get(HAS_EVALUATION_FEATURES))
+          ? SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX)
+          : Collections.<String, Object>emptyMap();
       w.enqueue(
           new FlagEvalEvent(
               flagKey,
@@ -152,7 +143,9 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
               evalTimeMs,
               observeFullEvaluationData,
               attrs,
-              features));
+              features
+          )
+      );
     } catch (LinkageError e) {
       // Never let EVP recording break flag evaluation
     }

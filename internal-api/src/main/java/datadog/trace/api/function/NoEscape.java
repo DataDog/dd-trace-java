@@ -103,4 +103,5 @@ import java.lang.annotation.Target;
 @PerfContract
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.METHOD})
-public @interface NoEscape {}
+public @interface NoEscape {
+}

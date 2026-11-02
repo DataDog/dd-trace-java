@@ -9,7 +9,6 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 public interface Extension {
-
   boolean appliesTo(@Nonnull CallSiteSpecification spec);
 
   void apply(@Nonnull Configuration configuration, @Nonnull CallSiteResult result) throws Exception;

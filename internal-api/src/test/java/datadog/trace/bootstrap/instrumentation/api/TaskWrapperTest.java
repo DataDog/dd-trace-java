@@ -2,26 +2,21 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import org.junit.jupiter.api.Test;
 
 class TaskWrapperTest {
-
   @Test
   void testUnwrapping() {
     // when: direct wrapping
     DirectWrapper directWrapper = new DirectWrapper();
     assertEquals(Integer.class, TaskWrapper.getUnwrappedType(directWrapper));
-
     // when: wrapped value is null
     RecursiveWrapper nullWrapper = new RecursiveWrapper();
     assertNull(TaskWrapper.getUnwrappedType(nullWrapper));
-
     // when: recursive wrapped value within depth limit
     RecursiveWrapper shallowRecursiveWrapper = new RecursiveWrapper();
     shallowRecursiveWrapper.wrapped = new DirectWrapper();
     assertEquals(Integer.class, TaskWrapper.getUnwrappedType(shallowRecursiveWrapper));
-
     // when: recursive wrapped value exceeds depth limit
     DirectWrapper level1 = new DirectWrapper();
     RecursiveWrapper level2 = new RecursiveWrapper();
@@ -37,7 +32,6 @@ class TaskWrapperTest {
     RecursiveWrapper deepRecursiveWrapper = level6;
     // then: terminate at max depth
     assertEquals(DirectWrapper.class, TaskWrapper.getUnwrappedType(deepRecursiveWrapper));
-
     // when: cycle
     RecursiveWrapper outer = new RecursiveWrapper();
     RecursiveWrapper inner = new RecursiveWrapper();
@@ -49,7 +43,6 @@ class TaskWrapperTest {
   }
 
   static class RecursiveWrapper implements TaskWrapper {
-
     TaskWrapper wrapped;
 
     @Override
@@ -59,7 +52,6 @@ class TaskWrapperTest {
   }
 
   static class DirectWrapper implements TaskWrapper {
-
     Integer field = 1;
 
     @Override

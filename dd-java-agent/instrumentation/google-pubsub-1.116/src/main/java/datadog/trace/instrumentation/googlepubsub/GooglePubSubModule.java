@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,7 +15,8 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class GooglePubSubModule extends InstrumenterModule.Tracing
-    implements ExcludeFilterProvider {
+    implements ExcludeFilterProvider
+{
   public GooglePubSubModule() {
     super("google-pubsub");
   }
@@ -31,6 +31,7 @@ public class GooglePubSubModule extends InstrumenterModule.Tracing
     return asList(
         new PublisherInstrumentation(),
         new ReceiverInstrumentation(),
-        new ReceiverWithAckInstrumentation());
+        new ReceiverWithAckInstrumentation()
+    );
   }
 }

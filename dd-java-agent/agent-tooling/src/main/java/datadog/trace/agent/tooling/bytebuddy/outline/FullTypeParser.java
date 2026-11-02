@@ -4,16 +4,16 @@ import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findDesc
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType;
 import static net.bytebuddy.jar.asm.ClassReader.SKIP_CODE;
 import static net.bytebuddy.jar.asm.ClassReader.SKIP_DEBUG;
-
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.OpenedClassReader;
 
-/** Provides access to byte-buddy's full type parser, so we can use it with our outline approach. */
+/**
+ * Provides access to byte-buddy's full type parser, so we can use it with our outline approach.
+ */
 final class FullTypeParser extends TypePool.Default implements TypeParser {
-
   FullTypeParser() {
     super(CacheProvider.NoOp.INSTANCE, ClassFileLocator.NoOp.INSTANCE, ReaderMode.FAST);
   }
@@ -44,7 +44,9 @@ final class FullTypeParser extends TypePool.Default implements TypeParser {
   @Override
   public void clear() {}
 
-  /** Subclass to make 'toTypeDescription' visible. */
+  /**
+   * Subclass to make 'toTypeDescription' visible.
+   */
   final class CustomTypeExtractor extends TypeExtractor {
     @Override
     public TypeDescription toTypeDescription() {

@@ -20,7 +20,6 @@ import static datadog.environment.OperatingSystem.isMacOs;
 import static datadog.environment.OperatingSystem.isWindows;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
@@ -37,24 +36,22 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Sets up the profiling strategy and schedules the profiling recordings. */
+/**
+ * Sets up the profiling strategy and schedules the profiling recordings.
+ */
 public final class ProfilingSystem {
   private static final Logger log = LoggerFactory.getLogger(ProfilingSystem.class);
   static final String RECORDING_NAME = "dd-profiling";
-
   private static final long TERMINATION_TIMEOUT = 10;
-
   private final AgentTaskScheduler scheduler;
   private final ConfigProvider configProvider;
   private final Controller controller;
   private final ControllerContext.Snapshot context;
   // For now only support one callback. Multiplex as needed.
   private final RecordingDataListener dataListener;
-
   private final Duration startupDelay;
   private final Duration uploadPeriod;
   private final boolean isStartingFirst;
-
   private OngoingRecording recording;
   private SnapshotRecording snapshotRecording;
   private volatile boolean started = false;
@@ -78,8 +75,8 @@ public final class ProfilingSystem {
       final Duration startupDelay,
       final Duration startupDelayRandomRange,
       final Duration uploadPeriod,
-      final boolean isStartingFirst)
-      throws ConfigurationException {
+      final boolean isStartingFirst
+  ) throws ConfigurationException {
     this(
         configProvider,
         controller,
@@ -90,7 +87,8 @@ public final class ProfilingSystem {
         uploadPeriod,
         isStartingFirst,
         new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER),
-        ThreadLocalRandom.current());
+        ThreadLocalRandom.current()
+    );
   }
 
   ProfilingSystem(
@@ -103,8 +101,8 @@ public final class ProfilingSystem {
       final Duration uploadPeriod,
       final boolean isStartingFirst,
       final AgentTaskScheduler scheduler,
-      final ThreadLocalRandom threadLocalRandom)
-      throws ConfigurationException {
+      final ThreadLocalRandom threadLocalRandom
+  ) throws ConfigurationException {
     this.configProvider = configProvider;
     this.controller = controller;
     this.context = context;
@@ -124,7 +122,6 @@ public final class ProfilingSystem {
     if (uploadPeriod.isNegative() || uploadPeriod.isZero()) {
       throw new ConfigurationException("Upload period must be positive.");
     }
-
     // Note: it is important to not keep reference to the threadLocalRandom beyond the
     // constructor
     // since it is expected to be thread local.
@@ -136,7 +133,8 @@ public final class ProfilingSystem {
         "Starting profiling system: startupDelay={}ms, uploadPeriod={}ms, isStartingFirst={}",
         startupDelay.toMillis(),
         uploadPeriod.toMillis(),
-        isStartingFirst);
+        isStartingFirst
+    );
 
     if (isStartingFirst) {
       startProfilingRecording();
@@ -149,7 +147,8 @@ public final class ProfilingSystem {
           ProfilingSystem::startProfilingRecording,
           this,
           startupDelay.toMillis(),
-          TimeUnit.MILLISECONDS);
+          TimeUnit.MILLISECONDS
+      );
     }
   }
 
@@ -162,19 +161,22 @@ public final class ProfilingSystem {
           snapshotRecording = createSnapshotRecording(now),
           uploadPeriod.toMillis(),
           uploadPeriod.toMillis(),
-          TimeUnit.MILLISECONDS);
+          TimeUnit.MILLISECONDS
+      );
       started = true;
     } catch (UnsupportedEnvironmentException unsupported) {
-      ProfilerFlareLogger.getInstance()
-          .log(
-              "Datadog Profiling was enabled on an unsupported JVM, will not profile application. "
-                  + "(OS: {}, JVM: lang={}, runtime={}, vendor={}) See {} for more details about supported JVMs.",
-              isLinux() ? "Linux" : isWindows() ? "Windows" : isMacOs() ? "MacOS" : "Other",
-              JavaVirtualMachine.getLangVersion(),
-              JavaVirtualMachine.getRuntimeVersion(),
-              JavaVirtualMachine.getRuntimeVendor(),
-              "https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements",
-              unsupported);
+      ProfilerFlareLogger
+        .getInstance()
+        .log(
+            "Datadog Profiling was enabled on an unsupported JVM, will not profile application. "
+            + "(OS: {}, JVM: lang={}, runtime={}, vendor={}) See {} for more details about supported JVMs.",
+            isLinux() ? "Linux" : isWindows() ? "Windows" : isMacOs() ? "MacOS" : "Other",
+            JavaVirtualMachine.getLangVersion(),
+            JavaVirtualMachine.getRuntimeVersion(),
+            JavaVirtualMachine.getRuntimeVendor(),
+            "https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements",
+            unsupported
+        );
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         // Possibly a wrapped exception related to Oracle JDK 8 JFR MX beans
@@ -184,7 +186,11 @@ public final class ProfilingSystem {
           if (msg != null && msg.contains("com.oracle.jrockit:type=FlightRecorder")) {
             // Yes, the commercial JFR is not enabled
             String logMsg =
-                "You're running Oracle JDK 8. Datadog Continuous Profiler for Java depends on Java Flight Recorder, which requires a paid license in Oracle JDK 8. If you have one, please add the following `java` command line args: ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’. Alternatively, you can use a different Java 8 distribution like OpenJDK, where Java Flight Recorder is free.";
+                "You're running Oracle JDK 8. Datadog Continuous Profiler for Java depends on "
+                + "Java Flight Recorder, which requires a paid license in Oracle JDK 8. If you have "
+                + "one, please add the following `java` command line args: ‘-XX:"
+                + "+UnlockCommercialFeatures -XX:+FlightRecorder’. Alternatively, you can use a "
+                + "different Java 8 distribution like OpenJDK, where Java Flight Recorder is free.";
             ProfilerFlareLogger.getInstance().log(logMsg, t);
             log.warn(logMsg);
             // Do not log the underlying exception
@@ -215,7 +221,9 @@ public final class ProfilingSystem {
     shutdown(false);
   }
 
-  /** Shuts down the profiling system. */
+  /**
+   * Shuts down the profiling system.
+   */
   public final void shutdown(boolean snapshot) {
     scheduler.shutdown(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
 
@@ -225,7 +233,6 @@ public final class ProfilingSystem {
       }
       snapshotRecording = null;
     }
-
     // Here we assume that all other threads have been shutdown and we can close running
     // recording
     if (recording != null) {
@@ -245,13 +252,15 @@ public final class ProfilingSystem {
   }
 
   private static Duration randomizeDuration(
-      final ThreadLocalRandom random, final Duration duration, final Duration range) {
+      final ThreadLocalRandom random,
+      final Duration duration,
+      final Duration range
+  ) {
     return duration.plus(Duration.ofMillis(random.nextLong(range.toMillis())));
   }
 
   final class SnapshotRecording {
     private final Duration ONE_NANO = Duration.ofNanos(1);
-
     private Instant lastSnapshot;
 
     SnapshotRecording(final Instant startTime) {
@@ -266,10 +275,10 @@ public final class ProfilingSystem {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
         log.debug("Creating profiler snapshot");
-        final RecordingData recordingData =
-            recording.snapshot(
-                lastSnapshot,
-                onShutdown ? ProfilingSnapshot.Kind.ON_SHUTDOWN : ProfilingSnapshot.Kind.PERIODIC);
+        final RecordingData recordingData = recording.snapshot(
+            lastSnapshot,
+            onShutdown ? ProfilingSnapshot.Kind.ON_SHUTDOWN : ProfilingSnapshot.Kind.PERIODIC
+        );
         log.debug("Snapshot created: {}", recordingData);
         if (recordingData != null) {
           // To make sure that we don't get data twice, we say that the next start should be

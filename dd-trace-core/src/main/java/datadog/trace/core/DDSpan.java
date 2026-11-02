@@ -11,7 +11,6 @@ import static java.util.Collections.unmodifiableList;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import datadog.context.SelfScopedContext;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -66,32 +65,34 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       final String instrumentationName,
       final long timestampMicro,
       @Nonnull DDSpanContext context,
-      final List<AgentSpanLink> links) {
+      final List<AgentSpanLink> links
+  ) {
     final DDSpan span = new DDSpan(instrumentationName, timestampMicro, context, links);
     log.debug("Started span: {}", span);
     context.getTraceCollector().registerSpan(span);
     return span;
   }
 
-  /** The metrics for this span instance. */
+  /**
+   * The metrics for this span instance.
+   */
   private final SpanMetrics metrics;
-
-  /** The context attached to the span */
+  /**
+   * The context attached to the span
+   */
   private final DDSpanContext context;
-
-  /** Is the source of time an external clock or our internal tick-adjusted clock? */
+  /**
+   * Is the source of time an external clock or our internal tick-adjusted clock?
+   */
   private final boolean externalClock;
-
   /**
    * Creation time of span in nanoseconds. Must be greater than zero. For our internal clock we use
    * combination of millisecond-precision clock and nanosecond-precision offset from start of the
    * trace. See {@link PendingTrace} for details.
    */
   private final long startTimeNano;
-
   private static final AtomicLongFieldUpdater<DDSpan> DURATION_NANO_UPDATER =
       AtomicLongFieldUpdater.newUpdater(DDSpan.class, "durationNano");
-
   /**
    * The duration in nanoseconds computed using the startTimeMicro or startTimeNano.<hr> The span's
    * states are defined as follows:
@@ -100,22 +101,18 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
    * <li>gt 0 -> finished and published.
    */
   private volatile long durationNano;
-
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification = "This field is never accessed concurrently")
+      justification = "This field is never accessed concurrently"
+  )
   private boolean forceKeep;
-
   private volatile EndpointTracker endpointTracker;
-
   // Cached OT/OTel wrapper to avoid multiple allocations, e.g. when span is activated
   private volatile SpanWrapper wrapper;
   private static final AtomicReferenceFieldUpdater<DDSpan, SpanWrapper> WRAPPER_FIELD_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(DDSpan.class, SpanWrapper.class, "wrapper");
-
   // the request is to be blocked (AppSec)
   private volatile Flow.Action.RequestBlockingAction requestBlockingAction;
-
   /**
    * Version of a span that can be set by the long running spans feature:
    * <li>eq 0 -> span is not long running.
@@ -123,12 +120,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
    * <li>gt 0 -> long running span and its write version.
    */
   private volatile int longRunningVersion = 0;
-
   private static final List<AgentSpanLink> NO_LINK = emptyList();
   protected volatile List<AgentSpanLink> links;
-
   private static final List<DDSpanEvent> NO_EVENT = emptyList();
-
   /**
    * Span events, appended under the span lock until the span is finished. Volatile to check for no
    * event without locking.
@@ -147,7 +141,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       @Nonnull String instrumentationName,
       final long timestampMicro,
       @Nonnull DDSpanContext context,
-      final List<AgentSpanLink> links) {
+      final List<AgentSpanLink> links
+  ) {
     this.context = context;
     this.metrics = SpanMetricRegistry.getInstance().get(instrumentationName);
     this.metrics.onSpanCreated();
@@ -159,7 +154,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     } else {
       startTimeNano = MICROSECONDS.toNanos(timestampMicro);
       externalClock = true;
-      context.getTraceCollector().touch(); // external clock: explicitly update lastReferenced
+      // external clock: explicitly update lastReferenced
+      context.getTraceCollector().touch();
     }
 
     this.links = links == null || links.isEmpty() ? NO_LINK : new CopyOnWriteArrayList<>(links);
@@ -211,7 +207,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       durationNano += MICROSECONDS.toNanos(externalOffsetMicros);
     } else {
       durationNano = MICROSECONDS.toNanos(stopTimeMicros) - startTimeNano;
-      context.getTraceCollector().touch(); // external clock: explicitly update lastReferenced
+      // external clock: explicitly update lastReferenced
+      context.getTraceCollector().touch();
     }
     finishAndAddToTrace(durationNano);
   }
@@ -267,9 +264,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       // note: getting internal time from the trace implicitly 'touches' it
       durationNano = context.getTraceCollector().getCurrentTimeNano() - startTimeNano;
     } else {
-      durationNano =
-          context.getTraceCollector().getTimeSource().getCurrentTimeNanos() - startTimeNano;
-      context.getTraceCollector().touch(); // external clock: explicitly update lastReferenced
+      durationNano = context.getTraceCollector().getTimeSource().getCurrentTimeNanos() - startTimeNano;
+      // external clock: explicitly update lastReferenced
+      context.getTraceCollector().touch();
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
@@ -289,7 +286,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     } else if (durationNano > 0) {
       log.debug("Already published: {}", this);
     } else if (DURATION_NANO_UPDATER.compareAndSet(
-        this, durationNano, durationNano & Long.MAX_VALUE)) {
+        this,
+        durationNano,
+        durationNano & Long.MAX_VALUE
+    )) {
       TraceCollector.PublishState publishState = context.getTraceCollector().onPublish(this);
       log.debug("Published span ({}): {}", publishState, this);
     }
@@ -374,7 +374,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       String message = StackTraces.safeGetMessage(error);
       if (!"broken pipe".equalsIgnoreCase(message)
           && (error.getCause() == null
-              || !"broken pipe".equalsIgnoreCase(StackTraces.safeGetMessage(error.getCause())))) {
+          || !"broken pipe".equalsIgnoreCase(StackTraces.safeGetMessage(error.getCause())))) {
         // broken pipes happen when clients abort connections,
         // which might happen because the application is overloaded
         // or warming up - capturing the stack trace and keeping
@@ -382,7 +382,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
         setError(true, errorPriority);
         setTag(
             DDTags.ERROR_STACK,
-            StackTraces.getStackTrace(error, Config.get().getStackTraceLengthLimit()));
+            StackTraces.getStackTrace(error, Config.get().getStackTraceLengthLimit())
+        );
       }
 
       setTag(DDTags.ERROR_MSG, message);
@@ -398,9 +399,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     if (!DebuggerConfigBridge.isExceptionReplayEnabled()) {
       return false;
     }
-    boolean captureOnlyRootSpan =
-        (Config.get().isDebuggerExceptionOnlyLocalRoot()
-            || !Config.get().isDebuggerExceptionCaptureIntermediateSpansEnabled());
+    boolean captureOnlyRootSpan = (Config.get().isDebuggerExceptionOnlyLocalRoot()
+        || !Config.get().isDebuggerExceptionCaptureIntermediateSpansEnabled());
     if (captureOnlyRootSpan && !isLocalRootSpan()) {
       return false;
     }
@@ -722,7 +722,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
 
   @Override
   public DDSpan setSamplingPriority(
-      int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+      int samplingPriority,
+      CharSequence rate,
+      double sampleRate,
+      int samplingMechanism
+  ) {
     return setSamplingPriority(samplingPriority, rate, sampleRate, samplingMechanism, false);
   }
 
@@ -732,13 +736,15 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       CharSequence rate,
       double sampleRate,
       int samplingMechanism,
-      boolean rateLimiterRejected) {
+      boolean rateLimiterRejected
+  ) {
     if (context.setSamplingPriority(
         samplingPriority,
         samplingMechanism,
         sampleRate,
         getTraceId().toLong(),
-        rateLimiterRejected)) {
+        rateLimiterRejected
+    )) {
       setMetric(rate, sampleRate);
     }
     return this;
@@ -771,7 +777,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   // Getters
-
   @Override
   public long getStartTime() {
     return startTimeNano;
@@ -827,7 +832,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     context.setOperationName(spanName);
   }
 
-  @Override // TODO remove for 1.0: No usages within dd-trace-java
+  // TODO remove for 1.0: No usages within dd-trace-java
+  @Override
   public boolean hasResourceName() {
     return context.hasResourceName();
   }
@@ -1005,22 +1011,17 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     if (link == null) {
       return;
     }
-
     // If links are initially null / empty, then the shared placeholder List NO_LINK is used.
     // Because NO_LINK is shared, NO_LINK is safe for reading, but not for writing.
     // On write - if links is the NO_LINK placeholder, then need to create a CopyOnWriteArrayList
     // owned by this DDSpan
-
     // Creation of the CopyOnWriteArrayList is done via double checking locking using volatile &
     // synchronized
-
     // If before or inside the synchronized block, links no longer points to NO_LINK,
     // then this thread or another thread has already handled the list construction,
     // so just add to the list
-
     // If links still points to NO_LINK inside the synchronized block, then construct a new
     // CopyOnWriteArrayList containing the newly added link
-
     List<AgentSpanLink> links = this.links;
     if (links != NO_LINK) {
       links.add(link);
@@ -1097,7 +1098,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   @Override
   public boolean isOutbound() {
     byte ordinal = context.getSpanKindOrdinal();
-    return ordinal == DDSpanContext.SPAN_KIND_CLIENT || ordinal == DDSpanContext.SPAN_KIND_PRODUCER;
+    return ordinal == DDSpanContext.SPAN_KIND_CLIENT
+        || ordinal == DDSpanContext.SPAN_KIND_PRODUCER;
   }
 
   @Override
@@ -1118,9 +1120,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       setSamplingPriority(sourceSpanContext.getSamplingPriority(), DEFAULT);
       // the sampling mechanism determine the dm tag hence we need to override and lock the current
       // ptags
-      context
-          .getPropagationTags()
-          .updateAndLockDecisionMaker(sourceSpanContext.getPropagationTags());
+      context.getPropagationTags().updateAndLockDecisionMaker(sourceSpanContext.getPropagationTags()
+      );
       context.setOrigin(sourceSpanContext.getOrigin());
       sourceSpanContext.getBaggageItems().forEach(context::setBaggageItem);
     }

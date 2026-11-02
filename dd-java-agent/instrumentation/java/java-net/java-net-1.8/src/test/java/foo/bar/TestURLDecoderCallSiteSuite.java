@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestURLDecoderCallSiteSuite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestURLDecoderCallSiteSuite.class);
 
   public static String decode(final String value) {

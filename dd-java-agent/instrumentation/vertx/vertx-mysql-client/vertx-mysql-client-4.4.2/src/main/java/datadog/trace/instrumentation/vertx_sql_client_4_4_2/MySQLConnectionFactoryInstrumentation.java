@@ -5,7 +5,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,7 +13,9 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class MySQLConnectionFactoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public MySQLConnectionFactoryInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
@@ -32,9 +33,10 @@ public class MySQLConnectionFactoryInstrumentation extends InstrumenterModule.Tr
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor()
-            .and(takesArguments(2))
-            .and(takesArgument(1, named("java.util.function.Supplier"))),
-        packageName + ".MySQLConnectionFactoryConstructorAdvice");
+        isConstructor().and(takesArguments(2)).and(
+            takesArgument(1, named("java.util.function.Supplier"))
+        ),
+        packageName + ".MySQLConnectionFactoryConstructorAdvice"
+    );
   }
 }

@@ -7,7 +7,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class IastOptOutContext implements IastContext {
-
   @Nonnull
   @SuppressWarnings("unchecked")
   @Override
@@ -19,7 +18,6 @@ public class IastOptOutContext implements IastContext {
   public void close() throws IOException {}
 
   public static class Provider extends IastContext.Provider {
-
     final IastContext optOutContext = new IastOptOutContext();
 
     @Nullable

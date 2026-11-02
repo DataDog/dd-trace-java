@@ -3,7 +3,6 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.TracePropagationStyle.B3MULTI;
 import static datadog.trace.api.TracePropagationStyle.B3SINGLE;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -20,11 +19,11 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A codec designed for HTTP transport via headers using B3 headers */
+/**
+ * A codec designed for HTTP transport via headers using B3 headers
+ */
 class B3HttpCodec {
-
   private static final Logger log = LoggerFactory.getLogger(B3HttpCodec.class);
-
   static final String B3_TRACE_ID = "b3.traceid";
   static final String B3_SPAN_ID = "b3.spanid";
   static final String TRACE_ID_KEY = "X-B3-TraceId";
@@ -40,8 +39,10 @@ class B3HttpCodec {
   }
 
   public static HttpCodec.Injector newCombinedInjector(boolean paddingEnabled) {
-    return new HttpCodec.CompoundInjector(
-        Arrays.asList(newSingleInjector(paddingEnabled), newMultiInjector(paddingEnabled)));
+    return new HttpCodec.CompoundInjector(Arrays.asList(
+        newSingleInjector(paddingEnabled),
+        newMultiInjector(paddingEnabled)
+    ));
   }
 
   public static HttpCodec.Injector newMultiInjector(boolean paddingEnalbed) {
@@ -111,7 +112,10 @@ class B3HttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
+        final DDSpanContext context,
+        final C carrier,
+        final CarrierSetter<C> setter
+    ) {
       final String injectedTraceId = getInjectedTraceId(context);
       final String injectedSpanId = getInjectedSpanId(context);
       setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
@@ -125,7 +129,8 @@ class B3HttpCodec {
           "{} - B3 parent context injected - {} {}",
           context.getTraceId(),
           injectedTraceId,
-          injectedSpanId);
+          injectedSpanId
+      );
     }
   }
 
@@ -136,7 +141,10 @@ class B3HttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
+        final DDSpanContext context,
+        final C carrier,
+        final CarrierSetter<C> setter
+    ) {
       final String injectedTraceId = getInjectedTraceId(context);
       final String injectedSpanId = getInjectedSpanId(context);
       final StringBuilder injectedB3IdBuilder = new StringBuilder(100);
@@ -158,8 +166,7 @@ class B3HttpCodec {
   }
 
   // Only used from tests
-  static HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+  static HttpCodec.Extractor newExtractor(Config config, Supplier<TraceConfig> traceConfigSupplier) {
     final List<HttpCodec.Extractor> extractors = new ArrayList<>(2);
     extractors.add(newSingleExtractor(config, traceConfigSupplier));
     extractors.add(newMultiExtractor(config, traceConfigSupplier));
@@ -167,15 +174,17 @@ class B3HttpCodec {
   }
 
   public static HttpCodec.Extractor newMultiExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
-    return new TagContextExtractor(
-        traceConfigSupplier, () -> new B3MultiContextInterpreter(config));
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier
+  ) {
+    return new TagContextExtractor(traceConfigSupplier, () -> new B3MultiContextInterpreter(config));
   }
 
   public static HttpCodec.Extractor newSingleExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
-    return new TagContextExtractor(
-        traceConfigSupplier, () -> new B3SingleContextInterpreter(config));
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier
+  ) {
+    return new TagContextExtractor(traceConfigSupplier, () -> new B3SingleContextInterpreter(config));
   }
 
   private abstract static class B3BaseContextInterpreter extends ContextInterpreter {

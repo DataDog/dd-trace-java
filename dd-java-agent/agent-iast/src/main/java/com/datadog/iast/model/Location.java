@@ -4,25 +4,25 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Nullable;
 
 public final class Location {
-
-  @Nullable private final String path;
-
+  @Nullable
+  private final String path;
   private final int line;
-
-  @Nullable private final String method;
-
-  @Nullable private Long spanId;
-
-  @Nullable private transient String serviceName;
-
-  private @Nullable String stackId;
+  @Nullable
+  private final String method;
+  @Nullable
+  private Long spanId;
+  @Nullable
+  private transient String serviceName;
+  @Nullable
+  private String stackId;
 
   private Location(
       @Nullable final Long spanId,
       @Nullable final String path,
       final int line,
       @Nullable final String method,
-      @Nullable final String serviceName) {
+      @Nullable final String serviceName
+  ) {
     this.spanId = spanId;
     this.path = path;
     this.line = line;
@@ -31,22 +31,31 @@ public final class Location {
   }
 
   public static Location forSpanAndStack(
-      @Nullable final AgentSpan span, final StackTraceElement stack) {
+      @Nullable final AgentSpan span,
+      final StackTraceElement stack
+  ) {
     return new Location(
         spanId(span),
         stack.getClassName(),
         stack.getLineNumber(),
         stack.getMethodName(),
-        serviceName(span));
+        serviceName(span)
+    );
   }
 
   public static Location forSpanAndClassAndMethod(
-      @Nullable final AgentSpan span, final String clazz, final String method) {
+      @Nullable final AgentSpan span,
+      final String clazz,
+      final String method
+  ) {
     return new Location(spanId(span), clazz, -1, method, serviceName(span));
   }
 
   public static Location forSpanAndFileAndLine(
-      @Nullable final AgentSpan span, final String file, final int line) {
+      @Nullable final AgentSpan span,
+      final String file,
+      final int line
+  ) {
     return new Location(spanId(span), file, line, null, serviceName(span));
   }
 

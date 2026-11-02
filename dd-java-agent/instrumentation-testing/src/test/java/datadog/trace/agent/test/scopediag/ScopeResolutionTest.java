@@ -3,7 +3,6 @@ package datadog.trace.agent.test.scopediag;
 import static datadog.trace.agent.test.scopediag.ScopeContinuationProbe.CANCELLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.DDTraceId;
@@ -11,7 +10,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Replays advice observations deterministically, including overlapping method invocations. */
+/**
+ * Replays advice observations deterministically, including overlapping method invocations.
+ */
 class ScopeResolutionTest {
   private ContextContinuation continuation;
 
@@ -20,7 +21,13 @@ class ScopeResolutionTest {
     ScopeDiagnostics.startRecording();
     continuation = Context.root().capture();
     ScopeDiagnostics.recordCapture(
-        ScopeDiagnostics.recordingWindow(), continuation, DDTraceId.from(1), 2, "op", (byte) 0);
+        ScopeDiagnostics.recordingWindow(),
+        continuation,
+        DDTraceId.from(1),
+        2,
+        "op",
+        (byte) 0
+    );
   }
 
   @AfterEach
@@ -55,7 +62,11 @@ class ScopeResolutionTest {
     ScopeContinuationProbe.onResolveExit(release, CANCELLED);
     ScopeContinuationProbe.onResolveExit(close, CANCELLED);
     assertResolvedOnce();
-    assertEquals(ContinuationStatus.FINISHED, ScopeDiagnostics.report().records().get(0).status());
+    assertEquals(ContinuationStatus.FINISHED, ScopeDiagnostics
+      .report()
+      .records()
+      .get(0)
+      .status());
   }
 
   @Test
@@ -64,10 +75,16 @@ class ScopeResolutionTest {
     ScopeContinuationProbe.ResolveAttempt close = enter("cancelFromContinuedScopeClose", 1);
     ScopeContinuationProbe.onResolveExit(close, CANCELLED);
     long cleanupEntryNanos = ScopeDiagnostics.report().records().get(0).terminal().nanos;
-
     // The resume succeeded during cleanup, but its exit callback arrives after cleanup's callback.
     ScopeDiagnostics.recordActivate(
-        window, continuation, DDTraceId.from(1), 2, "op", (byte) 0, cleanupEntryNanos + 1);
+        window,
+        continuation,
+        DDTraceId.from(1),
+        2,
+        "op",
+        (byte) 0,
+        cleanupEntryNanos + 1
+    );
 
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     assertEquals(1, report.records().get(0).resumes().size());
@@ -106,7 +123,12 @@ class ScopeResolutionTest {
     ScopeContinuationProbe.ResolveAttempt release = enter("release", 0);
     // Another scope's exit advice arrives before the nested release's exit advice.
     ScopeDiagnostics.recordResolve(
-        ScopeDiagnostics.recordingWindow(), continuation, false, System.nanoTime(), false);
+        ScopeDiagnostics.recordingWindow(),
+        continuation,
+        false,
+        System.nanoTime(),
+        false
+    );
     ScopeContinuationProbe.onResolveExit(release, CANCELLED);
     ScopeContinuationProbe.onResolveExit(close, CANCELLED);
     assertResolvedOnce();
@@ -159,7 +181,9 @@ class ScopeResolutionTest {
   void furtherCloseAfterCounterUnderflowRemainsAReportedDuplicate() {
     ScopeContinuationProbe.onResolveExit(enter("cancelFromContinuedScopeClose", 1), CANCELLED);
     ScopeContinuationProbe.onResolveExit(
-        enter("cancelFromContinuedScopeClose", CANCELLED - 1), CANCELLED - 2);
+        enter("cancelFromContinuedScopeClose", CANCELLED - 1),
+        CANCELLED - 2
+    );
     assertDuplicateWithoutLeak();
   }
 

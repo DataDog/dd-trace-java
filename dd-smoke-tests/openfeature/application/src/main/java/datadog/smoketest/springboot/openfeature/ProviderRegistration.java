@@ -20,7 +20,9 @@ public class ProviderRegistration {
     thread.start();
   }
 
-  /** Requests the provider registration, without waiting for its initialization. */
+  /**
+   * Requests the provider registration, without waiting for its initialization.
+   */
   public void request() {
     this.requested.countDown();
   }

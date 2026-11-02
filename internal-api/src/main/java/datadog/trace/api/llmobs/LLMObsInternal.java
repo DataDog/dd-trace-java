@@ -3,17 +3,23 @@ package datadog.trace.api.llmobs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import javax.annotation.Nullable;
 
-/** Internal bridge to LLM Observability API state. */
+/**
+ * Internal bridge to LLM Observability API state.
+ */
 public final class LLMObsInternal extends LLMObs {
-  private LLMObsInternal() {}
+  private LLMObsInternal() {
+  }
 
   /**
    * Null until LLM Observability starts, which is what lets the injection codecs skip the lookup
    * altogether in a service that does not use it.
    */
-  @Nullable private static volatile LLMObsPropagationSource PROPAGATION_SOURCE;
+  @Nullable
+  private static volatile LLMObsPropagationSource PROPAGATION_SOURCE;
 
-  /** Sets the source of LLM Observability propagation tag values used at injection. */
+  /**
+   * Sets the source of LLM Observability propagation tag values used at injection.
+   */
   public static void setPropagationSource(LLMObsPropagationSource propagationSource) {
     PROPAGATION_SOURCE = propagationSource;
   }
@@ -29,22 +35,30 @@ public final class LLMObsInternal extends LLMObs {
     return source == null ? null : source.valuesFor(spanContext);
   }
 
-  /** Sets the LLM Observability span factory. */
+  /**
+   * Sets the LLM Observability span factory.
+   */
   public static void setSpanFactory(LLMObsSpanFactory factory) {
     SPAN_FACTORY = factory;
   }
 
-  /** Sets the LLM Observability evaluation processor. */
+  /**
+   * Sets the LLM Observability evaluation processor.
+   */
   public static void setEvalProcessor(LLMObsEvalProcessor evalProcessor) {
     EVAL_PROCESSOR = evalProcessor;
   }
 
-  /** Sets the LLM Observability feedback processor. */
+  /**
+   * Sets the LLM Observability feedback processor.
+   */
   public static void setFeedbackProcessor(LLMObsFeedbackProcessor feedbackProcessor) {
     FEEDBACK_PROCESSOR = feedbackProcessor;
   }
 
-  /** Returns the registered user span processor, if any. */
+  /**
+   * Returns the registered user span processor, if any.
+   */
   @Nullable
   public static LLMObsSpanProcessor getSpanProcessor() {
     return SPAN_PROCESSOR;

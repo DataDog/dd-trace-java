@@ -13,7 +13,8 @@ import javax.annotation.Nullable;
 public final class FeatureFlaggingGateway {
   private static volatile Backend backend;
 
-  private FeatureFlaggingGateway() {}
+  private FeatureFlaggingGateway() {
+  }
 
   /**
    * Registers the agent backend.
@@ -32,7 +33,9 @@ public final class FeatureFlaggingGateway {
     return backend;
   }
 
-  /** The agent services exposed to the Feature Flags SDK. */
+  /**
+   * The agent services exposed to the Feature Flags SDK.
+   */
   public interface Backend {
     /**
      * Looks up a setting from the agent configuration.

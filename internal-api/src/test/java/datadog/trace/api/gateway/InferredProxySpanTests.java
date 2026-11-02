@@ -21,7 +21,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.context.Context;
 import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -47,7 +46,9 @@ class InferredProxySpanTests {
     InferredProxySpan inferredProxySpan = InferredProxySpan.fromHeaders(headers);
     assertTrue(inferredProxySpan.isValid());
     assertNotNull(
-        inferredProxySpan.start(null), "inferred proxy span start and return new parent context");
+        inferredProxySpan.start(null),
+        "inferred proxy span start and return new parent context"
+    );
     assertNull(inferredProxySpan.start(null), "inferred proxy span not should start twice");
     inferredProxySpan.finish();
   }
@@ -61,7 +62,8 @@ class InferredProxySpanTests {
     assertNull(inferredProxySpan.start(null), "Invalid inferred proxy span should not start");
   }
 
-  static Stream<Arguments> invalidHeaders() { // Renamed
+  static Stream<Arguments> invalidHeaders() {
+    // Renamed
     Map<String, String> missingSystem = new HashMap<>();
     missingSystem.put(PROXY_START_TIME_MS, "12345");
 
@@ -74,7 +76,8 @@ class InferredProxySpanTests {
     return Stream.of(
         of("Missing system headers", missingSystem),
         of("Missing start time headers", missingTime),
-        of("Invalid system headers", invalidSystem));
+        of("Invalid system headers", invalidSystem)
+    );
   }
 
   @Test
@@ -245,7 +248,8 @@ class InferredProxySpanTests {
     return Stream.of(
         of("aws-apigateway", "aws.apigateway"),
         of("aws-httpapi", "aws.httpapi"),
-        of("azure-apim", "azure.apim"));
+        of("azure-apim", "azure.apim")
+    );
   }
 
   @Test
@@ -291,9 +295,7 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected URL: https://api.example.com/api/users
-
     inferredProxySpan.finish();
   }
 
@@ -306,12 +308,9 @@ class InferredProxySpanTests {
     headers.put(InferredProxySpan.PROXY_HTTP_METHOD, "GET");
     headers.put(InferredProxySpan.PROXY_PATH, "/api/users");
     // No PROXY_DOMAIN_NAME
-
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected URL: /api/users (no scheme, just path)
-
     inferredProxySpan.finish();
   }
 
@@ -327,9 +326,7 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected URL: https://httpapi.example.com/v2/items
-
     inferredProxySpan.finish();
   }
 
@@ -347,9 +344,7 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected http.route: /api/users/{id} (from resourcePath)
-
     inferredProxySpan.finish();
   }
 
@@ -366,9 +361,7 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected http.route: /api/users/123 (fallback to path for backwards compat)
-
     inferredProxySpan.finish();
   }
 
@@ -385,9 +378,7 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected http.route: /v2/items/{itemId}
-
     inferredProxySpan.finish();
   }
 
@@ -404,9 +395,7 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected resource.name: "GET /api/users/{id}" (uses route from resourcePath)
-
     inferredProxySpan.finish();
   }
 
@@ -423,9 +412,7 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected resource.name: "GET /api/users/123" (uses path)
-
     inferredProxySpan.finish();
   }
 
@@ -442,9 +429,7 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected resource.name: "POST /v2/orders/{orderId}"
-
     inferredProxySpan.finish();
   }
 
@@ -458,14 +443,13 @@ class InferredProxySpanTests {
     headers.put(InferredProxySpan.PROXY_PATH, "/api/v1/users/123/posts/456/comments/789");
     headers.put(
         InferredProxySpan.PROXY_RESOURCE_PATH,
-        "/api/v1/users/{userId}/posts/{postId}/comments/{commentId}");
+        "/api/v1/users/{userId}/posts/{postId}/comments/{commentId}"
+    );
     headers.put(InferredProxySpan.PROXY_DOMAIN_NAME, "api.example.com");
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected resource.name: "PUT /api/v1/users/{userId}/posts/{postId}/comments/{commentId}"
-
     inferredProxySpan.finish();
   }
 
@@ -476,19 +460,15 @@ class InferredProxySpanTests {
     headers.put(PROXY_START_TIME_MS, "12345");
     headers.put(PROXY_SYSTEM, "aws-apigateway");
     // No PROXY_HTTP_METHOD and no PROXY_PATH
-
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Expected resource.name: null
-
     inferredProxySpan.finish();
   }
 
   // Note: These tests verify the copyAppSecTagsFromRoot() logic exists and doesn't crash.
   // Full integration testing of AppSec tag propagation requires the actual tracer
   // infrastructure and is better suited for integration tests.
-
   @Test
   @DisplayName("InferredProxySpan finish should not crash when no AppSec tags present")
   void testFinishWithoutAppSecTags() {
@@ -500,7 +480,6 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // finish() should execute copyAppSecTagsFromRoot() without errors
     // even when no AppSec tags are present
     inferredProxySpan.finish();
@@ -517,7 +496,6 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // finish() should handle the case where getLocalRootSpan() might return null
     inferredProxySpan.finish();
   }
@@ -535,7 +513,6 @@ class InferredProxySpanTests {
     InferredProxySpan proxySpanV1 = fromHeaders(headersV1);
     assertNotNull(proxySpanV1.start(null));
     proxySpanV1.finish();
-
     // Test with aws-httpapi (v2)
     Map<String, String> headersV2 = new HashMap<>();
     headersV2.put(PROXY_START_TIME_MS, "12345");
@@ -559,7 +536,6 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // Call finish multiple times - should not crash
     inferredProxySpan.finish();
     inferredProxySpan.finish();
@@ -580,7 +556,6 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
     // With all headers present, finish should work correctly
     inferredProxySpan.finish();
   }
@@ -610,10 +585,12 @@ class InferredProxySpanTests {
 
     assertEquals(
         "arn:aws:apigateway:us-east-1::/restapis/api-id",
-        inferredProxySpan.computeArn("aws-apigateway", "us-east-1", "api-id"));
+        inferredProxySpan.computeArn("aws-apigateway", "us-east-1", "api-id")
+    );
     assertEquals(
         "arn:aws:apigateway:us-east-1::/apis/api-id",
-        inferredProxySpan.computeArn("aws-httpapi", "us-east-1", "api-id"));
+        inferredProxySpan.computeArn("aws-httpapi", "us-east-1", "api-id")
+    );
     assertNull(inferredProxySpan.computeArn("unknown", "us-east-1", "api-id"));
     assertNull(inferredProxySpan.computeArn("aws-apigateway", null, "api-id"));
     assertNull(inferredProxySpan.computeArn("aws-apigateway", "us-east-1", null));
@@ -631,7 +608,6 @@ class InferredProxySpanTests {
 
     InferredProxySpan proxySpan1 = fromHeaders(headers1);
     assertNotNull(proxySpan1.start(null));
-
     // Create second proxy span
     Map<String, String> headers2 = new HashMap<>();
     headers2.put(PROXY_START_TIME_MS, "12346");
@@ -641,7 +617,6 @@ class InferredProxySpanTests {
 
     InferredProxySpan proxySpan2 = fromHeaders(headers2);
     assertNotNull(proxySpan2.start(null));
-
     // Finish both - should work independently
     proxySpan1.finish();
     proxySpan2.finish();
@@ -649,13 +624,14 @@ class InferredProxySpanTests {
 
   @Test
   @DisplayName(
-      "finish forwards the Datadog scan/test markers from the service-entry span to the inferred span")
+      "finish forwards the Datadog scan/test markers from the service-entry span to the "
+      + "inferred span"
+  )
   void testFinishForwardsSecurityTestingHeaders() throws Exception {
     Map<String, String> headers = new HashMap<>();
     headers.put(PROXY_START_TIME_MS, "12345");
     headers.put(PROXY_SYSTEM, "aws-apigateway");
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
-
     // Replace the real (noop) inferred span with a mock we can verify against. Drive through
     // the public finish() API so the test stays valid if the internal copy-helper is renamed.
     AgentSpan mockInferredSpan = mock(AgentSpan.class);
@@ -665,10 +641,12 @@ class InferredProxySpanTests {
     spanField.set(inferredProxySpan, mockInferredSpan);
 
     AgentSpan serviceEntrySpan = mock(AgentSpan.class);
-    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN))
-        .thenReturn("scan-uuid");
-    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST))
-        .thenReturn("test-uuid");
+    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN)).thenReturn(
+        "scan-uuid"
+    );
+    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST)).thenReturn(
+        "test-uuid"
+    );
     inferredProxySpan.registerServiceEntrySpan(serviceEntrySpan);
 
     inferredProxySpan.finish(serviceEntrySpan);
@@ -692,10 +670,12 @@ class InferredProxySpanTests {
     AgentSpan serviceEntrySpan = mock(AgentSpan.class);
     when(serviceEntrySpan.getHttpStatusCode()).thenReturn((short) 503);
     when(serviceEntrySpan.getTag(HTTP_USER_AGENT)).thenReturn("curl/8.0");
-    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN))
-        .thenReturn("scan-uuid");
-    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST))
-        .thenReturn("test-uuid");
+    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN)).thenReturn(
+        "scan-uuid"
+    );
+    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST)).thenReturn(
+        "test-uuid"
+    );
 
     inferredProxySpan.registerServiceEntrySpan(serviceEntrySpan);
 

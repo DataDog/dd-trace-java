@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.opentelemetry.shim.metrics.OtelMeterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -25,8 +24,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice
+{
   public OpenTelemetryMetricsInstrumentation() {
     super("opentelemetry-metrics", "opentelemetry-1.47", "opentelemetry-1");
   }
@@ -49,8 +49,8 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.opentelemetry.api.DefaultOpenTelemetry",
-      "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
+        "io.opentelemetry.api.DefaultOpenTelemetry",
+        "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
     };
   }
 
@@ -64,10 +64,11 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
     // MeterProvider OpenTelemetry.getMeterProvider()
     transformer.applyAdvice(
         isMethod()
-            .and(named("getMeterProvider"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.api.metrics.MeterProvider"))),
-        OpenTelemetryMetricsInstrumentation.class.getName() + "$MeterProviderAdvice");
+          .and(named("getMeterProvider"))
+          .and(takesNoArguments())
+          .and(returns(named("io.opentelemetry.api.metrics.MeterProvider"))),
+        OpenTelemetryMetricsInstrumentation.class.getName() + "$MeterProviderAdvice"
+    );
   }
 
   public static class MeterProviderAdvice {
@@ -77,7 +78,8 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
     }
 
     public static void muzzleCheck(DoubleGauge doubleGauge) {
-      doubleGauge.set(0); // not available before 1.38
+      // not available before 1.38
+      doubleGauge.set(0);
     }
   }
 }

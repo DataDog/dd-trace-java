@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.undertow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import io.undertow.server.handlers.form.FormData;
 import io.undertow.util.HeaderMap;
 import java.io.IOException;
@@ -20,8 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class FormDataContentHelperTest {
-
-  @TempDir Path tempDir;
+  @TempDir
+  Path tempDir;
 
   @Test
   void diskFile_contentRead() throws IOException {
@@ -113,7 +112,6 @@ class FormDataContentHelperTest {
 
     FormData fd = new FormData(10);
     addInMemoryFileValue(fd, "upload", "mem.bin", content);
-
     // The reflection fallback won't work in a test environment where FileItem
     // isn't actually loaded, so we just verify the helper doesn't throw and
     // returns either the content (if reflection works) or "" (graceful fallback).
@@ -125,35 +123,34 @@ class FormDataContentHelperTest {
 
   @SuppressWarnings("unchecked")
   private static void addInMemoryFileValue(
-      FormData fd, String name, String filename, byte[] content) throws Exception {
+      FormData fd,
+      String name,
+      String filename,
+      byte[] content
+  ) throws Exception {
     Field valuesField = FormData.class.getDeclaredField("values");
     valuesField.setAccessible(true);
     Map<String, Deque<FormData.FormValue>> values =
         (Map<String, Deque<FormData.FormValue>>) valuesField.get(fd);
-
     // Use a Proxy so this compiles against Undertow 2.0 and also works against 2.2.x.
     // getPath() throws to simulate an in-memory upload.
-    FormData.FormValue inMemory =
-        (FormData.FormValue)
-            Proxy.newProxyInstance(
-                FormData.FormValue.class.getClassLoader(),
-                new Class<?>[] {FormData.FormValue.class},
-                (proxy, method, args) -> {
-                  switch (method.getName()) {
-                    case "getFileName":
-                      return filename;
-                    case "getHeaders":
-                      return new HeaderMap();
-                    case "getPath":
-                      throw new IllegalStateException("in-memory upload has no path");
-                    case "isFile":
-                    case "isFileItem":
-                    case "isBigField":
-                      return false;
-                    default:
-                      return null;
-                  }
-                });
+    FormData.FormValue inMemory = (FormData.FormValue) Proxy.newProxyInstance(FormData.FormValue.class
+      .getClassLoader(), new Class<?>[] {FormData.FormValue.class}, (proxy, method, args) -> {
+      switch (method.getName()) {
+        case "getFileName":
+          return filename;
+        case "getHeaders":
+          return new HeaderMap();
+        case "getPath":
+          throw new IllegalStateException("in-memory upload has no path");
+        case "isFile":
+        case "isFileItem":
+        case "isBigField":
+          return false;
+        default:
+          return null;
+      }
+    });
 
     Deque<FormData.FormValue> deque = new ArrayDeque<>();
     deque.add(inMemory);

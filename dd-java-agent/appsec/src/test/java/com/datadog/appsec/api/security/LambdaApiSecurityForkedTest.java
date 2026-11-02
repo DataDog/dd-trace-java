@@ -3,7 +3,6 @@ package com.datadog.appsec.api.security;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
-
 import com.datadog.appsec.AppSecSystem;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -32,11 +31,9 @@ import org.junit.jupiter.api.Test;
 @WithConfig(key = "api-security.enabled", value = "true")
 @WithConfig(key = "api-security.sample.delay", value = "0")
 class LambdaApiSecurityForkedTest {
-
   private static final String REQUEST_SCHEMA_TAG = "_dd.appsec.s.req.body";
   private static final String RESPONSE_SCHEMA_TAG = "_dd.appsec.s.res.body";
   private static final String RESPONSE_HEADERS_SCHEMA_TAG = "_dd.appsec.s.res.headers";
-
   private AgentTracer.TracerAPI originalTracer;
   private CoreTracer tracer;
   private ListWriter writer;
@@ -48,7 +45,9 @@ class LambdaApiSecurityForkedTest {
     tracer = CoreTracer.builder().writer(writer).build();
     AgentTracer.forceRegister(tracer);
     AppSecSystem.start(
-        tracer.getSubscriptionService(RequestContextSlot.APPSEC), sharedCommunicationObjects());
+        tracer.getSubscriptionService(RequestContextSlot.APPSEC),
+        sharedCommunicationObjects()
+    );
   }
 
   @AfterEach
@@ -65,17 +64,17 @@ class LambdaApiSecurityForkedTest {
   void generatesSchemasAndInfersSuccessForHttpApiV2Invocation() throws Exception {
     String eventJson =
         "{"
-            + "\"version\":\"2.0\","
-            + "\"routeKey\":\"POST /api/users/{id}\","
-            + "\"rawPath\":\"/api/users/123\","
-            + "\"headers\":{\"content-type\":\"application/json\","
-            + "\"host\":\"api.example.com\"},"
-            + "\"pathParameters\":{\"id\":\"123\"},"
-            + "\"body\":\"{\\\"name\\\":\\\"Ada\\\",\\\"age\\\":37}\","
-            + "\"requestContext\":{\"domainName\":\"api.example.com\","
-            + "\"http\":{\"method\":\"POST\",\"path\":\"/api/users/123\","
-            + "\"sourceIp\":\"203.0.113.1\"}}"
-            + "}";
+        + "\"version\":\"2.0\","
+        + "\"routeKey\":\"POST /api/users/{id}\","
+        + "\"rawPath\":\"/api/users/123\","
+        + "\"headers\":{\"content-type\":\"application/json\","
+        + "\"host\":\"api.example.com\"},"
+        + "\"pathParameters\":{\"id\":\"123\"},"
+        + "\"body\":\"{\\\"name\\\":\\\"Ada\\\",\\\"age\\\":37}\","
+        + "\"requestContext\":{\"domainName\":\"api.example.com\","
+        + "\"http\":{\"method\":\"POST\",\"path\":\"/api/users/123\","
+        + "\"sourceIp\":\"203.0.113.1\"}}"
+        + "}";
     ByteArrayInputStream input =
         new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
 
@@ -103,13 +102,12 @@ class LambdaApiSecurityForkedTest {
   }
 
   private SharedCommunicationObjects sharedCommunicationObjects() {
-    SharedCommunicationObjects sco =
-        new SharedCommunicationObjects() {
-          @Override
-          public ConfigurationPoller configurationPoller(Config config) {
-            return mock(ConfigurationPoller.class);
-          }
-        };
+    SharedCommunicationObjects sco = new SharedCommunicationObjects() {
+      @Override
+      public ConfigurationPoller configurationPoller(Config config) {
+        return mock(ConfigurationPoller.class);
+      }
+    };
     sco.agentHttpClient = mock(OkHttpClient.class);
     sco.monitoring = mock(Monitoring.class);
     sco.setFeaturesDiscovery(mock(DDAgentFeaturesDiscovery.class));

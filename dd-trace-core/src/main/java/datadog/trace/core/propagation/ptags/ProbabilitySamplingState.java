@@ -11,14 +11,13 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * pay for it.
  */
 final class ProbabilitySamplingState extends SamplingState {
-  private static final AtomicReferenceFieldUpdater<ProbabilitySamplingState, OtelTraceState>
-      OTEL_TRACE_STATE_UPDATER =
-          AtomicReferenceFieldUpdater.newUpdater(
-              ProbabilitySamplingState.class, OtelTraceState.class, "otelTraceState");
-
+  private static final AtomicReferenceFieldUpdater<ProbabilitySamplingState, OtelTraceState> OTEL_TRACE_STATE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+      ProbabilitySamplingState.class,
+      OtelTraceState.class,
+      "otelTraceState"
+  );
   private final long traceIdLowOrderBits;
   private final double sampleRate;
-
   private volatile OtelTraceState otelTraceState;
 
   ProbabilitySamplingState(
@@ -27,7 +26,8 @@ final class ProbabilitySamplingState extends SamplingState {
       CharSequence decisionMaker,
       CharSequence knuthSamplingRate,
       long traceIdLowOrderBits,
-      double sampleRate) {
+      double sampleRate
+  ) {
     super(samplingPriority, tracestate, null, decisionMaker, knuthSamplingRate);
     this.traceIdLowOrderBits = traceIdLowOrderBits;
     this.sampleRate = sampleRate;
@@ -46,7 +46,10 @@ final class ProbabilitySamplingState extends SamplingState {
     }
     OtelTraceState built =
         OtelTraceState.fromProbabilityDecision(
-            traceIdLowOrderBits, sampleRate, getSamplingPriority());
+            traceIdLowOrderBits,
+            sampleRate,
+            getSamplingPriority()
+    );
     return OTEL_TRACE_STATE_UPDATER.compareAndSet(this, null, built) ? built : otelTraceState;
   }
 }

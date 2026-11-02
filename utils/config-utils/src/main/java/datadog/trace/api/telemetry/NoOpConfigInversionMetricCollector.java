@@ -10,11 +10,11 @@ import org.slf4j.LoggerFactory;
 public final class NoOpConfigInversionMetricCollector implements ConfigInversionMetricCollector {
   private static final NoOpConfigInversionMetricCollector INSTANCE =
       new NoOpConfigInversionMetricCollector();
-
   private static final Logger log =
       LoggerFactory.getLogger(NoOpConfigInversionMetricCollector.class);
 
-  private NoOpConfigInversionMetricCollector() {}
+  private NoOpConfigInversionMetricCollector() {
+  }
 
   public static NoOpConfigInversionMetricCollector getInstance() {
     return INSTANCE;

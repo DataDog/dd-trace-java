@@ -2,12 +2,10 @@ package datadog.trace.api.gateway;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
-
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 class SubscriptionServiceNoopTest {
-
   @Test
   @SuppressWarnings("unchecked")
   void registrationOnNoopImplementation() {

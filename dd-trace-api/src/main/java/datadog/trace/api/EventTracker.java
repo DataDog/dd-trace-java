@@ -3,10 +3,11 @@ package datadog.trace.api;
 import datadog.appsec.api.login.EventTrackerV2;
 import java.util.Map;
 
-/** This class has been deprecated in favor of {@link EventTrackerV2} */
+/**
+ * This class has been deprecated in favor of {@link EventTrackerV2}
+ */
 @Deprecated
 public class EventTracker {
-
   public static final EventTracker NO_EVENT_TRACKER = new EventTracker();
 
   /**

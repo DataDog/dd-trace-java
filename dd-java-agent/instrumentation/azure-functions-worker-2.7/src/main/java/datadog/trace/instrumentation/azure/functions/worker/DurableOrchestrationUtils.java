@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.azure.functions.worker;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsUtils.recordOrchestrationError;
 import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsUtils.startOrchestrationSpan;
-
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.HistoryEvent;
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.HistoryEvent.EventTypeCase;
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.OrchestrationStatus;
@@ -22,7 +21,8 @@ public final class DurableOrchestrationUtils {
   private static volatile Method getActionsMethod;
   private static volatile Class<?> missingActionsClass;
 
-  private DurableOrchestrationUtils() {}
+  private DurableOrchestrationUtils() {
+  }
 
   /**
    * Returns whether an orchestration invocation should produce a span.
@@ -81,8 +81,7 @@ public final class DurableOrchestrationUtils {
         if (value instanceof OrchestratorAction) {
           final OrchestratorAction action = (OrchestratorAction) value;
           if (action.hasCompleteOrchestration()
-              && action.getCompleteOrchestration().getOrchestrationStatus()
-                  == OrchestrationStatus.ORCHESTRATION_STATUS_FAILED) {
+              && action.getCompleteOrchestration().getOrchestrationStatus() == OrchestrationStatus.ORCHESTRATION_STATUS_FAILED) {
             return action.getCompleteOrchestration().getFailureDetails();
           }
         }
@@ -99,7 +98,8 @@ public final class DurableOrchestrationUtils {
       AgentSpan span,
       Throwable throwable,
       TaskFailureDetails failure,
-      DurableOrchestrationState state) {
+      DurableOrchestrationState state
+  ) {
     try {
       if (failure != null) {
         onOrchestrationFailure(span, failure);

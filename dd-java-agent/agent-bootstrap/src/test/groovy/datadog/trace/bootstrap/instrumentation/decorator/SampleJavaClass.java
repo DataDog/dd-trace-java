@@ -5,10 +5,8 @@ package datadog.trace.bootstrap.instrumentation.decorator;
  * anonymous class, so use a Java class instead.
  */
 public class SampleJavaClass {
-  public static Class anonymousClass =
-      new Runnable() {
-
-        @Override
-        public void run() {}
-      }.getClass();
+  public static Class anonymousClass = new Runnable() {
+    @Override
+    public void run() {}
+  }.getClass();
 }

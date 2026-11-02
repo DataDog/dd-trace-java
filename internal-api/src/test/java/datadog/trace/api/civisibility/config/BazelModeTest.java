@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.environment.EnvironmentVariables;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class BazelModeTest {
-
   private EnvironmentVariables.EnvironmentVariablesProvider originalProvider;
   private TestEnvironmentVariables envProvider;
 
@@ -100,8 +98,10 @@ class BazelModeTest {
     Path runfilesManifest = tmp.resolve("runfiles.manifest");
     Files.write(
         runfilesManifest,
-        ("myproj/.testoptimization/manifest.txt " + actualManifest + "\n")
-            .getBytes(StandardCharsets.UTF_8));
+        ("myproj/.testoptimization/manifest.txt " + actualManifest + "\n").getBytes(
+            StandardCharsets.UTF_8
+        )
+    );
     envProvider.set("RUNFILES_MANIFEST_FILE", runfilesManifest.toString());
 
     BazelMode mode = new BazelMode(configWith("myproj/.testoptimization/manifest.txt", false));
@@ -120,7 +120,9 @@ class BazelModeTest {
 
     assertNotNull(mode.getSettingsPath());
     assertEquals(
-        httpDir.resolve("settings.json").toFile().getAbsolutePath(), mode.getSettingsPath());
+        httpDir.resolve("settings.json").toFile().getAbsolutePath(),
+        mode.getSettingsPath()
+    );
     // files that do not exist return null
     assertNull(mode.getKnownTestsPath());
     assertNull(mode.getTestManagementPath());
@@ -138,9 +140,13 @@ class BazelModeTest {
     assertEquals(tmp.resolve("payloads").toString(), mode.getPayloadsDir());
     assertEquals(tmp.resolve("payloads").resolve("tests").toString(), mode.getTestPayloadsDir());
     assertEquals(
-        tmp.resolve("payloads").resolve("coverage").toString(), mode.getCoveragePayloadsDir());
+        tmp.resolve("payloads").resolve("coverage").toString(),
+        mode.getCoveragePayloadsDir()
+    );
     assertEquals(
-        tmp.resolve("payloads").resolve("telemetry").toString(), mode.getTelemetryPayloadsDir());
+        tmp.resolve("payloads").resolve("telemetry").toString(),
+        mode.getTelemetryPayloadsDir()
+    );
   }
 
   @Test

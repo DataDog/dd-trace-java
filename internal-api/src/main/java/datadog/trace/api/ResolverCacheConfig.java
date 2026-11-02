@@ -1,9 +1,12 @@
 package datadog.trace.api;
 
-/** Named presets to help configure various caches inside the type resolver/matcher. */
+/**
+ * Named presets to help configure various caches inside the type resolver/matcher.
+ */
 public enum ResolverCacheConfig {
-
-  /** Memoizing and outlining for large enterprise apps. */
+  /**
+   * Memoizing and outlining for large enterprise apps.
+   */
   LARGE {
     @Override
     public int noMatchesSize() {
@@ -30,8 +33,9 @@ public enum ResolverCacheConfig {
       return 64;
     }
   },
-
-  /** Memoizing and outlining for the average sized app. */
+  /**
+   * Memoizing and outlining for the average sized app.
+   */
   MEMOS {
     @Override
     public int noMatchesSize() {
@@ -58,8 +62,9 @@ public enum ResolverCacheConfig {
       return 32;
     }
   },
-
-  /** Outlining only for the average sized app, no memoizing. */
+  /**
+   * Outlining only for the average sized app, no memoizing.
+   */
   NO_MEMOS {
     @Override
     public int noMatchesSize() {
@@ -86,8 +91,9 @@ public enum ResolverCacheConfig {
       return 32;
     }
   },
-
-  /** Outlining only for small microservice apps. */
+  /**
+   * Outlining only for small microservice apps.
+   */
   SMALL {
     @Override
     public int noMatchesSize() {
@@ -114,8 +120,9 @@ public enum ResolverCacheConfig {
       return 16;
     }
   },
-
-  /** No outlining or memoizing. */
+  /**
+   * No outlining or memoizing.
+   */
   LEGACY {
     @Override
     public int noMatchesSize() {
@@ -142,7 +149,6 @@ public enum ResolverCacheConfig {
       return 64;
     }
   };
-
   public abstract int noMatchesSize();
 
   public abstract int visibilitySize();

@@ -9,7 +9,6 @@ import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSy
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import org.junit.jupiter.api.AfterEach;
@@ -21,7 +20,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 @ExtendWith(WithConfigExtension.class)
 class BaseHashTest {
-
   @BeforeEach
   void setup() {
     // start with fresh process tags
@@ -91,10 +89,8 @@ class BaseHashTest {
     String containerHash = "my-container-hash";
     BaseHash.recalcBaseHash(containerHash);
     long hashWithContainerTag = BaseHash.getBaseHash();
-
     // a process tag is added
     ProcessTags.addTag("cluster.name", "new-cluster");
-
     // hash differs from before the tag was added
     assertNotEquals(hashWithContainerTag, BaseHash.getBaseHash());
     // hash equals a fresh calc with the same container hash
@@ -116,7 +112,9 @@ class BaseHashTest {
   @ValueSource(booleans = {true, false})
   void containerTagsHashUsedInHashCalculationWhenProvided(boolean propagateTagsEnabled) {
     injectSysConfig(
-        EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, String.valueOf(propagateTagsEnabled));
+        EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
+        String.valueOf(propagateTagsEnabled)
+    );
     ProcessTags.reset();
     ProcessTags.addTag("000", "first");
     long firstBaseHash = BaseHash.calc(null);

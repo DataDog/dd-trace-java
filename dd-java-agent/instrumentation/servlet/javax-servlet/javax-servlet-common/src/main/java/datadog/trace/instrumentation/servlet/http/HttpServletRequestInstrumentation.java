@@ -7,7 +7,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -34,8 +33,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private static final String CLASS_NAME = HttpServletRequestInstrumentation.class.getName();
   private static final ElementMatcher.Junction<? super TypeDescription> WRAPPER_CLASS =
       named("javax.servlet.http.HttpServletRequestWrapper");
@@ -52,45 +52,56 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(not(WRAPPER_CLASS))
-        .and(not(extendsClass(WRAPPER_CLASS)));
+      .and(not(WRAPPER_CLASS))
+      .and(not(extendsClass(WRAPPER_CLASS)));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("getHeader")).and(takesArguments(String.class)),
-        CLASS_NAME + "$GetHeaderAdvice");
+        CLASS_NAME + "$GetHeaderAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getHeaders")).and(takesArguments(String.class)),
-        CLASS_NAME + "$GetHeadersAdvice");
+        CLASS_NAME + "$GetHeadersAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getHeaderNames")).and(takesArguments(0)),
-        CLASS_NAME + "$GetHeaderNamesAdvice");
+        CLASS_NAME + "$GetHeaderNamesAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getParameter")).and(takesArguments(String.class)),
-        CLASS_NAME + "$GetParameterAdvice");
+        CLASS_NAME + "$GetParameterAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getParameterValues")).and(takesArguments(String.class)),
-        CLASS_NAME + "$GetParameterValuesAdvice");
+        CLASS_NAME + "$GetParameterValuesAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getParameterMap")).and(takesArguments(0)),
-        CLASS_NAME + "$GetParameterMapAdvice");
+        CLASS_NAME + "$GetParameterMapAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getParameterNames")).and(takesArguments(0)),
-        CLASS_NAME + "$GetParameterNamesAdvice");
+        CLASS_NAME + "$GetParameterNamesAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getCookies")).and(takesArguments(0)),
-        CLASS_NAME + "$GetCookiesAdvice");
+        CLASS_NAME + "$GetCookiesAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getQueryString")).and(takesArguments(0)),
-        CLASS_NAME + "$GetQueryStringAdvice");
+        CLASS_NAME + "$GetQueryStringAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(namedOneOf("getInputStream", "getReader")).and(takesArguments(0)),
-        CLASS_NAME + "$GetBodyAdvice");
+        CLASS_NAME + "$GetBodyAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getRequestDispatcher")).and(takesArguments(String.class)),
-        CLASS_NAME + "$GetRequestDispatcherAdvice");
+        CLASS_NAME + "$GetRequestDispatcherAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -100,7 +111,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     public static void onExit(
         @Advice.Argument(0) final String name,
         @Advice.Return final String value,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (value == null) {
         return;
       }
@@ -120,7 +132,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     public static void onExit(
         @Advice.Argument(0) final String name,
         @Advice.Return(readOnly = false) Enumeration<String> enumeration,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (enumeration == null) {
         return;
       }
@@ -129,9 +142,13 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      enumeration =
-          TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_HEADER_VALUE, name);
+      enumeration = TaintableEnumeration.wrap(
+          ctx,
+          enumeration,
+          module,
+          SourceTypes.REQUEST_HEADER_VALUE,
+          name
+      );
     }
   }
 
@@ -141,7 +158,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     @Source(SourceTypes.REQUEST_HEADER_NAME)
     public static void onExit(
         @Advice.Return(readOnly = false) Enumeration<String> enumeration,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (enumeration == null) {
         return;
       }
@@ -150,9 +168,13 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      enumeration =
-          TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_HEADER_NAME, true);
+      enumeration = TaintableEnumeration.wrap(
+          ctx,
+          enumeration,
+          module,
+          SourceTypes.REQUEST_HEADER_NAME,
+          true
+      );
     }
   }
 
@@ -163,7 +185,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     public static void onExit(
         @Advice.Argument(0) final String name,
         @Advice.Return final String value,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (value == null) {
         return;
       }
@@ -183,7 +206,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     public static void onExit(
         @Advice.Argument(0) final String name,
         @Advice.Return final String[] values,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (values == null || values.length == 0) {
         return;
       }
@@ -204,7 +228,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
         @Advice.Return final Map<String, String[]> parameters,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (parameters == null || parameters.isEmpty()) {
         return;
       }
@@ -232,7 +257,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     @Source(SourceTypes.REQUEST_PARAMETER_NAME)
     public static void onExit(
         @Advice.Return(readOnly = false) Enumeration<String> enumeration,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (enumeration == null) {
         return;
       }
@@ -241,19 +267,24 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      enumeration =
-          TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_PARAMETER_NAME, true);
+      enumeration = TaintableEnumeration.wrap(
+          ctx,
+          enumeration,
+          module,
+          SourceTypes.REQUEST_PARAMETER_NAME,
+          true
+      );
     }
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetCookiesAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(
-        @Advice.Return final Cookie[] cookies, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Cookie[] cookies,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (cookies == null || cookies.length == 0) {
         return;
       }
@@ -273,7 +304,9 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_QUERY)
     public static void onExit(
-        @Advice.Return final String queryString, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final String queryString,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (queryString == null) {
         return;
       }
@@ -291,7 +324,9 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_BODY)
     public static void onExit(
-        @Advice.Return final Object body, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Object body,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (body == null) {
         return;
       }

@@ -3,34 +3,34 @@ package datadog.trace.agent.test.scopediag;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Removes diagnostic and runtime plumbing from captured call stacks. */
+/**
+ * Removes diagnostic and runtime plumbing from captured call stacks.
+ */
 final class StackFilter {
   private static final String[] DROP_PREFIXES = {
-    "datadog.trace.agent.test.scopediag.",
-    "datadog.trace.core.",
-    "datadog.trace.agent.core.",
-    "datadog.trace.bootstrap.instrumentation.java.concurrent.",
-    "datadog.trace.bootstrap.instrumentation.api.",
-    "java.util.concurrent.Executors$",
-    "jdk.internal.reflect.",
-    "java.lang.reflect.",
-    "sun.reflect.",
-    "org.spockframework.mock.",
-    "org.codehaus.groovy.",
-    "groovy.lang.",
-    "net.bytebuddy.",
+      "datadog.trace.agent.test.scopediag.",
+      "datadog.trace.core.",
+      "datadog.trace.agent.core.",
+      "datadog.trace.bootstrap.instrumentation.java.concurrent.",
+      "datadog.trace.bootstrap.instrumentation.api.",
+      "java.util.concurrent.Executors$",
+      "jdk.internal.reflect.",
+      "java.lang.reflect.",
+      "sun.reflect.",
+      "org.spockframework.mock.",
+      "org.codehaus.groovy.",
+      "groovy.lang.",
+      "net.bytebuddy."
   };
-
   private static final String[] DROP_CLASSES = {
-    "datadog.trace.bootstrap.InstrumentationContext",
-    "java.util.concurrent.ThreadPoolExecutor",
-    "java.util.concurrent.ScheduledThreadPoolExecutor",
-    "java.util.concurrent.ForkJoinPool",
-    "java.util.concurrent.ForkJoinWorkerThread",
-    "java.util.concurrent.FutureTask",
-    "java.util.concurrent.CompletableFuture",
+      "datadog.trace.bootstrap.InstrumentationContext",
+      "java.util.concurrent.ThreadPoolExecutor",
+      "java.util.concurrent.ScheduledThreadPoolExecutor",
+      "java.util.concurrent.ForkJoinPool",
+      "java.util.concurrent.ForkJoinWorkerThread",
+      "java.util.concurrent.FutureTask",
+      "java.util.concurrent.CompletableFuture"
   };
-
   private final int maxFrames;
 
   StackFilter(int maxFrames) {
@@ -71,7 +71,7 @@ final class StackFilter {
     for (String droppedClass : DROP_CLASSES) {
       if (className.equals(droppedClass)
           || (className.startsWith(droppedClass)
-              && className.charAt(droppedClass.length()) == '$')) {
+          && className.charAt(droppedClass.length()) == '$')) {
         return true;
       }
     }

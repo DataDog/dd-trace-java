@@ -12,7 +12,6 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
 public interface HasErrors {
-
   List<Failure> getErrors();
 
   void addError(@Nonnull Failure failure);
@@ -22,7 +21,10 @@ public interface HasErrors {
   }
 
   default void addError(
-      @Nonnull final Throwable cause, @Nonnull final ErrorCode error, final Object... args) {
+      @Nonnull final Throwable cause,
+      @Nonnull final ErrorCode error,
+      final Object... args
+  ) {
     addError(new Failure(cause, error, args));
   }
 
@@ -44,7 +46,8 @@ public interface HasErrors {
     public Failure(
         @Nonnull final Throwable cause,
         @Nonnull final ErrorCode error,
-        @Nonnull final Object... params) {
+        @Nonnull final Object... params
+    ) {
       this.error = error;
       this.params = params;
       this.cause = cause;
@@ -82,7 +85,6 @@ public interface HasErrors {
   }
 
   class HasErrorsImpl implements HasErrors {
-
     private final List<Failure> errors;
 
     public HasErrorsImpl(@Nonnull final Collection<Failure> errors) {
@@ -135,17 +137,21 @@ public interface HasErrors {
     }
 
     private static String buildMessage(@Nonnull final HasErrors errors) {
-      return errors.getErrors().stream()
-          .map(Failure::getMessage)
-          .collect(Collectors.joining(" | "));
+      return errors
+        .getErrors()
+        .stream()
+        .map(Failure::getMessage)
+        .collect(Collectors.joining(" | "));
     }
 
     private static Throwable firstCause(@Nonnull final HasErrors errors) {
-      return errors.getErrors().stream()
-          .map(Failure::getCause)
-          .filter(Objects::nonNull)
-          .findFirst()
-          .orElse(null);
+      return errors
+        .getErrors()
+        .stream()
+        .map(Failure::getCause)
+        .filter(Objects::nonNull)
+        .findFirst()
+        .orElse(null);
     }
   }
 }

@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
-
 import java.io.File;
 import java.io.IOException;
 import net.bytebuddy.build.Plugin;
@@ -33,7 +32,8 @@ public class NewTaskForGradlePlugin extends Plugin.ForElementMatcher {
   public DynamicType.Builder<?> apply(
       final DynamicType.Builder<?> builder,
       final TypeDescription typeDescription,
-      final ClassFileLocator classFileLocator) {
+      final ClassFileLocator classFileLocator
+  ) {
     return builder.visit(NewTaskForRewritingVisitor.INSTANCE);
   }
 

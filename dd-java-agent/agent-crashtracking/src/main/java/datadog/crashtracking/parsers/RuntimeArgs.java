@@ -20,26 +20,26 @@ import java.util.List;
  */
 final class RuntimeArgs {
   // Aligned with JDK JEP-8372760 (JFR In-Process Data Redaction) default filter list.
-  private static final String[] SECRET_PROPERTY_KEYWORDS = {
-    "auth", "password", "passwd", "pwd", "passphrase", "secret", "token", "key", "credential"
-  };
+  private static final String[] SECRET_PROPERTY_KEYWORDS =
+      {"auth", "password", "passwd", "pwd", "passphrase", "secret", "token", "key", "credential"};
   private static final String[] MODULE_OPTIONS = {
-    "--add-modules",
-    "--add-exports",
-    "--add-opens",
-    "--add-reads",
-    "--patch-module",
-    "--limit-modules",
-    "--module-path",
-    "--upgrade-module-path",
-    "--enable-native-access",
-    "--illegal-native-access",
-    "--sun-misc-unsafe-memory-access"
+      "--add-modules",
+      "--add-exports",
+      "--add-opens",
+      "--add-reads",
+      "--patch-module",
+      "--limit-modules",
+      "--module-path",
+      "--upgrade-module-path",
+      "--enable-native-access",
+      "--illegal-native-access",
+      "--sun-misc-unsafe-memory-access"
   };
-
   private final List<String> args = new ArrayList<>();
 
-  /** Returns a filtered args list from the raw JVM-arguments. */
+  /**
+   * Returns a filtered args list from the raw JVM-arguments.
+   */
   static List<String> parseVmArgs(String raw) {
     return filterArgs(joinArgumentTokens(splitArgs(raw)));
   }

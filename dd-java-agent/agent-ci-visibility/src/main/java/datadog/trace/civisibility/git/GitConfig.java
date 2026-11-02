@@ -12,29 +12,26 @@ import java.util.Map;
  * the .git/config file (INI file format).
  */
 public class GitConfig {
-
   private final Map<String, Map<String, String>> entries = new HashMap<>();
 
   public GitConfig(final String path) {
     load(path);
   }
 
-  @SuppressForbidden // split with one-char String use a fast-path without regex usage
+  // split with one-char String use a fast-path without regex usage
+  @SuppressForbidden
   private void load(final String path) {
     if (path == null || path.isEmpty()) {
       return;
     }
-
     // Typically, a section of the .git/config file looks like:
     // [remote "origin"]
     //   url = https://some-host/user/repository.git
     // 	 fetch = +refs/heads/*:refs/remotes/origin/*
-
     try (final BufferedReader br = new BufferedReader(new FileReader(path))) {
       String line;
       String section = null;
       while ((line = br.readLine()) != null) {
-
         // Check if current line matches with the `section` regex:
         int sectionStartIdx = line.indexOf('[');
         if (sectionStartIdx >= 0) {

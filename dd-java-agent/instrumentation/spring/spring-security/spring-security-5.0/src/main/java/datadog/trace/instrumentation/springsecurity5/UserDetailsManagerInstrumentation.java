@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 @AutoService(InstrumenterModule.class)
 public class UserDetailsManagerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public UserDetailsManagerInstrumentation() {
     super("spring-security");
   }
@@ -37,20 +37,19 @@ public class UserDetailsManagerInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("createUser"))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.security.core.userdetails.UserDetails")))
-            .and(isPublic()),
-        getClass().getName() + "$UserDetailsManagerAdvice");
+          .and(named("createUser"))
+          .and(takesArgument(0, named("org.springframework.security.core.userdetails.UserDetails")))
+          .and(isPublic()),
+        getClass().getName() + "$UserDetailsManagerAdvice"
+    );
   }
 
   public static class UserDetailsManagerAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
         @Advice.Argument(value = 0, readOnly = false) UserDetails user,
-        @Advice.Thrown Throwable throwable) {
+        @Advice.Thrown Throwable throwable
+    ) {
       if (ActiveSubsystems.APPSEC_ACTIVE) {
         SpringSecurityUserEventDecorator.DECORATE.onSignup(user, throwable);
       }

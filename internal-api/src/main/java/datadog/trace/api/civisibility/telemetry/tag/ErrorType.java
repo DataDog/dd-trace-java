@@ -2,13 +2,14 @@ package datadog.trace.api.civisibility.telemetry.tag;
 
 import datadog.trace.api.civisibility.telemetry.TagValue;
 
-/** The type of HTTP request error */
+/**
+ * The type of HTTP request error
+ */
 public enum ErrorType implements TagValue {
   TIMEOUT,
   NETWORK,
   STATUS_CODE_4XX_RESPONSE,
   STATUS_CODE_5XX_RESPONSE;
-
   private final String s;
 
   ErrorType() {

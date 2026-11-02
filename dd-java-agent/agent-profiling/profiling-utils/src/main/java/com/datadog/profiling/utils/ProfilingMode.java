@@ -2,7 +2,9 @@ package com.datadog.profiling.utils;
 
 import java.util.Set;
 
-/** Various profiling modes that can be supported by Datadog profiler */
+/**
+ * Various profiling modes that can be supported by Datadog profiler
+ */
 public enum ProfilingMode {
   CPU(1 << 0),
   WALL(1 << 1),
@@ -10,7 +12,6 @@ public enum ProfilingMode {
   MEMLEAK(1 << 3),
   NATIVEMEM(1 << 4),
   NATIVESOCKET(1 << 5);
-
   public final int bitmask;
 
   ProfilingMode(int bitmask) {

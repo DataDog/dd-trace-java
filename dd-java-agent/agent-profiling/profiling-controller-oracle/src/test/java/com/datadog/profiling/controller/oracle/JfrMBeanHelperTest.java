@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import java.io.IOException;
 import java.time.Duration;
@@ -235,7 +234,8 @@ class JfrMBeanHelperTest {
   void testParseDuration() {
     assertEquals(
         Duration.of(10, ChronoUnit.SECONDS),
-        JfrMBeanHelper.parseDuration("10", ChronoUnit.SECONDS));
+        JfrMBeanHelper.parseDuration("10", ChronoUnit.SECONDS)
+    );
     assertEquals(Duration.of(10, ChronoUnit.NANOS), JfrMBeanHelper.parseDuration("10"));
     Map<String, ChronoUnit> mapping = new HashMap<>();
     mapping.put("ns", ChronoUnit.NANOS);
@@ -248,12 +248,15 @@ class JfrMBeanHelperTest {
     for (Map.Entry<String, ChronoUnit> entry : mapping.entrySet()) {
       assertEquals(
           Duration.of(val, entry.getValue()),
-          JfrMBeanHelper.parseDuration(val + " " + entry.getKey()));
+          JfrMBeanHelper.parseDuration(val + " " + entry.getKey())
+      );
       assertEquals(
           Duration.of(val, entry.getValue()),
-          JfrMBeanHelper.parseDuration(val + "\t     " + entry.getKey(), ChronoUnit.HOURS));
-      assertThrows(
-          NumberFormatException.class, () -> JfrMBeanHelper.parseDuration(val + entry.getKey()));
+          JfrMBeanHelper.parseDuration(val + "\t     " + entry.getKey(), ChronoUnit.HOURS)
+      );
+      assertThrows(NumberFormatException.class, () -> JfrMBeanHelper.parseDuration(
+          val + entry.getKey()
+      ));
     }
   }
 }

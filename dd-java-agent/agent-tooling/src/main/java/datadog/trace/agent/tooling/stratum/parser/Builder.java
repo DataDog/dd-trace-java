@@ -66,7 +66,8 @@ enum Builder {
       if (!state.getStratum().getLineInfo().isEmpty()) {
         throw new IllegalStateException("Only one line section allowed");
       }
-      String fileId = "0"; // spec says default is zero
+      // spec says default is zero
+      String fileId = "0";
       for (int i = 1; i < lines.size(); i++) {
         int inputStartLine = 1;
         int repeatCount = 1;
@@ -132,10 +133,8 @@ enum Builder {
       state.setStratum(stratum);
     }
   };
-
   private static final Pattern LINE_INFO_PATTERN =
       Pattern.compile("(\\d++)(#(\\d++))?(,(\\d++))?:(\\d++)(,(\\d++))?($)");
-
   static final Pattern SPACE_PATTERN = Pattern.compile(" ");
 
   abstract void build(State paramState, List<String> lines);

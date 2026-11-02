@@ -7,7 +7,6 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
 public class RSAKeyService {
-
   public static RSAPrivateKey readPrivateKey(byte[] privateKey) throws Exception {
     PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(privateKey);
     return (RSAPrivateKey) KeyFactory.getInstance("RSA").generatePrivate(spec);

@@ -7,7 +7,6 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -24,10 +23,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
 
 class StoredCharBodyTest {
-
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.JSON);
-
   private RequestContext requestContext;
   private BiFunction<RequestContext, StoredBodySupplier, Void> startCb;
   private BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb;
@@ -64,10 +61,14 @@ class StoredCharBodyTest {
   @Test
   void hasACutoffAt128kChars() {
     storedCharBody.appendData("a");
-    storedCharBody.appendData(new String(repeat('a', 128 * 1024))); // last ignored
-    storedCharBody.appendData((int) 'a'); // ignored
-    storedCharBody.appendData("a"); // ignored
-    storedCharBody.appendData(new char[] {'a'}, 0, 1); // ignored
+    // last ignored
+    storedCharBody.appendData(new String(repeat('a', 128 * 1024)));
+    // ignored
+    storedCharBody.appendData((int) 'a');
+    // ignored
+    storedCharBody.appendData("a");
+    // ignored
+    storedCharBody.appendData(new char[] {'a'}, 0, 1);
 
     verify(startCb).apply(requestContext, storedCharBody);
   }
@@ -159,7 +160,8 @@ class StoredCharBodyTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       calls++;
       lastSegment = segment;
       lastStatusCode = statusCode;

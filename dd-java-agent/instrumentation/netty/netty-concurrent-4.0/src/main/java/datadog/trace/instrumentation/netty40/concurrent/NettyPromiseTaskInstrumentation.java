@@ -14,7 +14,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -30,8 +29,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public NettyPromiseTaskInstrumentation() {
     // Share both names with RunnableFutureInstrumentation because it captures continuations that
     // this instrumentation activates for Netty tasks; either name must enable both halves.
@@ -48,8 +48,8 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
     // Match DefaultPromise.cancel(): older tasks inherit it and newer tasks delegate to it.
     // The advice limits context cleanup to RunnableFuture receivers.
     return extendsClass(nameEndsWith(".netty.util.concurrent.PromiseTask"))
-        .and(implementsInterface(named(RunnableFuture.class.getName())))
-        .or(nameEndsWith(".netty.util.concurrent.DefaultPromise"));
+      .and(implementsInterface(named(RunnableFuture.class.getName())))
+      .or(nameEndsWith(".netty.util.concurrent.DefaultPromise"));
   }
 
   @Override
@@ -77,25 +77,30 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
 
     transformer.applyAdvice(
         isMethod()
-            .and(named("cancel"))
-            .and(takesArguments(boolean.class))
-            .and(isDeclaredBy(nameEndsWith(".netty.util.concurrent.DefaultPromise"))),
-        getClass().getName() + "$Cancel");
+          .and(named("cancel"))
+          .and(takesArguments(boolean.class))
+          .and(isDeclaredBy(nameEndsWith(".netty.util.concurrent.DefaultPromise"))),
+        getClass().getName() + "$Cancel"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("setUncancellableInternal"))
-            .and(takesNoArguments())
-            .and(isDeclaredBy(legacyPromiseTask)),
-        getClass().getName() + "$ExecutionDecision");
+          .and(named("setUncancellableInternal"))
+          .and(takesNoArguments())
+          .and(isDeclaredBy(legacyPromiseTask)),
+        getClass().getName() + "$ExecutionDecision"
+    );
     transformer.applyAdvice(
         isMethod().and(named("runTask")).and(takesNoArguments()),
-        getClass().getName() + "$RunTask");
+        getClass().getName() + "$RunTask"
+    );
     transformer.applyAdvice(
         run.and(isDeclaredBy(promiseTask.or(scheduledTask.and(taskWithRunTask)))),
-        getClass().getName() + "$Run");
+        getClass().getName() + "$Run"
+    );
     transformer.applyAdvice(
         run.and(isDeclaredBy(scheduledTask.and(not(taskWithRunTask)))),
-        getClass().getName() + "$LegacyRun");
+        getClass().getName() + "$LegacyRun"
+    );
   }
 
   public static final class Cancel {
@@ -105,7 +110,8 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
       if (cancelled && task instanceof RunnableFuture) {
         cancelTask(
             InstrumentationContext.get(RunnableFuture.class, State.class),
-            (RunnableFuture<?>) task);
+            (RunnableFuture<?>) task
+        );
       }
     }
   }
@@ -113,10 +119,13 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
   public static final class ExecutionDecision {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(
-        @Advice.This RunnableFuture<?> task, @Advice.Return boolean uncancellable) {
+        @Advice.This RunnableFuture<?> task,
+        @Advice.Return boolean uncancellable
+    ) {
       if (uncancellable) {
         ScheduledTaskScope.activate(
-            startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task));
+            startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task)
+        );
       }
     }
   }
@@ -125,7 +134,8 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void activate(@Advice.This RunnableFuture<?> task) {
       ScheduledTaskScope.activate(
-          startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task));
+          startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task)
+      );
     }
   }
 
@@ -141,8 +151,7 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(
-        @Advice.Enter ContextScope previous, @Advice.Local("depth") int depth) {
+    public static void after(@Advice.Enter ContextScope previous, @Advice.Local("depth") int depth) {
       ScheduledTaskScope.close(previous, depth);
     }
   }
@@ -152,7 +161,8 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
     public static ContextScope before(
         @Advice.This RunnableFuture<?> task,
         @Advice.FieldValue("periodNanos") long periodNanos,
-        @Advice.Local("depth") int depth) {
+        @Advice.Local("depth") int depth
+    ) {
       ScheduledTaskScope state = ScheduledTaskScope.CURRENT.get();
       ContextScope previous = null;
       if (state != null) {
@@ -162,14 +172,14 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
       // Periodic tasks remain cancellable; legacy Netty invokes their Callable directly in run().
       if (periodNanos != 0) {
         ScheduledTaskScope.activate(
-            startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task));
+            startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task)
+        );
       }
       return previous;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(
-        @Advice.Enter ContextScope previous, @Advice.Local("depth") int depth) {
+    public static void after(@Advice.Enter ContextScope previous, @Advice.Local("depth") int depth) {
       ScheduledTaskScope.close(previous, depth);
     }
   }

@@ -2,7 +2,6 @@ package datadog.cws.tls;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.CWS_TLS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-
 import com.sun.jna.Library;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
@@ -23,15 +22,15 @@ import datadog.trace.api.DDTraceId;
 public class ErpcTls implements Tls {
   public static final byte REGISTER_SPAN_TLS_OP = 6;
   public static final long TLS_FORMAT = 0;
-  static final int SPAN_ID_SIZE = 8; // 64 bits
-  static final int TRACE_ID_SIZE = 16; // 128 bits
+  // 64 bits
+  static final int SPAN_ID_SIZE = 8;
+  // 128 bits
+  static final int TRACE_ID_SIZE = 16;
   static final long ENTRY_SIZE = SPAN_ID_SIZE + TRACE_ID_SIZE;
-
   // Thread local storage
   private Pointer tls;
   private long maxThreads;
   private int gettidSyscallId;
-
   private final ThreadLocal<Integer> threadLocal = new ThreadLocal<>();
 
   public interface CLibrary extends Library {
@@ -43,9 +42,11 @@ public class ErpcTls implements Tls {
   static int getGettidSyscallId() {
     String arch = SystemProperties.get("os.arch");
     if (arch.equals("amd64")) {
-      return 186; // 186 is the syscall ID for "gettid" on amd64
+      // 186 is the syscall ID for "gettid" on amd64
+      return 186;
     } else if (arch.equals("arm64")) {
-      return 178; // 78 is the syscall ID for "gettid" on arm64
+      // 78 is the syscall ID for "gettid" on arm64
+      return 178;
     }
     return 0;
   }
@@ -83,30 +84,27 @@ public class ErpcTls implements Tls {
 
     registerTls();
 
-    final Thread thread =
-        newAgentThread(
-            CWS_TLS,
-            new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  Thread.sleep(refresh);
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
+    final Thread thread = newAgentThread(CWS_TLS, new Runnable() {
+      @Override
+      public void run() {
+        try {
+          Thread.sleep(refresh);
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
 
-                while (!Thread.interrupted()) {
-                  try {
-                    registerTls();
-                    Thread.sleep(refresh);
-                  } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                    break;
-                  }
-                }
-              }
-            });
+        while (!Thread.interrupted()) {
+          try {
+            registerTls();
+            Thread.sleep(refresh);
+          } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            break;
+          }
+        }
+      }
+    });
     thread.start();
   }
 
@@ -146,8 +144,10 @@ public class ErpcTls implements Tls {
     long traceIdOffset = getTraceIdOffset(threadId);
 
     tls.setLong(spanIdOffset, spanId);
-    tls.setLong(traceIdOffset, traceId.toLong()); // low bits
-    tls.setLong(traceIdOffset + 8, traceId.toHighOrderLong()); // high bits
+    // low bits
+    tls.setLong(traceIdOffset, traceId.toLong());
+    // high bits
+    tls.setLong(traceIdOffset + 8, traceId.toHighOrderLong());
   }
 
   public void registerSpan(DDTraceId traceId, long spanId) {

@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ContextMapInstrumentation extends ServiceTalkInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "io.servicetalk.concurrent.api.CopyOnWriteContextMap";
@@ -28,13 +28,16 @@ public class ContextMapInstrumentation extends ServiceTalkInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(isPrivate())
-            .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    0,
-                    named("io.servicetalk.concurrent.api.CopyOnWriteContextMap$CopyContextMap"))),
-        getClass().getName() + "$Construct");
+          .and(isPrivate())
+          .and(takesArguments(1))
+          .and(
+              takesArgument(
+                  0,
+                  named("io.servicetalk.concurrent.api.CopyOnWriteContextMap$CopyContextMap")
+              )
+          ),
+        getClass().getName() + "$Construct"
+    );
   }
 
   private static final class Construct {
@@ -42,8 +45,9 @@ public class ContextMapInstrumentation extends ServiceTalkInstrumentation
     public static void exit(@Advice.This ContextMap contextMap) {
       // Capture an active span on ST context copy to support versions prior to 0.42.56 that did not
       // have captureContext
-      InstrumentationContext.get(ContextMap.class, AgentSpan.class)
-          .put(contextMap, AgentTracer.activeSpan());
+      InstrumentationContext
+        .get(ContextMap.class, AgentSpan.class)
+        .put(contextMap, AgentTracer.activeSpan());
     }
   }
 }

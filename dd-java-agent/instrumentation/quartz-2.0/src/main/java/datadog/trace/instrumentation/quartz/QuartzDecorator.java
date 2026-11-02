@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QU
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_GROUP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_NAME;
-
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -17,7 +16,8 @@ public class QuartzDecorator extends BaseDecorator {
   public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
   public static final QuartzDecorator DECORATE = new QuartzDecorator();
 
-  private QuartzDecorator() {}
+  private QuartzDecorator() {
+  }
 
   @Override
   protected String[] instrumentationNames() {

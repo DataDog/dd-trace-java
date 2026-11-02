@@ -9,7 +9,6 @@ import javax.annotation.Nonnull;
 import org.objectweb.asm.Type;
 
 public interface TypeResolver extends TypeSolver {
-
   @Nonnull
   Class<?> resolveType(@Nonnull Type type) throws ResolutionException;
 
@@ -17,7 +16,6 @@ public interface TypeResolver extends TypeSolver {
   Executable resolveMethod(@Nonnull MethodType method) throws ResolutionException;
 
   class ResolutionException extends HasErrorsException {
-
     public ResolutionException(@Nonnull final HasErrors errors) {
       super(errors);
     }

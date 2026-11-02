@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -33,12 +32,10 @@ import org.junit.jupiter.params.provider.ValueSource;
  * <p>vertx-web 3.4 and 5.0 have identical copies of this helper, each covered by its own test.
  */
 class FileUploadHelperAppSecTest {
-
   private static final String FILENAMES_REASON = "Blocked request (multipart file upload)";
   private static final String CONTENT_REASON = "Blocked request (file content)";
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.JSON);
-
   private TraceSegment traceSegment;
   private RequestContext reqCtx;
   private Flow<Void> flow;
@@ -53,12 +50,11 @@ class FileUploadHelperAppSecTest {
     reqCtx = mock(RequestContext.class);
     when(reqCtx.getTraceSegment()).thenReturn(traceSegment);
     flow = mock(Flow.class);
-    cb =
-        (ctx, data) -> {
-          receivedCtx = ctx;
-          receivedData = data;
-          return flow;
-        };
+    cb = (ctx, data) -> {
+      receivedCtx = ctx;
+      receivedData = data;
+      return flow;
+    };
   }
 
   @ParameterizedTest
@@ -99,7 +95,10 @@ class FileUploadHelperAppSecTest {
   }
 
   private void assertCommitsAndReturnsException(
-      List<String> data, String reason, boolean commitResult) {
+      List<String> data,
+      String reason,
+      boolean commitResult
+  ) {
     when(flow.getAction()).thenReturn(RBA);
     RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction(commitResult);
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
@@ -134,7 +133,8 @@ class FileUploadHelperAppSecTest {
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       calls++;
       lastSegment = segment;
       lastStatusCode = statusCode;

@@ -3,7 +3,6 @@ package datadog.appsec.api.login;
 import java.util.Map;
 
 public class EventTrackerV2 {
-
   private static volatile EventTrackerService SERVICE = EventTrackerService.NO_OP;
 
   /**
@@ -24,7 +23,10 @@ public class EventTrackerV2 {
    * @param metadata optional metadata for the login event; can be null.
    */
   public static void trackUserLoginSuccess(
-      final String login, final String userId, Map<String, String> metadata) {
+      final String login,
+      final String userId,
+      Map<String, String> metadata
+  ) {
     SERVICE.trackUserLoginSuccess(login, userId, metadata);
   }
 
@@ -36,7 +38,10 @@ public class EventTrackerV2 {
    * @param metadata optional metadata for the login event; can be null.
    */
   public static void trackUserLoginFailure(
-      String login, boolean exists, Map<String, String> metadata) {
+      String login,
+      boolean exists,
+      Map<String, String> metadata
+  ) {
     SERVICE.trackUserLoginFailure(login, exists, metadata);
   }
 

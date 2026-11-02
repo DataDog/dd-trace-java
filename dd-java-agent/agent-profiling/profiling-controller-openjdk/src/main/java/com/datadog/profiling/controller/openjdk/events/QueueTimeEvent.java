@@ -17,25 +17,18 @@ import jdk.jfr.StackTrace;
 @Category("Datadog")
 @StackTrace(false)
 public class QueueTimeEvent extends Event implements QueueTiming {
-
   @Label("Local Root Span Id")
   private long localRootSpanId;
-
   @Label("Span Id")
   private long spanId;
-
   @Label("Origin")
   private Thread origin;
-
   @Label("Task")
   private Class<?> task;
-
   @Label("Scheduler")
   private Class<?> scheduler;
-
   @Label("Queue")
   private Class<?> queueType;
-
   @Label("Queue Length on Entry")
   private int queueLength;
 

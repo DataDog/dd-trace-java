@@ -3,13 +3,14 @@ package datadog.trace.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-/** {@link KnownTagCodec}'s slot: bits [47-32] of an id, assigned by graph coloring. */
+/**
+ * {@link KnownTagCodec}'s slot: bits [47-32] of an id, assigned by graph coloring.
+ */
 class KnownTagCodecSlotTest {
   @Test
   void everySlotIsBelowTheSlotCount() throws IllegalAccessException {
@@ -29,14 +30,14 @@ class KnownTagCodecSlotTest {
   @Test
   void tagsOnAnHttpServerSpanHaveDistinctSlots() {
     long[] httpServerTags = {
-      KnownTags.SERVICE_ID,
-      KnownTags.COMPONENT_ID,
-      KnownTags.SPAN_KIND_ID,
-      KnownTags.HTTP_METHOD_ID,
-      KnownTags.HTTP_URL_ID,
-      KnownTags.HTTP_STATUS_CODE_ID,
-      KnownTags.HTTP_ROUTE_ID,
-      KnownTags.HTTP_HOSTNAME_ID,
+        KnownTags.SERVICE_ID,
+        KnownTags.COMPONENT_ID,
+        KnownTags.SPAN_KIND_ID,
+        KnownTags.HTTP_METHOD_ID,
+        KnownTags.HTTP_URL_ID,
+        KnownTags.HTTP_STATUS_CODE_ID,
+        KnownTags.HTTP_ROUTE_ID,
+        KnownTags.HTTP_HOSTNAME_ID
     };
     Set<Integer> slots = new HashSet<>();
     for (long tagId : httpServerTags) {

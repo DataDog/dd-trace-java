@@ -1,7 +1,6 @@
 package com.datadog.iast.telemetry;
 
 import static datadog.trace.api.iast.telemetry.IastMetric.Scope.REQUEST;
-
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -17,12 +16,13 @@ import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 
 public class TelemetryRequestEndedHandler
-    implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
-
+    implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>>
+{
   private final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> delegate;
 
   public TelemetryRequestEndedHandler(
-      @Nonnull final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> delegate) {
+      @Nonnull final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> delegate
+  ) {
     this.delegate = delegate;
   }
 
@@ -52,7 +52,9 @@ public class TelemetryRequestEndedHandler
   }
 
   private static void addMetricsToTrace(
-      final TraceSegment trace, final Collection<IastMetricData> metrics) {
+      final TraceSegment trace,
+      final Collection<IastMetricData> metrics
+  ) {
     for (final IastMetricData data : metrics) {
       final IastMetric metric = data.getMetric();
       if (metric.getScope() == REQUEST) {

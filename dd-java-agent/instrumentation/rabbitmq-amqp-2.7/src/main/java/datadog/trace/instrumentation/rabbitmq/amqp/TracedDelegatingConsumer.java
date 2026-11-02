@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.rabbitmq.amqp;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
-
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
@@ -20,7 +19,6 @@ import org.slf4j.LoggerFactory;
  * queue name when the message is consumed.
  */
 public class TracedDelegatingConsumer implements Consumer {
-
   private static final Logger log = LoggerFactory.getLogger(TracedDelegatingConsumer.class);
   private final String queue;
   private final Consumer delegate;
@@ -28,9 +26,8 @@ public class TracedDelegatingConsumer implements Consumer {
 
   public TracedDelegatingConsumer(final String queue, final Consumer delegate) {
     this.queue = queue;
-    this.propagate =
-        Config.get().isRabbitPropagationEnabled()
-            && !Config.get().isRabbitPropagationDisabledForDestination(queue);
+    this.propagate = Config.get().isRabbitPropagationEnabled()
+        && !Config.get().isRabbitPropagationDisabledForDestination(queue);
     this.delegate = delegate;
   }
 
@@ -64,8 +61,8 @@ public class TracedDelegatingConsumer implements Consumer {
       final String consumerTag,
       final Envelope envelope,
       final AMQP.BasicProperties properties,
-      final byte[] body)
-      throws IOException {
+      final byte[] body
+  ) throws IOException {
     ContextScope scope = null;
     try {
       scope = RabbitDecorator.startReceivingSpan(propagate, 0, properties, body, queue);

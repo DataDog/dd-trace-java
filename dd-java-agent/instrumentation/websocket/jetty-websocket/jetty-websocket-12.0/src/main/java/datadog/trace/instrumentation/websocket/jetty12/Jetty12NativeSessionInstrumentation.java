@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -18,7 +17,9 @@ import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.common.WebSocketSession;
 
 public class Jetty12NativeSessionInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "org.eclipse.jetty.websocket.common.WebSocketSession";
@@ -29,15 +30,17 @@ public class Jetty12NativeSessionInstrumentation
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$ConstructAdvice");
     transformer.applyAdvice(
         namedOneOf("sendText", "sendBinary")
-            .and(takesArguments(2))
-            .and(takesArgument(1, named("org.eclipse.jetty.websocket.api.Callback"))),
-        getClass().getName() + "$SendAdvice");
+          .and(takesArguments(2))
+          .and(takesArgument(1, named("org.eclipse.jetty.websocket.api.Callback"))),
+        getClass().getName() + "$SendAdvice"
+    );
     transformer.applyAdvice(
         namedOneOf("sendPartialText", "sendPartialBinary")
-            .and(takesArguments(3))
-            .and(takesArgument(1, boolean.class))
-            .and(takesArgument(2, named("org.eclipse.jetty.websocket.api.Callback"))),
-        getClass().getName() + "$PartialSendAdvice");
+          .and(takesArguments(3))
+          .and(takesArgument(1, boolean.class))
+          .and(takesArgument(2, named("org.eclipse.jetty.websocket.api.Callback"))),
+        getClass().getName() + "$PartialSendAdvice"
+    );
   }
 
   public static class ConstructAdvice {
@@ -45,8 +48,9 @@ public class Jetty12NativeSessionInstrumentation
     public static void after(@Advice.This WebSocketSession session) {
       AgentSpan span = activeSpan();
       if (span != null) {
-        InstrumentationContext.get(WebSocketSession.class, NativeSendContext.class)
-            .put(session, new NativeSendContext(span, session.getCoreSession()));
+        InstrumentationContext
+          .get(WebSocketSession.class, NativeSendContext.class)
+          .put(session, new NativeSendContext(span, session.getCoreSession()));
       }
     }
   }
@@ -58,7 +62,8 @@ public class Jetty12NativeSessionInstrumentation
         @Advice.Origin("#m") String method,
         @Advice.Argument(0) Object payload,
         @Advice.Argument(value = 1, readOnly = false) Callback callback,
-        @Advice.Local("send") SendCallback send) {
+        @Advice.Local("send") SendCallback send
+    ) {
       NativeSendContext context =
           InstrumentationContext.get(WebSocketSession.class, NativeSendContext.class).get(session);
       if (context == null) {
@@ -76,7 +81,8 @@ public class Jetty12NativeSessionInstrumentation
     public static void after(
         @Advice.Enter ContextScope scope,
         @Advice.Local("send") SendCallback send,
-        @Advice.Thrown Throwable failure) {
+        @Advice.Thrown Throwable failure
+    ) {
       if (send != null) {
         send.onMethodExit(scope, failure);
       }
@@ -91,7 +97,8 @@ public class Jetty12NativeSessionInstrumentation
         @Advice.Argument(0) Object payload,
         @Advice.Argument(1) boolean last,
         @Advice.Argument(value = 2, readOnly = false) Callback callback,
-        @Advice.Local("send") SendCallback send) {
+        @Advice.Local("send") SendCallback send
+    ) {
       NativeSendContext context =
           InstrumentationContext.get(WebSocketSession.class, NativeSendContext.class).get(session);
       if (context == null) {
@@ -113,7 +120,8 @@ public class Jetty12NativeSessionInstrumentation
     public static void after(
         @Advice.Enter ContextScope scope,
         @Advice.Local("send") SendCallback send,
-        @Advice.Thrown Throwable failure) {
+        @Advice.Thrown Throwable failure
+    ) {
       if (send != null) {
         send.onMethodExit(scope, failure);
       }

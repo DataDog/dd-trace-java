@@ -16,11 +16,9 @@ import jdk.jfr.Period;
 @Enabled
 public class DeadlockEvent extends Event {
   private static final DeadlockEventFactory EVENT_FACTORY = new DeadlockEventFactory();
-
   @Label("Deadlock ID")
   @Description("Referential index for data related to a particular deadlock")
   private final long id;
-
   @Label("Deadlocked Thread Count")
   private final int threadCount;
 

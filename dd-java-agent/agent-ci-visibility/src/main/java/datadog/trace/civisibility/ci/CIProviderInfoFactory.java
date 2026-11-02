@@ -6,7 +6,6 @@ import datadog.trace.civisibility.ci.env.CiEnvironment;
 import java.nio.file.Path;
 
 public class CIProviderInfoFactory {
-
   private final String targetFolder;
   private final Config config;
   private final CiEnvironment environment;
@@ -31,7 +30,6 @@ public class CIProviderInfoFactory {
     if (!config.isCiVisibilityCiProviderIntegrationEnabled()) {
       return new UnknownCIInfo(environment, targetFolder, currentPath);
     }
-
     // CI and Git information is obtained
     // from different environment variables
     // depending on which CI server is running the build.

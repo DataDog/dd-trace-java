@@ -43,7 +43,8 @@ public abstract class ExtractAdapter<T> implements AgentPropagation.ContextVisit
   }
 
   public static final class Response
-      extends ExtractAdapter<org.apache.catalina.connector.Response> {
+      extends ExtractAdapter<org.apache.catalina.connector.Response>
+  {
     public static final Response GETTER = new Response();
 
     @Override
@@ -62,7 +63,9 @@ public abstract class ExtractAdapter<T> implements AgentPropagation.ContextVisit
 
     @Override
     public void forEachKey(
-        org.apache.coyote.Response carrier, AgentPropagation.KeyClassifier classifier) {
+        org.apache.coyote.Response carrier,
+        AgentPropagation.KeyClassifier classifier
+    ) {
       super.forEachKey(carrier, classifier);
       // this ExtractAdapter is called before prepareResponse() is called on the COMMIT action
       // because

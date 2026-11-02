@@ -13,7 +13,6 @@ import javax.annotation.Nullable;
  * and the codecs skip the lookup entirely.
  */
 public interface LLMObsPropagationSource {
-
   /**
    * The values to inject alongside {@code spanContext}, or {@code null} when no local LLM
    * Observability context applies to it — in which case the codec forwards whatever arrived on the

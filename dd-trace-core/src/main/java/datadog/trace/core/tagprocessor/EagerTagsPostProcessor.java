@@ -19,5 +19,8 @@ public abstract class EagerTagsPostProcessor {
    * @param spanLinks the span's links
    */
   public abstract void processTags(
-      TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks);
+      TagStore unsafeTags,
+      DDSpanContext spanContext,
+      AppendableSpanLinks spanLinks
+  );
 }

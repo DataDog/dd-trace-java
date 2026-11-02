@@ -30,9 +30,7 @@ import java.util.Map;
  * those that have more children will be coarsened first.
  */
 public class PackageTree {
-
   private final Node root = new Node(null, "");
-
   private final int rootPackagesLimit;
 
   public PackageTree(Config config) {
@@ -68,7 +66,6 @@ public class PackageTree {
       nodesByDepth.push(current);
       current = next;
     }
-
     // start truncating with the deepest nodes
     // (i.e. most specific packages names)
     while (!nodesByDepth.isEmpty()) {
@@ -103,7 +100,6 @@ public class PackageTree {
     private int add(Iterator<Path> iterator) {
       if (leaf) {
         return 0;
-
       } else if (!iterator.hasNext()) {
         leaf = true;
         if (leafChildren == 0) {
@@ -116,7 +112,6 @@ public class PackageTree {
           leafChildren = 1;
           return delta;
         }
-
       } else {
         Path element = iterator.next();
         Node child =

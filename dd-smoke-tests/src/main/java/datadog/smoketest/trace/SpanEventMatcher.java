@@ -4,7 +4,6 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.assertValue;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static java.util.Collections.emptyMap;
-
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanEvent;
 import datadog.trace.test.junit.utils.assertions.Matcher;
@@ -94,6 +93,9 @@ public final class SpanEventMatcher {
     assertValue(this.nameMatcher, event.getName(), "Unexpected span event name" + at);
     assertValue(timeMatcher, event.getTimeUnixNano(), "Unexpected span event time" + at);
     assertValue(
-        this.attributesMatcher, event.getAttributes(), "Unexpected span event attributes" + at);
+        this.attributesMatcher,
+        event.getAttributes(),
+        "Unexpected span event attributes" + at
+    );
   }
 }

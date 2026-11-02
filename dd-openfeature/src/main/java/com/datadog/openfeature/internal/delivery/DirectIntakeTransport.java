@@ -2,7 +2,6 @@ package com.datadog.openfeature.internal.delivery;
 
 import static java.net.http.HttpClient.Redirect.NEVER;
 import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
-
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import com.datadog.openfeature.internal.config.SdkVersion;
 import com.datadog.openfeature.internal.config.Settings;
@@ -22,10 +21,10 @@ import javax.annotation.Nullable;
  */
 public final class DirectIntakeTransport implements EventTransport {
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
-
-  /** Identifies the events like the agent event proxy does. */
+  /**
+   * Identifies the events like the agent event proxy does.
+   */
   static final String ORIGIN = "dd-trace-java";
-
   private final URI intake;
   private final String apiKey;
   private final String traceId;
@@ -53,30 +52,32 @@ public final class DirectIntakeTransport implements EventTransport {
       return null;
     }
     return new DirectIntakeTransport(
-        URI.create("https://" + SiteHost.of("event-platform-intake", settings.site()) + "/api/v2/"),
+        URI.create("https://"
+        + SiteHost.of("event-platform-intake", settings.site())
+        + "/api/v2/"),
         apiKey,
-        HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).followRedirects(NEVER).build());
+        HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).followRedirects(NEVER).build()
+    );
   }
 
   @Override
   public void post(final String route, final byte[] json) throws IOException {
-    final HttpRequest.Builder builder =
-        HttpRequest.newBuilder(this.intake.resolve(route))
-            .timeout(REQUEST_TIMEOUT)
-            .header("Content-Type", "application/json")
-            .header("dd-api-key", this.apiKey)
-            .header("x-datadog-trace-id", this.traceId)
-            .header("x-datadog-parent-id", this.traceId)
-            .header("DD-EVP-ORIGIN", ORIGIN)
-            .header("DD-EVP-ORIGIN-VERSION", SdkVersion.VERSION);
+    final HttpRequest.Builder builder = HttpRequest
+      .newBuilder(this.intake.resolve(route))
+      .timeout(REQUEST_TIMEOUT)
+      .header("Content-Type", "application/json")
+      .header("dd-api-key", this.apiKey)
+      .header("x-datadog-trace-id", this.traceId)
+      .header("x-datadog-parent-id", this.traceId)
+      .header("DD-EVP-ORIGIN", ORIGIN)
+      .header("DD-EVP-ORIGIN-VERSION", SdkVersion.VERSION);
     Headers.addMetadata(builder);
     final HttpRequest request = builder.POST(ofByteArray(json)).build();
     final int status;
     try {
-      status =
-          new HttpCall<>(this.httpClient, request, HttpResponse.BodyHandlers.discarding())
-              .execute()
-              .statusCode();
+      status = new HttpCall<>(this.httpClient, request, HttpResponse.BodyHandlers.discarding())
+        .execute()
+        .statusCode();
     } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Request to " + route + " was interrupted", e);

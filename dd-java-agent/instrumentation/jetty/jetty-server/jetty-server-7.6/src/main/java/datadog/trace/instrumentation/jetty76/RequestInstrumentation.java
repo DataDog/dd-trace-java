@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.jetty76.JettyDecorator.DD_CONTEXT_PATH_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty76.JettyDecorator.DD_SERVLET_PATH_ATTRIBUTE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
@@ -31,8 +30,9 @@ import org.eclipse.jetty.server.Request;
 
 @AutoService(InstrumenterModule.class)
 public final class RequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public RequestInstrumentation() {
     super("jetty");
   }
@@ -46,13 +46,16 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("setContextPath").and(takesArgument(0, String.class)),
-        RequestInstrumentation.class.getName() + "$SetContextPathAdvice");
+        RequestInstrumentation.class.getName() + "$SetContextPathAdvice"
+    );
     transformer.applyAdvice(
         named("setServletPath").and(takesArgument(0, String.class)),
-        RequestInstrumentation.class.getName() + "$SetServletPathAdvice");
+        RequestInstrumentation.class.getName() + "$SetServletPathAdvice"
+    );
     transformer.applyAdvice(
         named("setRequestedSessionId").and(takesArgument(0, String.class)),
-        RequestInstrumentation.class.getName() + "$SetRequestedSessionId");
+        RequestInstrumentation.class.getName() + "$SetRequestedSessionId"
+    );
   }
 
   /**
@@ -62,11 +65,14 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
   public static class SetContextPathAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void updateContextPath(
-        @Advice.This final Request req, @Advice.Argument(0) final String contextPath) {
+        @Advice.This final Request req,
+        @Advice.Argument(0) final String contextPath
+    ) {
       if (contextPath != null) {
         Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
         // Don't want to update while being dispatched to new servlet
-        if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
+        if (contextObj instanceof Context
+            && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
           Context context = (Context) contextObj;
           AgentSpan span = spanFromContext(context);
           if (span != null) {
@@ -85,11 +91,15 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
   public static class SetServletPathAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void updateServletPath(
-        @Advice.This final Request req, @Advice.Argument(0) final String servletPath) {
-      if (servletPath != null && !servletPath.isEmpty()) { // bypass cleanup
+        @Advice.This final Request req,
+        @Advice.Argument(0) final String servletPath
+    ) {
+      if (servletPath != null && !servletPath.isEmpty()) {
+        // bypass cleanup
         Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
         // Don't want to update while being dispatched to new servlet
-        if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
+        if (contextObj instanceof Context
+            && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
           Context context = (Context) contextObj;
           AgentSpan span = spanFromContext(context);
           if (span != null) {
@@ -114,7 +124,8 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void updateContextPath(
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Argument(0) final String requestedSessionId) {
+        @Advice.Argument(0) final String requestedSessionId
+    ) {
       if (requestedSessionId != null && reqCtx != null) {
         final CallbackProvider cbp =
             AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);

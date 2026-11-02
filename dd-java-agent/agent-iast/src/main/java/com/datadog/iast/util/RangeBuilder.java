@@ -21,12 +21,13 @@ import javax.annotation.Nullable;
  * </ol>
  */
 public class RangeBuilder {
-
   private final int maxSize;
   private final int arrayChunkSize;
   private int size;
-  @Nullable protected Entry head;
-  @Nullable protected Entry tail;
+  @Nullable
+  protected Entry head;
+  @Nullable
+  protected Entry tail;
 
   public RangeBuilder() {
     this(TaintedObject.MAX_RANGE_COUNT);
@@ -35,7 +36,8 @@ public class RangeBuilder {
   public RangeBuilder(final int maxSize) {
     this(
         maxSize,
-        Math.min(ConfigDefaults.DEFAULT_IAST_MAX_RANGE_COUNT, Config.get().getIastMaxRangeCount()));
+        Math.min(ConfigDefaults.DEFAULT_IAST_MAX_RANGE_COUNT, Config.get().getIastMaxRangeCount())
+    );
   }
 
   public RangeBuilder(final int maxSize, final int arrayChunkSize) {
@@ -94,7 +96,6 @@ public class RangeBuilder {
       size += ranges.length;
       return true;
     }
-
     // we might go over the max but, it's OK (better not to generate a new array)
     final FixedArrayEntry entry = new FixedArrayEntry(ranges, offset);
     addNewEntry(entry);
@@ -141,7 +142,8 @@ public class RangeBuilder {
   }
 
   protected abstract static class Entry {
-    @Nullable protected Entry next;
+    @Nullable
+    protected Entry next;
 
     protected abstract int size();
 
@@ -150,7 +152,9 @@ public class RangeBuilder {
     protected abstract int arrayCopy(Range[] result, int start);
   }
 
-  /** Optimized case for single range scenarios */
+  /**
+   * Optimized case for single range scenarios
+   */
   protected static class SingleEntry extends Entry {
     protected final Range range;
 
@@ -178,7 +182,9 @@ public class RangeBuilder {
     }
   }
 
-  /** Array buffer of entries */
+  /**
+   * Array buffer of entries
+   */
   protected static class ArrayEntry extends Entry {
     protected final Range[] ranges;
     protected int size;
@@ -218,7 +224,9 @@ public class RangeBuilder {
     }
   }
 
-  /** Fixed size array with an offset */
+  /**
+   * Fixed size array with an offset
+   */
   protected static class FixedArrayEntry extends Entry {
     protected final Range[] ranges;
     protected final int offset;

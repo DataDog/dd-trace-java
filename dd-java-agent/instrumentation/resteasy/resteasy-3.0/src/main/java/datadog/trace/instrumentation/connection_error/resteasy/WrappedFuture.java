@@ -10,7 +10,6 @@ import java.util.concurrent.TimeoutException;
 import org.jboss.resteasy.client.jaxrs.internal.ClientConfiguration;
 
 public class WrappedFuture<T> implements Future<T> {
-
   private final Future<T> wrapped;
   private final ClientConfiguration context;
 
@@ -46,7 +45,9 @@ public class WrappedFuture<T> implements Future<T> {
 
   @Override
   public T get(final long timeout, final TimeUnit unit)
-      throws InterruptedException, ExecutionException, TimeoutException {
+      throws InterruptedException,
+      ExecutionException,
+      TimeoutException {
     try {
       return wrapped.get(timeout, unit);
     } catch (final ExecutionException e) {

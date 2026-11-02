@@ -5,7 +5,9 @@ import datadog.context.ContextScope;
 import io.reactivex.Observer;
 import io.reactivex.disposables.Disposable;
 
-/** Wrapper that makes sure spans from observer events treat the captured span as their parent. */
+/**
+ * Wrapper that makes sure spans from observer events treat the captured span as their parent.
+ */
 public final class TracingObserver<T> implements Observer<T> {
   private final Observer<T> observer;
   private final Context parentContext;

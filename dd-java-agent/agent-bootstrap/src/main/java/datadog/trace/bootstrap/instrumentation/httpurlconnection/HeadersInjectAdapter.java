@@ -6,7 +6,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class HeadersInjectAdapter implements CarrierSetter<HttpURLConnection> {
-
   public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 
   @Override

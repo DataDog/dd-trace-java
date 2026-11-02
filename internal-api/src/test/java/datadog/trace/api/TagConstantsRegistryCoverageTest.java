@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Field;
@@ -36,7 +35,6 @@ import org.junit.jupiter.api.Test;
 class TagConstantsRegistryCoverageTest {
   static final List<Class<?>> TAG_CONSTANT_CLASSES =
       Arrays.asList(Tags.class, InstrumentationTags.class, DDTags.class);
-
   /**
    * Constants deliberately never registered, with the reason: values of a tag, name prefixes and
    * patterns, operation names, and names only the serializers write.
@@ -45,37 +43,52 @@ class TagConstantsRegistryCoverageTest {
 
   static {
     NEVER_REGISTERED.put(
-        "DDTags.RUNTIME_VERSION_TAG", "a profiling and telemetry tag, not a span tag");
+        "DDTags.RUNTIME_VERSION_TAG",
+        "a profiling and telemetry tag, not a span tag"
+    );
     NEVER_REGISTERED.put(
-        "DDTags.THREAD_ID", "a span field, written by the serializers; never stored as a tag");
+        "DDTags.THREAD_ID",
+        "a span field, written by the serializers; never stored as a tag"
+    );
     NEVER_REGISTERED.put(
-        "DDTags.THREAD_NAME", "a span field, written by the serializers; never stored as a tag");
+        "DDTags.THREAD_NAME",
+        "a span field, written by the serializers; never stored as a tag"
+    );
     NEVER_REGISTERED.put(
-        "DDTags.TRACE_START_TIME", "a baggage key (legacy end-to-end timing), not a tag");
+        "DDTags.TRACE_START_TIME",
+        "a baggage key (legacy end-to-end timing), not a tag"
+    );
     NEVER_REGISTERED.put("Tags.DD_ENV", "a log correlation (MDC) key, not a span tag");
     NEVER_REGISTERED.put("Tags.DD_SERVICE", "a log correlation (MDC) key, not a span tag");
     NEVER_REGISTERED.put("Tags.DD_VERSION", "a log correlation (MDC) key, not a span tag");
     NEVER_REGISTERED.put("DDTags.DB_STATEMENT", "unused, but public API");
     NEVER_REGISTERED.put(
         "DDTags.DD_CODE_ORIGIN_FRAME_*",
-        "an instance of a name pattern (_dd.code_origin.frames.N.*), not modeled yet");
+        "an instance of a name pattern (_dd.code_origin.frames.N.*), not modeled yet"
+    );
     NEVER_REGISTERED.put("DDTags.DD_CODE_ORIGIN_PREFIX", "a name prefix");
     NEVER_REGISTERED.put("DDTags.LANGUAGE_TAG_VALUE", "a value of language");
     NEVER_REGISTERED.put(
-        "DDTags.PROCESS_TAGS", "written by the serializers, never stored as a span tag");
+        "DDTags.PROCESS_TAGS",
+        "written by the serializers, never stored as a span tag"
+    );
     NEVER_REGISTERED.put(
-        "DDTags.SDK_OTLP_EXPORT", "written by the serializers, never stored as a span tag");
+        "DDTags.SDK_OTLP_EXPORT",
+        "written by the serializers, never stored as a span tag"
+    );
     NEVER_REGISTERED.put("InstrumentationTags.SERVLET_DISPATCH", "an operation name, not a tag");
     NEVER_REGISTERED.put("Tags.LLMOBS_*_SPAN_KIND", "values of an LLM Observability span kind");
     NEVER_REGISTERED.put(
         "Tags.MESSAGE_BUS_DESTINATION",
-        "unused in production; TagInterceptorTest splits by it as a custom tag");
+        "unused in production; TagInterceptorTest splits by it as a custom tag"
+    );
     NEVER_REGISTERED.put("Tags.SPAN_KIND_*", "values of span.kind");
   }
 
-  /** Families not registered yet, with the reason. Empty: every family is registered. */
+  /**
+   * Families not registered yet, with the reason. Empty: every family is registered.
+   */
   static final Map<String, String> NOT_YET_REGISTERED_FAMILIES = new TreeMap<>();
-
   /**
    * Single constants not registered yet. Remove an entry when its tag is registered. Empty: every
    * constant outside the families above is registered or deliberately never registered.
@@ -97,7 +110,8 @@ class TagConstantsRegistryCoverageTest {
     assertEquals(
         Collections.emptyList(),
         unlisted,
-        "register these tags in tag-conventions.yaml (or the Java overlay), or list them here");
+        "register these tags in tag-conventions.yaml (or the Java overlay), or list them here"
+    );
   }
 
   @Test
@@ -112,7 +126,10 @@ class TagConstantsRegistryCoverageTest {
     }
     Collections.sort(registered);
     assertEquals(
-        Collections.emptyList(), registered, "now registered: remove from NOT_YET_REGISTERED");
+        Collections.emptyList(),
+        registered,
+        "now registered: remove from NOT_YET_REGISTERED"
+    );
   }
 
   @Test
@@ -152,7 +169,10 @@ class TagConstantsRegistryCoverageTest {
   }
 
   private static boolean matchesAnyConstant(
-      String pattern, Map<String, String> constants, boolean unregisteredOnly) {
+      String pattern,
+      Map<String, String> constants,
+      boolean unregisteredOnly
+  ) {
     for (Map.Entry<String, String> constant : constants.entrySet()) {
       if (matches(pattern, constant.getKey())
           && !(unregisteredOnly && isRegistered(constant.getValue()))) {
@@ -171,7 +191,9 @@ class TagConstantsRegistryCoverageTest {
     return false;
   }
 
-  /** {@code name} matches {@code pattern}, where {@code *} matches any run of characters. */
+  /**
+   * {@code name} matches {@code pattern}, where {@code *} matches any run of characters.
+   */
   private static boolean matches(String pattern, String name) {
     if (pattern.indexOf('*') < 0) {
       return pattern.equals(name);
@@ -190,7 +212,9 @@ class TagConstantsRegistryCoverageTest {
     return KnownTagCodec.keyOf(tag) != 0;
   }
 
-  /** Every public static final String constant of the tag classes, keyed {@code Class.FIELD}. */
+  /**
+   * Every public static final String constant of the tag classes, keyed {@code Class.FIELD}.
+   */
   private static Map<String, String> tagConstants() {
     Map<String, String> constants = new TreeMap<>();
     for (Class<?> cls : TAG_CONSTANT_CLASSES) {

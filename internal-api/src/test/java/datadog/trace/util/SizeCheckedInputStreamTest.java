@@ -8,14 +8,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class SizeCheckedInputStreamTest {
-
   private final ByteArrayInputStream stream = mock(ByteArrayInputStream.class);
 
   @Test
@@ -81,14 +79,11 @@ class SizeCheckedInputStreamTest {
     assertEquals(100, firstPassReads);
 
     AtomicInteger secondPassReads = new AtomicInteger();
-    IOException exception =
-        assertThrows(
-            IOException.class,
-            () -> {
-              while (sizedStream.read() != -1) {
-                secondPassReads.incrementAndGet();
-              }
-            });
+    IOException exception = assertThrows(IOException.class, () -> {
+      while (sizedStream.read() != -1) {
+        secondPassReads.incrementAndGet();
+      }
+    });
     assertEquals(100, secondPassReads.get());
     assertEquals("Reached maximum bytes for this stream: 200", exception.getMessage());
   }

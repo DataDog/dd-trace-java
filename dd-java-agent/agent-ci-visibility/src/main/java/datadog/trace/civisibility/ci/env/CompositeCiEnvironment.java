@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class CompositeCiEnvironment implements CiEnvironment {
-
   private final CiEnvironment[] delegates;
 
   public CompositeCiEnvironment(CiEnvironment... delegates) {

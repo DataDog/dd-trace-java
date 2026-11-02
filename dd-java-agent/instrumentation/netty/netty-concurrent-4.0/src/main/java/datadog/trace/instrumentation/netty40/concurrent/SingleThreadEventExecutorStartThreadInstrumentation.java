@@ -6,18 +6,20 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPr
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
-/** Prevents Netty's lazily created event-loop maintenance tasks from inheriting user context. */
+/**
+ * Prevents Netty's lazily created event-loop maintenance tasks from inheriting user context.
+ */
 @AutoService(InstrumenterModule.class)
 public final class SingleThreadEventExecutorStartThreadInstrumentation
     extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public SingleThreadEventExecutorStartThreadInstrumentation() {
     super("netty-concurrent", "netty-event-executor");
   }
@@ -25,10 +27,10 @@ public final class SingleThreadEventExecutorStartThreadInstrumentation
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.netty.util.concurrent.SingleThreadEventExecutor",
-      "io.grpc.netty.shaded.io.netty.util.concurrent.SingleThreadEventExecutor",
-      "com.couchbase.client.deps.io.netty.util.concurrent.SingleThreadEventExecutor",
-      "play.shaded.ahc.io.netty.util.concurrent.SingleThreadEventExecutor",
+        "io.netty.util.concurrent.SingleThreadEventExecutor",
+        "io.grpc.netty.shaded.io.netty.util.concurrent.SingleThreadEventExecutor",
+        "com.couchbase.client.deps.io.netty.util.concurrent.SingleThreadEventExecutor",
+        "play.shaded.ahc.io.netty.util.concurrent.SingleThreadEventExecutor"
     };
   }
 
@@ -36,7 +38,8 @@ public final class SingleThreadEventExecutorStartThreadInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("startThread").and(takesNoArguments()).and(returns(void.class)).and(isPrivate()),
-        getClass().getName() + "$DisableAsyncPropagation");
+        getClass().getName() + "$DisableAsyncPropagation"
+    );
   }
 
   public static final class DisableAsyncPropagation {

@@ -3,7 +3,6 @@ package datadog.trace.api;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public class WellKnownTags {
-
   private final UTF8BytesString runtimeId;
   private final UTF8BytesString hostname;
   private final UTF8BytesString env;
@@ -17,7 +16,8 @@ public class WellKnownTags {
       CharSequence env,
       CharSequence service,
       CharSequence version,
-      CharSequence language) {
+      CharSequence language
+  ) {
     this.runtimeId = UTF8BytesString.create(runtimeId);
     this.hostname = UTF8BytesString.create(hostname);
     this.env = UTF8BytesString.create(env);

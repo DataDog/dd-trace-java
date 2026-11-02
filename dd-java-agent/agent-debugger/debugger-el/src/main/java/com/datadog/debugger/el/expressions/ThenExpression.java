@@ -3,7 +3,9 @@ package com.datadog.debugger.el.expressions;
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Value;
 
-/** TODO: Primordial support for 'debugger watches' support */
+/**
+ * TODO: Primordial support for 'debugger watches' support
+ */
 public final class ThenExpression implements ValueExpression<Value<Void>> {
   @Override
   public Value<Void> evaluate(EvalContext evalContext) {

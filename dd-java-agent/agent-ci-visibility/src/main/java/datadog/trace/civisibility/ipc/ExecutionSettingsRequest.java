@@ -6,7 +6,6 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class ExecutionSettingsRequest implements Signal {
-
   private final String moduleName;
   private final JvmInfo jvmInfo;
 
@@ -30,7 +29,12 @@ public class ExecutionSettingsRequest implements Signal {
 
   @Override
   public String toString() {
-    return "ExecutionSettingsRequest{" + "moduleName=" + moduleName + ", jvmInfo=" + jvmInfo + '}';
+    return "ExecutionSettingsRequest{"
+        + "moduleName="
+        + moduleName
+        + ", jvmInfo="
+        + jvmInfo
+        + '}';
   }
 
   @Override

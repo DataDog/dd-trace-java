@@ -62,7 +62,8 @@ public class FlatHashtableIteratorBenchmark {
   static final class ItHashStrategyA implements FlatHashtable.HashStrategy<ItEntry> {
     static final ItHashStrategyA INSTANCE = new ItHashStrategyA();
 
-    private ItHashStrategyA() {}
+    private ItHashStrategyA() {
+    }
 
     @Override
     public long hashOf(ItEntry entry) {
@@ -73,7 +74,8 @@ public class FlatHashtableIteratorBenchmark {
   static final class ItHashStrategyB implements FlatHashtable.HashStrategy<ItEntry> {
     static final ItHashStrategyB INSTANCE = new ItHashStrategyB();
 
-    private ItHashStrategyB() {}
+    private ItHashStrategyB() {
+    }
 
     @Override
     public long hashOf(ItEntry entry) {
@@ -84,7 +86,8 @@ public class FlatHashtableIteratorBenchmark {
   static final class ItHashStrategyC implements FlatHashtable.HashStrategy<ItEntry> {
     static final ItHashStrategyC INSTANCE = new ItHashStrategyC();
 
-    private ItHashStrategyC() {}
+    private ItHashStrategyC() {
+    }
 
     @Override
     public long hashOf(ItEntry entry) {
@@ -95,7 +98,8 @@ public class FlatHashtableIteratorBenchmark {
   static final class ItHashStrategyD implements FlatHashtable.HashStrategy<ItEntry> {
     static final ItHashStrategyD INSTANCE = new ItHashStrategyD();
 
-    private ItHashStrategyD() {}
+    private ItHashStrategyD() {
+    }
 
     @Override
     public long hashOf(ItEntry entry) {
@@ -104,16 +108,13 @@ public class FlatHashtableIteratorBenchmark {
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  static final FlatHashtable.HashStrategy<ItEntry>[] STRATEGIES =
-      new FlatHashtable.HashStrategy[] {
-        ItHashStrategyA.INSTANCE,
-        ItHashStrategyB.INSTANCE,
-        ItHashStrategyC.INSTANCE,
-        ItHashStrategyD.INSTANCE,
-      };
-
+  static final FlatHashtable.HashStrategy<ItEntry>[] STRATEGIES = new FlatHashtable.HashStrategy[] {
+      ItHashStrategyA.INSTANCE,
+      ItHashStrategyB.INSTANCE,
+      ItHashStrategyC.INSTANCE,
+      ItHashStrategyD.INSTANCE
+  };
   ItEntry[] table;
-
   // Kept live so the profile-poisoning loop below can't be dead-code-eliminated.
   static long POISON_SINK;
 
@@ -122,7 +123,8 @@ public class FlatHashtableIteratorBenchmark {
     // Sparse so the bucket is one contiguous run with a clean terminating empty slot.
     table = FlatHashtable.create(ItEntry.class, BUCKET_SIZE, FlatHashtable.LOW_LOAD_FACTOR);
     for (int i = 0; i < BUCKET_SIZE; ++i) {
-      FlatHashtable.insert(table, new ItEntry(BUCKET_HASH, i)); // all share the hash => one bucket
+      // all share the hash => one bucket
+      FlatHashtable.insert(table, new ItEntry(BUCKET_HASH, i));
     }
     // Poison the shared HashIterator.advanceWith hashOf profile: drive the GENERAL iterator with
     // four distinct strategy types, hot enough that C2 records the site as megamorphic. HotSpot
@@ -135,7 +137,9 @@ public class FlatHashtableIteratorBenchmark {
     POISON_SINK = sink;
   }
 
-  /** Drives the general iterator once per distinct strategy type — the profile poisoner. */
+  /**
+   * Drives the general iterator once per distinct strategy type — the profile poisoner.
+   */
   private long poison() {
     long sink = 0;
     for (FlatHashtable.HashStrategy<ItEntry> s : STRATEGIES) {
@@ -172,9 +176,11 @@ public class FlatHashtableIteratorBenchmark {
   @Benchmark
   public long iterate_specialized() {
     long sum = 0;
-    Iterator<ItEntry> it = FlatHashtable.iterator(table, BUCKET_HASH); // Entry overload
+    // Entry overload
+    Iterator<ItEntry> it = FlatHashtable.iterator(table, BUCKET_HASH);
     while (it.hasNext()) {
-      sum += it.next().value; // hashOf inlined to entry.hash via the constant strategy
+      // hashOf inlined to entry.hash via the constant strategy
+      sum += it.next().value;
     }
     return sum;
   }

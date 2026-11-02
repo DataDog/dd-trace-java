@@ -33,7 +33,6 @@ import javax.annotation.Nullable;
  * number of samples per window.
  */
 public class AdaptiveSampler implements Sampler {
-
   private static final class Counts {
     private final LongAdder testCount = new LongAdder();
     private static final AtomicLongFieldUpdater<Counts> SAMPLE_COUNT =
@@ -45,8 +44,7 @@ public class AdaptiveSampler implements Sampler {
     }
 
     boolean addSample(final long limit) {
-      return SAMPLE_COUNT.getAndAccumulate(this, limit, (prev, lim) -> Math.min(prev + 1, lim))
-          < limit;
+      return SAMPLE_COUNT.getAndAccumulate(this, limit, (prev, lim) -> Math.min(prev + 1, lim)) < limit;
     }
 
     void addSample() {
@@ -70,7 +68,12 @@ public class AdaptiveSampler implements Sampler {
   @FunctionalInterface
   public interface ConfigListener {
     void onWindowRoll(
-        long totalCount, long sampledCount, long budget, double totalAverage, double probability);
+        long totalCount,
+        long sampledCount,
+        long budget,
+        double totalAverage,
+        double probability
+    );
   }
 
   /*
@@ -85,27 +88,20 @@ public class AdaptiveSampler implements Sampler {
    */
   private final double emaAlpha;
   private final int samplesPerWindow;
-
   private final AtomicReference<Counts> countsRef;
-
   // these attributes need to be volatile since they are accessed from user threds as well as the
   // maintenance one
   private volatile double probability = 1d;
   private volatile long samplesBudget;
-
   // these attributes are accessed solely from the window maintenance thread
   private double totalCountRunningAverage = 0d;
   private double avgSamples;
-
   private final int budgetLookback;
   private final double budgetAlpha;
-
   // accessed exclusively from the window maintenance task - does not require any synchronization
   private int countsSlotIdx = 0;
   private final Counts[] countsSlots = new Counts[] {new Counts(), new Counts()};
-
   private final ConfigListener listener;
-
   private final Duration windowDuration;
   private final AgentTaskScheduler taskScheduler;
 
@@ -124,10 +120,10 @@ public class AdaptiveSampler implements Sampler {
       final int samplesPerWindow,
       final int averageLookback,
       final int budgetLookback,
-      final @Nullable ConfigListener listener,
+      @Nullable final ConfigListener listener,
       final AgentTaskScheduler taskScheduler,
-      boolean startSampler) {
-
+      boolean startSampler
+  ) {
     if (averageLookback < 1) {
       throw new IllegalArgumentException("'averageLookback' argument must be at least 1");
     }
@@ -166,7 +162,8 @@ public class AdaptiveSampler implements Sampler {
       final int samplesPerWindow,
       final int averageLookback,
       final int budgetLookback,
-      boolean startSampler) {
+      boolean startSampler
+  ) {
     this(
         windowDuration,
         samplesPerWindow,
@@ -174,7 +171,8 @@ public class AdaptiveSampler implements Sampler {
         budgetLookback,
         null,
         AgentTaskScheduler.get(),
-        startSampler);
+        startSampler
+    );
   }
 
   /**
@@ -192,7 +190,8 @@ public class AdaptiveSampler implements Sampler {
       final int samplesPerWindow,
       final int averageLookback,
       final int budgetLookback,
-      final ConfigListener listener) {
+      final ConfigListener listener
+  ) {
     this(
         windowDuration,
         samplesPerWindow,
@@ -200,7 +199,8 @@ public class AdaptiveSampler implements Sampler {
         budgetLookback,
         listener,
         AgentTaskScheduler.get(),
-        true);
+        true
+    );
   }
 
   public void start() {
@@ -209,7 +209,8 @@ public class AdaptiveSampler implements Sampler {
         this,
         windowDuration.toNanos(),
         windowDuration.toNanos(),
-        TimeUnit.NANOSECONDS);
+        TimeUnit.NANOSECONDS
+    );
   }
 
   @Override
@@ -239,7 +240,6 @@ public class AdaptiveSampler implements Sampler {
   }
 
   private void rollWindow() {
-
     final Counts counts = countsSlots[countsSlotIdx];
     try {
       /*
@@ -263,8 +263,8 @@ public class AdaptiveSampler implements Sampler {
       if (totalCountRunningAverage == 0 || emaAlpha <= 0.0d) {
         totalCountRunningAverage = totalCount;
       } else {
-        totalCountRunningAverage =
-            totalCountRunningAverage + emaAlpha * (totalCount - totalCountRunningAverage);
+        totalCountRunningAverage = totalCountRunningAverage
+            + emaAlpha * (totalCount - totalCountRunningAverage);
       }
 
       if (totalCountRunningAverage <= 0) {
@@ -274,7 +274,12 @@ public class AdaptiveSampler implements Sampler {
       }
       if (listener != null) {
         listener.onWindowRoll(
-            totalCount, sampledCount, samplesBudget, totalCountRunningAverage, probability);
+            totalCount,
+            sampledCount,
+            samplesBudget,
+            totalCountRunningAverage,
+            probability
+        );
       }
     } finally {
       // Reset the previous counts slot
@@ -283,10 +288,9 @@ public class AdaptiveSampler implements Sampler {
   }
 
   private long calculateBudgetEma(final long sampledCount) {
-    avgSamples =
-        Double.isNaN(avgSamples) || budgetAlpha <= 0.0d
-            ? sampledCount
-            : avgSamples + budgetAlpha * (sampledCount - avgSamples);
+    avgSamples = Double.isNaN(avgSamples) || budgetAlpha <= 0.0d
+        ? sampledCount
+        : avgSamples + budgetAlpha * (sampledCount - avgSamples);
     return Math.round(Math.max(samplesPerWindow - avgSamples, 0) * budgetLookback);
   }
 
@@ -295,7 +299,6 @@ public class AdaptiveSampler implements Sampler {
   }
 
   private static class RollWindowTask implements Task<AdaptiveSampler> {
-
     static final RollWindowTask INSTANCE = new RollWindowTask();
 
     @Override

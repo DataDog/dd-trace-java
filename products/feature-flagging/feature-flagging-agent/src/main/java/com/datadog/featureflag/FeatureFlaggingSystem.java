@@ -2,7 +2,6 @@ package com.datadog.featureflag;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_SHUTDOWN;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
@@ -17,16 +16,17 @@ import org.slf4j.LoggerFactory;
  */
 public class FeatureFlaggingSystem {
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
-
   private static volatile FeatureFlagsBackend BACKEND;
   private static volatile Thread SHUTDOWN_HOOK;
 
-  private FeatureFlaggingSystem() {}
+  private FeatureFlaggingSystem() {
+  }
 
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
+      justification = "Agent-internal class; Class object does not escape to app code and lock "
+      + "only guards the subsystem lifecycle."
+  )
   public static synchronized void start(final SharedCommunicationObjects sco) {
     if (BACKEND != null) {
       LOGGER.debug("Feature Flagging system already started");
@@ -47,7 +47,9 @@ public class FeatureFlaggingSystem {
       backend.start();
     } catch (final RuntimeException | Error e) {
       LOGGER.debug(
-          "Feature Flagging system initialization failed: {}", e.getClass().getSimpleName());
+          "Feature Flagging system initialization failed: {}",
+          e.getClass().getSimpleName()
+      );
       backend.close();
       throw e;
     }
@@ -58,8 +60,9 @@ public class FeatureFlaggingSystem {
 
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
+      justification = "Agent-internal class; Class object does not escape to app code and lock "
+      + "only guards the subsystem lifecycle."
+  )
   public static synchronized void stop() {
     final FeatureFlagsBackend backend = BACKEND;
     BACKEND = null;

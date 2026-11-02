@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.kafka_clients38;
 import static datadog.trace.api.Functions.BASE64_DECODE;
 import static datadog.trace.api.Functions.UTF8_BYTES_TO_STRING;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
@@ -17,10 +16,8 @@ import org.slf4j.LoggerFactory;
 
 public class TextMapExtractAdapter implements ContextVisitor<Headers> {
   private static final Logger log = LoggerFactory.getLogger(TextMapExtractAdapter.class);
-
   public static final TextMapExtractAdapter GETTER =
       new TextMapExtractAdapter(Config.get().isKafkaClientBase64DecodingEnabled());
-
   private final Function<byte[], String> headerValueTransformer;
   private final Base64.Decoder decoder;
 

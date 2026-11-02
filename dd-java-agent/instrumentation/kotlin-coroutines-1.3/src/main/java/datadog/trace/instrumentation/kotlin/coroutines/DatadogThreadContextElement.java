@@ -15,50 +15,59 @@ import kotlinx.coroutines.Job;
 import kotlinx.coroutines.ThreadContextElement;
 import kotlinx.coroutines.internal.ScopeCoroutine;
 
-/** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
+/**
+ * Manages the Datadog context for coroutines, switching contexts as coroutines switch threads.
+ */
 public final class DatadogThreadContextElement
     implements ThreadContextElement<Context>,
-        Function2<CoroutineContext, CoroutineContext.Element, CoroutineContext> {
-  private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, ContextContinuation>
-      CONTINUATION =
-          AtomicReferenceFieldUpdater.newUpdater(
-              DatadogThreadContextElement.class, ContextContinuation.class, "continuation");
-
+    Function2<CoroutineContext, CoroutineContext.Element, CoroutineContext>
+{
+  private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, ContextContinuation> CONTINUATION = AtomicReferenceFieldUpdater.newUpdater(
+      DatadogThreadContextElement.class,
+      ContextContinuation.class,
+      "continuation"
+  );
   private static final CoroutineContext.Key<DatadogThreadContextElement> DATADOG_KEY =
-      new CoroutineContext.Key<DatadogThreadContextElement>() {};
-
+      new CoroutineContext.Key<DatadogThreadContextElement>() {
+  };
   private static final Object COMPLETED = new Object();
-
-  /** Coroutines built by coroutineScope, withContext, etc. that their caller waits for. */
-  private static final ClassValue<Boolean> SCOPED_COROUTINE =
-      GenericClassValue.of(
-          type ->
-              ScopeCoroutine.class.isAssignableFrom(type)
-                  // older timeout coroutines are scoped but don't extend ScopeCoroutine
-                  || (AbstractCoroutine.class.isAssignableFrom(type)
-                      && "kotlinx.coroutines.TimeoutCoroutine".equals(type.getName())));
-
-  /** null before the Datadog element, false after it, true once a later hook is found. */
+  /**
+   * Coroutines built by coroutineScope, withContext, etc. that their caller waits for.
+   */
+  private static final ClassValue<Boolean> SCOPED_COROUTINE = GenericClassValue.of(type -> ScopeCoroutine.class
+        .isAssignableFrom(type)
+      // older timeout coroutines are scoped but don't extend ScopeCoroutine
+  || (AbstractCoroutine.class.isAssignableFrom(type)
+      && "kotlinx.coroutines.TimeoutCoroutine".equals(type.getName())));
+  /**
+   * null before the Datadog element, false after it, true once a later hook is found.
+   */
   private static final Function2<Boolean, CoroutineContext.Element, Boolean> HAS_LATER_HOOK =
       (seen, element) -> {
-        if (element.getKey() == DATADOG_KEY) {
-          return Boolean.FALSE;
-        }
-        return seen != null && element instanceof ThreadContextElement ? Boolean.TRUE : seen;
-      };
+    if (element.getKey() == DATADOG_KEY) {
+      return Boolean.FALSE;
+    }
+    return seen != null && element instanceof ThreadContextElement ? Boolean.TRUE : seen;
+  };
 
-  /** Adds a fresh Datadog element, retaining its order relative to other thread context hooks. */
+  /**
+   * Adds a fresh Datadog element, retaining its order relative to other thread context hooks.
+   */
   public static CoroutineContext addDatadogElement(CoroutineContext coroutineContext) {
     DatadogThreadContextElement existing = coroutineContext.get(DATADOG_KEY);
     if (existing == null) {
       return coroutineContext.plus(new DatadogThreadContextElement(null));
     }
     return replaceDatadogElement(
-        coroutineContext, existing.localRootFor(coroutineContext.get(Job.Key)));
+        coroutineContext,
+        existing.localRootFor(coroutineContext.get(Job.Key))
+    );
   }
 
   private static CoroutineContext replaceDatadogElement(
-      CoroutineContext coroutineContext, @Nullable AgentSpan parentLocalRootSpan) {
+      CoroutineContext coroutineContext,
+      @Nullable AgentSpan parentLocalRootSpan
+  ) {
     DatadogThreadContextElement fresh = new DatadogThreadContextElement(parentLocalRootSpan);
     if (!Boolean.TRUE.equals(coroutineContext.fold(null, HAS_LATER_HOOK))) {
       return coroutineContext.plus(fresh);
@@ -67,9 +76,10 @@ public final class DatadogThreadContextElement
     return coroutineContext.fold(EmptyCoroutineContext.INSTANCE, fresh);
   }
 
-  /** Preserves Kotlin's identity fast path and native copy/merge semantics. */
-  public static CoroutineContext forContextMerge(
-      CoroutineContext merged, CoroutineContext original) {
+  /**
+   * Preserves Kotlin's identity fast path and native copy/merge semantics.
+   */
+  public static CoroutineContext forContextMerge(CoroutineContext merged, CoroutineContext original) {
     if (merged == original) {
       return merged;
     }
@@ -77,12 +87,18 @@ public final class DatadogThreadContextElement
     // Scoped coroutines can borrow the caller's hold even when the requested context replaces Job.
     // Flow merges may install this element without constructing a coroutine to own it.
     return replaceDatadogElement(
-        merged, caller == null ? null : caller.localRootFor(original.get(Job.Key)));
+        merged,
+        caller == null ? null : caller.localRootFor(original.get(Job.Key))
+    );
   }
 
-  /** Separates upstream flow state while retaining the caller's active context for downstream. */
+  /**
+   * Separates upstream flow state while retaining the caller's active context for downstream.
+   */
   public static CoroutineContext forFlowCollection(
-      CoroutineContext upstream, CoroutineContext downstream) {
+      CoroutineContext upstream,
+      CoroutineContext downstream
+  ) {
     DatadogThreadContextElement caller = downstream.get(DATADOG_KEY);
     if (caller != null) {
       // Downstream reinstalls the caller's element without constructing a coroutine.
@@ -97,9 +113,13 @@ public final class DatadogThreadContextElement
     return upstream;
   }
 
-  /** Ignores tracing element identity only while Kotlin validates the emission context. */
+  /**
+   * Ignores tracing element identity only while Kotlin validates the emission context.
+   */
   public static CoroutineContext forFlowContextCheck(
-      CoroutineContext emitted, CoroutineContext collected) {
+      CoroutineContext emitted,
+      CoroutineContext collected
+  ) {
     DatadogThreadContextElement expected = collected.get(DATADOG_KEY);
     if (emitted.get(DATADOG_KEY) == expected) {
       return emitted;
@@ -107,27 +127,36 @@ public final class DatadogThreadContextElement
     return expected == null ? emitted.minusKey(DATADOG_KEY) : emitted.plus(expected);
   }
 
-  /** Rebuilds the context using this replacement element, avoiding a capturing fold lambda. */
+  /**
+   * Rebuilds the context using this replacement element, avoiding a capturing fold lambda.
+   */
   @Override
   public CoroutineContext invoke(CoroutineContext rebuilt, CoroutineContext.Element element) {
     return rebuilt.plus(element.getKey() == DATADOG_KEY ? this : element);
   }
 
-  @Nullable private AgentSpan parentLocalRootSpan;
+  @Nullable
+  private AgentSpan parentLocalRootSpan;
   private volatile Context context;
   private volatile ContextContinuation continuation;
-
-  /** The owning Job, null before initialization, or COMPLETED after releasing the owner. */
-  @Nullable private volatile Object owner;
-
-  /** The local root of the trace kept open by this coroutine or its parent. */
-  @Nullable private volatile AgentSpan localRootSpan;
+  /**
+   * The owning Job, null before initialization, or COMPLETED after releasing the owner.
+   */
+  @Nullable
+  private volatile Object owner;
+  /**
+   * The local root of the trace kept open by this coroutine or its parent.
+   */
+  @Nullable
+  private volatile AgentSpan localRootSpan;
 
   private DatadogThreadContextElement(@Nullable AgentSpan parentLocalRootSpan) {
     this.parentLocalRootSpan = parentLocalRootSpan;
   }
 
-  /** Returns the local root kept open for structured children launched with this job. */
+  /**
+   * Returns the local root kept open for structured children launched with this job.
+   */
   @Nullable
   private AgentSpan localRootFor(@Nullable Job job) {
     AgentSpan rootSpan = localRootSpan;
@@ -135,7 +164,9 @@ public final class DatadogThreadContextElement
     return rootSpan != null && job != null && (job == owner || isScopedBy(job)) ? rootSpan : null;
   }
 
-  /** Scoped coroutines share their caller's element and complete before the caller does. */
+  /**
+   * Scoped coroutines share their caller's element and complete before the caller does.
+   */
   private boolean isScopedBy(Job job) {
     return SCOPED_COROUTINE.get(job.getClass())
         && ((AbstractCoroutine<?>) job).getContext().get(DATADOG_KEY) == this;
@@ -231,11 +262,15 @@ public final class DatadogThreadContextElement
 
   @Override
   public void restoreThreadContext(
-      @Nonnull CoroutineContext coroutineContext, Context originalContext) {
+      @Nonnull CoroutineContext coroutineContext,
+      Context originalContext
+  ) {
     context = originalContext.swap();
   }
 
-  /** Tracing state does not change the logical coroutine context used by flow equality checks. */
+  /**
+   * Tracing state does not change the logical coroutine context used by flow equality checks.
+   */
   @Override
   public boolean equals(Object other) {
     return other instanceof DatadogThreadContextElement;
@@ -254,7 +289,9 @@ public final class DatadogThreadContextElement
 
   @Override
   public <R> R fold(
-      R initial, @Nonnull Function2<? super R, ? super Element, ? extends R> operation) {
+      R initial,
+      @Nonnull Function2<? super R, ? super Element, ? extends R> operation
+  ) {
     return CoroutineContext.Element.DefaultImpls.fold(this, initial, operation);
   }
 

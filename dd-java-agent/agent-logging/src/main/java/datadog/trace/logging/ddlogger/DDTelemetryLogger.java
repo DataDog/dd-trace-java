@@ -7,7 +7,6 @@ import org.slf4j.Marker;
 import org.slf4j.helpers.MessageFormatter;
 
 public class DDTelemetryLogger extends DDLogger {
-
   public DDTelemetryLogger(LoggerHelper helper, String name) {
     super(helper, name);
   }

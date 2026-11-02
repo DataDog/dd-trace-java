@@ -10,11 +10,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
-/** Small child application that uses the actual packaged agent, not a second test tracer. */
+/**
+ * Small child application that uses the actual packaged agent, not a second test tracer.
+ */
 public final class ScopeDiagnosticsTestApp {
   private static ContextContinuation retained;
 
-  private ScopeDiagnosticsTestApp() {}
+  private ScopeDiagnosticsTestApp() {
+  }
 
   public static void main(String[] args) throws Exception {
     if ("server".equals(args[0])) {
@@ -43,18 +46,15 @@ public final class ScopeDiagnosticsTestApp {
       continuation.release();
       continuation.release();
     } else if ("delayed".equals(action)) {
-      new Thread(
-              () -> {
-                try {
-                  Thread.sleep(500);
-                } catch (InterruptedException interrupted) {
-                  Thread.currentThread().interrupt();
-                } finally {
-                  continuation.release();
-                }
-              },
-              "delayed-continuation-cleanup")
-          .start();
+      new Thread(() -> {
+        try {
+          Thread.sleep(500);
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+        } finally {
+          continuation.release();
+        }
+      }, "delayed-continuation-cleanup").start();
     } else if (!action.startsWith("leak")) {
       ContextScope scope = continuation.resume();
       scope.close();
@@ -64,15 +64,13 @@ public final class ScopeDiagnosticsTestApp {
     }
     span.finish();
     if (action.startsWith("resume-retained")) {
-      FutureTask<Void> resume =
-          new FutureTask<>(
-              () -> {
-                ContextScope scope = retained.resume();
-                if (!"resume-retained-unclosed".equals(action)) {
-                  scope.close();
-                }
-                return null;
-              });
+      FutureTask<Void> resume = new FutureTask<>(() -> {
+        ContextScope scope = retained.resume();
+        if (!"resume-retained-unclosed".equals(action)) {
+          scope.close();
+        }
+        return null;
+      });
       new Thread(resume, "retained-continuation-worker").start();
       resume.get(10, TimeUnit.SECONDS);
     } else if ("release-retained".equals(action)) {

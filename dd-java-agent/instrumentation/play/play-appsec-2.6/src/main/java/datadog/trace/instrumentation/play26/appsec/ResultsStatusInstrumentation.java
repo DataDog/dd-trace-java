@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play26.appsec;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -16,8 +15,9 @@ import play.api.libs.json.JsValue;
 
 @AutoService(InstrumenterModule.class)
 public class ResultsStatusInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ResultsStatusInstrumentation() {
     super("play");
   }
@@ -40,16 +40,18 @@ public class ResultsStatusInstrumentation extends InstrumenterModule.AppSec
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("apply"), ResultsStatusInstrumentation.class.getName() + "$ResultsStatusApplyAdvice");
+        named("apply"),
+        ResultsStatusInstrumentation.class.getName() + "$ResultsStatusApplyAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ResultsStatusApplyAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static void after(
-        @Advice.Argument(0) final Object content, @ActiveRequestContext RequestContext reqCtx) {
-
+        @Advice.Argument(0) final Object content,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (!(content instanceof JsValue)) {
         return;
       }

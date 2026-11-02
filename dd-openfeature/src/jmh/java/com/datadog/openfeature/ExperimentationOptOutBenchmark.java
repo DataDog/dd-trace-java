@@ -7,7 +7,6 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.ufc.Allocation;
@@ -47,13 +46,10 @@ import org.openjdk.jmh.annotations.Warmup;
 public class ExperimentationOptOutBenchmark {
   @Param({"DISABLED", "IMMEDIATE", "FUTURE_EXPERIMENTS_ONLY"})
   public ExperimentationOptOutMode mode;
-
   @Param({"false", "true"})
   public boolean optedOut;
-
   @Param({"0", "16"})
   public int extraAttributes;
-
   private Provider provider;
   private MutableContext context;
 
@@ -64,16 +60,19 @@ public class ExperimentationOptOutBenchmark {
     final Map<String, Variant> variants = new HashMap<>();
     variants.put("experiment", new Variant("experiment", false));
     variants.put("ordinary", new Variant("ordinary", true));
-    final Flag flag =
-        new Flag(
-            "flag",
-            true,
-            ValueType.BOOLEAN,
-            variants,
-            asList(allocation("experiment", true), allocation("ordinary", false)));
+    final Flag flag = new Flag(
+        "flag",
+        true,
+        ValueType.BOOLEAN,
+        variants,
+        asList(allocation("experiment", true), allocation("ordinary", false))
+    );
     evaluator.accept(new ServerConfiguration("", "", false, null, singletonMap("flag", flag)));
-    provider =
-        new Provider(new Provider.Options().experimentationOptOutMode(mode), evaluator, false);
+    provider = new Provider(
+        new Provider.Options().experimentationOptOutMode(mode),
+        evaluator,
+        false
+    );
     context = new MutableContext("subject");
     for (int i = 0; i < extraAttributes; i++) {
       context.add("attribute" + i, "value" + i);
@@ -86,14 +85,20 @@ public class ExperimentationOptOutBenchmark {
     if (result.getErrorCode() != null
         || result.getValue() != excluded
         || !(excluded ? "ordinary" : "experiment")
-            .equals(result.getFlagMetadata().getString("allocationKey"))) {
+      .equals(result.getFlagMetadata().getString("allocationKey"))) {
       throw new IllegalStateException("Benchmark did not resolve the expected allocation");
     }
   }
 
   private static Allocation allocation(final String key, final boolean doLog) {
     return new Allocation(
-        key, null, null, null, singletonList(new Split(emptyList(), key, emptyMap(), 1)), doLog);
+        key,
+        null,
+        null,
+        null,
+        singletonList(new Split(emptyList(), key, emptyMap(), 1)),
+        doLog
+    );
   }
 
   @Benchmark
@@ -106,8 +111,8 @@ public class ExperimentationOptOutBenchmark {
     return provider.getBooleanEvaluation(
         "flag",
         false,
-        new LayeredEvaluationContext(
-            ImmutableContext.EMPTY, ImmutableContext.EMPTY, null, context));
+        new LayeredEvaluationContext(ImmutableContext.EMPTY, ImmutableContext.EMPTY, null, context)
+    );
   }
 
   @TearDown

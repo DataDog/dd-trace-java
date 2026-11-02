@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.function.Function;
 
 final class MapConfigSource extends ConfigProvider.Source {
-
   private final Map<String, String> properties;
   private final Function<String, String> keyTransformer;
   private final ConfigOrigin origin;
@@ -13,7 +12,8 @@ final class MapConfigSource extends ConfigProvider.Source {
   MapConfigSource(
       Map<String, String> properties,
       Function<String, String> keyTransformer,
-      ConfigOrigin origin) {
+      ConfigOrigin origin
+  ) {
     this.properties = properties;
     this.keyTransformer = keyTransformer;
     this.origin = origin;

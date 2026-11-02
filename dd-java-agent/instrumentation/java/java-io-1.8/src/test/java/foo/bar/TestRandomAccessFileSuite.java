@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 
 public class TestRandomAccessFileSuite {
-
   public static RandomAccessFile newRandomAccessFile(final String name, final String mode)
       throws IOException {
     return new RandomAccessFile(name, mode);

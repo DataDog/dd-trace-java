@@ -16,7 +16,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 @EnableScheduling
 public class SpringbootGrpcApplication {
-
   @Bean
   SpannerTask spannerTask() {
     return new SpannerTask();
@@ -42,6 +41,7 @@ public class SpringbootGrpcApplication {
         SpringApplication.run(SpringbootGrpcApplication.class, args);
     Integer port = app.getBean("local.server.port", Integer.class);
     System.out.println(
-        "Bound to " + port + " in " + ManagementFactory.getRuntimeMXBean().getUptime() + "ms");
+        "Bound to " + port + " in " + ManagementFactory.getRuntimeMXBean().getUptime() + "ms"
+    );
   }
 }

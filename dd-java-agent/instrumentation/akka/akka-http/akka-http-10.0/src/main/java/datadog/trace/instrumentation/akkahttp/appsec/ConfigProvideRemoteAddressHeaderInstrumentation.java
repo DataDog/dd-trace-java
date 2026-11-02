@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,7 +12,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ConfigProvideRemoteAddressHeaderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ConfigProvideRemoteAddressHeaderInstrumentation() {
     super("akka-http");
   }
@@ -27,12 +28,13 @@ public class ConfigProvideRemoteAddressHeaderInstrumentation extends Instrumente
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(named("getBoolean"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class))
-            .and(returns(boolean.class)),
-        ConfigProvideRemoteAddressHeaderInstrumentation.class.getName()
-            + "$EnableRemoteAddressHeaderAdvice");
+          .and(named("getBoolean"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class))
+          .and(returns(boolean.class)),
+            ConfigProvideRemoteAddressHeaderInstrumentation.class.getName()
+        + "$EnableRemoteAddressHeaderAdvice"
+    );
   }
 
   static class EnableRemoteAddressHeaderAdvice {

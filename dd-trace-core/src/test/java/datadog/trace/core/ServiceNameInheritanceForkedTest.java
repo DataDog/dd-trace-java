@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources;
@@ -16,7 +15,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 @WithConfig(key = TracerConfig.TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, value = "true")
 @WithConfig(key = TracerConfig.TRACE_INFERRED_PROXY_SERVICES_ENABLED, value = "true")
 class ServiceNameInheritanceForkedTest extends DDCoreJavaSpecification {
-
   @ParameterizedTest
   @CsvSource({"checkout, servlet-context", "special-checkout, manual"})
   void descendantsRetainApplicationServiceUnderInferredProxy(String service, String source) {
@@ -28,18 +26,19 @@ class ServiceNameInheritanceForkedTest extends DDCoreJavaSpecification {
     proxy.setTag("_dd.inferred_span", 1);
 
     DDSpan entry =
-        (DDSpan) tracer.buildSpan("test", "servlet.request").asChildOf(proxy.spanContext()).start();
+        (DDSpan) tracer
+      .buildSpan("test", "servlet.request")
+      .asChildOf(proxy.spanContext())
+      .start();
     // HTTP server decoration resets the application entry service after creating it.
     entry.setServiceName(service, source);
     DDSpan child =
         (DDSpan) tracer.buildSpan("test", "application").asChildOf(entry.spanContext()).start();
-    DDSpan grandchild =
-        (DDSpan)
-            tracer
-                .buildSpan("test", "database.query")
-                .asChildOf(child.spanContext())
-                .withServiceName(SpanNaming.instance().namingSchema().database().service("mysql"))
-                .start();
+    DDSpan grandchild = (DDSpan) tracer
+      .buildSpan("test", "database.query")
+      .asChildOf(child.spanContext())
+      .withServiceName(SpanNaming.instance().namingSchema().database().service("mysql"))
+      .start();
 
     grandchild.finish();
     child.finish();
@@ -62,13 +61,11 @@ class ServiceNameInheritanceForkedTest extends DDCoreJavaSpecification {
     DDSpan child =
         (DDSpan) tracer.buildSpan("test", "application").asChildOf(root.spanContext()).start();
     child.setServiceName("intermediate-service", ServiceNameSources.MANUAL);
-    DDSpan grandchild =
-        (DDSpan)
-            tracer
-                .buildSpan("test", "database.query")
-                .asChildOf(child.spanContext())
-                .withServiceName("explicit-service")
-                .start();
+    DDSpan grandchild = (DDSpan) tracer
+      .buildSpan("test", "database.query")
+      .asChildOf(child.spanContext())
+      .withServiceName("explicit-service")
+      .start();
 
     grandchild.finish();
     child.finish();

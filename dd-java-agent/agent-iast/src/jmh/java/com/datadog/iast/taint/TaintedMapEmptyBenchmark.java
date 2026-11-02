@@ -2,7 +2,6 @@ package com.datadog.iast.taint;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -25,7 +24,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Benchmark)
 public class TaintedMapEmptyBenchmark {
-
   private static final int OP_COUNT = 1024;
   private TaintedMap map;
   private final Object anyObject = new Object();

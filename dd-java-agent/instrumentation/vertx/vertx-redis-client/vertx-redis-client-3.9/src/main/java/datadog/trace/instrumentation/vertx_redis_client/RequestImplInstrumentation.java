@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.vertx_redis_client;
 import static datadog.trace.util.CollectionUtils.appendToArray;
 import static datadog.trace.util.CollectionUtils.arrayContains;
 import static net.bytebuddy.matcher.ElementMatchers.none;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,9 +21,10 @@ import net.bytebuddy.pool.TypePool;
 @AutoService(InstrumenterModule.class)
 public class RequestImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithStructuralChange {
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice,
+    Instrumenter.WithStructuralChange
+{
   public RequestImplInstrumentation() {
     super("vertx", "vertx-redis-client");
   }
@@ -72,11 +72,10 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
         FieldList<FieldDescription.InDefinedShape> fields,
         MethodList<?> methods,
         int writerFlags,
-        int readerFlags) {
+        int readerFlags
+    ) {
       return new ClassVisitor(Opcodes.ASM7, classVisitor) {
-
         private static final String CLONEABLE = "java/lang/Cloneable";
-
         private boolean addCloneable = false;
 
         @Override
@@ -86,7 +85,8 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
             String name,
             String signature,
             String superName,
-            String[] interfaces) {
+            String[] interfaces
+        ) {
           // Add the Cloneable interface, unless it's already there (e.g. reapplying this
           // change while retransforming a class that was already modified on initial load)
           if (!arrayContains(interfaces, CLONEABLE)) {
@@ -108,17 +108,22 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
             //    return super.clone(); // Object is the super class
             // }
             //
-            final MethodVisitor mv =
-                cv.visitMethod(
-                    Opcodes.ACC_PUBLIC,
-                    "clone",
-                    "()Ljava/lang/Object;",
-                    null,
-                    new String[] {"java/lang/CloneNotSupportedException"});
+            final MethodVisitor mv = cv.visitMethod(
+                Opcodes.ACC_PUBLIC,
+                "clone",
+                "()Ljava/lang/Object;",
+                null,
+                new String[] {"java/lang/CloneNotSupportedException"}
+            );
             mv.visitCode();
             mv.visitIntInsn(Opcodes.ALOAD, 0);
             mv.visitMethodInsn(
-                Opcodes.INVOKESPECIAL, "java/lang/Object", "clone", "()Ljava/lang/Object;", false);
+                Opcodes.INVOKESPECIAL,
+                "java/lang/Object",
+                "clone",
+                "()Ljava/lang/Object;",
+                false
+            );
             mv.visitInsn(Opcodes.ARETURN);
             mv.visitMaxs(0, 0);
             mv.visitEnd();

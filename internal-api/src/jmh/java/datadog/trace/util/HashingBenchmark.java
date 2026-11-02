@@ -32,20 +32,17 @@ import org.openjdk.jmh.annotations.Warmup;
  * HashingBenchmark.hash2_varargs                     thrpt    6  1194884232.767 ±  39724408.823   ops/s
  * HashingBenchmark.hash2_varargs:gc.alloc.rate       thrpt    6       27330.473 ±       909.029  MB/sec
  *
- *
  * HashingBenchmark.hash3                             thrpt    6  2314013984.714 ± 181952393.469   ops/s
  * HashingBenchmark.hash3:gc.alloc.rate               thrpt    6           0.001 ±         0.001  MB/sec
  *
  * HashingBenchmark.hash3_varags                      thrpt    6   869246242.250 ± 121680442.505   ops/s
  * HashingBenchmark.hash3_varags:gc.alloc.rate        thrpt    6       26514.569 ±      3709.819  MB/sec
  *
- *
  * HashingBenchmark.hash4                             thrpt    6  1866997193.226 ± 181198915.326   ops/s
  * HashingBenchmark.hash4:gc.alloc.rate               thrpt    6           0.001 ±         0.001  MB/sec
  *
  * HashingBenchmark.hash4_varargs                     thrpt    6   702697142.147 ±  24458612.481   ops/s
  * HashingBenchmark.hash4_varargs:gc.alloc.rate       thrpt    6       21437.996 ±       748.911  MB/sec
- *
  *
  * HashingBenchmark.hash5                             thrpt    6  1803117534.112 ± 242918817.144   ops/s
  * HashingBenchmark.hash5:gc.alloc.rate               thrpt    6           0.001 ±         0.001  MB/sec
@@ -64,32 +61,28 @@ public class HashingBenchmark {
   }
 
   // strings used in hashing are set up ahead of time, so that the only allocation is from var-args
-  static String[] TEST_STRINGS =
-      init(
-          () -> {
-            ThreadLocalRandom random = ThreadLocalRandom.current();
+  static String[] TEST_STRINGS = init(() -> {
+    ThreadLocalRandom random = ThreadLocalRandom.current();
 
-            String[] strings = new String[1024];
-            for (int i = 0; i < strings.length; ++i) {
-              strings[i] = Double.toString(random.nextDouble());
-            }
-            return strings;
-          });
+    String[] strings = new String[1024];
+    for (int i = 0; i < strings.length; ++i) {
+      strings[i] = Double.toString(random.nextDouble());
+    }
+    return strings;
+  });
 
   static {
-    Thread updaterThread =
-        new Thread(
-            () -> {
-              ThreadLocalRandom random = ThreadLocalRandom.current();
+    Thread updaterThread = new Thread(() -> {
+      ThreadLocalRandom random = ThreadLocalRandom.current();
 
-              while (!Thread.interrupted()) {
-                str0 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-                str1 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-                str2 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-                str3 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-                str4 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-              }
-            });
+      while (!Thread.interrupted()) {
+        str0 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
+        str1 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
+        str2 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
+        str3 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
+        str4 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
+      }
+    });
     updaterThread.setDaemon(true);
     updaterThread.start();
   }

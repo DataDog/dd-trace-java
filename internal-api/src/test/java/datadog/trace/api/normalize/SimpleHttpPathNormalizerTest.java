@@ -1,13 +1,11 @@
 package datadog.trace.api.normalize;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.test.util.DDJavaSpecification;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class SimpleHttpPathNormalizerTest extends DDJavaSpecification {
-
   private static final SimpleHttpPathNormalizer SIMPLE_PATH_NORMALIZER =
       new SimpleHttpPathNormalizer();
 

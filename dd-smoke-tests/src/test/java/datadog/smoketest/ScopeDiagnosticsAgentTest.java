@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.test.scopediag.ScopeDiagnosticsCheck;
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -26,7 +25,8 @@ import org.tabletest.junit.TableTest;
 
 @Timeout(60)
 class ScopeDiagnosticsAgentTest {
-  @TempDir Path reports;
+  @TempDir
+  Path reports;
 
   @Test
   void observesActualShadedTracerInQuickCli() throws Exception {
@@ -58,7 +58,8 @@ class ScopeDiagnosticsAgentTest {
       Properties result = result(diagnostics.directory().resolve("final"));
       assertTrue(
           result.getProperty("timeline").contains("ScopeDiagnosticsTestApp"),
-          result.getProperty("timeline"));
+          result.getProperty("timeline")
+      );
     } finally {
       child.destroyForcibly();
     }
@@ -70,8 +71,8 @@ class ScopeDiagnosticsAgentTest {
     Process child = launch(diagnostics, "server");
     try (Writer input = new OutputStreamWriter(child.getOutputStream(), StandardCharsets.UTF_8);
         BufferedReader output =
-            new BufferedReader(
-                new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))) {
+        new BufferedReader(new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))
+    ) {
       diagnostics.awaitReady(child);
       diagnostics.start(child);
       exercise(input, output, "leak");
@@ -102,8 +103,8 @@ class ScopeDiagnosticsAgentTest {
     Process child = launch(diagnostics, "server");
     try (Writer input = new OutputStreamWriter(child.getOutputStream(), StandardCharsets.UTF_8);
         BufferedReader output =
-            new BufferedReader(
-                new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))) {
+        new BufferedReader(new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))
+    ) {
       diagnostics.awaitReady(child);
       if (previousWindow) {
         diagnostics.start(child);
@@ -139,15 +140,14 @@ class ScopeDiagnosticsAgentTest {
     Process child = launch(diagnostics, "server");
     try (Writer input = new OutputStreamWriter(child.getOutputStream(), StandardCharsets.UTF_8);
         BufferedReader output =
-            new BufferedReader(
-                new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))) {
+        new BufferedReader(new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))
+    ) {
       diagnostics.awaitReady(child);
       exercise(input, output, "retain-held");
       diagnostics.start(child);
       exercise(input, output, action);
       if (unclosed) {
-        AssertionError failure =
-            assertThrows(AssertionError.class, () -> diagnostics.finish(child));
+        AssertionError failure = assertThrows(AssertionError.class, () -> diagnostics.finish(child));
         assertTrue(failure.getMessage().contains("NEVER_CLOSED"), failure.getMessage());
       } else {
         diagnostics.finish(child);
@@ -179,8 +179,8 @@ class ScopeDiagnosticsAgentTest {
     Process child = launch(diagnostics, "server");
     try (Writer input = new OutputStreamWriter(child.getOutputStream(), StandardCharsets.UTF_8);
         BufferedReader output =
-            new BufferedReader(
-                new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))) {
+        new BufferedReader(new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))
+    ) {
       diagnostics.awaitReady(child);
       diagnostics.start(child);
       exercise(input, output, "delayed");
@@ -206,7 +206,10 @@ class ScopeDiagnosticsAgentTest {
     "excluding leak does not hide scope | [LEAKED]               | leak-and-unclosed | problems"
   })
   void agentConfigurationSelectsEnforcement(
-      ScopeDiagnosticsCheck[] checks, String mode, String status) throws Exception {
+      ScopeDiagnosticsCheck[] checks,
+      String mode,
+      String status
+  ) throws Exception {
     ScopeDiagnosticsClient diagnostics =
         new ScopeDiagnosticsClient(reports, mode, true, "known test fixture", checks);
     Process child = launch(diagnostics, mode);
@@ -227,7 +230,8 @@ class ScopeDiagnosticsAgentTest {
       if (mode.startsWith("leak")) {
         assertTrue(
             result.getProperty("detail").contains("Excluded findings (not enforced):\n  [LEAKED]"),
-            result.getProperty("detail"));
+            result.getProperty("detail")
+        );
       }
     } finally {
       child.destroyForcibly();
@@ -271,8 +275,7 @@ class ScopeDiagnosticsAgentTest {
     "invalid number | invalid"
   })
   void invalidQuiescenceBudgetFailsInstallation(String budget) throws Exception {
-    ScopeDiagnosticsClient diagnostics =
-        new ScopeDiagnosticsClient(reports, "invalid-budget", true);
+    ScopeDiagnosticsClient diagnostics = new ScopeDiagnosticsClient(reports, "invalid-budget", true);
     Path configFile = diagnostics.directory().resolve("config");
     Properties config = result(configFile);
     config.setProperty("quiescenceMillis", budget);
@@ -291,18 +294,18 @@ class ScopeDiagnosticsAgentTest {
 
   @Test
   void serverExclusionsApplyToEveryWindowWithoutHidingOtherViolations() throws Exception {
-    ScopeDiagnosticsClient diagnostics =
-        new ScopeDiagnosticsClient(
-            reports,
-            "selective-server",
-            false,
-            " Known fixture & cleanup=expected; café + path\t\\\n ",
-            LEAKED);
+    ScopeDiagnosticsClient diagnostics = new ScopeDiagnosticsClient(
+        reports,
+        "selective-server",
+        false,
+        " Known fixture & cleanup=expected; café + path\t\\\n ",
+        LEAKED
+    );
     Process child = launch(diagnostics, "server");
     try (Writer input = new OutputStreamWriter(child.getOutputStream(), StandardCharsets.UTF_8);
         BufferedReader output =
-            new BufferedReader(
-                new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))) {
+        new BufferedReader(new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8))
+    ) {
       diagnostics.awaitReady(child);
       diagnostics.start(child);
       exercise(input, output, "leak");
@@ -310,7 +313,9 @@ class ScopeDiagnosticsAgentTest {
       Properties first = result(diagnostics.directory().resolve("response-2"));
       assertTrue(first.getProperty("detail").contains("LEAKED"));
       assertEquals(
-          " Known fixture & cleanup=expected; café + path\t\\\n ", first.getProperty("reason"));
+          " Known fixture & cleanup=expected; café + path\t\\\n ",
+          first.getProperty("reason")
+      );
       assertTrue(first.getProperty("timeline").contains("diagnostic-leak"));
       diagnostics.start(child);
       exercise(input, output, "double");
@@ -330,36 +335,35 @@ class ScopeDiagnosticsAgentTest {
 
   private ProcessBuilder processBuilder(ScopeDiagnosticsClient diagnostics, String mode)
       throws Exception {
-    String classes =
-        Paths.get(
-                ScopeDiagnosticsTestApp.class
-                    .getProtectionDomain()
-                    .getCodeSource()
-                    .getLocation()
-                    .toURI())
-            .toString();
-    ProcessBuilder builder =
-        new ProcessBuilder(
-                Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
-                "-javaagent:" + System.getProperty("datadog.smoketest.agent.shadowJar.path"),
-                diagnostics.javaAgentArgument(),
-                "-Ddd.trace.enabled=true",
-                "-Ddd.telemetry.enabled=false",
-                "-Ddd.remote_config.enabled=false",
-                "-Ddd.trace.startup.logs=false",
-                "-cp",
-                classes,
-                ScopeDiagnosticsTestApp.class.getName(),
-                mode)
-            .redirectError(reports.resolve("child-" + mode + ".log").toFile());
+    String classes = Paths
+      .get(ScopeDiagnosticsTestApp.class
+        .getProtectionDomain()
+        .getCodeSource()
+        .getLocation()
+        .toURI()
+      )
+      .toString();
+    ProcessBuilder builder = new ProcessBuilder(
+        Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
+        "-javaagent:" + System.getProperty("datadog.smoketest.agent.shadowJar.path"),
+        diagnostics.javaAgentArgument(),
+        "-Ddd.trace.enabled=true",
+        "-Ddd.telemetry.enabled=false",
+        "-Ddd.remote_config.enabled=false",
+        "-Ddd.trace.startup.logs=false",
+        "-cp",
+        classes,
+        ScopeDiagnosticsTestApp.class.getName(),
+        mode
+    )
+      .redirectError(reports.resolve("child-" + mode + ".log").toFile());
     // Keep hostname discovery from starting an unrelated subprocess in these short fixtures.
     builder.environment().put("HOSTNAME", "scope-diagnostics-test");
     builder.environment().put("COMPUTERNAME", "scope-diagnostics-test");
     return builder;
   }
 
-  private static void exercise(Writer input, BufferedReader output, String action)
-      throws Exception {
+  private static void exercise(Writer input, BufferedReader output, String action) throws Exception {
     input.write(action + "\n");
     input.flush();
     assertEquals("DONE", output.readLine());

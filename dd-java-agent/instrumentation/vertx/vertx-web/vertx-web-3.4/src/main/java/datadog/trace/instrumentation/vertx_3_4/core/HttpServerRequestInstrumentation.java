@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -23,7 +22,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestInstrumentation {
-
   @Override
   protected ElementMatcher.Junction<MethodDescription> attributesFilter() {
     return isPrivate().and(named("attributes"));
@@ -39,16 +37,17 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
     super.methodAdvice(transformer);
     transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("headers")).and(takesNoArguments()),
-        HttpServerRequestInstrumentation.class.getName() + "$HeadersAdvice");
+        HttpServerRequestInstrumentation.class.getName() + "$HeadersAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class HeadersAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Local("beforeHeaders") Object beforeHeaders,
-        @Advice.FieldValue("headers") final Object headers) {
+        @Advice.FieldValue("headers") final Object headers
+    ) {
       beforeHeaders = headers;
     }
 
@@ -57,7 +56,8 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
     public static void onExit(
         @Advice.Local("beforeHeaders") final Object beforeHeaders,
         @Advice.Return final Object multiMap,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       // only taint the map the first time
       if (beforeHeaders != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;

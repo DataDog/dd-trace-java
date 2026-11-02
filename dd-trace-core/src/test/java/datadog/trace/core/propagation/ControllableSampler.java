@@ -2,7 +2,6 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
-
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.core.CoreSpan;

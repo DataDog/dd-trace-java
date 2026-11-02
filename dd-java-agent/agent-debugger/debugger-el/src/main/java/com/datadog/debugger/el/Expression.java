@@ -1,6 +1,8 @@
 package com.datadog.debugger.el;
 
-/** Represents any evaluable expression */
+/**
+ * Represents any evaluable expression
+ */
 @FunctionalInterface
 public interface Expression<ReturnType> {
   ReturnType evaluate(EvalContext evalContext);

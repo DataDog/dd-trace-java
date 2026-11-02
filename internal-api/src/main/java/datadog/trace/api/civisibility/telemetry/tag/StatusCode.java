@@ -3,7 +3,9 @@ package datadog.trace.api.civisibility.telemetry.tag;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import javax.annotation.Nullable;
 
-/** The type of HTTP request error */
+/**
+ * The type of HTTP request error
+ */
 public enum StatusCode implements TagValue {
   BAD_REQUEST(400),
   UNAUTHORIZED(401),
@@ -11,7 +13,6 @@ public enum StatusCode implements TagValue {
   NOT_FOUND(404),
   REQUEST_TIMEOUT(408),
   TOO_MANY_REQUESTS(429);
-
   private final String s;
 
   StatusCode(int code) {

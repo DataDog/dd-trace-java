@@ -27,12 +27,13 @@ import java.util.WeakHashMap;
  * mutator and accessor synchronizes. Contention is low — operations are O(1) map touches.
  */
 final class SpanEnrichmentStates {
-
   // Weak keys: the accumulator is GC'd with its local-root span, so a trace that never completes
   // cannot leak. Identity-keyed by the local-root AgentSpan object. guarded by 'this'.
   private final Map<AgentSpan, SpanEnrichmentAccumulator> states = new WeakHashMap<>();
 
-  /** Returns the accumulator for {@code root}, creating (and inserting) it if absent. */
+  /**
+   * Returns the accumulator for {@code root}, creating (and inserting) it if absent.
+   */
   synchronized SpanEnrichmentAccumulator getOrCreate(final AgentSpan root) {
     SpanEnrichmentAccumulator existing = states.get(root);
     if (existing != null) {
@@ -43,12 +44,16 @@ final class SpanEnrichmentStates {
     return created;
   }
 
-  /** Removes and returns the accumulator for {@code root}, or {@code null} if absent. */
+  /**
+   * Removes and returns the accumulator for {@code root}, or {@code null} if absent.
+   */
   synchronized SpanEnrichmentAccumulator remove(final AgentSpan root) {
     return states.remove(root);
   }
 
-  /** Clears all tracked state (cleanup on shutdown). */
+  /**
+   * Clears all tracked state (cleanup on shutdown).
+   */
   synchronized void clear() {
     states.clear();
   }
@@ -62,7 +67,6 @@ final class SpanEnrichmentStates {
   }
 
   // ---- test-only accessor ----
-
   synchronized SpanEnrichmentAccumulator peek(final AgentSpan root) {
     return states.get(root);
   }

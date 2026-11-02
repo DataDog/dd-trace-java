@@ -16,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.openfeature.internal.EventQueue;
 import com.datadog.openfeature.internal.RuntimeServices;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationTestSupport.CapturingTransport;
@@ -34,19 +33,22 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.event.Level;
 
 class FlagEvaluationPipelineTest {
-
   private final CapturingTransport transport = new CapturingTransport();
   private final RecordingMetrics metrics = new RecordingMetrics();
 
   private FlagEvaluationPipeline writer(
-      final int capacity, final long flushInterval, final TimeUnit unit) {
+      final int capacity,
+      final long flushInterval,
+      final TimeUnit unit
+  ) {
     return new FlagEvaluationPipeline(
         capacity,
         flushInterval,
         unit,
         this.transport,
         context(),
-        new RuntimeServices(this.metrics));
+        new RuntimeServices(this.metrics)
+    );
   }
 
   @Test
@@ -60,7 +62,9 @@ class FlagEvaluationPipelineTest {
         3,
         setup.metrics.sum(
             FlagEvaluationPipeline.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationPipeline.DROP_REASON_DEGRADED_CAP));
+            "reason:" + FlagEvaluationPipeline.DROP_REASON_DEGRADED_CAP
+        )
+    );
   }
 
   @Test
@@ -74,15 +78,19 @@ class FlagEvaluationPipelineTest {
       writer(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS).requestShutdown();
 
       final List<String> messages =
-          CapturingServiceProvider.events().stream()
-              .map(e -> e.message)
-              .collect(Collectors.toList());
+          CapturingServiceProvider
+        .events()
+        .stream()
+        .map(e -> e.message)
+        .collect(Collectors.toList());
       assertTrue(
           messages.contains("Feature Flags flag evaluation flush delivered: payloads=1"),
-          messages.toString());
+          messages.toString()
+      );
       assertTrue(
           messages.contains("Feature Flags flag evaluation shutdown requested"),
-          messages.toString());
+          messages.toString()
+      );
     } finally {
       CapturingServiceProvider.reset();
     }
@@ -120,7 +128,9 @@ class FlagEvaluationPipelineTest {
         queueDrops,
         this.metrics.sum(
             FlagEvaluationPipeline.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationPipeline.DROP_REASON_QUEUE_OVERFLOW));
+            "reason:" + FlagEvaluationPipeline.DROP_REASON_QUEUE_OVERFLOW
+        )
+    );
   }
 
   @Test
@@ -134,14 +144,15 @@ class FlagEvaluationPipelineTest {
         1,
         this.metrics.sum(
             FlagEvaluationPipeline.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationPipeline.DROP_REASON_CLOSED));
+            "reason:" + FlagEvaluationPipeline.DROP_REASON_CLOSED
+        )
+    );
     assertNull(writer.pollQueuedEventForTest());
   }
 
   @Test
   void closeSweepsAndCountsEventsLeftInTheQueue() {
     final FlagEvaluationPipeline writer = writer(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-
     // The worker is never started, so nothing drains these; close() must account for them rather
     // than leave them silently stranded. Stands in for the narrow window where a lock-free
     // producer offers after the worker's final drain.
@@ -153,7 +164,9 @@ class FlagEvaluationPipelineTest {
         2,
         this.metrics.sum(
             FlagEvaluationPipeline.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationPipeline.DROP_REASON_CLOSED));
+            "reason:" + FlagEvaluationPipeline.DROP_REASON_CLOSED
+        )
+    );
     assertNull(writer.pollQueuedEventForTest());
   }
 
@@ -193,17 +206,17 @@ class FlagEvaluationPipelineTest {
   @Test
   void flushIfNecessaryDoesNotReturnEarlyWhenOnlyQueueDropsArePending() {
     final AtomicLong queueDrops = new AtomicLong(1);
-    final FlagEvaluationPipeline.FlagEvaluationSerializingHandler handler =
-        new FlagEvaluationPipeline.FlagEvaluationSerializingHandler(
-            this.transport,
-            new EventQueue<>(16),
-            Long.MAX_VALUE,
-            TimeUnit.NANOSECONDS,
-            context(),
-            queueDrops,
-            new ConcurrentHashMap<>(),
-            FlagEvaluationPipeline.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES,
-            new RuntimeServices(this.metrics));
+    final FlagEvaluationPipeline.FlagEvaluationSerializingHandler handler = new FlagEvaluationPipeline.FlagEvaluationSerializingHandler(
+        this.transport,
+        new EventQueue<>(16),
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        context(),
+        queueDrops,
+        new ConcurrentHashMap<>(),
+        FlagEvaluationPipeline.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES,
+        new RuntimeServices(this.metrics)
+    );
 
     handler.flushIfNecessary();
 
@@ -247,7 +260,9 @@ class FlagEvaluationPipelineTest {
         1,
         setup.metrics.sum(
             FlagEvaluationPipeline.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationPipeline.DROP_REASON_PAYLOAD_LIMIT));
+            "reason:" + FlagEvaluationPipeline.DROP_REASON_PAYLOAD_LIMIT
+        )
+    );
   }
 
   @Test
@@ -257,11 +272,10 @@ class FlagEvaluationPipelineTest {
     // transport is called.
     final CountDownLatch posted = new CountDownLatch(1);
     final boolean[] interruptedDuringPost = {true};
-    this.transport.onPost =
-        () -> {
-          interruptedDuringPost[0] = Thread.currentThread().isInterrupted();
-          posted.countDown();
-        };
+    this.transport.onPost = () -> {
+      interruptedDuringPost[0] = Thread.currentThread().isInterrupted();
+      posted.countDown();
+    };
     final FlagEvaluationPipeline writer = writer(64, TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS);
 
     writer.start();
@@ -271,7 +285,8 @@ class FlagEvaluationPipelineTest {
     assertTrue(posted.await(5, TimeUnit.SECONDS));
     assertFalse(
         interruptedDuringPost[0],
-        "final flush must not run on an interrupted thread; the drained rows would be lost");
+        "final flush must not run on an interrupted thread; the drained rows would be lost"
+    );
   }
 
   @Test
@@ -395,7 +410,9 @@ class FlagEvaluationPipelineTest {
             "TYPE_MISMATCH",
             1000L,
             false,
-            emptyMap()));
+            emptyMap()
+        )
+    );
 
     final FlagEvaluationTestSupport.CapturedJson captured = flushAndCapture(setup);
 
@@ -408,7 +425,8 @@ class FlagEvaluationPipelineTest {
     assertFalse(captured.raw.contains("jane.doe@datadoghq.com"));
     assertFalse(
         captured.raw.contains("For input string"),
-        "no exception-message-shaped text may reach the wire under consent-off");
+        "no exception-message-shaped text may reach the wire under consent-off"
+    );
   }
 
   @Test
@@ -420,7 +438,6 @@ class FlagEvaluationPipelineTest {
     setup.handler.drainAndAggregate();
     setup.handler.flush();
     assertEquals(1, setup.transport.posts.size());
-
     // The bucket must not survive the failed flush. A follow-up healthy event flushes cleanly.
     setup.handler.add(simpleEvent("healthy-flag", "on"));
     setup.handler.drainAndAggregate();
@@ -455,12 +472,17 @@ class FlagEvaluationPipelineTest {
     assertEquals(
         2,
         this.metrics.sum(
-            FlagEvaluationPipeline.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC, "reason:field_count"));
+            FlagEvaluationPipeline.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC,
+            "reason:field_count"
+        )
+    );
     assertEquals(
         1,
         this.metrics.sum(
             FlagEvaluationPipeline.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC,
-            "reason:field_length"));
+            "reason:field_length"
+        )
+    );
   }
 
   @Test
@@ -469,13 +491,11 @@ class FlagEvaluationPipelineTest {
     final FlagEvaluationPipeline writer = writer(capacity, Long.MAX_VALUE, TimeUnit.NANOSECONDS);
 
     assertTrue(writer.hasCapacityForEnqueue());
-
     // Saturate the hand-off queue without starting the worker so no drain can free slots.
     for (int i = 0; i < capacity; i++) {
       writer.enqueue(simpleEvent("cap-flag-" + i, "on"));
     }
     assertFalse(writer.hasCapacityForEnqueue());
-
     // Simulate a pre-queue overflow account by the hook and surface it on flush.
     writer.countPreQueueOverflow();
     writer.flushForTest();
@@ -484,7 +504,9 @@ class FlagEvaluationPipelineTest {
         1,
         this.metrics.sum(
             FlagEvaluationPipeline.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationPipeline.DROP_REASON_QUEUE_OVERFLOW));
+            "reason:" + FlagEvaluationPipeline.DROP_REASON_QUEUE_OVERFLOW
+        )
+    );
 
     writer.close();
   }
@@ -516,7 +538,8 @@ class FlagEvaluationPipelineTest {
         "jane.doe@datadoghq.com",
         1000L,
         observeFullEvaluationData,
-        piiAttrs());
+        piiAttrs()
+    );
   }
 
   private static FlagEvalEvent piiEventDefaultConsent() {

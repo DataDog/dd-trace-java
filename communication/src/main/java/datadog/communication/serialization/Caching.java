@@ -2,9 +2,12 @@ package datadog.communication.serialization;
 
 import java.util.Arrays;
 
-/** Some common static functions used by simple & generational caches */
+/**
+ * Some common static functions used by simple & generational caches
+ */
 final class Caching {
-  private Caching() {}
+  private Caching() {
+  }
 
   /**
    * Provides the cache size that holds the requestedCapacity
@@ -14,18 +17,23 @@ final class Caching {
    */
   static final int cacheSizeFor(int requestedCapacity) {
     int pow;
-    for (pow = 1; pow < requestedCapacity; pow *= 2)
+    for (pow = 1; pow < requestedCapacity; pow *= 2) {
       ;
+    }
     return pow;
   }
 
-  /** Provides an "adjusted" (e.g. non-zero) hash for the given String */
+  /**
+   * Provides an "adjusted" (e.g. non-zero) hash for the given String
+   */
   static final int adjHash(String value) {
     int hash = value.hashCode();
     return (hash == 0) ? 0xDA7AD06 : hash;
   }
 
-  /** Resets markers to zero */
+  /**
+   * Resets markers to zero
+   */
   static final void reset(int[] marks) {
     Arrays.fill(marks, 0);
   }
@@ -40,7 +48,6 @@ final class Caching {
    */
   static final boolean mark(int[] marks, int newAdjHash) {
     int index = bucketIndex(marks, newAdjHash);
-
     // This is the 4th iteration of the marking strategy
     // First version - used a mark entry, but that would prematurely
     // burn a slot in the cache
@@ -51,12 +58,10 @@ final class Caching {
     // that could lead to access order fights over the cache slot
     // So this version is a hybrid of 2nd & 3rd, using a bloom filter
     // that effectively degenerates to a boolean
-
     // This approach provides a nice balance when there's an A-B-A access pattern
     // The first A will mark the slot
     // Then B will mark the slot with A | B
     // Then either A or B can claim and reset the slot
-
     int priorMarkHash = marks[index];
     boolean match = ((priorMarkHash & newAdjHash) == newAdjHash);
     if (match) {
@@ -67,7 +72,9 @@ final class Caching {
     return match;
   }
 
-  /** Provides the corresponding index into the marking array */
+  /**
+   * Provides the corresponding index into the marking array
+   */
   static final int bucketIndex(int[] marks, int adjHash) {
     return adjHash & (marks.length - 1);
   }

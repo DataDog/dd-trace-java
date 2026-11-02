@@ -23,7 +23,6 @@ public class Jms10ConnectionFactory implements QueueConnectionFactory, TopicConn
   }
 
   // --- JMS 1.1-only unified ConnectionFactory methods ---
-
   @Override
   public Connection createConnection() throws JMSException {
     return delegate.createConnection();
@@ -41,21 +40,18 @@ public class Jms10ConnectionFactory implements QueueConnectionFactory, TopicConn
   }
 
   @Override
-  public QueueConnection createQueueConnection(String userName, String password)
-      throws JMSException {
+  public QueueConnection createQueueConnection(String userName, String password) throws JMSException {
     return new Jms10Connection(delegate.createConnection(userName, password));
   }
 
   // --- JMS 1.0 TopicConnectionFactory methods ---
-
   @Override
   public TopicConnection createTopicConnection() throws JMSException {
     return new Jms10Connection(delegate.createConnection());
   }
 
   @Override
-  public TopicConnection createTopicConnection(String userName, String password)
-      throws JMSException {
+  public TopicConnection createTopicConnection(String userName, String password) throws JMSException {
     return new Jms10Connection(delegate.createConnection(userName, password));
   }
 }

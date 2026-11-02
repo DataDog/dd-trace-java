@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.azure.functions.worker.DurableFuncti
 import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.ORCHESTRATION_TRIGGER;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.microsoft.azure.functions.TraceContext;
 import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareContext;
 import datadog.context.ContextScope;
@@ -22,7 +21,8 @@ public final class DurableFunctionsUtils {
   private static final String ENTITY_ANNOTATION = "DurableEntityTrigger";
   private static final String ORCHESTRATION_ANNOTATION = "DurableOrchestrationTrigger";
 
-  private DurableFunctionsUtils() {}
+  private DurableFunctionsUtils() {
+  }
 
   public static String getTrigger(MiddlewareContext context) {
     if (context.getParameterName(ORCHESTRATION_ANNOTATION) != null) {
@@ -40,7 +40,12 @@ public final class DurableFunctionsUtils {
   public static ContextScope startSpanScope(MiddlewareContext context, String trigger) {
     return activateSpan(
         startInvocationSpan(
-            context.getFunctionName(), trigger, extractParent(context.getTraceContext()), 0));
+            context.getFunctionName(),
+            trigger,
+            extractParent(context.getTraceContext()),
+            0
+        )
+    );
   }
 
   public static long nowMicros() {
@@ -49,7 +54,9 @@ public final class DurableFunctionsUtils {
   }
 
   public static AgentSpan startOrchestrationErrorSpan(
-      MiddlewareContext context, long startTimeMicros) {
+      MiddlewareContext context,
+      long startTimeMicros
+  ) {
     final DurableOrchestrationState state = DurableOrchestrationState.current();
     if (state != null) {
       return startOrchestrationSpan(state, startTimeMicros);
@@ -58,32 +65,42 @@ public final class DurableFunctionsUtils {
         context.getFunctionName(),
         ORCHESTRATION_TRIGGER,
         extractParent(context.getTraceContext()),
-        startTimeMicros);
+        startTimeMicros
+    );
   }
 
   public static AgentSpan startOrchestrationSpan(
-      DurableOrchestrationState state, long startTimeMicros) {
+      DurableOrchestrationState state,
+      long startTimeMicros
+  ) {
     final AgentSpan parentSpan = state.parentSpan();
     return startInvocationSpan(
         state.functionName(),
         ORCHESTRATION_TRIGGER,
         parentSpan == null ? null : parentSpan.spanContext(),
-        startTimeMicros);
+        startTimeMicros
+    );
   }
 
   public static AgentSpan startInvocationSpan(
-      String functionName, String trigger, AgentSpanContext parent, long startTimeMicros) {
-    final AgentSpan span =
-        startTimeMicros > 0
-            ? startSpan("azure-functions", AZURE_FUNCTIONS_REQUEST, parent, startTimeMicros)
-            : startSpan("azure-functions", AZURE_FUNCTIONS_REQUEST, parent);
+      String functionName,
+      String trigger,
+      AgentSpanContext parent,
+      long startTimeMicros
+  ) {
+    final AgentSpan span = startTimeMicros > 0
+        ? startSpan("azure-functions", AZURE_FUNCTIONS_REQUEST, parent, startTimeMicros)
+        : startSpan("azure-functions", AZURE_FUNCTIONS_REQUEST, parent);
     DECORATE.afterStart(span);
     DECORATE.onInvoke(span, functionName, trigger);
     return span;
   }
 
   public static void recordOrchestrationError(
-      AgentSpan span, Throwable throwable, DurableOrchestrationState state) {
+      AgentSpan span,
+      Throwable throwable,
+      DurableOrchestrationState state
+  ) {
     try {
       DECORATE.onInvocationError(span, throwable);
       DECORATE.beforeFinish(span);

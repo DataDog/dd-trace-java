@@ -38,11 +38,9 @@ public class JPMSJFRAccess extends JFRAccess {
   private final Class<?> jvmClass;
   private final Class<?> repositoryClass;
   private final Class<?> safePathClass;
-
   // TODO consider refactoring to make these private static final
   private final MethodHandle setStackDepthMH;
   private final MethodHandle setRepositoryBaseMH;
-
   private final MethodHandle counterTimeMH;
   private final MethodHandle getTimeConversionFactorMH;
 
@@ -62,10 +60,11 @@ public class JPMSJFRAccess extends JFRAccess {
   private static Class<?> safePathClass() {
     try {
       return JFRAccess.class
-          .getClassLoader()
-          .loadClass("jdk.jfr.internal.SecuritySupport$SafePath");
+        .getClassLoader()
+        .loadClass("jdk.jfr.internal.SecuritySupport$SafePath");
     } catch (ClassNotFoundException e) {
-      return Path.class; // no SafePath with SecurityManager gone
+      // no SafePath with SecurityManager gone
+      return Path.class;
     }
   }
 
@@ -78,7 +77,8 @@ public class JPMSJFRAccess extends JFRAccess {
   }
 
   private MethodHandle getJvmMethodHandle(Object jvm, String method, Class... args)
-      throws NoSuchMethodException, IllegalAccessException {
+      throws NoSuchMethodException,
+      IllegalAccessException {
     Method m = jvmClass.getMethod(method, args);
     m.setAccessible(true);
     return unreflectAndBind(m, jvm);
@@ -94,7 +94,9 @@ public class JPMSJFRAccess extends JFRAccess {
   }
 
   private MethodHandle setRepositoryBaseMethodHandle()
-      throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+      throws NoSuchMethodException,
+      IllegalAccessException,
+      InvocationTargetException {
     // the modules are patched in `patchModuleAccess` to allow reflective access to the internal
     // classes
     Method m = repositoryClass.getMethod("getRepository");
@@ -118,7 +120,6 @@ public class JPMSJFRAccess extends JFRAccess {
     Module targetModule = Event.class.getModule();
 
     Map<String, Set<Module>> extraOpens = Map.of("jdk.jfr.internal", Set.of(unnamedModule));
-
     // Redefine the module
     inst.redefineModule(
         targetModule,
@@ -126,7 +127,8 @@ public class JPMSJFRAccess extends JFRAccess {
         extraOpens,
         extraOpens,
         Collections.emptySet(),
-        Collections.emptyMap());
+        Collections.emptyMap()
+    );
   }
 
   @Override
@@ -143,10 +145,9 @@ public class JPMSJFRAccess extends JFRAccess {
   @Override
   public boolean setBaseLocation(String location) {
     try {
-      Object safePath =
-          Path.class.isAssignableFrom(safePathClass)
-              ? Paths.get(location)
-              : safePathClass.getConstructor(Path.class).newInstance(Paths.get(location));
+      Object safePath = Path.class.isAssignableFrom(safePathClass)
+          ? Paths.get(location)
+          : safePathClass.getConstructor(Path.class).newInstance(Paths.get(location));
       setRepositoryBaseMH.invoke(safePath);
       return true;
     } catch (Throwable throwable) {

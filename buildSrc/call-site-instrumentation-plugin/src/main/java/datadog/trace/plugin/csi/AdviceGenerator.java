@@ -10,14 +10,11 @@ import javax.annotation.Nonnull;
  * {@link datadog.trace.agent.tooling.csi.CallSiteAdvice} interface
  */
 public interface AdviceGenerator {
-
   @Nonnull
   CallSiteResult generate(@Nonnull CallSiteSpecification callSite);
 
   final class CallSiteResult extends BaseValidationContext {
-
     private final CallSiteSpecification specification;
-
     private final File file;
 
     public CallSiteResult(@Nonnull final CallSiteSpecification specification, final File file) {

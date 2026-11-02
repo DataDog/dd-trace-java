@@ -3,7 +3,6 @@ package datadog.trace.civisibility.coverage.report;
 import static datadog.trace.agent.test.server.http.JavaTestHttpServer.httpServer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.communication.BackendApi;
@@ -30,13 +29,11 @@ import org.apache.commons.fileupload.FileItem;
 import org.junit.jupiter.api.Test;
 
 class CoverageReportUploaderTest {
-
   private static final int REQUEST_TIMEOUT_MILLIS = 15_000;
-
   private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
   private static final TypeReference<Map<String, Object>> EVENT_TYPE =
-      new TypeReference<Map<String, Object>>() {};
-
+      new TypeReference<Map<String, Object>>() {
+  };
   private static final String COVERAGE_REPORT_BODY = "report-body";
   private static final String JACOCO_FORMAT = "jacoco";
   private static final String CI_TAG_KEY = "ci-tag-key";
@@ -71,35 +68,27 @@ class CoverageReportUploaderTest {
   private static CapturedRequest uploadCoverageReport(List<String> flags) throws IOException {
     CapturedRequest capturedRequest = new CapturedRequest();
     try (JavaTestHttpServer server =
-        httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            "/api/v2/cicovreprt",
-                            api -> {
-                              Map<String, List<FileItem>> multipart =
-                                  MultipartRequestParser.parseRequest(
-                                      api.getRequest().getBody(),
-                                      api.getRequest().getHeader("Content-Type"));
-                              capturedRequest.event =
-                                  JSON_MAPPER.readValue(
-                                      multipart.get("event").get(0).get(), EVENT_TYPE);
-                              capturedRequest.coverage =
-                                  gunzip(multipart.get("coverage").get(0).get());
-                              api.getResponse().status(200).send();
-                            })))) {
+        httpServer(s -> s.handlers(h -> h.prefix("/api/v2/cicovreprt", api -> {
+      Map<String, List<FileItem>> multipart = MultipartRequestParser.parseRequest(
+          api.getRequest().getBody(),
+          api.getRequest().getHeader("Content-Type")
+      );
+      capturedRequest.event = JSON_MAPPER.readValue(multipart.get("event").get(0).get(), EVENT_TYPE);
+      capturedRequest.coverage = gunzip(multipart.get("coverage").get(0).get());
+      api.getResponse().status(200).send();
+    })))) {
       BackendApi backendApi = givenIntakeApi(server.getAddress());
-      CoverageReportUploader uploader =
-          new CoverageReportUploader(
-              backendApi,
-              Collections.singletonMap(CI_TAG_KEY, CI_TAG_VALUE),
-              flags,
-              NoOpMetricCollector.INSTANCE);
+      CoverageReportUploader uploader = new CoverageReportUploader(
+          backendApi,
+          Collections.singletonMap(CI_TAG_KEY, CI_TAG_VALUE),
+          flags,
+          NoOpMetricCollector.INSTANCE
+      );
 
       uploader.upload(
           JACOCO_FORMAT,
-          new ByteArrayInputStream(COVERAGE_REPORT_BODY.getBytes(StandardCharsets.UTF_8)));
+          new ByteArrayInputStream(COVERAGE_REPORT_BODY.getBytes(StandardCharsets.UTF_8))
+      );
     }
     return capturedRequest;
   }
@@ -107,7 +96,8 @@ class CoverageReportUploaderTest {
   private static byte[] gunzip(byte[] compressed) throws IOException {
     try (ByteArrayInputStream input = new ByteArrayInputStream(compressed);
         GZIPInputStream gzip = new GZIPInputStream(input);
-        ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+        ByteArrayOutputStream output = new ByteArrayOutputStream()
+    ) {
       byte[] buffer = new byte[8192];
       for (int readCount; (readCount = gzip.read(buffer)) != -1; ) {
         output.write(buffer, 0, readCount);

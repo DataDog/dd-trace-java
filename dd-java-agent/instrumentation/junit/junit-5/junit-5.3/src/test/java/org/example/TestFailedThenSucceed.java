@@ -1,7 +1,6 @@
 package org.example;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -10,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class TestFailedThenSucceed {
-
   public static int TEST_EXECUTIONS_COUNT = 0;
 
   @BeforeEach

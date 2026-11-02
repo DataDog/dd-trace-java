@@ -2,11 +2,12 @@ package datadog.context;
 
 import static java.lang.Math.max;
 import static java.util.Objects.requireNonNull;
-
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-/** {@link Context} containing a single value. */
+/**
+ * {@link Context} containing a single value.
+ */
 final class SingletonContext implements SelfScopedContext {
   final int index;
   final Object value;
@@ -46,8 +47,12 @@ final class SingletonContext implements SelfScopedContext {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     SingletonContext that = (SingletonContext) o;
     return this.index == that.index && Objects.equals(this.value, that.value);
   }

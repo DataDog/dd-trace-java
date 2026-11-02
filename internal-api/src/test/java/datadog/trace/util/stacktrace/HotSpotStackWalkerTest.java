@@ -15,7 +15,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.environment.JavaVirtualMachine;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 public class HotSpotStackWalkerTest {
-
   private final StackWalker stackWalker = new HotSpotStackWalker();
 
   @BeforeAll
@@ -32,8 +30,9 @@ public class HotSpotStackWalkerTest {
     assumeFalse(
         JavaVirtualMachine.isOracleJDK8(),
         "Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to correctly "
-            + "extract method parameters without args, when the code is compiled on a later JDK (targeting 8). "
-            + "This can manifest when creating mocks.");
+        + "extract method parameters without args, when the code is compiled on a later JDK (targeting 8). "
+        + "This can manifest when creating mocks."
+    );
   }
 
   @Test
@@ -73,7 +72,7 @@ public class HotSpotStackWalkerTest {
     // When
     sun.misc.JavaLangAccess mockedAccess = mock(sun.misc.JavaLangAccess.class);
     when(mockedAccess.getStackTraceElement(any(Throwable.class), eq(0)))
-        .thenThrow(new RuntimeException());
+      .thenThrow(new RuntimeException());
     HotSpotStackWalker hotSpotStackWalker = new HotSpotStackWalker();
     hotSpotStackWalker.access = mockedAccess;
     // Then
@@ -94,12 +93,11 @@ public class HotSpotStackWalkerTest {
     // When
     List<StackTraceElement> list = stackWalker.walk(s -> s.collect(Collectors.toList()));
     // Then
-    assertFalse(
-        list.stream()
-            .anyMatch(
-                stackTraceElement ->
-                    stackTraceElement
-                        .toString()
-                        .equals("java.lang.Iterable.spliterator(Iterable.java:101)")));
+    assertFalse(list
+      .stream()
+      .anyMatch(stackTraceElement -> stackTraceElement
+        .toString()
+        .equals("java.lang.Iterable.spliterator(Iterable.java:101)"))
+    );
   }
 }

@@ -2,19 +2,16 @@ package datadog.trace.instrumentation.spymemcached;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator.DECORATE;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
 public abstract class CompletionListener<T> {
-
   static final String DB_COMMAND_CANCELLED = "db.command.cancelled";
   static final String MEMCACHED_RESULT = "memcached.result";
   static final String HIT = "hit";
   static final String MISS = "miss";
-
   private final AgentSpan span;
 
   public CompletionListener(final AgentSpan span, final String methodName) {
@@ -62,7 +59,8 @@ public abstract class CompletionListener<T> {
   }
 
   protected abstract void processResult(AgentSpan span, T future)
-      throws ExecutionException, InterruptedException;
+      throws ExecutionException,
+      InterruptedException;
 
   protected void setResultTag(final AgentSpan span, final boolean hit) {
     span.setTag(MEMCACHED_RESULT, hit ? HIT : MISS);

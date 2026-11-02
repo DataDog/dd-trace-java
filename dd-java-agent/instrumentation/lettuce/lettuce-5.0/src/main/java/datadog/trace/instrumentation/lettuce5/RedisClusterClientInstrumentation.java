@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,8 +18,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class RedisClusterClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public RedisClusterClientInstrumentation() {
     super("lettuce", "lettuce-5");
   }
@@ -33,34 +33,38 @@ public class RedisClusterClientInstrumentation extends InstrumenterModule.Tracin
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
+        "io.lettuce.core.api.StatefulConnection",
+        "io.lettuce.core.RedisURI"
+    );
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("connectToNodeAsync"))
-            .and(takesArguments(4))
-            .and(takesArgument(1, String.class))
-            .and(returns(named("io.lettuce.core.ConnectionFuture"))),
-        RedisClusterClientInstrumentation.class.getName() + "$ConnectToNodeAdvice");
+          .and(named("connectToNodeAsync"))
+          .and(takesArguments(4))
+          .and(takesArgument(1, String.class))
+          .and(returns(named("io.lettuce.core.ConnectionFuture"))),
+        RedisClusterClientInstrumentation.class.getName() + "$ConnectToNodeAdvice"
+    );
   }
 
   public static class ConnectToNodeAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T extends StatefulConnection> void onExit(
-        @Advice.Return(readOnly = false) ConnectionFuture<T> connectionFuture) {
+        @Advice.Return(readOnly = false) ConnectionFuture<T> connectionFuture
+    ) {
       if (connectionFuture == null) {
         return;
       }
 
-      connectionFuture =
-          connectionFuture.thenApply(
-              new ClusterConnectionContextFunction<T>(
-                  connectionFuture,
-                  InstrumentationContext.get(StatefulConnection.class, RedisURI.class)));
+      connectionFuture = connectionFuture.thenApply(
+          new ClusterConnectionContextFunction<T>(
+              connectionFuture,
+              InstrumentationContext.get(StatefulConnection.class, RedisURI.class)
+          )
+      );
     }
   }
 }

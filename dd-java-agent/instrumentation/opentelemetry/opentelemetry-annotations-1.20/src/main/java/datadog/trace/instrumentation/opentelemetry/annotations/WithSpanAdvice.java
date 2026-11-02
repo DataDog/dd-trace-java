@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.opentelemetry.annotations;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.opentelemetry.annotations.WithSpanDecorator.DECORATE;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.invoke.MethodType;
@@ -23,11 +22,15 @@ public class WithSpanAdvice {
       @Advice.Enter final ContextScope scope,
       @Advice.Origin final MethodType methodType,
       @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Object result,
-      @Advice.Thrown final Throwable throwable) {
+      @Advice.Thrown final Throwable throwable
+  ) {
     DECORATE.onError(scope, throwable);
     DECORATE.beforeFinish(scope);
     scope.close();
-    result =
-        DECORATE.wrapAsyncResultOrFinishSpan(result, methodType.returnType(), spanFromScope(scope));
+    result = DECORATE.wrapAsyncResultOrFinishSpan(
+        result,
+        methodType.returnType(),
+        spanFromScope(scope)
+    );
   }
 }

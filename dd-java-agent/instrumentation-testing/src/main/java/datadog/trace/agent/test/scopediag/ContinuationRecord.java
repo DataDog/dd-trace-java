@@ -5,17 +5,19 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
-/** Records a continuation's capture, activations, scopes, and resolution. */
+/**
+ * Records a continuation's capture, activations, scopes, and resolution.
+ */
 public final class ContinuationRecord {
   public final long seq;
   public final DDTraceId traceId;
   public final long spanId;
   public final String spanName;
   public final byte source;
-
-  /** {@code true} when capture was not observed, so this window does not own final resolution. */
+  /**
+   * {@code true} when capture was not observed, so this window does not own final resolution.
+   */
   public final boolean orphan;
-
   private final ScopeEvent capture;
   private final List<ScopeEvent> resumes = new ArrayList<>(1);
   private final List<ScopeEvent> failedActivations = new ArrayList<>(0);
@@ -31,7 +33,8 @@ public final class ContinuationRecord {
       String spanName,
       byte source,
       boolean orphan,
-      ScopeEvent capture) {
+      ScopeEvent capture
+  ) {
     this.seq = seq;
     this.traceId = traceId;
     this.spanId = spanId;
@@ -49,7 +52,9 @@ public final class ContinuationRecord {
     failedActivations.add(event);
   }
 
-  /** First terminal sets {@link #terminal}; any subsequent terminal is a double-finish signal. */
+  /**
+   * First terminal sets {@link #terminal}; any subsequent terminal is a double-finish signal.
+   */
   synchronized void setTerminalOrExtra(ScopeEvent event) {
     setTerminalOrExtra(event, false);
   }
@@ -69,15 +74,15 @@ public final class ContinuationRecord {
   }
 
   synchronized ContinuationRecord snapshot() {
-    ContinuationRecord copy =
-        new ContinuationRecord(
-            seq,
-            traceId,
-            spanId,
-            spanName,
-            source,
-            orphan,
-            capture == null ? null : capture.snapshot());
+    ContinuationRecord copy = new ContinuationRecord(
+        seq,
+        traceId,
+        spanId,
+        spanName,
+        source,
+        orphan,
+        capture == null ? null : capture.snapshot()
+    );
     for (ScopeEvent event : resumes) {
       copy.resumes.add(event.snapshot());
     }
@@ -134,7 +139,9 @@ public final class ContinuationRecord {
     return orphan ? ContinuationStatus.EXTERNAL : ContinuationStatus.LEAKED;
   }
 
-  /** Derives failures, including events after {@code rootWrittenNanos} when provided. */
+  /**
+   * Derives failures, including events after {@code rootWrittenNanos} when provided.
+   */
   public synchronized EnumSet<ScopeDiagnosticsCheck> failures(Long rootWrittenNanos) {
     EnumSet<ScopeDiagnosticsCheck> failures = EnumSet.noneOf(ScopeDiagnosticsCheck.class);
     if (!orphan && !isResolved()) {
@@ -154,7 +161,9 @@ public final class ContinuationRecord {
     return failures;
   }
 
-  /** {@code true} when capture and any resume/terminal happened on different threads. */
+  /**
+   * {@code true} when capture and any resume/terminal happened on different threads.
+   */
   public synchronized boolean threadHandoff() {
     if (capture == null) {
       return false;
@@ -168,7 +177,9 @@ public final class ContinuationRecord {
     return terminal != null && !captureThread.equals(terminal.threadName);
   }
 
-  /** Nanos between capture and the first resume, or {@code null} if not both observed. */
+  /**
+   * Nanos between capture and the first resume, or {@code null} if not both observed.
+   */
   public synchronized Long captureToFirstResumeNanos() {
     if (capture == null || resumes.isEmpty()) {
       return null;
@@ -180,7 +191,9 @@ public final class ContinuationRecord {
     return firstResumeNanos - capture.nanos;
   }
 
-  /** Nanos between capture and the terminal resolution, or {@code null} if not both observed. */
+  /**
+   * Nanos between capture and the terminal resolution, or {@code null} if not both observed.
+   */
   public synchronized Long ageAtTerminalNanos() {
     if (capture == null || terminal == null) {
       return null;
@@ -188,7 +201,9 @@ public final class ContinuationRecord {
     return terminal.nanos - capture.nanos;
   }
 
-  /** Earliest known event time for ordering the timeline. */
+  /**
+   * Earliest known event time for ordering the timeline.
+   */
   public synchronized long firstNanos() {
     long min = capture != null ? capture.nanos : Long.MAX_VALUE;
     for (ScopeEvent e : resumes) {

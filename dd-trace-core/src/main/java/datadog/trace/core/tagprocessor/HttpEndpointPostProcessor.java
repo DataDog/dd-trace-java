@@ -3,7 +3,6 @@ package datadog.trace.core.tagprocessor;
 import static datadog.trace.api.KnownTags.HTTP_METHOD_ID;
 import static datadog.trace.api.KnownTags.HTTP_ROUTE_ID;
 import static datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics.urlOrPath;
-
 import datadog.trace.api.TagStore;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -32,15 +31,18 @@ import org.slf4j.LoggerFactory;
  */
 public class HttpEndpointPostProcessor extends EagerTagsPostProcessor {
   private static final Logger log = LoggerFactory.getLogger(HttpEndpointPostProcessor.class);
-
   private final EndpointResolver endpointResolver;
 
-  /** Creates a new HttpEndpointPostProcessor using the global config. */
+  /**
+   * Creates a new HttpEndpointPostProcessor using the global config.
+   */
   public HttpEndpointPostProcessor() {
     this(
         new EndpointResolver(
             datadog.trace.api.Config.get().isTraceResourceRenamingEnabled(),
-            datadog.trace.api.Config.get().isTraceResourceRenamingAlwaysSimplifiedEndpoint()));
+            datadog.trace.api.Config.get().isTraceResourceRenamingAlwaysSimplifiedEndpoint()
+        )
+    );
   }
 
   /**
@@ -55,7 +57,10 @@ public class HttpEndpointPostProcessor extends EagerTagsPostProcessor {
 
   @Override
   public void processTags(
-      TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagStore unsafeTags,
+      DDSpanContext spanContext,
+      AppendableSpanLinks spanLinks
+  ) {
     if (!endpointResolver.isEnabled()) {
       log.debug("EndpointResolver is not enabled, skipping HTTP endpoint post processing");
       return;
@@ -69,7 +74,10 @@ public class HttpEndpointPostProcessor extends EagerTagsPostProcessor {
       String httpRoute = unsafeTags.loadString(HTTP_ROUTE_ID);
       Object httpUrl = urlOrPath(unsafeTags);
       endpointResolver.resolveEndpoint(
-          unsafeTags, httpRoute, httpUrl == null ? null : httpUrl.toString());
+          unsafeTags,
+          httpRoute,
+          httpUrl == null ? null : httpUrl.toString()
+      );
     } catch (Throwable t) {
       log.debug("Error processing HTTP endpoint for span {}", spanContext.getSpanId(), t);
     }

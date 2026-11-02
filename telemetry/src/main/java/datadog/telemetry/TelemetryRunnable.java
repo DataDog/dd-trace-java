@@ -14,12 +14,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryRunnable implements Runnable {
-
   private static final Logger log = LoggerFactory.getLogger(TelemetryRunnable.class);
   private static final int APP_STARTED_RETRIES = 3;
   private static final int APP_STARTED_PAUSE_BETWEEN_RETRIES_MILLIS = 500;
   private static final int MAX_CONSECUTIVE_REQUESTS = 3;
-
   private final TelemetryService telemetryService;
   private final List<TelemetryPeriodicAction> actions;
   private final List<MetricPeriodicAction> actionsAtMetricsInterval;
@@ -27,7 +25,9 @@ public class TelemetryRunnable implements Runnable {
   private boolean startupEventSent;
 
   public TelemetryRunnable(
-      final TelemetryService telemetryService, final List<TelemetryPeriodicAction> actions) {
+      final TelemetryService telemetryService,
+      final List<TelemetryPeriodicAction> actions
+  ) {
     this(telemetryService, actions, new ThreadSleeperImpl(), SystemTimeSource.INSTANCE);
   }
 
@@ -35,25 +35,28 @@ public class TelemetryRunnable implements Runnable {
       final TelemetryService telemetryService,
       final List<TelemetryPeriodicAction> actions,
       final ThreadSleeper sleeper,
-      final TimeSource timeSource) {
+      final TimeSource timeSource
+  ) {
     this.telemetryService = telemetryService;
     this.actions = actions;
     this.actionsAtMetricsInterval = findMetricPeriodicActions(actions);
-    this.scheduler =
-        new Scheduler(
-            timeSource,
-            sleeper,
-            (long) (Config.get().getTelemetryHeartbeatInterval() * 1000),
-            (long) (Config.get().getTelemetryMetricsInterval() * 1000),
-            Config.get().getTelemetryExtendedHeartbeatInterval() * 1000);
+    this.scheduler = new Scheduler(
+        timeSource,
+        sleeper,
+        (long) (Config.get().getTelemetryHeartbeatInterval() * 1000),
+        (long) (Config.get().getTelemetryMetricsInterval() * 1000),
+        Config.get().getTelemetryExtendedHeartbeatInterval() * 1000
+    );
   }
 
   private List<MetricPeriodicAction> findMetricPeriodicActions(
-      final List<TelemetryPeriodicAction> actions) {
-    return actions.stream()
-        .filter(MetricPeriodicAction.class::isInstance)
-        .map(it -> (MetricPeriodicAction) it)
-        .collect(Collectors.toList());
+      final List<TelemetryPeriodicAction> actions
+  ) {
+    return actions
+      .stream()
+      .filter(MetricPeriodicAction.class::isInstance)
+      .map(it -> (MetricPeriodicAction) it)
+      .collect(Collectors.toList());
   }
 
   @Override
@@ -102,7 +105,8 @@ public class TelemetryRunnable implements Runnable {
       log.debug(
           "Couldn't send an app-started event on {} attempt out of {}.",
           attempt,
-          APP_STARTED_RETRIES);
+          APP_STARTED_RETRIES
+      );
       // Sleep between retries to allow OkHttp to release a non-daemon writer thread that would
       // otherwise prevent the application from exiting.
       Thread.sleep(APP_STARTED_PAUSE_BETWEEN_RETRIES_MILLIS);
@@ -112,7 +116,6 @@ public class TelemetryRunnable implements Runnable {
 
   private void mainLoopIteration() throws InterruptedException {
     collectConfigChanges();
-
     // Collect request metrics every N seconds (default 10s)
     if (scheduler.shouldRunMetrics()) {
       for (MetricPeriodicAction action : actionsAtMetricsInterval) {
@@ -142,7 +145,9 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private void collectConfigChanges() {
-    Map<ConfigOrigin, Map<String, ConfigSetting>> collectedConfig = ConfigCollector.get().collect();
+    Map<ConfigOrigin, Map<String, ConfigSetting>> collectedConfig = ConfigCollector
+      .get()
+      .collect();
     if (!collectedConfig.isEmpty()) {
       telemetryService.addConfiguration(collectedConfig);
     }
@@ -196,7 +201,8 @@ public class TelemetryRunnable implements Runnable {
         final ThreadSleeper sleeper,
         final long heartbeatIntervalMs,
         final long metricsIntervalMs,
-        final long extendedHeartbeatIntervalMs) {
+        final long extendedHeartbeatIntervalMs
+    ) {
       this.timeSource = timeSource;
       this.sleeper = sleeper;
       this.heartbeatIntervalMs = heartbeatIntervalMs;
@@ -251,7 +257,8 @@ public class TelemetryRunnable implements Runnable {
         nextMetricsIntervalMs = currentTime;
         nextHeartbeatIntervalMs = currentTime;
         log.debug(
-            "Time to run telemetry actions exceeded the interval, triggering the next iteration immediately");
+            "Time to run telemetry actions exceeded the interval, triggering the next iteration immediately"
+        );
         return;
       }
 

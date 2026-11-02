@@ -3,7 +3,6 @@ package datadog.nativeloader;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.environment.OperatingSystem;
 import datadog.environment.OperatingSystem.Architecture;
 import org.junit.jupiter.api.Test;
@@ -12,7 +11,6 @@ public class IntrospectPlatformSpecTest {
   @Test
   public void os() {
     PlatformSpec platformSpec = IntrospectPlatformSpec.INSTANCE;
-
     // a bit silly since this just mirrors the underlying implementation
     assertEquals(OperatingSystem.isMacOs(), platformSpec.isMac());
     assertEquals(OperatingSystem.isLinux(), platformSpec.isLinux());

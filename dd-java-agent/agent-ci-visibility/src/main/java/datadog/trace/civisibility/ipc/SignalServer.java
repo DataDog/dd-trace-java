@@ -21,14 +21,11 @@ import org.slf4j.LoggerFactory;
  * signal type(1 byte) + payload ]
  */
 public class SignalServer {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(SignalServer.class);
   private static final int DEFAULT_BUFFER_CAPACITY = 1024;
-
   private Selector selector;
   private ServerSocketChannel serverSocketChannel;
   private Thread signalServerThread;
-
   private final int port;
   private final String address;
   private final Map<SignalType, Function<Signal, SignalResponse>> signalHandlers =
@@ -53,7 +50,6 @@ public class SignalServer {
 
         selector = Selector.open();
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-
       } catch (IOException e) {
         LOGGER.error("Error while starting signal server", e);
         return;
@@ -61,9 +57,10 @@ public class SignalServer {
 
       SignalServerRunnable signalServerRunnable =
           new SignalServerRunnable(selector, DEFAULT_BUFFER_CAPACITY, signalHandlers);
-      signalServerThread =
-          AgentThreadFactory.newAgentThread(
-              AgentThreadFactory.AgentThread.CI_SIGNAL_SERVER, signalServerRunnable);
+      signalServerThread = AgentThreadFactory.newAgentThread(
+          AgentThreadFactory.AgentThread.CI_SIGNAL_SERVER,
+          signalServerRunnable
+      );
       signalServerThread.start();
     }
   }
@@ -83,19 +80,20 @@ public class SignalServer {
 
     if (localAddress instanceof InetSocketAddress) {
       return (InetSocketAddress) localAddress;
-
     } else {
       LOGGER.error(
-          "Got unexpected address from the signal server: {}. "
-              + "Signal server will not be started",
-          localAddress);
+          "Got unexpected address from the signal server: {}. " + "Signal server will not be started",
+          localAddress
+      );
       return null;
     }
   }
 
   @SuppressWarnings("unchecked")
   public synchronized <T extends Signal> void registerSignalHandler(
-      SignalType type, Function<T, SignalResponse> handler) {
+      SignalType type,
+      Function<T, SignalResponse> handler
+  ) {
     if (serverSocketChannel != null) {
       throw new IllegalStateException("Cannot register a signal handler after server has started");
     }

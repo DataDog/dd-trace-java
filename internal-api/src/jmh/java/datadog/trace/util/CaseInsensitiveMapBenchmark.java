@@ -69,43 +69,36 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Thread)
 public class CaseInsensitiveMapBenchmark {
   static final String[] PREFIXES = {"foo", "bar", "baz", "quux"};
-
   static final int NUM_SUFFIXES = 4;
 
   static <T> T init(Supplier<T> supplier) {
     return supplier.get();
   }
 
-  static final String[] UPPER_PREFIXES =
-      init(
-          () -> {
-            String[] upperPrefixes = new String[PREFIXES.length];
-            for (int i = 0; i < PREFIXES.length; ++i) {
-              upperPrefixes[i] = PREFIXES[i].toUpperCase();
-            }
-            return upperPrefixes;
-          });
-
+  static final String[] UPPER_PREFIXES = init(() -> {
+    String[] upperPrefixes = new String[PREFIXES.length];
+    for (int i = 0; i < PREFIXES.length; ++i) {
+      upperPrefixes[i] = PREFIXES[i].toUpperCase();
+    }
+    return upperPrefixes;
+  });
   // Fixed seed so every arm, in every fork, sees the same case and hit/miss mix -- the upper-case
   // share drives toLowerCase() allocation and suffix NUM_SUFFIXES is a miss, so an unseeded draw
   // would give each arm a different workload.
-  static final String[] LOOKUP_KEYS =
-      init(
-          () -> {
-            Random curRandom = new Random(42);
+  static final String[] LOOKUP_KEYS = init(() -> {
+    Random curRandom = new Random(42);
 
-            String[] keys = new String[32];
-            for (int i = 0; i < keys.length; ++i) {
-              int prefixIndex = curRandom.nextInt(PREFIXES.length);
-              boolean toUpper = curRandom.nextBoolean();
-              int suffixIndex = curRandom.nextInt(NUM_SUFFIXES + 1);
+    String[] keys = new String[32];
+    for (int i = 0; i < keys.length; ++i) {
+      int prefixIndex = curRandom.nextInt(PREFIXES.length);
+      boolean toUpper = curRandom.nextBoolean();
+      int suffixIndex = curRandom.nextInt(NUM_SUFFIXES + 1);
 
-              String key = PREFIXES[prefixIndex] + "-" + suffixIndex;
-              keys[i] = toUpper ? key.toUpperCase() : key.toLowerCase();
-            }
-            return keys;
-          });
-
+      String key = PREFIXES[prefixIndex] + "-" + suffixIndex;
+      keys[i] = toUpper ? key.toUpperCase() : key.toLowerCase();
+    }
+    return keys;
+  });
   // Per-thread (@State(Scope.Thread)) so cycling the lookup key doesn't contend a shared counter.
   // The maps stay static/shared (read-only after class-init); only the index is per-thread. A
   // shared
@@ -159,9 +152,10 @@ public class CaseInsensitiveMapBenchmark {
     HashMap<String, Integer> map = new HashMap<>();
     for (int suffix = 0; suffix < NUM_SUFFIXES; ++suffix) {
       for (String prefix : PREFIXES) {
-        map.put(
-            (prefix + "-" + suffix).toLowerCase(),
-            suffix); // arguable, but real caller probably doesn't know the case ahead-of-time
+        map
+          .put((prefix + "-" + suffix).toLowerCase(), suffix
+          // arguable, but real caller probably doesn't know the case ahead-of-time
+          );
       }
     }
     for (int suffix = 0; suffix < NUM_SUFFIXES; suffix += 2) {
@@ -215,11 +209,14 @@ public class CaseInsensitiveMapBenchmark {
   // alloc property without TreeMap's O(log n) comparison walk. Value is stored unboxed. Read-only
   // after build, so reads are lock-free (see FlatHashtable / ThreadSafeMapBenchmark).
   static final class CIEntry extends FlatHashtable.Entry {
-    final String key; // original case preserved
-    int value; // mutable: the collision loop below overwrites it on a hit, mirroring put()
+    // original case preserved
+    final String key;
+    // mutable: the collision loop below overwrites it on a hit, mirroring put()
+    int value;
 
     CIEntry(String key, long hash, int value) {
-      super(hash); // cache the (char-by-char) case-insensitive hash
+      // cache the (char-by-char) case-insensitive hash
+      super(hash);
       this.key = key;
       this.value = value;
     }
@@ -228,19 +225,23 @@ public class CaseInsensitiveMapBenchmark {
   // Dogfoods the shared toolbox pieces: the CI hash is Strings.caseInsensitiveHashCode (sealed by
   // CaseInsensitiveStringStrategy), the table owns the spread. Only matches/hashOf are bespoke.
   static final class CaseInsensitiveKeyStrategy
-      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
+      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry>
+  {
     static final CaseInsensitiveKeyStrategy INSTANCE = new CaseInsensitiveKeyStrategy();
 
-    private CaseInsensitiveKeyStrategy() {}
+    private CaseInsensitiveKeyStrategy() {
+    }
 
     @Override
     public boolean matches(CIEntry entry, String key) {
-      return key.equalsIgnoreCase(entry.key); // case-folded, allocation-free
+      // case-folded, allocation-free
+      return key.equalsIgnoreCase(entry.key);
     }
 
     @Override
     public long hashOf(CIEntry entry) {
-      return entry.hash; // CIEntry caches its (raw, case-insensitive) hash
+      // CIEntry caches its (raw, case-insensitive) hash
+      return entry.hash;
     }
   }
 
@@ -257,7 +258,8 @@ public class CaseInsensitiveMapBenchmark {
   // SingleThreadedMapBenchmark. Each decoy overrides a different method so both call sites lose
   // their CHA guarantee.
   static final class DecoyMatchStrategy
-      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
+      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry>
+  {
     static final DecoyMatchStrategy INSTANCE = new DecoyMatchStrategy();
 
     @Override
@@ -272,7 +274,8 @@ public class CaseInsensitiveMapBenchmark {
   }
 
   static final class DecoyHashStrategy
-      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
+      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry>
+  {
     static final DecoyHashStrategy INSTANCE = new DecoyHashStrategy();
 
     @Override
@@ -287,7 +290,9 @@ public class CaseInsensitiveMapBenchmark {
   }
 
   static final Object[] CHA_DEFEAT = {
-    CaseInsensitiveKeyStrategy.INSTANCE, DecoyMatchStrategy.INSTANCE, DecoyHashStrategy.INSTANCE
+      CaseInsensitiveKeyStrategy.INSTANCE,
+      DecoyMatchStrategy.INSTANCE,
+      DecoyHashStrategy.INSTANCE
   };
 
   static CIEntry[] _create_flat(float loadFactor) {
@@ -299,7 +304,10 @@ public class CaseInsensitiveMapBenchmark {
         String key = prefix + "-" + suffix;
         long hash = CaseInsensitiveKeyStrategy.INSTANCE.hashKey(key);
         FlatHashtable.insert(
-            table, new CIEntry(key, hash, suffix), CaseInsensitiveKeyStrategy.INSTANCE);
+            table,
+            new CIEntry(key, hash, suffix),
+            CaseInsensitiveKeyStrategy.INSTANCE
+        );
       }
     }
     // Mirror the HashMap/TreeMap builds' second loop (UPPER_PREFIXES, suffixes 0 and 2): 8
@@ -311,8 +319,7 @@ public class CaseInsensitiveMapBenchmark {
       for (String prefix : UPPER_PREFIXES) {
         String key = prefix + "-" + suffix;
         CIEntry entry =
-            FlatHashtable.tryGetOrCreate(
-                table, key, CaseInsensitiveKeyStrategy.INSTANCE, CI_CREATE);
+            FlatHashtable.tryGetOrCreate(table, key, CaseInsensitiveKeyStrategy.INSTANCE, CI_CREATE);
         entry.value = suffix + 1;
       }
     }
@@ -339,6 +346,5 @@ public class CaseInsensitiveMapBenchmark {
     // hash-fold-dominated) CI lookup, or is it a wash? — see the delta to lookup_flatHashtable.
     return FlatHashtable.get(FLAT_TABLE_LOW, nextLookupKey(), CaseInsensitiveKeyStrategy.INSTANCE);
   }
-
   // TODO: Add ConcurrentSkipListMap & synchronized HashMap & TreeMap
 }

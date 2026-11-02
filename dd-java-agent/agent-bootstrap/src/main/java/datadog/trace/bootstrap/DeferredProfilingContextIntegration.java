@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import datadog.context.Context;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
@@ -29,23 +28,19 @@ import org.slf4j.LoggerFactory;
 final class DeferredProfilingContextIntegration implements ProfilingContextIntegration {
   private static final Logger log =
       LoggerFactory.getLogger(DeferredProfilingContextIntegration.class);
-
   /**
    * Delay before the deferred construction runs, giving {@code main} a chance to install its own
    * {@code java.nio.file.spi.DefaultFileSystemProvider} first; not user-tunable since losing the
    * first second of context exposure is not observable.
    */
   private static final long INITIALIZATION_DELAY_MILLIS = 1_000;
-
   private final String name;
   private final Callable<ProfilingContextIntegration> factory;
-
   /**
    * Swapped to the real integration once construction succeeds; volatile since scopes may already
    * be running when the swap happens.
    */
   private volatile ProfilingContextIntegration delegate = ProfilingContextIntegration.NoOp.INSTANCE;
-
   /**
    * Callbacks queued via {@link #whenAvailable(Runnable)} before the swap; guarded by {@code this}
    * together with the {@link #delegate} write so none is run twice or dropped.
@@ -58,7 +53,9 @@ final class DeferredProfilingContextIntegration implements ProfilingContextInteg
    * @param factory creates the real integration; invoked at most once, off the premain thread.
    */
   DeferredProfilingContextIntegration(
-      final String name, final Callable<ProfilingContextIntegration> factory) {
+      final String name,
+      final Callable<ProfilingContextIntegration> factory
+  ) {
     this.name = name;
     this.factory = factory;
   }

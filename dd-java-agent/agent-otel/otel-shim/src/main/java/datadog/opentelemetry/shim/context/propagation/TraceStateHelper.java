@@ -6,7 +6,9 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** This class helps to decode W3C tracestate header into a {@link TraceState} instance. */
+/**
+ * This class helps to decode W3C tracestate header into a {@link TraceState} instance.
+ */
 public final class TraceStateHelper {
   private static final int TRACESTATE_MAX_SIZE = 512;
   private static final char TRACESTATE_ENTRY_DELIMITER = ',';
@@ -15,7 +17,8 @@ public final class TraceStateHelper {
       Pattern.compile("[ \t]*,[ \t]*");
   private static final Logger LOGGER = LoggerFactory.getLogger(TraceStateHelper.class);
 
-  private TraceStateHelper() {}
+  private TraceStateHelper() {
+  }
 
   // Inspired from W3CTraceContextEncoding.decodeTraceState only available in API later versions.
   public static TraceState decodeHeader(String header) {
@@ -50,13 +53,12 @@ public final class TraceStateHelper {
       return "";
     }
     StringBuilder builder = new StringBuilder(TRACESTATE_MAX_SIZE);
-    traceState.forEach(
-        (key, value) -> {
-          if (builder.length() != 0) {
-            builder.append(TRACESTATE_ENTRY_DELIMITER);
-          }
-          builder.append(key).append(TRACESTATE_KEY_VALUE_DELIMITER).append(value);
-        });
+    traceState.forEach((key, value) -> {
+      if (builder.length() != 0) {
+        builder.append(TRACESTATE_ENTRY_DELIMITER);
+      }
+      builder.append(key).append(TRACESTATE_KEY_VALUE_DELIMITER).append(value);
+    });
     return builder.toString();
   }
 }

@@ -4,7 +4,6 @@ import jakarta.servlet.jsp.JspWriter;
 import java.io.IOException;
 
 public class TestJspWriterSuite {
-
   JspWriter writer;
 
   public TestJspWriterSuite(final JspWriter writer) {

@@ -3,7 +3,6 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.core.propagation.PropagationTags;
 import java.util.Locale;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -47,14 +46,12 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @Fork(value = 1)
 public class KnuthSamplingRateFormatBenchmark {
-
   /**
    * Representative sampling rates. Most real-world rates are in [0.001, 1.0]. The 0.0001 value
    * exercises the edge of the fixed-notation range.
    */
   @Param({"0.5", "0.1", "0.01", "0.001", "0.0001", "0.123456789", "0.999999"})
   double rate;
-
   PropagationTags.Factory factory;
   PTagsFactory.PTags ptags;
 
@@ -65,13 +62,17 @@ public class KnuthSamplingRateFormatBenchmark {
     ptags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, rate, false, 1L, false);
   }
 
-  /** Baseline: old implementation using String.format + substring trimming. */
+  /**
+   * Baseline: old implementation using String.format + substring trimming.
+   */
   @Benchmark
   public void stringFormat(Blackhole bh) {
     bh.consume(stringFormatImpl(rate));
   }
 
-  /** Custom formatter: char-array arithmetic, no Formatter allocation. */
+  /**
+   * Custom formatter: char-array arithmetic, no Formatter allocation.
+   */
   @Benchmark
   public void customFormat(Blackhole bh) {
     bh.consume(PTagsFactory.PTags.formatKnuthSamplingRate(rate));
@@ -86,20 +87,24 @@ public class KnuthSamplingRateFormatBenchmark {
     bh.consume(ptags.getKnuthSamplingRateTagValue());
   }
 
-  /** Models a fresh trace's probability decision, including its propagation tags allocation. */
+  /**
+   * Models a fresh trace's probability decision, including its propagation tags allocation.
+   */
   @Benchmark
   public void probabilityDecisionFreshTrace(Blackhole bh) {
     PTagsFactory.PTags freshTags = (PTagsFactory.PTags) factory.empty();
-    freshTags.tryUpdateProbabilitySamplingDecision(
-        SAMPLER_DROP, AGENT_RATE, rate, false, 1L, false);
+    freshTags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, rate, false, 1L, false);
     bh.consume(freshTags.getKnuthSamplingRateTagValue());
   }
 
   // ---- old implementation for comparison (%.6f with trailing zero removal) ----
-
   static String stringFormatImpl(double rate) {
-    if (rate <= 0.0) return "0";
-    if (rate >= 1.0) return "1";
+    if (rate <= 0.0) {
+      return "0";
+    }
+    if (rate >= 1.0) {
+      return "1";
+    }
     String formatted = String.format(Locale.ROOT, "%.6f", rate);
     int dotIndex = formatted.indexOf('.');
     if (dotIndex >= 0) {

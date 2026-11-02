@@ -9,7 +9,6 @@ public enum OtelInstrumentType {
   OBSERVABLE_UP_DOWN_COUNTER(true),
   OBSERVABLE_GAUGE(true),
   GAUGE(false);
-
   private final boolean observable;
 
   OtelInstrumentType(boolean observable) {

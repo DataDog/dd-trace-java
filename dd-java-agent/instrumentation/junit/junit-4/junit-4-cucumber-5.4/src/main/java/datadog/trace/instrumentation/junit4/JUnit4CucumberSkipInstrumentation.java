@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.junit4;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -26,8 +25,9 @@ import org.junit.runner.notification.RunNotifier;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public JUnit4CucumberSkipInstrumentation() {
     super("ci-visibility", "junit-4", "junit-4-cucumber");
   }
@@ -36,7 +36,7 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
   public boolean isEnabled() {
     return super.isEnabled()
         && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
+        || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override
@@ -52,11 +52,11 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CucumberUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
+        packageName + ".CucumberUtils",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".SkippedByDatadog",
+        packageName + ".JUnit4Utils",
+        packageName + ".TracingListener"
     };
   }
 
@@ -69,7 +69,8 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4CucumberSkipInstrumentation.class.getName() + "$CucumberSkipAdvice");
+        JUnit4CucumberSkipInstrumentation.class.getName() + "$CucumberSkipAdvice"
+    );
   }
 
   public static class CucumberSkipAdvice {
@@ -79,13 +80,13 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
     public static Boolean run(
         @Advice.FieldValue("pickle") Pickle pickle,
         @Advice.FieldValue("description") Description description,
-        @Advice.Argument(0) RunNotifier notifier) {
-
+        @Advice.Argument(0) RunNotifier notifier
+    ) {
       TestIdentifier test = CucumberUtils.toTestIdentifier(description);
       SkipReason skipReason =
           TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.CUCUMBER)
-              .skipReason(test);
+        .get(TestFrameworkInstrumentation.CUCUMBER)
+        .skipReason(test);
       if (skipReason == null) {
         return null;
       }
@@ -100,7 +101,8 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
       }
 
       notifier.fireTestAssumptionFailed(
-          new Failure(description, new AssumptionViolatedException(skipReason.getDescription())));
+          new Failure(description, new AssumptionViolatedException(skipReason.getDescription()))
+      );
       return Boolean.FALSE;
     }
   }

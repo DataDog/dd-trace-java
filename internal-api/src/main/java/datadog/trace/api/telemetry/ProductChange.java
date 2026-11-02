@@ -1,7 +1,6 @@
 package datadog.trace.api.telemetry;
 
 public class ProductChange {
-
   private ProductType productType;
   private boolean enabled;
 
@@ -27,7 +26,6 @@ public class ProductChange {
     APPSEC("appsec"),
     PROFILER("profiler"),
     DYNAMIC_INSTRUMENTATION("dynamic_instrumentation");
-
     private final String name;
 
     ProductType(String name) {

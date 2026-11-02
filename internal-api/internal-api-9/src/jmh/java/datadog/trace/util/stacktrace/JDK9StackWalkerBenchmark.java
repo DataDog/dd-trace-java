@@ -1,7 +1,6 @@
 package datadog.trace.util.stacktrace;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import external.util.stacktrace.RecursiveRunner;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,14 +27,10 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @State(Scope.Benchmark)
 public class JDK9StackWalkerBenchmark {
-
   private JDK9StackWalker jdk9StackWalker;
-
   private DefaultStackWalker defaultStackWalker;
-
   @Param({"1", "3", "10"})
   int limit;
-
   @Param({"10", "50", "100"})
   int deep;
 
@@ -60,18 +55,16 @@ public class JDK9StackWalkerBenchmark {
   }
 
   private void generateStack(final StackWalker stackWalker) {
+    Runnable runnable = new Runnable() {
+      @Override
+      public void run() {
+        stackWalker.walk(this::toLimitedList);
+      }
 
-    Runnable runnable =
-        new Runnable() {
-          @Override
-          public void run() {
-            stackWalker.walk(this::toLimitedList);
-          }
-
-          private List<StackTraceElement> toLimitedList(final Stream<StackTraceElement> stack) {
-            return stack.limit(limit).collect(Collectors.toList());
-          }
-        };
+      private List<StackTraceElement> toLimitedList(final Stream<StackTraceElement> stack) {
+        return stack.limit(limit).collect(Collectors.toList());
+      }
+    };
 
     RecursiveRunner runner = new RecursiveRunner(deep, runnable);
     runner.run();

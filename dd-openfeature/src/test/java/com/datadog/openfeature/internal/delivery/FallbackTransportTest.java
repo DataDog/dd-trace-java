@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import com.datadog.openfeature.internal.bridge.v1.EventProxyUnavailableException;
 import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import java.io.IOException;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.Test;
 
 class FallbackTransportTest {
   private static final byte[] PAYLOAD = "{}".getBytes(UTF_8);
-
   private final EventTransport proxy = mock(EventTransport.class);
   private final EventTransport direct = mock(EventTransport.class);
   private final FallbackTransport transport = new FallbackTransport(this.proxy, this.direct);
@@ -31,8 +29,8 @@ class FallbackTransportTest {
   @Test
   void switchesToDirectIntakeForGoodWhenTheProxyIsUnavailable() throws IOException {
     doThrow(new EventProxyUnavailableException("unavailable"))
-        .when(this.proxy)
-        .post("exposures", PAYLOAD);
+      .when(this.proxy)
+      .post("exposures", PAYLOAD);
 
     this.transport.post("exposures", PAYLOAD);
     this.transport.post("exposures", PAYLOAD);

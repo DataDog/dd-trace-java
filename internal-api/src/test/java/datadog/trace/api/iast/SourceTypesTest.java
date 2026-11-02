@@ -1,12 +1,10 @@
 package datadog.trace.api.iast;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class SourceTypesTest {
-
   @TableTest({
     "scenario                    | input                       | output                          ",
     "NONE                        | NONE                        |                                 ",
@@ -45,7 +43,8 @@ class SourceTypesTest {
   })
   void namedSources(
       @ConvertWith(IastConstantConverter.class) byte input,
-      @ConvertWith(IastConstantConverter.class) byte output) {
+      @ConvertWith(IastConstantConverter.class) byte output
+  ) {
     byte result = SourceTypes.namedSource(input);
 
     assertEquals(output, result);

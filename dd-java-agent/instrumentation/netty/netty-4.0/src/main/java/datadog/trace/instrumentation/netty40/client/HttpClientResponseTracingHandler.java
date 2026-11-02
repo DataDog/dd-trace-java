@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -27,7 +26,6 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
@@ -42,7 +40,6 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
         span.finish();
       }
     }
-
     // We want the callback in the scope of the parent, not the client span
     try (final ContextScope scope = activateSpan(parent)) {
       ctx.fireChannelRead(msg);
@@ -56,7 +53,6 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
@@ -84,7 +80,6 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));

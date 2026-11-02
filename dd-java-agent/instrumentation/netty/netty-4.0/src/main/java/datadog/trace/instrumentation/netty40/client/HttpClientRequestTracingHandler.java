@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.NETTY_CLIENT;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.netty40.client.NettyResponseInjectAdapter.SETTER;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -87,7 +86,6 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       if (socketAddress instanceof InetSocketAddress) {
         decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
       }
-
       // AWS calls are often signed, so we can't add headers without breaking the signature.
       if (!awsClientCall) {
         DECORATE.injectContext(Context.current(), request.headers(), SETTER);

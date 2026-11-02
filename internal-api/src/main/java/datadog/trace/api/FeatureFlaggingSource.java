@@ -1,13 +1,23 @@
 package datadog.trace.api;
 
-/** The Feature Flags configuration source. */
+/**
+ * The Feature Flags configuration source.
+ */
 public enum FeatureFlaggingSource {
-  /** No source is configured. */
+  /**
+   * No source is configured.
+   */
   UNSET,
-  /** The configured source is not supported. */
+  /**
+   * The configured source is not supported.
+   */
   INVALID,
-  /** The flag configuration is polled from the Datadog CDN. */
+  /**
+   * The flag configuration is polled from the Datadog CDN.
+   */
   AGENTLESS,
-  /** The flag configuration is received through Remote Configuration. */
+  /**
+   * The flag configuration is received through Remote Configuration.
+   */
   REMOTE_CONFIG
 }

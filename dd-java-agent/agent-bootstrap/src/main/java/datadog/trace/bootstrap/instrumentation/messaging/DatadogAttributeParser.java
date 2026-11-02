@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.messaging;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.ByteBuffer;
@@ -9,16 +8,18 @@ import java.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Parses trace context from an embedded '_datadog' message attribute. */
+/**
+ * Parses trace context from an embedded '_datadog' message attribute.
+ */
 public final class DatadogAttributeParser {
   private static final Logger log = LoggerFactory.getLogger(DatadogAttributeParser.class);
-
   private static final Base64.Decoder BASE_64 = Base64.getDecoder();
-
   private static final String TAGS_KEY = "x-datadog-tags";
   private static final String LLMOBS_TAG_PREFIX = "_dd.p.llmobs_";
 
-  /** Parses trace context properties from the given JSON and passes them to the classifier. */
+  /**
+   * Parses trace context properties from the given JSON and passes them to the classifier.
+   */
   public static void forEachProperty(AgentPropagation.KeyClassifier classifier, String json) {
     if (null == json) {
       return;
@@ -37,7 +38,9 @@ public final class DatadogAttributeParser {
     }
   }
 
-  /** Parses trace context properties from the given JSON and passes them to the classifier. */
+  /**
+   * Parses trace context properties from the given JSON and passes them to the classifier.
+   */
   public static void forEachProperty(AgentPropagation.KeyClassifier classifier, ByteBuffer json) {
     if (null == json) {
       return;
@@ -65,7 +68,9 @@ public final class DatadogAttributeParser {
    * the rest.
    */
   private static void acceptLlmObsPropagationTags(
-      AgentPropagation.KeyClassifier classifier, String json) {
+      AgentPropagation.KeyClassifier classifier,
+      String json
+  ) {
     String tags = jsonPropertyValue(json, TAGS_KEY);
     // Nothing to forward is the common case, and it costs a scan rather than a parse.
     if (null == tags || !tags.contains(LLMOBS_TAG_PREFIX)) {
@@ -94,7 +99,10 @@ public final class DatadogAttributeParser {
   }
 
   private static boolean acceptJsonProperty(
-      AgentPropagation.KeyClassifier classifier, String json, String key) {
+      AgentPropagation.KeyClassifier classifier,
+      String json,
+      String key
+  ) {
     String value = jsonPropertyValue(json, key);
     return null != value && classifier.accept(key, value);
   }

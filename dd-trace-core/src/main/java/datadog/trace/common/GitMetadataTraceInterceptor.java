@@ -10,7 +10,6 @@ import datadog.trace.core.DDSpan;
 import java.util.Collection;
 
 public class GitMetadataTraceInterceptor extends AbstractTraceInterceptor {
-
   public static final TraceInterceptor INSTANCE =
       new GitMetadataTraceInterceptor(Priority.GIT_METADATA);
 
@@ -19,8 +18,7 @@ public class GitMetadataTraceInterceptor extends AbstractTraceInterceptor {
   }
 
   @Override
-  public Collection<? extends MutableSpan> onTraceComplete(
-      Collection<? extends MutableSpan> trace) {
+  public Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
     if (trace.isEmpty()) {
       return trace;
     }

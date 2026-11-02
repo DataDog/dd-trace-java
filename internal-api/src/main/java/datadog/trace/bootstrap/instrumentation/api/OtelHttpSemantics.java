@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.util.IntStringUtils.REJECT_LEADING_PLUS;
 import static datadog.trace.util.IntStringUtils.parseNonNegativeInt;
-
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagStore;
@@ -14,19 +13,29 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/** Shared helpers for emitting OpenTelemetry HTTP semantic conventions. */
+/**
+ * Shared helpers for emitting OpenTelemetry HTTP semantic conventions.
+ */
 public final class OtelHttpSemantics {
   public static final String OTHER_METHOD = "_OTHER";
-
   // RFC 9110, PATCH (RFC 5789), and QUERY (HTTPbis draft). Method names are case-sensitive.
-  private static final Set<String> KNOWN_METHODS =
-      Collections.unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  "CONNECT", "DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "QUERY",
-                  "TRACE")));
+  private static final Set<String> KNOWN_METHODS = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          "CONNECT",
+          "DELETE",
+          "GET",
+          "HEAD",
+          "OPTIONS",
+          "PATCH",
+          "POST",
+          "PUT",
+          "QUERY",
+          "TRACE"
+      ))
+  );
 
-  private OtelHttpSemantics() {}
+  private OtelHttpSemantics() {
+  }
 
   public static void setRequestMethod(final AgentSpan span, final String method) {
     if (method != null && !KNOWN_METHODS.contains(method)) {
@@ -46,13 +55,17 @@ public final class OtelHttpSemantics {
     return KNOWN_METHODS.contains(methodName) ? methodName : "HTTP";
   }
 
-  /** Returns {@code http.url}, falling back to {@code url.path}, without rendering the value. */
+  /**
+   * Returns {@code http.url}, falling back to {@code url.path}, without rendering the value.
+   */
   public static Object urlOrPath(final Map<String, ?> tags) {
     Object url = tags.get(Tags.HTTP_URL);
     return url != null ? url : tags.get(KnownTags.URL_PATH_NAME);
   }
 
-  /** {@link #urlOrPath(Map)}, from a span's tags as stored. */
+  /**
+   * {@link #urlOrPath(Map)}, from a span's tags as stored.
+   */
   public static Object urlOrPath(final TagStore tags) {
     Object url = tags.load(KnownTags.HTTP_URL_ID);
     return url != null ? url : tags.load(KnownTags.URL_PATH_ID);
@@ -121,7 +134,9 @@ public final class OtelHttpSemantics {
     return first.isEmpty() ? null : first;
   }
 
-  /** Returns an explicit authority port, or -1 when absent or invalid. */
+  /**
+   * Returns an explicit authority port, or -1 when absent or invalid.
+   */
   public static int portFromHost(final String host) {
     if (host == null) {
       return -1;

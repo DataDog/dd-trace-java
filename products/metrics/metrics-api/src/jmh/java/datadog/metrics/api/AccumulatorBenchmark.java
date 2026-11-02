@@ -1,7 +1,6 @@
 package datadog.metrics.api;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -132,7 +131,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(5)
 public class AccumulatorBenchmark {
-
   enum Counter {
     HITS
   }
@@ -163,7 +161,6 @@ public class AccumulatorBenchmark {
   }
 
   private static final Counter8[] COUNTER8_VALUES = Counter8.values();
-
   private final LongAdder adder = new LongAdder();
   private final LongAdder deltaAdder = new LongAdder();
   private long deltaPrevious;
@@ -174,16 +171,15 @@ public class AccumulatorBenchmark {
   private final AtomicLongArray atomicLongArray8 = new AtomicLongArray(8);
   private final LongAdder[] longAdderGroup = {new LongAdder()};
   private final LongAdder[] longAdderGroup8 = {
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder()
+      new LongAdder(),
+      new LongAdder(),
+      new LongAdder(),
+      new LongAdder(),
+      new LongAdder(),
+      new LongAdder(),
+      new LongAdder(),
+      new LongAdder()
   };
-
   /**
    * Assigns each JMH worker thread a fixed {@code Counter8} index (round-robin over 8) the first
    * time it calls into any {@code *8_*} benchmark, and keeps returning that same index for the
@@ -191,7 +187,6 @@ public class AccumulatorBenchmark {
    * of every thread hammering one.
    */
   private final AtomicInteger threadIndexAssigner = new AtomicInteger();
-
   private final ThreadLocal<Integer> threadCounterIndex =
       ThreadLocal.withInitial(() -> threadIndexAssigner.getAndIncrement() % COUNTER8_VALUES.length);
 
@@ -288,13 +283,17 @@ public class AccumulatorBenchmark {
   @Benchmark
   @Threads(1)
   public void chmAtomicLongIncrement_lowContention() {
-    chm.computeIfAbsent("hits", k -> new AtomicLong()).incrementAndGet();
+    chm
+      .computeIfAbsent("hits", k -> new AtomicLong())
+      .incrementAndGet();
   }
 
   @Benchmark
   @Threads(Threads.MAX)
   public void chmAtomicLongIncrement_highContention() {
-    chm.computeIfAbsent("hits", k -> new AtomicLong()).incrementAndGet();
+    chm
+      .computeIfAbsent("hits", k -> new AtomicLong())
+      .incrementAndGet();
   }
 
   @Benchmark

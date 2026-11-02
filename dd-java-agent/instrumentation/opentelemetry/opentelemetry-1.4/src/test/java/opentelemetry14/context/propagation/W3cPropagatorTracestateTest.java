@@ -3,7 +3,6 @@ package opentelemetry14.context.propagation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import datadog.trace.test.junit.utils.config.WithConfig;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -22,16 +21,18 @@ class W3cPropagatorTracestateTest extends AbstractOpenTelemetry14Test {
   @ParameterizedTest
   @ValueSource(strings = {"foo=1,bar=2", "dd=s:0,foo=1,bar=2", "foo=1,dd=s:0,bar=2"})
   void testTracestatePropagation(String tracestate) {
-    TextMapPropagator propagator =
-        GlobalOpenTelemetry.get().getPropagators().getTextMapPropagator();
+    TextMapPropagator propagator = GlobalOpenTelemetry
+      .get()
+      .getPropagators()
+      .getTextMapPropagator();
     Map<String, String> headers = new HashMap<>();
     headers.put("traceparent", "00-11111111111111111111111111111111-2222222222222222-00");
     headers.put("tracestate", tracestate);
 
-    String[] members =
-        Arrays.stream(tracestate.split(","))
-            .filter(member -> !member.startsWith("dd="))
-            .toArray(String[]::new);
+    String[] members = Arrays
+      .stream(tracestate.split(","))
+      .filter(member -> !member.startsWith("dd="))
+      .toArray(String[]::new);
 
     Context context = propagator.extract(Context.root(), headers, TextMap.INSTANCE);
     assertNotEquals(Context.root(), context);
@@ -42,7 +43,6 @@ class W3cPropagatorTracestateTest extends AbstractOpenTelemetry14Test {
       propagator.inject(Context.current(), injectedHeaders, TextMap.INSTANCE);
     }
     localSpan.end();
-
     // Check tracestate was injected
     String injectedTracestate = injectedHeaders.get("tracestate");
     assertNotNull(injectedTracestate);

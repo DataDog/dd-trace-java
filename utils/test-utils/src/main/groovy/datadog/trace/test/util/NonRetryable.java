@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Tag;
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Tag("NonRetryable")
 public @interface NonRetryable {
-  /** Reason why the test is non-retryable (optional). */
+  /**
+   * Reason why the test is non-retryable (optional).
+   */
   String value() default "";
 }

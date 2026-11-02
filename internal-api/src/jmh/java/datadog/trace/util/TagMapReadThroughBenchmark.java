@@ -43,10 +43,8 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(3)
 @Threads(8)
 public class TagMapReadThroughBenchmark {
-
   @Param({"3", "7", "15"})
   int traceTagCount;
-
   private TagMap traceTags;
 
   @Setup(Level.Trial)
@@ -61,7 +59,8 @@ public class TagMapReadThroughBenchmark {
   @Benchmark
   public TagMap copyDown() {
     TagMap m = TagMap.create(16);
-    m.putAll(traceTags); // putAll-into-empty: shares frozen entries, clones BucketGroups
+    // putAll-into-empty: shares frozen entries, clones BucketGroups
+    m.putAll(traceTags);
     setSpanTags(m);
     return m;
   }

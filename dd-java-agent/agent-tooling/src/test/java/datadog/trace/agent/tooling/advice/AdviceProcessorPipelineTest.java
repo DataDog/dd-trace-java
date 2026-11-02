@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.tooling.HelperGenerationProcessor;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.CatchModule;
@@ -42,15 +41,16 @@ class AdviceProcessorPipelineTest {
     PipelineModule.instances = 0;
     ScanModule.adviceRegistrations = 0;
     CapturingProcessor additional = new CapturingProcessor();
-    AdviceScanningGradlePlugin plugin =
-        new AdviceScanningGradlePlugin(
-            temp.toFile(), asList(new MuzzleGenerationProcessor(), additional));
+    AdviceScanningGradlePlugin plugin = new AdviceScanningGradlePlugin(
+        temp.toFile(),
+        asList(new MuzzleGenerationProcessor(), additional)
+    );
     TypeDescription description = new TypeDescription.ForLoadedType(PipelineModule.class);
-    DynamicType.Builder<?> transformed =
-        plugin.apply(
-            new ByteBuddy().redefine(PipelineModule.class),
-            description,
-            ClassFileLocator.ForClassLoader.of(getClass().getClassLoader()));
+    DynamicType.Builder<?> transformed = plugin.apply(
+        new ByteBuddy().redefine(PipelineModule.class),
+        description,
+        ClassFileLocator.ForClassLoader.of(getClass().getClassLoader())
+    );
     String muzzleClassName = PipelineModule.class.getName() + "$Muzzle";
     Path muzzleClass = temp.resolve(muzzleClassName.replace('.', '/') + ".class");
 
@@ -59,23 +59,23 @@ class AdviceProcessorPipelineTest {
     assertNotNull(additional.scanResult);
     assertArrayEquals(
         new String[] {
-          AdviceScanningHelper.class.getName(),
-          Dependency.class.getName(),
-          AdviceScanningHelper.anonymousClass().getName(),
-          AdviceScanningHelper.localClass().getName()
+        AdviceScanningHelper.class.getName(),
+        Dependency.class.getName(),
+        AdviceScanningHelper.anonymousClass().getName(),
+        AdviceScanningHelper.localClass().getName()
         },
-        additional.helpers);
-    Class<?> generatedModule =
-        transformed
-            .make()
-            .load(getClass().getClassLoader(), ClassLoadingStrategy.Default.CHILD_FIRST)
-            .getLoaded();
+        additional.helpers
+    );
+    Class<?> generatedModule = transformed
+      .make()
+      .load(getClass().getClassLoader(), ClassLoadingStrategy.Default.CHILD_FIRST)
+      .getLoaded();
     assertArrayEquals(
         additional.helpers,
-        (String[])
-            generatedModule
-                .getMethod("helperClassNames")
-                .invoke(generatedModule.getConstructor().newInstance()));
+        (String[]) generatedModule
+          .getMethod("helperClassNames")
+          .invoke(generatedModule.getConstructor().newInstance())
+    );
     assertTrue(Files.isRegularFile(muzzleClass));
 
     Reference[] muzzle;
@@ -85,20 +85,22 @@ class AdviceProcessorPipelineTest {
           (ReferenceMatcher) loader.loadClass(muzzleClassName).getMethod("create").invoke(null);
       muzzle = matcher.getReferences();
     }
-    assertTrue(
-        Stream.of(muzzle)
-            .anyMatch(reference -> reference.className.equals("extra.AddedReference")));
-    assertTrue(
-        Stream.of(muzzle)
-            .noneMatch(
-                reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassReader")));
-    assertTrue(
-        Stream.of(muzzle)
-            .noneMatch(
-                reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassWriter")));
-    assertTrue(
-        Stream.of(muzzle)
-            .noneMatch(reference -> asList(additional.helpers).contains(reference.className)));
+    assertTrue(Stream
+      .of(muzzle)
+      .anyMatch(reference -> reference.className.equals("extra.AddedReference"))
+    );
+    assertTrue(Stream
+      .of(muzzle)
+      .noneMatch(reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassReader"))
+    );
+    assertTrue(Stream
+      .of(muzzle)
+      .noneMatch(reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassWriter"))
+    );
+    assertTrue(Stream
+      .of(muzzle)
+      .noneMatch(reference -> asList(additional.helpers).contains(reference.className))
+    );
   }
 
   @Test
@@ -117,29 +119,26 @@ class AdviceProcessorPipelineTest {
     }
 
     new MuzzleGenerationProcessor()
-        .process(scan, new AdviceProcessorContext(module, temp.toFile(), helpers));
+      .process(scan, new AdviceProcessorContext(module, temp.toFile(), helpers));
     try (URLClassLoader loader =
         new URLClassLoader(new URL[] {temp.toUri().toURL()}, getClass().getClassLoader())) {
-      ReferenceMatcher matcher =
-          (ReferenceMatcher)
-              loader
-                  .loadClass(HierarchyModule.class.getName() + "$Muzzle")
-                  .getMethod("create")
-                  .invoke(null);
-      assertTrue(
-          Stream.of(matcher.getReferences())
-              .filter(reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassReader"))
-              .flatMap(reference -> Stream.of(reference.methods))
-              .anyMatch(
-                  method -> method.name.equals("getAccess") && method.methodType.equals("()I")));
-      assertTrue(
-          Stream.of(matcher.getReferences())
-              .filter(reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassWriter"))
-              .flatMap(reference -> Stream.of(reference.methods))
-              .anyMatch(
-                  method ->
-                      method.name.equals("newUTF8")
-                          && method.methodType.equals("(Ljava/lang/String;)I")));
+      ReferenceMatcher matcher = (ReferenceMatcher) loader
+        .loadClass(HierarchyModule.class.getName() + "$Muzzle")
+        .getMethod("create")
+        .invoke(null);
+      assertTrue(Stream
+        .of(matcher.getReferences())
+        .filter(reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassReader"))
+        .flatMap(reference -> Stream.of(reference.methods))
+        .anyMatch(method -> method.name.equals("getAccess") && method.methodType.equals("()I"))
+      );
+      assertTrue(Stream
+        .of(matcher.getReferences())
+        .filter(reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassWriter"))
+        .flatMap(reference -> Stream.of(reference.methods))
+        .anyMatch(method -> method.name.equals("newUTF8")
+            && method.methodType.equals("(Ljava/lang/String;)I"))
+      );
     }
   }
 
@@ -151,9 +150,9 @@ class AdviceProcessorPipelineTest {
 
     for (Class<?> muzzleHelper :
         new Class<?>[] {
-          AdviceScanningHelper.MuzzleHelper.class,
-          AdviceScanningHelper.MuzzleReferenceProvider.class
-        }) {
+        AdviceScanningHelper.MuzzleHelper.class,
+        AdviceScanningHelper.MuzzleReferenceProvider.class
+    }) {
       assertTrue(scan.getClassInfo(muzzleHelper.getName()).isScanned());
       assertTrue(scan.getClassInfo(muzzleHelper.getName()).isReachableFromAdvice());
       assertFalse(asList(helpers).contains(muzzleHelper.getName()));
@@ -164,15 +163,15 @@ class AdviceProcessorPipelineTest {
   @Test
   void generatesCatchOnlyHelpersThatLoadInIsolation(@TempDir Path temp) throws Exception {
     ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(getClass().getClassLoader());
-    Class<?> generatedModule =
-        new AdviceScanningGradlePlugin(temp.toFile())
-            .apply(
-                new ByteBuddy().redefine(CatchModule.class),
-                new TypeDescription.ForLoadedType(CatchModule.class),
-                locator)
-            .make()
-            .load(getClass().getClassLoader(), ClassLoadingStrategy.Default.CHILD_FIRST)
-            .getLoaded();
+    Class<?> generatedModule = new AdviceScanningGradlePlugin(temp.toFile())
+      .apply(
+          new ByteBuddy().redefine(CatchModule.class),
+          new TypeDescription.ForLoadedType(CatchModule.class),
+          locator
+      )
+      .make()
+      .load(getClass().getClassLoader(), ClassLoadingStrategy.Default.CHILD_FIRST)
+      .getLoaded();
     String[] helpers =
         ((InstrumenterModule) generatedModule.getConstructor().newInstance()).helperClassNames();
     Map<String, byte[]> helperClasses = new LinkedHashMap<>();
@@ -215,9 +214,9 @@ class AdviceProcessorPipelineTest {
 
     for (Class<?> unused :
         new Class<?>[] {
-          AdviceScanningHelper.DiagnosticPrinter.class,
-          AdviceScanningHelper.DiagnosticDependency.class
-        }) {
+        AdviceScanningHelper.DiagnosticPrinter.class,
+        AdviceScanningHelper.DiagnosticDependency.class
+    }) {
       assertTrue(scan.getClassInfo(unused.getName()).isScanned());
       assertFalse(scan.getClassInfo(unused.getName()).isReachableFromAdvice());
       assertFalse(asList(helpers).contains(unused.getName()));

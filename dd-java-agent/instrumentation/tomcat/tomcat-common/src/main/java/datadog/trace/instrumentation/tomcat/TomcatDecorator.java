@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.tomcat;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.api.Config;
@@ -20,9 +19,9 @@ import org.apache.catalina.connector.Response;
 import org.apache.tomcat.util.http.MimeHeaders;
 
 public class TomcatDecorator
-    extends HttpServerDecorator<Request, Request, Response, org.apache.coyote.Request> {
+    extends HttpServerDecorator<Request, Request, Response, org.apache.coyote.Request>
+{
   public static final CharSequence TOMCAT_SERVER = UTF8BytesString.create("tomcat-server");
-
   public static final TomcatDecorator DECORATE = new TomcatDecorator();
   public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
@@ -56,13 +55,25 @@ public class TomcatDecorator
       return;
     }
     tagSecurityTestingHeader(
-        span, headers, "x-datadog-endpoint-scan", HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN);
+        span,
+        headers,
+        "x-datadog-endpoint-scan",
+        HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN
+    );
     tagSecurityTestingHeader(
-        span, headers, "x-datadog-security-test", HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST);
+        span,
+        headers,
+        "x-datadog-security-test",
+        HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST
+    );
   }
 
   private static void tagSecurityTestingHeader(
-      AgentSpan span, MimeHeaders headers, String name, String tag) {
+      AgentSpan span,
+      MimeHeaders headers,
+      String name,
+      String tag
+  ) {
     // Match names without decoding unrelated headers; retain the first non-null value.
     for (int i = headers.findHeader(name, 0); i >= 0; i = headers.findHeader(name, i + 1)) {
       String value = ExtractAdapter.messageBytesToString(headers.getValue(i));
@@ -130,7 +141,8 @@ public class TomcatDecorator
       final AgentSpan span,
       final Request connection,
       final Request request,
-      final Context parentContext) {
+      final Context parentContext
+  ) {
     if (request != null) {
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();
@@ -142,7 +154,6 @@ public class TomcatDecorator
       if (null != servletPath && !servletPath.isEmpty()) {
         span.setTag("servlet.path", servletPath);
       }
-
       // Used by AsyncContextInstrumentation because the context path may be reset
       // by the time the async context is dispatched.
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
@@ -175,7 +186,9 @@ public class TomcatDecorator
 
   @Override
   protected BlockResponseFunction createBlockResponseFunction(
-      final Request request, Request connection) {
+      final Request request,
+      Request connection
+  ) {
     return new TomcatBlockResponseFunction(request);
   }
 
@@ -193,7 +206,8 @@ public class TomcatDecorator
         int statusCode,
         BlockingContentType bct,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       // A single request can trigger multiple blocking evaluations (e.g. one per multipart
       // part / body-parsing pass). Once a block has already been committed successfully, the
       // response being committed on a later call is expected, not a failure - treat later
@@ -202,15 +216,15 @@ public class TomcatDecorator
       if (blockingResponseInitiated) {
         return true;
       }
-      boolean committed =
-          TomcatBlockingHelper.commitBlockingResponse(
-              segment,
-              request,
-              request.getResponse(),
-              statusCode,
-              bct,
-              extraHeaders,
-              securityResponseId);
+      boolean committed = TomcatBlockingHelper.commitBlockingResponse(
+          segment,
+          request,
+          request.getResponse(),
+          statusCode,
+          bct,
+          extraHeaders,
+          securityResponseId
+      );
       if (committed) {
         blockingResponseInitiated = true;
       }

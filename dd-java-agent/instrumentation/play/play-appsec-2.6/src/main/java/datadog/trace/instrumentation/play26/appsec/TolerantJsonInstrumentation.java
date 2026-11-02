@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.util.ByteString;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.auto.service.AutoService;
@@ -23,7 +22,9 @@ import play.mvc.Http;
  */
 @AutoService(InstrumenterModule.class)
 public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public TolerantJsonInstrumentation() {
     super("play");
   }
@@ -47,11 +48,12 @@ public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parse")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
-            .and(takesArgument(1, named("akka.util.ByteString")))
-            .and(returns(named("com.fasterxml.jackson.databind.JsonNode"))),
-        TolerantJsonInstrumentation.class.getName() + "$ParseAdvice");
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
+          .and(takesArgument(1, named("akka.util.ByteString")))
+          .and(returns(named("com.fasterxml.jackson.databind.JsonNode"))),
+        TolerantJsonInstrumentation.class.getName() + "$ParseAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)

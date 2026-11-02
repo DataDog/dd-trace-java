@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.squareup.okhttp.Interceptor;
 import com.squareup.okhttp.Request;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -22,9 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class AppSecInterceptorTest {
-
   private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
-
   private Interceptor.Chain chain;
   private Request request;
   private final AppSecInterceptor interceptor = new AppSecInterceptor();
@@ -43,7 +40,7 @@ class AppSecInterceptorTest {
     final AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
     when(tracer.activeSpan()).thenReturn(span);
     when(tracer.getCallbackProvider(any(RequestContextSlot.class)))
-        .thenReturn(CallbackProvider.CallbackProviderNoop.INSTANCE);
+      .thenReturn(CallbackProvider.CallbackProviderNoop.INSTANCE);
     AgentTracer.forceRegister(tracer);
 
     chain = mock(Interceptor.Chain.class);

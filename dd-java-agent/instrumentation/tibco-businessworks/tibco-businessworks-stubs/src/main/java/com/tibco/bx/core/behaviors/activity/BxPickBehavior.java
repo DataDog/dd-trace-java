@@ -1,3 +1,4 @@
 package com.tibco.bx.core.behaviors.activity;
 
-public class BxPickBehavior {}
+public class BxPickBehavior {
+}

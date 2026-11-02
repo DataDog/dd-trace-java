@@ -5,14 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class HandleNoSuchMethodTest {
-
-  /** What a call site writes: {@code apply} delegating to {@code handleNoSuchMethod}. */
+  /**
+   * What a call site writes: {@code apply} delegating to {@code handleNoSuchMethod}.
+   */
   private static final class Throwing extends ClassLatch<Object, String, Exception> {
     final AtomicInteger calls = new AtomicInteger();
     final Throwable failure;
@@ -23,15 +23,13 @@ class HandleNoSuchMethodTest {
 
     @Override
     protected String apply(Object target) throws Exception {
-      return handleNoSuchMethod(
-          target,
-          t -> {
-            calls.incrementAndGet();
-            if (failure instanceof Exception) {
-              throw (Exception) failure;
-            }
-            throw (Error) failure;
-          });
+      return handleNoSuchMethod(target, t -> {
+        calls.incrementAndGet();
+        if (failure instanceof Exception) {
+          throw (Exception) failure;
+        }
+        throw (Error) failure;
+      });
     }
   }
 
@@ -39,11 +37,11 @@ class HandleNoSuchMethodTest {
   void returnsTheResultAndLatchesNothing() throws Exception {
     ClassLatch<Object, String, RuntimeException> latch =
         new ClassLatch<Object, String, RuntimeException>() {
-          @Override
-          protected String apply(Object target) {
-            return handleNoSuchMethod(target, t -> "ok");
-          }
-        };
+      @Override
+      protected String apply(Object target) {
+        return handleNoSuchMethod(target, t -> "ok");
+      }
+    };
 
     assertEquals("ok", latch.tryApply("x"));
     assertFalse(latch.isLatched("x"));
@@ -54,21 +52,19 @@ class HandleNoSuchMethodTest {
     AtomicInteger calls = new AtomicInteger();
     ClassLatch<Object, String, RuntimeException> latch =
         new ClassLatch<Object, String, RuntimeException>() {
-          @Override
-          protected String apply(Object target) {
-            return handleNoSuchMethod(
-                target,
-                t -> {
-                  calls.incrementAndGet();
-                  throw new NoSuchMethodError();
-                });
-          }
+      @Override
+      protected String apply(Object target) {
+        return handleNoSuchMethod(target, t -> {
+          calls.incrementAndGet();
+          throw new NoSuchMethodError();
+        });
+      }
 
-          @Override
-          protected String fallback(Object target) {
-            return "fallback";
-          }
-        };
+      @Override
+      protected String fallback(Object target) {
+        return "fallback";
+      }
+    };
 
     assertEquals("fallback", latch.tryApply("x"));
     assertEquals("fallback", latch.tryApply("x"));

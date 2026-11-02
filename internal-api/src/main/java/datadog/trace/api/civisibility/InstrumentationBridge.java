@@ -9,14 +9,14 @@ import datadog.trace.bootstrap.ContextStore;
 import java.util.Collection;
 
 public abstract class InstrumentationBridge {
-
   private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
   private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
   private static volatile CiVisibilityMetricCollector METRIC_COLLECTOR =
       NoOpMetricCollector.INSTANCE;
 
   public static void registerTestEventsHandlerFactory(
-      TestEventsHandler.Factory testEventsHandlerFactory) {
+      TestEventsHandler.Factory testEventsHandlerFactory
+  ) {
     TEST_EVENTS_HANDLER_FACTORY = testEventsHandlerFactory;
   }
 
@@ -24,12 +24,14 @@ public abstract class InstrumentationBridge {
       String component,
       ContextStore<SuiteKey, DDTestSuite> suiteStore,
       ContextStore<TestKey, DDTest> testStore,
-      Collection<LibraryCapability> capabilities) {
+      Collection<LibraryCapability> capabilities
+  ) {
     return TEST_EVENTS_HANDLER_FACTORY.create(component, suiteStore, testStore, capabilities);
   }
 
   public static void registerBuildEventsHandlerFactory(
-      BuildEventsHandler.Factory buildEventsHandlerFactory) {
+      BuildEventsHandler.Factory buildEventsHandlerFactory
+  ) {
     BUILD_EVENTS_HANDLER_FACTORY = buildEventsHandlerFactory;
   }
 

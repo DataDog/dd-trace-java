@@ -6,7 +6,6 @@ import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.che
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedSet;
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.evaluateTargetCollection;
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
@@ -28,7 +27,9 @@ import java.util.Set;
  */
 public final class HasAnyExpression extends MatchingExpression {
   public HasAnyExpression(
-      ValueExpression<?> valueExpression, BooleanExpression filterPredicateExpression) {
+      ValueExpression<?> valueExpression,
+      BooleanExpression filterPredicateExpression
+  ) {
     super(valueExpression, filterPredicateExpression);
   }
 
@@ -47,14 +48,15 @@ public final class HasAnyExpression extends MatchingExpression {
         int len = collection.count();
         for (int i = 0; i < len; i++) {
           valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(collection.get(i)));
+              ValueReferences.ITERATOR_EXTENSION_NAME,
+              CapturedValue.of(collection.get(i))
+          );
           if (filterPredicateExpression.evaluate(evalContext)) {
             return Boolean.TRUE;
           }
           checkTimeout(evalContext.getTimeoutChecker(), this);
         }
         return Boolean.FALSE;
-
       } catch (IllegalArgumentException | UnsupportedOperationException ex) {
         throw new EvaluationException(ex.getMessage(), print(this));
       } finally {
@@ -71,11 +73,11 @@ public final class HasAnyExpression extends MatchingExpression {
         for (Value<?> key : map.getKeys()) {
           Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
           valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, CapturedValue.of(key));
-          valueRefResolver.addExtension(
-              ValueReferences.VALUE_EXTENSION_NAME, CapturedValue.of(val));
+          valueRefResolver.addExtension(ValueReferences.VALUE_EXTENSION_NAME, CapturedValue.of(val));
           valueRefResolver.addExtension(
               ValueReferences.ITERATOR_EXTENSION_NAME,
-              CapturedValue.of(new MapValue.Entry(key, val)));
+              CapturedValue.of(new MapValue.Entry(key, val))
+          );
           if (filterPredicateExpression.evaluate(evalContext)) {
             return Boolean.TRUE;
           }
@@ -99,7 +101,9 @@ public final class HasAnyExpression extends MatchingExpression {
         }
         for (Object val : setHolder) {
           valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(val));
+              ValueReferences.ITERATOR_EXTENSION_NAME,
+              CapturedValue.of(val)
+          );
           if (filterPredicateExpression.evaluate(evalContext)) {
             return Boolean.TRUE;
           }
@@ -113,7 +117,9 @@ public final class HasAnyExpression extends MatchingExpression {
       }
     }
     throw new EvaluationException(
-        "Unsupported collection class: " + value.getValue().getClass().getTypeName(), print(this));
+        "Unsupported collection class: " + value.getValue().getClass().getTypeName(),
+        print(this)
+    );
   }
 
   @Override

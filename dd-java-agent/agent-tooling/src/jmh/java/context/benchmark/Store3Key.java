@@ -1,3 +1,4 @@
 package context.benchmark;
 
-public interface Store3Key extends ContextStoreBenchmarkKey {}
+public interface Store3Key extends ContextStoreBenchmarkKey {
+}

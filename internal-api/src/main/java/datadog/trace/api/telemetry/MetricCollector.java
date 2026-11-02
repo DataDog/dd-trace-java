@@ -3,7 +3,6 @@ package datadog.trace.api.telemetry;
 import static datadog.trace.api.telemetry.MetricCollector.Metric;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-
 import datadog.trace.util.HashingUtils;
 import java.util.Arrays;
 import java.util.Collection;
@@ -12,7 +11,6 @@ import java.util.List;
 import java.util.Objects;
 
 public interface MetricCollector<M extends Metric> {
-
   int RAW_QUEUE_SIZE = 1024;
 
   // TODO All implementations are based on queueing metrics and never care when the queue is full.
@@ -41,14 +39,16 @@ public interface MetricCollector<M extends Metric> {
         String metricName,
         String type,
         Number value,
-        final String tag) {
+        final String tag
+    ) {
       this(
           namespace,
           common,
           metricName,
           type,
           value,
-          tag == null ? emptyList() : singletonList(tag));
+          tag == null ? emptyList() : singletonList(tag)
+      );
     }
 
     public Metric(
@@ -57,7 +57,8 @@ public interface MetricCollector<M extends Metric> {
         String metricName,
         String type,
         Number value,
-        final String... tags) {
+        final String... tags
+    ) {
       this(namespace, common, metricName, type, value, Arrays.asList(tags));
     }
 
@@ -67,7 +68,8 @@ public interface MetricCollector<M extends Metric> {
         String metricName,
         String type,
         Number value,
-        final List<String> tags) {
+        final List<String> tags
+    ) {
       this.namespace = namespace;
       this.common = common;
       this.metricName = metricName;
@@ -79,8 +81,12 @@ public interface MetricCollector<M extends Metric> {
 
     @Override
     public boolean equals(final Object o) {
-      if (this == o) return true;
-      if (!(o instanceof Metric)) return false;
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof Metric)) {
+        return false;
+      }
       Metric metric = (Metric) o;
       return common == metric.common
           && Objects.equals(metricName, metric.metricName)
@@ -125,7 +131,12 @@ public interface MetricCollector<M extends Metric> {
     public final List<String> tags;
 
     public DistributionSeriesPoint(
-        String metricName, boolean common, String namespace, int value, List<String> tags) {
+        String metricName,
+        boolean common,
+        String namespace,
+        int value,
+        List<String> tags
+    ) {
       this.metricName = metricName;
       this.common = common;
       this.namespace = namespace;
@@ -135,8 +146,12 @@ public interface MetricCollector<M extends Metric> {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       DistributionSeriesPoint that = (DistributionSeriesPoint) o;
       return common == that.common
           && Objects.equals(metricName, that.metricName)

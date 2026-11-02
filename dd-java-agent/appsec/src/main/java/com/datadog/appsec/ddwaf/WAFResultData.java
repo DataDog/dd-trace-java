@@ -24,7 +24,8 @@ public class WAFResultData {
     String operator_value;
     List<Parameter> parameters;
 
-    RuleMatch() {}
+    RuleMatch() {
+    }
 
     public RuleMatch(String operator, String operator_value, List<Parameter> parameters) {
       this.operator = operator;
@@ -34,11 +35,13 @@ public class WAFResultData {
   }
 
   public static class Rule {
-    public String id; // expose for log message
+    // expose for log message
+    public String id;
     String name;
     Map<String, String> tags;
 
-    Rule() {}
+    Rule() {
+    }
 
     public Rule(String id, String name, Map<String, String> tags) {
       this.id = id;
@@ -53,7 +56,8 @@ public class WAFResultData {
     MatchInfo db_type;
     List<String> highlight;
 
-    Parameter() {}
+    Parameter() {
+    }
 
     public Parameter(String address, List<Object> key_path, String value, List<String> highlight) {
       super(address, key_path, value);
@@ -66,7 +70,8 @@ public class WAFResultData {
     List<Object> key_path;
     String value;
 
-    MatchInfo() {}
+    MatchInfo() {
+    }
 
     public MatchInfo(String address, List<Object> key_path, String value) {
       this.address = address;

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.DECORATE;
-
 import akka.http.javadsl.model.headers.RawHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;

@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.api.KnownTags;
 import datadog.trace.common.writer.ListWriter;
 import org.junit.jupiter.api.AfterEach;

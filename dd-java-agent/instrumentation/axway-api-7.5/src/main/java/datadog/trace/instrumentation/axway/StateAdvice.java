@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.AXWAY_TRY_TRANSACTION;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -31,7 +30,9 @@ public class StateAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(
-      @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+      @Advice.Enter final ContextScope scope,
+      @Advice.Thrown final Throwable throwable
+  ) {
     if (scope == null) {
       return;
     }

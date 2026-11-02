@@ -3,7 +3,6 @@ package foo.bar;
 import org.apache.velocity.tools.generic.EscapeTool;
 
 public class TestEscapeToolSuite {
-
   public static EscapeTool escapeTool = new EscapeTool();
 
   public static String html(String input) {

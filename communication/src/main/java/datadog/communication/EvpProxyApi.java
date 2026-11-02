@@ -14,11 +14,11 @@ import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** API that uses DD Agent as a proxy to post request to backend. */
+/**
+ * API that uses DD Agent as a proxy to post request to backend.
+ */
 public class EvpProxyApi implements BackendApi {
-
   private static final Logger log = LoggerFactory.getLogger(EvpProxyApi.class);
-
   private static final String API_VERSION = "v2";
   private static final String X_DATADOG_TRACE_ID_HEADER = "x-datadog-trace-id";
   private static final String X_DATADOG_PARENT_ID_HEADER = "x-datadog-parent-id";
@@ -26,7 +26,6 @@ public class EvpProxyApi implements BackendApi {
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
   private static final String GZIP_ENCODING = "gzip";
   private static final String IDENTITY_ENCODING = "identity";
-
   private final String traceId;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
   private final HttpUrl evpProxyUrl;
@@ -40,7 +39,8 @@ public class EvpProxyApi implements BackendApi {
       String subdomain,
       HttpRetryPolicy.Factory retryPolicyFactory,
       OkHttpClient httpClient,
-      boolean responseCompression) {
+      boolean responseCompression
+  ) {
     this.traceId = traceId;
     this.evpProxyUrl = evpProxyUrl.resolve("api/" + API_VERSION + "/");
     this.subdomain = subdomain;
@@ -55,16 +55,15 @@ public class EvpProxyApi implements BackendApi {
       RequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
       @Nullable OkHttpUtils.CustomListener requestListener,
-      boolean requestCompression)
-      throws IOException {
+      boolean requestCompression
+  ) throws IOException {
     final HttpUrl url = evpProxyUrl.resolve(uri);
 
-    Request.Builder requestBuilder =
-        new Request.Builder()
-            .url(url)
-            .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
-            .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
-            .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
+    Request.Builder requestBuilder = new Request.Builder()
+      .url(url)
+      .addHeader(EvpProxy.SUBDOMAIN_HEADER, subdomain)
+      .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
+      .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 
     if (requestListener != null) {
       requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);
@@ -73,7 +72,6 @@ public class EvpProxyApi implements BackendApi {
     if (requestCompression) {
       requestBuilder.addHeader(CONTENT_ENCODING_HEADER, GZIP_ENCODING);
     }
-
     // OkHttp's BridgeInterceptor adds a transparent Accept-Encoding: gzip when the caller does not
     // set one. Set the header explicitly on both paths so responseCompression=false actually
     // suppresses gzip negotiation on the wire.
@@ -88,7 +86,8 @@ public class EvpProxyApi implements BackendApi {
         "Posting EVP request to {} with responseCompression={} requestCompression={}",
         url,
         responseCompression,
-        requestCompression);
+        requestCompression
+    );
 
     try (okhttp3.Response response =
         OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
@@ -108,13 +107,14 @@ public class EvpProxyApi implements BackendApi {
         throw new HttpResponseException(
             response.code(),
             "Request to "
-                + uri
-                + " returned error response "
-                + response.code()
-                + ": "
-                + response.message()
-                + "; "
-                + (response.body() != null ? response.body().string() : ""));
+            + uri
+            + " returned error response "
+            + response.code()
+            + ": "
+            + response.message()
+            + "; "
+            + (response.body() != null ? response.body().string() : "")
+        );
       }
     }
   }

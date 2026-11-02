@@ -23,13 +23,12 @@ public class UsmExtractorImpl implements UsmExtractor {
     if (message.validate()) {
       BaseUsmMessage bm = (BaseUsmMessage) message;
 
-      log.debug(
-          " sending ioctl: {}", String.format("%08x", UsmMessageImpl.USM_IOCTL_ID.intValue()));
-      NativeLong res =
-          CLibrary.Instance.ioctl(
-              new NativeLong(0),
-              UsmMessageImpl.USM_IOCTL_ID,
-              Pointer.nativeValue(bm.getBufferPtr()));
+      log.debug(" sending ioctl: {}", String.format("%08x", UsmMessageImpl.USM_IOCTL_ID.intValue()));
+      NativeLong res = CLibrary.Instance.ioctl(
+          new NativeLong(0),
+          UsmMessageImpl.USM_IOCTL_ID,
+          Pointer.nativeValue(bm.getBufferPtr())
+      );
       log.debug("ioctl result: {}", String.format("%08x", res.intValue()));
     } else {
       log.debug("INVALID MESSAGE: {}", message.getClass());

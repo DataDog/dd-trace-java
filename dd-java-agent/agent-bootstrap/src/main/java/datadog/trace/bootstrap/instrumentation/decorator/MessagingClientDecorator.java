@@ -6,15 +6,13 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public abstract class MessagingClientDecorator extends ClientDecorator {
-
   protected final boolean endToEndDurationsEnabled;
 
   protected MessagingClientDecorator() {
     final Config config = Config.get();
     final String[] instrumentationNames = instrumentationNames();
-    this.endToEndDurationsEnabled =
-        instrumentationNames.length > 0
-            && config.isEndToEndDurationEnabled(endToEndDurationsDefault(), instrumentationNames);
+    this.endToEndDurationsEnabled = instrumentationNames.length > 0
+        && config.isEndToEndDurationEnabled(endToEndDurationsDefault(), instrumentationNames);
   }
 
   protected boolean endToEndDurationsDefault() {

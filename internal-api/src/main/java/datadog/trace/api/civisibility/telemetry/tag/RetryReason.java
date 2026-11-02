@@ -6,7 +6,6 @@ public enum RetryReason implements TagValue {
   atr("Auto Test Retries", "auto_test_retry"),
   efd("Early Flakiness Detection", "early_flake_detection"),
   attemptToFix("Attempt to Fix", "attempt_to_fix");
-
   private final String value;
   private final String description;
 

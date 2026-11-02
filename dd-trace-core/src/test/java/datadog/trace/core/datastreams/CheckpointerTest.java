@@ -3,7 +3,6 @@ package datadog.trace.core.datastreams;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
@@ -33,7 +32,6 @@ public class CheckpointerTest extends DDCoreJavaSpecification {
     // Start and activate a span
     AgentSpan span = tracer.buildSpan("test", "dsm-checkpoint").start();
     ContextScope scope = tracer.activateSpan(span);
-
     // Trigger produce checkpoint
     checkpointer.setProduceCheckpoint("kafka", "testTopic", carrier);
     checkpointer.setConsumeCheckpoint("kafka", "testTopic", carrier);
@@ -42,8 +40,10 @@ public class CheckpointerTest extends DDCoreJavaSpecification {
     span.finish();
 
     boolean hasPathwayCtxBase64 =
-        carrier.entries().stream()
-            .anyMatch(entry -> "dd-pathway-ctx-base64".equals(entry.getKey()));
+        carrier
+      .entries()
+      .stream()
+      .anyMatch(entry -> "dd-pathway-ctx-base64".equals(entry.getKey()));
     assertTrue(hasPathwayCtxBase64);
     assertNotEquals(0L, ((DDSpan) span).spanContext().getPathwayContext().getHash());
   }

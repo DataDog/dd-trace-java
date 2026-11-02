@@ -35,15 +35,13 @@ import java.util.concurrent.TimeUnit;
 final class TunnelingJdkSocket extends Socket {
   private final UnixDomainSocketAddress unixSocketAddress;
   private final SocketChannel unixSocketChannel;
-
   private volatile InetSocketAddress inetSocketAddress;
-  @VisibleForTesting Selector selector;
-
+  @VisibleForTesting
+  Selector selector;
   private volatile int timeout;
   private volatile boolean shutIn;
   private volatile boolean shutOut;
   private volatile boolean closed;
-
   static final int DEFAULT_BUFFER_SIZE = 8192;
   // Indicate that the buffer size is not set by initializing to -1
   private volatile int sendBufferSize = -1;

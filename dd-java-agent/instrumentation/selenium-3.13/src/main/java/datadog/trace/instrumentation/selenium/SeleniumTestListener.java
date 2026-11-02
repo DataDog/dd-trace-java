@@ -6,7 +6,6 @@ import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.WebDriver;
 
 public class SeleniumTestListener implements InstrumentationTestBridge.TestListener {
-
   public static final InstrumentationTestBridge.TestListener INSTANCE = new SeleniumTestListener();
 
   @Override

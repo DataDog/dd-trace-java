@@ -1,13 +1,11 @@
 package com.datadog.debugger.symbol;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class SymbolExtractorTest {
-
   @Test
   void ranges() {
     List<Scope.LineRange> ranges =

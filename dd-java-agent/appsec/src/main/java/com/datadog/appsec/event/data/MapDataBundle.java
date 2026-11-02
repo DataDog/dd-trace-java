@@ -29,7 +29,13 @@ public class MapDataBundle implements DataBundle {
   }
 
   public static <T, U, V> MapDataBundle of(
-      Address<T> addr1, T value1, Address<U> addr2, U value2, Address<V> addr3, V value3) {
+      Address<T> addr1,
+      T value1,
+      Address<U> addr2,
+      U value2,
+      Address<V> addr3,
+      V value3
+  ) {
     Map<Address<?>, Object> map = new IdentityHashMap<>(8);
     map.put(addr1, value1);
     map.put(addr2, value2);
@@ -63,9 +69,7 @@ public class MapDataBundle implements DataBundle {
   }
 
   public static class Builder {
-
     private final Map<Address<?>, Object> map;
-
     public static final int CAPACITY_0_2 = 4;
     public static final int CAPACITY_3_4 = 8;
     public static final int CAPACITY_6_10 = 16;
@@ -80,9 +84,15 @@ public class MapDataBundle implements DataBundle {
     }
 
     public <A extends Address<?>, V> Builder add(A address, V value) {
-      if (address == null || value == null) return this;
-      if (value instanceof Collection && ((Collection<?>) value).isEmpty()) return this;
-      if (value instanceof Map && ((Map<?, ?>) value).isEmpty()) return this;
+      if (address == null || value == null) {
+        return this;
+      }
+      if (value instanceof Collection && ((Collection<?>) value).isEmpty()) {
+        return this;
+      }
+      if (value instanceof Map && ((Map<?, ?>) value).isEmpty()) {
+        return this;
+      }
 
       map.put(address, value);
       return this;

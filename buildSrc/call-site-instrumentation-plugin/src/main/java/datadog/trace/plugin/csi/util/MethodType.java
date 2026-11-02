@@ -1,23 +1,26 @@
 package datadog.trace.plugin.csi.util;
 
 import static datadog.trace.plugin.csi.util.CallSiteConstants.CONSTRUCTOR_METHOD;
-
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.objectweb.asm.Type;
 
-/** Description of a method including its declaring type, name and descriptor. */
+/**
+ * Description of a method including its declaring type, name and descriptor.
+ */
 public class MethodType {
-
   private final Type owner;
   private final String methodName;
   private final Type methodType;
   private final boolean constructor;
 
   public MethodType(
-      @Nonnull final Type owner, @Nonnull final String methodName, @Nonnull final Type methodType) {
+      @Nonnull final Type owner,
+      @Nonnull final String methodName,
+      @Nonnull final Type methodType
+  ) {
     if (owner.getSort() == Type.METHOD) {
       throw new IllegalArgumentException("Owner should not be a method " + owner);
     }
@@ -76,8 +79,10 @@ public class MethodType {
         methodType.getReturnType().getClassName(),
         owner.getClassName(),
         methodName,
-        Arrays.stream(methodType.getArgumentTypes())
-            .map(Type::getClassName)
-            .collect(Collectors.joining(", ")));
+        Arrays
+          .stream(methodType.getArgumentTypes())
+          .map(Type::getClassName)
+          .collect(Collectors.joining(", "))
+    );
   }
 }

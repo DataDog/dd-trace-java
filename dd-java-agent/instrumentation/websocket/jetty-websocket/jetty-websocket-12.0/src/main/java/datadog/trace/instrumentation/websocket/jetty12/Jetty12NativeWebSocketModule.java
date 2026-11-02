@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.websocket.jetty12;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,7 +23,9 @@ public class Jetty12NativeWebSocketModule extends InstrumenterModule.Tracing {
   @Override
   public List<Instrumenter> typeInstrumentations() {
     return asList(
-        new Jetty12NativeFrameHandlerInstrumentation(), new Jetty12NativeSessionInstrumentation());
+        new Jetty12NativeFrameHandlerInstrumentation(),
+        new Jetty12NativeSessionInstrumentation()
+    );
   }
 
   @Override
@@ -35,13 +36,13 @@ public class Jetty12NativeWebSocketModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".NativeMethodHandleWrappers",
-      packageName + ".NativeMethodHandleWrappers$ReceiveContexts",
-      packageName + ".NativeMethodHandleWrappers$BinaryMessage",
-      packageName + ".NativeMethodHandleWrappers$ReceiveCallback",
-      packageName + ".NativeSendContext",
-      packageName + ".NativeSendContext$Message",
-      packageName + ".NativeSendContext$SendCallback"
+        packageName + ".NativeMethodHandleWrappers",
+        packageName + ".NativeMethodHandleWrappers$ReceiveContexts",
+        packageName + ".NativeMethodHandleWrappers$BinaryMessage",
+        packageName + ".NativeMethodHandleWrappers$ReceiveCallback",
+        packageName + ".NativeSendContext",
+        packageName + ".NativeSendContext$Message",
+        packageName + ".NativeSendContext$SendCallback"
     };
   }
 
@@ -50,9 +51,12 @@ public class Jetty12NativeWebSocketModule extends InstrumenterModule.Tracing {
     Map<String, String> stores = new HashMap<>();
     stores.put(
         "org.eclipse.jetty.websocket.core.CoreSession",
-        packageName + ".NativeMethodHandleWrappers$ReceiveContexts");
+        packageName + ".NativeMethodHandleWrappers$ReceiveContexts"
+    );
     stores.put(
-        "org.eclipse.jetty.websocket.common.WebSocketSession", packageName + ".NativeSendContext");
+        "org.eclipse.jetty.websocket.common.WebSocketSession",
+        packageName + ".NativeSendContext"
+    );
     return stores;
   }
 }

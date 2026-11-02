@@ -11,7 +11,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
 import static java.lang.reflect.Proxy.newProxyInstance;
 import static java.util.Collections.emptyList;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanTypes;
@@ -40,7 +39,6 @@ import reactor.core.publisher.Mono;
  * database spans when queries are executed through R2DBC's reactive connection API.
  */
 class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
-
   static final Pattern H2_QUERY = Pattern.compile("h2\\.query");
 
   /**
@@ -74,16 +72,14 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   public void setUp() {
     connectionFactory = ConnectionFactories.get("r2dbc:h2:mem:///testdb;DB_CLOSE_DELAY=-1");
     connection = Mono.from(connectionFactory.create()).block();
-
     // Create a test table
-    Mono.from(
-            connection
-                .createStatement(
-                    "CREATE TABLE IF NOT EXISTS test_table (id INT, name VARCHAR(255))")
-                .execute())
-        .flatMapMany(result -> result.getRowsUpdated())
-        .blockLast();
-
+    Mono
+      .from(connection
+        .createStatement("CREATE TABLE IF NOT EXISTS test_table (id INT, name VARCHAR(255))")
+        .execute()
+      )
+      .flatMapMany(result -> result.getRowsUpdated())
+      .blockLast();
     // Clear any traces from setup
     tracer.flush();
     writer.clear();
@@ -92,9 +88,10 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   @AfterEach
   public void tearDown() {
     if (connection != null) {
-      Mono.from(connection.createStatement("DROP TABLE IF EXISTS test_table").execute())
-          .flatMapMany(result -> result.getRowsUpdated())
-          .blockLast();
+      Mono
+        .from(connection.createStatement("DROP TABLE IF EXISTS test_table").execute())
+        .flatMapMany(result -> result.getRowsUpdated())
+        .blockLast();
       Mono.from(connection.close()).block();
     }
   }
@@ -103,10 +100,11 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   void selectQueryCreatesSpan() {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
-      Flux.from(connection.createStatement("SELECT * FROM test_table").execute())
-          .flatMap(result -> result.map((row, metadata) -> row.get(0)))
-          .collectList()
-          .block();
+      Flux
+        .from(connection.createStatement("SELECT * FROM test_table").execute())
+        .flatMap(result -> result.map((row, metadata) -> row.get(0)))
+        .collectList()
+        .block();
     } finally {
       parent.finish();
     }
@@ -116,31 +114,35 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
             span()
-                .childOfPrevious()
-                .operationName(H2_QUERY)
-                .resourceName(eqs("SELECT * FROM test_table"))
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_OPERATION, eqs("SELECT")),
-                    tag(Tags.DB_INSTANCE, any()),
-                    tag("_dd.svc_src", any()),
-                    defaultTags())));
+              .childOfPrevious()
+              .operationName(H2_QUERY)
+              .resourceName(eqs("SELECT * FROM test_table"))
+              .type(DDSpanTypes.SQL)
+              .measured()
+              .tags(
+                  tag(Tags.COMPONENT, eqs("r2dbc")),
+                  tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                  tag(Tags.DB_TYPE, eqs("h2")),
+                  tag(Tags.DB_OPERATION, eqs("SELECT")),
+                  tag(Tags.DB_INSTANCE, any()),
+                  tag("_dd.svc_src", any()),
+                  defaultTags()
+              )
+        )
+    );
   }
 
   @Test
   void insertQueryCreatesSpan() {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
-      Mono.from(
-              connection
-                  .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'test')")
-                  .execute())
-          .flatMapMany(Result::getRowsUpdated)
-          .blockLast();
+      Mono
+        .from(connection
+          .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'test')")
+          .execute()
+        )
+        .flatMapMany(Result::getRowsUpdated)
+        .blockLast();
     } finally {
       parent.finish();
     }
@@ -150,19 +152,22 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
             span()
-                .childOfPrevious()
-                .operationName(H2_QUERY)
-                .resourceName(eqs("INSERT INTO test_table (id, name) VALUES (?, ?)"))
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_OPERATION, eqs("INSERT")),
-                    tag(Tags.DB_INSTANCE, any()),
-                    tag("_dd.svc_src", any()),
-                    defaultTags())));
+              .childOfPrevious()
+              .operationName(H2_QUERY)
+              .resourceName(eqs("INSERT INTO test_table (id, name) VALUES (?, ?)"))
+              .type(DDSpanTypes.SQL)
+              .measured()
+              .tags(
+                  tag(Tags.COMPONENT, eqs("r2dbc")),
+                  tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                  tag(Tags.DB_TYPE, eqs("h2")),
+                  tag(Tags.DB_OPERATION, eqs("INSERT")),
+                  tag(Tags.DB_INSTANCE, any()),
+                  tag("_dd.svc_src", any()),
+                  defaultTags()
+              )
+        )
+    );
   }
 
   @Test
@@ -187,25 +192,27 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   void batchResourceListsDistinctStatementTemplates() {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
-      Flux.from(
-              connection
-                  .createBatch()
-                  .add("INSERT INTO test_table (id, name) VALUES (1, 'a')")
-                  .add("INSERT INTO test_table (id, name) VALUES (2, 'b')")
-                  .add("UPDATE test_table SET name = 'c' WHERE id = 1")
-                  .add("DELETE FROM test_table WHERE id = 2")
-                  .execute())
-          .flatMap(Result::getRowsUpdated)
-          .blockLast();
+      Flux
+        .from(connection
+          .createBatch()
+          .add("INSERT INTO test_table (id, name) VALUES (1, 'a')")
+          .add("INSERT INTO test_table (id, name) VALUES (2, 'b')")
+          .add("UPDATE test_table SET name = 'c' WHERE id = 1")
+          .add("DELETE FROM test_table WHERE id = 2")
+          .execute()
+        )
+        .flatMap(Result::getRowsUpdated)
+        .blockLast();
     } finally {
       parent.finish();
     }
 
     assertBatchSpan(
         "INSERT INTO test_table (id, name) VALUES (?, ?); "
-            + "UPDATE test_table SET name = ? WHERE id = ?; "
-            + "DELETE FROM test_table WHERE id = ?",
-        "INSERT");
+        + "UPDATE test_table SET name = ? WHERE id = ?; "
+        + "DELETE FROM test_table WHERE id = ?",
+        "INSERT"
+    );
   }
 
   private void assertBatchSpan(String resource, String operation) {
@@ -214,36 +221,41 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
             span()
-                .childOfPrevious()
-                .operationName(H2_QUERY)
-                .resourceName(eqs(resource))
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_OPERATION, eqs(operation)),
-                    tag(Tags.DB_INSTANCE, any()),
-                    tag("_dd.svc_src", any()),
-                    defaultTags())));
+              .childOfPrevious()
+              .operationName(H2_QUERY)
+              .resourceName(eqs(resource))
+              .type(DDSpanTypes.SQL)
+              .measured()
+              .tags(
+                  tag(Tags.COMPONENT, eqs("r2dbc")),
+                  tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                  tag(Tags.DB_TYPE, eqs("h2")),
+                  tag(Tags.DB_OPERATION, eqs(operation)),
+                  tag(Tags.DB_INSTANCE, any()),
+                  tag("_dd.svc_src", any()),
+                  defaultTags()
+              )
+        )
+    );
   }
 
   @Test
   void multipleQueriesCreateMultipleSpans() {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
-      Mono.from(
-              connection
-                  .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'first')")
-                  .execute())
-          .flatMapMany(Result::getRowsUpdated)
-          .blockLast();
+      Mono
+        .from(connection
+          .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'first')")
+          .execute()
+        )
+        .flatMapMany(Result::getRowsUpdated)
+        .blockLast();
 
-      Flux.from(connection.createStatement("SELECT * FROM test_table").execute())
-          .flatMap(result -> result.map((row, metadata) -> row.get(0)))
-          .collectList()
-          .block();
+      Flux
+        .from(connection.createStatement("SELECT * FROM test_table").execute())
+        .flatMap(result -> result.map((row, metadata) -> row.get(0)))
+        .collectList()
+        .block();
     } finally {
       parent.finish();
     }
@@ -253,33 +265,37 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
             span()
-                .childOfPrevious()
-                .operationName(H2_QUERY)
-                .resourceName(eqs("INSERT INTO test_table (id, name) VALUES (?, ?)"))
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_OPERATION, eqs("INSERT")),
-                    tag(Tags.DB_INSTANCE, any()),
-                    tag("_dd.svc_src", any()),
-                    defaultTags()),
+              .childOfPrevious()
+              .operationName(H2_QUERY)
+              .resourceName(eqs("INSERT INTO test_table (id, name) VALUES (?, ?)"))
+              .type(DDSpanTypes.SQL)
+              .measured()
+              .tags(
+                  tag(Tags.COMPONENT, eqs("r2dbc")),
+                  tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                  tag(Tags.DB_TYPE, eqs("h2")),
+                  tag(Tags.DB_OPERATION, eqs("INSERT")),
+                  tag(Tags.DB_INSTANCE, any()),
+                  tag("_dd.svc_src", any()),
+                  defaultTags()
+              ),
             span()
-                .childOfIndex(0)
-                .operationName(H2_QUERY)
-                .resourceName(eqs("SELECT * FROM test_table"))
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_OPERATION, eqs("SELECT")),
-                    tag(Tags.DB_INSTANCE, any()),
-                    tag("_dd.svc_src", any()),
-                    defaultTags())));
+              .childOfIndex(0)
+              .operationName(H2_QUERY)
+              .resourceName(eqs("SELECT * FROM test_table"))
+              .type(DDSpanTypes.SQL)
+              .measured()
+              .tags(
+                  tag(Tags.COMPONENT, eqs("r2dbc")),
+                  tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                  tag(Tags.DB_TYPE, eqs("h2")),
+                  tag(Tags.DB_OPERATION, eqs("SELECT")),
+                  tag(Tags.DB_INSTANCE, any()),
+                  tag("_dd.svc_src", any()),
+                  defaultTags()
+              )
+        )
+    );
   }
 
   @Test
@@ -287,10 +303,11 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
       try {
-        Flux.from(connection.createStatement("SELECT * FROM nonexistent_table").execute())
-            .flatMap(result -> result.map((row, metadata) -> row.get(0)))
-            .collectList()
-            .block();
+        Flux
+          .from(connection.createStatement("SELECT * FROM nonexistent_table").execute())
+          .flatMap(result -> result.map((row, metadata) -> row.get(0)))
+          .collectList()
+          .block();
       } catch (Exception ignored) {
         // Expected to fail
       }
@@ -303,28 +320,30 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
             span()
-                .childOfPrevious()
-                .operationName(H2_QUERY)
-                .resourceName(eqs("SELECT * FROM nonexistent_table"))
-                .type(DDSpanTypes.SQL)
-                .error()
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_OPERATION, eqs("SELECT")),
-                    tag(Tags.DB_INSTANCE, any()),
-                    tag("_dd.svc_src", any()),
-                    tag(DDTags.ERROR_MSG, any()),
-                    error(Exception.class),
-                    defaultTags())));
+              .childOfPrevious()
+              .operationName(H2_QUERY)
+              .resourceName(eqs("SELECT * FROM nonexistent_table"))
+              .type(DDSpanTypes.SQL)
+              .error()
+              .measured()
+              .tags(
+                  tag(Tags.COMPONENT, eqs("r2dbc")),
+                  tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                  tag(Tags.DB_TYPE, eqs("h2")),
+                  tag(Tags.DB_OPERATION, eqs("SELECT")),
+                  tag(Tags.DB_INSTANCE, any()),
+                  tag("_dd.svc_src", any()),
+                  tag(DDTags.ERROR_MSG, any()),
+                  error(Exception.class),
+                  defaultTags()
+              )
+        )
+    );
   }
 
   @Test
   void cancelledQueryStillFinishesSpan() {
     insertRowsOutsideTestTrace();
-
     // Now cancel a query mid-stream using take(1)
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
@@ -332,7 +351,6 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
     } finally {
       parent.finish();
     }
-
     // The key assertion: even though the reactive stream was cancelled via take(1),
     // the span must still finish — no leaked, never-finished spans.
     assertCancelledSelectSpan();
@@ -369,7 +387,6 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   @Test
   void queryCancelledByMonoFromStillFinishesSpan() {
     insertRowsOutsideTestTrace();
-
     // Mono.from takes the first element and cancels upstream — the shape behind Spring's
     // DatabaseClient ... .first()
     AgentSpan parent = startSpan("test", "parent");
@@ -389,12 +406,13 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   private void insertRowsOutsideTestTrace() {
     AgentSpan setupParent = startSpan("test", "setup");
     try (ContextScope setupScope = activateSpan(setupParent)) {
-      Mono.from(
-              connection
-                  .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'a'), (2, 'b')")
-                  .execute())
-          .flatMapMany(Result::getRowsUpdated)
-          .blockLast();
+      Mono
+        .from(connection
+          .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'a'), (2, 'b')")
+          .execute()
+        )
+        .flatMapMany(Result::getRowsUpdated)
+        .blockLast();
     } finally {
       setupParent.finish();
     }
@@ -403,8 +421,9 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   }
 
   private Flux<Object> selectRows() {
-    return Flux.from(connection.createStatement("SELECT * FROM test_table").execute())
-        .flatMap(result -> result.map((row, metadata) -> row.get(0)));
+    return Flux
+      .from(connection.createStatement("SELECT * FROM test_table").execute())
+      .flatMap(result -> result.map((row, metadata) -> row.get(0)));
   }
 
   private void assertCancelledSelectSpan() {
@@ -413,90 +432,93 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
             span()
-                .childOfPrevious()
-                .operationName(H2_QUERY)
-                .resourceName(eqs("SELECT * FROM test_table"))
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_OPERATION, eqs("SELECT")),
-                    tag(Tags.DB_INSTANCE, any()),
-                    tag("_dd.svc_src", any()),
-                    defaultTags())));
+              .childOfPrevious()
+              .operationName(H2_QUERY)
+              .resourceName(eqs("SELECT * FROM test_table"))
+              .type(DDSpanTypes.SQL)
+              .measured()
+              .tags(
+                  tag(Tags.COMPONENT, eqs("r2dbc")),
+                  tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                  tag(Tags.DB_TYPE, eqs("h2")),
+                  tag(Tags.DB_OPERATION, eqs("SELECT")),
+                  tag(Tags.DB_INSTANCE, any()),
+                  tag("_dd.svc_src", any()),
+                  defaultTags()
+              )
+        )
+    );
   }
 
   @Test
   void queryWithNoActiveTraceDoesNotCreateOrphanSpans() {
     // Execute a query without any active trace context
-    Flux.from(connection.createStatement("SELECT * FROM test_table").execute())
-        .flatMap(result -> result.map((row, metadata) -> row.get(0)))
-        .collectList()
-        .block();
+    Flux
+      .from(connection.createStatement("SELECT * FROM test_table").execute())
+      .flatMap(result -> result.map((row, metadata) -> row.get(0)))
+      .collectList()
+      .block();
 
     tracer.flush();
-
     // The listener should still create a span (it wraps the query regardless),
     // but it should be a root span rather than an orphan child.
     blockUntilTracesMatch(traces -> traces.size() >= 1);
     assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName(H2_QUERY)
-                .resourceName(eqs("SELECT * FROM test_table"))
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_OPERATION, eqs("SELECT")),
-                    tag(Tags.DB_INSTANCE, any()),
-                    tag("_dd.svc_src", any()),
-                    defaultTags())));
+        trace(span()
+          .root()
+          .operationName(H2_QUERY)
+          .resourceName(eqs("SELECT * FROM test_table"))
+          .type(DDSpanTypes.SQL)
+          .measured()
+          .tags(
+              tag(Tags.COMPONENT, eqs("r2dbc")),
+              tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+              tag(Tags.DB_TYPE, eqs("h2")),
+              tag(Tags.DB_OPERATION, eqs("SELECT")),
+              tag(Tags.DB_INSTANCE, any()),
+              tag("_dd.svc_src", any()),
+              defaultTags()
+          )
+        )
+    );
   }
 
   @Test
   void queryWithoutSqlUsesDefaultResourceName() {
     ValueStore valueStore = ValueStore.create();
-    QueryExecutionInfo executionInfo =
-        (QueryExecutionInfo)
-            newProxyInstance(
-                QueryExecutionInfo.class.getClassLoader(),
-                new Class<?>[] {QueryExecutionInfo.class},
-                (proxy, method, args) -> {
-                  if ("getQueries".equals(method.getName())) {
-                    return emptyList();
-                  }
-                  if ("getValueStore".equals(method.getName())) {
-                    return valueStore;
-                  }
-                  return null;
-                });
+    QueryExecutionInfo executionInfo = (QueryExecutionInfo) newProxyInstance(QueryExecutionInfo.class
+      .getClassLoader(), new Class<?>[] {QueryExecutionInfo.class}, (proxy, method, args) -> {
+      if ("getQueries".equals(method.getName())) {
+        return emptyList();
+      }
+      if ("getValueStore".equals(method.getName())) {
+        return valueStore;
+      }
+      return null;
+    });
 
-    TraceProxyExecutionListener listener =
-        new TraceProxyExecutionListener(
-            ConnectionFactoryOptions.parse("r2dbc:h2:mem:///testdb;DB_CLOSE_DELAY=-1"));
+    TraceProxyExecutionListener listener = new TraceProxyExecutionListener(ConnectionFactoryOptions.parse(
+        "r2dbc:h2:mem:///testdb;DB_CLOSE_DELAY=-1"
+    ));
     listener.beforeQuery(executionInfo);
     listener.afterQuery(executionInfo);
 
     assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName(H2_QUERY)
-                .resourceName(eqs("DB Query"))
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_INSTANCE, any()),
-                    tag("_dd.svc_src", any()),
-                    defaultTags())));
+        trace(span()
+          .root()
+          .operationName(H2_QUERY)
+          .resourceName(eqs("DB Query"))
+          .type(DDSpanTypes.SQL)
+          .measured()
+          .tags(
+              tag(Tags.COMPONENT, eqs("r2dbc")),
+              tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+              tag(Tags.DB_TYPE, eqs("h2")),
+              tag(Tags.DB_INSTANCE, any()),
+              tag("_dd.svc_src", any()),
+              defaultTags()
+          )
+        )
+    );
   }
 }

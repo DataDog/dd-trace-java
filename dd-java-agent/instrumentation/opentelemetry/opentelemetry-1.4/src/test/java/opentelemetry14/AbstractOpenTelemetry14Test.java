@@ -1,7 +1,6 @@
 package opentelemetry14;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import io.opentelemetry.api.GlobalOpenTelemetry;
@@ -23,13 +22,14 @@ import org.junit.jupiter.api.BeforeEach;
 @WithConfig(key = "integration.opentelemetry.experimental.enabled", value = "true")
 public abstract class AbstractOpenTelemetry14Test extends AbstractInstrumentationTest {
   private static int tracerInstance;
-
   protected Tracer otelTracer;
 
   @BeforeEach
   void setupOtelTracer() {
-    this.otelTracer =
-        GlobalOpenTelemetry.get().getTracerProvider().get("test-tracer-" + tracerInstance++);
+    this.otelTracer = GlobalOpenTelemetry
+      .get()
+      .getTracerProvider()
+      .get("test-tracer-" + tracerInstance++);
   }
 
   @AfterEach

@@ -7,11 +7,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Shares an Azure Durable orchestration invocation and its span across worker classloaders. */
+/**
+ * Shares an Azure Durable orchestration invocation and its span across worker classloaders.
+ */
 public final class DurableOrchestrationState {
   private static final ContextKey<DurableOrchestrationState> KEY =
       ContextKey.named("azure-durable-orchestration");
-
   private final AgentSpan parentSpan;
   private final String functionName;
   private final AtomicReference<AgentSpan> span = new AtomicReference<>();

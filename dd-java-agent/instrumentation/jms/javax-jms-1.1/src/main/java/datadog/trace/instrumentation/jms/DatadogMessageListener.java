@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
 import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -21,7 +20,6 @@ import javax.jms.Message;
 import javax.jms.MessageListener;
 
 public class DatadogMessageListener implements MessageListener {
-
   private final ContextStore<Message, SessionState> messageAckStore;
   private final MessageConsumerState consumerState;
   private final MessageListener messageListener;
@@ -29,7 +27,8 @@ public class DatadogMessageListener implements MessageListener {
   public DatadogMessageListener(
       ContextStore<Message, SessionState> messageAckStore,
       MessageConsumerState consumerState,
-      MessageListener messageListener) {
+      MessageListener messageListener
+  ) {
     this.messageAckStore = messageAckStore;
     this.consumerState = consumerState;
     this.messageListener = messageListener;
@@ -49,13 +48,18 @@ public class DatadogMessageListener implements MessageListener {
       long batchId = GETTER.extractMessageBatchId(message);
       AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
       if (null == timeInQueue) {
-        timeInQueue =
-            startSpan("jms", JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
+        timeInQueue = startSpan(
+            "jms",
+            JMS_DELIVER,
+            propagatedContext,
+            MILLISECONDS.toMicros(startMillis)
+        );
         BROKER_DECORATE.afterStart(timeInQueue);
         BROKER_DECORATE.onTimeInQueue(
             timeInQueue,
             consumerState.getBrokerResourceName(),
-            consumerState.getBrokerServiceName());
+            consumerState.getBrokerServiceName()
+        );
         consumerState.setTimeInQueueSpan(batchId, timeInQueue);
       }
       span = startSpan("jms", JMS_CONSUME, timeInQueue.spanContext());

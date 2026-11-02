@@ -5,7 +5,6 @@ import org.apache.pekko.http.scaladsl.model.Uri;
 import scala.Option;
 
 final class UriAdapter extends URIRawDataAdapter {
-
   private final Uri uri;
 
   UriAdapter(Uri uri) {

@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.rmi;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
@@ -13,9 +12,10 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** ContextPayload wraps context information shared between client and server */
+/**
+ * ContextPayload wraps context information shared between client and server
+ */
 public class ContextPayload {
-
   private static final Logger log = LoggerFactory.getLogger(ContextPayload.class);
   private static final int MAX_CONTEXT_SIZE = 1000;
   private final Map<String, String> context;

@@ -6,7 +6,9 @@ import java.time.Duration;
 import org.testcontainers.couchbase.CouchbaseContainer;
 import org.testcontainers.utility.DockerImageName;
 
-/** Retries the transient Couchbase node-renaming race during container initialization. */
+/**
+ * Retries the transient Couchbase node-renaming race during container initialization.
+ */
 public final class RetryingCouchbaseContainer extends CouchbaseContainer {
   private static final int MAX_RENAME_ATTEMPTS = 3;
   private static final Duration RETRY_DELAY = Duration.ofSeconds(1);
@@ -31,7 +33,9 @@ public final class RetryingCouchbaseContainer extends CouchbaseContainer {
         } catch (InterruptedException interrupted) {
           Thread.currentThread().interrupt();
           throw new IllegalStateException(
-              "Interrupted while retrying Couchbase node rename", interrupted);
+              "Interrupted while retrying Couchbase node rename",
+              interrupted
+          );
         }
       }
     }
@@ -43,9 +47,8 @@ public final class RetryingCouchbaseContainer extends CouchbaseContainer {
     for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
       transportFailed |= cause instanceof IOException;
       for (StackTraceElement frame : cause.getStackTrace()) {
-        renameFailed |=
-            frame.getClassName().equals(CouchbaseContainer.class.getName())
-                && frame.getMethodName().equals("renameNode");
+        renameFailed |= frame.getClassName().equals(CouchbaseContainer.class.getName())
+            && frame.getMethodName().equals("renameNode");
       }
     }
     return renameFailed && transportFailed;

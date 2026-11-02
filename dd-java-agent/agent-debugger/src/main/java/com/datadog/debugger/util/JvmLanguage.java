@@ -6,7 +6,6 @@ public enum JvmLanguage {
   SCALA,
   GROOVY,
   UNKNOWN;
-
   public static JvmLanguage of(String sourceFile) {
     if (sourceFile == null) {
       return UNKNOWN;

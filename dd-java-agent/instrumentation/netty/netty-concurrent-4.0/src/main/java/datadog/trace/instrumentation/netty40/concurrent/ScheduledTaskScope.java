@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.netty40.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
-
 import datadog.context.ContextScope;
 
-/** Keeps the task context active through run() completion listeners. */
+/**
+ * Keeps the task context active through run() completion listeners.
+ */
 public final class ScheduledTaskScope {
   public static final ThreadLocal<ScheduledTaskScope> CURRENT = new ThreadLocal<>();
-
   private ContextScope scope;
   // Track activations separately: resuming the same context can reuse the outer scope instance.
   private int depth;

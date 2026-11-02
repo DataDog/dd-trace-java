@@ -24,7 +24,8 @@ public class RewriteRequestContextAdvicePlugin extends Plugin.ForElementMatcher 
   public DynamicType.Builder<?> apply(
       final DynamicType.Builder<?> builder,
       final TypeDescription typeDescription,
-      final ClassFileLocator classFileLocator) {
+      final ClassFileLocator classFileLocator
+  ) {
     return builder.visit(new InjectRequestContextVisitorWrapper());
   }
 

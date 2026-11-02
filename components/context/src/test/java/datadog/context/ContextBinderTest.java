@@ -7,7 +7,6 @@ import static datadog.context.Context.root;
 import static datadog.context.ContextTest.STRING_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import org.junit.jupiter.api.Test;
 
 class ContextBinderTest extends ContextTestBase {
@@ -32,11 +31,13 @@ class ContextBinderTest extends ContextTestBase {
     assertThrows(
         NullPointerException.class,
         () -> assertEquals(root(), from(null), "Binder expected to return non-null context"),
-        "Null carrier expected to hold root context");
+        "Null carrier expected to hold root context"
+    );
     assertThrows(
         NullPointerException.class,
         () -> assertEquals(root(), detachFrom(null), "Binder expected to return non-null context"),
-        "Null carrier expected to hold root context");
+        "Null carrier expected to hold root context"
+    );
   }
 
   @Test
@@ -46,6 +47,7 @@ class ContextBinderTest extends ContextTestBase {
     assertThrows(
         NullPointerException.class,
         () -> binder.attachTo(carrier, null),
-        "Attaching null context not expected to throw");
+        "Attaching null context not expected to throw"
+    );
   }
 }

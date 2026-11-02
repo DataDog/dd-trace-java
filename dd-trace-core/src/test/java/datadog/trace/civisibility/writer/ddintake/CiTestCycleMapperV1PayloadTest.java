@@ -22,7 +22,6 @@ import static org.msgpack.core.MessageFormat.UINT16;
 import static org.msgpack.core.MessageFormat.UINT32;
 import static org.msgpack.core.MessageFormat.UINT64;
 import static org.msgpack.core.MessageFormat.UINT8;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.ChunkedStreamingBuffer;
@@ -53,7 +52,6 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.tabletest.junit.TableTest;
 
 public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
-
   @TableTest({
     "scenario                                   | bufferSize | traceCount | lowCardinality",
     "20k buffer, 0 traces, low cardinality      | 20480      | 0          | true          ",
@@ -79,7 +77,9 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
     writeAndVerify(bufferSize, traceCount, lowCardinality, false);
   }
 
-  /** Overflow must stop the mapper before it counts a trace, or the payload header is wrong. */
+  /**
+   * Overflow must stop the mapper before it counts a trace, or the payload header is wrong.
+   */
   @TableTest({
     "scenario                                   | bufferSize | traceCount | lowCardinality",
     "20k buffer, 1 trace, low cardinality       | 20480      | 1          | true          ",
@@ -90,34 +90,41 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
     "100k buffer, 1000 traces, high cardinality | 102400     | 1000       | false         "
   })
   void testTracesWrittenCorrectlyToChunkedBuffer(
-      int bufferSize, int traceCount, boolean lowCardinality) {
+      int bufferSize,
+      int traceCount,
+      boolean lowCardinality
+  ) {
     writeAndVerify(bufferSize, traceCount, lowCardinality, true);
   }
 
   private void writeAndVerify(
-      int bufferSize, int traceCount, boolean lowCardinality, boolean chunked) {
-    CiVisibilityWellKnownTags wellKnownTags =
-        new CiVisibilityWellKnownTags(
-            "runtimeid",
-            "my-env",
-            "language",
-            "my-runtime-name",
-            "my-runtime-version",
-            "my-runtime-vendor",
-            "my-os-arch",
-            "my-os-platform",
-            "my-os-version",
-            "false");
+      int bufferSize,
+      int traceCount,
+      boolean lowCardinality,
+      boolean chunked
+  ) {
+    CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
+        "runtimeid",
+        "my-env",
+        "language",
+        "my-runtime-name",
+        "my-runtime-version",
+        "my-runtime-vendor",
+        "my-os-arch",
+        "my-os-platform",
+        "my-os-version",
+        "false"
+    );
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false);
 
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality);
     PayloadVerifier verifier = new PayloadVerifier(wellKnownTags, traces, mapper);
 
-    MsgPackWriter packer =
-        new MsgPackWriter(
-            chunked
-                ? new ChunkedStreamingBuffer(bufferSize, ChunkJoiner.joining(verifier))
-                : new FlushingBuffer(bufferSize, verifier));
+    MsgPackWriter packer = new MsgPackWriter(
+        chunked
+        ? new ChunkedStreamingBuffer(bufferSize, ChunkJoiner.joining(verifier))
+        : new FlushingBuffer(bufferSize, verifier)
+    );
 
     boolean tracesFitInBuffer = true;
     for (List<TraceGenerator.PojoSpan> trace : traces) {
@@ -173,9 +180,13 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
     Map<String, Object> deserializedMeta = getMeta(spanContent);
 
     assertEquals(
-        longValue.substring(0, MAX_META_STRING_VALUE_LENGTH), deserializedMeta.get("custom.tag"));
+        longValue.substring(0, MAX_META_STRING_VALUE_LENGTH),
+        deserializedMeta.get("custom.tag")
+    );
     assertEquals(
-        MAX_META_STRING_VALUE_LENGTH, ((String) deserializedMeta.get("custom.tag")).length());
+        MAX_META_STRING_VALUE_LENGTH,
+        ((String) deserializedMeta.get("custom.tag")).length()
+    );
     assertEquals(exactValue, deserializedMeta.get("exact.tag"));
     assertEquals(42, deserializedMetrics.get("custom.metric"));
   }
@@ -183,15 +194,22 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
   @Test
   void truncatesPayloadMetadataValues() {
     String longValue = repeat("m", MAX_META_STRING_VALUE_LENGTH + 1);
-    CiVisibilityWellKnownTags wellKnownTags =
-        new CiVisibilityWellKnownTags(
-            longValue, longValue, longValue, longValue, longValue, longValue, longValue, longValue,
-            longValue, longValue);
+    CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
+        longValue,
+        longValue,
+        longValue,
+        longValue,
+        longValue,
+        longValue,
+        longValue,
+        longValue,
+        longValue,
+        longValue
+    );
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false);
-    List<List<TraceGenerator.PojoSpan>> traces =
-        Collections.singletonList(
-            Collections.singletonList(
-                generateRandomSpan(InternalSpanTypes.TEST, Collections.emptyMap())));
+    List<List<TraceGenerator.PojoSpan>> traces = Collections.singletonList(Collections.singletonList(
+        generateRandomSpan(InternalSpanTypes.TEST, Collections.emptyMap())
+    ));
     PayloadVerifier verifier = new PayloadVerifier(wellKnownTags, traces, mapper);
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(100 << 10, verifier));
 
@@ -274,28 +292,35 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
       Map<String, Object> deserializedSpan,
       DDTraceId testSessionId,
       Long testModuleId,
-      Long testSuiteId) {
+      Long testSuiteId
+  ) {
     Map<String, Object> spanContent = getContent(deserializedSpan);
     Map<String, Object> deserializedMetrics = getMetrics(spanContent);
     Map<String, Object> deserializedMeta = getMeta(spanContent);
 
     if (testSessionId != null) {
       assertEquals(
-          testSessionId.toLong(), ((Number) spanContent.get(Tags.TEST_SESSION_ID)).longValue());
+          testSessionId.toLong(),
+          ((Number) spanContent.get(Tags.TEST_SESSION_ID)).longValue()
+      );
     } else {
       assertFalse(spanContent.containsKey(Tags.TEST_SESSION_ID));
     }
 
     if (testModuleId != null) {
       assertEquals(
-          testModuleId.longValue(), ((Number) spanContent.get(Tags.TEST_MODULE_ID)).longValue());
+          testModuleId.longValue(),
+          ((Number) spanContent.get(Tags.TEST_MODULE_ID)).longValue()
+      );
     } else {
       assertFalse(spanContent.containsKey(Tags.TEST_MODULE_ID));
     }
 
     if (testSuiteId != null) {
       assertEquals(
-          testSuiteId.longValue(), ((Number) spanContent.get(Tags.TEST_SUITE_ID)).longValue());
+          testSuiteId.longValue(),
+          ((Number) spanContent.get(Tags.TEST_SUITE_ID)).longValue()
+      );
     } else {
       assertFalse(spanContent.containsKey(Tags.TEST_SUITE_ID));
     }
@@ -313,18 +338,18 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
   private static Map<String, Object> whenASpanIsWritten(TraceGenerator.PojoSpan span) {
     List<TraceGenerator.PojoSpan> trace = Collections.singletonList(span);
 
-    CiVisibilityWellKnownTags wellKnownTags =
-        new CiVisibilityWellKnownTags(
-            "runtimeid",
-            "my-env",
-            "language",
-            "my-runtime-name",
-            "my-runtime-version",
-            "my-runtime-vendor",
-            "my-os-arch",
-            "my-os-platform",
-            "my-os-version",
-            "false");
+    CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
+        "runtimeid",
+        "my-env",
+        "language",
+        "my-runtime-name",
+        "my-runtime-version",
+        "my-runtime-vendor",
+        "my-os-arch",
+        "my-os-platform",
+        "my-os-version",
+        "false"
+    );
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false);
 
     CaptureConsumer consumer = new CaptureConsumer();
@@ -369,18 +394,17 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
-
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces;
     private final CiTestCycleMapperV1 mapper;
     private final CiVisibilityWellKnownTags wellKnownTags;
     private ByteBuffer captured = ByteBuffer.allocate(200 << 10);
-
     private int position = 0;
 
     private PayloadVerifier(
         CiVisibilityWellKnownTags wellKnownTags,
         List<List<TraceGenerator.PojoSpan>> traces,
-        CiTestCycleMapperV1 mapper) {
+        CiTestCycleMapperV1 mapper
+    ) {
       this.expectedTraces = traces;
       this.mapper = mapper;
       this.wellKnownTags = wellKnownTags;
@@ -417,44 +441,56 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
         assertEquals("env", unpacker.unpackString());
         assertEquals(
             truncate(wellKnownTags.getEnv().toString(), MAX_META_STRING_VALUE_LENGTH),
-            unpacker.unpackString());
+            unpacker.unpackString()
+        );
         assertEquals("runtime-id", unpacker.unpackString());
         assertEquals(
             truncate(wellKnownTags.getRuntimeId().toString(), MAX_META_STRING_VALUE_LENGTH),
-            unpacker.unpackString());
+            unpacker.unpackString()
+        );
         assertEquals("language", unpacker.unpackString());
         assertEquals(
             truncate(wellKnownTags.getLanguage().toString(), MAX_META_STRING_VALUE_LENGTH),
-            unpacker.unpackString());
+            unpacker.unpackString()
+        );
         assertEquals(Tags.RUNTIME_NAME, unpacker.unpackString());
         assertEquals(
             truncate(wellKnownTags.getRuntimeName().toString(), MAX_META_STRING_VALUE_LENGTH),
-            unpacker.unpackString());
+            unpacker.unpackString()
+        );
         assertEquals(Tags.RUNTIME_VENDOR, unpacker.unpackString());
         assertEquals(
             truncate(wellKnownTags.getRuntimeVendor().toString(), MAX_META_STRING_VALUE_LENGTH),
-            unpacker.unpackString());
+            unpacker.unpackString()
+        );
         assertEquals(Tags.RUNTIME_VERSION, unpacker.unpackString());
         assertEquals(
             truncate(wellKnownTags.getRuntimeVersion().toString(), MAX_META_STRING_VALUE_LENGTH),
-            unpacker.unpackString());
+            unpacker.unpackString()
+        );
         assertEquals(Tags.OS_ARCHITECTURE, unpacker.unpackString());
         assertEquals(
             truncate(wellKnownTags.getOsArch().toString(), MAX_META_STRING_VALUE_LENGTH),
-            unpacker.unpackString());
+            unpacker.unpackString()
+        );
         assertEquals(Tags.OS_PLATFORM, unpacker.unpackString());
         assertEquals(
             truncate(wellKnownTags.getOsPlatform().toString(), MAX_META_STRING_VALUE_LENGTH),
-            unpacker.unpackString());
+            unpacker.unpackString()
+        );
         assertEquals(Tags.OS_VERSION, unpacker.unpackString());
         assertEquals(
             truncate(wellKnownTags.getOsVersion().toString(), MAX_META_STRING_VALUE_LENGTH),
-            unpacker.unpackString());
+            unpacker.unpackString()
+        );
         assertEquals(DDTags.TEST_IS_USER_PROVIDED_SERVICE, unpacker.unpackString());
         assertEquals(
             truncate(
-                wellKnownTags.getIsUserProvidedService().toString(), MAX_META_STRING_VALUE_LENGTH),
-            unpacker.unpackString());
+                wellKnownTags.getIsUserProvidedService().toString(),
+                MAX_META_STRING_VALUE_LENGTH
+            ),
+            unpacker.unpackString()
+        );
 
         assertEquals("events", unpacker.unpackString());
 
@@ -532,8 +568,8 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
             }
             if (DD_MEASURED.toString().equals(key)) {
               assertTrue(
-                  (n != null && n.intValue() == 1 && expectedSpan.isMeasured())
-                      || !expectedSpan.isMeasured());
+                  (n != null && n.intValue() == 1 && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
+              );
             } else if (DDSpanContext.PRIORITY_SAMPLING_KEY.equals(key)) {
               // check that priority sampling is only on first and last span
               if (k == 0 || k == eventCount - 1) {
@@ -550,7 +586,8 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
               assertEquals(
                   ((Number) expectedSpan.getTag(metric.getKey())).doubleValue(),
                   metric.getValue().doubleValue(),
-                  0.001);
+                  0.001
+              );
             } else {
               assertEquals(expectedSpan.getTag(metric.getKey()), metric.getValue());
             }

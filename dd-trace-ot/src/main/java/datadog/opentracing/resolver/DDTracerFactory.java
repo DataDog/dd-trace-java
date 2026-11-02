@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(TracerFactory.class)
 public class DDTracerFactory implements TracerFactory {
-
   private static final Logger log = LoggerFactory.getLogger(DDTracerFactory.class);
 
   @Override

@@ -2,7 +2,6 @@ package com.datadog.openfeature.internal.delivery;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import org.tabletest.junit.TableTest;
 
 class SiteHostTest {

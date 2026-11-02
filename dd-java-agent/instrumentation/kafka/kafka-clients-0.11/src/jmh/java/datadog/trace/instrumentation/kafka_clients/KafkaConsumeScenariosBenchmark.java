@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.CONSUME
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_CONSUME;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -76,18 +75,17 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(1)
 @Fork(3)
 public class KafkaConsumeScenariosBenchmark {
-  /** Kafka's default {@code max.poll.records}. */
+  /**
+   * Kafka's default {@code max.poll.records}.
+   */
   private static final int BATCH_SIZE = 500;
-
   private static final String[] TOPICS = {"orders", "payments", "shipments", "inventory"};
   private static final String GROUP = "bench-group";
   private static final String CLUSTER_ID = "bench-cluster";
   private static final String BOOTSTRAP_SERVERS = "localhost:9092";
   private static final int VALUE_SIZE = 100;
-
   @Param({"false", "true"})
   boolean dataStreams;
-
   CoreTracer tracer;
   List<ConsumerRecord<?, ?>> batch;
 
@@ -99,7 +97,6 @@ public class KafkaConsumeScenariosBenchmark {
     if (Config.get().isDataStreamsEnabled() != dataStreams) {
       throw new IllegalStateException("Config was read before setup; run with forks (not -f 0)");
     }
-
     // Building the tracer registers its propagators as the default ones.
     tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
     AgentTracer.forceRegister(tracer);
@@ -128,7 +125,9 @@ public class KafkaConsumeScenariosBenchmark {
               VALUE_SIZE,
               null,
               value,
-              headers));
+              headers
+          )
+      );
     }
   }
 
@@ -141,14 +140,14 @@ public class KafkaConsumeScenariosBenchmark {
   @Benchmark
   @OperationsPerInvocation(BATCH_SIZE)
   public void consume(Blackhole blackhole) {
-    Iterator<ConsumerRecord<?, ?>> records =
-        new TracingIterator(
-            batch.iterator(),
-            KAFKA_CONSUME,
-            CONSUMER_DECORATE,
-            GROUP,
-            CLUSTER_ID,
-            BOOTSTRAP_SERVERS);
+    Iterator<ConsumerRecord<?, ?>> records = new TracingIterator(
+        batch.iterator(),
+        KAFKA_CONSUME,
+        CONSUMER_DECORATE,
+        GROUP,
+        CLUSTER_ID,
+        BOOTSTRAP_SERVERS
+    );
     // The last record's span finishes when hasNext() reports the end of the batch.
     while (records.hasNext()) {
       blackhole.consume(records.next());

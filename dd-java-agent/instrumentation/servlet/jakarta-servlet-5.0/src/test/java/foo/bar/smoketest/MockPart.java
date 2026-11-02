@@ -10,7 +10,6 @@ import java.util.Map;
 
 public class MockPart implements Part {
   private final String name;
-
   private final Map<String, Collection<String>> headers;
   private final InputStream inputStream;
 

@@ -18,10 +18,8 @@ import jdk.jfr.StackTrace;
 @StackTrace(false)
 public class AggregatedSmapEntryEvent extends Event {
   private static final EventType TYPE = EventType.getEventType(AggregatedSmapEntryEvent.class);
-
   @Label("NMT Category")
   private final String nmtCategory;
-
   @Label("Resident Set Size")
   @DataAmount
   private final long rss;
@@ -33,10 +31,10 @@ public class AggregatedSmapEntryEvent extends Event {
 
   static void emit(List<SmapEntryEvent> events) {
     if (TYPE.isEnabled()) {
-      events.stream()
-          .collect(Collectors.groupingBy(e -> e.nmtCategory, Collectors.summingLong(e -> e.rss)))
-          .forEach(
-              (category, totalRss) -> new AggregatedSmapEntryEvent(category, totalRss).commit());
+      events
+        .stream()
+        .collect(Collectors.groupingBy(e -> e.nmtCategory, Collectors.summingLong(e -> e.rss)))
+        .forEach((category, totalRss) -> new AggregatedSmapEntryEvent(category, totalRss).commit());
     }
   }
 }

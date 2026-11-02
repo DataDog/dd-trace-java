@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.gateway.InferredProxySpan.fromHeaders;
-
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
@@ -12,7 +11,9 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
-/** Inferred proxy propagator. Only extract, not meant for injection. */
+/**
+ * Inferred proxy propagator. Only extract, not meant for injection.
+ */
 @ParametersAreNonnullByDefault
 public class InferredProxyPropagator implements Propagator {
   private static final String INFERRED_PROXY_KEY_PREFIX = "x-dd-proxy";
@@ -34,7 +35,9 @@ public class InferredProxyPropagator implements Propagator {
     return context;
   }
 
-  /** Extract inferred proxy related headers into a map. */
+  /**
+   * Extract inferred proxy related headers into a map.
+   */
   private static class InferredProxyContextExtractor implements BiConsumer<String, String> {
     private Map<String, String> values;
 

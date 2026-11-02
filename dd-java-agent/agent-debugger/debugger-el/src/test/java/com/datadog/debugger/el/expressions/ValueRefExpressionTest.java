@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.RedactedException;
@@ -29,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 class ValueRefExpressionTest {
-
   @Test
   void testRef() {
     ValueRefExpression valueRef = new ValueRefExpression("b");
@@ -58,13 +56,11 @@ class ValueRefExpressionTest {
     RuntimeException runtimeException =
         assertThrows(RuntimeException.class, () -> isEmptyInvalid.evaluate(evalContext));
     assertEquals("Cannot dereference field: x", runtimeException.getMessage());
-    runtimeException =
-        assertThrows(
-            RuntimeException.class, () -> and(isEmptyInvalid, isEmpty).evaluate(evalContext));
+    runtimeException = assertThrows(RuntimeException.class, () -> and(isEmptyInvalid, isEmpty)
+      .evaluate(evalContext));
     assertEquals("Cannot dereference field: x", runtimeException.getMessage());
-    runtimeException =
-        assertThrows(
-            RuntimeException.class, () -> or(isEmptyInvalid, isEmpty).evaluate(evalContext));
+    runtimeException = assertThrows(RuntimeException.class, () -> or(isEmptyInvalid, isEmpty)
+      .evaluate(evalContext));
     assertEquals("Cannot dereference field: x", runtimeException.getMessage());
     assertEquals("isEmpty(x)", print(isEmptyInvalid));
   }
@@ -84,10 +80,10 @@ class ValueRefExpressionTest {
     exts.put(ValueReferences.RETURN_EXTENSION_NAME, CapturedValue.of(returnVal));
     exts.put(ValueReferences.DURATION_EXTENSION_NAME, CapturedValue.of(duration));
     exts.put(ValueReferences.EXCEPTION_EXTENSION_NAME, CapturedValue.of(exception));
-    EvalContext evalContext =
-        new EvalContext(
-            createResolver(new Obj()).withExtensions(exts),
-            TimeoutChecker.create(Config.get(), TEST_TIMEOUT));
+    EvalContext evalContext = new EvalContext(
+        createResolver(new Obj()).withExtensions(exts),
+        TimeoutChecker.create(Config.get(), TEST_TIMEOUT)
+    );
 
     ValueRefExpression expression = DSL.ref(ValueReferences.DURATION_REF);
     assertEquals(duration, expression.evaluate(evalContext).getValue());
@@ -105,12 +101,14 @@ class ValueRefExpressionTest {
     assertEquals("Hello there", expression.evaluate(evalContext).getValue());
     assertEquals("msg", print(expression));
     expression = DSL.ref("i");
-    assertEquals(6, expression.evaluate(evalContext).getValue()); // int value is widened to long
+    // int value is widened to long
+    assertEquals(6, expression.evaluate(evalContext).getValue());
     assertEquals("i", print(expression));
     ValueRefExpression invalidExpression = ref(ValueReferences.synthetic("invalid"));
     RuntimeException runtimeException =
-        assertThrows(
-            RuntimeException.class, () -> invalidExpression.evaluate(evalContext).getValue());
+        assertThrows(RuntimeException.class, () -> invalidExpression
+      .evaluate(evalContext)
+      .getValue());
     assertEquals("Cannot find synthetic var: invalid", runtimeException.getMessage());
     assertEquals("@invalid", print(invalidExpression));
   }
@@ -131,26 +129,31 @@ class ValueRefExpressionTest {
         assertThrows(RedactedException.class, () -> valueRef.evaluate(createEvalContext(instance)));
     assertEquals(
         "Could not evaluate the expression because 'password' was redacted",
-        redactedException.getMessage());
+        redactedException.getMessage()
+    );
   }
 
   @Test
   public void redactedType() {
     Config config = Config.get();
     setFieldInConfig(
-        config, "dynamicInstrumentationRedactedTypes", "com.datadog.debugger.el.expressions.*");
+        config,
+        "dynamicInstrumentationRedactedTypes",
+        "com.datadog.debugger.el.expressions.*"
+    );
     try {
       Redaction.addUserDefinedTypes(Config.get());
       ValueRefExpression valueRef = new ValueRefExpression("store");
       class Holder {
         StoreSecret store = new StoreSecret("secret123");
       }
-      RedactedException redactedException =
-          assertThrows(
-              RedactedException.class, () -> valueRef.evaluate(createEvalContext(new Holder())));
+      RedactedException redactedException = assertThrows(RedactedException.class, () -> valueRef.evaluate(
+          createEvalContext(new Holder())
+      ));
       assertEquals(
           "Could not evaluate the expression because 'store' was redacted",
-          redactedException.getMessage());
+          redactedException.getMessage()
+      );
     } finally {
       Redaction.clearUserDefinedTypes();
     }

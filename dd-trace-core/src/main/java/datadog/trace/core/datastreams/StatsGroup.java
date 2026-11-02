@@ -5,7 +5,6 @@ import datadog.trace.api.datastreams.DataStreamsTags;
 
 public class StatsGroup {
   private static final double NANOSECONDS_TO_SECOND = 1_000_000_000d;
-
   private final DataStreamsTags tags;
   private final long hash;
   private final long parentHash;
@@ -27,7 +26,9 @@ public class StatsGroup {
     edgeLatency.accept(((double) edgeLatencyNano) / NANOSECONDS_TO_SECOND);
     // payload size is set to zero when we cannot compute it
     // in that case, it's probably better to have an empty histogram than filling it with zeros
-    if (payloadSizeBytes != 0) payloadSize.accept((double) payloadSizeBytes);
+    if (payloadSizeBytes != 0) {
+      payloadSize.accept((double) payloadSizeBytes);
+    }
   }
 
   public DataStreamsTags getTags() {

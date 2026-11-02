@@ -4,7 +4,6 @@ import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 
 public class ErrorResponse implements SignalResponse {
-
   private final String message;
 
   public ErrorResponse(String message) {

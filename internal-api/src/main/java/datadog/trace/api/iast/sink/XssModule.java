@@ -5,7 +5,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface XssModule extends IastModule {
-
   void onXss(@Nonnull String s);
 
   void onXss(@Nonnull String s, @Nonnull String clazz, @Nonnull String method);

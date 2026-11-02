@@ -6,7 +6,6 @@ import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.E
 import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.RATE_LIMIT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.debugger.DebuggerMetricCollector.DebuggerMetric;
 import java.util.Collection;
 import java.util.Collections;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class DebuggerMetricCollectorTest {
-
   private final DebuggerMetricCollector collector = DebuggerMetricCollector.get();
 
   @BeforeEach
@@ -82,8 +80,12 @@ class DebuggerMetricCollectorTest {
 
     Collection<DebuggerMetric> metrics = collector.drain();
     assertEquals(2, metrics.size());
-    assertTrue(metrics.stream().anyMatch(m -> m.tags.contains("reason:queueFull")));
-    assertTrue(metrics.stream().anyMatch(m -> m.tags.contains("reason:payloadTooLarge")));
+    assertTrue(metrics
+      .stream()
+      .anyMatch(m -> m.tags.contains("reason:queueFull")));
+    assertTrue(metrics
+      .stream()
+      .anyMatch(m -> m.tags.contains("reason:payloadTooLarge")));
   }
 
   @Test
@@ -94,8 +96,12 @@ class DebuggerMetricCollectorTest {
 
     Collection<DebuggerMetric> metrics = collector.drain();
     assertEquals(2, metrics.size());
-    assertTrue(metrics.stream().anyMatch(m -> m.metricName.equals("events.dropped")));
-    assertTrue(metrics.stream().anyMatch(m -> m.metricName.equals("events.skipped")));
+    assertTrue(metrics
+      .stream()
+      .anyMatch(m -> m.metricName.equals("events.dropped")));
+    assertTrue(metrics
+      .stream()
+      .anyMatch(m -> m.metricName.equals("events.skipped")));
   }
 
   @Test
@@ -103,7 +109,6 @@ class DebuggerMetricCollectorTest {
     collector.recordEventDropped(QUEUE_FULL);
     collector.prepareMetrics();
     assertEquals(1, collector.drain().size());
-
     // no new events recorded, so a second prepare/drain cycle should be empty
     collector.prepareMetrics();
     assertEquals(0, collector.drain().size());

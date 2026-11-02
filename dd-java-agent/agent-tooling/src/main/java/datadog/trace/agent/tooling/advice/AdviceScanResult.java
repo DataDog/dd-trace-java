@@ -7,7 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Immutable, neutral result of scanning a module's method advice. */
+/**
+ * Immutable, neutral result of scanning a module's method advice.
+ */
 public final class AdviceScanResult {
   private static final String INSTRUMENTATION_PACKAGE = "datadog.trace.instrumentation.";
 
@@ -19,7 +21,9 @@ public final class AdviceScanResult {
     INVOKEDYNAMIC
   }
 
-  /** Source location of a bytecode use. */
+  /**
+   * Source location of a bytecode use.
+   */
   public static final class SourceLocation {
     private final String className;
     private final String sourceFile;
@@ -35,7 +39,9 @@ public final class AdviceScanResult {
       return className;
     }
 
-    /** Source filename, falling back to the binary class name when unavailable. */
+    /**
+     * Source filename, falling back to the binary class name when unavailable.
+     */
     public String getSourceFile() {
       return sourceFile;
     }
@@ -45,7 +51,9 @@ public final class AdviceScanResult {
     }
   }
 
-  /** A method-handle target without an ASM dependency in the public model. */
+  /**
+   * A method-handle target without an ASM dependency in the public model.
+   */
   public static final class HandleUse {
     private final int tag;
     private final String owner;
@@ -82,7 +90,9 @@ public final class AdviceScanResult {
     }
   }
 
-  /** One ordered bytecode use made by a scanned class. */
+  /**
+   * One ordered bytecode use made by a scanned class.
+   */
   public static final class Usage {
     private final UsageKind kind;
     private final SourceLocation source;
@@ -103,7 +113,8 @@ public final class AdviceScanResult {
         String descriptor,
         boolean interfaceOwner,
         boolean implementedInterface,
-        List<HandleUse> handles) {
+        List<HandleUse> handles
+    ) {
       this.kind = kind;
       this.source = source;
       this.opcode = opcode;
@@ -127,7 +138,9 @@ public final class AdviceScanResult {
       return opcode;
     }
 
-    /** Binary name of the used type or member owner. */
+    /**
+     * Binary name of the used type or member owner.
+     */
     public String getOwner() {
       return owner;
     }
@@ -153,7 +166,9 @@ public final class AdviceScanResult {
     }
   }
 
-  /** One discovered class. External leaves have no scanned bytecode. */
+  /**
+   * One discovered class. External leaves have no scanned bytecode.
+   */
   public static final class ClassInfo {
     private final String className;
     private final boolean fromModuleOutput;
@@ -168,7 +183,8 @@ public final class AdviceScanResult {
         boolean scanned,
         boolean reachableFromAdvice,
         Collection<String> requiredDependencies,
-        List<Usage> usages) {
+        List<Usage> usages
+    ) {
       this.className = className;
       this.fromModuleOutput = fromModuleOutput;
       this.scanned = scanned;

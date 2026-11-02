@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import java.net.InetSocketAddress;
 
 final class HttpExchangeURIDataAdapter extends URIDefaultDataAdapter {
-
   private final HttpExchange exchange;
 
   HttpExchangeURIDataAdapter(HttpExchange exchange) {

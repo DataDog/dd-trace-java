@@ -37,13 +37,10 @@ import org.slf4j.LoggerFactory;
  * <p>All work is wrapped in try/catch — enrichment must NEVER break flag evaluation.
  */
 class SpanEnrichmentHook implements Hook<Object> {
-
   private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentHook.class);
-
   // The metadata keys the evaluator attaches for span enrichment.
   static final String METADATA_SERIAL_ID = MetadataKeys.SPLIT_SERIAL_ID;
   static final String METADATA_DO_LOG = MetadataKeys.DO_LOG;
-
   private final SpanEnricher enricher;
 
   SpanEnrichmentHook(final SpanEnricher enricher) {
@@ -54,7 +51,8 @@ class SpanEnrichmentHook implements Hook<Object> {
   public void finallyAfter(
       final HookContext<Object> ctx,
       final FlagEvaluationDetails<Object> details,
-      final Map<String, Object> hints) {
+      final Map<String, Object> hints
+  ) {
     if (details == null) {
       return;
     }

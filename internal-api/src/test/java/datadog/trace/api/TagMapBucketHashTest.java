@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -13,11 +12,16 @@ import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-/** How {@link TagMap.Entry#bucketHash} places known and custom tags in the buckets. */
+/**
+ * How {@link TagMap.Entry#bucketHash} places known and custom tags in the buckets.
+ */
 class TagMapBucketHashTest {
-  private static final int BUCKET_MASK = 15; // TagMap's 16 buckets
+  // TagMap's 16 buckets
+  private static final int BUCKET_MASK = 15;
 
-  /** Every known tag id the registry generated. */
+  /**
+   * Every known tag id the registry generated.
+   */
   static List<Long> knownTagIds() throws IllegalAccessException {
     List<Long> ids = new ArrayList<>();
     for (Field field : KnownTags.class.getFields()) {
@@ -39,7 +43,9 @@ class TagMapBucketHashTest {
       int hash = TagMap.Entry.bucketHash(id);
       assertNotEquals(0, hash, "zero marks a vacant BucketGroup slot");
       assertTrue(
-          hashes.add(hash), "two known tags share a bucket hash: " + KnownTagCodec.nameOf(id));
+          hashes.add(hash),
+          "two known tags share a bucket hash: " + KnownTagCodec.nameOf(id)
+      );
     }
   }
 

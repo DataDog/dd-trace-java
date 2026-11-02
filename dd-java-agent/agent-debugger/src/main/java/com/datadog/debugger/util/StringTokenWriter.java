@@ -2,7 +2,6 @@ package com.datadog.debugger.util;
 
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_STRING;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
-
 import com.datadog.debugger.el.Value;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;

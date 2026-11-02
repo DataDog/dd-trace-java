@@ -5,7 +5,6 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 
 public class NoTls implements Tls {
-
   public void registerSpan(DDTraceId traceId, long spanId) {}
 
   public long getSpanId() {

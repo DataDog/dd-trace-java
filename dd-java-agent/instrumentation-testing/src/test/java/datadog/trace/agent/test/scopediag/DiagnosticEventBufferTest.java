@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -75,13 +74,10 @@ class DiagnosticEventBufferTest {
   void drainDoesNotChaseNewEvents() {
     DiagnosticEventBuffer buffer = new DiagnosticEventBuffer();
     AtomicInteger consumed = new AtomicInteger();
-    buffer
-        .reserve()
-        .publish(
-            () -> {
-              consumed.incrementAndGet();
-              buffer.reserve().publish(consumed::incrementAndGet);
-            });
+    buffer.reserve().publish(() -> {
+      consumed.incrementAndGet();
+      buffer.reserve().publish(consumed::incrementAndGet);
+    });
     buffer.drain(false, 0, false);
     assertEquals(1, consumed.get());
     assertTrue(buffer.hasPending());
@@ -121,22 +117,20 @@ class DiagnosticEventBufferTest {
     CountDownLatch started = new CountDownLatch(4);
     List<FutureTask<Void>> producers = new ArrayList<>();
     for (int i = 0; i < 4; i++) {
-      FutureTask<Void> producer =
-          new FutureTask<>(
-              () -> {
-                for (int n = 0; n < 1000; n++) {
-                  DiagnosticEventBuffer.Event event = buffer.reserve();
-                  if (event == null) {
-                    break;
-                  }
-                  admitted.incrementAndGet();
-                  if (n == 0) {
-                    started.countDown();
-                  }
-                  event.publish(consumed::incrementAndGet);
-                }
-                return null;
-              });
+      FutureTask<Void> producer = new FutureTask<>(() -> {
+        for (int n = 0; n < 1000; n++) {
+          DiagnosticEventBuffer.Event event = buffer.reserve();
+          if (event == null) {
+            break;
+          }
+          admitted.incrementAndGet();
+          if (n == 0) {
+            started.countDown();
+          }
+          event.publish(consumed::incrementAndGet);
+        }
+        return null;
+      });
       producers.add(producer);
       Thread thread = new Thread(producer, "diagnostic-producer-" + i);
       thread.setDaemon(true);

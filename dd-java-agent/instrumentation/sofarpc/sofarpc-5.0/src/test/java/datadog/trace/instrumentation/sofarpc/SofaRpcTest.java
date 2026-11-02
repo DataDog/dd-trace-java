@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.alipay.sofa.rpc.config.ApplicationConfig;
 import com.alipay.sofa.rpc.config.ConsumerConfig;
 import com.alipay.sofa.rpc.config.ProviderConfig;
@@ -26,10 +25,8 @@ import org.junit.jupiter.api.TestInstance;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SofaRpcTest extends AbstractInstrumentationTest {
-
   private static final int PORT = 12201;
   private static final int ERROR_PORT = 12202;
-
   private ProviderConfig<GreeterService> providerConfig;
   private ProviderConfig<FaultyService> errorProviderConfig;
   private GreeterService greeterService;
@@ -39,44 +36,39 @@ public class SofaRpcTest extends AbstractInstrumentationTest {
   void setupServers() {
     ApplicationConfig appConfig = new ApplicationConfig().setAppName("test-server");
 
-    providerConfig =
-        new ProviderConfig<GreeterService>()
-            .setApplication(appConfig)
-            .setInterfaceId(GreeterService.class.getName())
-            .setRef(new GreeterServiceImpl())
-            .setServer(new ServerConfig().setProtocol("bolt").setHost("127.0.0.1").setPort(PORT))
-            .setRegister(false);
+    providerConfig = new ProviderConfig<GreeterService>()
+      .setApplication(appConfig)
+      .setInterfaceId(GreeterService.class.getName())
+      .setRef(new GreeterServiceImpl())
+      .setServer(new ServerConfig().setProtocol("bolt").setHost("127.0.0.1").setPort(PORT))
+      .setRegister(false);
     providerConfig.export();
 
-    greeterService =
-        new ConsumerConfig<GreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-client"))
-            .setInterfaceId(GreeterService.class.getName())
-            .setDirectUrl("bolt://127.0.0.1:" + PORT)
-            .setProtocol("bolt")
-            .setRegister(false)
-            .setSubscribe(false)
-            .refer();
+    greeterService = new ConsumerConfig<GreeterService>()
+      .setApplication(new ApplicationConfig().setAppName("test-client"))
+      .setInterfaceId(GreeterService.class.getName())
+      .setDirectUrl("bolt://127.0.0.1:" + PORT)
+      .setProtocol("bolt")
+      .setRegister(false)
+      .setSubscribe(false)
+      .refer();
 
-    errorProviderConfig =
-        new ProviderConfig<FaultyService>()
-            .setApplication(appConfig)
-            .setInterfaceId(FaultyService.class.getName())
-            .setRef(new FaultyServiceImpl())
-            .setServer(
-                new ServerConfig().setProtocol("bolt").setHost("127.0.0.1").setPort(ERROR_PORT))
-            .setRegister(false);
+    errorProviderConfig = new ProviderConfig<FaultyService>()
+      .setApplication(appConfig)
+      .setInterfaceId(FaultyService.class.getName())
+      .setRef(new FaultyServiceImpl())
+      .setServer(new ServerConfig().setProtocol("bolt").setHost("127.0.0.1").setPort(ERROR_PORT))
+      .setRegister(false);
     errorProviderConfig.export();
 
-    faultyService =
-        new ConsumerConfig<FaultyService>()
-            .setApplication(new ApplicationConfig().setAppName("test-client"))
-            .setInterfaceId(FaultyService.class.getName())
-            .setDirectUrl("bolt://127.0.0.1:" + ERROR_PORT)
-            .setProtocol("bolt")
-            .setRegister(false)
-            .setSubscribe(false)
-            .refer();
+    faultyService = new ConsumerConfig<FaultyService>()
+      .setApplication(new ApplicationConfig().setAppName("test-client"))
+      .setInterfaceId(FaultyService.class.getName())
+      .setDirectUrl("bolt://127.0.0.1:" + ERROR_PORT)
+      .setProtocol("bolt")
+      .setRegister(false)
+      .setSubscribe(false)
+      .refer();
   }
 
   @AfterAll
@@ -158,7 +150,9 @@ public class SofaRpcTest extends AbstractInstrumentationTest {
     assertEquals(serviceUniqueName + "/fail", serverSofaSpan.getResourceName().toString());
     assertTrue(serverSofaSpan.isError(), "Server span should be errored");
     assertNotNull(
-        serverSofaSpan.getTag("error.message"), "Expected error.message tag on server span");
+        serverSofaSpan.getTag("error.message"),
+        "Expected error.message tag on server span"
+    );
   }
 
   private List<DDSpan> flattenTraces() {

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.ClassloaderConfigurationOverrides.DATADOG_TAGS_JNDI_PREFIX;
 import static datadog.trace.api.ClassloaderConfigurationOverrides.DATADOG_TAGS_PREFIX;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,7 +18,9 @@ import org.apache.tomcat.util.descriptor.web.ContextEnvironment;
 
 @AutoService(InstrumenterModule.class)
 public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private static final String TOMCAT = "tomcat";
 
   public WebappClassLoaderInstrumentation() {
@@ -34,14 +35,17 @@ public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("setResources")), getClass().getName() + "$CaptureWebappNameAdvice");
+        isMethod().and(named("setResources")),
+        getClass().getName() + "$CaptureWebappNameAdvice"
+    );
   }
 
   public static class CaptureWebappNameAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onContextAvailable(
         @Advice.This final WebappClassLoaderBase classLoader,
-        @Advice.Argument(0) final WebResourceRoot webResourceRoot) {
+        @Advice.Argument(0) final WebResourceRoot webResourceRoot
+    ) {
       // at this moment we have the context set in this classloader, hence its name
       final Context context = webResourceRoot != null ? webResourceRoot.getContext() : null;
       if (context == null) {

@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.jetty_client12.JettyClientDecorator.
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -25,7 +24,9 @@ import org.eclipse.jetty.websocket.core.client.CoreClientUpgradeRequest;
 
 @AutoService(InstrumenterModule.class)
 public class JettyWebSocketUpgradeInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public JettyWebSocketUpgradeInstrumentation() {
     super("jetty-client");
   }
@@ -54,10 +55,11 @@ public class JettyWebSocketUpgradeInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("upgrade")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.eclipse.jetty.client.Response")))
-            .and(takesArgument(1, named("org.eclipse.jetty.io.EndPoint"))),
-        getClass().getName() + "$WebSocketUpgradeAdvice");
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("org.eclipse.jetty.client.Response")))
+          .and(takesArgument(1, named("org.eclipse.jetty.io.EndPoint"))),
+        getClass().getName() + "$WebSocketUpgradeAdvice"
+    );
   }
 
   public static class WebSocketUpgradeAdvice {
@@ -73,7 +75,8 @@ public class JettyWebSocketUpgradeInstrumentation extends InstrumenterModule.Tra
         @Advice.Argument(0) Response response,
         @Advice.FieldValue("futureCoreSession") CompletableFuture<?> futureCoreSession,
         @Advice.Enter ContextScope scope,
-        @Advice.Thrown Throwable failure) {
+        @Advice.Thrown Throwable failure
+    ) {
       AgentSpan span =
           InstrumentationContext.get(Request.class, AgentSpan.class).get(response.getRequest());
       try {
@@ -104,8 +107,7 @@ public class JettyWebSocketUpgradeInstrumentation extends InstrumenterModule.Tra
      * Lets Muzzle fail CI if the upgrade method is removed or its signature changes, instead of
      * silently skipping instrumentation.
      */
-    private void muzzleCheck(
-        CoreClientUpgradeRequest request, Response response, EndPoint endPoint) {
+    private void muzzleCheck(CoreClientUpgradeRequest request, Response response, EndPoint endPoint) {
       request.upgrade(response, endPoint);
     }
   }

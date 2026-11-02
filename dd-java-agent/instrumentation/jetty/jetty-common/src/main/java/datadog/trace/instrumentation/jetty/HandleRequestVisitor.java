@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jetty;
 
 import static net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import java.util.List;
@@ -28,7 +27,6 @@ import org.slf4j.LoggerFactory;
  */
 public class HandleRequestVisitor extends MethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(HandleRequestVisitor.class);
-
   private final int classVersion;
   private final String connClassInternalName;
   private boolean success;
@@ -37,7 +35,8 @@ public class HandleRequestVisitor extends MethodVisitor {
       int api,
       int classVersion,
       DelayLoadsMethodVisitor methodVisitor,
-      String connClassInternalName) {
+      String connClassInternalName
+  ) {
     super(api, methodVisitor);
     this.classVersion = classVersion;
     this.connClassInternalName = connClassInternalName;
@@ -49,7 +48,12 @@ public class HandleRequestVisitor extends MethodVisitor {
 
   @Override
   public void visitMethodInsn(
-      int opcode, String owner, String name, String descriptor, boolean isInterface) {
+      int opcode,
+      String owner,
+      String name,
+      String descriptor,
+      boolean isInterface
+  ) {
     if (opcode == Opcodes.INVOKEVIRTUAL
         && owner.equals("org/eclipse/jetty/server/Server")
         && name.equals("handle")
@@ -63,7 +67,6 @@ public class HandleRequestVisitor extends MethodVisitor {
       }
 
       Label afterHandle = new Label();
-
       // Add Request, Response and Context onto the stack
       super.visitVarInsn(Opcodes.ALOAD, 0);
       super.visitMethodInsn(
@@ -71,33 +74,36 @@ public class HandleRequestVisitor extends MethodVisitor {
           this.connClassInternalName,
           "getRequest",
           "()Lorg/eclipse/jetty/server/Request;",
-          false);
+          false
+      );
       super.visitVarInsn(Opcodes.ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
           this.connClassInternalName,
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
-          false);
+          false
+      );
 
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(Java8BytecodeBridge.class),
           "currentContext",
           "()Ldatadog/context/Context;",
-          false);
+          false
+      );
       // Call JettyBlockingHelper.block(request, response, context)
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
           "block",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
-              + Type.getDescriptor(Context.class)
-              + ")Z",
-          false);
+          + Type.getDescriptor(Context.class)
+          + ")Z",
+          false
+      );
       // Jump after handle if blocked
       super.visitJumpInsn(Opcodes.IFNE, afterHandle);
-
       // Inject default handle instructions
       mv.commitLoads(savedLoads);
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
@@ -117,12 +123,14 @@ public class HandleRequestVisitor extends MethodVisitor {
   public void visitEnd() {
     if (!success) {
       log.warn(
-          "Transformation of Jetty's connection class was not successful. Blocking will likely not work");
+          "Transformation of Jetty's connection class was not successful. Blocking will likely not work"
+      );
     }
     super.visitEnd();
   }
 
   private boolean needsStackFrames() {
-    return this.classVersion >= 50; // 1.6
+    // 1.6
+    return this.classVersion >= 50;
   }
 }

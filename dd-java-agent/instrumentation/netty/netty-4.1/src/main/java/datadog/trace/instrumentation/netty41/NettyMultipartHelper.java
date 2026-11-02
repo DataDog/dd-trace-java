@@ -31,7 +31,8 @@ public final class NettyMultipartHelper {
       List<InterfaceHttpData> parts,
       Map<String, List<String>> attributes,
       List<String> filenames,
-      List<String> filesContent) {
+      List<String> filesContent
+  ) {
     RuntimeException exc = null;
     for (InterfaceHttpData data : parts) {
       InterfaceHttpData.HttpDataType dataType;
@@ -78,7 +79,10 @@ public final class NettyMultipartHelper {
       } else {
         try (FileInputStream fis = new FileInputStream(fileUpload.getFile())) {
           return MultipartContentDecoder.readInputStream(
-              fis, MAX_CONTENT_BYTES, fileUpload.getContentType());
+              fis,
+              MAX_CONTENT_BYTES,
+              fileUpload.getContentType()
+          );
         }
       }
     } catch (Exception ignored) {
@@ -105,5 +109,6 @@ public final class NettyMultipartHelper {
     return null;
   }
 
-  private NettyMultipartHelper() {}
+  private NettyMultipartHelper() {
+  }
 }

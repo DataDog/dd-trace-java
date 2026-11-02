@@ -5,7 +5,9 @@ import com.datadog.openfeature.internal.bridge.v1.EventTransport;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import java.io.IOException;
 
-/** Posts events through the Datadog Agent event platform proxy. */
+/**
+ * Posts events through the Datadog Agent event platform proxy.
+ */
 public final class AgentEventProxy implements EventTransport {
   private final FeatureFlaggingGateway.Backend backend;
 

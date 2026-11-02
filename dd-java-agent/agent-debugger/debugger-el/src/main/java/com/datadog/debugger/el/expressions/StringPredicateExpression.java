@@ -19,7 +19,8 @@ public class StringPredicateExpression implements BooleanExpression {
       ValueExpression<?> sourceString,
       StringValue str,
       BiPredicate<String, String> predicate,
-      String name) {
+      String name
+  ) {
     this.sourceString = sourceString;
     this.str = str;
     this.predicate = predicate;
@@ -32,11 +33,15 @@ public class StringPredicateExpression implements BooleanExpression {
         sourceString != null ? sourceString.evaluate(evalContext) : Value.nullValue();
     if (sourceValue.isUndefined()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for undefined value",
+          PrettyPrintVisitor.print(this)
+      );
     }
     if (sourceValue.isNull()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for null value",
+          PrettyPrintVisitor.print(this)
+      );
     }
     if (sourceValue.getValue() instanceof String) {
       String sourceStr = (String) sourceValue.getValue();
@@ -66,7 +71,9 @@ public class StringPredicateExpression implements BooleanExpression {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     StringPredicateExpression that = (StringPredicateExpression) o;
     // predicate is excluded: lambda equality is identity-based, the class and name identify it
     return Objects.equals(sourceString, that.sourceString)

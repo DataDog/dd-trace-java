@@ -10,7 +10,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import datadog.remoteconfig.ReportableException;
@@ -24,7 +23,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ProductStateSpecification {
-
   private final PollingRateHinter hinter = mock(PollingRateHinter.class);
 
   @Test
@@ -33,33 +31,36 @@ class ProductStateSpecification {
     ProductState productState = new ProductState(Product.ASM_DATA);
     OrderRecordingListener listener = new OrderRecordingListener();
     productState.addProductListener(listener);
-
     // first apply with config1 to cache it
     RemoteConfigResponse response1 =
         buildResponse(targets("org/ASM_DATA/config1/foo", new TargetSpec(1, 8, "oldhash1")));
     ParsedConfigKey key1 = ParsedConfigKey.parse("org/ASM_DATA/config1/foo");
     productState.apply(response1, Collections.singletonList(key1), hinter);
-    listener.operations.clear(); // Clear for the actual test
-
+    // Clear for the actual test
+    listener.operations.clear();
     // a new response with config1 (changed hash) and config2 (new)
-    RemoteConfigResponse response2 =
-        buildResponse(
-            targets(
-                "org/ASM_DATA/config1/foo", new TargetSpec(2, 8, "newhash1"),
-                "org/ASM_DATA/config2/foo", new TargetSpec(1, 8, "hash2")));
+    RemoteConfigResponse response2 = buildResponse(
+        targets(
+            "org/ASM_DATA/config1/foo",
+            new TargetSpec(2, 8, "newhash1"),
+            "org/ASM_DATA/config2/foo",
+            new TargetSpec(1, 8, "hash2")
+        )
+    );
     ParsedConfigKey key2 = ParsedConfigKey.parse("org/ASM_DATA/config2/foo");
-
     // apply is called
     boolean changed = productState.apply(response2, Arrays.asList(key1, key2), hinter);
-
     // changes are detected
     assertTrue(changed);
-
     // operations happen in order: apply config1, apply config2, commit (no removes)
     assertEquals(
         Arrays.asList(
-            "accept:org/ASM_DATA/config1/foo", "accept:org/ASM_DATA/config2/foo", "commit"),
-        listener.operations);
+            "accept:org/ASM_DATA/config1/foo",
+            "accept:org/ASM_DATA/config2/foo",
+            "commit"
+        ),
+        listener.operations
+    );
   }
 
   @Test
@@ -68,32 +69,32 @@ class ProductStateSpecification {
     ProductState productState = new ProductState(Product.ASM_DD);
     OrderRecordingListener listener = new OrderRecordingListener();
     productState.addProductListener(listener);
-
     // first apply with config1 and config2 to cache them
-    RemoteConfigResponse response1 =
-        buildResponse(
-            targets(
-                "org/ASM_DD/config1/foo", new TargetSpec(1, 8, "oldhash1"),
-                "org/ASM_DD/config2/foo", new TargetSpec(1, 8, "hash2")));
+    RemoteConfigResponse response1 = buildResponse(
+        targets(
+            "org/ASM_DD/config1/foo",
+            new TargetSpec(1, 8, "oldhash1"),
+            "org/ASM_DD/config2/foo",
+            new TargetSpec(1, 8, "hash2")
+        )
+    );
     ParsedConfigKey key1 = ParsedConfigKey.parse("org/ASM_DD/config1/foo");
     ParsedConfigKey key2 = ParsedConfigKey.parse("org/ASM_DD/config2/foo");
     productState.apply(response1, Arrays.asList(key1, key2), hinter);
-    listener.operations.clear(); // Clear for the actual test
-
+    // Clear for the actual test
+    listener.operations.clear();
     // a new response with only config1 (changed hash) - config2 will be removed
     RemoteConfigResponse response2 =
         buildResponse(targets("org/ASM_DD/config1/foo", new TargetSpec(2, 8, "newhash1")));
-
     // apply is called
     boolean changed = productState.apply(response2, Collections.singletonList(key1), hinter);
-
     // changes are detected
     assertTrue(changed);
-
     // operations happen in order: remove config2 FIRST, then apply config1, then commit
     assertEquals(
         Arrays.asList("remove:org/ASM_DD/config2/foo", "accept:org/ASM_DD/config1/foo", "commit"),
-        listener.operations);
+        listener.operations
+    );
   }
 
   @Test
@@ -102,38 +103,40 @@ class ProductStateSpecification {
     ProductState productState = new ProductState(Product.ASM_DD);
     OrderRecordingListener listener = new OrderRecordingListener();
     productState.addProductListener(listener);
-
     // first apply with old configs
-    RemoteConfigResponse response1 =
-        buildResponse(
-            targets(
-                "org/ASM_DD/old1/foo", new TargetSpec(1, 8, "hash_old1"),
-                "org/ASM_DD/old2/foo", new TargetSpec(1, 8, "hash_old2")));
+    RemoteConfigResponse response1 = buildResponse(
+        targets(
+            "org/ASM_DD/old1/foo",
+            new TargetSpec(1, 8, "hash_old1"),
+            "org/ASM_DD/old2/foo",
+            new TargetSpec(1, 8, "hash_old2")
+        )
+    );
     ParsedConfigKey oldKey1 = ParsedConfigKey.parse("org/ASM_DD/old1/foo");
     ParsedConfigKey oldKey2 = ParsedConfigKey.parse("org/ASM_DD/old2/foo");
     productState.apply(response1, Arrays.asList(oldKey1, oldKey2), hinter);
-    listener.operations.clear(); // Clear for the actual test
-
+    // Clear for the actual test
+    listener.operations.clear();
     // a response with completely new configs
-    RemoteConfigResponse response2 =
-        buildResponse(
-            targets(
-                "org/ASM_DD/new1/foo", new TargetSpec(1, 8, "hash_new1"),
-                "org/ASM_DD/new2/foo", new TargetSpec(1, 8, "hash_new2")));
+    RemoteConfigResponse response2 = buildResponse(
+        targets(
+            "org/ASM_DD/new1/foo",
+            new TargetSpec(1, 8, "hash_new1"),
+            "org/ASM_DD/new2/foo",
+            new TargetSpec(1, 8, "hash_new2")
+        )
+    );
     ParsedConfigKey newKey1 = ParsedConfigKey.parse("org/ASM_DD/new1/foo");
     ParsedConfigKey newKey2 = ParsedConfigKey.parse("org/ASM_DD/new2/foo");
-
     // apply is called
     boolean changed = productState.apply(response2, Arrays.asList(newKey1, newKey2), hinter);
-
     // changes are detected
     assertTrue(changed);
-
     // all removes happen before all applies
-    assertEquals(5, listener.operations.size()); // 2 removes + 2 accepts + 1 commit
+    // 2 removes + 2 accepts + 1 commit
+    assertEquals(5, listener.operations.size());
     assertEquals(2, countStartingWith(listener.operations, "remove:"));
     assertEquals(2, countStartingWith(listener.operations, "accept:"));
-
     // removes come before accepts
     int lastRemoveIdx = lastIndexStartingWith(listener.operations, "remove:");
     int firstAcceptIdx = firstIndexStartingWith(listener.operations, "accept:");
@@ -146,20 +149,17 @@ class ProductStateSpecification {
     ProductState productState = new ProductState(Product.ASM_DATA);
     OrderRecordingListener listener = new OrderRecordingListener();
     productState.addProductListener(listener);
-
     // first apply with a config
     RemoteConfigResponse response =
         buildResponse(targets("org/ASM_DATA/config1/foo", new TargetSpec(1, 8, "hash1")));
     ParsedConfigKey key1 = ParsedConfigKey.parse("org/ASM_DATA/config1/foo");
     productState.apply(response, Collections.singletonList(key1), hinter);
-    listener.operations.clear(); // Clear for the actual test
-
+    // Clear for the actual test
+    listener.operations.clear();
     // apply is called again with the same hash
     boolean changed = productState.apply(response, Collections.singletonList(key1), hinter);
-
     // no changes are detected
     assertFalse(changed);
-
     // no listener operations occurred
     assertTrue(listener.operations.isEmpty());
   }
@@ -170,22 +170,17 @@ class ProductStateSpecification {
     ProductState productState = new ProductState(Product.ASM_DATA);
     ProductListener listener = mock(ProductListener.class);
     productState.addProductListener(listener);
-
     // a response with a config
     RemoteConfigResponse response =
         buildResponse(targets("org/ASM_DATA/config1/foo", new TargetSpec(1, 8, "hash1")));
-
     // listener throws an exception
     doThrow(new RuntimeException("Listener error")).when(listener).accept(any(), any(), any());
 
     ParsedConfigKey key1 = ParsedConfigKey.parse("org/ASM_DATA/config1/foo");
-
     // apply is called
     boolean changed = productState.apply(response, Collections.singletonList(key1), hinter);
-
     // changes are still detected
     assertTrue(changed);
-
     // commit is still called despite the error
     verify(listener).commit(hinter);
   }
@@ -196,20 +191,16 @@ class ProductStateSpecification {
     ProductState productState = new ProductState(Product.ASM_DATA);
     ProductListener listener = mock(ProductListener.class);
     productState.addProductListener(listener);
-
     // a response with a config
     RemoteConfigResponse response =
         buildResponse(targets("org/ASM_DATA/config1/foo", new TargetSpec(1, 8, "hash1")));
-
     // listener throws a ReportableException
     ReportableException exception = new ReportableException("Test error");
     doThrow(exception).when(listener).accept(any(), any(), any());
 
     ParsedConfigKey key1 = ParsedConfigKey.parse("org/ASM_DATA/config1/foo");
-
     // apply is called
     productState.apply(response, Collections.singletonList(key1), hinter);
-
     // error is recorded
     assertTrue(productState.hasError());
     assertTrue(productState.getErrors().contains(exception));
@@ -223,26 +214,27 @@ class ProductStateSpecification {
     OrderRecordingListener configListener = new OrderRecordingListener();
     productState.addProductListener(productListener);
     productState.addProductListener("config1", configListener);
-
     // a response with two configs
-    RemoteConfigResponse response =
-        buildResponse(
-            targets(
-                "org/ASM_DATA/config1/foo", new TargetSpec(1, 8, "hash1"),
-                "org/ASM_DATA/config2/foo", new TargetSpec(1, 8, "hash2")));
+    RemoteConfigResponse response = buildResponse(
+        targets(
+            "org/ASM_DATA/config1/foo",
+            new TargetSpec(1, 8, "hash1"),
+            "org/ASM_DATA/config2/foo",
+            new TargetSpec(1, 8, "hash2")
+        )
+    );
 
     ParsedConfigKey key1 = ParsedConfigKey.parse("org/ASM_DATA/config1/foo");
     ParsedConfigKey key2 = ParsedConfigKey.parse("org/ASM_DATA/config2/foo");
-
     // apply is called
     productState.apply(response, Arrays.asList(key1, key2), hinter);
-
     // productListener received both configs
     assertEquals(2, countStartingWith(productListener.operations, "accept:"));
-
     // configListener only received config1
     assertEquals(
-        Arrays.asList("accept:org/ASM_DATA/config1/foo", "commit"), configListener.operations);
+        Arrays.asList("accept:org/ASM_DATA/config1/foo", "commit"),
+        configListener.operations
+    );
   }
 
   @Test
@@ -251,39 +243,36 @@ class ProductStateSpecification {
     ProductState productState = new ProductState(Product.ASM_DATA);
     ProductListener listener = mock(ProductListener.class);
     productState.addProductListener(listener);
-
     // first apply with a config to cache it
     RemoteConfigResponse response1 =
         buildResponse(targets("org/ASM_DATA/config1/foo", new TargetSpec(1, 8, "hash1")));
     ParsedConfigKey key1 = ParsedConfigKey.parse("org/ASM_DATA/config1/foo");
     productState.apply(response1, Collections.singletonList(key1), hinter);
-
     // an empty response (config should be removed)
     RemoteConfigResponse response2 = buildResponse(Collections.emptyMap());
-
     // apply is called
     boolean changed =
         productState.apply(response2, Collections.<ParsedConfigKey>emptyList(), hinter);
-
     // changes are detected
     assertTrue(changed);
-
     // listener remove was called
     verify(listener).remove(key1, hinter);
-
     // cached data is cleaned up
     assertTrue(productState.getCachedTargetFiles().isEmpty());
     assertTrue(productState.getConfigStates().isEmpty());
   }
 
   // Helper methods
-
   private static Map<String, TargetSpec> targets(String path, TargetSpec spec) {
     return Collections.singletonMap(path, spec);
   }
 
   private static Map<String, TargetSpec> targets(
-      String path1, TargetSpec spec1, String path2, TargetSpec spec2) {
+      String path1,
+      TargetSpec spec1,
+      String path2,
+      TargetSpec spec2
+  ) {
     Map<String, TargetSpec> targets = new HashMap<>();
     targets.put(path1, spec1);
     targets.put(path2, spec2);
@@ -308,10 +297,10 @@ class ProductStateSpecification {
       target.custom = custom;
 
       when(response.getTarget(path)).thenReturn(target);
-      when(response.getFileContents(path))
-          .thenReturn(("content_" + targetData.hash).getBytes(UTF_8));
+      when(response.getFileContents(path)).thenReturn(("content_" + targetData.hash)
+        .getBytes(UTF_8)
+      );
     }
-
     // Handle empty targets case
     if (targets.isEmpty()) {
       when(response.getTarget(any())).thenReturn(null);

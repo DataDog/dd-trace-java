@@ -1,8 +1,9 @@
 package datadog.trace.bootstrap.otel.instrumentation.api.incubator.semconv.db;
 
-/** Simple holder of sanitized statements. */
+/**
+ * Simple holder of sanitized statements.
+ */
 public final class SqlStatementInfo {
-
   private final String statement;
   private final String operation;
   private final String table;

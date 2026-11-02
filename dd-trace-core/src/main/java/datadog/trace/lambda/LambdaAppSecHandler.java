@@ -6,7 +6,6 @@ import static datadog.trace.lambda.LambdaEventParser.buildFullPath;
 import static datadog.trace.lambda.LambdaEventParser.findHeader;
 import static datadog.trace.lambda.LambdaEventParser.parseEvent;
 import static datadog.trace.lambda.LambdaEventParser.parseResponse;
-
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -53,23 +52,19 @@ import org.slf4j.LoggerFactory;
  * parsing is delegated to {@link LambdaEventParser}.
  */
 public class LambdaAppSecHandler {
-
   private static final Logger log = LoggerFactory.getLogger(LambdaAppSecHandler.class);
   private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, TimeUnit.MINUTES);
-
   /**
    * Marks an invocation AppSec did not process because the trigger is not HTTP, or if the event is
    * unreadable (not a {@code ByteArrayInputStream}, empty, oversized, or unparseable).
    */
   private static final String UNSUPPORTED_EVENT_TYPE_METRIC = "_dd.appsec.unsupported_event_type";
-
   /**
    * Identifies tracer-based AppSec to the usage extractor as {@code client_tracer_based:true}. Set
    * before trigger checks because it identifies the implementation, not whether the event was
    * analysed, matching dd-trace-py's {@code on_span_start}.
    */
   private static final String SERVERLESS_TRACER_METRIC = "_dd.appsec.serverless.tracer";
-
   // Carries the detected trigger type from processRequestStart to processResponseData within the
   // same Lambda invocation. Cleared in processRequestEnd.
   private static final ThreadLocal<LambdaTriggerType> CURRENT_TRIGGER_TYPE = new ThreadLocal<>();
@@ -95,7 +90,8 @@ public class LambdaAppSecHandler {
     if (!(event instanceof ByteArrayInputStream)) {
       log.debug(
           "Event is not a ByteArrayInputStream, type: {}",
-          event != null ? event.getClass().getName() : "null");
+          event != null ? event.getClass().getName() : "null"
+      );
       return null;
     }
 
@@ -144,7 +140,6 @@ public class LambdaAppSecHandler {
     }
 
     span.setMetric(SERVERLESS_TRACER_METRIC, 1);
-
     // A null trigger type means processRequestStart never ran, so the invocation was not analysed
     // at all, which is not the same as an unsupported trigger.
     if (triggerType == null) {
@@ -168,7 +163,6 @@ public class LambdaAppSecHandler {
       } else {
         log.debug("requestEnded callback is null");
       }
-
       // In Lambda, the WAF runs in processRequestStart before the span exists.
       // GatewayBridge propagates ASM_KEEP based on WAF attack events, but not on
       // isManuallyKept(), which is set by trace-tagging rules that produce no events.
@@ -197,7 +191,6 @@ public class LambdaAppSecHandler {
         || !(result instanceof ByteArrayOutputStream)) {
       return;
     }
-
     // Only process response for known HTTP trigger types.
     LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
     if (triggerType == null || !triggerType.isHttp()) {
@@ -214,25 +207,23 @@ public class LambdaAppSecHandler {
         log.debug(
             "Response size {} exceeds limit {} or is empty, skipping response processing",
             bytes.length,
-            MAX_EVENT_SIZE);
+            MAX_EVENT_SIZE
+        );
         return;
       }
 
       String rawResponse = new String(bytes, StandardCharsets.UTF_8);
       LambdaResponseData responseData = parseResponse(rawResponse, triggerType);
-
       // A missing or non-positive status is not one the client can have seen, so it is published
       // neither to the span nor to the WAF.
       Integer statusCode = responseData.statusCode;
       boolean hasUsableStatus = statusCode != null && statusCode > 0;
-
       // The only HTTP tag set on the exit path: the status does not exist at span creation.
       if (hasUsableStatus) {
         span.setHttpStatusCode(statusCode);
         boolean isError = Config.get().getHttpServerErrorStatuses().get(statusCode);
         span.setError(isError, ErrorPriorities.HTTP_SERVER_DECORATOR);
       }
-
       // http.status_code is a tracing tag and is published above whether or not AppSec ran: a
       // failure inside processRequestStart must not also cost the span its status. The WAF
       // callbacks below, in contrast, have nowhere to deliver without an AppSec request context.
@@ -243,10 +234,8 @@ public class LambdaAppSecHandler {
 
       AgentTracer.TracerAPI tracer = AgentTracer.get();
       CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
-
       // Fire response gateway events. Flow results are intentionally ignored: blocking on response
       // is not supported for Lambda because remote config is unavailable in that environment.
-
       // Fire responseStarted only for usable HTTP statuses: an unusable one must not unlock
       // publication of the response status and headers to the WAF.
       if (hasUsableStatus) {
@@ -256,7 +245,6 @@ public class LambdaAppSecHandler {
           responseStartedCb.apply(requestContext, statusCode);
         }
       }
-
       // Fire responseHeader for each allowed header
       if (!responseData.headers.isEmpty()) {
         TriConsumer<RequestContext, String, String> responseHeaderCb =
@@ -267,14 +255,12 @@ public class LambdaAppSecHandler {
           }
         }
       }
-
       // Fire responseHeaderDone
       Function<RequestContext, Flow<Void>> responseHeaderDoneCb =
           cbp.getCallback(EVENTS.responseHeaderDone());
       if (responseHeaderDoneCb != null) {
         responseHeaderDoneCb.apply(requestContext);
       }
-
       // Fire responseBody
       if (responseData.body != null) {
         BiFunction<RequestContext, Object, Flow<Void>> responseBodyCb =
@@ -298,7 +284,9 @@ public class LambdaAppSecHandler {
    * @return the surviving context: the extension one when both are present
    */
   public static AgentSpanContext mergeContexts(
-      AgentSpanContext extensionContext, AgentSpanContext appSecContext) {
+      AgentSpanContext extensionContext,
+      AgentSpanContext appSecContext
+  ) {
     if (appSecContext == null) {
       return extensionContext;
     }
@@ -329,7 +317,8 @@ public class LambdaAppSecHandler {
 
       rlLog.warn(
           "Cannot merge AppSec data: extension context is not a TagContext: {}",
-          extensionContext.getClass());
+          extensionContext.getClass()
+      );
     }
     return extensionContext;
   }
@@ -341,7 +330,6 @@ public class LambdaAppSecHandler {
    */
   static void applyHttpTags(TagContext ctx, LambdaRequestData req, LambdaURIDataAdapter url) {
     ctx.putTag(Tags.COMPONENT, "aws-lambda");
-
     // The synthetic "WEBSOCKET" method stays inside the AppSec path; none is fabricated here.
     if (req.method != null && req.triggerType != LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET) {
       ctx.putTag(Tags.HTTP_METHOD, req.method);
@@ -349,15 +337,15 @@ public class LambdaAppSecHandler {
 
     if (req.host != null) {
       // QueryObfuscator sanitizes the separate query tag before appending it to this URL.
-      ctx.putTag(
-          Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), url.path()));
+      ctx.putTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), url.path()));
     }
 
     String query = url.rawQuery();
     if (query != null && !query.isEmpty() && Config.get().isHttpServerTagQueryString()) {
       ctx.putTag(
           Config.get().isTraceOtelSemanticsEnabled() ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY,
-          query);
+          query
+      );
     }
 
     String userAgent = findHeader(req.headers, "user-agent");
@@ -368,7 +356,6 @@ public class LambdaAppSecHandler {
     if (req.route != null) {
       ctx.putTag(Tags.HTTP_ROUTE, req.route);
     }
-
     // Deliberately a different host from the one in http.url, as in the decorator
     String forwardedHost = findHeader(req.headers, "x-forwarded-host");
     String hostname = forwardedHost != null ? forwardedHost : req.host;
@@ -385,7 +372,9 @@ public class LambdaAppSecHandler {
    *     requestStarted} callback
    */
   private static AgentSpanContext processAppSecRequestData(
-      LambdaRequestData eventData, LambdaURIDataAdapter uriAdapter) {
+      LambdaRequestData eventData,
+      LambdaURIDataAdapter uriAdapter
+  ) {
     AgentTracer.TracerAPI tracer = AgentTracer.get();
     Supplier<Flow<Object>> requestStartedCallback =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
@@ -396,34 +385,29 @@ public class LambdaAppSecHandler {
 
     TagContext tagContext = new TagContext();
     Object appSecRequestContext;
-
     // Call requestStarted
     appSecRequestContext = requestStartedCallback.get().getResult();
     tagContext.withRequestContextDataAppSec(appSecRequestContext);
 
     if (appSecRequestContext != null) {
       TemporaryRequestContext requestContext = new TemporaryRequestContext(appSecRequestContext);
-
       // Call requestMethodUriRaw
       if (eventData.method != null && eventData.path != null) {
-        datadog.trace.api.function.TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>
-            methodUriCallback =
-                tracer
-                    .getCallbackProvider(RequestContextSlot.APPSEC)
-                    .getCallback(EVENTS.requestMethodUriRaw());
+        datadog.trace.api.function.TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> methodUriCallback = tracer
+          .getCallbackProvider(RequestContextSlot.APPSEC)
+          .getCallback(EVENTS.requestMethodUriRaw());
         if (methodUriCallback != null) {
           methodUriCallback.apply(requestContext, eventData.method, uriAdapter);
         } else {
           log.debug("requestMethodUriRaw callback is null");
         }
       }
-
       // Call requestHeader for each header
       if (eventData.headers != null && !eventData.headers.isEmpty()) {
         TriConsumer<RequestContext, String, String> headerCallback =
             tracer
-                .getCallbackProvider(RequestContextSlot.APPSEC)
-                .getCallback(EVENTS.requestHeader());
+          .getCallbackProvider(RequestContextSlot.APPSEC)
+          .getCallback(EVENTS.requestHeader());
         if (headerCallback != null) {
           for (Map.Entry<String, String> header : eventData.headers.entrySet()) {
             headerCallback.accept(requestContext, header.getKey(), header.getValue());
@@ -432,13 +416,10 @@ public class LambdaAppSecHandler {
           log.debug("requestHeader callback is null");
         }
       }
-
       // Call requestClientSocketAddress even when no source IP is available.
-      datadog.trace.api.function.TriFunction<RequestContext, String, Integer, Flow<Void>>
-          socketAddrCallback =
-              tracer
-                  .getCallbackProvider(RequestContextSlot.APPSEC)
-                  .getCallback(EVENTS.requestClientSocketAddress());
+      datadog.trace.api.function.TriFunction<RequestContext, String, Integer, Flow<Void>> socketAddrCallback = tracer
+        .getCallbackProvider(RequestContextSlot.APPSEC)
+        .getCallback(EVENTS.requestClientSocketAddress());
       if (socketAddrCallback != null) {
         Integer port = eventData.sourcePort != null ? eventData.sourcePort : 0;
         String sourceIp = eventData.sourceIp;
@@ -449,51 +430,45 @@ public class LambdaAppSecHandler {
       } else {
         log.debug("requestClientSocketAddress callback is null");
       }
-
       // Call requestHeaderDone
       Function<RequestContext, Flow<Void>> headerDoneCallback =
           tracer
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.requestHeaderDone());
+        .getCallbackProvider(RequestContextSlot.APPSEC)
+        .getCallback(EVENTS.requestHeaderDone());
       if (headerDoneCallback != null) {
         headerDoneCallback.apply(requestContext);
       } else {
         log.debug("requestHeaderDone callback is null");
       }
-
       // Call requestPathParams
       if (eventData.pathParameters != null && !eventData.pathParameters.isEmpty()) {
         BiFunction<RequestContext, Map<String, ?>, Flow<Void>> pathParamsCallback =
             tracer
-                .getCallbackProvider(RequestContextSlot.APPSEC)
-                .getCallback(EVENTS.requestPathParams());
+          .getCallbackProvider(RequestContextSlot.APPSEC)
+          .getCallback(EVENTS.requestPathParams());
         if (pathParamsCallback != null) {
           pathParamsCallback.apply(requestContext, eventData.pathParameters);
         } else {
           log.debug("requestPathParams callback is null");
         }
       }
-
       // Call requestBodyProcessed
       if (eventData.body != null) {
-        BiFunction<RequestContext, Object, Flow<Void>> bodyCallback =
-            tracer
-                .getCallbackProvider(RequestContextSlot.APPSEC)
-                .getCallback(EVENTS.requestBodyProcessed());
+        BiFunction<RequestContext, Object, Flow<Void>> bodyCallback = tracer
+          .getCallbackProvider(RequestContextSlot.APPSEC)
+          .getCallback(EVENTS.requestBodyProcessed());
         if (bodyCallback != null) {
           bodyCallback.apply(requestContext, eventData.body);
         } else {
           log.debug("requestBodyProcessed callback is null");
         }
       }
-
       // Call requestFilesFilenames. Only the names are reported: the file content shares the
       // body's UTF-8 decode, so for anything that is not text it is already lossy.
       if (!eventData.filenames.isEmpty()) {
-        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
-            tracer
-                .getCallbackProvider(RequestContextSlot.APPSEC)
-                .getCallback(EVENTS.requestFilesFilenames());
+        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback = tracer
+          .getCallbackProvider(RequestContextSlot.APPSEC)
+          .getCallback(EVENTS.requestFilesFilenames());
         if (filenamesCallback != null) {
           filenamesCallback.apply(requestContext, eventData.filenames);
         } else {
@@ -504,7 +479,9 @@ public class LambdaAppSecHandler {
     return tagContext;
   }
 
-  /** Sets the current trigger type thread-local. Package-private for use in tests only. */
+  /**
+   * Sets the current trigger type thread-local. Package-private for use in tests only.
+   */
   static void setCurrentTriggerType(LambdaTriggerType type) {
     if (type == null) {
       CURRENT_TRIGGER_TYPE.remove();

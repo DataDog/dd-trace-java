@@ -14,7 +14,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -29,8 +28,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private static final String WEB_SERVICE_ANNOTATION_NAME = "jakarta.jws.WebService";
 
   public WebServiceInstrumentation() {
@@ -39,7 +39,8 @@ public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
@@ -51,19 +52,19 @@ public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(not(isStatic()))
-            .and(
-                hasSuperMethod(
-                    isDeclaredBy(declaresAnnotation(named(WEB_SERVICE_ANNOTATION_NAME))))),
-        getClass().getName() + "$InvokeAdvice");
+          .and(isPublic())
+          .and(not(isStatic()))
+          .and(hasSuperMethod(isDeclaredBy(declaresAnnotation(named(WEB_SERVICE_ANNOTATION_NAME))))),
+        getClass().getName() + "$InvokeAdvice"
+    );
   }
 
   public static final class InvokeAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginRequest(
-        @Advice.This Object thiz, @Advice.Origin("#m") String method) {
+        @Advice.This Object thiz,
+        @Advice.Origin("#m") String method
+    ) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(WebService.class);
       if (callDepth > 0) {
         return null;
@@ -78,7 +79,9 @@ public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishRequest(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable error) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Thrown final Throwable error
+    ) {
       if (null == scope) {
         return;
       }

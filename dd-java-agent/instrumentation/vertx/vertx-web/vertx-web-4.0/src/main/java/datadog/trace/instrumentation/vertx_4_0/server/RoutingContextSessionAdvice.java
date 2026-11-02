@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.vertx_4_0.server;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -20,8 +19,8 @@ class RoutingContextSessionAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static void after(
       @ActiveRequestContext final RequestContext reqCtx,
-      @Advice.Argument(0) final Session session) {
-
+      @Advice.Argument(0) final Session session
+  ) {
     if (session == null) {
       return;
     }

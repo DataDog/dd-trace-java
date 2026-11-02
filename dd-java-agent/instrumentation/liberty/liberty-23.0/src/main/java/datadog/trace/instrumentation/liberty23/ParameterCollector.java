@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public interface ParameterCollector {
-
   boolean isEmpty();
 
   void put(String key, String[] value);

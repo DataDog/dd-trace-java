@@ -12,7 +12,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import java.nio.ByteBuffer;
@@ -24,13 +23,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class StoredByteBodyTest {
-
   private static final int STORE_LIMIT = 128 * 1024;
-
   private RequestContext requestContext;
   private BiFunction<RequestContext, StoredBodySupplier, Void> startCb;
   private BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb;
-
   private StoredByteBody storedByteBody;
 
   @BeforeEach
@@ -67,7 +63,6 @@ class StoredByteBodyTest {
     storedByteBody.appendData((int) 'a');
 
     verify(startCb).apply(requestContext, storedByteBody);
-
     // last byte ignored
     storedByteBody.appendData(repeat('a', STORE_LIMIT), 0, STORE_LIMIT);
     // ignored
@@ -92,20 +87,20 @@ class StoredByteBodyTest {
   void wellFormedUtf8Data() {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0);
 
-    byte[] data = "\u00E1\u0800\uD800\uDC00".getBytes(UTF_8);
+    byte[] data = "áࠀ𐀀".getBytes(UTF_8);
     storedByteBody.appendData(data, 0, data.length);
 
-    assertEquals("\u00E1\u0800\uD800\uDC00", storedByteBody.get().toString());
+    assertEquals("áࠀ𐀀", storedByteBody.get().toString());
   }
 
   @Test
   void nonUtf8DataWithSpecifiedEncoding() {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, ISO_8859_1, 0);
 
-    byte[] data = "\u00E1".getBytes(UTF_8);
+    byte[] data = "á".getBytes(UTF_8);
     storedByteBody.appendData(data, 0, data.length);
 
-    assertEquals("\u00C3\u00A1", storedByteBody.get().toString());
+    assertEquals("Ã¡", storedByteBody.get().toString());
   }
 
   @Test
@@ -114,7 +109,7 @@ class StoredByteBodyTest {
 
     storedByteBody.appendData(new byte[] {(byte) 0xFF}, 0, 1);
 
-    assertEquals("\u00FF", storedByteBody.get().toString());
+    assertEquals("ÿ", storedByteBody.get().toString());
   }
 
   @Test
@@ -123,7 +118,7 @@ class StoredByteBodyTest {
 
     storedByteBody.appendData(new byte[] {(byte) 0xC3, (byte) 0xC3}, 0, 2);
 
-    assertEquals("\u00C3\u00C3", storedByteBody.get().toString());
+    assertEquals("ÃÃ", storedByteBody.get().toString());
   }
 
   @Test
@@ -132,7 +127,7 @@ class StoredByteBodyTest {
 
     storedByteBody.appendData(new byte[] {(byte) 0xE0, (byte) 0x80, 0x7F}, 0, 3);
 
-    assertEquals("\u00E0\u0080\u007F", storedByteBody.get().toString());
+    assertEquals("à\u007F", storedByteBody.get().toString());
   }
 
   @Test
@@ -141,7 +136,7 @@ class StoredByteBodyTest {
 
     storedByteBody.appendData(new byte[] {(byte) 0xF0, (byte) 0x80, (byte) 0x80, 0x7F}, 0, 4);
 
-    assertEquals("\u00F0\u0080\u0080\u007F", storedByteBody.get().toString());
+    assertEquals("ð\u007F", storedByteBody.get().toString());
   }
 
   @Test
@@ -151,7 +146,7 @@ class StoredByteBodyTest {
     storedByteBody.appendData(0xC3);
     storedByteBody.maybeNotify();
 
-    assertEquals("\u00C3", storedByteBody.get().toString());
+    assertEquals("Ã", storedByteBody.get().toString());
   }
 
   @Test
@@ -161,7 +156,7 @@ class StoredByteBodyTest {
     storedByteBody.appendData(new byte[] {(byte) 0xE0, (byte) 0xA0}, 0, 2);
     storedByteBody.maybeNotify();
 
-    assertEquals("\u00E0\u00A0", storedByteBody.get().toString());
+    assertEquals("à ", storedByteBody.get().toString());
   }
 
   @Test
@@ -171,22 +166,22 @@ class StoredByteBodyTest {
     storedByteBody.appendData(new byte[] {(byte) 0xF0, (byte) 0x90, (byte) 0x80}, 0, 3);
     storedByteBody.maybeNotify();
 
-    assertEquals("\u00F0\u0090\u0080", storedByteBody.get().toString());
+    assertEquals("ð", storedByteBody.get().toString());
   }
 
   @Test
   void utf8DataCanBeReencodedAsLatin1() {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0);
-    byte[] bytes = repeat("\u00E1", 16).getBytes(UTF_8);
+    byte[] bytes = repeat("á", 16).getBytes(UTF_8);
 
     storedByteBody.appendData(bytes, 0, bytes.length);
 
-    assertEquals(repeat("\u00E1", 16), storedByteBody.get().toString());
+    assertEquals(repeat("á", 16), storedByteBody.get().toString());
 
     storedByteBody.appendData(0x80);
     storedByteBody.appendData(0x80);
 
-    assertEquals(repeat("\u00C3\u00A1", 16) + "\u0080\u0080", storedByteBody.get().toString());
+    assertEquals(repeat("Ã¡", 16) + "", storedByteBody.get().toString());
   }
 
   @Test
@@ -195,20 +190,17 @@ class StoredByteBodyTest {
     StoredByteBody.ByteBufferWriteCallback mockCb =
         mock(StoredByteBody.ByteBufferWriteCallback.class);
     AtomicInteger iteration = new AtomicInteger(1);
-    doAnswer(
-            invocation -> {
-              ByteBuffer byteBuffer = invocation.getArgument(0);
-              if (iteration.getAndIncrement() == 1) {
-                assertEquals(64, byteBuffer.remaining());
-                byteBuffer.put(repeat("a", 64).getBytes(ISO_8859_1));
-              } else {
-                assertEquals(4, byteBuffer.remaining());
-                byteBuffer.put("0123".getBytes(ISO_8859_1));
-              }
-              return null;
-            })
-        .when(mockCb)
-        .put(any(ByteBuffer.class));
+    doAnswer(invocation -> {
+      ByteBuffer byteBuffer = invocation.getArgument(0);
+      if (iteration.getAndIncrement() == 1) {
+        assertEquals(64, byteBuffer.remaining());
+        byteBuffer.put(repeat("a", 64).getBytes(ISO_8859_1));
+      } else {
+        assertEquals(4, byteBuffer.remaining());
+        byteBuffer.put("0123".getBytes(ISO_8859_1));
+      }
+      return null;
+    }).when(mockCb).put(any(ByteBuffer.class));
 
     storedByteBody.appendData(mockCb, 68);
 
@@ -223,7 +215,8 @@ class StoredByteBodyTest {
         mock(StoredByteBody.ByteBufferWriteCallback.class);
 
     storedByteBody.appendData(repeat('a', STORE_LIMIT), 0, STORE_LIMIT);
-    storedByteBody.get(); // force commit
+    // force commit
+    storedByteBody.get();
     storedByteBody.appendData(mockCb, 1);
 
     verifyNoInteractions(mockCb);
@@ -237,11 +230,10 @@ class StoredByteBodyTest {
     storedByteBody.appendData(body, 0, body.length);
     storedByteBody.maybeNotify();
 
-    assertDoesNotThrow(
-        () -> {
-          storedByteBody.appendData(body, 0, body.length);
-          storedByteBody.maybeNotify();
-        });
+    assertDoesNotThrow(() -> {
+      storedByteBody.appendData(body, 0, body.length);
+      storedByteBody.maybeNotify();
+    });
   }
 
   private static byte[] repeat(char value, int count) {

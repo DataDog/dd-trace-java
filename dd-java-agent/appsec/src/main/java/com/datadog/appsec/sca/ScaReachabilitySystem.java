@@ -24,10 +24,10 @@ import org.slf4j.LoggerFactory;
  * </ol>
  */
 public final class ScaReachabilitySystem {
-
   private static final Logger log = LoggerFactory.getLogger(ScaReachabilitySystem.class);
 
-  private ScaReachabilitySystem() {}
+  private ScaReachabilitySystem() {
+  }
 
   /**
    * Starts the SCA Reachability subsystem.
@@ -42,7 +42,6 @@ public final class ScaReachabilitySystem {
       return;
     }
     log.info("SCA Reachability: loaded {} vulnerable class symbols", database.size());
-
     // Register the method-level callback. When called synchronously from the injected bytecode,
     // the current thread stack still contains the full call chain:
     //   this handler lambda
@@ -52,40 +51,45 @@ public final class ScaReachabilitySystem {
     //   <application callsite>  ← what we report
     // Agent frames are filtered by AbstractStackWalker.isNotDatadogTraceStackElement; intermediate
     // library frames are filtered by ScaStackExclusionTrie so we skip past them to client code.
-    ScaReachabilityCallback.register(
-        (vulnId, artifact, version, dotClassName, methodName, line) -> {
-          StackTraceElement callsite = findCallsite(dotClassName);
-          if (callsite != null) {
-            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-                artifact,
-                version,
-                vulnId,
-                callsite.getClassName(),
-                callsite.getMethodName(),
-                callsite.getLineNumber());
-          } else {
-            // Fallback: no application frame found - report the vulnerable symbol so the
-            // backend at least knows the method was reached.
-            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-                artifact, version, vulnId, dotClassName, methodName, line);
-          }
-        });
+    ScaReachabilityCallback.register((vulnId, artifact, version, dotClassName, methodName, line) -> {
+      StackTraceElement callsite = findCallsite(dotClassName);
+      if (callsite != null) {
+        ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+            artifact,
+            version,
+            vulnId,
+            callsite.getClassName(),
+            callsite.getMethodName(),
+            callsite.getLineNumber()
+        );
+      } else {
+        // Fallback: no application frame found - report the vulnerable symbol so the
+        // backend at least knows the method was reached.
+        ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+            artifact,
+            version,
+            vulnId,
+            dotClassName,
+            methodName,
+            line
+        );
+      }
+    });
 
     ScaReachabilityTransformer transformer =
         new ScaReachabilityTransformer(database, instrumentation);
-
     // canRetransform=true is required so that already-loaded classes can be retransformed to inject
     // method-level callbacks when they were loaded before the agent started.
     instrumentation.addTransformer(transformer, true);
 
     transformer.checkAlreadyLoadedClasses();
     log.debug("SCA Reachability: startup scan complete");
-
     // performPendingRetransforms injects method-level callbacks into classes whose names were
     // added to pendingRetransformNames by transform() on first load or by processClass() when
     // version resolution previously failed and needs a retry.
     ScaReachabilityDependencyRegistry.INSTANCE.setPeriodicWorkCallback(
-        transformer::performPendingRetransforms);
+        transformer::performPendingRetransforms
+    );
   }
 
   /**
@@ -108,8 +112,7 @@ public final class ScaReachabilitySystem {
    * @return first application callsite frame, or {@code null} if not found
    */
   static StackTraceElement findCallsite(String vulnerableClass) {
-    return StackWalkerFactory.INSTANCE.walk(
-        stream -> findCallsiteInStream(vulnerableClass, stream));
+    return StackWalkerFactory.INSTANCE.walk(stream -> findCallsiteInStream(vulnerableClass, stream));
   }
 
   /**
@@ -120,30 +123,32 @@ public final class ScaReachabilitySystem {
   static StackTraceElement findCallsite(String vulnerableClass, StackTraceElement[] stack) {
     return findCallsiteInStream(
         vulnerableClass,
-        Arrays.stream(stack).filter(AbstractStackWalker::isNotDatadogTraceStackElement));
+        Arrays.stream(stack).filter(AbstractStackWalker::isNotDatadogTraceStackElement)
+    );
   }
 
   private static StackTraceElement findCallsiteInStream(
-      String vulnerableClass, Stream<StackTraceElement> stream) {
+      String vulnerableClass,
+      Stream<StackTraceElement> stream
+  ) {
     boolean[] pastVulnerableClass = {false};
     return stream
-        .filter(
-            frame -> {
-              String cls = frame.getClassName();
-              if (!pastVulnerableClass[0]) {
-                if (cls.equals(vulnerableClass)) {
-                  pastVulnerableClass[0] = true;
-                }
-                return false;
-              }
-              // Skip remaining frames from the vulnerable class itself
-              if (cls.equals(vulnerableClass)) {
-                return false;
-              }
-              // Skip intermediate library frames so we report client code, not a wrapper library
-              return ScaStackExclusionTrie.apply(cls) < 1;
-            })
-        .findFirst()
-        .orElse(null);
+      .filter(frame -> {
+        String cls = frame.getClassName();
+        if (!pastVulnerableClass[0]) {
+          if (cls.equals(vulnerableClass)) {
+            pastVulnerableClass[0] = true;
+          }
+          return false;
+        }
+        // Skip remaining frames from the vulnerable class itself
+        if (cls.equals(vulnerableClass)) {
+          return false;
+        }
+        // Skip intermediate library frames so we report client code, not a wrapper library
+        return ScaStackExclusionTrie.apply(cls) < 1;
+      })
+      .findFirst()
+      .orElse(null);
   }
 }

@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.INSTRUMENTATION_NAME;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,7 +18,6 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
   static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
   static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
-
   private final Handler<RoutingContext> actual;
   private final boolean spanStarter;
 
@@ -107,8 +105,8 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     if (mountPoint != null && path != null) {
       final String noBackslashhMountPoint =
           mountPoint.endsWith("/")
-              ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
-              : mountPoint;
+          ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
+          : mountPoint;
       path = noBackslashhMountPoint + path;
     }
     if (method != null && path != null && shouldUpdateRoute(routingContext, parentSpan, path)) {
@@ -118,7 +116,10 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   }
 
   static boolean shouldUpdateRoute(
-      final RoutingContext routingContext, final AgentSpan span, final String path) {
+      final RoutingContext routingContext,
+      final AgentSpan span,
+      final String path
+  ) {
     if (span == null) {
       return false;
     }

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.context.benchmark.ContextStoreBenchmar
 import static datadog.trace.agent.tooling.context.benchmark.ContextStoreBenchmarkSupport.newKey;
 import static datadog.trace.agent.tooling.context.benchmark.ContextStoreWorkloadInstrumentation.STORE_COUNT;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import context.benchmark.workload.WorkloadKey;
 import datadog.trace.agent.tooling.context.benchmark.ContextStoreWorkloadInstrumentation.Context;
 import datadog.trace.bootstrap.ContextStore;
@@ -103,32 +102,36 @@ public class ContextStoreWorkloadBenchmark {
   static final int INJECTED = 0;
   static final int PARTIAL = 1;
   static final int UNINJECTED = 2;
-
   static final int PUT = 0;
   static final int GET_OR_PUT = 1;
   static final int GET_OR_COMPUTE = 2;
-
   static final int KEYS_PER_REQUEST = 4;
-  static final int IN_FLIGHT_KEYS = 16 * KEYS_PER_REQUEST; // keys stay in flight for 16 requests
+  // keys stay in flight for 16 requests
+  static final int IN_FLIGHT_KEYS = 16 * KEYS_PER_REQUEST;
   static final int SECOND_STORE_PERCENT = 50;
   static final int PUT_PERCENT = 50;
   static final int GET_OR_PUT_PERCENT = 25;
   static final int REVISIT_COUNT = 4;
   static final int PATTERN_SIZE = 65536;
-
-  /** Stores selected exclusively for non-injected keys in CONCENTRATED mode. */
+  /**
+   * Stores selected exclusively for non-injected keys in CONCENTRATED mode.
+   */
   static final int[] FALLBACK_STORES = {14, 15};
-
   static final Context CONTEXT = new Context(42);
   static final Function<Object, Object> COMPUTE_CONTEXT = key -> CONTEXT;
-
-  /** Cumulative Zipf (s=1) weights, so lower store indices are more popular. */
+  /**
+   * Cumulative Zipf (s=1) weights, so lower store indices are more popular.
+   */
   static final double[] ZIPF = zipf(STORE_COUNT);
 
   public enum FallbackMode {
-    /** Fallback traffic is spread across eligible stores with Zipf popularity. */
+    /**
+     * Fallback traffic is spread across eligible stores with Zipf popularity.
+     */
     DISTRIBUTED,
-    /** Fallback traffic is confined to stores 14-15; injected traffic uses the other stores. */
+    /**
+     * Fallback traffic is confined to stores 14-15; injected traffic uses the other stores.
+     */
     CONCENTRATED
   }
 
@@ -144,8 +147,9 @@ public class ContextStoreWorkloadBenchmark {
     CHURN_HEAVY,
     REUSE_HEAVY,
     RECOVERY;
-
-    /** Returns the fixed lifecycle for a store. */
+    /**
+     * Returns the fixed lifecycle for a store.
+     */
     Scenario forStore(int store) {
       switch (this) {
         case MIXED:
@@ -163,26 +167,37 @@ public class ContextStoreWorkloadBenchmark {
     }
   }
 
-  /** Runs the selected store lifecycles with {@code map-per-store=true}. */
+  /**
+   * Runs the selected store lifecycles with {@code map-per-store=true}.
+   */
   @Benchmark
   public void requestMapPerStore(Workload workload, Misses misses, Blackhole blackhole) {
     run(workload, misses.request, misses, true, blackhole);
   }
 
-  /** Same as {@link #requestMapPerStore} with {@code map-per-store=false}. */
+  /**
+   * Same as {@link #requestMapPerStore} with {@code map-per-store=false}.
+   */
   @Benchmark
   public void requestGlobalStore(Workload workload, Misses misses, Blackhole blackhole) {
     run(workload, misses.request, misses, true, blackhole);
   }
 
-  /** Same workload as the request benchmarks without touching the stores. */
+  /**
+   * Same workload as the request benchmarks without touching the stores.
+   */
   @Benchmark
   public void baseline(Workload workload, Request request, Blackhole blackhole) {
     run(workload, request, null, false, blackhole);
   }
 
   private static void run(
-      Workload workload, Request request, Misses misses, boolean useStores, Blackhole blackhole) {
+      Workload workload,
+      Request request,
+      Misses misses,
+      boolean useStores,
+      Blackhole blackhole
+  ) {
     for (int k = 0; k < KEYS_PER_REQUEST; k++) {
       int p = request.nextPattern();
       int slot = request.nextSlot();
@@ -205,7 +220,8 @@ public class ContextStoreWorkloadBenchmark {
           misses.assigned(
               request.kinds[p],
               request.contextCount(workload, p),
-              request.check(workload, key, p, context));
+              request.check(workload, key, p, context)
+          );
         }
       }
       request.reuse(workload, request.storesA[p], p, slot, useStores, misses, blackhole);
@@ -224,27 +240,21 @@ public class ContextStoreWorkloadBenchmark {
   public static class Workload {
     @Param("1")
     public long seed;
-
     @Param({"1", "10"})
     public int fallbackPercent;
-
     @Param({"DISTRIBUTED", "CONCENTRATED"})
     public FallbackMode fallbackMode;
-
     @Param({"GC", "CLEANUP", "REUSE", "MIXED"})
     public Scenario scenario;
-
     @Param("1000")
     public long requestWork;
-
-    /** Minimum fallback completion/reuse checks per thread and measurement iteration. */
+    /**
+     * Minimum fallback completion/reuse checks per thread and measurement iteration.
+     */
     @Param("100")
     public int minFallbackRetirementChecks;
-
     private final Scenario[] behaviours = new Scenario[STORE_COUNT];
-
     private final WorkloadKey[] prototypes = new WorkloadKey[3];
-
     @SuppressWarnings("unchecked")
     private final ContextStore<Object, Object>[] stores = new ContextStore[STORE_COUNT];
 
@@ -268,7 +278,8 @@ public class ContextStoreWorkloadBenchmark {
       String expectedStore = mapPerStore ? "FieldBacked" : "Boxed";
       if (!stores[0].getClass().getSimpleName().startsWith(expectedStore)) {
         throw new IllegalStateException(
-            "mapPerStore=" + mapPerStore + " but stores are " + stores[0].getClass().getName());
+            "mapPerStore=" + mapPerStore + " but stores are " + stores[0].getClass().getName()
+        );
       }
       verifyStores();
 
@@ -277,7 +288,9 @@ public class ContextStoreWorkloadBenchmark {
       }
     }
 
-    /** Returns the mode for the given request benchmark, or {@code null} for the baseline. */
+    /**
+     * Returns the mode for the given request benchmark, or {@code null} for the baseline.
+     */
     private static Boolean requestedMode(String benchmark) {
       if (benchmark.endsWith(".requestMapPerStore")) {
         return Boolean.TRUE;
@@ -299,7 +312,9 @@ public class ContextStoreWorkloadBenchmark {
       }
     }
 
-    /** Checks store isolation for every key type, including the partial-field redirect. */
+    /**
+     * Checks store isolation for every key type, including the partial-field redirect.
+     */
     private void verifyStores() {
       Context[] contexts = new Context[STORE_COUNT];
       for (int i = 0; i < STORE_COUNT; i++) {
@@ -316,12 +331,14 @@ public class ContextStoreWorkloadBenchmark {
               || stores[i].getOrCompute(key, COMPUTE_CONTEXT) != contexts[i]
               || stores[i].remove(key) != contexts[i]) {
             throw new IllegalStateException(
-                "context store " + i + " is not isolated for " + key.getClass().getName());
+                "context store " + i + " is not isolated for " + key.getClass().getName()
+            );
           }
           for (int j = 0; j < STORE_COUNT; j++) {
             if (stores[j].get(key) != (j <= i ? null : contexts[j])) {
               throw new IllegalStateException(
-                  "removing context store " + i + " affected store " + j);
+                  "removing context store " + i + " affected store " + j
+              );
             }
           }
         }
@@ -375,21 +392,19 @@ public class ContextStoreWorkloadBenchmark {
       for (int p = 0; p < PATTERN_SIZE; p++) {
         int kind = kinds[p];
         storesA[p] = (byte) pickStore(random, kind, concentrated);
-        storesB[p] =
-            (byte)
-                (random.nextInt(100) < SECOND_STORE_PERCENT
-                    ? pickOtherStore(random, kind, concentrated, storesA[p])
-                    : -1);
+        storesB[p] = (byte) (random.nextInt(100) < SECOND_STORE_PERCENT
+            ? pickOtherStore(random, kind, concentrated, storesA[p])
+            : -1);
         int op = random.nextInt(100);
-        ops[p] =
-            (byte)
-                (op < PUT_PERCENT
-                    ? PUT
-                    : op < PUT_PERCENT + GET_OR_PUT_PERCENT ? GET_OR_PUT : GET_OR_COMPUTE);
+        ops[p] = (byte) (op < PUT_PERCENT
+            ? PUT
+            : op < PUT_PERCENT + GET_OR_PUT_PERCENT ? GET_OR_PUT : GET_OR_COMPUTE);
       }
     }
 
-    /** Assigns contexts to the request-local stores for pattern {@code p}. */
+    /**
+     * Assigns contexts to the request-local stores for pattern {@code p}.
+     */
     void assign(Workload workload, WorkloadKey key, int p, Object context) {
       assignmentContext = context;
       if (workload.behaviours[storesA[p]] != Scenario.REUSE) {
@@ -405,7 +420,8 @@ public class ContextStoreWorkloadBenchmark {
         WorkloadKey key,
         int op,
         Object context,
-        Function<Object, Object> factory) {
+        Function<Object, Object> factory
+    ) {
       switch (op) {
         case GET_OR_PUT:
           store.getOrPut(key, context);
@@ -418,7 +434,9 @@ public class ContextStoreWorkloadBenchmark {
       }
     }
 
-    /** Returns how many request-local contexts for pattern {@code p} are missing. */
+    /**
+     * Returns how many request-local contexts for pattern {@code p} are missing.
+     */
     int check(Workload workload, WorkloadKey key, int p, Object context) {
       int missing = 0;
       if (workload.behaviours[storesA[p]] != Scenario.REUSE) {
@@ -435,14 +453,17 @@ public class ContextStoreWorkloadBenchmark {
           + (storesB[p] < 0 || workload.behaviours[storesB[p]] == Scenario.REUSE ? 0 : 1);
     }
 
-    /** Checks request-local associations before their keys leave flight. */
+    /**
+     * Checks request-local associations before their keys leave flight.
+     */
     void finish(
         Workload workload,
         WorkloadKey key,
         int p,
         Object context,
         Misses misses,
-        Blackhole blackhole) {
+        Blackhole blackhole
+    ) {
       misses.retired(kinds[p], contextCount(workload, p), check(workload, key, p, context));
       finish(workload, storesA[p], key, p, misses, blackhole);
       if (storesB[p] >= 0) {
@@ -451,7 +472,13 @@ public class ContextStoreWorkloadBenchmark {
     }
 
     private void finish(
-        Workload workload, int index, WorkloadKey key, int p, Misses misses, Blackhole blackhole) {
+        Workload workload,
+        int index,
+        WorkloadKey key,
+        int p,
+        Misses misses,
+        Blackhole blackhole
+    ) {
       Scenario behaviour = workload.behaviours[index];
       ContextStore<Object, Object> store = workload.stores[index];
       if (behaviour == Scenario.RECOVERY) {
@@ -465,7 +492,9 @@ public class ContextStoreWorkloadBenchmark {
       }
     }
 
-    /** Uses a persistent key from the selected store's pool, repairing missing state. */
+    /**
+     * Uses a persistent key from the selected store's pool, repairing missing state.
+     */
     void reuse(
         Workload workload,
         int index,
@@ -473,7 +502,8 @@ public class ContextStoreWorkloadBenchmark {
         int slot,
         boolean useStores,
         Misses misses,
-        Blackhole blackhole) {
+        Blackhole blackhole
+    ) {
       if (workload.behaviours[index] != Scenario.REUSE) {
         return;
       }
@@ -497,13 +527,16 @@ public class ContextStoreWorkloadBenchmark {
       pooledContexts[index][kind][slot] = context;
     }
 
-    /** Revisits an association and records any recreations. */
+    /**
+     * Revisits an association and records any recreations.
+     */
     private Object revisit(
         ContextStore<Object, Object> store,
         WorkloadKey key,
         int kind,
         Misses misses,
-        Blackhole blackhole) {
+        Blackhole blackhole
+    ) {
       long before = revisitRecreates;
       Object context = null;
       for (int visit = 0; visit < REVISIT_COUNT; visit++) {
@@ -514,7 +547,9 @@ public class ContextStoreWorkloadBenchmark {
       return context;
     }
 
-    /** Revisits an association, recreating its value only when missing. */
+    /**
+     * Revisits an association, recreating its value only when missing.
+     */
     private Object revisit(ContextStore<Object, Object> store, WorkloadKey key, boolean compute) {
       if (compute) {
         return store.getOrCompute(key, revisitFactory);
@@ -558,56 +593,75 @@ public class ContextStoreWorkloadBenchmark {
     private boolean hasFallback;
     private boolean recovery;
 
-    /** Request slots occupied at the end of the iteration, including pooled keys. */
+    /**
+     * Request slots occupied at the end of the iteration, including pooled keys.
+     */
     public long youngOccupiedSlots() {
       return request.youngOccupiedSlots;
     }
 
-    /** Request slots available per thread. */
+    /**
+     * Request slots available per thread.
+     */
     public long youngCapacitySlots() {
       return request.inFlightKeys.length;
     }
 
-    /** Injected contexts checked straight after being assigned. */
+    /**
+     * Injected contexts checked straight after being assigned.
+     */
     public long injectedAssignmentChecks;
-
-    /** Injected contexts missing straight after being assigned. */
+    /**
+     * Injected contexts missing straight after being assigned.
+     */
     public long injectedAssignmentMisses;
-
-    /** Young injected contexts checked at completion. */
+    /**
+     * Young injected contexts checked at completion.
+     */
     public long injectedYoungRetirementChecks;
-
-    /** Young injected contexts missing at completion. */
+    /**
+     * Young injected contexts missing at completion.
+     */
     public long injectedYoungRetirementMisses;
-
-    /** Pooled injected contexts checked before reuse. */
+    /**
+     * Pooled injected contexts checked before reuse.
+     */
     public long injectedPooledReuseChecks;
-
-    /** Pooled injected contexts missing before reuse. */
+    /**
+     * Pooled injected contexts missing before reuse.
+     */
     public long injectedPooledReuseMisses;
-
-    /** Injected contexts needing recreation during revisits. */
+    /**
+     * Injected contexts needing recreation during revisits.
+     */
     public long injectedRevisitRecreates;
-
-    /** Fallback contexts checked straight after being assigned. */
+    /**
+     * Fallback contexts checked straight after being assigned.
+     */
     public long fallbackAssignmentChecks;
-
-    /** Fallback contexts missing straight after being assigned. */
+    /**
+     * Fallback contexts missing straight after being assigned.
+     */
     public long fallbackAssignmentMisses;
-
-    /** Young fallback contexts checked at completion. */
+    /**
+     * Young fallback contexts checked at completion.
+     */
     public long fallbackYoungRetirementChecks;
-
-    /** Young fallback contexts missing at completion. */
+    /**
+     * Young fallback contexts missing at completion.
+     */
     public long fallbackYoungRetirementMisses;
-
-    /** Pooled fallback contexts checked before reuse. */
+    /**
+     * Pooled fallback contexts checked before reuse.
+     */
     public long fallbackPooledReuseChecks;
-
-    /** Pooled fallback contexts missing before reuse. */
+    /**
+     * Pooled fallback contexts missing before reuse.
+     */
     public long fallbackPooledReuseMisses;
-
-    /** Fallback contexts needing recreation during revisits. */
+    /**
+     * Fallback contexts needing recreation during revisits.
+     */
     public long fallbackRevisitRecreates;
 
     @Setup(Level.Iteration)
@@ -640,20 +694,22 @@ public class ContextStoreWorkloadBenchmark {
           || injectedRevisitRecreates != 0) {
         throw new IllegalStateException(
             "Injected state was lost: assignment misses="
-                + injectedAssignmentMisses
-                + ", young misses="
-                + injectedYoungRetirementMisses
-                + ", pooled misses="
-                + injectedPooledReuseMisses
-                + ", recreations="
-                + injectedRevisitRecreates);
+            + injectedAssignmentMisses
+            + ", young misses="
+            + injectedYoungRetirementMisses
+            + ", pooled misses="
+            + injectedPooledReuseMisses
+            + ", recreations="
+            + injectedRevisitRecreates
+        );
       }
       if (recovery && fallbackRevisitRecreates != fallbackYoungRetirementChecks) {
         throw new IllegalStateException(
             "Recovery requires one recreation per fallback association: checks="
-                + fallbackYoungRetirementChecks
-                + ", recreations="
-                + fallbackRevisitRecreates);
+            + fallbackYoungRetirementChecks
+            + ", recreations="
+            + fallbackRevisitRecreates
+        );
       }
       if (iteration.getType() != IterationType.MEASUREMENT) {
         return;
@@ -665,10 +721,11 @@ public class ContextStoreWorkloadBenchmark {
       if (hasFallback && fallbackChecks < minFallbackRetirementChecks) {
         throw new IllegalStateException(
             "Only "
-                + fallbackChecks
-                + " fallback completion/reuse checks; require "
-                + minFallbackRetirementChecks
-                + " per thread. Increase -wi/-w or -r; use -p minFallbackRetirementChecks=0 for smoke tests.");
+            + fallbackChecks
+            + " fallback completion/reuse checks; require "
+            + minFallbackRetirementChecks
+            + " per thread. Increase -wi/-w or -r; use -p minFallbackRetirementChecks=0 for smoke tests."
+        );
       }
     }
 
@@ -749,7 +806,8 @@ public class ContextStoreWorkloadBenchmark {
     for (int i = 0; i < count; i++) {
       cumulative[i] /= total;
     }
-    cumulative[count - 1] = 1.0; // guard against rounding
+    // guard against rounding
+    cumulative[count - 1] = 1.0;
     return cumulative;
   }
 

@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import static datadog.opentelemetry.tooling.OtelExtensionHandler.OPENTELEMETRY;
 import static datadog.trace.agent.tooling.ExtensionHandler.DATADOG;
-
 import datadog.trace.api.telemetry.OtelSpiCollector;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
@@ -21,37 +20,36 @@ import net.bytebuddy.dynamic.loading.MultipleParentClassLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Finds extensions to the Datadog tracer. */
+/**
+ * Finds extensions to the Datadog tracer.
+ */
 public final class ExtensionFinder {
   private static final Logger log = LoggerFactory.getLogger(ExtensionFinder.class);
-
   private static final ExtensionHandler[] handlers = {OPENTELEMETRY, DATADOG};
-
   private static final String EXTENSIONS_PATH_SOURCE = "extensions_path";
   private static final String SERVICES_PREFIX = "META-INF/services/";
-
   private static final String[] OTEL_SPI_FQNS = {
-    "io.opentelemetry.context.ContextStorageProvider",
-    "io.opentelemetry.exporter.internal.compression.CompressorProvider",
-    "io.opentelemetry.exporter.internal.grpc.GrpcSenderProvider",
-    "io.opentelemetry.exporter.internal.http.HttpSenderProvider",
-    "io.opentelemetry.javaagent.extension.AgentListener",
-    "io.opentelemetry.javaagent.extension.ignore.IgnoredTypesConfigurer",
-    "io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule",
-    "io.opentelemetry.javaagent.tooling.BeforeAgentListener",
-    "io.opentelemetry.javaagent.tooling.LoggingCustomizer",
-    "io.opentelemetry.javaagent.tooling.bootstrap.BootstrapPackagesConfigurer",
-    "io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider",
-    "io.opentelemetry.sdk.autoconfigure.spi.AutoConfigureListener",
-    "io.opentelemetry.sdk.autoconfigure.spi.ConditionalResourceProvider",
-    "io.opentelemetry.sdk.autoconfigure.spi.ConfigurablePropagatorProvider",
-    "io.opentelemetry.sdk.autoconfigure.spi.ResourceProvider",
-    "io.opentelemetry.sdk.autoconfigure.spi.internal.ComponentProvider",
-    "io.opentelemetry.sdk.autoconfigure.spi.logs.ConfigurableLogRecordExporterProvider",
-    "io.opentelemetry.sdk.autoconfigure.spi.metrics.ConfigurableMetricExporterProvider",
-    "io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSamplerProvider",
-    "io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSpanExporterProvider",
-    "io.opentelemetry.sdk.autoconfigure.spi.traces.SpanExporterCustomizer",
+      "io.opentelemetry.context.ContextStorageProvider",
+      "io.opentelemetry.exporter.internal.compression.CompressorProvider",
+      "io.opentelemetry.exporter.internal.grpc.GrpcSenderProvider",
+      "io.opentelemetry.exporter.internal.http.HttpSenderProvider",
+      "io.opentelemetry.javaagent.extension.AgentListener",
+      "io.opentelemetry.javaagent.extension.ignore.IgnoredTypesConfigurer",
+      "io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule",
+      "io.opentelemetry.javaagent.tooling.BeforeAgentListener",
+      "io.opentelemetry.javaagent.tooling.LoggingCustomizer",
+      "io.opentelemetry.javaagent.tooling.bootstrap.BootstrapPackagesConfigurer",
+      "io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider",
+      "io.opentelemetry.sdk.autoconfigure.spi.AutoConfigureListener",
+      "io.opentelemetry.sdk.autoconfigure.spi.ConditionalResourceProvider",
+      "io.opentelemetry.sdk.autoconfigure.spi.ConfigurablePropagatorProvider",
+      "io.opentelemetry.sdk.autoconfigure.spi.ResourceProvider",
+      "io.opentelemetry.sdk.autoconfigure.spi.internal.ComponentProvider",
+      "io.opentelemetry.sdk.autoconfigure.spi.logs.ConfigurableLogRecordExporterProvider",
+      "io.opentelemetry.sdk.autoconfigure.spi.metrics.ConfigurableMetricExporterProvider",
+      "io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSamplerProvider",
+      "io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSpanExporterProvider",
+      "io.opentelemetry.sdk.autoconfigure.spi.traces.SpanExporterCustomizer"
   };
 
   /**
@@ -89,7 +87,9 @@ public final class ExtensionFinder {
     return !classLoaders.isEmpty();
   }
 
-  /** Reports telemetry for any tracked OpenTelemetry SPI service descriptors present in the jar. */
+  /**
+   * Reports telemetry for any tracked OpenTelemetry SPI service descriptors present in the jar.
+   */
   static void recordOtelSpiTelemetry(JarFile jar) {
     for (String fqn : OTEL_SPI_FQNS) {
       if (null != jar.getJarEntry(SERVICES_PREFIX + fqn)) {
@@ -98,7 +98,9 @@ public final class ExtensionFinder {
     }
   }
 
-  /** Closes jar resources from the extension path which did not contain any extensions. */
+  /**
+   * Closes jar resources from the extension path which did not contain any extensions.
+   */
   private static void close(List<JarFile> unusedJars) {
     for (JarFile jar : unusedJars) {
       try {
@@ -124,7 +126,9 @@ public final class ExtensionFinder {
     return null;
   }
 
-  /** Builds a URL that uses an {@link ExtensionHandler} to access the extension. */
+  /**
+   * Builds a URL that uses an {@link ExtensionHandler} to access the extension.
+   */
   private static URL buildExtensionURL(JarFile jar, ExtensionHandler handler) {
     try {
       return new URL("dd-ext", null, -1, "/", new StreamMapper(jar, handler));
@@ -133,7 +137,9 @@ public final class ExtensionFinder {
     }
   }
 
-  /** Uses a {@link ExtensionHandler} to map and stream content from the extension. */
+  /**
+   * Uses a {@link ExtensionHandler} to map and stream content from the extension.
+   */
   static final class StreamMapper extends URLStreamHandler {
     private final JarFile jar;
     private final ExtensionHandler handler;
@@ -158,7 +164,8 @@ public final class ExtensionFinder {
     }
   }
 
-  @SuppressForbidden // split on single-character uses fast path
+  // split on single-character uses fast path
+  @SuppressForbidden
   private static List<JarFile> findExtensionJars(String extensionsPath) {
     List<JarFile> extensionJars = new ArrayList<>();
     for (String entry : extensionsPath.split(",")) {
@@ -189,7 +196,9 @@ public final class ExtensionFinder {
     }
   }
 
-  /** The {@code META-INF/service} descriptors to look for. */
+  /**
+   * The {@code META-INF/service} descriptors to look for.
+   */
   private static String[] descriptors(Class<?>[] extensionTypes) {
     String[] descriptors = new String[extensionTypes.length];
     for (int i = 0; i < extensionTypes.length; i++) {

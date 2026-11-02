@@ -1,12 +1,10 @@
 package datadog.trace.bootstrap.config.provider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 public class AgentArgsInjectorTest {
-
   @AfterEach
   void clearInjectedProperties() {
     System.clearProperty("arg1");

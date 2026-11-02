@@ -16,7 +16,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
-
 import datadog.trace.test.junit.utils.converter.AbstractClassConstantConvertor.AbstractStringFallThruConverter;
 import java.util.HashMap;
 import java.util.Map;

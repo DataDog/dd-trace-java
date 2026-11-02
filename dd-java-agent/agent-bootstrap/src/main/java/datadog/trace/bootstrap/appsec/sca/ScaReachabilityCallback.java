@@ -15,10 +15,11 @@ import org.slf4j.LoggerFactory;
  * <p>The actual handler is registered at agent startup by {@code ScaReachabilitySystem.start()}.
  */
 public final class ScaReachabilityCallback {
-
   private static final Logger log = LoggerFactory.getLogger(ScaReachabilityCallback.class);
 
-  /** Receives method-level reachability hits from instrumented application code. */
+  /**
+   * Receives method-level reachability hits from instrumented application code.
+   */
   public interface Handler {
     void onMethodHit(
         String vulnId,
@@ -26,12 +27,14 @@ public final class ScaReachabilityCallback {
         String version,
         String dotClassName,
         String methodName,
-        int line);
+        int line
+    );
   }
 
   private static volatile Handler handler;
-
-  /** Runtime dedup: "vulnId|artifact|dotClassName|methodName" tuples already reported. */
+  /**
+   * Runtime dedup: "vulnId|artifact|dotClassName|methodName" tuples already reported.
+   */
   private static final Set<String> reported = ConcurrentHashMap.newKeySet();
 
   /**
@@ -60,7 +63,8 @@ public final class ScaReachabilityCallback {
       String version,
       String dotClassName,
       String methodName,
-      int line) {
+      int line
+  ) {
     try {
       Handler h = handler;
       if (h == null) {
@@ -68,7 +72,15 @@ public final class ScaReachabilityCallback {
       }
       // Include version and dotClassName: version isolates hits across artifact versions loaded
       // in separate classloaders; dotClassName distinguishes classes with the same method name.
-      String key = vulnId + "|" + artifact + "|" + version + "|" + dotClassName + "|" + methodName;
+      String key = vulnId
+          + "|"
+          + artifact
+          + "|"
+          + version
+          + "|"
+          + dotClassName
+          + "|"
+          + methodName;
       if (reported.add(key)) {
         h.onMethodHit(vulnId, artifact, version, dotClassName, methodName, line);
       }
@@ -78,5 +90,6 @@ public final class ScaReachabilityCallback {
     }
   }
 
-  private ScaReachabilityCallback() {}
+  private ScaReachabilityCallback() {
+  }
 }

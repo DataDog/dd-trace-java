@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.openfeature.internal.bridge.v1.SpanEnricher;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
@@ -29,36 +28,37 @@ import org.junit.jupiter.api.Test;
  * events (not span tags) plus the {@link Provider} gating.
  */
 class SpanEnrichmentHookTest {
-
   private final List<SpanEnrichmentEvent> captured = new ArrayList<>();
-  private final SpanEnricher enricher =
-      new SpanEnricher() {
-        @Override
-        public void serialId(final int serialId, final boolean doLog, final String targetingKey) {
-          SpanEnrichmentHookTest.this.captured.add(
-              new SpanEnrichmentEvent(true, serialId, doLog, targetingKey, null, null));
-        }
+  private final SpanEnricher enricher = new SpanEnricher() {
+    @Override
+    public void serialId(final int serialId, final boolean doLog, final String targetingKey) {
+      SpanEnrichmentHookTest.this.captured.add(
+          new SpanEnrichmentEvent(true, serialId, doLog, targetingKey, null, null)
+      );
+    }
 
-        @Override
-        public void runtimeDefault(final String flagKey, final Object defaultValue) {
-          SpanEnrichmentHookTest.this.captured.add(
-              new SpanEnrichmentEvent(false, 0, false, null, flagKey, defaultValue));
-        }
-      };
+    @Override
+    public void runtimeDefault(final String flagKey, final Object defaultValue) {
+      SpanEnrichmentHookTest.this.captured.add(
+          new SpanEnrichmentEvent(false, 0, false, null, flagKey, defaultValue)
+      );
+    }
+  };
 
   // ---- helpers ----
-
   private static FlagEvaluationDetails<Object> details(
       final String flagKey,
       final String variant,
       final Object value,
-      final ImmutableMetadata metadata) {
-    return FlagEvaluationDetails.builder()
-        .flagKey(flagKey)
-        .variant(variant)
-        .value(value)
-        .flagMetadata(metadata)
-        .build();
+      final ImmutableMetadata metadata
+  ) {
+    return FlagEvaluationDetails
+      .builder()
+      .flagKey(flagKey)
+      .variant(variant)
+      .value(value)
+      .flagMetadata(metadata)
+      .build();
   }
 
   private static ImmutableMetadata metadata(final Integer serialId, final boolean doLog) {
@@ -77,18 +77,19 @@ class SpanEnrichmentHookTest {
         null,
         null,
         targetingKey == null ? new ImmutableContext() : new ImmutableContext(targetingKey),
-        "default");
+        "default"
+    );
   }
 
   // ---- serial-id branch ----
-
   @Test
   void serialIdWithDoLogDispatchesSerialAndSubject() {
     new SpanEnrichmentHook(this.enricher)
-        .finallyAfter(
-            ctx("flag", "user-1"),
-            details("flag", "on", "v", metadata(42, true)),
-            Collections.emptyMap());
+      .finallyAfter(
+          ctx("flag", "user-1"),
+          details("flag", "on", "v", metadata(42, true)),
+          Collections.emptyMap()
+      );
 
     assertEquals(1, captured.size());
     final SpanEnrichmentEvent event = captured.get(0);
@@ -101,50 +102,51 @@ class SpanEnrichmentHookTest {
   @Test
   void serialIdWithoutDoLogStillDispatchesSerialButNotDoLog() {
     new SpanEnrichmentHook(this.enricher)
-        .finallyAfter(
-            ctx("flag", "user-1"),
-            details("flag", "on", "v", metadata(7, false)),
-            Collections.emptyMap());
+      .finallyAfter(
+          ctx("flag", "user-1"),
+          details("flag", "on", "v", metadata(7, false)),
+          Collections.emptyMap()
+      );
 
     assertEquals(1, captured.size());
     final SpanEnrichmentEvent event = captured.get(0);
     assertTrue(event.hasSerialId());
     assertEquals(7, event.serialId());
     assertFalse(
-        event.doLog(), "doLog=false must be carried through so the write side skips subject");
+        event.doLog(),
+        "doLog=false must be carried through so the write side skips subject"
+    );
   }
 
   @Test
   void wrongTypedSerialIdDispatchesNothing() {
     // Defensive: a non-integer value under the serial-id key (wrong type) is ignored, not crashed.
-    final ImmutableMetadata bad =
-        ImmutableMetadata.builder()
-            .addString(SpanEnrichmentHook.METADATA_SERIAL_ID, "not-a-number")
-            .addBoolean(SpanEnrichmentHook.METADATA_DO_LOG, true)
-            .build();
+    final ImmutableMetadata bad = ImmutableMetadata
+      .builder()
+      .addString(SpanEnrichmentHook.METADATA_SERIAL_ID, "not-a-number")
+      .addBoolean(SpanEnrichmentHook.METADATA_DO_LOG, true)
+      .build();
     new SpanEnrichmentHook(this.enricher)
-        .finallyAfter(
-            ctx("flag", "user-1"), details("flag", "on", "v", bad), Collections.emptyMap());
+      .finallyAfter(ctx("flag", "user-1"), details("flag", "on", "v", bad), Collections.emptyMap());
     assertTrue(captured.isEmpty(), "a wrong-typed serial id must never break eval or dispatch");
   }
 
   // ---- runtime-default branch (missing variant) ----
-
   @Test
   void missingVariantDispatchesRuntimeDefaultWithNativeMap() {
     final Map<String, Object> objectValue = Collections.singletonMap("k", "val");
     new SpanEnrichmentHook(this.enricher)
-        .finallyAfter(
-            ctx("obj-flag", "user-1"),
-            details("obj-flag", null, objectValue, ImmutableMetadata.builder().build()),
-            Collections.emptyMap());
+      .finallyAfter(
+          ctx("obj-flag", "user-1"),
+          details("obj-flag", null, objectValue, ImmutableMetadata.builder().build()),
+          Collections.emptyMap()
+      );
 
     assertEquals(1, captured.size());
     final SpanEnrichmentEvent event = captured.get(0);
     assertFalse(event.hasSerialId());
     assertEquals("obj-flag", event.flagKey());
-    assertEquals(
-        objectValue, event.defaultValue(), "a native map default passes through unchanged");
+    assertEquals(objectValue, event.defaultValue(), "a native map default passes through unchanged");
   }
 
   @Test
@@ -154,10 +156,11 @@ class SpanEnrichmentHookTest {
     final Value structureDefault = new Value(new ImmutableStructure(inner));
 
     new SpanEnrichmentHook(this.enricher)
-        .finallyAfter(
-            ctx("struct-flag", "user-1"),
-            details("struct-flag", null, structureDefault, ImmutableMetadata.builder().build()),
-            Collections.emptyMap());
+      .finallyAfter(
+          ctx("struct-flag", "user-1"),
+          details("struct-flag", null, structureDefault, ImmutableMetadata.builder().build()),
+          Collections.emptyMap()
+      );
 
     assertEquals(1, captured.size());
     final Object value = captured.get(0).defaultValue();
@@ -167,7 +170,6 @@ class SpanEnrichmentHookTest {
   }
 
   // ---- unwrapDefaultValue (the Value -> native conversion) ----
-
   @Test
   void unwrapConvertsValueScalarsToNative() {
     assertEquals("hello", SpanEnrichmentHook.unwrapDefaultValue(new Value("hello")));
@@ -193,7 +195,6 @@ class SpanEnrichmentHookTest {
   }
 
   // ---- error isolation ----
-
   @Test
   void nullDetailsDispatchesNothing() {
     new SpanEnrichmentHook(this.enricher).finallyAfter(null, null, null);
@@ -201,14 +202,15 @@ class SpanEnrichmentHookTest {
   }
 
   // ---- Provider gating ----
-
   @Test
   void gateOffConstructsNoHook() {
     final Provider provider = new Provider(new Provider.Options(), null, Boolean.FALSE);
     assertNull(provider.spanEnrichmentHook(), "gate off => no span-enrichment hook");
     for (final Hook hook : provider.getProviderHooks()) {
       assertFalse(
-          hook instanceof SpanEnrichmentHook, "gate off => SpanEnrichmentHook never registered");
+          hook instanceof SpanEnrichmentHook,
+          "gate off => SpanEnrichmentHook never registered"
+      );
     }
   }
 
@@ -230,15 +232,19 @@ class SpanEnrichmentHookTest {
     final Provider gateOff = new Provider(new Provider.Options(), null, Boolean.FALSE);
     assertTrue(
         gateOff.getProviderHooks() == gateOff.getProviderHooks(),
-        "gate off => getProviderHooks allocates nothing (same instance)");
+        "gate off => getProviderHooks allocates nothing (same instance)"
+    );
 
     final Provider gateOn = new Provider(new Provider.Options(), null, Boolean.TRUE);
     assertTrue(
         gateOn.getProviderHooks() == gateOn.getProviderHooks(),
-        "gate on => getProviderHooks allocates nothing (same instance)");
+        "gate on => getProviderHooks allocates nothing (same instance)"
+    );
   }
 
-  /** A recorded span enrichment. */
+  /**
+   * A recorded span enrichment.
+   */
   private static final class SpanEnrichmentEvent {
     private final boolean serialIdPresent;
     private final int serialId;
@@ -253,7 +259,8 @@ class SpanEnrichmentHookTest {
         final boolean doLog,
         final String targetingKey,
         final String flagKey,
-        final Object defaultValue) {
+        final Object defaultValue
+    ) {
       this.serialIdPresent = serialIdPresent;
       this.serialId = serialId;
       this.doLog = doLog;

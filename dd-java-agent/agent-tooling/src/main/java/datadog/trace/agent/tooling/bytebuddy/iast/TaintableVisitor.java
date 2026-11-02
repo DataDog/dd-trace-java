@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy.iast;
 
 import static datadog.trace.util.CollectionUtils.appendToArray;
 import static datadog.trace.util.CollectionUtils.arrayContains;
-
 import datadog.trace.api.iast.Taintable;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -22,15 +21,12 @@ import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.OpenedClassReader;
 
 public class TaintableVisitor implements AsmVisitorWrapper {
-
   public static volatile boolean DEBUG = false;
-
   private static final String TAINTABLE = "datadog/trace/api/iast/Taintable";
   private static final String SOURCE_CLASS_NAME = "L" + TAINTABLE + "$Source;";
   private static final String FIELD_NAME = "$$DD$source";
   private static final String GETTER_NAME = "$$DD$getSource";
   private static final String SETTER_NAME = "$$DD$setSource";
-
   private final Set<String> types;
 
   public TaintableVisitor(final String... classNames) {
@@ -56,16 +52,15 @@ public class TaintableVisitor implements AsmVisitorWrapper {
       final FieldList<FieldDescription.InDefinedShape> fields,
       final MethodList<?> methods,
       final int writerFlags,
-      final int readerFlags) {
+      final int readerFlags
+  ) {
     return types.contains(instrumentedType.getName())
         ? new AddTaintableInterfaceVisitor(classVisitor)
         : classVisitor;
   }
 
   private static class AddTaintableInterfaceVisitor extends ClassVisitor {
-
     private String owner;
-
     private boolean addTaintable = false;
 
     protected AddTaintableInterfaceVisitor(final ClassVisitor classVisitor) {
@@ -79,7 +74,8 @@ public class TaintableVisitor implements AsmVisitorWrapper {
         final String name,
         String signature,
         final String superName,
-        String[] interfaces) {
+        String[] interfaces
+    ) {
       owner = name;
       if (!arrayContains(interfaces, TAINTABLE)) {
         interfaces = appendToArray(interfaces, TAINTABLE);
@@ -105,13 +101,13 @@ public class TaintableVisitor implements AsmVisitorWrapper {
     }
 
     private void addField() {
-      final FieldVisitor fv =
-          cv.visitField(
-              Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT | Opcodes.ACC_VOLATILE,
-              FIELD_NAME,
-              SOURCE_CLASS_NAME,
-              null,
-              null);
+      final FieldVisitor fv = cv.visitField(
+          Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT | Opcodes.ACC_VOLATILE,
+          FIELD_NAME,
+          SOURCE_CLASS_NAME,
+          null,
+          null
+      );
       fv.visitEnd();
     }
 
@@ -129,7 +125,12 @@ public class TaintableVisitor implements AsmVisitorWrapper {
     private void addSetter() {
       final MethodVisitor mv =
           cv.visitMethod(
-              Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
+              Opcodes.ACC_PUBLIC,
+              SETTER_NAME,
+              "(" + SOURCE_CLASS_NAME + ")V",
+              null,
+              null
+      );
       mv.visitCode();
       mv.visitVarInsn(Opcodes.ALOAD, 0);
       mv.visitVarInsn(Opcodes.ALOAD, 1);
@@ -142,7 +143,12 @@ public class TaintableVisitor implements AsmVisitorWrapper {
     private void addSetterDebug() {
       final MethodVisitor mv =
           cv.visitMethod(
-              Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
+              Opcodes.ACC_PUBLIC,
+              SETTER_NAME,
+              "(" + SOURCE_CLASS_NAME + ")V",
+              null,
+              null
+      );
       mv.visitCode();
       mv.visitVarInsn(Opcodes.ALOAD, 0);
       mv.visitVarInsn(Opcodes.ALOAD, 1);
@@ -154,7 +160,8 @@ public class TaintableVisitor implements AsmVisitorWrapper {
           Type.getInternalName(Taintable.DebugLogger.class),
           "logTaint",
           "(Ldatadog/trace/api/iast/Taintable;)V",
-          false);
+          false
+      );
       mv.visitInsn(Opcodes.RETURN);
       mv.visitMaxs(2, 2);
       mv.visitEnd();

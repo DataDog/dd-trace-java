@@ -10,7 +10,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadog.profiling.scrubber.JfrScrubber;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
@@ -28,9 +27,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 class ScrubRecordingDataListenerTest {
-
-  @TempDir Path tempDir;
-
+  @TempDir
+  Path tempDir;
   private RecordingDataListener delegate;
   private JfrScrubber scrubber;
   private RecordingData mockData;
@@ -45,7 +43,7 @@ class ScrubRecordingDataListenerTest {
     when(mockData.getKind()).thenReturn(ProfilingSnapshot.Kind.PERIODIC);
     when(mockData.getName()).thenReturn("test");
     when(mockData.getStream())
-        .thenReturn(new RecordingInputStream(new ByteArrayInputStream(new byte[] {1, 2, 3})));
+      .thenReturn(new RecordingInputStream(new ByteArrayInputStream(new byte[] {1, 2, 3})));
   }
 
   @Test
@@ -59,7 +57,8 @@ class ScrubRecordingDataListenerTest {
     verify(delegate).onNewData(eq(RecordingType.CONTINUOUS), captor.capture(), eq(false));
     assertTrue(
         captor.getValue() instanceof ScrubRecordingDataListener.ScrubbedRecordingData,
-        "Delegate should receive ScrubbedRecordingData");
+        "Delegate should receive ScrubbedRecordingData"
+    );
     verify(mockData).release();
   }
 
@@ -74,21 +73,23 @@ class ScrubRecordingDataListenerTest {
         new ScrubRecordingDataListener(delegate, scrubber, false, tempDir);
 
     listener.onNewData(RecordingType.CONTINUOUS, mockData, false);
-
     // Scrubber should be called with the existing file path, not a temp file
     ArgumentCaptor<Path> inputCaptor = ArgumentCaptor.forClass(Path.class);
     ArgumentCaptor<Path> outputCaptor = ArgumentCaptor.forClass(Path.class);
     verify(scrubber).scrubFile(inputCaptor.capture(), outputCaptor.capture());
     assertEquals(
-        existingFile, inputCaptor.getValue(), "Should use existing file path as scrub input");
+        existingFile,
+        inputCaptor.getValue(),
+        "Should use existing file path as scrub input"
+    );
     verify(delegate).onNewData(eq(RecordingType.CONTINUOUS), any(RecordingData.class), eq(false));
   }
 
   @Test
   void failClosedSkipsUpload() throws Exception {
     doThrow(new RuntimeException("scrub failed"))
-        .when(scrubber)
-        .scrubFile(any(Path.class), any(Path.class));
+      .when(scrubber)
+      .scrubFile(any(Path.class), any(Path.class));
 
     ScrubRecordingDataListener listener =
         new ScrubRecordingDataListener(delegate, scrubber, false, tempDir);
@@ -102,8 +103,8 @@ class ScrubRecordingDataListenerTest {
   @Test
   void failOpenDelegatesOriginalData() throws Exception {
     doThrow(new RuntimeException("scrub failed"))
-        .when(scrubber)
-        .scrubFile(any(Path.class), any(Path.class));
+      .when(scrubber)
+      .scrubFile(any(Path.class), any(Path.class));
 
     ScrubRecordingDataListener listener =
         new ScrubRecordingDataListener(delegate, scrubber, true, tempDir);
@@ -120,9 +121,11 @@ class ScrubRecordingDataListenerTest {
         new ScrubRecordingDataListener(delegate, scrubber, false, tempDir);
 
     listener.onNewData(RecordingType.CONTINUOUS, mockData, false);
-
     // After success, temp input should be cleaned up, only scrubbed output remains
-    long jfrCount = Files.list(tempDir).filter(p -> p.toString().contains("dd-scrub-in-")).count();
+    long jfrCount = Files
+      .list(tempDir)
+      .filter(p -> p.toString().contains("dd-scrub-in-"))
+      .count();
     assertEquals(0L, jfrCount, "Temp input files should be cleaned up");
   }
 }

@@ -4,7 +4,9 @@ import com.datadog.openfeature.internal.bridge.v1.ConfigurationSource;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import java.util.function.Consumer;
 
-/** Receives the flag configuration from the agent Remote Configuration client. */
+/**
+ * Receives the flag configuration from the agent Remote Configuration client.
+ */
 public final class AgentConfigurationSource implements ConfigurationSource {
   private final FeatureFlaggingGateway.Backend backend;
 

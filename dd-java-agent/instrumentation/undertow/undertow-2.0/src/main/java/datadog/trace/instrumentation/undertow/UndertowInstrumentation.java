@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.undertow;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -12,8 +11,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class UndertowInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public UndertowInstrumentation() {
     super("undertow", "undertow-2.0");
   }
@@ -27,17 +27,19 @@ public final class UndertowInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("dispatch"))
-            .and(takesArgument(0, named("java.util.concurrent.Executor")))
-            .and(takesArgument(1, named("java.lang.Runnable"))),
-        getClass().getName() + "$DispatchAdvice");
+          .and(named("dispatch"))
+          .and(takesArgument(0, named("java.util.concurrent.Executor")))
+          .and(takesArgument(1, named("java.lang.Runnable"))),
+        getClass().getName() + "$DispatchAdvice"
+    );
   }
 
   public static class DispatchAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void dispatchEnter(
         @Advice.Argument(value = 1, readOnly = false) Runnable task,
-        @Advice.This final HttpServerExchange current) {
+        @Advice.This final HttpServerExchange current
+    ) {
       task = UndertowRunnableWrapper.wrapIfNeeded(task, current);
     }
   }

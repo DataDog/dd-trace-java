@@ -12,7 +12,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -29,8 +28,9 @@ import scala.concurrent.forkjoin.ForkJoinTask;
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Scala version.
  */
 public final class ScalaForkJoinTaskInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
     return "scala.concurrent.forkjoin.ForkJoinTask";
@@ -41,14 +41,16 @@ public final class ScalaForkJoinTaskInstrumentation
     // this type is constructed on entry to the JFP, and can be used to track
     // the lifecycle of tasks
     return notExcludedByName(FORK_JOIN_TASK)
-        .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
-        .and(extendsClass(named(hierarchyMarkerType())));
+      .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
+      .and(extendsClass(named(hierarchyMarkerType())));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
+        isMethod().and(namedOneOf("doExec", "exec")),
+        getClass().getName() + "$Exec"
+    );
     transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
     transformer.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
   }

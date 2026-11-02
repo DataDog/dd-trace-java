@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.Test;
  * the codec cannot do.
  */
 class TagMapNamespaceNamesTest {
-
   @Test
   void renamedTagReadsUnderItsOpenTelemetryName() {
     assertEquals("http.request.method", otelTagOf("http.method", "GET"));
@@ -40,7 +38,8 @@ class TagMapNamespaceNamesTest {
     assertEquals(
         otelTagOf("http.method", "GET"),
         otelTagOf("http.request.method", "POST"),
-        "both spellings of one tag must read under the same OpenTelemetry name");
+        "both spellings of one tag must read under the same OpenTelemetry name"
+    );
   }
 
   @Test
@@ -50,7 +49,10 @@ class TagMapNamespaceNamesTest {
     TagMap.EntryReader reader = readerFor(map, "http.method");
     assertEquals("http.method", reader.tag(), "tag() stays the key as written");
     assertNotEquals(
-        reader.tag(), reader.openTelemetryTag(), "a rename must actually change the emitted name");
+        reader.tag(),
+        reader.openTelemetryTag(),
+        "a rename must actually change the emitted name"
+    );
   }
 
   private static String otelTagOf(String tag, Object value) {
@@ -75,7 +77,8 @@ class TagMapNamespaceNamesTest {
     assertEquals(
         otelByTag.get(entry.tag()),
         entry.openTelemetryTag(),
-        "iteration and getEntry must agree on the OpenTelemetry name for " + tag);
+        "iteration and getEntry must agree on the OpenTelemetry name for " + tag
+    );
     return entry;
   }
 }

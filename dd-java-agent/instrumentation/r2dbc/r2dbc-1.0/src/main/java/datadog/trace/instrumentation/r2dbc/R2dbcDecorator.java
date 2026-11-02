@@ -14,16 +14,13 @@ import java.util.Collections;
 import java.util.Set;
 
 public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOptions> {
-
   public static final R2dbcDecorator DECORATE = new R2dbcDecorator();
-
   static final CharSequence R2DBC_QUERY =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation("r2dbc"));
   static final CharSequence DB_QUERY = UTF8BytesString.create("DB Query");
   private static final CharSequence R2DBC = UTF8BytesString.create("r2dbc");
   private static final String DEFAULT_SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("r2dbc");
-
   public static final boolean INJECT_COMMENT = Config.get().isDbmCommentInjectionEnabled();
   public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
       Config.get().isDbmAlwaysAppendSqlComment();
@@ -100,7 +97,9 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
     return driver != null ? driver : "r2dbc";
   }
 
-  /** Exposes the protected {@link #processDatabaseType} for use by the listener. */
+  /**
+   * Exposes the protected {@link #processDatabaseType} for use by the listener.
+   */
   public void applyDatabaseType(AgentSpan span, String dbType) {
     processDatabaseType(span, dbType);
   }
@@ -115,7 +114,9 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
     return dbService(dbType, instanceName);
   }
 
-  /** Adds the base hash used in the DBM comment to the span for backend correlation. */
+  /**
+   * Adds the base hash used in the DBM comment to the span for backend correlation.
+   */
   public void withBaseHash(AgentSpan span) {
     if (INJECT_COMMENT && DBM_INJECT_SQL_BASE_HASH && PROPAGATE_PROCESS_TAGS) {
       String baseHash = BaseHash.getBaseHashStr();

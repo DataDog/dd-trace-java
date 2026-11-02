@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.reactivestreams;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
@@ -18,7 +17,6 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 class ReactiveStreamsContextPropagationTest {
-
   private static final ContextKey<String> KEY = ContextKey.named("reactive-streams-test");
 
   @Test
@@ -27,19 +25,20 @@ class ReactiveStreamsContextPropagationTest {
     final Subscriber<Object> subscriber = new NoopSubscriber();
     final ContextStore<Publisher, HandoffContext> publisherContexts = new MapContextStore<>();
     final ContextStore<Subscriber, Context> subscriberContexts = new MapContextStore<>();
-
     // A context was handed off on the publisher, confined to this (the producing) thread.
     final Context captured = Context.root().with(KEY, "captured");
     publisherContexts.put(publisher, HandoffContext.threadConfined(captured));
-
     // The current thread already carries a different, non-root active context.
     final Context active = Context.root().with(KEY, "active");
     try (ContextScope activeScope = active.attach()) {
       assertSame(active, Context.current());
 
-      final ContextScope scope =
-          ReactiveStreamsContextPropagation.captureOnSubscribe(
-              publisher, subscriber, publisherContexts, subscriberContexts);
+      final ContextScope scope = ReactiveStreamsContextPropagation.captureOnSubscribe(
+          publisher,
+          subscriber,
+          publisherContexts,
+          subscriberContexts
+      );
       try {
         // The captured context must win over the ambient active one
         assertNotNull(scope, "captured context should be attached over the active context");
@@ -49,11 +48,9 @@ class ReactiveStreamsContextPropagationTest {
           scope.close();
         }
       }
-
       // Closing the scope restores the previously active context.
       assertSame(active, Context.current());
     }
-
     // The captured context is remembered for the subscriber, and consumed from the publisher store.
     assertSame(captured, subscriberContexts.get(subscriber));
     assertNull(publisherContexts.get(publisher));
@@ -76,14 +73,16 @@ class ReactiveStreamsContextPropagationTest {
 
     final Context active = Context.root().with(KEY, "active");
     try (ContextScope activeScope = active.attach()) {
-      final ContextScope scope =
-          ReactiveStreamsContextPropagation.captureOnSubscribe(
-              publisher, subscriber, publisherContexts, subscriberContexts);
+      final ContextScope scope = ReactiveStreamsContextPropagation.captureOnSubscribe(
+          publisher,
+          subscriber,
+          publisherContexts,
+          subscriberContexts
+      );
       if (scope != null) {
         scope.close();
       }
     }
-
     // The foreign deposit is ignored; the subscriber keeps this thread's active context.
     assertSame(active, subscriberContexts.get(subscriber));
   }
@@ -103,13 +102,15 @@ class ReactiveStreamsContextPropagationTest {
     producer.start();
     producer.join();
 
-    final ContextScope scope =
-        ReactiveStreamsContextPropagation.captureOnSubscribe(
-            publisher, subscriber, publisherContexts, subscriberContexts);
+    final ContextScope scope = ReactiveStreamsContextPropagation.captureOnSubscribe(
+        publisher,
+        subscriber,
+        publisherContexts,
+        subscriberContexts
+    );
     if (scope != null) {
       scope.close();
     }
-
     // The any-thread deposit is adopted despite the cross-thread subscribe.
     assertSame(captured, subscriberContexts.get(subscriber));
   }

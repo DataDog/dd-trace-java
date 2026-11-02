@@ -17,8 +17,9 @@ import org.testng.annotations.CustomAttribute;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private final String parentPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
   public TestNGOrderInstrumentation() {
@@ -49,16 +50,17 @@ public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         MethodDescription::isConstructor,
-        TestNGOrderInstrumentation.class.getName() + "$InsertInterceptorAdvice");
+        TestNGOrderInstrumentation.class.getName() + "$InsertInterceptorAdvice"
+    );
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".TestNGClassListener",
-      parentPackageName + ".TestNGUtils",
-      parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".FailFastOrderInterceptor",
+        parentPackageName + ".TestNGClassListener",
+        parentPackageName + ".TestNGUtils",
+        parentPackageName + ".TestEventsHandlerHolder",
+        packageName + ".FailFastOrderInterceptor"
     };
   }
 
@@ -66,7 +68,8 @@ public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
     @SuppressWarnings("bytebuddy-exception-suppression")
     @Advice.OnMethodExit
     public static void prependFailFastInterceptor(
-        @Advice.FieldValue("m_methodInterceptors") List<IMethodInterceptor> methodInterceptors) {
+        @Advice.FieldValue("m_methodInterceptors") List<IMethodInterceptor> methodInterceptors
+    ) {
       String testOrder = Config.get().getCiVisibilityTestOrder();
       if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder)) {
         for (IMethodInterceptor methodInterceptor : methodInterceptors) {
@@ -74,12 +77,12 @@ public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
             return;
           }
         }
-
         // adding our interceptor as the first one:
         // that way custom interceptors added by the users will have higher priority
         methodInterceptors.add(
-            0, new FailFastOrderInterceptor(TestEventsHandlerHolder.TEST_EVENTS_HANDLER));
-
+            0,
+            new FailFastOrderInterceptor(TestEventsHandlerHolder.TEST_EVENTS_HANDLER)
+        );
       } else {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }
