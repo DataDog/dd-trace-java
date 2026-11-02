@@ -16,10 +16,9 @@ import org.tabletest.junit.TableTest;
 @Timeout(30)
 class LogLevelTest {
 
-  /* Priority: datadog.slf4j.simpleLogger.defaultLogLevel > dd.trace.debug > DD_TRACE_DEBUG
-  1: INFO LOGS
-  0: DEBUG Logs
-  */
+  // Priority: datadog.slf4j.simpleLogger.defaultLogLevel > dd.trace.debug > DD_TRACE_DEBUG
+  // INFO Logs exit code: 1
+  // DEBUG Logs exit code: 0
 
   @TableTest({
     "scenario                                          | traceDebug | slf4jLogLevel | envTraceDebug | expectedExitCode",

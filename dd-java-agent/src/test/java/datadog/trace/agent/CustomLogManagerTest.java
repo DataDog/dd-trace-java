@@ -19,7 +19,6 @@ class CustomLogManagerTest {
 
   private static final String DEFAULT_LOG_LEVEL = "debug";
 
-  // Run all tests using forked jvm because groovy has already set the global log manager
   @Test
   void agentServicesStartsUpInPremainWithNoCustomLogManagerSet() throws Exception {
     assertEquals(0, runLogManagerSetter(emptyMap()));

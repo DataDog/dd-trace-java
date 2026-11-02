@@ -17,8 +17,7 @@ import org.junit.jupiter.api.Timeout;
 class ListIntegrationsTest {
 
   @Test
-  void ddTraceDebugFalse() throws Exception {
-    // setup
+  void listIntegrationsPrintsNoErrors() throws Exception {
     ByteArrayOutputStream testOutput = new ByteArrayOutputStream();
 
     assertEquals(
