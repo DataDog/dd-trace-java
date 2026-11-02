@@ -23,8 +23,9 @@ import javax.annotation.Nullable;
  * id store takes no nulls at all, so its owner turns a null value into {@code remove} and skips a
  * null entry before calling.
  *
- * <p>Build stores only through {@link IdStoreFactory}, which says why. No locking: guarded by the
- * owner's lock.
+ * <p>Build stores only through {@link IdStoreFactory}, which says why: a JVM loads one
+ * implementation, {@link HashIdStore} or {@link DenseIdStore}. No locking: guarded by the owner's
+ * lock.
  */
 @Restricted(allowedIn = {"datadog.trace.core"})
 public abstract class IdStore {
