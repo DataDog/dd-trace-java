@@ -77,6 +77,9 @@ public abstract class TraceCollector implements AgentTraceCollector, TraceSegmen
   /** The W3C baggage extracted with the trace, held for the local root's serialization. */
   private volatile Baggage w3cBaggage;
 
+  private static final AtomicReferenceFieldUpdater<TraceCollector, Baggage> W3C_BAGGAGE =
+      AtomicReferenceFieldUpdater.newUpdater(TraceCollector.class, Baggage.class, "w3cBaggage");
+
   private volatile BlockResponseFunction blockResponseFunction;
   private volatile ClientIpAddressData clientIpAddressData;
 
@@ -168,9 +171,7 @@ public abstract class TraceCollector implements AgentTraceCollector, TraceSegmen
 
   /** Sets the extracted W3C baggage unless already set. */
   void initW3CBaggage(Baggage w3cBaggage) {
-    if (this.w3cBaggage == null) {
-      this.w3cBaggage = w3cBaggage;
-    }
+    W3C_BAGGAGE.compareAndSet(this, null, w3cBaggage);
   }
 
   Baggage getW3CBaggage() {
