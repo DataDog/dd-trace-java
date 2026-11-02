@@ -2678,6 +2678,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   /** {@code overrideTags} with the {@code env} and {@code version} from {@code configTags}. */
+  @SuppressPerfContract(
+      value = NoSyntheticAccessors.class,
+      reason = "called by ConfigSnapshot, on a config reload that overrides tracing tags")
   private static TagMap withIdentityTags(
       Map<String, String> overrideTags, Map<String, String> configTags) {
     TagMap result = TagMap.create(overrideTags.size() + 2);
