@@ -19,6 +19,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +78,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
     // only the named pipe client never reconnects; the UDP and Unix socket clients send to their
     // address again or reconnect themselves, so recreating them would only drop queued metrics
     if (null != namedPipe
-        && writeFailureStreak.recordError(NANOSECONDS.toMillis(System.nanoTime()))) {
+        && writeFailureStreak.recordError(e, NANOSECONDS.toMillis(System.nanoTime()))) {
       // this runs on a client thread, so close the client from another thread
       AgentTaskScheduler.get().schedule(RecreateTask.INSTANCE, this, 0, MILLISECONDS);
     }
@@ -359,6 +360,16 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
     private int errors;
     private long firstErrorMillis;
     private long lastErrorMillis;
+
+    /**
+     * Only an {@link IOException} counts. The client reports failed writes that way, but it also
+     * reports errors a new client wouldn't fix, such as a metric too long to send.
+     *
+     * @return true when the client should be recreated; the streak then starts over
+     */
+    boolean recordError(Exception e, long nowMillis) {
+      return e instanceof IOException && recordError(nowMillis);
+    }
 
     /**
      * @return true when the client should be recreated; the streak then starts over

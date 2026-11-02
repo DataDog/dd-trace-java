@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.timgroup.statsd.InvalidMessageException;
+import java.io.IOException;
 import org.junit.jupiter.api.Test;
 
 class DDAgentStatsDConnectionTest {
@@ -41,6 +43,22 @@ class DDAgentStatsDConnectionTest {
     assertFalse(streak.recordError(45_000));
     assertFalse(streak.recordError(60_000));
     assertTrue(streak.recordError(75_000));
+  }
+
+  @Test
+  void onlyIOExceptionsCountTowardsARecreate() {
+    DDAgentStatsDConnection.WriteFailureStreak streak =
+        new DDAgentStatsDConnection.WriteFailureStreak();
+    Exception tooLong = new InvalidMessageException("Message too long", "metric");
+
+    assertFalse(streak.recordError(tooLong, 0));
+    assertFalse(streak.recordError(tooLong, 15_000));
+    assertFalse(streak.recordError(tooLong, 30_000));
+
+    IOException writeFailed = new IOException("The pipe is being closed");
+    assertFalse(streak.recordError(writeFailed, 45_000));
+    assertFalse(streak.recordError(writeFailed, 60_000));
+    assertTrue(streak.recordError(writeFailed, 75_000));
   }
 
   @Test
