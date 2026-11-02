@@ -88,9 +88,9 @@ final class ThreadLocalContextManager implements ContextManager {
   }
 
   static void notifyUpdate(ContextListener[] listeners, Context before, Context after) {
-    for (ContextListener l : listeners) {
+    for (int i = 0; i < listeners.length; i++) {
       try {
-        l.onUpdate(before, after);
+        listeners[i].onUpdate(before, after);
       } catch (Throwable ignore) {
       }
     }
@@ -98,9 +98,9 @@ final class ThreadLocalContextManager implements ContextManager {
 
   static void notifyCapture(ContextListener[] listeners, Context context) {
     // only called for non-empty continuations
-    for (ContextListener l : listeners) {
+    for (int i = 0; i < listeners.length; i++) {
       try {
-        l.onCapture(context);
+        listeners[i].onCapture(context);
       } catch (Throwable ignore) {
       }
     }
@@ -108,9 +108,9 @@ final class ThreadLocalContextManager implements ContextManager {
 
   static void notifyRelease(ContextListener[] listeners, Context context) {
     // only called for non-empty continuations
-    for (ContextListener l : listeners) {
+    for (int i = 0; i < listeners.length; i++) {
       try {
-        l.onRelease(context);
+        listeners[i].onRelease(context);
       } catch (Throwable ignore) {
       }
     }
