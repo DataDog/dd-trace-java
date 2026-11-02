@@ -1,5 +1,5 @@
+// spotless:off - Lambda SCA tests assert the reflective call's source line number.
 package datadog.smoketest.lambda;
-
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import java.io.File;
@@ -11,9 +11,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Calls the watched method inside an instrumented Lambda invocation.
- */
+/** Calls the watched method inside an instrumented Lambda invocation. */
 public final class LambdaScaHandler implements RequestStreamHandler {
   @Override
   public void handleRequest(InputStream input, OutputStream output, Context context)
@@ -31,10 +29,9 @@ public final class LambdaScaHandler implements RequestStreamHandler {
     Constructor<?> constructor = extractor.getDeclaredConstructor(File.class);
     constructor.setAccessible(true);
     Object instance = constructor.newInstance(new File(System.getProperty("java.io.tmpdir")));
-    Method method = extractor.getDeclaredMethod(
-        "createDirectory",
-        Class.forName("com.github.junrar.rarfile.FileHeader")
-    );
+    Method method =
+        extractor.getDeclaredMethod(
+            "createDirectory", Class.forName("com.github.junrar.rarfile.FileHeader"));
     method.setAccessible(true);
     try {
       // LambdaScaSmokeTest asserts the exact line of this call; update it if this line moves.
@@ -47,3 +44,4 @@ public final class LambdaScaHandler implements RequestStreamHandler {
     }
   }
 }
+// spotless:on

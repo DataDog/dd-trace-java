@@ -1,5 +1,5 @@
+// spotless:off - Stack trace assertions include source line numbers.
 package com.datadog.debugger.util;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
+
 import datadog.logging.RatelimitedLogger;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -20,22 +21,17 @@ import org.slf4j.Logger;
 
 @ExtendWith(MockitoExtension.class)
 public class ExceptionHelperTest {
-  @Mock
-  Logger logger;
-  @Mock
-  RatelimitedLogger ratelimitedLogger;
+
+  @Mock Logger logger;
+
+  @Mock RatelimitedLogger ratelimitedLogger;
 
   @Test
   public void testWarn() {
     when(logger.isDebugEnabled()).thenReturn(false);
     doAnswer(this::logWarn).when(logger).warn(anyString(), ArgumentMatchers.<Object[]>any());
     ExceptionHelper.logException(
-        logger,
-        new RuntimeException("this is an exception"),
-        "Error {} {}",
-        "param1",
-        "param2"
-    );
+        logger, new RuntimeException("this is an exception"), "Error {} {}", "param1", "param2");
   }
 
   @Test
@@ -43,28 +39,22 @@ public class ExceptionHelperTest {
     when(logger.isDebugEnabled()).thenReturn(true);
     doAnswer(this::logDebug).when(logger).debug(anyString(), ArgumentMatchers.<Object[]>any());
     ExceptionHelper.logException(
-        logger,
-        new RuntimeException("this is an exception"),
-        "Error {} {}",
-        "param1",
-        "param2"
-    );
+        logger, new RuntimeException("this is an exception"), "Error {} {}", "param1", "param2");
   }
 
   @Test
   public void rateLimitWarn() {
     when(logger.isDebugEnabled()).thenReturn(false);
     doAnswer(this::logWarn)
-      .when(ratelimitedLogger)
-      .warn(anyString(), ArgumentMatchers.<Object[]>any());
+        .when(ratelimitedLogger)
+        .warn(anyString(), ArgumentMatchers.<Object[]>any());
     ExceptionHelper.rateLimitedLogException(
         ratelimitedLogger,
         logger,
         new RuntimeException("this is an exception"),
         "Error {} {}",
         "param1",
-        "param2"
-    );
+        "param2");
   }
 
   @Test
@@ -77,8 +67,7 @@ public class ExceptionHelperTest {
         new RuntimeException("this is an exception"),
         "Error {} {}",
         "param1",
-        "param2"
-    );
+        "param2");
   }
 
   @Test
@@ -86,11 +75,8 @@ public class ExceptionHelperTest {
     String strStackTrace = ExceptionHelper.foldExceptionStackTrace(new Exception());
     assertTrue(
         strStackTrace.startsWith(
-            "java.lang.Exception at com.datadog.debugger.util.ExceptionHelperTest."
-            + "foldExceptionStackTrace(ExceptionHelperTest.java:75) at "
-        ),
-        strStackTrace
-    );
+            "java.lang.Exception at com.datadog.debugger.util.ExceptionHelperTest.foldExceptionStackTrace(ExceptionHelperTest.java:75) at "),
+        strStackTrace);
     assertFalse(strStackTrace.contains("\n"));
     assertFalse(strStackTrace.contains("\t"));
     assertFalse(strStackTrace.contains("\r"));
@@ -119,15 +105,19 @@ public class ExceptionHelperTest {
 
   @Test
   public void flattenStackTrace() {
-    Throwable simpleException = new MockException(
-        "oops!",
-        new StackTraceElement[] {new StackTraceElement("MyClass1", "myMethod1", "file1.java", 1)}
-    );
-    Throwable nestedException = new MockException(
-        "oops!",
-        new StackTraceElement[] {new StackTraceElement("MyClass2", "myMethod2", "file2.java", 2)},
-        simpleException
-    );
+    Throwable simpleException =
+        new MockException(
+            "oops!",
+            new StackTraceElement[] {
+              new StackTraceElement("MyClass1", "myMethod1", "file1.java", 1)
+            });
+    Throwable nestedException =
+        new MockException(
+            "oops!",
+            new StackTraceElement[] {
+              new StackTraceElement("MyClass2", "myMethod2", "file2.java", 2)
+            },
+            simpleException);
     StackTraceElement[] stack = ExceptionHelper.flattenStackTrace(simpleException);
     assertEquals(1, stack.length);
     stack = ExceptionHelper.flattenStackTrace(nestedException);
@@ -143,8 +133,7 @@ public class ExceptionHelperTest {
     for (int i = 0; i < mapping.length; i++) {
       assertEquals(
           flattenedTrace[mapping[i]].getClassName(),
-          innerMostThrowable.getStackTrace()[i].getClassName()
-      );
+          innerMostThrowable.getStackTrace()[i].getClassName());
     }
   }
 
@@ -157,8 +146,7 @@ public class ExceptionHelperTest {
     for (int i = 0; i < mapping.length; i++) {
       assertEquals(
           flattenedTrace[mapping[i]].getClassName(),
-          innerMostThrowable.getStackTrace()[i].getClassName()
-      );
+          innerMostThrowable.getStackTrace()[i].getClassName());
     }
   }
 
@@ -219,3 +207,4 @@ public class ExceptionHelperTest {
     return null;
   }
 }
+// spotless:on
