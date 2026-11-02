@@ -151,90 +151,36 @@ public class DataStreamsTags {
   /// For usage in tests *only*
   public Boolean hasAllTags(String[] tags) {
     for (String tag : tags) {
-      if (tag.indexOf(':') == -1) {
+      int separator = tag.indexOf(':');
+      if (separator == -1) {
         return false;
       }
-      String key = tag.substring(0, tag.indexOf(':'));
-      String value = tag.substring(tag.indexOf(':') + 1);
-      switch (key) {
-        case BUS_TAG:
-          if (!Objects.equals(getBus(), tag)) {
-            return false;
-          }
-          break;
-        case DIRECTION_TAG:
-          if (!Objects.equals(
-              this.directionValue,
-              Objects.equals(value, "out") ? Direction.OUTBOUND : Direction.INBOUND)) {
-            return false;
-          }
-          break;
-        case EXCHANGE_TAG:
-          if (!Objects.equals(getExchange(), tag)) {
-            return false;
-          }
-          break;
-        case TOPIC_TAG:
-          if (!Objects.equals(getTopic(), tag)) {
-            return false;
-          }
-          break;
-        case TYPE_TAG:
-          if (!Objects.equals(getType(), tag)) {
-            return false;
-          }
-          break;
-        case SUBSCRIPTION_TAG:
-          if (!Objects.equals(getSubscription(), tag)) {
-            return false;
-          }
-          break;
-        case DATASET_NAME_TAG:
-          if (!Objects.equals(getDatasetName(), tag)) {
-            return false;
-          }
-          break;
-        case DATASET_NAMESPACE_TAG:
-          if (!Objects.equals(getDatasetNamespace(), tag)) {
-            return false;
-          }
-          break;
-        case MANUAL_TAG:
-          if (!Objects.equals(getIsManual(), tag)) {
-            return false;
-          }
-          break;
-        case GROUP_TAG:
-          if (!Objects.equals(getGroup(), tag)) {
-            return false;
-          }
-          break;
-        case CONSUMER_GROUP_TAG:
-          if (!Objects.equals(getConsumerGroup(), tag)) {
-            return false;
-          }
-          break;
-        case HAS_ROUTING_KEY_TAG:
-          if (!Objects.equals(getHasRoutingKey(), tag)) {
-            return false;
-          }
-          break;
-        case KAFKA_CLUSTER_ID_TAG:
-          if (!Objects.equals(getKafkaClusterId(), tag)) {
-            return false;
-          }
-          break;
-        case PARTITION_TAG:
-          if (!Objects.equals(getPartition(), tag)) {
-            return false;
-          }
-          break;
-        default:
+      String key = tag.substring(0, separator);
+      if (DIRECTION_TAG.equals(key)) {
+        String value = tag.substring(separator + 1);
+        if (!Objects.equals(
+            this.directionValue,
+            Objects.equals(value, "out") ? Direction.OUTBOUND : Direction.INBOUND)) {
           return false;
+        }
+      } else {
+        int index = indexOfName(key);
+        if (index == -1 || !Objects.equals(tagByIndex(index), tag)) {
+          return false;
+        }
       }
     }
 
     return true;
+  }
+
+  private int indexOfName(String name) {
+    for (int i = 0; i < size(); i++) {
+      if (nameByIndex(i).equals(name)) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   public static DataStreamsTags createWithGroup(
