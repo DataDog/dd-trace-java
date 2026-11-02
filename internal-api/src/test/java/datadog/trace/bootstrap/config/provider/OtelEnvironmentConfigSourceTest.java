@@ -6,9 +6,12 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
@@ -22,14 +25,19 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEnvConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSysConfig;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
@@ -45,6 +53,8 @@ class OtelEnvironmentConfigSourceTest {
       "key1:one,key2:two,key3:three,key4:four,key5:five,key6:six,key7:seven,key8:eight,key9:nine,key10:ten,key11:eleven,key12:twelve";
 
   private static final String OTLP_TIMEOUT = "500";
+
+  @TempDir Path tempDir;
 
   // ignore this test when we enable the OpenTelemetry integration by default
   @Test
@@ -444,6 +454,59 @@ class OtelEnvironmentConfigSourceTest {
     assertEquals(metricsOtelDisabled, metricsExport(new OtelEnvironmentConfigSource()));
   }
 
+  @TableTest({
+    "scenario                       | exporters           | DD_LOGS_OTEL_ENABLED=true | DD_LOGS_OTEL_ENABLED=false",
+    "unset                          |                     | OTLP                      | DISABLED                  ",
+    "empty                          | ''                  | OTLP                      | DISABLED                  ",
+    "otlp                           | otlp                | OTLP                      | DISABLED                  ",
+    "otlp with unsupported          | 'otlp,console'      | OTLP                      | DISABLED                  ",
+    "none                           | none                | DISABLED                  | DISABLED                  ",
+    "none with unsupported          | 'none,console'      | DISABLED                  | DISABLED                  ",
+    "none with otlp                 | 'none,otlp'         | OTLP                      | DISABLED                  ",
+    "none with otlp and unsupported | 'none,otlp,console' | OTLP                      | DISABLED                  "
+  })
+  // keeps the OpenTelemetry mapping active when DD_LOGS_OTEL_ENABLED=false
+  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
+  void otelLogsExporterSelection(
+      String exporters, Export logsOtelEnabled, Export logsOtelDisabled) {
+    injectExporterConfig("logs", exporters);
+
+    injectSysConfig(LOGS_OTEL_ENABLED, "true");
+    assertEquals(logsOtelEnabled, logsExport(new OtelEnvironmentConfigSource()));
+
+    injectSysConfig(LOGS_OTEL_ENABLED, "false");
+    assertEquals(logsOtelDisabled, logsExport(new OtelEnvironmentConfigSource()));
+  }
+
+  @TableTest({
+    "scenario                          | sysProp | envVar | configFile | logsOtelExporter",
+    "system property otlp over env     | otlp    | none   |            | otlp            ",
+    "system property none over env     | none    | otlp   |            |                 ",
+    "empty system property over env    | ''      | none   |            | otlp            ",
+    "env over config file              |         | otlp   | none       | otlp            ",
+    "config file when nothing else set |         |        | none       |                 "
+  })
+  @WithConfig(key = LOGS_OTEL_ENABLED, value = "true")
+  void otelLogsExporterFollowsOtelPrecedence(
+      String sysProp, String envVar, String configFile, String logsOtelExporter)
+      throws IOException {
+    if (sysProp != null) {
+      injectSysConfig("otel.logs.exporter", sysProp, false);
+    }
+    if (envVar != null) {
+      injectEnvConfig("OTEL_LOGS_EXPORTER", envVar, false);
+    }
+    if (configFile != null) {
+      Path file = tempDir.resolve("otel.properties");
+      Files.write(file, singletonList("otel.logs.exporter=" + configFile));
+      injectSysConfig("otel.javaagent.configuration-file", file.toString(), false);
+    }
+
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    assertEquals(logsOtelExporter, source.get(LOGS_OTEL_EXPORTER));
+  }
+
   @Test
   @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   @WithConfig(
@@ -564,6 +627,11 @@ class OtelEnvironmentConfigSourceTest {
   private static Export metricsExport(OtelEnvironmentConfigSource source) {
     return collectionExport(
         source, METRICS_OTEL_EXPORTER, OTLP_METRICS_TIMEOUT, RUNTIME_METRICS_ENABLED);
+  }
+
+  private static Export logsExport(OtelEnvironmentConfigSource source) {
+    boolean otlp = isOtlpExported(source, LOGS_OTEL_EXPORTER, OTLP_LOGS_TIMEOUT);
+    return otlp ? Export.OTLP : Export.DISABLED;
   }
 
   private static Export collectionExport(

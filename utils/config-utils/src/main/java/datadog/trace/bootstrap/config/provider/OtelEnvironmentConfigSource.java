@@ -149,7 +149,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     if (logsOtelEnabled()) {
       setupLogsOtelEnvironment();
     } else {
-      mapDataCollection("logs");
+      selectExporter("logs"); // only to warn about unsupported values
     }
   }
 
@@ -249,8 +249,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(
         LOGS_OTEL_BATCH_SIZE,
         getOtelProperty("otel.blrp.max.export.batch.size", "dd." + LOGS_OTEL_BATCH_SIZE));
-    String exporter = getOtelProperty("otel.logs.exporter");
-    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // logs defaults to OTLP
+    Exporter exporter = selectExporter("logs");
+    if (exporter == Exporter.UNSET || exporter == Exporter.OTLP) { // logs defaults to OTLP
       capture(LOGS_OTEL_EXPORTER, "otlp");
       capture(OTLP_LOGS_HEADERS, getOtelOtlpProperty("logs", "headers", "dd." + OTLP_LOGS_HEADERS));
       capture(
@@ -261,8 +261,6 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       capture(OTLP_LOGS_TIMEOUT, getOtelOtlpProperty("logs", "timeout", "dd." + OTLP_LOGS_TIMEOUT));
       capture(
           OTLP_LOGS_ENDPOINT, getOtelOtlpProperty("logs", "endpoint", "dd." + OTLP_LOGS_ENDPOINT));
-    } else {
-      mapDataCollection("logs");
     }
   }
 
@@ -532,24 +530,6 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     log.warn("OTEL_TRACES_SAMPLER={} is not supported", tracesSampler);
     OtelEnvMetricCollectorProvider.get()
         .setInvalidOtelEnvVarMetric("otel_traces_sampler", "dd_trace_sample_rate");
-    return null;
-  }
-
-  /** Maps an OpenTelemetry exporter setting to the equivalent Datadog collection setting. */
-  private String mapDataCollection(String signal) {
-    String exporter = getOtelProperty("otel." + signal + ".exporter");
-    if (null == exporter) {
-      return null;
-    }
-
-    if ("none".equalsIgnoreCase(exporter)) {
-      return "false"; // "none" maps to disable data collection
-    }
-
-    log.warn("OTEL_{}_EXPORTER={} is not supported", signal, exporter.toUpperCase(Locale.ROOT));
-    OtelEnvMetricCollectorProvider.get()
-        .setUnsupportedOtelEnvVarMetric("otel_" + signal + "_exporter");
-
     return null;
   }
 
