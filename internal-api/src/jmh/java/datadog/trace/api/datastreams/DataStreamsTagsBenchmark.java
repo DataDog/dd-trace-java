@@ -6,10 +6,12 @@ import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
@@ -17,15 +19,17 @@ import org.openjdk.jmh.annotations.Warmup;
 /**
  * Building the {@link DataStreamsTags} a Kafka consumer builds per record. With Data Streams off,
  * nothing reads the tags ({@link #dsmOff}); with it on, the checkpoint reads their hashes ({@link
- * #dsmOn}). Run with {@code -prof gc} for allocation per operation.
+ * #dsmOn}). Run with {@code -prof gc} for allocation per operation. The service name override is
+ * installed, as Data Streams monitoring does at startup, so building the tags reads it.
  *
- * <p>Results (MacBook, JDK 21, default flags, 5 forks, 4 threads):
+ * <p>Results (MacBook, JDK 21, default flags, 5 forks via {@code -Pjmh.forks=5}, 4 threads; the
+ * machine was busy, so treat the times as approximate):
  *
  * <pre>
  * Benchmark  eager tags (before)   lazy tags (after)
  *            ns/op       B/op      ns/op       B/op
- * dsmOff     234.7 +- 2.4  1464      7.4 +- 0.0   112
- * dsmOn      236.4 +- 4.9  1464    117.3 +- 0.5   112
+ * dsmOff     230.4 +- 4.4  1464      8.5 +- 0.1   112
+ * dsmOn      226.9 +- 3.4  1464    118.4 +- 1.6   112
  * </pre>
  */
 @BenchmarkMode(Mode.AverageTime)
@@ -40,6 +44,11 @@ public class DataStreamsTagsBenchmark {
   final String topic = "orders";
   final String group = "order-processor";
   final String clusterId = "lkc-6ojk2q";
+
+  @Setup(Level.Trial)
+  public void installServiceNameOverride() {
+    DataStreamsTags.setServiceNameOverride(new ThreadLocal<>());
+  }
 
   @Benchmark
   public DataStreamsTags dsmOff() {
