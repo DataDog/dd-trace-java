@@ -3,8 +3,11 @@ package datadog.trace.instrumentation.play27.server.test
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.KnownTags
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
@@ -73,10 +76,24 @@ class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends AbstractPlayServer2
     }
   }
 
+  @Override
+  Serializable expectedServerSpanRoute(HttpServerTest.ServerEndpoint endpoint) {
+    Config.get().isTraceOtelSemanticsEnabled() ? routeFor(endpoint) : null
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraServerTags(HttpServerTest.ServerEndpoint endpoint) {
+    Config.get().isTraceOtelSemanticsEnabled() ? [:] : [(Tags.HTTP_ROUTE): null]
+  }
+
   // we set Tags.HTTP_ROUTE with a routes file; override method for this
   @Override
   void handlerSpan(TraceAssert trace, HttpServerTest.ServerEndpoint endpoint = SUCCESS) {
     def expectedQueryTag = expectedQueryTag(endpoint)
+    def expectedRoute = routeFor(endpoint)
+    def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
+    def requestUrl = endpoint.resolve(address)
+    def expectedPath = Config.get().isHttpServerRawResource() && supportsRaw() ? requestUrl.rawPath : requestUrl.path
     trace.span {
       serviceName expectedServiceName()
       operationName "play.request"
@@ -89,18 +106,29 @@ class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends AbstractPlayServer2
         "$Tags.PEER_HOST_IPV4" '127.0.0.1'
         "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : '127.0.0.1')
         "$Tags.NETWORK_CLIENT_IP" '127.0.0.1'
-        "$Tags.HTTP_URL" String
-        "$Tags.HTTP_HOSTNAME" address.host
+        if (otelSemantics) {
+          "$Tags.HTTP_URL" null
+          "$Tags.HTTP_HOSTNAME" address.host
+          "$KnownTags.SERVER_PORT_NAME" address.port
+          "$KnownTags.URL_PATH_NAME" expectedPath
+          "$KnownTags.URL_SCHEME_NAME" address.scheme
+        } else {
+          "$Tags.HTTP_URL" String
+          "$Tags.HTTP_HOSTNAME" address.host
+        }
         "$Tags.HTTP_METHOD" String
-        "$Tags.HTTP_ROUTE" this.routeFor(endpoint)
+        "$Tags.HTTP_ROUTE" expectedRoute
         if (endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION) {
           errorTags(endpoint == CUSTOM_EXCEPTION ? TestHttpErrorHandler.CustomRuntimeException : RuntimeException, endpoint.body)
         }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" expectedQueryTag
+          tag(otelSemantics ? KnownTags.URL_QUERY_NAME : DDTags.HTTP_QUERY, expectedQueryTag)
         }
         defaultTags()
       }
     }
   }
+}
+
+class PlayAsyncServerRoutesOtelSemanticsForkedTest extends PlayAsyncServerRoutesScalaWithErrorHandlerTest implements TestingOtelHttpSemantics {
 }
