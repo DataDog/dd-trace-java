@@ -12,7 +12,7 @@ public class TestSucceedCustomRunner {
   public static class AnotherSuite extends TestSucceedCustomRunner {}
 
   public static class CustomRunner extends Runner {
-    private final Class<?> testClass;
+    protected final Class<?> testClass;
 
     public CustomRunner(Class<?> testClass) {
       this.testClass = testClass;

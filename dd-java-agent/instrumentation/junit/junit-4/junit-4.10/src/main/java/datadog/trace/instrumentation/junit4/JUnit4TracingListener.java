@@ -10,6 +10,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Ignore;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -21,6 +22,7 @@ public class JUnit4TracingListener extends TracingListener {
 
   private final ContextStore<Description, TestExecutionTracker> executionTrackers;
   private final Map<TestSuiteDescriptor, Boolean> startedSuites = new ConcurrentHashMap<>();
+  private final AtomicInteger activeRunners = new AtomicInteger();
 
   public JUnit4TracingListener(ContextStore<Description, TestExecutionTracker> executionTrackers) {
     this.executionTrackers = executionTrackers;
@@ -40,6 +42,9 @@ public class JUnit4TracingListener extends TracingListener {
 
   private void startTestSuite(
       TestSuiteDescriptor suiteDescriptor, Description description, boolean parallelized) {
+    if (startedSuites.containsKey(suiteDescriptor)) {
+      return;
+    }
     startedSuites.computeIfAbsent(
         suiteDescriptor,
         key -> {
@@ -88,7 +93,17 @@ public class JUnit4TracingListener extends TracingListener {
         .onTestSuiteFinish(suiteDescriptor, null);
   }
 
-  public void finishTestSuites() {
+  public void runnerStarted() {
+    activeRunners.incrementAndGet();
+  }
+
+  public void runnerFinished() {
+    if (activeRunners.decrementAndGet() == 0) {
+      finishTestSuites();
+    }
+  }
+
+  private void finishTestSuites() {
     // Fallback suites have no thread-bound scope: their callbacks may run on an executor.
     // Suites with native lifecycle events are finished by their own callbacks.
     for (Map.Entry<TestSuiteDescriptor, Boolean> suite : startedSuites.entrySet()) {
@@ -152,6 +167,7 @@ public class JUnit4TracingListener extends TracingListener {
 
     if (JUnit4Utils.isTestSuiteDescription(description)) {
       TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
+      startTestSuite(suiteDescriptor, description, true);
       Throwable throwable = failure.getException();
       TestEventsHandlerHolder.HANDLERS
           .get(TestFrameworkInstrumentation.JUNIT4)
@@ -182,6 +198,7 @@ public class JUnit4TracingListener extends TracingListener {
 
     if (JUnit4Utils.isTestSuiteDescription(description)) {
       TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
+      startTestSuite(suiteDescriptor, description, true);
       TestEventsHandlerHolder.HANDLERS
           .get(TestFrameworkInstrumentation.JUNIT4)
           .onTestSuiteSkip(suiteDescriptor, reason);

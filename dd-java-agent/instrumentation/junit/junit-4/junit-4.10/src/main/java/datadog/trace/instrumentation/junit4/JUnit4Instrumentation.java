@@ -119,6 +119,11 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
         RunListener tracingListener = JUnit4Utils.toTracingListener(listener);
         if (tracingListener != null) {
           // prevents installing TracingListener multiple times
+          if (tracingListener instanceof JUnit4TracingListener) {
+            JUnit4TracingListener junit4Listener = (JUnit4TracingListener) tracingListener;
+            junit4Listener.runnerStarted();
+            return junit4Listener;
+          }
           return null;
         }
       }
@@ -126,20 +131,15 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
       final JUnit4TracingListener tracingListener =
           new JUnit4TracingListener(
               InstrumentationContext.get(Description.class, TestExecutionTracker.class));
+      tracingListener.runnerStarted();
       runNotifier.addListener(tracingListener);
       return tracingListener;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void finishTestSuites(
-        @Advice.Enter final JUnit4TracingListener tracingListener,
-        @Advice.Argument(0) final RunNotifier runNotifier) {
+    public static void finishTestSuites(@Advice.Enter final JUnit4TracingListener tracingListener) {
       if (tracingListener != null) {
-        try {
-          tracingListener.finishTestSuites();
-        } finally {
-          runNotifier.removeListener(tracingListener);
-        }
+        tracingListener.runnerFinished();
       }
     }
 
