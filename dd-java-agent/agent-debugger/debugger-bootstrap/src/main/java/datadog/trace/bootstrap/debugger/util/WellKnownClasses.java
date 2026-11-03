@@ -225,11 +225,17 @@ public class WellKnownClasses {
           "com.google.protobuf.", // Google ProtoBuf
           "com.google.common.collect.", // Google Guava
           "it.unimi.dsi.fastutil.", // fastutil
-          "org.agrona.collections.", // Agrona
-          // Spring specific
-          "org.springframework.validation.support.BindingAwareModelMap",
-          "org.springframework.util.LinkedMultiValueMap",
-          "org.springframework.util.LinkedCaseInsensitiveMap");
+          "org.agrona.collections." // Agrona
+          );
+
+  /** Map classes considered safe only on exact match, to exclude subclasses and proxies */
+  private static final Set<String> SAFE_MAP_CLASSES =
+      new HashSet<>(
+          Arrays.asList(
+              // Spring specific
+              "org.springframework.validation.support.BindingAwareModelMap",
+              "org.springframework.util.LinkedMultiValueMap",
+              "org.springframework.util.LinkedCaseInsensitiveMap"));
 
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
@@ -260,7 +266,12 @@ public class WellKnownClasses {
    * @return true if map implementation is safe to call (only in-memory and lock free)
    */
   public static boolean isSafe(Map<?, ?> map) {
-    return isSafe(map.getClass().getTypeName(), SAFE_MAP_PACKAGES, UNSAFE_MAP_CLASSES);
+    return isSafeMap(map.getClass().getTypeName());
+  }
+
+  static boolean isSafeMap(String className) {
+    return SAFE_MAP_CLASSES.contains(className)
+        || isSafe(className, SAFE_MAP_PACKAGES, UNSAFE_MAP_CLASSES);
   }
 
   private static boolean isSafe(
