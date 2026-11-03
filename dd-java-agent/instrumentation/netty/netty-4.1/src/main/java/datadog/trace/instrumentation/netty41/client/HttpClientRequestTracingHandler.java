@@ -73,15 +73,15 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       if (ctx.channel().parent() == null) {
         ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(parent);
       }
+      boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
+      NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
       if (isNestedClientSpanSuppressed(parentContext, parent)) {
+        decorate.onRequestSecurity(parent, request);
         DECORATE.injectContext(parentContext, request.headers(), SETTER);
         ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentContext);
         ctx.write(msg, prm);
         return;
       }
-      boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
-      NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
-
       final AgentSpan span = startSpan(NETTY_CLIENT.toString(), NETTY_CLIENT_REQUEST);
       final Context context = parentContext.with(span);
       try (final ContextScope scope = activateSpan(span)) {

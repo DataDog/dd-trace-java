@@ -131,6 +131,27 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     }
   }
 
+  /** Checks the transport destination without decorating a span owned by another HTTP client. */
+  public final void onRequestSecurity(final AgentSpan span, final REQUEST request) {
+    if (request == null) {
+      return;
+    }
+    try {
+      if (APPSEC_RASP_ENABLED) {
+        URI destination = url(request);
+        if (destination != null) {
+          onHttpClientRequest(span, destination.toString());
+        }
+      }
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to check HTTP transport destination", t);
+    } finally {
+      ssrfIastCheck(request);
+    }
+  }
+
   protected void doOnRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
       AgentTracer.get()
