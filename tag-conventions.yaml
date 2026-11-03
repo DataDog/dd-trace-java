@@ -88,6 +88,7 @@ trace_level:
     - { dd-name: _dd.trace_span_attribute_schema, type: int, required: required }
     - { dd-name: _dd.profiling.ctx,      type: string,  required: optional }     # once the profiling context integration is available
     - { dd-name: process_id,             type: long,    required: required }
+    - { dd-name: _dd.agent_psr,          type: double,  required: optional }     # the agent-provided sampling rate the sampler applied
     - { dd-name: ai_guard.event,         type: boolean, required: optional }     # when the trace holds an AI Guard evaluation span
 
 span_types:
