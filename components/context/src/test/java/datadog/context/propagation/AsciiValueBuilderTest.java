@@ -24,6 +24,18 @@ class AsciiValueBuilderTest {
   }
 
   @Test
+  void appendsDecimalDigitsAfterOtherText() {
+    assertEquals(
+        "t0=-42/18446744073709551615",
+        new AsciiValueBuilder(8)
+            .append("t0=")
+            .appendDecimal(-42)
+            .append('/')
+            .appendUnsignedDecimal(-1)
+            .toString());
+  }
+
+  @Test
   void returnsItsOwnArrayWhenExactlyFull() {
     AsciiValueBuilder builder = new AsciiValueBuilder(5).append("ab").append('-').append("cd");
 

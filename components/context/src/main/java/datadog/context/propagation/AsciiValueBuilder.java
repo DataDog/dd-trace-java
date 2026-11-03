@@ -51,6 +51,27 @@ public final class AsciiValueBuilder implements CharSequence {
     return this;
   }
 
+  /** Appends {@code value} in decimal, as {@link Long#toString(long)} would. */
+  public AsciiValueBuilder appendDecimal(long value) {
+    if (value >= 0) {
+      int digits = AsciiDecimal.length(value);
+      ensureCapacity(digits);
+      AsciiDecimal.write(bytes, length += digits, value);
+      return this;
+    }
+    append('-');
+    // Negating Long.MIN_VALUE leaves it as is, which read as unsigned is its magnitude
+    return appendUnsignedDecimal(-value);
+  }
+
+  /** Appends {@code value} in decimal, as {@link Long#toUnsignedString(long)} would. */
+  public AsciiValueBuilder appendUnsignedDecimal(long value) {
+    int digits = AsciiDecimal.unsignedLength(value);
+    ensureCapacity(digits);
+    AsciiDecimal.writeUnsigned(bytes, length += digits, value);
+    return this;
+  }
+
   /**
    * The value as bytes. When the builder is exactly full, this is its own array, without a copy, so
    * the builder must not be appended to after this.
