@@ -54,6 +54,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * case; with no local Datadog Agent, DSM still builds tags, contexts and checkpoints, but drops the
  * stats points instead of sending them.
  *
+ * <p>{@code traceHeaders} {@code false} gives records with no headers at all, as an untraced
+ * producer sends them.
+ *
  * <p><b>Read ns/op and {@code gc.alloc.rate.norm}</b> (B/op); both are per record. Expect the
  * relative difference between builds to be larger than in a real consumer: the records here are
  * pre-built, so Kafka's fetch and lazy header parsing (which the agent triggers by reading headers)
@@ -88,6 +91,9 @@ public class KafkaConsumeScenariosBenchmark {
   @Param({"false", "true"})
   boolean dataStreams;
 
+  @Param({"true", "false"})
+  boolean traceHeaders;
+
   CoreTracer tracer;
   List<ConsumerRecord<?, ?>> batch;
 
@@ -112,9 +118,11 @@ public class KafkaConsumeScenariosBenchmark {
     long timestamp = System.currentTimeMillis();
     for (int i = 0; i < BATCH_SIZE; i++) {
       RecordHeaders headers = new RecordHeaders();
-      AgentSpan producer = tracer.buildSpan("bench", "kafka.produce").start();
-      defaultPropagator().inject(producer, headers, SETTER);
-      producer.finish();
+      if (traceHeaders) {
+        AgentSpan producer = tracer.buildSpan("bench", "kafka.produce").start();
+        defaultPropagator().inject(producer, headers, SETTER);
+        producer.finish();
+      }
 
       batch.add(
           new ConsumerRecord<>(
