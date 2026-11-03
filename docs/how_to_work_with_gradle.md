@@ -27,6 +27,7 @@ plugin or task belong beside its source or in local documentation.
 
 **Troubleshooting:**
 - [Build Scans & Diagnostics](#troubleshooting) — Develocity, `--info`, `--scan`, critical path analysis
+- [Build Cache](gradle_build_cache.md) — S3 prefixes, cache misses, artifact checks, and runtime comparisons
 - [Configuration Cache](#configuration-cache-issues) — Common violations and fixes
 
 > [!TIP]
