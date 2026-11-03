@@ -17,7 +17,7 @@ setup:
     - build-logic/CLAUDE.md
     - buildSrc/AGENTS.md
     - buildSrc/CLAUDE.md
-  # Declare the real skill contents, leaving the repository's discovery symlinks intact.
+  # Declare discovery links and all shared skills; linked targets are included automatically.
   directories:
     - .agents/skills
-    - .claude/skills/fix-continuation-leakage
+    - .claude/skills

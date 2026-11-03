@@ -1,6 +1,6 @@
 include:
   - project: 'ddoghq/llm-validation-platform'
-    ref: '8c4f8ecd631e9de63730d1c4051569c296b16481' # Platform PR #48; keep aligned with LLMVAL_PLATFORM_REF.
+    ref: '1f97e819f5f93a2d587d16a09ecf37b7776665ea' # Platform PR #48; keep aligned with LLMVAL_PLATFORM_REF.
     file: '/ci/llm-validation.gitlab-ci.yml'
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
@@ -1555,12 +1555,12 @@ update_central_configurations_version_range_v2:
     - when: never
   variables:
     LLMVAL_PLATFORM_PROJECT: "ddoghq/llm-validation-platform"
-    LLMVAL_PLATFORM_REF: "8c4f8ecd631e9de63730d1c4051569c296b16481"
+    LLMVAL_PLATFORM_REF: "1f97e819f5f93a2d587d16a09ecf37b7776665ea"
     LLMVAL_GITHUB_REPO: "DataDog/dd-trace-java"
     LLMVAL_BASE_REF: "master"
 
 "llm validation (setup smoke)":
-  allow_failure: true # Expected symlink rejection must not block normal Java checks.
+  allow_failure: true # Experimental setup evaluation must not block normal Java checks.
   variables:
     LLMVAL_SETUP_ENABLED: "true" # For testing only; remove before merging.
     LLMVAL_SETUP_PRESET: "java-setup-smoke"
