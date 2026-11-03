@@ -47,8 +47,11 @@ public final class HashStore {
   private Set<String> removedFromParent;
 
   /**
-   * A fresh custom store for an owner's first custom write, reading through to {@code borrowed},
-   * the store it borrowed until now (may be null).
+   * Creates the custom store for an owner's first custom write.
+   *
+   * @param borrowed the store the owner borrowed until now, which the new store reads through to;
+   *     may be null
+   * @return a fresh, empty custom store
    */
   public static HashStore create(HashStore borrowed) {
     return new HashStore(borrowed);
@@ -59,7 +62,11 @@ public final class HashStore {
     this.parent = parent;
   }
 
-  /** Exact count, including the visible part of the read-through chain. */
+  /**
+   * Counts the visible tags.
+   *
+   * @return the exact count, including the visible part of the read-through chain
+   */
   int size() {
     return this.parent == null ? this.count : this.count + this.visibleParentCount();
   }
@@ -106,7 +113,12 @@ public final class HashStore {
     return this.visibleParentCount() == 0;
   }
 
-  /** Cheap: no level of the chain holds a local entry (ignores shadowing and tombstones). */
+  /**
+   * Cheaply checks for emptiness, ignoring shadowing and tombstones.
+   *
+   * @return true if no level of the chain holds a local entry, so the store is empty; false means
+   *     only "maybe not", since tombstones can hide every inherited tag
+   */
   boolean isDefinitelyEmpty() {
     for (HashStore level = this; level != null; level = level.parent) {
       if (level.count != 0) {
@@ -116,7 +128,11 @@ public final class HashStore {
     return true;
   }
 
-  /** Upper bound: the local counts of every level. */
+  /**
+   * Bounds the visible count from above, without resolving shadowing or tombstones.
+   *
+   * @return the sum of the local counts of every level
+   */
   int estimateSize() {
     int total = 0;
     for (HashStore level = this; level != null; level = level.parent) {
@@ -125,7 +141,12 @@ public final class HashStore {
     return total;
   }
 
-  /** The custom tag {@code tag}'s entry, reading through to the parent chain, or null. */
+  /**
+   * Looks up a custom tag, reading through to the parent chain.
+   *
+   * @param tag the custom tag's name; must not be a known tag's name (asserted)
+   * @return the visible entry, or null if the tag is absent or removed by a tombstone
+   */
   @Nullable
   public Entry getEntry(String tag) {
     assert KnownTagCodec.keyOf(tag) == 0 : "'" + tag + "' is a known tag; look it up by its id";
@@ -146,11 +167,11 @@ public final class HashStore {
   }
 
   /**
-   * Inserts or replaces the custom tag {@code tag} with {@code value}, without reading through to
-   * the parent chain; a tombstone for the tag is cleared, so the new value is visible.
+   * Inserts or replaces a custom tag, without reading through to the parent chain; a tombstone for
+   * the tag is cleared, so the new value is visible.
    *
-   * <p>{@code tag} must not be a known tag's name. Takes no null: the owner calls {@link #remove}
-   * for a null value.
+   * @param tag the custom tag's name; must not be a known tag's name
+   * @param value the value; never null, since the owner calls {@link #remove} for a null value
    */
   public void store(String tag, @Nonnull Object value) {
     this.put(Entry.newAnyEntry(tag, value));
@@ -187,8 +208,10 @@ public final class HashStore {
   }
 
   /**
-   * Inserts or replaces a custom tag's entry, returning the local entry it replaced (or null). Does
-   * not consult the read-through parent.
+   * Inserts or replaces a custom tag's entry. Does not consult the read-through parent.
+   *
+   * @param newEntry the custom tag's entry
+   * @return the local entry it replaced, or null if there was none
    */
   @Nullable
   public Entry put(@Nonnull Entry newEntry) {
@@ -205,8 +228,11 @@ public final class HashStore {
   }
 
   /**
-   * {@link #put}, returning the prior visible entry -- local, else read through -- or null if the
-   * tag was not visible (absent from the chain, or removed by a tombstone).
+   * {@link #put}, also reporting the value the put hid.
+   *
+   * @param newEntry the custom tag's entry
+   * @return the prior visible entry -- local, else read through -- or null if the tag was not
+   *     visible (absent from the chain, or removed by a tombstone)
    */
   @Nullable
   public Entry getAndPut(@Nonnull Entry newEntry) {
@@ -226,8 +252,11 @@ public final class HashStore {
   }
 
   /**
-   * Removes the custom tag {@code tag}, returning the prior visible entry. Removing a key the
-   * parent chain still exposes also installs a tombstone, so it stops reading through.
+   * Removes a custom tag. Removing a key the parent chain still exposes also installs a tombstone,
+   * so it stops reading through.
+   *
+   * @param tag the custom tag's name; must not be a known tag's name (asserted)
+   * @return the prior visible entry, or null if the tag was not visible
    */
   @Nullable
   public Entry remove(String tag) {
@@ -259,8 +288,11 @@ public final class HashStore {
   }
 
   /**
-   * Whether {@code parentEntry}, from the ancestor level {@code fromAncestor}, is visible through
-   * this leaf: not shadowed and not tombstoned by any nearer level.
+   * Checks whether an ancestor's entry shows through this leaf.
+   *
+   * @param parentEntry an entry held by {@code fromAncestor}
+   * @param fromAncestor the ancestor level holding {@code parentEntry}
+   * @return whether no nearer level shadows or tombstones the entry's tag
    */
   boolean parentEntryVisible(Entry parentEntry, HashStore fromAncestor) {
     int hash = parentEntry.hash();
@@ -276,7 +308,11 @@ public final class HashStore {
     return true;
   }
 
-  /** Visits the local entries, then the visible inherited ones. */
+  /**
+   * Visits the local entries, then the visible inherited ones.
+   *
+   * @param consumer receives each visible entry
+   */
   void forEach(Consumer<? super EntryReader> consumer) {
     HashSupport.forEach(this.buckets, consumer);
     if (this.parent != null) {
@@ -324,8 +360,10 @@ public final class HashStore {
   }
 
   /**
-   * An independently mutable copy: the same (frozen, shared) parent, this store's own entries
-   * (shared Entry objects) and its tombstones.
+   * Copies this store.
+   *
+   * @return an independently mutable copy with the same (frozen, shared) parent, this store's own
+   *     entries (shared Entry objects) and its tombstones
    */
   HashStore copy() {
     HashStore copy = new HashStore(this.parent);
@@ -338,8 +376,10 @@ public final class HashStore {
   }
 
   /**
-   * Copies the entries of the parentless store {@code that} (asserted), sharing Entry objects.
-   * "Local" names the source: only {@code that}'s own entries are copied, since it has no parent.
+   * Copies the entries of a parentless store, sharing Entry objects. "Local" names the source: only
+   * {@code that}'s own entries are copied, since it has no parent.
+   *
+   * @param that the store to copy from; must have no parent (asserted)
    */
   void putAllLocal(HashStore that) {
     assert that.parent == null : "putAllLocal copies only a parentless store";
@@ -354,19 +394,31 @@ public final class HashStore {
     }
   }
 
-  /** Puts the local entries into {@code map}, for a store with no parent (asserted). */
+  /**
+   * Puts the local entries into a map, for a store with no parent (asserted).
+   *
+   * @param map receives each entry's tag name and value
+   */
   void fillMapLocal(Map<? super String, Object> map) {
     assert this.parent == null : "fillMapLocal is for a parentless store";
     HashSupport.fillMap(this.buckets, map);
   }
 
-  /** {@link #fillMapLocal} with each value as a String. */
+  /**
+   * {@link #fillMapLocal} with each value as a String.
+   *
+   * @param map receives each entry's tag name and string value
+   */
   void fillStringMapLocal(Map<? super String, ? super String> map) {
     assert this.parent == null : "fillStringMapLocal is for a parentless store";
     HashSupport.fillStringMap(this.buckets, map);
   }
 
-  /** Tests only: throws if the store's structure is inconsistent. */
+  /**
+   * Tests only: checks the store's structure.
+   *
+   * @throws IllegalStateException if the structure is inconsistent
+   */
   @VisibleForTesting
   void checkIntegrity() {
     HashSupport.checkBuckets(this.buckets);
@@ -375,13 +427,21 @@ public final class HashStore {
     }
   }
 
-  /** Tests only: the local count, recomputed from the structure. */
+  /**
+   * Tests only: recounts the local entries from the structure.
+   *
+   * @return the local count
+   */
   @VisibleForTesting
   int computeSize() {
     return HashSupport.count(this.buckets);
   }
 
-  /** For deep debugging. */
+  /**
+   * Dumps the internal structure, for deep debugging.
+   *
+   * @return a description of the store's internal layout
+   */
   String toInternalString() {
     return HashSupport.toInternalString(this.buckets);
   }

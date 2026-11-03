@@ -19,10 +19,19 @@ abstract class IdStoreFactory {
     private Default() {}
   }
 
-  /** A fresh store reading through to {@code parent} (may be null). */
+  /**
+   * Creates a store for a span or map.
+   *
+   * @param parent the frozen store to read through to; may be null
+   * @return a fresh, empty store
+   */
   abstract IdStore create(IdStore parent);
 
-  /** A new empty parentless store, for a frozen map. */
+  /**
+   * Creates the store for a frozen empty map.
+   *
+   * @return a new empty parentless store
+   */
   abstract IdStore createEmpty();
 }
 

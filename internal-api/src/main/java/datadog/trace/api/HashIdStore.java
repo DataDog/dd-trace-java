@@ -19,7 +19,11 @@ import javax.annotation.Nonnull;
  * iterated or returned.
  */
 final class HashIdStore extends IdStore {
-  /** An empty parentless store over one bucket, for {@link TagMap#EMPTY}, which is frozen. */
+  /**
+   * Creates the store for {@link TagMap#EMPTY}, which is frozen.
+   *
+   * @return an empty parentless store over one bucket
+   */
   static HashIdStore createEmpty() {
     return new HashIdStore(new Object[1]);
   }
@@ -288,8 +292,11 @@ final class HashIdStore extends IdStore {
   }
 
   /**
-   * Whether {@code parentEntry}, from the ancestor level {@code fromAncestor}, is visible through
-   * this leaf: no nearer level holds an entry or a tombstone for it.
+   * Checks whether an ancestor's entry shows through this leaf.
+   *
+   * @param parentEntry an entry held by {@code fromAncestor}
+   * @param fromAncestor the ancestor level holding {@code parentEntry}
+   * @return whether no nearer level holds an entry or a tombstone for the entry's tag
    */
   boolean parentEntryVisible(Entry parentEntry, HashIdStore fromAncestor) {
     long tagId = parentEntry.tagHash;

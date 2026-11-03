@@ -30,61 +30,81 @@ import javax.annotation.Nullable;
 public abstract class IdStore {
   /** Visits a store's visible entries one at a time. */
   interface Cursor {
-    /** The next visible entry, or null when there are none left. */
+    /**
+     * Advances to the next visible entry.
+     *
+     * @return the next visible entry, or null when there are none left
+     */
     @Nullable
     EntryReader next();
   }
 
-  /** Throws for an id that names no known tag. */
+  /**
+   * Builds the exception for an id that names no known tag.
+   *
+   * @param tagId the rejected id
+   * @return the exception to throw
+   */
   static IllegalArgumentException notKnown(long tagId) {
     return new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
   }
 
   /**
-   * The entry for the known tag {@code tagId}, reading through to the parent chain, or null.
+   * Looks up a known tag, reading through to the parent chain.
    *
    * <p>The reader is valid only until this store's next operation: a store that keeps known tags
    * without an Entry per tag answers with a reused flyweight. Call {@link EntryReader#entry()} to
    * keep it, or use {@link #getEntry} instead. Stores are inside the tracer's trust boundary, so
    * callers are expected to follow this rather than have it enforced.
    *
+   * @param tagId the known tag's id
+   * @return the visible entry, or null if the tag is absent or removed by a tombstone
    * @throws IllegalArgumentException if {@code tagId} names no known tag
    */
   @Nullable
   public abstract EntryReader getEntryReader(long tagId);
 
   /**
-   * The entry for the known tag {@code tagId}, reading through to the parent chain, or null. Unlike
-   * {@link #getEntryReader}, the result is an {@link TagMap.Entry} the caller may keep, and it
-   * shares no state with the store, so it is safe to call concurrently on a frozen store that
-   * several threads read, such as a span prototype's or the tracer-level tags.
+   * Looks up a known tag, reading through to the parent chain. Unlike {@link #getEntryReader}, the
+   * result shares no state with the store, so this is safe to call concurrently on a frozen store
+   * that several threads read, such as a span prototype's or the tracer-level tags.
    *
+   * @param tagId the known tag's id
+   * @return the visible tag as an {@link TagMap.Entry} the caller may keep, or null if the tag is
+   *     absent or removed by a tombstone
    * @throws IllegalArgumentException if {@code tagId} names no known tag
    */
   @Nullable
   public abstract TagMap.Entry getEntry(long tagId);
 
   /**
-   * {@link #getEntryReader}'s value, boxed if necessary, or null -- for a caller that needs only
-   * the value, so a store that keeps known tags without an Entry per tag can answer without one.
+   * Reads a known tag's value, for a caller that needs only the value, so a store that keeps known
+   * tags without an Entry per tag can answer without one.
+   *
+   * @param tagId the known tag's id
+   * @return {@link #getEntryReader}'s value, boxed if necessary, or null if the tag isn't visible
    */
   @Nullable
   public abstract Object load(long tagId);
 
   /**
-   * {@link #load} as a String, or null. A store that keeps an Entry per tag answers with the
+   * Reads a known tag's value as a String. A store that keeps an Entry per tag answers with the
    * Entry's cached string, so a numeric tag read repeatedly, as the serializer does, is formatted
    * once.
+   *
+   * @param tagId the known tag's id
+   * @return {@link #load}'s value as a String, or null if the tag isn't visible
    */
   @Nullable
   public abstract String loadString(long tagId);
 
   /**
-   * Inserts or replaces the known tag {@code tagId} with {@code value}, without reading through to
-   * the parent chain; a tombstone for the tag is replaced, so the new value is visible.
+   * Inserts or replaces a known tag, without reading through to the parent chain; a tombstone for
+   * the tag is replaced, so the new value is visible.
    *
-   * <p>Does not validate {@code tagId}: the caller has checked {@link KnownTagCodec#isKnown}. Takes
-   * no null: the owner calls {@link #remove} for a null value.
+   * @param tagId the known tag's id; not validated, since the caller has checked {@link
+   *     KnownTagCodec#isKnown}
+   * @param value the value; never null, since the owner calls {@link #remove} for a null value
    */
   public abstract void store(long tagId, @Nonnull Object value);
 
@@ -107,24 +127,31 @@ public abstract class IdStore {
   public abstract void store(long tagId, double value);
 
   /**
-   * Inserts or replaces a known tag, returning the local entry it replaced (or null). Does not
-   * consult the read-through parent. A store that keeps Entry objects keeps {@code entryReader}'s
-   * Entry (free when it is one); a store that doesn't copies its value.
+   * Inserts or replaces a known tag. Does not consult the read-through parent. A store that keeps
+   * Entry objects keeps {@code entryReader}'s Entry (free when it is one); a store that doesn't
+   * copies its value.
+   *
+   * @param entryReader the known tag to put
+   * @return the local entry it replaced, or null if there was none
    */
   @Nullable
   public abstract EntryReader put(@Nonnull EntryReader entryReader);
 
   /**
-   * {@link #put}, returning the prior visible entry -- local, else read through -- or null if the
-   * tag was not visible (absent from the chain, or removed by a tombstone).
+   * {@link #put}, also reporting the value the put hid.
+   *
+   * @param entryReader the known tag to put
+   * @return the prior visible entry -- local, else read through -- or null if the tag was not
+   *     visible (absent from the chain, or removed by a tombstone)
    */
   @Nullable
   public abstract EntryReader getAndPut(@Nonnull EntryReader entryReader);
 
   /**
-   * Removes the known tag {@code tagId}, returning the prior visible entry; an inherited one is
-   * hidden by a tombstone.
+   * Removes a known tag; an inherited one is hidden by a tombstone.
    *
+   * @param tagId the known tag's id
+   * @return the prior visible entry, or null if the tag was not visible
    * @throws IllegalArgumentException if {@code tagId} names no known tag
    */
   @Nullable
@@ -134,74 +161,129 @@ public abstract class IdStore {
    * Whole-store operations, for the owning TagMap.
    */
 
-  /** Exact count, including the visible part of the read-through chain. */
+  /**
+   * Counts the visible tags.
+   *
+   * @return the exact count, including the visible part of the read-through chain
+   */
   abstract int size();
 
   /**
-   * Exact: no tag is visible. With tombstones in a read-through chain this may walk the ancestors,
-   * so a fast path should try {@link #isDefinitelyEmpty} first.
+   * Checks exactly whether any tag is visible. With tombstones in a read-through chain this may
+   * walk the ancestors, so a fast path should try {@link #isDefinitelyEmpty} first.
+   *
+   * @return whether no tag is visible
    */
   abstract boolean isEmpty();
 
   /**
-   * Cheap: no level of the chain holds a local entry (ignores shadowing and tombstones). True means
-   * empty; false means only "maybe not", since tombstones can hide every inherited tag. Use it to
-   * skip work on a fast path, and {@link #isEmpty} when the answer must be exact.
+   * Cheaply checks for emptiness, ignoring shadowing and tombstones. Use it to skip work on a fast
+   * path, and {@link #isEmpty} when the answer must be exact.
+   *
+   * @return true if no level of the chain holds a local entry, so the store is empty; false means
+   *     only "maybe not", since tombstones can hide every inherited tag
    */
   abstract boolean isDefinitelyEmpty();
 
-  /** Upper bound: the local counts of every level. */
+  /**
+   * Bounds the visible count from above, without resolving shadowing or tombstones.
+   *
+   * @return the sum of the local counts of every level
+   */
   abstract int estimateSize();
 
-  /** Whether this store reads through to a parent. */
+  /**
+   * Reports whether this store reads through to a parent.
+   *
+   * @return whether this store has a parent
+   */
   abstract boolean hasParent();
 
-  /** Visits the local entries, then the visible inherited ones. */
+  /**
+   * Visits the local entries, then the visible inherited ones.
+   *
+   * @param consumer receives each visible entry
+   */
   abstract void forEach(Consumer<? super EntryReader> consumer);
 
   /**
-   * {@link #forEach(Consumer)}, passing {@code thisObj} as the consumer's first argument, so the
-   * consumer can be a non-capturing lambda that the JVM keeps as a constant instead of allocating
-   * per call: {@code store.forEach(map, (m, entry) -> m.put(entry.tag(), entry.objectValue()))}.
+   * {@link #forEach(Consumer)} with a context object, so the consumer can be a non-capturing lambda
+   * that the JVM keeps as a constant instead of allocating per call: {@code store.forEach(map, (m,
+   * entry) -> m.put(entry.tag(), entry.objectValue()))}.
+   *
+   * @param thisObj passed as the consumer's first argument
+   * @param consumer receives {@code thisObj} and each visible entry
    */
   abstract <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer);
 
   /**
-   * {@link #forEach(Object, BiConsumer)} with a second context object, passed as the consumer's
-   * second argument: {@code store.forEach(this, sink, (self, s, entry) -> self.write(s, entry))}.
+   * {@link #forEach(Object, BiConsumer)} with a second context object: {@code store.forEach(this,
+   * sink, (self, s, entry) -> self.write(s, entry))}.
+   *
+   * @param thisObj passed as the consumer's first argument
+   * @param otherObj passed as the consumer's second argument
+   * @param consumer receives both context objects and each visible entry
    */
   abstract <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer);
 
   /**
-   * A cursor over the visible entries, local then inherited, for an iterator. Each entry it returns
-   * is valid until its next call, as with a point read.
+   * Starts a walk over the visible entries, local then inherited, for an iterator.
+   *
+   * @return a cursor whose returned entries are each valid until its next call, as with a point
+   *     read
    */
   abstract Cursor cursor();
 
-  /** An independently mutable copy with the same parent, sharing any Entry objects it holds. */
+  /**
+   * Copies this store.
+   *
+   * @return an independently mutable copy with the same parent, sharing any Entry objects it holds
+   */
   abstract IdStore copy();
 
   /**
-   * Copies the entries of the parentless store {@code that} (asserted), sharing any Entry objects.
-   * "Local" names the source: only {@code that}'s own entries are copied, since it has no parent.
+   * Copies the entries of a parentless store, sharing any Entry objects. "Local" names the source:
+   * only {@code that}'s own entries are copied, since it has no parent.
+   *
+   * @param that the store to copy from; must have no parent (asserted)
    */
   abstract void putAllLocal(IdStore that);
 
-  /** Puts the local entries into {@code map}, for a store with no parent (asserted). */
+  /**
+   * Puts the local entries into a map, for a store with no parent (asserted).
+   *
+   * @param map receives each entry's tag name and value
+   */
   abstract void fillMapLocal(Map<? super String, Object> map);
 
-  /** {@link #fillMapLocal} with each value as a String. */
+  /**
+   * {@link #fillMapLocal} with each value as a String.
+   *
+   * @param map receives each entry's tag name and string value
+   */
   abstract void fillStringMapLocal(Map<? super String, ? super String> map);
 
-  /** Tests only: throws if the store's structure is inconsistent. */
+  /**
+   * Tests only: checks the store's structure.
+   *
+   * @throws IllegalStateException if the structure is inconsistent
+   */
   @VisibleForTesting
   abstract void checkIntegrity();
 
-  /** Tests only: the local count, recomputed from the structure. */
+  /**
+   * Tests only: recounts the local entries from the structure.
+   *
+   * @return the local count
+   */
   @VisibleForTesting
   abstract int computeSize();
 
-  /** For deep debugging. */
+  /**
+   * Dumps the internal structure, for deep debugging.
+   *
+   * @return a description of the store's internal layout
+   */
   abstract String toInternalString();
 }
