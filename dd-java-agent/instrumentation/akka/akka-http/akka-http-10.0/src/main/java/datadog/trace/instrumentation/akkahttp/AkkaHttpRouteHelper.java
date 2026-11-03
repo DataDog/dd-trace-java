@@ -60,6 +60,9 @@ public final class AkkaHttpRouteHelper {
     String template = frame.template(consumed, matched.extractions());
     if (frame.parent != null) {
       if (frame.parent.path.endsWith(frame.path)) {
+        if (frame.parent.parts == null) {
+          frame.parent.parts = new ArrayList<>();
+        }
         frame.parent.parts.add(
             new Route(frame.parent.path.length() - frame.path.length(), rest, template));
       }
@@ -83,7 +86,7 @@ public final class AkkaHttpRouteHelper {
     final String path;
     final AgentSpan span;
     final Frame parent;
-    final List<Route> parts = new ArrayList<>();
+    List<Route> parts;
 
     Frame(String path, AgentSpan span, Frame parent) {
       this.path = path;
@@ -92,7 +95,7 @@ public final class AkkaHttpRouteHelper {
     }
 
     String template(int consumed, Object extractions) {
-      if (parts.isEmpty()) {
+      if (parts == null) {
         if (extractions instanceof Product && ((Product) extractions).productArity() > 0) {
           return path.charAt(0) == '/' ? "/{param}" : "{param}";
         }
