@@ -57,7 +57,7 @@ if (isCI.isPresent) {
       directory = File(rootDir, "workspace/build-cache")
     }
     if (isGitLabCI.isPresent) {
-      val cachePrefix = providers.environmentVariable("S3_BUILD_CACHE_PREFIX").orNull?.trim()?.trim('/') ?: run {
+      val defaultCachePrefix = providers.provider {
         val osName = providers.systemProperty("os.name").get()
         val os = if (osName == "Mac OS X") "darwin" else osName.lowercase()
         val arch = when (val archName = providers.systemProperty("os.arch").get()) {
@@ -65,6 +65,12 @@ if (isCI.isPresent) {
           "aarch64", "arm64" -> if (os == "darwin") "arm64" else "aarch64"
           else -> archName
         }
+        // Non-tag pipelines share a cache per architecture/OS so that all jobs contribute
+        // outputs and reuse them across jobs and pipelines. Release prefixes can use:
+        // - Pipeline ID (default): jobs share within one pipeline; new pipelines start fresh.
+        // - Tag: pipelines for the same tag share cached outputs.
+        // - Commit hash: pipelines for the same commit share cached outputs.
+        // Pipeline IDs keep separate release runs independent, even for the same tag or commit.
         if (providers.environmentVariable("CI_COMMIT_TAG").orNull.isNullOrBlank()) {
           "v1/$arch/$os"
         } else {
@@ -75,6 +81,10 @@ if (isCI.isPresent) {
           "v1/release/$pipelineId/$arch/$os"
         }
       }
+      val cachePrefix = providers.environmentVariable("S3_BUILD_CACHE_PREFIX")
+        .map { it.trim().trim('/') }
+        .orElse(defaultCachePrefix)
+        .get()
       require(cachePrefix.isNotBlank()) {
         "S3_BUILD_CACHE_PREFIX must be set to a non-empty path in GitLab CI"
       }
