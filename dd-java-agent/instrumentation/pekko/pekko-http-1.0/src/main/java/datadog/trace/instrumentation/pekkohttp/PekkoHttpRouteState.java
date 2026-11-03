@@ -17,8 +17,8 @@ public final class PekkoHttpRouteState {
 
   Route route;
 
-  /** Whether the last outermost path matcher tried matched; OTel drops the route otherwise. */
-  boolean lastMatched;
+  /** Whether the latest route candidate has matched without subsequently being rejected. */
+  boolean routeMatched;
 
   private PekkoHttpRouteState() {}
 
@@ -30,10 +30,17 @@ public final class PekkoHttpRouteState {
     return Context.current().get(KEY);
   }
 
-  /** Drops the route of a request rejected after its last path matcher failed. */
+  public static void onRejected() {
+    PekkoHttpRouteState state = current();
+    if (state != null) {
+      state.routeMatched = false;
+    }
+  }
+
+  /** Drops a route candidate rejected by path matching or a later directive. */
   public static void dropRejectedRoute(Context context, AgentSpan span) {
     PekkoHttpRouteState state = context.get(KEY);
-    if (state == null || state.route == null || state.lastMatched) {
+    if (state == null || state.route == null || state.routeMatched) {
       return;
     }
     state.route = null;

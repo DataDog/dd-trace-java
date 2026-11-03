@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.pekkohttp;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isBridge;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -18,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.pekko.http.scaladsl.model.Uri;
 import org.apache.pekko.http.scaladsl.server.PathMatcher;
 
-/** Captures route templates from successful Pekko HTTP path matchers. */
+/** Tracks matched Pekko HTTP route templates and directive rejection results. */
 @AutoService(InstrumenterModule.class)
 public final class PekkoHttpPathMatcherInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
@@ -38,11 +40,16 @@ public final class PekkoHttpPathMatcherInstrumentation extends InstrumenterModul
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
+    return extendsClass(named(hierarchyMarkerType()))
+        .or(named("org.apache.pekko.http.scaladsl.server.RouteResult$Rejected"));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isConstructor()
+            .and(isDeclaredBy(named("org.apache.pekko.http.scaladsl.server.RouteResult$Rejected"))),
+        getClass().getName() + "$RejectedAdvice");
     transformer.applyAdvice(
         named("apply")
             .and(takesArguments(1))
@@ -50,6 +57,13 @@ public final class PekkoHttpPathMatcherInstrumentation extends InstrumenterModul
             .and(returns(named("org.apache.pekko.http.scaladsl.server.PathMatcher$Matching")))
             .and(not(isBridge())),
         getClass().getName() + "$MatchAdvice");
+  }
+
+  public static final class RejectedAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void exit() {
+      PekkoHttpRouteState.onRejected();
+    }
   }
 
   public static final class MatchAdvice {

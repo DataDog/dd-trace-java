@@ -138,6 +138,7 @@ abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpT
     where:
     path                            | route
     '/success'                      | '/success'
+    '/directive-rejection/value?required=yes' | '/directive-rejection/{param}'
     '/items/a%20b'                  | '/items/{param}'
     '/items/a%2Fb'                  | '/items/{param}'
     '/items/a%25b'                  | '/items/{param}'
@@ -170,6 +171,23 @@ abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpT
 
     where:
     path << ['/route-alternative/6/other', '/route-async/4/other']
+  }
+
+  def "a fallback does not retain a route rejected by a later directive"() {
+    when:
+    def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
+    assert response.code() == 200
+    assert response.body().string() == 'fallback'
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def serverSpan = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
+    serverSpan.getTag('http.route') == null
+    serverSpan.resourceName.toString() == 'GET'
+
+    where:
+    path << ['/directive-rejection/value', '/header-rejection/value']
   }
 
   def "concurrent requests retain their own routes across asynchronous matching and rejection"() {
