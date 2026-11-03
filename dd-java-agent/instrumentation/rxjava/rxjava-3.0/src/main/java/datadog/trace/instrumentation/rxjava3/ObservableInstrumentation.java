@@ -52,11 +52,14 @@ public final class ObservableInstrumentation
       if (observer != null) {
         Context parentContext =
             InstrumentationContext.get(Observable.class, Context.class).get(observable);
-        if (parentContext != null) {
-          observer = new TracingObserver<>(observer, parentContext);
-          // attach the context here in case additional observers are created during subscribe
-          return parentContext.attach();
+        if (parentContext == null) {
+          // Shared publishers assembled outside a trace still have a parent per subscription.
+          parentContext = currentContext();
         }
+        // An empty Context must also mask any span active on the delivery thread.
+        observer = new TracingObserver<>(observer, parentContext);
+        // attach the context here in case additional observers are created during subscribe
+        return parentContext.attach();
       }
       return null;
     }
