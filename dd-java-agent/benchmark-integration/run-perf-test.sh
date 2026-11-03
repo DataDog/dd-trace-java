@@ -7,7 +7,6 @@ server_type=$1
 server_package=$2
 agent_jars="${@:3}"
 server_pid=""
-agent_pid=""
 agent_state=""
 if [[ "$server_package" = "" ]] || [[ "$server_type" != "play-zip" && "$server_type" != "jar" ]]; then
     echo "usage: ./run-perf-test.sh [play-zip|jar] path-to-server-package path-to-agent1 path-to-agent2..."
@@ -28,23 +27,21 @@ fi
 #   agent up   -> DDAgentWriter  -> full pipeline (request-thread work + background serializer)
 #   agent down -> LoggingWriter  -> agent-unreachable regime (foreground only, traces discarded)
 # check_agent refreshes this; it is called before every variant so a mid-run agent death is not silent.
+agent_port="${TRACE_AGENT_PORT:-8126}"
 function check_agent {
     # Probe the APM receiver rather than lsof: the Datadog Agent runs as user _dd-agent, so lsof (run
-    # as us) can't see its socket. Port is TRACE_AGENT_PORT (default 8126). agent_pid stays empty --
-    # we don't attribute the system agent's CPU here; the JFR is the CPU signal.
-    if nc -z localhost "${TRACE_AGENT_PORT:-8126}" >/dev/null 2>&1; then
+    # as us) can't see its socket. The Agent's own CPU isn't attributed here; the JFR is the CPU signal.
+    if nc -z localhost "$agent_port" >/dev/null 2>&1; then
         agent_state="up"; writer_type="DDAgentWriter"
     else
         agent_state="down"; writer_type="LoggingWriter"
     fi
-    agent_pid=""
 }
 function regime_banner {
-    local port="${TRACE_AGENT_PORT:-8126}"
     if [ "$agent_state" = "up" ]; then
-        echo ">> REGIME: full pipeline -- Datadog Agent reachable on :$port, DDAgentWriter"
+        echo ">> REGIME: full pipeline -- Datadog Agent reachable on :$agent_port, DDAgentWriter"
     else
-        echo ">> REGIME: agent-unreachable -- nothing on :$port, LoggingWriter (traces discarded)"
+        echo ">> REGIME: agent-unreachable -- nothing on :$agent_port, LoggingWriter (traces discarded)"
     fi
 }
 # EXPECT_AGENT=up|down|any (default any). When up/down, abort if reality differs -- guards an
@@ -52,7 +49,7 @@ function regime_banner {
 function assert_expected_agent {
     local expect="${EXPECT_AGENT:-any}"
     if [ "$expect" != "any" ] && [ "$expect" != "$agent_state" ]; then
-        echo "ERROR: EXPECT_AGENT=$expect but the Datadog Agent on :${TRACE_AGENT_PORT:-8126} is '$agent_state'." >&2
+        echo "ERROR: EXPECT_AGENT=$expect but the Datadog Agent on :$agent_port is '$agent_state'." >&2
         regime_banner >&2
         echo "Aborting to avoid measuring the wrong regime (set EXPECT_AGENT=any to override)." >&2
         [ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null
@@ -102,14 +99,19 @@ fi
 
 unzipped_server_path=""
 
+# CPU time (whole seconds) a process has used so far.
+function cpu_seconds {
+    ps -o time= -p "$1" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }'
+}
+
 # Start up server passed into the script
 # Blocks until server is bound to local port 8080
 function start_server {
     agent_jar="$1"
-    variant_label="${2:-run}"
+    variant_label="$2"
     javaagent_arg=""
     if [ "$agent_jar" != "" -a -f "$agent_jar" ]; then
-        javaagent_arg="-javaagent:$agent_jar -Ddatadog.slf4j.simpleLogger.defaultLogLevel=off -Ddd.writer.type=$writer_type -Ddd.trace.agent.port=${TRACE_AGENT_PORT:-8126} -Ddd.service.name=perf-test-app"
+        javaagent_arg="-javaagent:$agent_jar -Ddatadog.slf4j.simpleLogger.defaultLogLevel=off -Ddd.writer.type=$writer_type -Ddd.trace.agent.port=$agent_port -Ddd.service.name=perf-test-app"
     fi
 
     # Opt-in JFR (PERF_JFR=1): one recording per variant, named by label so runs don't collide.
@@ -150,18 +152,13 @@ function start_server {
       # unzipped server location, will be removed when the server is stopped
       unzipped_server_path=${unzip_temp}
 
-      java_opts_env='JAVA_OPTS="'${run_java_args}'"'
       # it appears the binary script will always be named main at the time of writing
       # no matter what the zip file is named.
       play_script=${unzipped_server_path}/${unzipped_dirname}/bin/main
 
       # have to use env to set JAVA_OPTS because of a gradle play plugin bug:
       # https://github.com/gradle/gradle/issues/4471
-      if [ -n "$(echo $run_java_args | tr -d ' ')" ]; then
-        utility_cmd="env JAVA_OPTS=${run_java_args} ${play_script}"
-      else
-        utility_cmd="${play_script}"
-      fi
+      utility_cmd="env JAVA_OPTS=${run_java_args} ${play_script}"
 
       echo "starting server: ${utility_cmd}"
       { /usr/bin/time $time_flag ${utility_cmd} ; } 2> $server_output 1>/dev/null &
@@ -288,7 +285,7 @@ header='Client Version'
 for label in "${test_order[@]}"; do
     header="$header,$label Latency,$label p99,$label Throughput,$label Throughput Stdev,$label YGC/1k"
 done
-header="$header,Agent CPU Burn,Server CPU Burn,Agent RSS Delta,Server Max RSS,Server Start RSS,Server Load Increase RSS"
+header="$header,Server CPU Burn,Server Max RSS,Server Start RSS,Server Load Increase RSS"
 echo $header > $test_csv_file
 
 for agent_jar in $agent_jars; do
@@ -318,15 +315,8 @@ for agent_jar in $agent_jars; do
     fi
 
 
-    if [ "$agent_pid" = "" ]; then
-        agent_start_cpu=0
-        agent_start_rss=0
-    else
-        agent_start_cpu=$(ps -o 'pid,time' | awk "\$1 == $agent_pid { print \$2 }" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
-        agent_start_rss=$(ps -o 'pid,rss' | awk "\$1 == $agent_pid { print \$2 }")
-    fi
     [ -n "${PERF_SINK_STATS_URL:-}" ] && sink_before=$(sink_trace_requests)
-    server_start_cpu=$(ps -o time= -p "$server_pid" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
+    server_start_cpu=$(cpu_seconds "$server_pid")
     server_start_rss=$(ps -o rss= -p "$server_pid")
 
     server_total_rss=0
@@ -365,17 +355,8 @@ for agent_jar in $agent_jars; do
         result_row="$result_row,$avg_latency,$avg_p99,$avg_throughput,$stdev_throughput,$avg_ygc"
     done
 
-    if [ "$agent_pid" = "" ]; then
-        agent_stop_cpu=0
-        agent_stop_rss=0
-    else
-        agent_stop_cpu=$(ps -o 'pid,time' | awk "\$1 == $agent_pid { print \$2 }" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
-        agent_stop_rss=$(ps -o 'pid,rss' | awk "\$1 == $agent_pid { print \$2 }")
-    fi
-    server_stop_cpu=$(ps -o time= -p "$server_pid" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
+    server_stop_cpu=$(cpu_seconds "$server_pid")
 
-    let agent_cpu=$agent_stop_cpu-$agent_start_cpu
-    let agent_rss=$agent_stop_rss-$agent_start_rss
     let server_cpu=$server_stop_cpu-$server_start_cpu
 
     server_load_increase_rss=$(echo "scale=2; ( $server_total_rss / $server_total_rss_count ) - $server_start_rss" | bc)
@@ -396,7 +377,7 @@ for agent_jar in $agent_jars; do
     server_max_rss=$(awk '/.* maximum resident set size/ { print $1 }' $server_output)
     rm $server_output
 
-    echo "$result_row,$agent_cpu,$server_cpu,$agent_rss,$server_max_rss,$server_start_rss,$server_load_increase_rss" >> $test_csv_file
+    echo "$result_row,$server_cpu,$server_max_rss,$server_start_rss,$server_load_increase_rss" >> $test_csv_file
     echo "----/Testing agent $agent_jar----"
     echo ""
 done
