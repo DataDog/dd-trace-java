@@ -26,8 +26,14 @@ built_jar() {
     | grep -v -- '-sources.jar$' | grep -v -- '.original$' | head -1 || true
 }
 
-# Reuse an existing build if present.
+# Reuse an existing build only if it was built from the pinned commit; otherwise rebuild, dropping
+# the stale jar so it can't be picked up instead of the new one.
 existing_jar=$(built_jar)
+if [ -n "$existing_jar" ] && [ "$(git -C "$src_dir" rev-parse HEAD 2>/dev/null)" != "$PETCLINIC_SHA" ]; then
+  log "existing jar was not built from $PETCLINIC_SHA; rebuilding"
+  rm -f "$src_dir"/target/spring-petclinic-*.jar
+  existing_jar=""
+fi
 if [ -n "$existing_jar" ]; then
   log "reusing existing jar: $existing_jar"
   echo "$existing_jar"

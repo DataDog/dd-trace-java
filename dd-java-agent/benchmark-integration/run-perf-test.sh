@@ -99,6 +99,10 @@ fi
 
 unzipped_server_path=""
 
+# Major version of the java on PATH (8 for "1.8").
+java_major=$(java -XshowSettings:properties -version 2>&1 \
+    | awk -F' = ' '/java.specification.version/ { v = $2; sub(/^1\./, "", v); print v }')
+
 # CPU time (whole seconds) a process has used so far.
 function cpu_seconds {
     ps -o time= -p "$1" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }'
@@ -123,10 +127,16 @@ function start_server {
         jfr_arg="-XX:StartFlightRecording=settings=profile,filename=$jfr_file,dumponexit=true"
         echo "JFR enabled -> $jfr_file"
     fi
-    # GC log per variant, so test_endpoint can count young GCs inside each measured window.
-    gc_log="/tmp/perf_gc_${variant_label}.log"
-    rm -f "$gc_log"
-    run_java_args="$javaagent_arg $jfr_arg -Xms$server_heap -Xmx$server_heap -Xlog:gc:file=$gc_log"
+    # GC log per variant, so test_endpoint can count young GCs inside each measured window. Unified
+    # logging (-Xlog) needs JDK 9+; on JDK 8 the YGC/1k column is left empty.
+    gc_log=""
+    gc_arg=""
+    if [ "$java_major" -ge 9 ] 2>/dev/null; then
+        gc_log="/tmp/perf_gc_${variant_label}.log"
+        rm -f "$gc_log"
+        gc_arg="-Xlog:gc:file=$gc_log"
+    fi
+    run_java_args="$javaagent_arg $jfr_arg -Xms$server_heap -Xmx$server_heap $gc_arg"
 
     if [ "$server_type" = "jar" ]; then
       echo "starting server: java $run_java_args -jar $server_package"
@@ -167,12 +177,14 @@ function start_server {
     # Block until the server actually SERVES HTTP 200 -- not just binds the TCP port. The java agent
     # slows startup, so a TCP-only check (nc -z) let wrk start before the app was serving under
     # load, producing `connect` socket errors and a bogus ~26x throughput collapse on the agent
-    # runs. Poll the home endpoint for a real 200 (curl if present, else python3), with a timeout.
+    # runs. Poll the first configured endpoint for a real 200 (curl if present, else python3), with a
+    # timeout; servers don't all serve / (the Jetty and Play test apps only serve /work).
+    local ready_url="${endpoints[${test_order[0]}]}"
     ready_deadline=$((SECONDS + 180))
-    until { command -v curl >/dev/null 2>&1 && curl -sf -o /dev/null http://localhost:8080/ ; } \
-        || python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/',timeout=2).getcode()==200 else 1)" >/dev/null 2>&1 ; do
+    until { command -v curl >/dev/null 2>&1 && curl -sf -o /dev/null "$ready_url" ; } \
+        || python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(sys.argv[1],timeout=2).getcode()==200 else 1)" "$ready_url" >/dev/null 2>&1 ; do
         if [ "$SECONDS" -ge "$ready_deadline" ]; then
-            echo "ERROR: server did not serve HTTP 200 on / within 180s -- aborting" >&2
+            echo "ERROR: server did not serve HTTP 200 on $ready_url within 180s -- aborting" >&2
             exit 1
         fi
         sleep 0.5
@@ -212,10 +224,14 @@ function test_endpoint {
     for ((rep = 1; rep <= test_repeats; rep++)); do
         wrk_results=/tmp/wrk_results.$(date +%s%N)
         local gc_before gc_after
-        gc_before=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
+        [ -n "$gc_log" ] && gc_before=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
         wrk --latency -c $test_num_connections -t$test_num_threads -d ${test_time_seconds}s "${script_args[@]}" $url > "$wrk_results"
-        gc_after=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
-        echo $(( ${gc_after:-0} - ${gc_before:-0} )) > "$wrk_results.gc"
+        if [ -n "$gc_log" ]; then
+            gc_after=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
+            echo $(( ${gc_after:-0} - ${gc_before:-0} )) > "$wrk_results.gc"
+        else
+            : > "$wrk_results.gc"
+        fi
         # Sanity gate: with the HTTP-200 readiness check above, wrk should never see socket connect
         # errors. If it does, the app was not healthy under load and the row would be garbage (the
         # failure mode behind the bogus 26x sweep) -- abort loudly instead of recording it.
@@ -288,7 +304,9 @@ done
 header="$header,Server CPU Burn,Server Max RSS,Server Start RSS,Server Load Increase RSS"
 echo $header > $test_csv_file
 
+variant_index=0
 for agent_jar in $agent_jars; do
+    variant_index=$((variant_index + 1))
     # Quiet cooldown between variants (skip before the first). Off unless the settings set it.
     if [ "${_did_first_variant:-}" = "1" ] && [ "${test_cooldown_seconds:-0}" -gt 0 ] 2>/dev/null; then
         echo "cooldown ${test_cooldown_seconds}s before next variant..."
@@ -308,9 +326,11 @@ for agent_jar in $agent_jars; do
     else
         agent_version=$(java -jar $agent_jar 2>/dev/null)
         result_row="$agent_version"
-        # sanitize the version into a filesystem-safe JFR label; fall back to the jar basename.
+        # sanitize the version into a filesystem-safe JFR label; fall back to the jar basename. The
+        # variant's position keeps two builds reporting the same version from sharing artifacts.
         variant_label=$(echo "$agent_version" | tr -c 'A-Za-z0-9._-' '_' | sed 's/_*$//')
         [ -z "$variant_label" ] && variant_label=$(basename "$agent_jar" .jar)
+        variant_label="${variant_label}_v${variant_index}"
         start_server "$agent_jar" "$variant_label"
     fi
 
@@ -341,12 +361,15 @@ for agent_jar in $agent_jars; do
             p99s+=("$(awk '$1 == "99%" { print $2 }' "$f")")
             throughputs+=("$(awk '$1 == "Requests/sec:" { print $2 }' "$f")")
             requests=$(awk '/requests in/ { print $1 }' "$f")
-            ygcs+=("$(echo "scale=2; 1000 * $(cat "$f.gc") / ${requests:-1}" | bc)")
+            if [ -s "$f.gc" ]; then
+                ygcs+=("$(echo "scale=2; 1000 * $(cat "$f.gc") / ${requests:-1}" | bc)")
+            fi
             rm -f "$f" "$f.gc"
         done
         avg_latency=$(mean_with_unit "${latencies[@]}")
         avg_p99=$(mean_with_unit "${p99s[@]}")
-        avg_ygc=$(mean_plain "${ygcs[@]}")
+        avg_ygc=""
+        [ "${#ygcs[@]}" -gt 0 ] && avg_ygc=$(mean_plain "${ygcs[@]}")
         avg_throughput=$(mean_plain "${throughputs[@]}")
         stdev_throughput=$(stdev_plain "${throughputs[@]}")
         if [ "${#throughputs[@]}" -gt 1 ]; then
@@ -374,7 +397,13 @@ for agent_jar in $agent_jars; do
 
     stop_server
 
-    server_max_rss=$(awk '/.* maximum resident set size/ { print $1 }' $server_output)
+    # Max RSS in bytes: BSD time -l prints "<bytes>  maximum resident set size"; GNU time -v prints
+    # "Maximum resident set size (kbytes): <kB>".
+    if [ "$time_flag" = "-l" ]; then
+        server_max_rss=$(awk '/.* maximum resident set size/ { print $1 }' $server_output)
+    else
+        server_max_rss=$(awk -F': ' '/Maximum resident set size/ { print $2 * 1024 }' $server_output)
+    fi
     rm $server_output
 
     echo "$result_row,$server_cpu,$server_max_rss,$server_start_rss,$server_load_increase_rss" >> $test_csv_file

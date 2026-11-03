@@ -56,7 +56,8 @@ resolve_variant() {
     echo "NoAgent"; return
   fi
   if [ -f "$v" ]; then
-    echo "$v"; return
+    # Absolute, since the benchmark runs from script_dir.
+    echo "$(cd "$(dirname "$v")" && pwd)/$(basename "$v")"; return
   fi
   if [ "$v" = "current" ]; then
     log "building current shadow jar (:dd-java-agent:shadowJar)"
