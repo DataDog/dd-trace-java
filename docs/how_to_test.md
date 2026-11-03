@@ -141,6 +141,17 @@ configuration. For example, `integrationTestImplementation` gets
 `integrationTestContainerImage`. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
 for inheritance and shared configuration examples.
 
+## Tests that depend on the CI builder image
+
+Apply `dd-trace-java.ci-builder-inputs` when tests depend on the builder image's native
+runtime, C headers or tool-specific behavior, such as native profiling or Git pack generation:
+
+```Gradle Kotlin DSL
+plugins {
+  id("dd-trace-java.ci-builder-inputs")
+}
+```
+
 ## Netty Instrumentation Tests
 
 Instrumentation modules whose tests use Netty 4 or shaded Netty should apply the Netty test convention:

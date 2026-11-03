@@ -62,6 +62,8 @@ variables:
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the ddoghq/images repo
   BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
+  # shortcut: tag republishing is not detected; use a content hash when CI builds the image.
+  ORG_GRADLE_PROJECT_ciBuilderImage: "${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}"
   TEST_COUNTS_S3_BUCKET: "dd-trace-java-ci-test-reports"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 27
