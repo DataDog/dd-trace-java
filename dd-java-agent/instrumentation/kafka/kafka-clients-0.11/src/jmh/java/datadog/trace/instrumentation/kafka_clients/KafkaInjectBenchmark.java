@@ -27,9 +27,13 @@ import org.openjdk.jmh.annotations.Warmup;
  * Injecting a span's context into a new record's headers, as the producer does on each send, with a
  * default-configured {@link CoreTracer}.
  *
- * <p>The same span is injected every time, so the header values themselves may come from caches;
- * this measures what writing them to Kafka's {@link RecordHeaders} costs. {@code spanBaggage} gives
- * the span a baggage item, which both the Datadog and W3C codecs write as the same {@code
+ * <p>{@code shape} sets which span each inject is for. {@code reused} injects one span every time,
+ * so values cached on its ids (like the trace id's string forms) are only built once: a best case
+ * for caching, closest to measuring just the writes to Kafka's {@link RecordHeaders}. {@code
+ * newTrace} starts a new trace per inject, as a producer sending outside any request does. {@code
+ * fanOut} starts a new child span of one long-lived trace per inject, as a request sending many
+ * messages does, so trace-level values can be reused and span-level ones can't. {@code spanBaggage}
+ * gives the span a baggage item, which both the Datadog and W3C codecs write as the same {@code
  * ot-baggage-} header, so the second write replaces the first.
  *
  * <p>Single-threaded: each call writes its own headers, with no shared state to contend on.
@@ -47,6 +51,9 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(1)
 @Fork(3)
 public class KafkaInjectBenchmark {
+  @Param({"reused", "newTrace", "fanOut"})
+  String shape;
+
   @Param({"false", "true"})
   boolean spanBaggage;
 
@@ -59,10 +66,7 @@ public class KafkaInjectBenchmark {
     // teardown, so the writer never runs while measuring.
     tracer = CoreTracer.builder().writer(new ListWriter()).build();
     AgentTracer.forceRegister(tracer);
-    span = tracer.buildSpan("bench", "kafka.produce").start();
-    if (spanBaggage) {
-      span.setBaggageItem("user.id", "42");
-    }
+    span = withBaggage(tracer.buildSpan("bench", "kafka.produce").start());
   }
 
   @TearDown
@@ -75,7 +79,27 @@ public class KafkaInjectBenchmark {
   @Benchmark
   public RecordHeaders inject() {
     RecordHeaders headers = new RecordHeaders();
-    defaultPropagator().inject(span, headers, SETTER);
+    defaultPropagator().inject(spanToInject(), headers, SETTER);
     return headers;
+  }
+
+  // Spans started here are left unfinished, so no trace is written while measuring
+  private AgentSpan spanToInject() {
+    switch (shape) {
+      case "newTrace":
+        return withBaggage(tracer.buildSpan("bench", "kafka.produce").start());
+      case "fanOut":
+        return withBaggage(
+            tracer.buildSpan("bench", "kafka.produce").asChildOf(span.spanContext()).start());
+      default:
+        return span;
+    }
+  }
+
+  private AgentSpan withBaggage(AgentSpan started) {
+    if (spanBaggage) {
+      started.setBaggageItem("user.id", "42");
+    }
+    return started;
   }
 }
