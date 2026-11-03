@@ -10,8 +10,9 @@ setup inventory validation with exit 2, before Claude installation or gateway au
 An INCOMPLETE report is expected; it is not a quality verdict or evidence that Java's guidance is bad.
 A fetch, entitlement, image, or toolchain failure would not validate the symlink reproduction.
 
-Only the experimental setup job is enabled, only on `nacho/llm-setup-symlink-smoke`.
-It is advisory (`allow_failure: true`); the normal instruction-change gate remains disabled.
+Both validation jobs are enabled only on `nacho/llm-setup-symlink-smoke`.
+Setup is advisory (`allow_failure: true`). The instruction-change job reuses the same case,
+triggered by a temporary comment in `AGENTS.md`; it tests CI wiring, not a meaningful guidance change.
 Keep this PR in draft and remove the experimental enablement before considering merge.
 
 Local reproduction, from a checkout of the pinned platform:

@@ -2,7 +2,8 @@ name: java-setup-smoke
 version: "0.1"
 cases:
   - id: java-lint-plan-001
-    comparisons: [setup]
+    comparisons: [instruction-change, setup]
+    files: [AGENTS.md]
     only_warn: true
     input: |
       I want to enable one currently deferred SpotBugs detector for production code

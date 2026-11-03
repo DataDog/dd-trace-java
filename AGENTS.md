@@ -1,5 +1,7 @@
 # Agent context for dd-trace-java
 
+<!-- Temporary LLM validation smoke-test trigger; remove before merging. -->
+
 ## What is this project?
 
 Datadog Java APM agent (`dd-trace-java`): a Java agent that auto-instruments JVM applications at runtime via bytecode manipulation.
