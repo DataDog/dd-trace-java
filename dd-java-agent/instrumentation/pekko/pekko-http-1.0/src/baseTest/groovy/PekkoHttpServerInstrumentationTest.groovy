@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.test.util.ThreadUtils
 import datadog.trace.instrumentation.pekkohttp.PekkoHttpServerDecorator
@@ -106,6 +108,35 @@ class PekkoHttpServerInstrumentationSyncV0ForkedTest extends PekkoHttpServerInst
 }
 
 class PekkoHttpServerInstrumentationSyncV1ForkedTest extends PekkoHttpServerInstrumentationSyncTest implements TestingGenericHttpNamingConventions.ServerV1 {
+}
+
+class PekkoHttpRouteOtelSemanticsForkedTest extends WithHttpServer<PekkoHttpTestWebServer> implements TestingGenericHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
+  @Override
+  HttpServer server() {
+    new PekkoHttpTestWebServer(PekkoHttpTestWebServer.BindAndHandle())
+  }
+
+  def "matched paths produce stable server routes"() {
+    when:
+    def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
+    assert response.code() == 200
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def serverSpan = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
+    serverSpan != null
+    serverSpan.getTag('http.route') == route
+    serverSpan.resourceName.toString() == "GET $route"
+
+    where:
+    path                  | route
+    '/success'            | '/success'
+    '/query?some=value'   | '/query'
+    '/injected-id/ping/1' | '/injected-id/ping/{param}'
+    '/injected-id/ping/2' | '/injected-id/ping/{param}'
+    '/injected-id/fing/3' | '/injected-id/fing/{param}'
+  }
 }
 
 class PekkoHttpServerInstrumentationAsyncTest extends PekkoHttpServerInstrumentationTest {
