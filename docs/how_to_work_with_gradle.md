@@ -311,16 +311,22 @@ The `base` plugin applies the `lifecycle-base` plugin (`org.gradle.language.base
 
 ### Task Inputs and Outputs
 
-Gradle tasks declare **inputs** (what they read) and **outputs** (what they produce). This metadata enables two key optimizations:
+Gradle tasks declare **inputs** (what they read) and **outputs** (what they produce). 
+This metadata enables two key optimizations:
 
 - **Incremental builds**: If inputs haven't changed, the task is `UP-TO-DATE` and skipped
 - **Build caching**: Outputs can be stored and retrieved (`FROM-CACHE`) across builds
 
-> [!WARNING]
-> Task fingerprinting must include every condition that can affect a cacheable task's outputs.
-> If an untracked condition changes, the cache key stays the same and Gradle may reuse outputs
-> produced under different conditions. A task with untracked output dependencies must not use
-> the build cache.
+> [!IMPORTANT]
+> A cacheable task must declare every input that can affect its outputs.
+>
+> Choose inputs that preserve correctness while avoiding unnecessary invalidation.
+> Overly broad inputs reduce cache reuse; missing inputs can cause Gradle to reuse
+> results produced under different conditions.
+>
+> External state used by test or build code must also be tracked. For example,
+> resolve Docker image tags to immutable digests and declare those digests as
+> task inputs before Gradle checks for cached results.
 
 #### Declaring Inputs and Outputs
 
@@ -386,17 +392,24 @@ tasks.register("processData") {
 > Prefer annotations in custom task classes for better type safety and documentation.
 > Use the programmatic API for ad-hoc tasks registered with `tasks.register`.
 
-#### CI Builder Image Inputs
+##### Test Container Image Inputs
 
-Apply the [`dd-trace-java.ci-builder-inputs` convention](../build-logic/conventions/README.md)
-when a module's cacheable tasks depend on the CI image's native toolchain, runtime libraries,
-or tool-specific output, such as Git pack generation. Routine uses of `cat`, `echo`, `ls`
-or `sleep` alone do not justify invalidating tasks on every image change.
+The `dd-trace-java.testcontainers` convention can be used in modules
+whose tests need to start containers. Image tags are not stable, they can be modified,
+and resolve to a different images ; this needs to be captured in the inputs
+to invalidate the cached results for this build.
 
-The convention adds the builder identity to `Test`, `Exec` and `JavaExec` inputs when
-`CI=true`. Other task types, including native smoke producers, declare the identity
-explicitly. See the convention reference for the CI property and input declarations.
-Local builds require no configuration.
+This plugin allows to declare them in the `dependencies` block as `testContainerImage(image(...))`. 
+The actual image digest will be resolved before Gradle computes the input fingerprints 
+to look up the cached result.
+
+##### CI Builder Image Inputs
+
+The `dd-trace-java.ci-builder-inputs` convention can be used
+when a module's cacheable tasks depend on **specifics of the CI image**
+(native toolchain, runtime libraries, tool-specific output).
+Invoking common utilities such as `cat`, `echo`, `ls` or `sleep` alone does not justify applying
+the convention plugin, which would needlessly invalidate cached results on every image change.
 
 #### Lazy Configuration with Providers
 

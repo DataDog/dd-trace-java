@@ -1,4 +1,6 @@
-# CI builder image inputs
+# Conventions
+
+## CI builder image inputs
 
 The `dd-trace-java.ci-builder-inputs` convention tracks the CI builder image identity
 in Gradle build cache keys. It is enabled only in CI (`CI=true`).
