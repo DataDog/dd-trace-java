@@ -1,0 +1,97 @@
+import java.time.Duration
+import org.graalvm.buildtools.gradle.tasks.BuildNativeImageTask
+
+plugins {
+  id 'java'
+  id 'org.graalvm.buildtools.native' version '0.9.28'
+}
+
+layout.buildDirectory = providers.gradleProperty('appBuildDir').map { file(it) }
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(21)
+  }
+}
+
+def agentJar = layout.file(providers.gradleProperty('agentJar').map { file(it) })
+def graalvmRelease = layout.file(providers.environmentVariable('GRAALVM_HOME').map { new File(it, 'release') })
+def scenarios = [
+  control: 'JmxApplication',
+  withAgent: 'JmxApplication',
+  runtimeJmx: 'RuntimeJmxApplication',
+  runtimeOnly: 'RuntimeOnlyJmxApplication'
+]
+
+graalvmNative {
+  toolchainDetection = false
+  binaries {
+    scenarios.each { scenario, application ->
+      create(scenario) {
+        mainClass = "datadog.smoketest.jmx.$application"
+        imageName = scenario
+        classpath.from(sourceSets.main.output)
+        fallback = false
+        buildArgs.addAll('-O0', '--parallelism=4')
+        jvmArgs.add('-Xmx4g')
+        if (scenario != 'runtimeOnly') {
+          buildArgs.add('--initialize-at-build-time')
+        }
+        if (scenario != 'control') {
+          jvmArgs.add(agentJar.map { "-javaagent:${it.asFile.absolutePath}" })
+        }
+      }
+    }
+  }
+}
+
+def artifacts = [:]
+scenarios.each { scenario, application ->
+  def compileTask = tasks.named("native${scenario.capitalize()}Compile", BuildNativeImageTask)
+  def buildLog = layout.buildDirectory.file("native/${compileTask.name}/build.log")
+  artifacts["${scenario}.executable".toString()] = compileTask.flatMap { it.outputFile }
+  artifacts["${scenario}.buildLog".toString()] = buildLog
+  compileTask.configure {
+    timeout = Duration.ofMinutes(10)
+    inputs.file(graalvmRelease).withPropertyName('graalvmRelease').withPathSensitivity(PathSensitivity.NONE)
+    if (scenario != 'control') {
+      inputs.file(agentJar).withPropertyName('agentJar').withPathSensitivity(PathSensitivity.NONE)
+      // The uninstrumented fixture must build and run before trying the agent variants.
+      dependsOn(tasks.named('nativeControlRun'))
+    }
+    def listener = { CharSequence text ->
+      buildLog.get().asFile.append(text.toString(), 'UTF-8')
+    } as StandardOutputListener
+    doFirst {
+      def log = buildLog.get().asFile
+      log.parentFile.mkdirs()
+      log.setText('', 'UTF-8')
+      logging.addStandardOutputListener(listener)
+      logging.addStandardErrorListener(listener)
+    }
+    doLast {
+      logging.removeStandardOutputListener(listener)
+      logging.removeStandardErrorListener(listener)
+    }
+  }
+}
+
+tasks.named('nativeControlRun') {
+  timeout = Duration.ofSeconds(30)
+}
+
+def manifest = layout.buildDirectory.file('native-images.properties')
+tasks.register('writeNativeImageManifest') {
+  group = 'build'
+  description = 'Exports native executable and build-log paths for the JMX smoke tests.'
+  inputs.files(artifacts.values()).withPropertyName('nativeImages').withPathSensitivity(PathSensitivity.RELATIVE)
+  outputs.file(manifest)
+  doLast {
+    def output = manifest.get().asFile
+    def properties = new Properties()
+    artifacts.each { key, artifact ->
+      properties.setProperty(key, output.parentFile.toPath().relativize(artifact.get().asFile.toPath()).toString())
+    }
+    output.withOutputStream { properties.store(it, null) }
+  }
+}

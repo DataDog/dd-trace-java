@@ -1,19 +1,18 @@
 package datadog.smoketest.jmx;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.File;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 class NativeImageJmxSmokeTest {
@@ -22,21 +21,21 @@ class NativeImageJmxSmokeTest {
     Path directory = newBuildDirectory();
 
     // The control must pass first: the fixture alone must not retain the builder's MBean server.
-    buildAndRun(directory, false, JmxApplication.class);
-    buildAndRun(directory, true, JmxApplication.class);
+    runImage(directory, "control", true);
+    runImage(directory, "withAgent", true);
   }
 
   @Test
   void supportsRuntimeJmxAfterBuildTimeMxBeanRegistration() throws Exception {
     assertTrue(
-        buildAndRun(newBuildDirectory(), true, RuntimeJmxApplication.class)
+        runImage(newBuildDirectory(), "runtimeJmx", true)
             .contains("Runtime JMX metrics available"));
   }
 
   @Test
   void supportsRuntimeJmxWithDefaultClassInitialization() throws Exception {
     assertTrue(
-        buildAndRun(newBuildDirectory(), true, RuntimeOnlyJmxApplication.class, false)
+        runImage(newBuildDirectory(), "runtimeOnly", false)
             .contains("Runtime JMX server available"));
   }
 
@@ -46,61 +45,21 @@ class NativeImageJmxSmokeTest {
     return Files.createTempDirectory(buildDirectory, "native-image-jmx-");
   }
 
-  private String buildAndRun(Path directory, boolean withAgent, Class<?> application)
+  private String runImage(Path directory, String scenario, boolean initializeAtBuildTime)
       throws Exception {
-    return buildAndRun(directory, withAgent, application, true);
-  }
-
-  private String buildAndRun(
-      Path directory, boolean withAgent, Class<?> application, boolean initializeAtBuildTime)
-      throws Exception {
-    String name = withAgent ? "with-agent" : "without-agent";
-    Path executable = directory.resolve(name);
-    Path buildLog = directory.resolve(name + "-build.log");
-    List<String> command =
-        new ArrayList<>(
-            Arrays.asList(
-                Paths.get(System.getProperty("java.home"), "bin", "native-image").toString(),
-                "-O0",
-                "--no-fallback",
-                "--parallelism=4",
-                "-J-Xmx4g",
-                "-cp",
-                new File(
-                        JmxApplication.class
-                            .getProtectionDomain()
-                            .getCodeSource()
-                            .getLocation()
-                            .toURI())
-                    .getAbsolutePath()));
-    if (initializeAtBuildTime) {
-      // Match Quarkus's default; the tracer supplies its own runtime exceptions.
-      command.add("--initialize-at-build-time");
+    Path manifest = Paths.get(System.getProperty("datadog.smoketest.jmx.native.manifest"));
+    Properties artifacts = new Properties();
+    try (InputStream input = Files.newInputStream(manifest)) {
+      artifacts.load(input);
     }
-    if (withAgent) {
-      command.add("-J-javaagent:" + System.getProperty("datadog.smoketest.agent.shadowJar.path"));
-    }
-    command.add(application.getName());
-    command.add(executable.toString());
-
-    int exitCode = run(command, buildLog, MINUTES.toSeconds(10));
+    Path executable = manifest.getParent().resolve(artifacts.getProperty(scenario + ".executable"));
+    Path buildLog = manifest.getParent().resolve(artifacts.getProperty(scenario + ".buildLog"));
     String output = new String(Files.readAllBytes(buildLog), UTF_8);
     assertEquals(
         initializeAtBuildTime,
         output.contains("Build-time MXBean registered"),
         () -> "Fixture did not run: " + buildLog);
-    assertEquals(
-        0,
-        exitCode,
-        () ->
-            "Native-image build failed ("
-                + name
-                + "). It reproduces when the agent retains the builder's JmxMBeanServer. Log: "
-                + buildLog
-                + "\n"
-                + output);
-
-    Path runLog = directory.resolve(name + "-run.log");
+    Path runLog = directory.resolve(scenario + "-run.log");
     assertEquals(0, run(Arrays.asList(executable.toString()), runLog, 30), () -> "See " + runLog);
     String runtimeOutput = new String(Files.readAllBytes(runLog), UTF_8);
     assertTrue(runtimeOutput.contains("Native application started"), () -> "See " + runLog);
