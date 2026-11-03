@@ -153,7 +153,7 @@ public class PlayHttpServerDecorator
             PATH_CACHE.computeIfAbsent(
                 defOption.get().path(), p -> addMissingSlash(p, request.path()));
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path, true);
-        if (Config.get().isTraceOtelSemanticsEnabled()) {
+        if (OTEL_SEMANTICS) {
           final AgentSpan rootSpan = span.getLocalRootSpan();
           if (rootSpan != null && rootSpan != span) {
             // Set the transport span's route before application code can trigger sampling.
