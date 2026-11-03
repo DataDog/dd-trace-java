@@ -3,9 +3,12 @@ package datadog.trace.bootstrap;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.common.io.Resources;
+import datadog.trace.test.util.PollingConditions;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.File;
@@ -15,7 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -132,36 +134,18 @@ class AgentPreCheckTest {
 
     // then
     // Await completion of the external process handling the payload.
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-    while (!outputFile.exists() && System.nanoTime() < deadline) {
-      Thread.sleep(50);
-    }
-    assertTrue(outputFile.exists());
+    new PollingConditions(5).eventually(() -> assertTrue(outputFile.exists()));
     String payload = new String(Files.readAllBytes(outputFile.toPath()), UTF_8);
 
-    String expectedPayload =
-        "{"
-            + "\"metadata\":{"
-            + "\"runtime_name\":\"jvm\","
-            + "\"language_name\":\"jvm\","
-            + "\"runtime_version\":\"1.6.0_45\","
-            + "\"language_version\":\"1.6.0_45\","
-            + "\"tracer_version\":\"1.50\","
-            + "\"result\":\"abort\","
-            + "\"result_class\":\"unknown\","
-            + "\"result_reason\":\"incompatible_runtime\""
-            + "},"
-            + "\"points\":["
-            + "{"
-            + "\"name\":\"library_entrypoint.abort\","
-            + "\"tags\":["
-            + "\"reason:incompatible_runtime\""
-            + "]"
-            + "}"
-            + "]";
-
-    // Assert that the actual payload contains the expected data.
-    assertTrue(payload.contains(expectedPayload), payload);
+    // The forwarder script writes "<telemetry type><TAB><payload>".
+    String prefix = "library_entrypoint\t";
+    assertTrue(payload.startsWith(prefix), payload);
+    String json = payload.substring(prefix.length());
+    String expectedJson =
+        Resources.toString(
+            Resources.getResource(AgentPreCheckTest.class, "unsupported-java-telemetry.json"),
+            UTF_8);
+    assertThatJson(json).isEqualTo(expectedJson);
   }
 
   @TableTest({

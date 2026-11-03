@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 
 import java.io.FileNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +26,7 @@ class BootstrapInitializationTelemetryTest {
         "success",
         "success",
         "Successfully configured ddtrace package",
-        point("library_entrypoint.complete"));
+        "[{name: 'library_entrypoint.complete'}]");
   }
 
   @Test
@@ -39,8 +39,8 @@ class BootstrapInitializationTelemetryTest {
         "error",
         "unknown",
         "some reason",
-        point("library_entrypoint.error", "error_type:some reason"),
-        point("library_entrypoint.complete"));
+        "[{name: 'library_entrypoint.error', tags: ['error_type:some reason']},"
+            + " {name: 'library_entrypoint.complete'}]");
   }
 
   @Test
@@ -53,8 +53,8 @@ class BootstrapInitializationTelemetryTest {
         "error",
         "internal_error",
         "non fatal error",
-        point("library_entrypoint.error", "error_type:java.lang.Exception"),
-        point("library_entrypoint.complete"));
+        "[{name: 'library_entrypoint.error', tags: ['error_type:java.lang.Exception']},"
+            + " {name: 'library_entrypoint.complete'}]");
   }
 
   @TableTest({
@@ -73,7 +73,7 @@ class BootstrapInitializationTelemetryTest {
         "abort",
         resultClass,
         reasonCode,
-        point("library_entrypoint.abort", "reason:" + reasonCode));
+        "[{name: 'library_entrypoint.abort', tags: ['reason:" + reasonCode + "']}]");
   }
 
   @Test
@@ -86,7 +86,7 @@ class BootstrapInitializationTelemetryTest {
         "error",
         "internal_error",
         "fatal error",
-        point("library_entrypoint.error", "error_type:java.lang.Exception"));
+        "[{name: 'library_entrypoint.error', tags: ['error_type:java.lang.Exception']}]");
   }
 
   @Test
@@ -99,34 +99,19 @@ class BootstrapInitializationTelemetryTest {
         "error",
         "internal_error",
         "top cause",
-        point(
-            "library_entrypoint.error",
-            "error_type:java.io.FileNotFoundException",
-            "error_type:java.lang.Exception"),
-        point("library_entrypoint.complete"));
+        "[{name: 'library_entrypoint.error',"
+            + " tags: ['error_type:java.io.FileNotFoundException', 'error_type:java.lang.Exception']},"
+            + " {name: 'library_entrypoint.complete'}]");
   }
 
   private void assertJson(
-      String result, String resultClass, String resultReason, String... points) {
-    String expectedJson =
-        "{\"metadata\":{\"result\":\""
-            + result
-            + "\",\"result_class\":\""
-            + resultClass
-            + "\",\"result_reason\":\""
-            + resultReason
-            + "\"},\"points\":["
-            + String.join(",", points)
-            + "]}";
-    assertEquals(expectedJson, capture.json());
-  }
-
-  private static String point(String name, String... tags) {
-    StringBuilder json = new StringBuilder("{\"name\":\"").append(name).append('"');
-    if (tags.length > 0) {
-      json.append(",\"tags\":[\"").append(String.join("\",\"", tags)).append("\"]");
-    }
-    return json.append('}').toString();
+      String result, String resultClass, String resultReason, String expectedPoints) {
+    String json = capture.json();
+    assertThatJson(json).node("metadata").isObject().hasSize(3);
+    assertThatJson(json).node("metadata.result").isEqualTo(result);
+    assertThatJson(json).node("metadata.result_class").isEqualTo(resultClass);
+    assertThatJson(json).node("metadata.result_reason").isEqualTo(resultReason);
+    assertThatJson(json).node("points").isEqualTo(expectedPoints);
   }
 
   static class Capture implements BootstrapInitializationTelemetry.JsonSender {
