@@ -57,7 +57,6 @@ class ClassLoadingTest {
     assertSame(loader, instrumentedClass.getClassLoader());
   }
 
-  // @Flaky("awaitGC is flaky")
   @Test
   void makeSureByteBuddyDoesNotHoldStrongReferencesToClassLoader() throws Exception {
     // setup
@@ -126,10 +125,8 @@ class ClassLoadingTest {
   @TableTest({
     "scenario  | name                    | onTestClasspath",
     "trace api | datadog.trace.api.Trace | true           "
-    // spotless:off
     // This test case fails on ibm j9.  Perhaps this rule only applies to OpenJdk based jvms?
     // state  | datadog.trace.bootstrap.instrumentation.java.concurrent.State | false
-    // spotless:on
   })
   void canFindClassesButNotResourcesLoadedOntoTheBootstrapClasspath(
       String name, boolean onTestClasspath) throws ClassNotFoundException {
