@@ -46,6 +46,46 @@ class UniversalFlagConfigParserTest {
     assertEquals(ConditionOperator.ONE_OF, condition.operator);
   }
 
+  @TableTest({
+    "operator   | values        ",
+    "ONE_OF     | '[true, 1]'   ",
+    "NOT_ONE_OF | '[false, 2.5]'"
+  })
+  void preservesBooleanAndNumericAttributeMembership(
+      final ConditionOperator operator, final String values) throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"target\":{\"key\":\"target\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\""
+                + operator
+                + "\",\"attribute\":\"value\",\"value\":"
+                + values
+                + "}]}],\"splits\":[]}]}}}");
+
+    assertTrue(config.flags.containsKey("target"));
+    assertTrue(config.invalidFlags.isEmpty());
+  }
+
+  @TableTest({
+    "operator   | values       ",
+    "ONE_OF     | '[true]'     ",
+    "NOT_ONE_OF | '[1, \"on\"]'"
+  })
+  void rejectsNonStringDependentFlagMembership(
+      final ConditionOperator operator, final String values) throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"root\":{\"key\":\"root\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\""
+                + operator
+                + "\",\"flagEvaluation\":{\"key\":\"dependency\"},\"value\":"
+                + values
+                + "}]}],\"splits\":[]}]}}}");
+
+    assertFalse(config.flags.containsKey("root"));
+    assertEquals("invalid_flag", config.invalidFlags.get("root"));
+  }
+
   @Test
   void distinguishesAbsentEmptyAndExplicitNullMaximumDependencyDepth() throws Exception {
     final ServerConfiguration absent = deserialize(emptyConfig());

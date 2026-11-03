@@ -6,13 +6,21 @@ import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.Map;
+import java.util.function.Supplier;
 
 class FlagEvalMetricsHook implements Hook<Object> {
 
   private final FlagEvalMetrics metrics;
+  private final Supplier<DDEvaluator> evaluatorSupplier;
 
   FlagEvalMetricsHook(FlagEvalMetrics metrics) {
+    this(metrics, () -> null);
+  }
+
+  FlagEvalMetricsHook(
+      final FlagEvalMetrics metrics, final Supplier<DDEvaluator> evaluatorSupplier) {
     this.metrics = metrics;
+    this.evaluatorSupplier = evaluatorSupplier;
   }
 
   @Override
@@ -20,6 +28,15 @@ class FlagEvalMetricsHook implements Hook<Object> {
       HookContext<Object> ctx, FlagEvaluationDetails<Object> details, Map<String, Object> hints) {
     if (metrics == null || details == null) {
       return;
+    }
+    try {
+      final DDEvaluator evaluator = evaluatorSupplier.get();
+      if (evaluator != null && ctx != null) {
+        evaluator.recordDependencyMetrics(
+            evaluator.dependencyEvaluationTrace(ctx.getFlagKey(), ctx.getCtx()), metrics);
+      }
+    } catch (final RuntimeException | LinkageError ignored) {
+      // Dependency metrics are best effort and must not suppress the root metric.
     }
     try {
       String flagKey = details.getFlagKey();
@@ -34,7 +51,7 @@ class FlagEvalMetricsHook implements Hook<Object> {
       }
 
       metrics.record(flagKey, variant, reason, errorCode, allocationKey);
-    } catch (Exception e) {
+    } catch (final RuntimeException | LinkageError ignored) {
       // Never let metrics recording break flag evaluation
     }
   }

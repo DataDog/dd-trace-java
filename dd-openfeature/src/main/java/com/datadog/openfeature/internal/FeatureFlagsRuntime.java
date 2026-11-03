@@ -31,8 +31,8 @@ import org.slf4j.LoggerFactory;
 /**
  * The Feature Flags runtime: configuration delivery and event pipelines. A single runtime is shared
  * by all the providers of a class loader, and stopped when the last one releases it, or when the
- * application shuts down: by the Datadog Java agent before the JVM shutdown hooks run when
- * attached, or by a JVM shutdown hook otherwise.
+ * application shuts down: by the Datadog Java agent shutdown when attached, or by a JVM shutdown
+ * hook otherwise.
  */
 public final class FeatureFlagsRuntime {
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlagsRuntime.class);
@@ -105,7 +105,6 @@ public final class FeatureFlagsRuntime {
     final ConfigurationService source;
     final EventTransport transport;
     if (remoteConfig) {
-      // TODO Support Remote Configuration without the Datadog Java agent.
       final ConfigurationSource remoteConfiguration;
       try {
         remoteConfiguration = bridge.remoteConfiguration();

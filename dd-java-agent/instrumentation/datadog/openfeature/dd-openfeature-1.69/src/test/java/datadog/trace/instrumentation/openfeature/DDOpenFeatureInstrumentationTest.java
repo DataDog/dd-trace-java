@@ -89,6 +89,17 @@ class DDOpenFeatureInstrumentationTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void subscribesToTheAgentShutdown() throws Exception {
+    final FeatureFlaggingGateway.Backend backend = mock(FeatureFlaggingGateway.Backend.class);
+    final AutoCloseable subscription = mock(AutoCloseable.class);
+    final Runnable listener = mock(Runnable.class);
+    when(backend.subscribeShutdown(listener)).thenReturn(subscription);
+    FeatureFlaggingGateway.register(backend);
+
+    assertSame(subscription, AgentBridges.detect().shutdown().subscribe(listener));
+  }
+
+  @Test
   void delegatesSpanEnrichment() {
     final FeatureFlaggingGateway.Backend backend = mock(FeatureFlaggingGateway.Backend.class);
     FeatureFlaggingGateway.register(backend);

@@ -104,6 +104,14 @@ and include them in the same PR.
 This applies to changes in build scripts and `gradle/libs.versions.toml`.
 Follow the [lockfile update workflow](docs/how_to_work_with_gradle.md#updating-lock-files) before requesting review.
 
+### Pull request size
+
+Pull requests should add less than 1000 lines to remain reviewable.
+Split larger changes into stacked pull requests: each pull request targets the branch of the previous one, and they are reviewed and merged in order.
+
+>[!NOTE]
+> If a pull request cannot be split (e.g. a large generated file), human author (not bots) can add the [`tag: override pr size check` label](#labels) to bypass the check.
+
 ### Title format
 
 Pull request titles should briefly describe the proposed changes in a way that makes sense for the users.
@@ -140,6 +148,7 @@ Labels are used to not only categorize but also alter the continuous integration
   * Refactoring pull requests
   * CI and build tools improvements
   * Minor changes like typo
+* `tag: override pr size check` to bypass [the pull request size check](#pull-request-size) when a pull request cannot be split
 * [The `run-tests:` category](https://github.com/DataDog/dd-trace-java/labels?q=run-tests%3A) to run continuous integration tests on a specific JVM in case of JVM specific changes
 * `run-tests: flaky` to run the flaky tests on continuous integration as they are disabled by default
 

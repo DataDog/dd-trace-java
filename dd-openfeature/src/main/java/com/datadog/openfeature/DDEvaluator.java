@@ -43,8 +43,6 @@ import java.util.function.Consumer;
 
 class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
-  private static final String EVALUATION_TELEMETRY_OPT_OUT = "dd_evaluation_telemetry_opt_out";
-
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
    * caller's evaluation thread over a caller-owned Value tree, so an arbitrarily deep
@@ -94,28 +92,32 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   private final Settings settings;
   private final FlagEvaluator core;
   private final ConfigurationStore configuration = new ConfigurationStore();
-  // Dependency exposures belong to one OpenFeature hook lifecycle. The hook opens a scope before
-  // provider evaluation and closes it in finallyAfter, so direct provider calls neither retain
-  // candidates nor expose an internal hand-off token through public flag metadata. A stack keeps
-  // nested evaluations on the same thread isolated.
-  private final ThreadLocal<Deque<DependencyExposureScope>> dependencyExposureScopes =
+  // Dependency telemetry belongs to one OpenFeature hook lifecycle. The exposure hook opens a
+  // scope before provider evaluation and closes it in finallyAfter. Evaluation hooks inspect the
+  // staged records before that close, so dependency and root telemetry share the same opt-out and
+  // application-hook boundary. Direct provider calls have no scope and emit no telemetry. A stack
+  // keeps nested evaluations on the same thread isolated.
+  private final ThreadLocal<Deque<DependencyTelemetryScope>> dependencyTelemetryScopes =
       new ThreadLocal<>();
   private volatile FeatureFlagsRuntime runtime;
-  private volatile boolean dependencyTelemetryOptOutEnabled;
-  private volatile FlagEvalMetrics dependencyMetrics;
 
   DDEvaluator(final Runnable configCallback, final AgentBridge bridge, final Settings settings) {
+    this(configCallback, bridge, settings, ExperimentationOptOutMode.DISABLED);
+  }
+
+  DDEvaluator(
+      final Runnable configCallback,
+      final AgentBridge bridge,
+      final Settings settings,
+      final ExperimentationOptOutMode experimentationOptOutMode) {
     this.configCallback = configCallback;
     this.bridge = bridge;
     this.settings = settings;
     // When span enrichment is off, the __dd_* span-enrichment metadata is attached only to
     // evaluations of allocations logging exposures, for the exposure hook.
-    this.core = new FlagEvaluator(settings.isSpanEnrichmentEnabled(), this::isExposed);
-  }
-
-  void configureDependencyTelemetry(final boolean optOutEnabled, final FlagEvalMetrics metrics) {
-    this.dependencyTelemetryOptOutEnabled = optOutEnabled;
-    this.dependencyMetrics = metrics;
+    this.core =
+        new FlagEvaluator(
+            settings.isSpanEnrichmentEnabled(), this::isExposed, experimentationOptOutMode);
   }
 
   @Override
@@ -141,7 +143,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
   @Override
   public synchronized void shutdown() {
-    dependencyExposureScopes.remove();
+    dependencyTelemetryScopes.remove();
     final FeatureFlagsRuntime released = this.runtime;
     this.runtime = null;
     if (released != null) {
@@ -176,20 +178,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final EvaluationContext context) {
     final FlagEvaluator.EvaluationResult<T> evaluation =
         core.evaluateWithTrace(configuration.get(), target, key, defaultValue, context);
-    for (final FlagEvaluator.DependencyEvaluation dependency : evaluation.dependencyEvaluations) {
-      try {
-        publishDependencyEvaluation(dependency, context, evaluation.evaluationTimestampMs);
-      } catch (final RuntimeException | LinkageError ignored) {
-        // Telemetry is best effort and must not change the root evaluation.
-      }
-    }
     final ProviderEvaluation<T> result = evaluation.details;
-    stageDependencyExposures(
-        key,
-        context,
-        result.getErrorCode() == null
-            ? evaluation.dependencyExposures
-            : Collections.<FlagEvaluator.DependencyExposure>emptyList());
+    stageDependencyTelemetry(key, context, evaluation);
     return result;
   }
 
@@ -278,27 +268,14 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   void publishDependencyEvaluation(
       final FlagEvaluator.DependencyEvaluation dependency,
       final EvaluationContext context,
-      final long evaluationTimestampMs) {
-    if (dependencyTelemetryOptOutEnabled && isEvaluationTelemetryOptedOut(context)) {
-      return;
-    }
+      final long evaluationTimestampMs,
+      final FlagEvaluationWriter writer) {
     final ImmutableMetadata metadata = dependency.metadata;
     final Map<String, Object> values =
         metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
     final Object allocationValue = values.get(ALLOCATION_KEY);
     final String allocationKey =
         allocationValue instanceof String ? (String) allocationValue : null;
-    final FlagEvalMetrics metrics = dependencyMetrics;
-    if (metrics != null) {
-      metrics.record(
-          dependency.flagKey,
-          dependency.variant,
-          dependency.reason,
-          dependency.errorCode,
-          allocationKey);
-    }
-    final FeatureFlagsRuntime current = runtime();
-    final FlagEvaluationWriter writer = current == null ? null : current.evaluations();
     if (writer == null || !writer.hasCapacityForEnqueue()) {
       if (writer != null) {
         writer.countPreQueueOverflow();
@@ -338,37 +315,87 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
             features));
   }
 
+  void publishDependencyEvaluations(
+      final DependencyEvaluationTrace trace,
+      final EvaluationContext context,
+      final FlagEvaluationWriter writer) {
+    for (final FlagEvaluator.DependencyEvaluation dependency : trace.evaluations) {
+      try {
+        publishDependencyEvaluation(dependency, context, trace.evaluationTimestampMs, writer);
+      } catch (final RuntimeException | LinkageError ignored) {
+        // One telemetry record must not suppress the root or later dependency records.
+      }
+    }
+  }
+
+  void recordDependencyMetrics(
+      final DependencyEvaluationTrace trace, final FlagEvalMetrics metrics) {
+    if (metrics == null) {
+      return;
+    }
+    for (final FlagEvaluator.DependencyEvaluation dependency : trace.evaluations) {
+      try {
+        final ImmutableMetadata metadata = dependency.metadata;
+        final Map<String, Object> values =
+            metadata == null
+                ? Collections.<String, Object>emptyMap()
+                : metadata.asUnmodifiableMap();
+        final Object allocationValue = values.get(ALLOCATION_KEY);
+        metrics.record(
+            dependency.flagKey,
+            dependency.variant,
+            dependency.reason,
+            dependency.errorCode,
+            allocationValue instanceof String ? (String) allocationValue : null);
+      } catch (final RuntimeException | LinkageError ignored) {
+        // Metrics are best effort and must not affect evaluation or the root metric.
+      }
+    }
+  }
+
   void beginDependencyExposureScope(
       final String rootFlagKey, final EvaluationContext evaluationContext) {
-    Deque<DependencyExposureScope> scopes = dependencyExposureScopes.get();
+    Deque<DependencyTelemetryScope> scopes = dependencyTelemetryScopes.get();
     if (scopes == null) {
       scopes = new LinkedList<>();
-      dependencyExposureScopes.set(scopes);
+      dependencyTelemetryScopes.set(scopes);
     }
-    scopes.push(new DependencyExposureScope(rootFlagKey, evaluationContext));
+    scopes.push(new DependencyTelemetryScope(rootFlagKey, evaluationContext));
   }
 
   List<FlagEvaluator.DependencyExposure> endDependencyExposureScope() {
-    final Deque<DependencyExposureScope> scopes = dependencyExposureScopes.get();
+    final Deque<DependencyTelemetryScope> scopes = dependencyTelemetryScopes.get();
     if (scopes == null || scopes.isEmpty()) {
       return Collections.emptyList();
     }
     final List<FlagEvaluator.DependencyExposure> exposures = scopes.pop().exposures;
     if (scopes.isEmpty()) {
-      dependencyExposureScopes.remove();
+      dependencyTelemetryScopes.remove();
     }
     return exposures;
   }
 
-  private void stageDependencyExposures(
+  DependencyEvaluationTrace dependencyEvaluationTrace(
+      final String rootFlagKey, final EvaluationContext evaluationContext) {
+    final Deque<DependencyTelemetryScope> scopes = dependencyTelemetryScopes.get();
+    if (scopes == null || scopes.isEmpty()) {
+      return DependencyEvaluationTrace.EMPTY;
+    }
+    final DependencyTelemetryScope scope = scopes.peek();
+    return scope.sealed && scope.matches(rootFlagKey, evaluationContext)
+        ? scope.evaluationTrace
+        : DependencyEvaluationTrace.EMPTY;
+  }
+
+  private void stageDependencyTelemetry(
       final String rootFlagKey,
       final EvaluationContext evaluationContext,
-      final List<FlagEvaluator.DependencyExposure> candidates) {
-    final Deque<DependencyExposureScope> scopes = dependencyExposureScopes.get();
+      final FlagEvaluator.EvaluationResult<?> evaluation) {
+    final Deque<DependencyTelemetryScope> scopes = dependencyTelemetryScopes.get();
     if (scopes == null || scopes.isEmpty()) {
       return;
     }
-    final DependencyExposureScope scope = scopes.peek();
+    final DependencyTelemetryScope scope = scopes.peek();
     if (scope.sealed || !scope.matches(rootFlagKey, evaluationContext)) {
       return;
     }
@@ -376,6 +403,13 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     // eligible candidates. This prevents a later direct or reentrant evaluation from filling the
     // scope before finallyAfter consumes it.
     scope.sealed = true;
+    scope.evaluationTrace =
+        new DependencyEvaluationTrace(
+            evaluation.dependencyEvaluations, evaluation.evaluationTimestampMs);
+    final List<FlagEvaluator.DependencyExposure> candidates =
+        evaluation.details.getErrorCode() == null
+            ? evaluation.dependencyExposures
+            : Collections.<FlagEvaluator.DependencyExposure>emptyList();
     if (candidates == null || candidates.isEmpty()) {
       return;
     }
@@ -436,18 +470,29 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     }
   }
 
-  private static boolean isEvaluationTelemetryOptedOut(final EvaluationContext context) {
-    final Value value = context == null ? null : context.getValue(EVALUATION_TELEMETRY_OPT_OUT);
-    return value != null && value.isBoolean() && Boolean.TRUE.equals(value.asBoolean());
+  static final class DependencyEvaluationTrace {
+    private static final DependencyEvaluationTrace EMPTY =
+        new DependencyEvaluationTrace(Collections.emptyList(), 0);
+
+    final List<FlagEvaluator.DependencyEvaluation> evaluations;
+    final long evaluationTimestampMs;
+
+    private DependencyEvaluationTrace(
+        final List<FlagEvaluator.DependencyEvaluation> evaluations,
+        final long evaluationTimestampMs) {
+      this.evaluations = evaluations;
+      this.evaluationTimestampMs = evaluationTimestampMs;
+    }
   }
 
-  private static final class DependencyExposureScope {
+  private static final class DependencyTelemetryScope {
     private final String rootFlagKey;
     private final EvaluationContext evaluationContext;
+    private DependencyEvaluationTrace evaluationTrace = DependencyEvaluationTrace.EMPTY;
     private List<FlagEvaluator.DependencyExposure> exposures = Collections.emptyList();
     private boolean sealed;
 
-    private DependencyExposureScope(
+    private DependencyTelemetryScope(
         final String rootFlagKey, final EvaluationContext evaluationContext) {
       this.rootFlagKey = rootFlagKey;
       this.evaluationContext = evaluationContext;

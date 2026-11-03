@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.EvaluatorParams;
@@ -24,6 +25,7 @@ import com.datadog.openfeature.internal.ufc.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -32,6 +34,83 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class DependentFlagEvaluatorTest {
+
+  @Test
+  void appliesFutureExperimentOptOutToDependenciesUsingTheRootCutoff() {
+    final FlagEvaluator evaluator = evaluator(ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY);
+    final Map<String, Variant> dependencyVariations = new HashMap<>();
+    dependencyVariations.put("future", new Variant("future", "future-value"));
+    dependencyVariations.put("on", new Variant("on", "on-value"));
+    final Allocation future =
+        new Allocation(
+            "future",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "future", emptyMap(), 1)),
+            true,
+            Instant.parse("2026-10-20T00:00:00Z"));
+    final Allocation retained =
+        new Allocation(
+            "retained",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 1)),
+            true,
+            Instant.parse("2026-10-18T00:00:00Z"));
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "dependency",
+        new Flag(
+            "dependency",
+            true,
+            ValueType.STRING,
+            dependencyVariations,
+            Arrays.asList(future, retained)));
+    flags.put("root", stringFlag("root", "on", dependencyRule("dependency", "on"), false));
+    final MutableContext context = new MutableContext("u");
+    context.add(ExperimentationOptOut.ATTRIBUTE, "2026-10-19T12:00:00Z");
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator.evaluateWithTrace(config(flags, null), String.class, "root", "default", context);
+
+    assertEquals("on-value", evaluation.details.getValue());
+    assertEquals(singletonList("dependency:on"), evaluations(evaluation));
+    assertEquals(singletonList("dependency"), exposures(evaluation));
+  }
+
+  @Test
+  void propagatesInvalidDependencyActivationUnderFutureExperimentOptOut() {
+    final FlagEvaluator evaluator = evaluator(ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY);
+    final Map<String, Variant> dependencyVariations = new HashMap<>();
+    dependencyVariations.put("on", new Variant("on", "on-value"));
+    final Allocation invalid =
+        new Allocation(
+            "invalid",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 1)),
+            true,
+            null,
+            true);
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "dependency",
+        new Flag(
+            "dependency", true, ValueType.STRING, dependencyVariations, singletonList(invalid)));
+    flags.put("root", stringFlag("root", "on", dependencyRule("dependency", "on"), false));
+    final MutableContext context = new MutableContext("u");
+    context.add(ExperimentationOptOut.ATTRIBUTE, "2026-10-19T12:00:00Z");
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator.evaluateWithTrace(config(flags, null), String.class, "root", "default", context);
+
+    assertEquals(ErrorCode.PARSE_ERROR, evaluation.details.getErrorCode());
+    assertEquals(singletonList("dependency:PARSE_ERROR"), evaluations(evaluation));
+    assertTrue(evaluation.dependencyExposures.isEmpty());
+  }
 
   @Test
   void memoizesDependenciesAndReplaysTheirExposureAfterRuleRollback() {
@@ -321,7 +400,11 @@ class DependentFlagEvaluatorTest {
   }
 
   private static FlagEvaluator evaluator() {
-    return new FlagEvaluator(false, (flag, subject, allocation, variant, serialId) -> false);
+    return evaluator(ExperimentationOptOutMode.DISABLED);
+  }
+
+  private static FlagEvaluator evaluator(final ExperimentationOptOutMode mode) {
+    return new FlagEvaluator(false, (flag, subject, allocation, variant, serialId) -> false, mode);
   }
 
   private static List<String> evaluations(final FlagEvaluator.EvaluationResult<?> result) {

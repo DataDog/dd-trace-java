@@ -1,5 +1,6 @@
 package com.datadog.openfeature;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.openfeature.internal.FeatureFlagsRuntime;
@@ -7,6 +8,7 @@ import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationU
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridges;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.evaluation.ExperimentationOptOut;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -23,6 +25,7 @@ import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
@@ -39,6 +42,7 @@ public class Provider extends EventProvider implements Metadata {
   private final Options options;
   private final AgentBridge bridge;
   private final Settings settings;
+  private final ExperimentationOptOutMode experimentationOptOutMode;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
@@ -80,11 +84,15 @@ public class Provider extends EventProvider implements Metadata {
     this.evaluator = evaluator;
     this.bridge = AgentBridges.detect();
     this.settings = Settings.load(this.bridge);
+    this.experimentationOptOutMode =
+        this.settings.isEnabled()
+            ? ExperimentationOptOut.resolve(options.experimentationOptOutMode, this.settings)
+            : ExperimentationOptOutMode.DISABLED;
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
     try {
       metrics = new FlagEvalMetrics();
-      hook = new FlagEvalMetricsHook(metrics);
+      hook = new FlagEvalMetricsHook(metrics, this::datadogEvaluator);
     } catch (LinkageError | Exception e) {
       // This outer catch fires when the metrics helper itself can't load (OTel API absent).
       log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
@@ -93,8 +101,6 @@ public class Provider extends EventProvider implements Metadata {
     this.flagEvalMetricsHook = hook;
     this.evaluationTelemetryOptOutEnabled =
         options.isEvaluationTelemetryOptOutParameterEnabled(this.settings);
-    configureDependencyTelemetry(evaluator);
-
     // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
     // per-evaluation overhead.
     final boolean spanEnrichmentEnabled =
@@ -112,7 +118,7 @@ public class Provider extends EventProvider implements Metadata {
     }
     // EVP flagevaluation hook: always registered; no-op when the pipeline is absent (killswitch
     // off or provider not initialized). The pipeline is resolved lazily on each call.
-    hooks.add(new FlagEvalLoggingHook<>(this::flagEvaluationPipeline));
+    hooks.add(new FlagEvalLoggingHook<>(this::flagEvaluationPipeline, this::datadogEvaluator));
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
     }
@@ -149,6 +155,10 @@ public class Provider extends EventProvider implements Metadata {
     } else {
       log.info("{} span enrichment disabled", METADATA);
     }
+    log.info(
+        "{} experimentation opt-out mode: {}",
+        METADATA,
+        this.experimentationOptOutMode.name().toLowerCase(Locale.ROOT));
   }
 
   @Override
@@ -283,21 +293,15 @@ public class Provider extends EventProvider implements Metadata {
 
   private Evaluator buildEvaluator() {
     if (evaluator != null) {
-      configureDependencyTelemetry(evaluator);
       return evaluator;
     }
     final DDEvaluator built =
-        new DDEvaluator(this::onConfigurationChange, this.bridge, this.settings);
-    configureDependencyTelemetry(built);
+        new DDEvaluator(
+            this::onConfigurationChange,
+            this.bridge,
+            this.settings,
+            this.experimentationOptOutMode);
     return built;
-  }
-
-  private void configureDependencyTelemetry(final Evaluator candidate) {
-    if (candidate instanceof DDEvaluator) {
-      ((DDEvaluator) candidate)
-          .configureDependencyTelemetry(
-              this.evaluationTelemetryOptOutEnabled, this.flagEvalMetrics);
-    }
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {
@@ -392,6 +396,35 @@ public class Provider extends EventProvider implements Metadata {
     private long timeout = 30;
     private TimeUnit unit = SECONDS;
     private Boolean evaluationTelemetryOptOutParameterEnabled;
+    private ExperimentationOptOutMode experimentationOptOutMode = ExperimentationOptOutMode.DEFAULT;
+
+    /**
+     * Sets per-subject experimentation opt-out. {@link ExperimentationOptOutMode#DEFAULT} reads
+     * {@code DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE}; every other mode, including {@code
+     * DISABLED}, overrides configuration. The provider captures the mode at construction.
+     * Unsupported configured modes throw {@link IllegalArgumentException} unless Feature Flags is
+     * disabled.
+     *
+     * <p>Enabled modes read {@code dd_experimentation_opt_out_at} from the merged evaluation
+     * context. Supply a timestamp String accepted by {@link
+     * java.time.format.DateTimeFormatter#ISO_OFFSET_DATE_TIME}, for example {@code
+     * Instant.now().toString()}. An {@code Instant} object, null, or any other invalid value
+     * returns the application's default with {@code INVALID_CONTEXT} after configuration is ready,
+     * even for ordinary or missing flags. Omit the attribute to permit experimentation; disabled
+     * mode ignores it.
+     *
+     * <p>This controls experiment allocation selection, independently of evaluation telemetry
+     * opt-out. The attribute remains available for targeting and reporting under the existing
+     * exposure and evaluation-data settings.
+     *
+     * @param mode the mode; configure before constructing the provider.
+     * @return these options.
+     * @throws NullPointerException if mode is null.
+     */
+    public Options experimentationOptOutMode(final ExperimentationOptOutMode mode) {
+      this.experimentationOptOutMode = requireNonNull(mode, "mode");
+      return this;
+    }
 
     /**
      * Enables per-evaluation telemetry opt-out through the {@code dd_evaluation_telemetry_opt_out}

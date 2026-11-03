@@ -3,6 +3,7 @@ package com.datadog.featureflag;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,6 +16,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
@@ -24,7 +26,10 @@ import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
+import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.tabletest.junit.TableTest;
@@ -41,7 +46,7 @@ class FeatureFlagsBackendTest {
   private final CoreMetricCollector metrics = mock(CoreMetricCollector.class);
   private final FeatureFlagsBackend backend =
       new FeatureFlagsBackend(
-          this.sco, this.config, this.eventProxy, this.spanEnrichmentWriter, this.metrics);
+          this.sco, this.config, this.eventProxy, this.spanEnrichmentWriter, this.metrics, null);
 
   private static AgentSpan rootSpan() {
     final AgentSpan root = mock(AgentSpan.class);
@@ -126,9 +131,60 @@ class FeatureFlagsBackendTest {
     when(this.config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
     when(this.config.getApiKey()).thenReturn(apiKey);
 
-    final FeatureFlagsBackend created = new FeatureFlagsBackend(this.sco, this.config);
+    final FeatureFlagsBackend created = new FeatureFlagsBackend(this.sco, this.config, null);
 
     assertEquals(apiKey, created.setting("api-key"));
+  }
+
+  @Test
+  void keepsTheEventProxyAvailableWithABlankApiKey() {
+    when(this.config.getFeatureFlaggingConfigurationSource())
+        .thenReturn(FeatureFlaggingSource.AGENTLESS);
+    when(this.config.getApiKey()).thenReturn(" \t ");
+    when(this.sco.featuresDiscovery(this.config)).thenReturn(mock(DDAgentFeaturesDiscovery.class));
+
+    final FeatureFlagsBackend created = new FeatureFlagsBackend(this.sco, this.config, null);
+
+    assertTrue(
+        created.isEventProxyAvailable(),
+        "the proxy stays available for recovery when direct intake has no usable API key");
+  }
+
+  @Test
+  void runsTheFirstShutdownSubscriptionActionOnce() {
+    final AtomicInteger firstSubscriptions = new AtomicInteger();
+    final FeatureFlagsBackend backend =
+        new FeatureFlagsBackend(
+            this.sco,
+            this.config,
+            this.eventProxy,
+            this.spanEnrichmentWriter,
+            this.metrics,
+            firstSubscriptions::incrementAndGet);
+
+    backend.subscribeShutdown(() -> {});
+    backend.subscribeShutdown(() -> {});
+
+    assertEquals(1, firstSubscriptions.get());
+  }
+
+  @Test
+  void closeNotifiesTheShutdownListenersBeforeReleasingResources() throws Exception {
+    final List<String> calls = new CopyOnWriteArrayList<>();
+    this.backend.subscribeShutdown(() -> calls.add("first"));
+    this.backend.subscribeShutdown(
+        () -> {
+          throw new IllegalStateException("failing listener");
+        });
+    final AutoCloseable unregistered =
+        this.backend.subscribeShutdown(() -> calls.add("unregistered"));
+    this.backend.subscribeShutdown(() -> calls.add("last"));
+    unregistered.close();
+
+    this.backend.close();
+    this.backend.close();
+
+    assertEquals(asList("first", "last"), calls);
   }
 
   @Test

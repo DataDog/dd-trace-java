@@ -26,9 +26,23 @@ public class OpenFeatureController {
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenFeatureController.class);
 
   private final Client client;
+  private final ProviderRegistration providerRegistration;
 
-  public OpenFeatureController(final Client client) {
+  public OpenFeatureController(
+      final Client client, final ProviderRegistration providerRegistration) {
     this.client = client;
+    this.providerRegistration = providerRegistration;
+  }
+
+  /**
+   * Registers the provider without waiting for its initialization.
+   *
+   * @return an accepted response.
+   */
+  @PostMapping("/provider")
+  public ResponseEntity<?> registerProvider() {
+    this.providerRegistration.request();
+    return ResponseEntity.accepted().build();
   }
 
   @PostMapping(

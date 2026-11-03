@@ -34,7 +34,6 @@ import datadog.trace.core.PendingTrace;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -704,26 +703,19 @@ public final class TraceMapperV1 implements TraceMapper {
 
     @Override
     public int sizeInBytes() {
-      return header.remaining() + msgpackArrayHeaderSize(traceCount()) + body.remaining();
-    }
-
-    private void writeBuffer(ByteBuffer buffer, WritableByteChannel channel) throws IOException {
-      while (buffer.hasRemaining()) {
-        channel.write(buffer);
-      }
+      return header.remaining() + msgpackArrayHeaderSize(traceCount()) + bodySize();
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
-      writeBuffer(header.slice(), channel);
-      writeBuffer(msgpackArrayHeader(traceCount()), channel);
-      writeBuffer(body, channel);
+      writeFully(header.slice(), channel);
+      writeFully(msgpackArrayHeader(traceCount()), channel);
+      writeBody(channel);
     }
 
     @Override
     public RequestBody toRequest() {
-      return msgpackRequestBodyOf(
-          Arrays.asList(header.slice(), msgpackArrayHeader(traceCount()), body));
+      return msgpackRequestBodyOf(bodyAfter(header.slice(), msgpackArrayHeader(traceCount())));
     }
   }
 }

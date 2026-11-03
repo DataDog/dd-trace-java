@@ -14,6 +14,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 
+import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
@@ -65,6 +66,7 @@ public final class FlagEvaluator {
   static final Set<String> WARNED_FEATURE_DESTINATIONS = ConcurrentHashMap.newKeySet();
   private final boolean spanEnrichmentEnabled;
   private final ExposureLookup exposureLookup;
+  private final ExperimentationOptOutMode experimentationOptOutMode;
 
   /**
    * Creates an evaluator.
@@ -73,8 +75,16 @@ public final class FlagEvaluator {
    * @param exposureLookup the lookup telling whether an exposure was already recorded.
    */
   public FlagEvaluator(final boolean spanEnrichmentEnabled, final ExposureLookup exposureLookup) {
+    this(spanEnrichmentEnabled, exposureLookup, ExperimentationOptOutMode.DISABLED);
+  }
+
+  public FlagEvaluator(
+      final boolean spanEnrichmentEnabled,
+      final ExposureLookup exposureLookup,
+      final ExperimentationOptOutMode experimentationOptOutMode) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
     this.exposureLookup = exposureLookup;
+    this.experimentationOptOutMode = experimentationOptOutMode;
   }
 
   public <T> ProviderEvaluation<T> evaluate(
@@ -100,8 +110,51 @@ public final class FlagEvaluator {
     // an NPE — the field is boxed so a malformed UFC message doesn't abort the whole parse.
     final boolean observeFullEvaluationData =
         config != null && Boolean.TRUE.equals(config.observeFullEvaluationData);
+    final long evaluationTimestampMs = System.currentTimeMillis();
+    if (config == null) {
+      return new EvaluationState(
+              null, context, observeFullEvaluationData, evaluationTimestampMs, null)
+          .complete(
+              error(defaultValue, ErrorCode.PROVIDER_NOT_READY, null, observeFullEvaluationData),
+              false);
+    }
+    if (context == null) {
+      return new EvaluationState(
+              config, null, observeFullEvaluationData, evaluationTimestampMs, null)
+          .complete(
+              error(defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData),
+              false);
+    }
+    final Instant experimentationCutoff;
+    try {
+      experimentationCutoff = ExperimentationOptOut.cutoff(experimentationOptOutMode, context);
+    } catch (final ExperimentationOptOut.InvalidTimestampException e) {
+      // This diagnostic is fixed SDK text. It contains no customer context values.
+      final ProviderEvaluation<T> invalidContext =
+          ProviderEvaluation.<T>builder()
+              .value(defaultValue)
+              .reason(Reason.ERROR.name())
+              .errorCode(ErrorCode.INVALID_CONTEXT)
+              .errorMessage(ExperimentationOptOut.INVALID_TIMESTAMP)
+              .flagMetadata(consentMetadata(observeFullEvaluationData))
+              .build();
+      return new EvaluationState(
+              config, context, observeFullEvaluationData, evaluationTimestampMs, null)
+          .complete(invalidContext, false);
+    } catch (final Exception e) {
+      return new EvaluationState(
+              config, context, observeFullEvaluationData, evaluationTimestampMs, null)
+          .complete(
+              error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData),
+              false);
+    }
     final EvaluationState state =
-        new EvaluationState(config, context, observeFullEvaluationData, System.currentTimeMillis());
+        new EvaluationState(
+            config,
+            context,
+            observeFullEvaluationData,
+            evaluationTimestampMs,
+            experimentationCutoff);
     ProviderEvaluation<T> result;
     boolean commitExposures;
     try {
@@ -146,6 +199,15 @@ public final class FlagEvaluator {
       }
       return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, state.observeFullEvaluationData);
     }
+    if (state.experimentationCutoff != null
+        && experimentationOptOutMode == ExperimentationOptOutMode.FUTURE_EXPERIMENTS_ONLY
+        && ExperimentationOptOut.hasInvalidActivation(flag.allocations)) {
+      return error(
+          defaultValue,
+          ErrorCode.PARSE_ERROR,
+          "invalid randomizationActivatedAt for flag " + key,
+          state.observeFullEvaluationData);
+    }
     if (!flag.enabled) {
       return ProviderEvaluation.<T>builder()
           .value(defaultValue)
@@ -164,6 +226,11 @@ public final class FlagEvaluator {
     final Instant now = Instant.ofEpochMilli(state.evaluationTimestampMs);
     final String targetingKey = state.context.getTargetingKey();
     for (final Allocation allocation : flag.allocations) {
+      if (state.experimentationCutoff != null
+          && ExperimentationOptOut.excludes(
+              experimentationOptOutMode, state.experimentationCutoff, allocation)) {
+        continue;
+      }
       if (!isAllocationActive(allocation, now)) {
         continue;
       }
@@ -325,9 +392,9 @@ public final class FlagEvaluator {
 
     switch (condition.operator) {
       case MATCHES:
-        return matchesRegex(attributeValue, condition.value);
+        return matchesRegex(attributeValue, condition);
       case NOT_MATCHES:
-        return !matchesRegex(attributeValue, condition.value);
+        return !matchesRegex(attributeValue, condition);
       case ONE_OF:
         return isOneOf(attributeValue, condition.value);
       case NOT_ONE_OF:
@@ -357,21 +424,15 @@ public final class FlagEvaluator {
     }
   }
 
-  private static boolean matchesRegex(final Object attributeValue, final Object conditionValue) {
-    // PatternSyntaxException is intentionally not caught here so it propagates to evaluate(),
-    // which maps it to ErrorCode.PARSE_ERROR.
-    final Pattern pattern = Pattern.compile(normalizeRegex(String.valueOf(conditionValue)));
+  private static boolean matchesRegex(
+      final Object attributeValue, final ConditionConfiguration condition) {
+    // Parsed configurations cache the validated pattern. Directly constructed configurations
+    // retain the same syntax and error handling.
+    final Pattern pattern =
+        condition.regex != null
+            ? condition.regex
+            : ConditionConfiguration.compileRegex(condition.value);
     return pattern.matcher(String.valueOf(attributeValue)).find();
-  }
-
-  private static String normalizeRegex(final String regex) {
-    return regex
-        .replace("[:alnum:]", "\\p{Alnum}")
-        .replace("[:alpha:]", "\\p{Alpha}")
-        .replace("[:digit:]", "\\p{Digit}")
-        .replace("[:lower:]", "\\p{Lower}")
-        .replace("[:upper:]", "\\p{Upper}")
-        .replace("[:space:]", "\\p{Space}");
   }
 
   private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
@@ -678,17 +739,20 @@ public final class FlagEvaluator {
     private final EvaluationContext context;
     private final boolean observeFullEvaluationData;
     private final long evaluationTimestampMs;
+    private final Instant experimentationCutoff;
     private DependencyEvaluationSession session;
 
     private EvaluationState(
         final ServerConfiguration config,
         final EvaluationContext context,
         final boolean observeFullEvaluationData,
-        final long evaluationTimestampMs) {
+        final long evaluationTimestampMs,
+        final Instant experimentationCutoff) {
       this.config = config;
       this.context = context;
       this.observeFullEvaluationData = observeFullEvaluationData;
       this.evaluationTimestampMs = evaluationTimestampMs;
+      this.experimentationCutoff = experimentationCutoff;
     }
 
     private DependencyEvaluationSession dependencySession(final String rootFlagKey) {

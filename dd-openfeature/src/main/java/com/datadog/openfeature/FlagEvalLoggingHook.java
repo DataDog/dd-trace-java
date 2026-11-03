@@ -41,8 +41,17 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
   /** Pipeline resolver, returning {@code null} when evaluation counts are not delivered. */
   private final Supplier<FlagEvaluationWriter> writerSupplier;
 
+  private final Supplier<DDEvaluator> evaluatorSupplier;
+
   FlagEvalLoggingHook(final Supplier<FlagEvaluationWriter> writerSupplier) {
+    this(writerSupplier, () -> null);
+  }
+
+  FlagEvalLoggingHook(
+      final Supplier<FlagEvaluationWriter> writerSupplier,
+      final Supplier<DDEvaluator> evaluatorSupplier) {
     this.writerSupplier = writerSupplier;
+    this.evaluatorSupplier = evaluatorSupplier;
   }
 
   /**
@@ -64,6 +73,16 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       final FlagEvaluationWriter w = writerSupplier.get();
       if (w == null) {
         return;
+      }
+
+      final DDEvaluator evaluator = evaluatorSupplier.get();
+      if (evaluator != null && ctx != null) {
+        try {
+          evaluator.publishDependencyEvaluations(
+              evaluator.dependencyEvaluationTrace(ctx.getFlagKey(), ctx.getCtx()), ctx.getCtx(), w);
+        } catch (final RuntimeException | LinkageError ignored) {
+          // Dependency telemetry is best effort and must not suppress the root event.
+        }
       }
 
       // Pre-queue guard: if the queue is already saturated, avoid the context-copy work whose
