@@ -22,6 +22,13 @@ public final class AkkaHttpRouteHelper {
   private AkkaHttpRouteHelper() {}
 
   public static Frame enter(Uri.Path path) {
+    Frame parent = CURRENT.get();
+    if (parent != null) {
+      // nested matchers share the root span already checked by the outermost frame
+      Frame frame = new Frame(path, parent.span, parent);
+      CURRENT.set(frame);
+      return frame;
+    }
     AgentSpan active = activeSpan();
     if (active == null) {
       return null;
@@ -30,7 +37,7 @@ public final class AkkaHttpRouteHelper {
     if (root == null || root.getTag(KnownTags.URL_PATH_NAME) == null) {
       return null;
     }
-    Frame frame = new Frame(path.toString(), root, CURRENT.get());
+    Frame frame = new Frame(path, root, null);
     CURRENT.set(frame);
     return frame;
   }
@@ -53,25 +60,26 @@ public final class AkkaHttpRouteHelper {
     }
     PathMatcher.Matched<?> matched = (PathMatcher.Matched<?>) matching;
     String rest = matched.pathRest().toString();
-    int consumed = frame.path.length() - rest.length();
+    String path = frame.path();
+    int consumed = path.length() - rest.length();
     if (consumed <= 0) {
       return;
     }
     String template = frame.template(consumed, matched.extractions());
     if (frame.parent != null) {
-      if (frame.parent.path.endsWith(frame.path)) {
+      String parentPath = frame.parent.path();
+      if (parentPath.endsWith(path)) {
         if (frame.parent.parts == null) {
           frame.parent.parts = new ArrayList<>();
         }
-        frame.parent.parts.add(
-            new Route(frame.parent.path.length() - frame.path.length(), rest, template));
+        frame.parent.parts.add(new Route(parentPath.length() - path.length(), rest, template));
       }
       return;
     }
     Object requestPath = frame.span.getTag(KnownTags.URL_PATH_NAME);
-    if (requestPath == null || !requestPath.toString().equals(URIUtils.decode(frame.path))) {
+    if (requestPath == null || !requestPath.toString().equals(URIUtils.decode(path))) {
       Route previous = routes.get(frame.span);
-      if (previous == null || !previous.remaining.equals(frame.path)) {
+      if (previous == null || !previous.remaining.equals(path)) {
         return;
       }
       template = previous.template + template;
@@ -83,18 +91,28 @@ public final class AkkaHttpRouteHelper {
   }
 
   public static final class Frame {
-    final String path;
+    final Uri.Path uriPath;
     final AgentSpan span;
     final Frame parent;
     List<Route> parts;
+    private String path;
 
-    Frame(String path, AgentSpan span, Frame parent) {
-      this.path = path;
+    Frame(Uri.Path uriPath, AgentSpan span, Frame parent) {
+      this.uriPath = uriPath;
       this.span = span;
       this.parent = parent;
     }
 
+    /** Renders the path on demand, as most match attempts fail and never need it. */
+    String path() {
+      if (path == null) {
+        path = uriPath.toString();
+      }
+      return path;
+    }
+
     String template(int consumed, Object extractions) {
+      String path = path();
       if (parts == null) {
         if (extractions instanceof Product && ((Product) extractions).productArity() > 0) {
           return path.charAt(0) == '/' ? "/{param}" : "{param}";
