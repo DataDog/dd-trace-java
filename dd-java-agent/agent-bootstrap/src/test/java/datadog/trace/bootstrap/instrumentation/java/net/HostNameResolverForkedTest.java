@@ -20,6 +20,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class HostNameResolverForkedTest {
+  /** IPv4 loopback address (127.0.0.1). */
+  private static final byte[] IPV4_LOOPBACK = {127, 0, 0, 1};
+
   /** IPv6 loopback address (::1). */
   private static final byte[] IPV6_LOOPBACK = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
 
@@ -43,7 +46,7 @@ class HostNameResolverForkedTest {
         arguments(
             "resolved IPv4 address",
             Inet4Address.class,
-            InetAddress.getByAddress("test", InetAddress.getLocalHost().getAddress()),
+            InetAddress.getByAddress("test", IPV4_LOOPBACK),
             "test"),
         arguments(
             "resolved IPv6 address",
@@ -67,9 +70,7 @@ class HostNameResolverForkedTest {
       throws UnknownHostException {
     return Stream.of(
         arguments(
-            "unresolved IPv4 address",
-            Inet4Address.class,
-            InetAddress.getByAddress(InetAddress.getLocalHost().getAddress())),
+            "unresolved IPv4 address", Inet4Address.class, InetAddress.getByAddress(IPV4_LOOPBACK)),
         arguments(
             "unresolved IPv6 address",
             Inet6Address.class,
@@ -78,7 +79,7 @@ class HostNameResolverForkedTest {
 
   @Test
   void shouldUseTheCacheForUnresolvedAddresses() throws UnknownHostException {
-    InetAddress inet1 = InetAddress.getByAddress(InetAddress.getLocalHost().getAddress());
+    InetAddress inet1 = InetAddress.getByAddress(IPV4_LOOPBACK);
     // this will fail if a resolution will happen
     InetAddress inet2 = InetAddress.getByAddress(new byte[4]);
 
