@@ -45,7 +45,7 @@ first prefill. To change them (e.g. to compare propagation styles), stop the bro
 
 A run is rejected, and recorded as an empty CSV row, if the perf tool exits nonzero, if a consumer
 reads fewer than `MESSAGES` records (e.g. the topic is too small), or if the producer doesn't print
-its final summary.
+its final summary or sends fewer than `RECORDS` records (the tool logs failed sends without failing).
 
 **Environment knobs:**
 

@@ -18,6 +18,7 @@ echo "rep,variant,records_per_sec,avg_ms,p50_ms,p95_ms,p99_ms,p999_ms,young_gcs"
 variants=("$@")
 n=${#variants[@]}
 heap="${HEAP:-256m}"
+records="${RECORDS:-3000000}"
 for rep in $(seq 1 "${REPS:-5}"); do
   rot=$(((rep - 1) % n))
   order=("${variants[@]:$rot}" "${variants[@]:0:$rot}")
@@ -29,13 +30,16 @@ for rep in $(seq 1 "${REPS:-5}"); do
     KAFKA_HEAP_OPTS="-Xms$heap -Xmx$heap" \
       KAFKA_OPTS="-Xlog:gc:file=$gc_log $(variant_opts "$VARIANT_JAR")" \
       "$KAFKA_HOME/bin/kafka-producer-perf-test.sh" --topic "$PRODUCE_TOPIC" \
-      --num-records "${RECORDS:-3000000}" --record-size "${RECORD_SIZE:-100}" \
+      --num-records "$records" --record-size "${RECORD_SIZE:-100}" \
       --throughput "${RATE:-100000}" --producer-props "bootstrap.servers=$BOOTSTRAP" \
       > "$results/runs/$tag.out" 2>&1 || status=$?
     # Only the final summary carries percentiles; periodic progress lines also say "records sent".
     line="$(grep 'records sent.*99.9th' "$results/runs/$tag.out" | tail -1 || true)"
-    if [ "$status" -ne 0 ] || [ -z "$line" ]; then
-      log "FAIL $tag: exit $status (see $results/runs/$tag.out)"
+    # The tool logs failed sends without failing, and its summary counts only successful ones, so a
+    # run is complete only if every record was sent.
+    sent="$(echo "$line" | awk '{print $1}')"
+    if [ "$status" -ne 0 ] || [ -z "$line" ] || [ "${sent:-0}" -ne "$records" ]; then
+      log "FAIL $tag: exit $status, sent ${sent:-0} of $records (see $results/runs/$tag.out)"
       echo "$rep,$VARIANT_LABEL,,,,,,," >> "$csv"
       continue
     fi
