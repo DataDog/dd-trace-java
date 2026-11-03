@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.debugger.util;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static java.lang.invoke.MethodType.methodType;
+import static java.util.Collections.emptySet;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -259,7 +260,10 @@ public class WellKnownClasses {
    */
   public static boolean isSafe(Collection<?> collection) {
     return isSafe(
-        collection.getClass().getTypeName(), SAFE_COLLECTION_PACKAGES, UNSAFE_COLLECTION_CLASSES);
+        collection.getClass().getTypeName(),
+        SAFE_COLLECTION_PACKAGES,
+        emptySet(),
+        UNSAFE_COLLECTION_CLASSES);
   }
 
   /**
@@ -270,14 +274,19 @@ public class WellKnownClasses {
   }
 
   static boolean isSafeMap(String className) {
-    return SAFE_MAP_CLASSES.contains(className)
-        || isSafe(className, SAFE_MAP_PACKAGES, UNSAFE_MAP_CLASSES);
+    return isSafe(className, SAFE_MAP_PACKAGES, SAFE_MAP_CLASSES, UNSAFE_MAP_CLASSES);
   }
 
   private static boolean isSafe(
-      String className, List<String> safePackages, Set<String> unsafeClasses) {
+      String className,
+      List<String> safePackages,
+      Set<String> safeClasses,
+      Set<String> unsafeClasses) {
     if (unsafeClasses.contains(className)) {
       return false;
+    }
+    if (safeClasses.contains(className)) {
+      return true;
     }
     for (String safePackage : safePackages) {
       if (className.startsWith(safePackage)) {
