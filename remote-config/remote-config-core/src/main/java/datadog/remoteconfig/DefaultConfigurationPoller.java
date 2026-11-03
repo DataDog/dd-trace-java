@@ -65,8 +65,6 @@ public class DefaultConfigurationPoller
   private final Ed25519PublicKey key;
   private final Config config;
   private final String tracerVersion;
-  private final String containerId;
-  private final String entityId;
   private final OkHttpClient httpClient;
   private final RatelimitedLogger ratelimitedLogger;
   private final Supplier<String> urlSupplier;
@@ -87,17 +85,10 @@ public class DefaultConfigurationPoller
   private boolean fatalOnInitialization = false;
 
   public DefaultConfigurationPoller(
-      Config config,
-      String tracerVersion,
-      String containerId,
-      String entityId,
-      Supplier<String> urlSupplier,
-      OkHttpClient client) {
+      Config config, String tracerVersion, Supplier<String> urlSupplier, OkHttpClient client) {
     this(
         config,
         tracerVersion,
-        containerId,
-        entityId,
         urlSupplier,
         client,
         new AgentTaskScheduler(AgentThreadFactory.AgentThread.REMOTE_CONFIG));
@@ -107,15 +98,11 @@ public class DefaultConfigurationPoller
   public DefaultConfigurationPoller(
       Config config,
       String tracerVersion,
-      String containerId,
-      String entityId,
       Supplier<String> urlSupplier,
       OkHttpClient httpClient,
       AgentTaskScheduler taskScheduler) {
     this.config = config;
     this.tracerVersion = tracerVersion;
-    this.containerId = containerId;
-    this.entityId = entityId;
     this.urlSupplier = urlSupplier;
     this.keyId = config.getRemoteConfigTargetsKeyId();
     String keyStr = config.getRemoteConfigTargetsKey();
@@ -278,8 +265,7 @@ public class DefaultConfigurationPoller
               .add(ByteString.class, new RawJsonAdapter())
               .build();
       this.responseFactory = new RemoteConfigResponse.Factory(moshi);
-      this.requestFactory =
-          new PollerRequestFactory(config, tracerVersion, containerId, entityId, url, moshi);
+      this.requestFactory = new PollerRequestFactory(config, tracerVersion, url, moshi);
     } catch (Exception e) {
       // We can't recover from this, so we'll not try to initialize again.
       fatalOnInitialization = true;

@@ -3,7 +3,6 @@ package datadog.communication.ddagent;
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
-import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.http.SocketUtils;
 import datadog.metrics.api.Monitoring;
@@ -80,7 +79,7 @@ public class SharedCommunicationObjects {
     forceClearTextHttpForIntakeClient = config.isForceClearTextHttpForIntakeClient();
 
     if (agentUrl == null) {
-      agentUrl = parseAgentUrl(config);
+      agentUrl = OkHttpUtils.parseAgentUrl(config);
       if (agentUrl == null) {
         throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
       }
@@ -147,15 +146,6 @@ public class SharedCommunicationObjects {
     }
   }
 
-  private static HttpUrl parseAgentUrl(Config config) {
-    String agentUrl = config.getAgentUrl();
-    if (agentUrl.startsWith("unix:")) {
-      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
-      agentUrl = "http://" + config.getAgentHost() + ":" + config.getAgentPort();
-    }
-    return HttpUrl.parse(agentUrl);
-  }
-
   public ConfigurationPoller configurationPoller(Config config) {
     if (configurationPoller == null && config.isRemoteConfigEnabled()) {
       configurationPoller = createPoller(config);
@@ -164,8 +154,6 @@ public class SharedCommunicationObjects {
   }
 
   private ConfigurationPoller createPoller(Config config) {
-    String containerId = ContainerInfo.get().getContainerId();
-    String entityId = ContainerInfo.getEntityId();
     Supplier<String> configUrlSupplier;
     String remoteConfigUrl = config.getFinalRemoteConfigUrl();
     if (remoteConfigUrl != null) {
@@ -175,7 +163,7 @@ public class SharedCommunicationObjects {
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
     return new DefaultConfigurationPoller(
-        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
+        config, TRACER_VERSION, configUrlSupplier, agentHttpClient);
   }
 
   // for testing

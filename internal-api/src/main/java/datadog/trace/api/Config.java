@@ -3670,6 +3670,52 @@ public class Config {
     return agentUrl;
   }
 
+  /**
+   * Returns the HTTP URL of the local Datadog Agent. When the agent URL is a unix domain socket, a
+   * placeholder HTTP URL built from the agent host and port is returned instead, as requests are
+   * tunnelled over the socket.
+   */
+  public String getAgentHttpUrl() {
+    return AgentUrls.toHttpUrl(agentUrl, agentHost, agentPort);
+  }
+
+  /**
+   * Returns whether {@code url} targets the local Datadog Agent, i.e. has the same scheme, host and
+   * port as {@link #getAgentHttpUrl()}.
+   */
+  public boolean isAgentUrl(final String url) {
+    try {
+      final URL target = new URL(url);
+      final URL agent = new URL(getAgentHttpUrl());
+      return target.getProtocol().equalsIgnoreCase(agent.getProtocol())
+          && sameHost(target.getHost(), agent.getHost())
+          && effectivePort(target) == effectivePort(agent);
+    } catch (final MalformedURLException e) {
+      return false;
+    }
+  }
+
+  private static boolean sameHost(final String host, final String otherHost) {
+    if (host.equalsIgnoreCase(otherHost)) {
+      return true;
+    }
+    // the same IPv6 address can be written in different forms, e.g. [::1] and [0:0:0:0:0:0:0:1]
+    if (host.startsWith("[") && otherHost.startsWith("[")) {
+      try {
+        // bracketed IPv6 literals are parsed without any DNS lookup
+        return InetAddress.getByName(host).equals(InetAddress.getByName(otherHost));
+      } catch (final UnknownHostException e) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  private static int effectivePort(final URL url) {
+    final int port = url.getPort();
+    return port != -1 ? port : url.getDefaultPort();
+  }
+
   public String getAgentHost() {
     return agentHost;
   }
@@ -5071,22 +5117,13 @@ public class Config {
     return debuggerShadingIdentifiers;
   }
 
-  private String getFinalDebuggerBaseUrl() {
-    if (agentUrl.startsWith("unix:")) {
-      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
-      return "http://" + agentHost + ":" + agentPort;
-    } else {
-      return agentUrl;
-    }
-  }
-
   public String getFinalDebuggerSnapshotUrl() {
     if (Strings.isNotBlank(dynamicInstrumentationSnapshotUrl)) {
       return dynamicInstrumentationSnapshotUrl;
     } else if (isCiVisibilityAgentlessEnabled()) {
       return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
-      return getFinalDebuggerBaseUrl() + "/debugger/v1/diagnostics";
+      return getAgentHttpUrl() + "/debugger/v1/diagnostics";
     }
   }
 
@@ -5094,7 +5131,7 @@ public class Config {
     if (isCiVisibilityAgentlessEnabled()) {
       return Intake.LOGS.getAgentlessUrl(this) + "logs";
     } else {
-      return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
+      return getAgentHttpUrl() + "/symdb/v1/input";
     }
   }
 
@@ -5809,9 +5846,7 @@ public class Config {
       //
       // There is some magic behind the scenes where the http url will be converted to UDS if the
       // target is a unix socket only
-      String baseUrl =
-          agentUrl.startsWith("unix:") ? "http://" + agentHost + ":" + agentPort : agentUrl;
-      return baseUrl + "/profiling/v1/input";
+      return getAgentHttpUrl() + "/profiling/v1/input";
     }
   }
 
@@ -5828,7 +5863,7 @@ public class Config {
       return getDefaultTelemetryUrl();
     } else {
       // when agentless are not set we send to the dd trace agent running locally
-      return "http://" + agentHost + ":" + agentPort + "/telemetry/proxy/api/v2/apmtelemetry";
+      return getAgentHttpUrl() + "/telemetry/proxy/api/v2/apmtelemetry";
     }
   }
 
@@ -5838,7 +5873,7 @@ public class Config {
       return "https://error-tracking-intake." + site + "/api/v2/errorsintake";
     } else {
       // when agentless are not set we send to the dd trace agent running locally
-      return "http://" + agentHost + ":" + agentPort + "/evp_proxy/v4/api/v2/errorsintake";
+      return getAgentHttpUrl() + "/evp_proxy/v4/api/v2/errorsintake";
     }
   }
 

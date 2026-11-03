@@ -113,7 +113,7 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     injectSysConfig("dd.rc.targets.key", new BigInteger(1, PUBLIC_KEY.toByteArray()).toString(16));
     poller =
         new DefaultConfigurationPoller(
-            Config.get(), "0.0.0", "", "", () -> configUrlSupplier.get(), okHttpClient, scheduler);
+            Config.get(), "0.0.0", () -> configUrlSupplier.get(), okHttpClient, scheduler);
   }
 
   // ----- Tests -----

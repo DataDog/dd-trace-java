@@ -1,5 +1,6 @@
 package datadog.common.container;
 
+import datadog.trace.config.inversion.ConfigHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
@@ -51,7 +52,14 @@ public class ContainerInfo {
   private static final String CGROUPV1_BASE_CONTROLLER = "memory";
   private static final String CGROUPV2_BASE_CONTROLLER = "";
 
+  /**
+   * Environment variable injected by the Datadog Cluster Agent admission controller into
+   * application containers. It is not meant to be set by users.
+   */
+  private static final String EXTERNAL_ENV_VARIABLE = "DD_EXTERNAL_ENV";
+
   private static final String ENTITY_ID;
+  private static final String EXTERNAL_ENV;
 
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public String containerId;
@@ -97,6 +105,23 @@ public class ContainerInfo {
     this.cGroups = cGroups;
   }
 
+  /**
+   * Returns the entity id to send as the {@code Datadog-Entity-ID} header: the container id when
+   * known, otherwise the cgroup inode, or {@code null} if neither is available.
+   */
+  public @Nullable String getEntityId() {
+    return ENTITY_ID;
+  }
+
+  /**
+   * Returns the value of the {@code DD_EXTERNAL_ENV} environment variable injected by the Datadog
+   * Cluster Agent admission controller, to be sent as the {@code Datadog-External-Env} header, or
+   * {@code null} if it is unset, empty or not a valid HTTP header value.
+   */
+  public @Nullable String getExternalEnv() {
+    return EXTERNAL_ENV;
+  }
+
   static {
     ContainerInfo containerInfo = new ContainerInfo();
     if (ContainerInfo.isRunningInContainer()) {
@@ -110,6 +135,7 @@ public class ContainerInfo {
     INSTANCE = containerInfo;
 
     ENTITY_ID = readEntityID(containerInfo, isHostCgroupNamespace(), DEFAULT_CGROUP_MOUNT_PATH);
+    EXTERNAL_ENV = sanitizeExternalEnv(ConfigHelper.env(EXTERNAL_ENV_VARIABLE));
   }
 
   static @Nullable String readEntityID(
@@ -122,6 +148,37 @@ public class ContainerInfo {
       return null;
     }
     return getCgroupInode(cgroupMountPath, containerInfo.getCGroups());
+  }
+
+  /**
+   * Returns the external environment value to forward to the Datadog Agent, or {@code null} if it
+   * should not be sent. The value is forwarded unparsed, after trimming surrounding whitespace and
+   * control characters; it is discarded when empty or when it contains characters that are not
+   * allowed in an HTTP header value.
+   */
+  static @Nullable String sanitizeExternalEnv(@Nullable String externalEnv) {
+    if (externalEnv == null) {
+      return null;
+    }
+
+    String value = externalEnv.trim();
+    if (value.isEmpty()) {
+      return null;
+    }
+
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if ((c < 0x20 && c != '\t') || c >= 0x7f) {
+        // the admission controller sets this value, so a malformed one silently disables this
+        // origin detection fallback
+        log.warn(
+            "Ignoring {} because it contains characters not allowed in an HTTP header value",
+            EXTERNAL_ENV_VARIABLE);
+        return null;
+      }
+    }
+
+    return value;
   }
 
   /** Checks if the agent is running in the host cgroup namespace. */
@@ -216,10 +273,6 @@ public class ContainerInfo {
 
   public static ContainerInfo get() {
     return INSTANCE;
-  }
-
-  public static String getEntityId() {
-    return ENTITY_ID;
   }
 
   public static boolean isRunningInContainer() {
