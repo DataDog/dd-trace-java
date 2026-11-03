@@ -1,4 +1,7 @@
 include:
+  - project: 'ddoghq/llm-validation-platform'
+    ref: '8c4f8ecd631e9de63730d1c4051569c296b16481' # Platform PR #48; keep aligned with LLMVAL_PLATFORM_REF.
+    file: '/ci/llm-validation.gitlab-ci.yml'
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
@@ -1543,3 +1546,23 @@ update_central_configurations_version_range_v2:
     LANGUAGE_NAME: "java"
     MULTIPLE_RELEASE_LINES: "false"
     SEND_ALIASES: "true"
+
+# Temporary compatibility experiment: normal instruction-change validation is not enabled.
+"llm validation":
+  rules:
+    - when: never
+  variables:
+    LLMVAL_PLATFORM_PROJECT: "ddoghq/llm-validation-platform"
+    LLMVAL_PLATFORM_REF: "8c4f8ecd631e9de63730d1c4051569c296b16481"
+    LLMVAL_GITHUB_REPO: "DataDog/dd-trace-java"
+    LLMVAL_BASE_REF: "master"
+
+"llm validation (setup smoke)":
+  allow_failure: true # Expected symlink rejection must not block normal Java checks.
+  variables:
+    LLMVAL_SETUP_ENABLED: "true" # For testing only; remove before merging.
+    LLMVAL_SETUP_PRESET: "java-setup-smoke"
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "nacho/llm-setup-symlink-smoke"'
+      when: on_success
+    - when: never
