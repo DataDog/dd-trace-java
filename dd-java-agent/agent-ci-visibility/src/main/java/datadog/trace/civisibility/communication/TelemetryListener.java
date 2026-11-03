@@ -127,7 +127,7 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
       this(metricCollector, SystemTimeSource.INSTANCE);
     }
 
-    Builder(CiVisibilityMetricCollector metricCollector, TimeSource timeSource) {
+    public Builder(CiVisibilityMetricCollector metricCollector, TimeSource timeSource) {
       this.metricCollector = metricCollector;
       this.timeSource = timeSource;
     }

@@ -19,6 +19,8 @@ import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.KnownTestsEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.api.civisibility.telemetry.tag.TestManagementEnabled;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.civisibility.communication.TelemetryListener;
 import datadog.trace.civisibility.config.api.dto.ConfigurationApiMoshi;
 import datadog.trace.civisibility.config.api.dto.Data;
@@ -61,6 +63,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final BackendApi backendApi;
   private final CiVisibilityMetricCollector metricCollector;
   private final Supplier<String> uuidGenerator;
+  private final TimeSource timeSource;
 
   private final JsonAdapter<Envelope<TracerEnvironment>> requestAdapter;
   private final JsonAdapter<Envelope<CiVisibilitySettings>> settingsResponseAdapter;
@@ -72,16 +75,22 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       testManagementTestsResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
-    this(backendApi, metricCollector, () -> RandomUtils.randomUUID().toString());
+    this(
+        backendApi,
+        metricCollector,
+        () -> RandomUtils.randomUUID().toString(),
+        SystemTimeSource.INSTANCE);
   }
 
   ConfigurationApiImpl(
       BackendApi backendApi,
       CiVisibilityMetricCollector metricCollector,
-      Supplier<String> uuidGenerator) {
+      Supplier<String> uuidGenerator,
+      TimeSource timeSource) {
     this.backendApi = backendApi;
     this.metricCollector = metricCollector;
     this.uuidGenerator = uuidGenerator;
+    this.timeSource = timeSource;
 
     Moshi moshi = ConfigurationApiMoshi.create();
     requestAdapter = moshi.adapter(envelopeOf(TracerEnvironment.class));
@@ -212,7 +221,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   public Map<String, Collection<TestFQN>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException {
     TelemetryListener telemetryListener =
-        new TelemetryListener.Builder(metricCollector)
+        new TelemetryListener.Builder(metricCollector, timeSource)
             .requestCount(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST)
             .requestErrors(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST_ERRORS)
             .requestDuration(CiVisibilityDistributionMetric.KNOWN_TESTS_REQUEST_MS)
@@ -223,7 +232,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     Map<String, Map<String, List<String>>> aggregateTests = new HashMap<>();
     String pageState = null;
     int pageNumber = 0;
-    long startNanos = System.nanoTime();
+    long startNanos = timeSource.getNanoTicks();
 
     do {
       pageNumber += 1;
@@ -268,7 +277,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             : 0;
     LOGGER.debug("Received {} known tests in total", knownTestsCount);
     metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, knownTestsCount);
-    long totalFetchMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+    long totalFetchMs = TimeUnit.NANOSECONDS.toMillis(timeSource.getNanoTicks() - startNanos);
     metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED, pageNumber);
     metricCollector.add(
         CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS, (int) totalFetchMs);

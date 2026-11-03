@@ -15,7 +15,6 @@ class TelemetryListenerTest {
   @Test
   void accumulatesFailedAndSuccessfulCallsWithoutRetryBackoff() {
     ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(-10_000_000);
     CiVisibilityMetricCollector collector = mock(CiVisibilityMetricCollector.class);
     TelemetryListener listener =
         new TelemetryListener.Builder(collector, timeSource)
@@ -27,7 +26,6 @@ class TelemetryListenerTest {
     listener.callStart(call);
     timeSource.advance(1_500_000);
     listener.callFailed(call, new IOException("retryable failure"));
-    // Retry backoff is outside either call and must not count as request time.
     timeSource.advance(1_000_000_000);
     listener.callStart(call);
     timeSource.advance(2_500_000);

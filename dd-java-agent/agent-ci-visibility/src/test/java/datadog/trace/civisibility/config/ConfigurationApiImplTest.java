@@ -7,7 +7,6 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.intThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,6 +23,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
 import datadog.trace.api.intake.Intake;
+import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.civisibility.config.api.dto.request.TracerEnvironment;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
@@ -58,6 +59,8 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
 
   private static final String REQUEST_UID = "1234";
 
+  private static final long REQUEST_DURATION_NANOS = TimeUnit.MILLISECONDS.toNanos(5);
+
   // Backend path each endpoint listens on (relative to /api/v2/).
   private static final Map<Endpoint, String> ENDPOINT_PATHS = new HashMap<>();
 
@@ -70,6 +73,7 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
   }
 
   private final List<JavaTestHttpServer> servers = new ArrayList<>();
+  private final ControllableTimeSource timeSource = new ControllableTimeSource();
 
   @AfterEach
   void closeServers() {
@@ -221,6 +225,7 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
                             "/api/v2/ci/libraries/tests",
                             api -> {
                               int current = requestCount.incrementAndGet();
+                              timeSource.advance(REQUEST_DURATION_NANOS);
                               sendResponseBody(api, responses.get(current - 1).getBytes());
                             })));
     servers.add(intakeServer);
@@ -248,14 +253,8 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
 
     verify(metricCollector).add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, 6);
     verify(metricCollector).add(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED, 3);
-    verify(metricCollector)
-        .add(
-            eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS),
-            intThat(duration -> duration >= 0));
-    verify(metricCollector)
-        .add(
-            eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS),
-            intThat(duration -> duration >= 0));
+    verify(metricCollector).add(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS, 15);
+    verify(metricCollector).add(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS, 15);
   }
 
   @ParameterizedTest
@@ -268,13 +267,15 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
                     h ->
                         h.prefix(
                             "/api/v2/ci/libraries/tests",
-                            api ->
-                                sendResponseBody(
-                                    api,
-                                    ("{\"data\":{\"attributes\":{\"tests\":"
-                                            + (empty ? "{}" : "{\"module\":{\"suite\":[\"test\"]}}")
-                                            + "}}}")
-                                        .getBytes()))));
+                            api -> {
+                              timeSource.advance(REQUEST_DURATION_NANOS);
+                              sendResponseBody(
+                                  api,
+                                  ("{\"data\":{\"attributes\":{\"tests\":"
+                                          + (empty ? "{}" : "{\"module\":{\"suite\":[\"test\"]}}")
+                                          + "}}}")
+                                      .getBytes());
+                            })));
     servers.add(server);
     CiVisibilityMetricCollector metricCollector = mock(CiVisibilityMetricCollector.class);
     ConfigurationApi configurationApi = givenConfigurationApi(server, true, true, metricCollector);
@@ -290,14 +291,8 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
     verify(metricCollector).add(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED, 1);
     verify(metricCollector)
         .add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, empty ? 0 : 1);
-    verify(metricCollector)
-        .add(
-            eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS),
-            intThat(duration -> duration >= 0));
-    verify(metricCollector)
-        .add(
-            eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS),
-            intThat(duration -> duration >= 0));
+    verify(metricCollector).add(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS, 5);
+    verify(metricCollector).add(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS, 5);
   }
 
   @ParameterizedTest
@@ -330,12 +325,7 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
         () -> configurationApi.getKnownTestsByModule(givenTracerEnvironment(null)));
 
     assertEquals(failingPage, requests.get());
-    verify(metricCollector, never())
-        .add(eq(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED), anyInt());
-    verify(metricCollector, never())
-        .add(eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS), anyInt());
-    verify(metricCollector, never())
-        .add(eq(CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS), anyInt());
+    verifyNoPaginationMetrics(metricCollector);
   }
 
   @Test
@@ -356,6 +346,10 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
         IOException.class,
         () -> configurationApi.getKnownTestsByModule(givenTracerEnvironment(null)));
 
+    verifyNoPaginationMetrics(metricCollector);
+  }
+
+  private static void verifyNoPaginationMetrics(CiVisibilityMetricCollector metricCollector) {
     verify(metricCollector, never())
         .add(eq(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED), anyInt());
     verify(metricCollector, never())
@@ -379,7 +373,7 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
         agentless
             ? givenIntakeApi(intakeServer.getAddress(), compression)
             : givenEvpProxy(intakeServer.getAddress(), compression);
-    return new ConfigurationApiImpl(api, metricCollector, () -> REQUEST_UID);
+    return new ConfigurationApiImpl(api, metricCollector, () -> REQUEST_UID, timeSource);
   }
 
   private JavaTestHttpServer givenBackendEndpoint(
