@@ -13,8 +13,10 @@ import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.Reason;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -37,9 +39,33 @@ class ExposureLoggingHook<T> implements Hook<T> {
   private final Supplier<DDEvaluator> evaluatorSupplier;
 
   private final AtomicBoolean warned = new AtomicBoolean();
+  private final ThreadLocal<List<ExposureScope>> evaluatorScopes = new ThreadLocal<>();
 
   ExposureLoggingHook(final Supplier<DDEvaluator> evaluatorSupplier) {
     this.evaluatorSupplier = evaluatorSupplier;
+  }
+
+  @Override
+  public Optional<EvaluationContext> before(
+      final HookContext<T> ctx, final Map<String, Object> hints) {
+    DDEvaluator evaluator = null;
+    try {
+      evaluator = this.evaluatorSupplier.get();
+      if (evaluator != null) {
+        evaluator.beginDependencyExposureScope(
+            ctx == null ? null : ctx.getFlagKey(), ctx == null ? null : ctx.getCtx());
+      }
+    } catch (final RuntimeException | LinkageError e) {
+      warnOnce(e);
+      evaluator = null;
+    }
+    List<ExposureScope> scopes = evaluatorScopes.get();
+    if (scopes == null) {
+      scopes = new ArrayList<>();
+      evaluatorScopes.set(scopes);
+    }
+    scopes.add(new ExposureScope(ctx, evaluator));
+    return Optional.empty();
   }
 
   @Override
@@ -48,26 +74,33 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final FlagEvaluationDetails<T> details,
       final Map<String, Object> hints) {
     try {
-      if (details == null) {
-        log.trace("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
-        return;
-      }
-      final DDEvaluator evaluator = this.evaluatorSupplier.get();
+      final DDEvaluator scopedEvaluator = popEvaluatorScope(ctx);
       final List<com.datadog.openfeature.internal.evaluation.FlagEvaluator.DependencyExposure>
           dependencyExposures =
-              evaluator == null
+              scopedEvaluator == null
                   ? java.util.Collections
                       .<com.datadog.openfeature.internal.evaluation.FlagEvaluator
                               .DependencyExposure>
                           emptyList()
-                  : evaluator.takeDependencyExposures(details.getFlagMetadata());
+                  : scopedEvaluator.endDependencyExposureScope();
+      if (details == null) {
+        log.trace("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
+        return;
+      }
+      final DDEvaluator evaluator =
+          scopedEvaluator == null ? this.evaluatorSupplier.get() : scopedEvaluator;
       if (details.getErrorCode() != null || Reason.ERROR.name().equals(details.getReason())) {
         log.trace("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
         return;
       }
       final EvaluationContext context = ctx == null ? null : ctx.getCtx();
       if (evaluator != null) {
-        evaluator.recordDependencyExposures(dependencyExposures, context);
+        try {
+          evaluator.recordDependencyExposures(dependencyExposures, context);
+        } catch (final RuntimeException | LinkageError e) {
+          // Dependency exposure delivery is best-effort and must not suppress the root exposure.
+          warnOnce(e);
+        }
       }
       final ImmutableMetadata metadata = details.getFlagMetadata();
       if (metadata == null) {
@@ -120,9 +153,41 @@ class ExposureLoggingHook<T> implements Hook<T> {
       }
     } catch (final RuntimeException | LinkageError e) {
       // Never let exposure reporting break flag evaluation.
-      if (this.warned.compareAndSet(false, true)) {
-        log.warn("Could not record a feature flag exposure; later failures are not logged", e);
-      }
+      warnOnce(e);
+    }
+  }
+
+  private DDEvaluator popEvaluatorScope(final HookContext<T> ctx) {
+    final List<ExposureScope> scopes = evaluatorScopes.get();
+    if (scopes == null || scopes.isEmpty()) {
+      return null;
+    }
+    final ExposureScope scope = scopes.get(scopes.size() - 1);
+    // The SDK invokes finally hooks even for hooks whose before method was skipped because an
+    // earlier before hook threw. Do not let that unmatched lifecycle pop an enclosing evaluation.
+    if (scope.context != ctx) {
+      return null;
+    }
+    scopes.remove(scopes.size() - 1);
+    if (scopes.isEmpty()) {
+      evaluatorScopes.remove();
+    }
+    return scope.evaluator;
+  }
+
+  private void warnOnce(final Throwable failure) {
+    if (this.warned.compareAndSet(false, true)) {
+      log.warn("Could not record a feature flag exposure; later failures are not logged", failure);
+    }
+  }
+
+  private static final class ExposureScope {
+    private final HookContext<?> context;
+    private final DDEvaluator evaluator;
+
+    private ExposureScope(final HookContext<?> context, final DDEvaluator evaluator) {
+      this.context = context;
+      this.evaluator = evaluator;
     }
   }
 }

@@ -83,11 +83,11 @@ public final class FlagEvaluator {
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
-    return evaluateWithDependencies(config, target, key, defaultValue, context).details;
+    return evaluateWithTrace(config, target, key, defaultValue, context).details;
   }
 
   /** Evaluates a root flag and returns all telemetry candidates produced by its graph. */
-  public <T> EvaluationResult<T> evaluateWithDependencies(
+  public <T> EvaluationResult<T> evaluateWithTrace(
       final ServerConfiguration config,
       final Class<T> target,
       final String key,

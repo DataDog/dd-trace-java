@@ -47,7 +47,7 @@ class DependentFlagEvaluatorTest {
                 allocation("accepted", dependencyRule("dependency", "on"), "selected", false))));
 
     final FlagEvaluator.EvaluationResult<Integer> evaluation =
-        evaluator.evaluateWithDependencies(
+        evaluator.evaluateWithTrace(
             config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
     final ProviderEvaluation<Integer> result = evaluation.details;
 
@@ -69,7 +69,7 @@ class DependentFlagEvaluatorTest {
                 allocation("broken", dependencyRule("dependency", "on"), "missing", false))));
 
     final FlagEvaluator.EvaluationResult<Integer> evaluation =
-        evaluator.evaluateWithDependencies(
+        evaluator.evaluateWithTrace(
             config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
     final ProviderEvaluation<Integer> result = evaluation.details;
 
@@ -86,7 +86,7 @@ class DependentFlagEvaluatorTest {
     flags.put("b", stringFlag("b", "on", dependencyRule("a", "on"), false));
 
     final FlagEvaluator.EvaluationResult<String> evaluation =
-        evaluator.evaluateWithDependencies(
+        evaluator.evaluateWithTrace(
             config(flags, null), String.class, "a", "default", new MutableContext("u"));
     final ProviderEvaluation<String> result = evaluation.details;
 
@@ -103,7 +103,7 @@ class DependentFlagEvaluatorTest {
     flags.put("b", stringFlag("b", "on", null, false));
 
     final FlagEvaluator.EvaluationResult<String> evaluation =
-        evaluator.evaluateWithDependencies(
+        evaluator.evaluateWithTrace(
             config(flags, new EvaluatorParams(1D)),
             String.class,
             "root",
@@ -134,7 +134,7 @@ class DependentFlagEvaluatorTest {
       flags.put("root", stringFlag("root", "on", rootRule, true));
 
       final FlagEvaluator.EvaluationResult<String> evaluation =
-          evaluator.evaluateWithDependencies(
+          evaluator.evaluateWithTrace(
               config(flags, new EvaluatorParams(2D)),
               String.class,
               "root",
@@ -259,7 +259,7 @@ class DependentFlagEvaluatorTest {
     context.add("gate", "closed");
 
     final FlagEvaluator.EvaluationResult<Integer> evaluation =
-        evaluator.evaluateWithDependencies(config(flags, null), Integer.class, "root", 0, context);
+        evaluator.evaluateWithTrace(config(flags, null), Integer.class, "root", 0, context);
     final ProviderEvaluation<Integer> result = evaluation.details;
 
     assertEquals(1, result.getValue());
@@ -272,7 +272,7 @@ class DependentFlagEvaluatorTest {
     missingFlags.put("root", stringFlag("root", "on", dependencyRule("missing", "on"), false));
     final FlagEvaluator.EvaluationResult<String> missingEvaluation =
         evaluator()
-            .evaluateWithDependencies(
+            .evaluateWithTrace(
                 config(missingFlags, null),
                 String.class,
                 "root",
@@ -285,7 +285,7 @@ class DependentFlagEvaluatorTest {
     invalidConfig.invalidFlags = singletonMap("missing", "invalid_flag");
     final FlagEvaluator.EvaluationResult<String> invalidEvaluation =
         evaluator()
-            .evaluateWithDependencies(
+            .evaluateWithTrace(
                 invalidConfig, String.class, "root", "default", new MutableContext("u"));
     assertEquals(ErrorCode.PARSE_ERROR, invalidEvaluation.details.getErrorCode());
     assertEquals(singletonList("missing:PARSE_ERROR"), evaluations(invalidEvaluation));
@@ -311,7 +311,7 @@ class DependentFlagEvaluatorTest {
             "root", Arrays.asList(noAssignment, allocation("fallback", null, "selected", false))));
 
     final FlagEvaluator.EvaluationResult<Integer> evaluation =
-        evaluator.evaluateWithDependencies(
+        evaluator.evaluateWithTrace(
             config(flags, null), Integer.class, "root", 0, new MutableContext("u"));
     final ProviderEvaluation<Integer> result = evaluation.details;
 

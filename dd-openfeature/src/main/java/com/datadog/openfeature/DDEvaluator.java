@@ -38,14 +38,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
-  private static final String DEPENDENCY_EXPOSURES_TOKEN = "__dd_dependency_exposures_token";
   private static final String EVALUATION_TELEMETRY_OPT_OUT = "dd_evaluation_telemetry_opt_out";
 
   /**
@@ -97,9 +94,12 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   private final Settings settings;
   private final FlagEvaluator core;
   private final ConfigurationStore configuration = new ConfigurationStore();
-  private final AtomicLong nextDependencyExposureToken = new AtomicLong();
-  private final Map<Long, List<FlagEvaluator.DependencyExposure>> pendingDependencyExposures =
-      new ConcurrentHashMap<>();
+  // Dependency exposures belong to one OpenFeature hook lifecycle. The hook opens a scope before
+  // provider evaluation and closes it in finallyAfter, so direct provider calls neither retain
+  // candidates nor expose an internal hand-off token through public flag metadata. A stack keeps
+  // nested evaluations on the same thread isolated.
+  private final ThreadLocal<Deque<DependencyExposureScope>> dependencyExposureScopes =
+      new ThreadLocal<>();
   private volatile FeatureFlagsRuntime runtime;
   private volatile boolean dependencyTelemetryOptOutEnabled;
   private volatile FlagEvalMetrics dependencyMetrics;
@@ -141,6 +141,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
   @Override
   public synchronized void shutdown() {
+    dependencyExposureScopes.remove();
     final FeatureFlagsRuntime released = this.runtime;
     this.runtime = null;
     if (released != null) {
@@ -174,7 +175,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final T defaultValue,
       final EvaluationContext context) {
     final FlagEvaluator.EvaluationResult<T> evaluation =
-        core.evaluateWithDependencies(configuration.get(), target, key, defaultValue, context);
+        core.evaluateWithTrace(configuration.get(), target, key, defaultValue, context);
     for (final FlagEvaluator.DependencyEvaluation dependency : evaluation.dependencyEvaluations) {
       try {
         publishDependencyEvaluation(dependency, context, evaluation.evaluationTimestampMs);
@@ -183,14 +184,12 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       }
     }
     final ProviderEvaluation<T> result = evaluation.details;
-    final List<FlagEvaluator.DependencyExposure> staged = evaluation.dependencyExposures;
-    if (staged == null || staged.isEmpty() || result.getErrorCode() != null) {
-      return result;
-    }
-    final long token = nextDependencyExposureToken.incrementAndGet();
-    pendingDependencyExposures.put(token, staged);
-    result.setFlagMetadata(
-        withLongMetadata(result.getFlagMetadata(), DEPENDENCY_EXPOSURES_TOKEN, token));
+    stageDependencyExposures(
+        key,
+        context,
+        result.getErrorCode() == null
+            ? evaluation.dependencyExposures
+            : Collections.<FlagEvaluator.DependencyExposure>emptyList());
     return result;
   }
 
@@ -339,19 +338,65 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
             features));
   }
 
-  List<FlagEvaluator.DependencyExposure> takeDependencyExposures(final ImmutableMetadata metadata) {
-    if (metadata == null) {
+  void beginDependencyExposureScope(
+      final String rootFlagKey, final EvaluationContext evaluationContext) {
+    Deque<DependencyExposureScope> scopes = dependencyExposureScopes.get();
+    if (scopes == null) {
+      scopes = new LinkedList<>();
+      dependencyExposureScopes.set(scopes);
+    }
+    scopes.push(new DependencyExposureScope(rootFlagKey, evaluationContext));
+  }
+
+  List<FlagEvaluator.DependencyExposure> endDependencyExposureScope() {
+    final Deque<DependencyExposureScope> scopes = dependencyExposureScopes.get();
+    if (scopes == null || scopes.isEmpty()) {
       return Collections.emptyList();
     }
-    final Object token = metadata.asUnmodifiableMap().get(DEPENDENCY_EXPOSURES_TOKEN);
-    if (!(token instanceof Long)) {
-      return Collections.emptyList();
+    final List<FlagEvaluator.DependencyExposure> exposures = scopes.pop().exposures;
+    if (scopes.isEmpty()) {
+      dependencyExposureScopes.remove();
     }
-    final List<FlagEvaluator.DependencyExposure> exposures =
-        pendingDependencyExposures.remove((Long) token);
-    return exposures == null
-        ? Collections.<FlagEvaluator.DependencyExposure>emptyList()
-        : exposures;
+    return exposures;
+  }
+
+  private void stageDependencyExposures(
+      final String rootFlagKey,
+      final EvaluationContext evaluationContext,
+      final List<FlagEvaluator.DependencyExposure> candidates) {
+    final Deque<DependencyExposureScope> scopes = dependencyExposureScopes.get();
+    if (scopes == null || scopes.isEmpty()) {
+      return;
+    }
+    final DependencyExposureScope scope = scopes.peek();
+    if (scope.sealed || !scope.matches(rootFlagKey, evaluationContext)) {
+      return;
+    }
+    // The first matching provider evaluation owns this hook lifecycle, even when it has no
+    // eligible candidates. This prevents a later direct or reentrant evaluation from filling the
+    // scope before finallyAfter consumes it.
+    scope.sealed = true;
+    if (candidates == null || candidates.isEmpty()) {
+      return;
+    }
+    List<FlagEvaluator.DependencyExposure> eligible = null;
+    for (final FlagEvaluator.DependencyExposure candidate : candidates) {
+      final ImmutableMetadata metadata = candidate.metadata;
+      final Map<String, Object> values =
+          metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
+      if (!Boolean.TRUE.equals(values.get(DO_LOG))
+          || !(values.get(ALLOCATION_KEY) instanceof String)
+          || candidate.variant == null) {
+        continue;
+      }
+      if (eligible == null) {
+        eligible = new ArrayList<>();
+      }
+      eligible.add(candidate);
+    }
+    if (eligible != null) {
+      scope.exposures = Collections.unmodifiableList(eligible);
+    }
   }
 
   void recordDependencyExposures(
@@ -396,34 +441,23 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     return value != null && value.isBoolean() && Boolean.TRUE.equals(value.asBoolean());
   }
 
-  private static ImmutableMetadata withLongMetadata(
-      final ImmutableMetadata metadata, final String key, final long value) {
-    final ImmutableMetadata.ImmutableMetadataBuilder builder = ImmutableMetadata.builder();
-    if (metadata != null) {
-      for (final Map.Entry<String, Object> entry : metadata.asUnmodifiableMap().entrySet()) {
-        addMetadata(builder, entry.getKey(), entry.getValue());
-      }
-    }
-    builder.addLong(key, value);
-    return builder.build();
-  }
+  private static final class DependencyExposureScope {
+    private final String rootFlagKey;
+    private final EvaluationContext evaluationContext;
+    private List<FlagEvaluator.DependencyExposure> exposures = Collections.emptyList();
+    private boolean sealed;
 
-  private static void addMetadata(
-      final ImmutableMetadata.ImmutableMetadataBuilder builder,
-      final String key,
-      final Object value) {
-    if (value instanceof String) {
-      builder.addString(key, (String) value);
-    } else if (value instanceof Boolean) {
-      builder.addBoolean(key, (Boolean) value);
-    } else if (value instanceof Integer) {
-      builder.addInteger(key, (Integer) value);
-    } else if (value instanceof Long) {
-      builder.addLong(key, (Long) value);
-    } else if (value instanceof Float) {
-      builder.addFloat(key, (Float) value);
-    } else if (value instanceof Double) {
-      builder.addDouble(key, (Double) value);
+    private DependencyExposureScope(
+        final String rootFlagKey, final EvaluationContext evaluationContext) {
+      this.rootFlagKey = rootFlagKey;
+      this.evaluationContext = evaluationContext;
+    }
+
+    private boolean matches(
+        final String evaluatedFlagKey, final EvaluationContext evaluatedContext) {
+      return rootFlagKey != null
+          && rootFlagKey.equals(evaluatedFlagKey)
+          && evaluationContext == evaluatedContext;
     }
   }
 
