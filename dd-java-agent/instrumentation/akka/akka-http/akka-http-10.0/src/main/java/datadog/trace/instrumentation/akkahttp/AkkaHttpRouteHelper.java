@@ -50,12 +50,14 @@ public final class AkkaHttpRouteHelper {
     if (frame == null) {
       return;
     }
+    boolean isMatch = throwable == null && matching instanceof PathMatcher.Matched;
     if (frame.parent == null) {
       CURRENT.remove();
+      frame.state.lastMatched = isMatch;
     } else {
       CURRENT.set(frame.parent);
     }
-    if (throwable != null || !(matching instanceof PathMatcher.Matched)) {
+    if (!isMatch) {
       return;
     }
     PathMatcher.Matched<?> matched = (PathMatcher.Matched<?>) matching;

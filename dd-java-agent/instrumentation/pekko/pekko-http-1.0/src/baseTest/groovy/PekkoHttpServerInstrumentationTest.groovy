@@ -146,6 +146,29 @@ abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpT
     '/route-alternative/6/accepted' | '/route-alternative/{param}/accepted'
   }
 
+  def "rejected paths do not produce server routes"() {
+    when:
+    def unmatched = client.newCall(new Request.Builder().url(address.resolve('/no-such-route').toString()).build()).execute()
+    assert unmatched.code() == 404
+    unmatched.close()
+    TEST_WRITER.waitForTraces(1)
+    def unmatchedSpan = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
+    TEST_WRITER.clear()
+    def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
+    assert response.code() == 404
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def serverSpan = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
+    serverSpan != null
+    serverSpan.getTag('http.route') == null
+    serverSpan.resourceName.toString() == unmatchedSpan.resourceName.toString()
+
+    where:
+    path << ['/route-alternative/6/other', '/route-async/4/other']
+  }
+
   def "concurrent requests retain their own routes across asynchronous matching and rejection"() {
     given:
     def counter = new AtomicInteger()

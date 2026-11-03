@@ -64,6 +64,7 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final HttpResponse response) {
     final AgentSpan span = fromContext(context);
+    PekkoHttpRouteState.dropRejectedRoute(context, span);
     try {
       DECORATE.onResponse(span, response);
       DECORATE.beforeFinish(context);
@@ -74,6 +75,7 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final Throwable t) {
     final AgentSpan span = fromContext(context);
+    PekkoHttpRouteState.dropRejectedRoute(context, span);
     try {
       DECORATE.onError(span, t);
       span.setHttpStatusCode(500);

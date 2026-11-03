@@ -64,6 +64,7 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final HttpResponse response) {
     final AgentSpan span = fromContext(context);
+    AkkaHttpRouteState.dropRejectedRoute(context, span);
     DECORATE.onResponse(span, response);
     DECORATE.beforeFinish(context);
 
@@ -72,6 +73,7 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final Throwable t) {
     final AgentSpan span = fromContext(context);
+    AkkaHttpRouteState.dropRejectedRoute(context, span);
     DECORATE.onError(span, t);
     span.setHttpStatusCode(500);
     DECORATE.beforeFinish(context);
