@@ -206,6 +206,7 @@ class OtelEnvMetricCollectorImplTest extends DDJavaSpecification {
     "traces exporter  | OTEL_TRACES_EXPORTER  | zipkin                | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_traces_exporter ",
     "logs exporter    | OTEL_LOGS_EXPORTER    | zipkin                | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_logs_exporter   ",
     "traces list      | OTEL_TRACES_EXPORTER  | 'otlp,zipkin,console' | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_traces_exporter ",
+    // none combined with another exporter is not expected input from a customer
     "traces none+otlp | OTEL_TRACES_EXPORTER  | 'none,otlp'           | count      | 1           | tracers         | otel.env.unsupported | config_opentelemetry:otel_traces_exporter "
   })
   void unsupportedMetric(

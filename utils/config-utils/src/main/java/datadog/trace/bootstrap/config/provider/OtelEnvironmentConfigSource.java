@@ -616,7 +616,15 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     return Exporter.UNSUPPORTED;
   }
 
-  /** Exporter selection outcomes, in increasing order of precedence. */
+  /**
+   * Exporter selection outcomes, in increasing order of precedence.
+   *
+   * <p>When a list holds several exporters, the highest declared one wins. This single-winner
+   * resolution only works because the tracer currently acts on just {@code otlp} (and {@code none},
+   * to disable export). Combining {@code none} with another exporter is not expected, so {@code
+   * otlp} winning over {@code none} is a deliberate choice rather than an OTel rule. Supporting
+   * more exporters would require revisiting how a list is resolved.
+   */
   private enum Exporter {
     UNSET,
     UNSUPPORTED,

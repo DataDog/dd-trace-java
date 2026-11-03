@@ -410,15 +410,14 @@ class OtelEnvironmentConfigSourceTest {
   }
 
   @TableTest({
-    "scenario                       | exporters           | DD_TRACE_OTEL_ENABLED=true | DD_TRACE_OTEL_ENABLED=false",
-    "unset                          |                     | DATADOG                    | DATADOG                    ",
-    "empty                          | ''                  | DATADOG                    | DATADOG                    ",
-    "otlp                           | otlp                | OTLP                       | DATADOG                    ",
-    "otlp with unsupported          | 'otlp,console'      | OTLP                       | DATADOG                    ",
-    "none                           | none                | DISABLED                   | DATADOG                    ",
-    "none with unsupported          | 'none,console'      | DISABLED                   | DATADOG                    ",
-    "none with otlp                 | 'none,otlp'         | OTLP                       | DATADOG                    ",
-    "none with otlp and unsupported | 'none,otlp,console' | OTLP                       | DATADOG                    "
+    "scenario              | exporters      | DD_TRACE_OTEL_ENABLED=true | DD_TRACE_OTEL_ENABLED=false",
+    "unset                 |                | DATADOG                    | DATADOG                    ",
+    "empty                 | ''             | DATADOG                    | DATADOG                    ",
+    "otlp                  | otlp           | OTLP                       | DATADOG                    ",
+    "otlp with unsupported | 'otlp,console' | OTLP                       | DATADOG                    ",
+    "none                  | none           | DISABLED                   | DATADOG                    ",
+    // none combined with another exporter is not expected input from a customer
+    "none with otlp        | 'none,otlp'    | OTLP                       | DATADOG                    "
   })
   // keeps the OpenTelemetry mapping active when DD_TRACE_OTEL_ENABLED=false
   @WithConfig(key = METRICS_OTEL_ENABLED, value = "true")
@@ -434,15 +433,14 @@ class OtelEnvironmentConfigSourceTest {
   }
 
   @TableTest({
-    "scenario                       | exporters           | DD_METRICS_OTEL_ENABLED=true | DD_METRICS_OTEL_ENABLED=false",
-    "unset                          |                     | OTLP                         | DATADOG                      ",
-    "empty                          | ''                  | OTLP                         | DATADOG                      ",
-    "otlp                           | otlp                | OTLP                         | DATADOG                      ",
-    "otlp with unsupported          | 'otlp,console'      | OTLP                         | DATADOG                      ",
-    "none                           | none                | DISABLED                     | DISABLED                     ",
-    "none with unsupported          | 'none,console'      | DISABLED                     | DISABLED                     ",
-    "none with otlp                 | 'none,otlp'         | OTLP                         | DATADOG                      ",
-    "none with otlp and unsupported | 'none,otlp,console' | OTLP                         | DATADOG                      "
+    "scenario              | exporters      | DD_METRICS_OTEL_ENABLED=true | DD_METRICS_OTEL_ENABLED=false",
+    "unset                 |                | OTLP                         | DATADOG                      ",
+    "empty                 | ''             | OTLP                         | DATADOG                      ",
+    "otlp                  | otlp           | OTLP                         | DATADOG                      ",
+    "otlp with unsupported | 'otlp,console' | OTLP                         | DATADOG                      ",
+    "none                  | none           | DISABLED                     | DISABLED                     ",
+    // none combined with another exporter is not expected input from a customer
+    "none with otlp        | 'none,otlp'    | OTLP                         | DATADOG                      "
   })
   // keeps the OpenTelemetry mapping active when DD_METRICS_OTEL_ENABLED=false
   @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
@@ -458,15 +456,14 @@ class OtelEnvironmentConfigSourceTest {
   }
 
   @TableTest({
-    "scenario                       | exporters           | DD_LOGS_OTEL_ENABLED=true | DD_LOGS_OTEL_ENABLED=false",
-    "unset                          |                     | OTLP                      | DISABLED                  ",
-    "empty                          | ''                  | OTLP                      | DISABLED                  ",
-    "otlp                           | otlp                | OTLP                      | DISABLED                  ",
-    "otlp with unsupported          | 'otlp,console'      | OTLP                      | DISABLED                  ",
-    "none                           | none                | DISABLED                  | DISABLED                  ",
-    "none with unsupported          | 'none,console'      | DISABLED                  | DISABLED                  ",
-    "none with otlp                 | 'none,otlp'         | OTLP                      | DISABLED                  ",
-    "none with otlp and unsupported | 'none,otlp,console' | OTLP                      | DISABLED                  "
+    "scenario              | exporters      | DD_LOGS_OTEL_ENABLED=true | DD_LOGS_OTEL_ENABLED=false",
+    "unset                 |                | OTLP                      | DISABLED                  ",
+    "empty                 | ''             | OTLP                      | DISABLED                  ",
+    "otlp                  | otlp           | OTLP                      | DISABLED                  ",
+    "otlp with unsupported | 'otlp,console' | OTLP                      | DISABLED                  ",
+    "none                  | none           | DISABLED                  | DISABLED                  ",
+    // none combined with another exporter is not expected input from a customer
+    "none with otlp        | 'none,otlp'    | OTLP                      | DISABLED                  "
   })
   // keeps the OpenTelemetry mapping active when DD_LOGS_OTEL_ENABLED=false
   @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
@@ -513,10 +510,10 @@ class OtelEnvironmentConfigSourceTest {
   }
 
   @TableTest({
-    "scenario           | signal  | exporters       | equivalent ",
-    "padded otlp        | traces  | ' otlp '        | otlp       ",
-    "padded none        | metrics | 'none '         | none       ",
-    "padded list values | logs    | ' otlp , none ' | 'otlp,none'"
+    "scenario           | signal  | exporters          | equivalent    ",
+    "padded otlp        | traces  | ' otlp '           | otlp          ",
+    "padded none        | metrics | 'none '            | none          ",
+    "padded list values | logs    | ' otlp , console ' | 'otlp,console'"
   })
   void exporterNamesAreTrimmed(String signal, String exporters, String equivalent) {
     assertSameMapping(signal, exporters, equivalent);
