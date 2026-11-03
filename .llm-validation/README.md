@@ -4,7 +4,7 @@ Temporary experiment for [LLM platform PR #48](https://github.com/ddoghq/llm-val
 This is one plan-only case with one initial run, not a calibrated Java benchmark.
 
 The inventory declares `.claude/skills`, including its existing symlinks, and all shared
-`.agents/skills` content. Platform commit `1f97e819f5f93a2d587d16a09ecf37b7776665ea`
+`.agents/skills` content. Platform commit `2ba4fe55aa62a6c5bea1b5936e5e988f009775fa`
 supports these repository-internal links: the candidate preserves them, while the baseline
 removes both the declared links and their target files. Existing guidance remains unchanged.
 The setup job should now progress beyond inventory validation and exercise the case live.
