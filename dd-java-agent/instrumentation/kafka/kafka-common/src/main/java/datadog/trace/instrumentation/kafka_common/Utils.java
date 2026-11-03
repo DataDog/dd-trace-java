@@ -19,6 +19,22 @@ public final class Utils {
             }
           };
 
+  /**
+   * Reads the produce time a producer wrote to its header, as 8 big-endian bytes.
+   *
+   * @throws IllegalArgumentException if {@code bytes} isn't 8 bytes long
+   */
+  public static long readProducedTime(byte[] bytes) {
+    if (bytes.length != Long.BYTES) {
+      throw new IllegalArgumentException("Expected 8 bytes, got " + bytes.length);
+    }
+    long time = 0;
+    for (byte b : bytes) {
+      time = (time << 8) | (b & 0xff);
+    }
+    return time;
+  }
+
   // this method is used in kafka-clients and kafka-streams instrumentations
   public static long computePayloadSizeBytes(ConsumerRecord<?, ?> val) {
     long headersSize = 0;
