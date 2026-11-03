@@ -45,6 +45,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   private static final ContextKey<AgentSpan> CLIENT_SPAN_KEY =
       ContextKey.named("dd-http-client-span");
+  private static final ContextKey<Context> CLIENT_PARENT_CONTEXT_KEY =
+      ContextKey.named("dd-http-client-parent-context");
 
   private static final String DATADOG_META_LANG_HEADER_NAME = "Datadog-Meta-Lang";
   private static final String DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME = "DD-Client-Library-Language";
@@ -61,8 +63,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   private static final boolean APPSEC_RASP_ENABLED = Config.get().isAppSecRaspEnabled();
 
   /** Suppresses duplicate transport spans when OpenTelemetry semantics are enabled. */
-  public static ContextScope suppressNestedClientSpans(final AgentSpan span) {
-    return OTEL_SEMANTICS ? Context.current().with(CLIENT_SPAN_KEY, span).attach() : null;
+  public static ContextScope suppressNestedClientSpans(
+      final AgentSpan span, final Context parentContext) {
+    return OTEL_SEMANTICS
+        ? Context.current()
+            .with(CLIENT_SPAN_KEY, span)
+            .with(CLIENT_PARENT_CONTEXT_KEY, parentContext)
+            .attach()
+        : null;
+  }
+
+  /** Returns the context to restore after the owning client's response headers arrive. */
+  public static Context nestedClientParentContext(final Context context) {
+    return context.get(CLIENT_PARENT_CONTEXT_KEY);
   }
 
   /** Returns whether {@code span} owns the HTTP request represented by {@code context}. */
