@@ -247,7 +247,7 @@
 /dd-java-agent/instrumentation/rs/**/MessageBodyWriterInstrumentation.java  @DataDog/apm-java @DataDog/asm-java
 
 # netty-4.1 blocking glue
-/dd-java-agent/instrumentation/netty/netty-4.1/src/test/java/**/SuppressedClientSecurityForkedTest.java  @DataDog/apm-java @DataDog/apm-idm-java @DataDog/asm-java
+/dd-java-agent/instrumentation/netty/netty-4.1/src/test/java/**/SuppressedClientSpanForkedTest.java  @DataDog/apm-java @DataDog/apm-idm-java @DataDog/asm-java
 /dd-java-agent/instrumentation/netty/netty-4.1/src/main/java/**/NettyMultipartHelper.java                   @DataDog/apm-java @DataDog/asm-java
 /dd-java-agent/instrumentation/netty/netty-4.1/src/main/java/**/HttpPostRequestDecoderInstrumentation.java  @DataDog/apm-java @DataDog/asm-java
 /dd-java-agent/instrumentation/netty/**/server/BlockingResponseHandler.java                                 @DataDog/apm-java @DataDog/asm-java
