@@ -51,6 +51,15 @@ public class InternalStreamConnectionInstrumentation extends InstrumenterModule.
             .and(named("writeAsync"))
             .and(takesArgument(1, named("com.mongodb.internal.async.SingleResultCallback"))),
         InternalStreamConnectionInstrumentation.class.getName() + "$WriteAsyncAdvice");
+
+    // Since driver 5.2, sendMessageAsync writes directly to the stream instead of calling
+    // writeAsync.
+    // Preserve the parent before the write completes and the response read is registered.
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("sendMessageAsync"))
+            .and(takesArgument(3, named("com.mongodb.internal.async.SingleResultCallback"))),
+        InternalStreamConnectionInstrumentation.class.getName() + "$SendMessageAsyncAdvice");
   }
 
   private static class OpenAsyncAdvice {
@@ -80,6 +89,24 @@ public class InternalStreamConnectionInstrumentation extends InstrumenterModule.
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void exit(
+        @Advice.Enter final SingleResultCallback<Object> callback,
+        @Advice.Thrown Throwable thrown) {
+      if (null != thrown) {
+        CallbackWrapper.cancel(callback);
+      }
+    }
+  }
+
+  private static class SendMessageAsyncAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static SingleResultCallback<Object> wrap(
+        @Advice.Argument(value = 3, readOnly = false) SingleResultCallback<Object> callback) {
+      callback = CallbackWrapper.wrapIfRequired(callback);
+      return callback;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
         @Advice.Enter final SingleResultCallback<Object> callback,
         @Advice.Thrown Throwable thrown) {
