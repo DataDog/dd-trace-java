@@ -125,7 +125,10 @@ function start_server {
 
     if [ "$server_type" = "jar" ]; then
       echo "starting server: java $run_java_args -jar $server_package"
-      { /usr/bin/time $time_flag java $run_java_args -jar $server_package ; } 2> $server_output  &
+      # Server stdout -> /dev/null: Spring logs the /oups crash-endpoint RuntimeException to stdout
+      # per request; under load that leaked 790K stack traces (~5G) into the run log and got the task
+      # killed. Readiness is HTTP-polled and the pid comes from lsof, so stdout is not needed here.
+      { /usr/bin/time $time_flag java $run_java_args -jar $server_package ; } 2> $server_output 1>/dev/null &
     else
       # make a temp directory to hold the unzipped server
       unzip_temp=`mktemp -d`
@@ -158,7 +161,7 @@ function start_server {
       fi
 
       echo "starting server: ${utility_cmd}"
-      { /usr/bin/time $time_flag ${utility_cmd} ; } 2> $server_output &
+      { /usr/bin/time $time_flag ${utility_cmd} ; } 2> $server_output 1>/dev/null &
     fi
 
     # Block until the server actually SERVES HTTP 200 -- not just binds the TCP port. The java agent
