@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
+import static datadog.trace.api.KnownTags.DD_DBM_TRACE_INJECTED_ID;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DBM_TRACE_PREPARED_STATEMENTS;
@@ -91,7 +91,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
                     .singleSpanBuilder("java-jdbc-prepared_statement", DATABASE_QUERY)
                     .withSpanId(spanID)
                     .start();
-            span.setTag(DBM_TRACE_INJECTED, true);
+            span.setTag(DD_DBM_TRACE_INJECTED_ID, true);
           } else if (DECORATE.isPostgres(dbInfo) && DBM_TRACE_PREPARED_STATEMENTS) {
             span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
             DECORATE.setApplicationName(span, connection);
