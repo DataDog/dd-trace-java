@@ -23,6 +23,11 @@ public class TextMapInjectAdapter implements TextMapInjectAdapterInterface {
     replace(headers, key, value.toBytes());
   }
 
+  @Override
+  public void setAscii(final Headers headers, final String key, final byte[] value) {
+    replace(headers, key, value);
+  }
+
   private static void replace(Headers headers, String key, byte[] value) {
     // Codecs can write the same key, so replace it, but probe first: remove allocates an iterator,
     // lastHeader doesn't, and the key is usually not there yet
