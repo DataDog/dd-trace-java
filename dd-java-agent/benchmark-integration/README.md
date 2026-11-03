@@ -122,8 +122,11 @@ PetClinic is pinned to a specific commit in `fetch-petclinic.sh` (bump deliberat
 - **Allocation is the anchor; throughput is directional.** Allocation trends are stable across runs;
   throughput on a shared dev box is noisy and swings with the CPU-contention regime — read it as a
   direction, not a precise number.
-- Allocation here is **TLAB-sampled** (via JFR) — authoritative for *ratios* (which thread, which
-  package), with only an *estimated* total. That's sufficient for a macro trend.
+- Allocation here is **sampled** by JFR (`jdk.ObjectAllocationSample`, throttled); the analyzer
+  weights each sample by the bytes it stands for, so the splits (which thread, which package) are
+  by estimated bytes, not by sample count, and the total is an estimate. That's sufficient for a
+  macro trend.
+- Young GCs per 1,000 requests need JDK 9+ (unified GC logging); on JDK 8 that column is empty.
 - Run on an otherwise-**quiet machine**, and respect the warmup (the harness warms each endpoint
   before measuring). Results depend on the machine's core count / heap regime.
 
