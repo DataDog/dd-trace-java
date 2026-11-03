@@ -169,26 +169,30 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
         getOtelProperty(
             "otel.traces.span.metrics.enabled", "dd." + OTEL_TRACES_SPAN_METRICS_ENABLED));
 
-    Exporter exporter = selectExporter("traces");
-    if (exporter == Exporter.OTLP) { // traces defaults to non-OTLP (i.e. datadog)
-      capture(TRACE_OTEL_EXPORTER, "otlp");
-      capture(
-          OTLP_TRACES_HEADERS,
-          getOtelOtlpProperty("traces", "headers", "dd." + OTLP_TRACES_HEADERS));
-      capture(
-          OTLP_TRACES_PROTOCOL,
-          getOtelOtlpProperty("traces", "protocol", "dd." + OTLP_TRACES_PROTOCOL));
-      capture(
-          OTLP_TRACES_COMPRESSION,
-          getOtelOtlpProperty("traces", "compression", "dd." + OTLP_TRACES_COMPRESSION));
-      capture(
-          OTLP_TRACES_TIMEOUT,
-          getOtelOtlpProperty("traces", "timeout", "dd." + OTLP_TRACES_TIMEOUT));
-      capture(
-          OTLP_TRACES_ENDPOINT,
-          getOtelOtlpProperty("traces", "endpoint", "dd." + OTLP_TRACES_ENDPOINT));
-    } else if (exporter == Exporter.NONE) {
-      capture(TRACE_ENABLED, "false");
+    switch (selectExporter("traces")) {
+      case OTLP: // traces defaults to non-OTLP (i.e. datadog)
+        capture(TRACE_OTEL_EXPORTER, "otlp");
+        capture(
+            OTLP_TRACES_HEADERS,
+            getOtelOtlpProperty("traces", "headers", "dd." + OTLP_TRACES_HEADERS));
+        capture(
+            OTLP_TRACES_PROTOCOL,
+            getOtelOtlpProperty("traces", "protocol", "dd." + OTLP_TRACES_PROTOCOL));
+        capture(
+            OTLP_TRACES_COMPRESSION,
+            getOtelOtlpProperty("traces", "compression", "dd." + OTLP_TRACES_COMPRESSION));
+        capture(
+            OTLP_TRACES_TIMEOUT,
+            getOtelOtlpProperty("traces", "timeout", "dd." + OTLP_TRACES_TIMEOUT));
+        capture(
+            OTLP_TRACES_ENDPOINT,
+            getOtelOtlpProperty("traces", "endpoint", "dd." + OTLP_TRACES_ENDPOINT));
+        break;
+      case NONE:
+        capture(TRACE_ENABLED, "false");
+        break;
+      default:
+        break;
     }
   }
 
@@ -209,31 +213,36 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
             "otel.instrumentation.runtime-telemetry.emit-experimental-metrics",
             "dd." + METRICS_OTEL_EXPERIMENTAL_ENABLED));
 
-    Exporter exporter = selectExporter("metrics");
-    if (exporter == Exporter.UNSET || exporter == Exporter.OTLP) { // metrics defaults to OTLP
-      capture(METRICS_OTEL_EXPORTER, "otlp");
-      capture(
-          OTLP_METRICS_HEADERS,
-          getOtelOtlpProperty("metrics", "headers", "dd." + OTLP_METRICS_HEADERS));
-      capture(
-          OTLP_METRICS_PROTOCOL,
-          getOtelOtlpProperty("metrics", "protocol", "dd." + OTLP_METRICS_PROTOCOL));
-      capture(
-          OTLP_METRICS_COMPRESSION,
-          getOtelOtlpProperty("metrics", "compression", "dd." + OTLP_METRICS_COMPRESSION));
-      capture(
-          OTLP_METRICS_TIMEOUT,
-          getOtelOtlpProperty("metrics", "timeout", "dd." + OTLP_METRICS_TIMEOUT));
-      capture(
-          OTLP_METRICS_ENDPOINT,
-          getOtelOtlpProperty("metrics", "endpoint", "dd." + OTLP_METRICS_ENDPOINT));
-      capture(
-          OTLP_METRICS_TEMPORALITY_PREFERENCE,
-          getOtelProperty(
-              "otel.exporter.otlp.metrics.temporality.preference",
-              "dd." + OTLP_METRICS_TEMPORALITY_PREFERENCE));
-    } else if (exporter == Exporter.NONE) {
-      capture(RUNTIME_METRICS_ENABLED, "false");
+    switch (selectExporter("metrics")) {
+      case UNSET: // metrics defaults to OTLP
+      case OTLP:
+        capture(METRICS_OTEL_EXPORTER, "otlp");
+        capture(
+            OTLP_METRICS_HEADERS,
+            getOtelOtlpProperty("metrics", "headers", "dd." + OTLP_METRICS_HEADERS));
+        capture(
+            OTLP_METRICS_PROTOCOL,
+            getOtelOtlpProperty("metrics", "protocol", "dd." + OTLP_METRICS_PROTOCOL));
+        capture(
+            OTLP_METRICS_COMPRESSION,
+            getOtelOtlpProperty("metrics", "compression", "dd." + OTLP_METRICS_COMPRESSION));
+        capture(
+            OTLP_METRICS_TIMEOUT,
+            getOtelOtlpProperty("metrics", "timeout", "dd." + OTLP_METRICS_TIMEOUT));
+        capture(
+            OTLP_METRICS_ENDPOINT,
+            getOtelOtlpProperty("metrics", "endpoint", "dd." + OTLP_METRICS_ENDPOINT));
+        capture(
+            OTLP_METRICS_TEMPORALITY_PREFERENCE,
+            getOtelProperty(
+                "otel.exporter.otlp.metrics.temporality.preference",
+                "dd." + OTLP_METRICS_TEMPORALITY_PREFERENCE));
+        break;
+      case NONE:
+        capture(RUNTIME_METRICS_ENABLED, "false");
+        break;
+      default:
+        break;
     }
   }
 
@@ -249,18 +258,26 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(
         LOGS_OTEL_BATCH_SIZE,
         getOtelProperty("otel.blrp.max.export.batch.size", "dd." + LOGS_OTEL_BATCH_SIZE));
-    Exporter exporter = selectExporter("logs");
-    if (exporter == Exporter.UNSET || exporter == Exporter.OTLP) { // logs defaults to OTLP
-      capture(LOGS_OTEL_EXPORTER, "otlp");
-      capture(OTLP_LOGS_HEADERS, getOtelOtlpProperty("logs", "headers", "dd." + OTLP_LOGS_HEADERS));
-      capture(
-          OTLP_LOGS_PROTOCOL, getOtelOtlpProperty("logs", "protocol", "dd." + OTLP_LOGS_PROTOCOL));
-      capture(
-          OTLP_LOGS_COMPRESSION,
-          getOtelOtlpProperty("logs", "compression", "dd." + OTLP_LOGS_COMPRESSION));
-      capture(OTLP_LOGS_TIMEOUT, getOtelOtlpProperty("logs", "timeout", "dd." + OTLP_LOGS_TIMEOUT));
-      capture(
-          OTLP_LOGS_ENDPOINT, getOtelOtlpProperty("logs", "endpoint", "dd." + OTLP_LOGS_ENDPOINT));
+    switch (selectExporter("logs")) {
+      case UNSET: // logs defaults to OTLP
+      case OTLP:
+        capture(LOGS_OTEL_EXPORTER, "otlp");
+        capture(
+            OTLP_LOGS_HEADERS, getOtelOtlpProperty("logs", "headers", "dd." + OTLP_LOGS_HEADERS));
+        capture(
+            OTLP_LOGS_PROTOCOL,
+            getOtelOtlpProperty("logs", "protocol", "dd." + OTLP_LOGS_PROTOCOL));
+        capture(
+            OTLP_LOGS_COMPRESSION,
+            getOtelOtlpProperty("logs", "compression", "dd." + OTLP_LOGS_COMPRESSION));
+        capture(
+            OTLP_LOGS_TIMEOUT, getOtelOtlpProperty("logs", "timeout", "dd." + OTLP_LOGS_TIMEOUT));
+        capture(
+            OTLP_LOGS_ENDPOINT,
+            getOtelOtlpProperty("logs", "endpoint", "dd." + OTLP_LOGS_ENDPOINT));
+        break;
+      default:
+        break;
     }
   }
 
@@ -545,33 +562,35 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       return Exporter.UNSET;
     }
 
-    List<String> names = new ArrayList<>();
+    String envVar = toEnvVar(sysProp);
     Exporter selected = Exporter.UNSET;
+    List<String> selectedNames = new ArrayList<>(); // entries mapping to the current selection
+    boolean anyIgnored = false;
     for (String entry : parseOtelList(value)) {
       String name = entry.trim();
       if (name.isEmpty()) {
         continue;
       }
-      names.add(name);
-      Exporter exporter = parseExporter(name);
-      if (exporter.compareTo(selected) > 0) {
-        selected = exporter;
-      }
-    }
-
-    String envVar = toEnvVar(sysProp);
-    boolean anyIgnored = false;
-    for (String name : names) {
       Exporter exporter = parseExporter(name);
       if (exporter == Exporter.UNSUPPORTED) {
         log.warn("{}={} is not supported", envVar, name);
         anyIgnored = true;
-      } else if (exporter != selected) {
-        log.warn(
-            "{}: ignoring {} combined with {}",
-            envVar,
-            name,
-            selected.name().toLowerCase(Locale.ROOT));
+        if (selected == Exporter.UNSET) {
+          selected = Exporter.UNSUPPORTED; // unsupported-only lists disable the export
+        }
+      } else if (exporter.compareTo(selected) > 0) {
+        // a higher precedence entry replaces the entries selected so far
+        for (String ignored : selectedNames) {
+          warnIgnored(envVar, ignored, exporter);
+        }
+        anyIgnored |= !selectedNames.isEmpty();
+        selectedNames.clear();
+        selectedNames.add(name);
+        selected = exporter;
+      } else if (exporter == selected) {
+        selectedNames.add(name);
+      } else {
+        warnIgnored(envVar, name, selected);
         anyIgnored = true;
       }
     }
@@ -580,6 +599,11 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
           .setUnsupportedOtelEnvVarMetric(toEnvVarLowerCase(sysProp));
     }
     return selected;
+  }
+
+  private static void warnIgnored(String envVar, String name, Exporter selected) {
+    log.warn(
+        "{}: ignoring {} combined with {}", envVar, name, selected.name().toLowerCase(Locale.ROOT));
   }
 
   private static Exporter parseExporter(String name) {
