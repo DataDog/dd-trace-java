@@ -3,7 +3,6 @@ package datadog.trace.api;
 import datadog.apicontract.Restricted;
 import datadog.trace.api.function.NoEscape;
 import datadog.trace.api.function.TriConsumer;
-import datadog.trace.api.internal.VisibleForTesting;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
 import java.util.Arrays;
@@ -1235,40 +1234,28 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   private boolean frozen;
 
-  /**
-   * Optional frozen parent for read-through. Reads that miss locally fall through to the parent
-   * chain (each store reads through to the parent's matching store). Must be frozen when attached,
-   * so it is safely shareable. Not final only so {@link #clear()} can detach it (to null); it is
-   * otherwise fixed at construction and never re-pointed. Package-visible so same-package tests can
-   * assert attach/detach directly.
-   */
-  @VisibleForTesting TagMap parent;
-
   public TagMap() {
     this((TagMap) null);
   }
 
   /**
-   * Fresh mutable map that reads through to {@code parent} (may be null). The parent is set here at
-   * construction and never re-pointed (only detached to null by {@link #clear()}), so read-through
-   * optimizations can treat it as fixed.
+   * Fresh mutable map that reads through to {@code parent} (may be null). The parent lives in the
+   * stores' read-through links, fixed at construction and only dropped by {@link #clear()}, so
+   * read-through optimizations can treat it as fixed.
    */
   private TagMap(TagMap parent) {
     this.knownStore = IdStore.create(parent);
     this.nameStore = HashStore.inheritedFrom(parent);
     this.nameStoreBorrowed = this.nameStore != null;
     this.frozen = false;
-    this.parent = parent;
   }
 
   /** A map over {@code knownStore} and {@code nameStore}: a copy ({@link #copy()}) or a view. */
-  private TagMap(
-      TagMap parent, IdStore knownStore, HashStore nameStore, boolean nameStoreBorrowed) {
+  private TagMap(IdStore knownStore, HashStore nameStore, boolean nameStoreBorrowed) {
     this.knownStore = knownStore;
     this.nameStore = nameStore;
     this.nameStoreBorrowed = nameStoreBorrowed;
     this.frozen = false;
-    this.parent = parent;
   }
 
   /** A frozen map over the empty parentless store {@code knownStore}: {@link #EMPTY}. */
@@ -1277,7 +1264,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.nameStore = null;
     this.nameStoreBorrowed = false;
     this.frozen = true;
-    this.parent = null;
   }
 
   /**
@@ -1292,7 +1278,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    */
   @Restricted(allowedIn = {"datadog.trace.core"})
   public static TagMap viewOf(IdStore knownStore, HashStore nameStore, boolean nameStoreBorrowed) {
-    return new TagMap(null, knownStore, nameStore, nameStoreBorrowed);
+    return new TagMap(knownStore, nameStore, nameStoreBorrowed);
   }
 
   /**
@@ -2007,7 +1993,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     HashStore nameStore = this.nameStore;
     boolean borrowed = this.nameStoreBorrowed;
     return new TagMap(
-        this.parent,
         this.knownStore.copy(),
         nameStore == null || borrowed ? nameStore : nameStore.copy(),
         borrowed);
@@ -2106,7 +2091,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.knownStore = IdStoreFactory.Default.INSTANCE.create(null);
     this.nameStore = null;
     this.nameStoreBorrowed = false;
-    this.parent = null;
   }
 
   public TagMap freeze() {
