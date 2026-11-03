@@ -900,7 +900,7 @@ class ConfigTest {
       "metrics property | metrics | false      ",
       "traces property  | traces  | false      "
     })
-    void datadogHeadersTakePrecedenceAndRemainLiteral(String signal, boolean environment)
+    void datadogHeadersTakePrecedenceAndAreDecoded(String signal, boolean environment)
         throws Exception {
       setOtelHeaders("all", "api-key=generic%20value", environment);
       setOtelHeaders(signal, "api-key=signal%20value", environment);
@@ -913,7 +913,46 @@ class ConfigTest {
         System.setProperty("dd." + key, "api-key=dd%20value+literal");
       }
 
-      assertEquals(singletonMap("api-key", "dd%20value+literal"), headersFor(newConfig(), signal));
+      assertEquals(singletonMap("api-key", "dd value+literal"), headersFor(newConfig(), signal));
+    }
+
+    @TableTest({
+      "scenario         | signal  | environment",
+      "logs env         | logs    | true       ",
+      "metrics env      | metrics | true       ",
+      "traces env       | traces  | true       ",
+      "logs property    | logs    | false      ",
+      "metrics property | metrics | false      ",
+      "traces property  | traces  | false      "
+    })
+    void decodeDatadogHeadersWithoutOtelSource(String signal, boolean environment)
+        throws Exception {
+      System.setProperty("dd.logs.otel.enabled", "false");
+      System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "false");
+      System.setProperty(DD_TRACE_OTEL_ENABLED_PROP, "false");
+      System.clearProperty(OTEL_TRACES_EXPORTER_PROP);
+      String value =
+          "api-key=hello%20world%2Cvalue%3D1,once=%2520,plus=a+b%20c,"
+              + "malformed=value%20%GG,plain=value,encoded%2Dname=a%2Bb";
+      if (environment) {
+        setEnv("DD_OTLP_" + signal.toUpperCase(Locale.ROOT) + "_HEADERS", value);
+      } else {
+        System.setProperty("dd.otlp." + signal + ".headers", value);
+      }
+
+      Config config = newConfig();
+
+      assertFalse(config.isLogsOtelEnabled());
+      assertFalse(config.isMetricsOtelEnabled());
+      assertFalse(config.isTraceOtelEnabled());
+      Map<String, String> expected = new HashMap<>();
+      expected.put("api-key", "hello world,value=1");
+      expected.put("once", "%20");
+      expected.put("plus", "a+b c");
+      expected.put("malformed", "value%20%GG");
+      expected.put("plain", "value");
+      expected.put("encoded%2Dname", "a+b");
+      assertHeaders(config, signal, expected);
     }
 
     @TableTest({
