@@ -20,9 +20,14 @@ src_dir="$script_dir/build/spring-petclinic"
 
 log() { echo "[fetch-petclinic] $*" >&2; }
 
+# The runnable fat jar under target/, if built (not the sources jar or the pre-repackage original).
+built_jar() {
+  ls "$src_dir"/target/spring-petclinic-*.jar 2>/dev/null \
+    | grep -v -- '-sources.jar$' | grep -v -- '.original$' | head -1 || true
+}
+
 # Reuse an existing build if present.
-existing_jar=$(ls "$src_dir"/target/spring-petclinic-*.jar 2>/dev/null \
-  | grep -v -- '-sources.jar$' | grep -v -- '.original$' | head -1 || true)
+existing_jar=$(built_jar)
 if [ -n "$existing_jar" ]; then
   log "reusing existing jar: $existing_jar"
   echo "$existing_jar"
@@ -43,8 +48,7 @@ git -C "$src_dir" checkout -q FETCH_HEAD
 log "building PetClinic (this can take a few minutes on first run)"
 ( cd "$src_dir" && ./mvnw -q -B -DskipTests package )
 
-jar=$(ls "$src_dir"/target/spring-petclinic-*.jar 2>/dev/null \
-  | grep -v -- '-sources.jar$' | grep -v -- '.original$' | head -1 || true)
+jar=$(built_jar)
 if [ -z "$jar" ]; then
   log "ERROR: build finished but no runnable jar found under $src_dir/target"
   exit 1
