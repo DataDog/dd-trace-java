@@ -60,64 +60,54 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       parentScope = continuation.resume();
     }
 
-    final HttpRequest request = (HttpRequest) msg;
-    boolean awsClientCall = request.headers().contains("amz-sdk-invocation-id");
-    if (!AWS_LEGACY_TRACING && awsClientCall) {
-      // avoid creating an extra HTTP client span beneath the AWS client call
-      try {
+    try {
+      final HttpRequest request = (HttpRequest) msg;
+      boolean awsClientCall = request.headers().contains("amz-sdk-invocation-id");
+      if (!AWS_LEGACY_TRACING && awsClientCall) {
+        // avoid creating an extra HTTP client span beneath the AWS client call
         ctx.write(msg, prm);
         return;
-      } finally {
-        if (null != parentScope) {
-          parentScope.close();
-        }
       }
-    }
-    final AgentSpan parent = activeSpan();
-    final Context parentContext = Context.current();
-    if (ctx.channel().parent() == null) {
-      ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(parent);
-    }
-    if (isNestedClientSpanSuppressed(parentContext, parent)) {
-      DECORATE.injectContext(parentContext, request.headers(), SETTER);
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentContext);
-      try {
+      final AgentSpan parent = activeSpan();
+      final Context parentContext = Context.current();
+      if (ctx.channel().parent() == null) {
+        ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(parent);
+      }
+      if (isNestedClientSpanSuppressed(parentContext, parent)) {
+        DECORATE.injectContext(parentContext, request.headers(), SETTER);
+        ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentContext);
         ctx.write(msg, prm);
         return;
-      } finally {
-        if (null != parentScope) {
-          parentScope.close();
+      }
+      boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
+      NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
+
+      final AgentSpan span = startSpan(NETTY_CLIENT.toString(), NETTY_CLIENT_REQUEST);
+      final Context context = parentContext.with(span);
+      try (final ContextScope scope = activateSpan(span)) {
+        decorate.afterStart(span);
+        decorate.onRequest(span, request);
+
+        SocketAddress socketAddress = ctx.channel().remoteAddress();
+        if (socketAddress instanceof InetSocketAddress) {
+          decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
         }
-      }
-    }
-    boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
-    NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
-    final AgentSpan span = startSpan(NETTY_CLIENT.toString(), NETTY_CLIENT_REQUEST);
-    final Context context = Context.current().with(span);
-    try (final ContextScope scope = activateSpan(span)) {
-      decorate.afterStart(span);
-      decorate.onRequest(span, request);
+        // AWS calls are often signed, so we can't add headers without breaking the signature.
+        if (!awsClientCall) {
+          DECORATE.injectContext(Context.current(), request.headers(), SETTER);
+        }
 
-      SocketAddress socketAddress = ctx.channel().remoteAddress();
-      if (socketAddress instanceof InetSocketAddress) {
-        decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
-      }
+        ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(context);
 
-      // AWS calls are often signed, so we can't add headers without breaking the signature.
-      if (!awsClientCall) {
-        DECORATE.injectContext(Context.current(), request.headers(), SETTER);
-      }
-
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(context);
-
-      try {
-        ctx.write(msg, prm);
-      } catch (final Throwable throwable) {
-        decorate.onError(span, throwable);
-        decorate.beforeFinish(span);
-        span.finish();
-        throw throwable;
+        try {
+          ctx.write(msg, prm);
+        } catch (final Throwable throwable) {
+          decorate.onError(span, throwable);
+          decorate.beforeFinish(span);
+          span.finish();
+          throw throwable;
+        }
       }
     } finally {
       if (null != parentScope) {
