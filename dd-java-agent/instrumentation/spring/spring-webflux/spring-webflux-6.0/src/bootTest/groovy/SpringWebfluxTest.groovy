@@ -77,9 +77,11 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     assertTraces(2) {
       def traceParent
       sortSpansByStart()
-      trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+      trace(clientSpanCount()) {
+        traceParent = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+        if (!Config.get().isTraceOtelSemanticsEnabled()) {
+          traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        }
       }
       trace(2) {
         span {
@@ -159,9 +161,11 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     assertTraces(2) {
       sortSpansByStart()
       def traceParent
-      trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+      trace(clientSpanCount()) {
+        traceParent = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+        if (!Config.get().isTraceOtelSemanticsEnabled()) {
+          traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        }
       }
       trace(3) {
         span {
@@ -253,9 +257,11 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     assertTraces(2) {
       sortSpansByStart()
       def traceParent
-      trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+      trace(clientSpanCount()) {
+        traceParent = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+        if (!Config.get().isTraceOtelSemanticsEnabled()) {
+          traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        }
       }
       trace(3) {
         span {
@@ -301,9 +307,11 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     assertTraces(2) {
       sortSpansByStart()
       def traceParent
-      trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 404, true)
-        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 404, true)
+      trace(clientSpanCount()) {
+        traceParent = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 404, true)
+        if (!Config.get().isTraceOtelSemanticsEnabled()) {
+          traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 404, true)
+        }
       }
       trace(2) {
         span {
@@ -357,9 +365,11 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     assertTraces(2) {
       sortSpansByStart()
       def traceParent
-      trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "POST", URI.create(url), 202)
-        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "POST", URI.create(url), 202)
+      trace(clientSpanCount()) {
+        traceParent = clientSpan(it, null, "http.request", "spring-webflux-client", "POST", URI.create(url), 202)
+        if (!Config.get().isTraceOtelSemanticsEnabled()) {
+          traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "POST", URI.create(url), 202)
+        }
       }
       trace(3) {
         span {
@@ -422,9 +432,11 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     assertTraces(2) {
       sortSpansByStart()
       def traceParent
-      trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 500)
-        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 500)
+      trace(clientSpanCount()) {
+        traceParent = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 500)
+        if (!Config.get().isTraceOtelSemanticsEnabled()) {
+          traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 500)
+        }
       }
       trace(2) {
         span {
@@ -513,10 +525,12 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     assertTraces(4, SORT_TRACES_BY_START) {
       def traceParent1, traceParent2
 
-      trace(2) {
+      trace(clientSpanCount()) {
         sortSpansByStart()
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
-        traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
+        traceParent1 = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
+        if (!Config.get().isTraceOtelSemanticsEnabled()) {
+          traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
+        }
       }
 
       trace(2) {
@@ -559,10 +573,12 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
           }
         }
       }
-      trace(2) {
+      trace(clientSpanCount()) {
         sortSpansByStart()
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
-        traceParent2 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+        traceParent2 = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
+        if (!Config.get().isTraceOtelSemanticsEnabled()) {
+          traceParent2 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+        }
       }
       trace(2) {
         sortSpansByStart()
@@ -620,9 +636,11 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
       sortSpansByStart()
       responses.eachWithIndex { def response, int i ->
         def traceParent
-        trace(2) {
-          clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-          traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        trace(clientSpanCount()) {
+          traceParent = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+          if (!Config.get().isTraceOtelSemanticsEnabled()) {
+            traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+          }
         }
         trace(2) {
           span {
@@ -695,10 +713,12 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     assertTraces(2) {
       def traceParent
       sortSpansByStart()
-      trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), null, false, false,
+      trace(clientSpanCount()) {
+        traceParent = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), null, false, false,
         ["message": "The subscription was cancelled", "event": "cancelled"])
-        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), null)
+        if (!Config.get().isTraceOtelSemanticsEnabled()) {
+          traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), null)
+        }
       }
       trace(2) {
         span {
@@ -817,6 +837,10 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
       tags.tag(Tags.HTTP_HOSTNAME, uri.host)
       tags.tag(DDTags.HTTP_QUERY, uri.query)
     }
+  }
+
+  int clientSpanCount() {
+    Config.get().isTraceOtelSemanticsEnabled() ? 1 : 2
   }
 
   def clientSpan(
