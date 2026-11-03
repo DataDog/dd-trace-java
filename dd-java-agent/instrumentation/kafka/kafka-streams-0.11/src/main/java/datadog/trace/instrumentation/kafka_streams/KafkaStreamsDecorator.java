@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.kafka_streams;
 
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PROCESSOR_NAME;
+import static datadog.trace.api.KnownTags.OFFSET_ID;
+import static datadog.trace.api.KnownTags.PARTITION_ID;
+import static datadog.trace.api.KnownTags.PROCESSOR_NAME_ID;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 
 import datadog.trace.api.Config;
@@ -106,10 +106,10 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
       AgentSpan span, String topic2, int partition, long offset, ProcessorNode node) {
     String topic = topic2 == null ? "kafka" : topic2;
     span.setResourceName(RESOURCE_NAME_CACHE.computeIfAbsent(topic, PREFIX));
-    span.setTag(PARTITION, partition);
-    span.setTag(OFFSET, offset);
+    span.setTag(PARTITION_ID, partition);
+    span.setTag(OFFSET_ID, offset);
     if (node != null) {
-      span.setTag(PROCESSOR_NAME, node.name());
+      span.setTag(PROCESSOR_NAME_ID, node.name());
     }
   }
 
