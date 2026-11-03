@@ -1842,17 +1842,20 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
-   * Inserts or replaces a local entry, returning the replaced local Entry (or null if none). Does
-   * NOT consult the read-through parent -- the {@code set(...)} methods use this so they never pay
-   * for a prior-value lookup they discard; {@link #getAndSet(Entry)} layers the parent fallback on
-   * top.
+   * Inserts or replaces a local entry. Does NOT consult the read-through parent and reports nothing
+   * back, so the {@code set(...)} methods never pay for a prior value they would discard; {@link
+   * #getAndSet(Entry)} is the form that returns the prior visible entry.
+   *
+   * @param newEntry the entry to put
    */
-  Entry putEntry(@Nonnull Entry newEntry) {
+  void putEntry(@Nonnull Entry newEntry) {
     this.checkWriteAccess();
 
-    return newEntry.tagId() != 0
-        ? entryOf(this.knownStore.put(newEntry))
-        : this.nameStoreForWrite().put(newEntry);
+    if (newEntry.tagId() != 0) {
+      this.knownStore.put(newEntry);
+    } else {
+      this.nameStoreForWrite().put(newEntry);
+    }
   }
 
   /** {@link #putEntry} for an entry known to be a known tag's. */
