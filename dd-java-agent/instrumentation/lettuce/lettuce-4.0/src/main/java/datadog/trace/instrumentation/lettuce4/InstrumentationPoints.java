@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.lettuce4;
 
+import static datadog.trace.api.KnownTags.DB_COMMAND_CANCELLED_ID;
 import static com.lambdaworks.redis.protocol.CommandKeyword.SEGFAULT;
 import static com.lambdaworks.redis.protocol.CommandType.CLIENT;
 import static com.lambdaworks.redis.protocol.CommandType.CLUSTER;
@@ -60,7 +61,7 @@ public final class InstrumentationPoints {
       // the CompletableFuture instrumentation captures context for the finishing lambda.
       asyncCommand.handleAsync((value, ex) -> {
         if (ex instanceof CancellationException) {
-          span.setTag("db.command.cancelled", true);
+          span.setTag(DB_COMMAND_CANCELLED_ID, true);
         } else {
           DECORATE.onError(span, ex);
         }

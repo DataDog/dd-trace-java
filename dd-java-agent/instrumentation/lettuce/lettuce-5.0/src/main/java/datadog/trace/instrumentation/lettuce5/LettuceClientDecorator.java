@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.lettuce5;
 
+import static datadog.trace.api.KnownTags.DB_REDIS_DBINDEX_ID;
+
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -61,7 +63,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
     if (connection != null) {
       setPeerPort(span, connection.getPort());
 
-      span.setTag("db.redis.dbIndex", connection.getDatabase());
+      span.setTag(DB_REDIS_DBINDEX_ID, connection.getDatabase());
     }
     super.onConnection(span, connection);
   }
