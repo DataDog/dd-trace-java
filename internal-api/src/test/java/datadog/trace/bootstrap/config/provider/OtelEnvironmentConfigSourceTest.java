@@ -487,7 +487,7 @@ class OtelEnvironmentConfigSourceTest {
   @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
   @WithConfig(key = METRICS_OTEL_ENABLED, value = "true")
   @WithConfig(key = LOGS_OTEL_ENABLED, value = "true")
-  void onlyUnsupportedExportersDisableOtlpExport(String exporters) {
+  void onlyUnsupportedExportersUseDefaultExport(String exporters) {
     injectExporterConfig("traces", exporters);
     injectExporterConfig("metrics", exporters);
     injectExporterConfig("logs", exporters);
@@ -495,8 +495,18 @@ class OtelEnvironmentConfigSourceTest {
     OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
 
     assertEquals(Export.DATADOG, tracesExport(source));
-    assertEquals(Export.DATADOG, metricsExport(source));
-    assertEquals(Export.DISABLED, logsExport(source));
+    assertEquals(Export.OTLP, metricsExport(source));
+    assertEquals(Export.OTLP, logsExport(source));
+  }
+
+  @TableTest({
+    "scenario            | signal  | exporters       ",
+    "unsupported         | traces  | console         ",
+    "invalid             | metrics | not-an-exporter ",
+    "several unsupported | logs    | 'zipkin,console'"
+  })
+  void onlyUnsupportedExporterListIsUnset(String signal, String exporters) {
+    assertSameMapping(signal, exporters, null);
   }
 
   @TableTest({
