@@ -127,19 +127,19 @@ class TagStoresTest {
   void aSpanLevelReadMissesAParentHoldingATraceLevelTagInItsSlot() throws Exception {
     // Span-level and trace-level tags are colored independently, so their slots overlap: find a
     // span-level tag that shares runtime-id's slot (the coloring decides which one).
-    long spanLevelId = spanLevelTagInSlotOf(KnownTags.RUNTIME_ID);
+    long spanLevelId = spanLevelTagInSlotOf(KnownTags.RUNTIME_ID_ID);
     assumeTrue(spanLevelId != 0L, "no span-level tag shares runtime-id's slot");
-    assertTrue(KnownTagCodec.isTraceLevel(KnownTags.RUNTIME_ID));
+    assertTrue(KnownTagCodec.isTraceLevel(KnownTags.RUNTIME_ID_ID));
 
     HashIdStore traceLevel = new HashIdStore(null);
-    traceLevel.store(KnownTags.RUNTIME_ID, "abc");
+    traceLevel.store(KnownTags.RUNTIME_ID_ID, "abc");
     HashIdStore span = new HashIdStore(traceLevel);
     long other =
         spanLevelId == KnownTags.HTTP_ROUTE_ID ? KnownTags.COMPONENT_ID : KnownTags.HTTP_ROUTE_ID;
     span.store(other, "/a");
 
     assertNull(span.getEntryReader(spanLevelId));
-    assertEquals("abc", span.load(KnownTags.RUNTIME_ID));
+    assertEquals("abc", span.load(KnownTags.RUNTIME_ID_ID));
   }
 
   @Test
