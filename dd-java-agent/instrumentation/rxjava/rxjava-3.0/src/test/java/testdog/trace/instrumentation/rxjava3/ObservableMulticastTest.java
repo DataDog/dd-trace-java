@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -27,10 +28,38 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ObservableMulticastTest extends AbstractInstrumentationTest {
+  @Test
+  void untracedOperatorsDoNotAllocateTracingObservers() {
+    assertSame(Context.root(), Context.current());
+    AtomicReference<Observer<? super Integer>> sourceObserver = new AtomicReference<>();
+    Observable.<Integer>unsafeCreate(
+            observer -> {
+              sourceObserver.set(observer);
+              observer.onSubscribe(Disposable.empty());
+              observer.onNext(1);
+              observer.onNext(2);
+              observer.onComplete();
+            })
+        .map(value -> value + 1)
+        .filter(value -> (value & 1) == 0)
+        .map(value -> value * 2)
+        .reduce(0, Integer::sum)
+        .toObservable()
+        .test()
+        .assertResult(4);
+    assertNotEquals(
+        "datadog.trace.instrumentation.rxjava3.TracingObserver",
+        sourceObserver.get().getClass().getName());
+    assertSame(Context.root(), Context.current());
+    tracer.flush();
+    assertEquals(0, writer.getTraceCount());
+  }
+
   @ParameterizedTest(name = "multicast preserves each subscriber parent, error={0}")
   @ValueSource(booleans = {false, true})
   void preservesSubscriberContext(boolean error) throws Exception {

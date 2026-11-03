@@ -14,6 +14,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Observer;
+import io.reactivex.rxjava3.observables.ConnectableObservable;
 import net.bytebuddy.asm.Advice;
 
 public final class ObservableInstrumentation
@@ -53,7 +54,10 @@ public final class ObservableInstrumentation
         Context parentContext =
             InstrumentationContext.get(Observable.class, Context.class).get(observable);
         if (parentContext == null) {
-          // Shared publishers assembled outside a trace still have a parent per subscription.
+          if (!(observable instanceof ConnectableObservable)) {
+            return null;
+          }
+          // A multicast publisher needs an independent Context for each subscriber, even root.
           parentContext = currentContext();
         }
         // An empty Context must also mask any span active on the delivery thread.
