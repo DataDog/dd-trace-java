@@ -30,15 +30,20 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-    final boolean clientSpanSuppressed = isNestedClientSpanSuppressed(storedContext, span);
-    final AgentSpan callbackParent = clientSpanSuppressed ? span : parent;
+    if (isNestedClientSpanSuppressed(storedContext, span)) {
+      // The outer client span owns this request, so run the callback under it.
+      try (final ContextScope scope = activateSpan(span)) {
+        ctx.fireChannelRead(msg);
+      }
+      return;
+    }
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(callbackParent));
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
     }
 
-    if (span != null && !clientSpanSuppressed) {
+    if (span != null) {
       final boolean finishSpan =
           msg instanceof HttpResponse
               && (!HttpResponseStatus.SWITCHING_PROTOCOLS.equals(((HttpResponse) msg).status())
@@ -57,8 +62,8 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
       }
     }
 
-    // Run the callback under the span that initiated the transport request.
-    try (final ContextScope scope = activateSpan(callbackParent)) {
+    // We want the callback in the scope of the parent, not the client span
+    try (final ContextScope scope = activateSpan(parent)) {
       ctx.fireChannelRead(msg);
     }
   }
@@ -70,15 +75,20 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-    final boolean clientSpanSuppressed = isNestedClientSpanSuppressed(storedContext, span);
-    final AgentSpan callbackParent = clientSpanSuppressed ? span : parent;
+    if (isNestedClientSpanSuppressed(storedContext, span)) {
+      // The outer client span owns this request, so run the callback under it.
+      try (final ContextScope scope = activateSpan(span)) {
+        super.exceptionCaught(ctx, cause);
+      }
+      return;
+    }
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(callbackParent));
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
     }
 
-    if (span != null && !clientSpanSuppressed) {
+    if (span != null) {
       // If an exception is passed to this point, it likely means it was unhandled and the
       // client span won't be finished with a proper response, so we should finish the span here.
       try (final ContextScope scope = activateSpan(span)) {
@@ -87,8 +97,8 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
         span.finish();
       }
     }
-    // Run the callback under the span that initiated the transport request.
-    try (final ContextScope scope = activateSpan(callbackParent)) {
+    // We want the callback in the scope of the parent, not the client span
+    try (final ContextScope scope = activateSpan(parent)) {
       super.exceptionCaught(ctx, cause);
     }
   }
@@ -100,22 +110,27 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-    final boolean clientSpanSuppressed = isNestedClientSpanSuppressed(storedContext, span);
-    final AgentSpan callbackParent = clientSpanSuppressed ? span : parent;
+    if (isNestedClientSpanSuppressed(storedContext, span)) {
+      // The outer client span owns this request, so run the callback under it.
+      try (final ContextScope scope = activateSpan(span)) {
+        super.channelInactive(ctx);
+      }
+      return;
+    }
 
     // Set parent context back to maintain the same functionality  as getAndSet(parent)
     if (storedContext != null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(callbackParent));
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
     }
 
-    if (span != null && span != parent && !clientSpanSuppressed) {
+    if (span != null && span != parent) {
       try (final ContextScope scope = activateSpan(span)) {
         DECORATE.beforeFinish(span);
         span.finish();
       }
     }
-    // Run the callback under the span that initiated the transport request.
-    try (final ContextScope scope = activateSpan(callbackParent)) {
+    // We want the callback in the scope of the parent, not the client span
+    try (final ContextScope scope = activateSpan(parent)) {
       super.channelInactive(ctx);
     }
   }
