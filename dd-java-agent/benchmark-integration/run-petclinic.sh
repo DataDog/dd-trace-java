@@ -62,13 +62,18 @@ resolve_variant() {
     [ -n "$jar" ] || { log "ERROR: shadow jar not found after build"; exit 1; }
     echo "$jar"; return
   fi
-  # Otherwise treat as a released version -> download from Maven Central.
+  # Otherwise treat as a released version -> download from GitHub releases (canonical dd-trace-java
+  # release location; the tag is v-prefixed, the asset is not). Maven Central is the fallback.
   local dest="$agents_dir/dd-java-agent-$v.jar"
   if [ ! -f "$dest" ]; then
-    local url="https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/$v/dd-java-agent-$v.jar"
-    log "downloading dd-java-agent $v from Maven Central"
-    curl -fsSL "$url" -o "$dest" \
-      || { log "ERROR: could not download version '$v' ($url)"; rm -f "$dest"; exit 1; }
+    local gh="https://github.com/DataDog/dd-trace-java/releases/download/v$v/dd-java-agent-$v.jar"
+    local mvn="https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/$v/dd-java-agent-$v.jar"
+    log "downloading dd-java-agent $v from GitHub releases"
+    if ! curl -fsSL "$gh" -o "$dest" 2>/dev/null; then
+      log "GitHub release miss for $v -- falling back to Maven Central"
+      curl -fsSL "$mvn" -o "$dest" \
+        || { log "ERROR: could not download version '$v' (GitHub: $gh | Maven: $mvn)"; rm -f "$dest"; exit 1; }
+    fi
   fi
   echo "$dest"
 }
