@@ -3,6 +3,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -66,10 +67,12 @@ public class Enricher {
 
     // One shared callback, so the loop itself allocates nothing per record beyond the record.
     AtomicLong failedSends = new AtomicLong();
+    AtomicReference<Exception> firstFailure = new AtomicReference<>();
     Callback onSent =
         (metadata, exception) -> {
           if (exception != null) {
             failedSends.incrementAndGet();
+            firstFailure.compareAndSet(null, exception);
           }
         };
 
@@ -114,7 +117,8 @@ public class Enricher {
       System.exit(2);
     }
     if (failedSends.get() > 0) {
-      System.err.printf("%d of %d sends failed%n", failedSends.get(), count);
+      System.err.printf(
+          "%d of %d sends failed, first with: %s%n", failedSends.get(), count, firstFailure.get());
       System.exit(3);
     }
     System.out.printf(

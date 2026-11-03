@@ -7,7 +7,9 @@
 #   ./run-enricher.sh NoAgent master=path/a.jar candidate=path/b.jar ...
 #
 # Each variant runs in a fresh JVM; variant order rotates every rep so drift spreads evenly. GC is
-# logged per run. Env: HEAPS (default "256m 128m 64m"), REPS (5), MESSAGES (3000000),
+# logged per run. The default heaps start at 128m: the producer's 32 MB send buffer takes half of a
+# 64m heap, which leaves the run GC-bound with or without the agent.
+# Env: HEAPS (default "512m 256m 128m"), REPS (5), MESSAGES (3000000),
 # ENRICH_COPY_HEADERS (false; true forwards input headers, as Kafka Streams does), RESULTS_DIR.
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
@@ -28,7 +30,7 @@ variants=("$@")
 n=${#variants[@]}
 messages="${MESSAGES:-3000000}"
 pass=0
-for heap in ${HEAPS:-256m 128m 64m}; do
+for heap in ${HEAPS:-512m 256m 128m}; do
   for rep in $(seq 1 "${REPS:-5}"); do
     rot=$((pass % n)); pass=$((pass + 1))
     order=("${variants[@]:$rot}" "${variants[@]:0:$rot}")
