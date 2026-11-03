@@ -75,10 +75,10 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     }
     final AgentSpan parent = activeSpan();
     final Context parentContext = Context.current();
+    if (ctx.channel().parent() == null) {
+      ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(parent);
+    }
     if (isNestedClientSpanSuppressed(parentContext, parent)) {
-      if (ctx.channel().parent() == null) {
-        ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(parent);
-      }
       DECORATE.injectContext(parentContext, request.headers(), SETTER);
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(parentContext);
       try {
@@ -89,9 +89,6 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
           parentScope.close();
         }
       }
-    }
-    if (ctx.channel().parent() == null) {
-      ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(parent);
     }
     boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
