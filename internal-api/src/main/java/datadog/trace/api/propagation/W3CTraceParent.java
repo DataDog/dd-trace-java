@@ -1,5 +1,6 @@
 package datadog.trace.api.propagation;
 
+import datadog.context.propagation.AsciiValueBuilder;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -34,6 +35,17 @@ public final class W3CTraceParent {
     sb.append(isSampled ? "-01" : "-00");
 
     return sb.toString();
+  }
+
+  /** Like {@link #from(DDTraceId, long, boolean)}, but builds the value as ASCII bytes. */
+  public static AsciiValueBuilder build(DDTraceId traceId, long spanId, boolean isSampled) {
+    return new AsciiValueBuilder(TRACE_PARENT_LENGTH)
+        .append("00-")
+        .appendHex(traceId.toHighOrderLong(), 16)
+        .appendHex(traceId.toLong(), 16)
+        .append('-')
+        .appendHex(spanId, 16)
+        .append(isSampled ? "-01" : "-00");
   }
 
   public static String from(AgentSpan span) {
