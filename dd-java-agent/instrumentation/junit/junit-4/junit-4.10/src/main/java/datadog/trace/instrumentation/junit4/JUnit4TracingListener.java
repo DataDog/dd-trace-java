@@ -10,7 +10,6 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Ignore;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -22,7 +21,7 @@ public class JUnit4TracingListener extends TracingListener {
 
   private final ContextStore<Description, TestExecutionTracker> executionTrackers;
   private final Map<TestSuiteDescriptor, Boolean> startedSuites = new ConcurrentHashMap<>();
-  private final AtomicInteger activeRunners = new AtomicInteger();
+  private int activeRunners;
 
   public JUnit4TracingListener(ContextStore<Description, TestExecutionTracker> executionTrackers) {
     this.executionTrackers = executionTrackers;
@@ -93,12 +92,12 @@ public class JUnit4TracingListener extends TracingListener {
         .onTestSuiteFinish(suiteDescriptor, null);
   }
 
-  public void runnerStarted() {
-    activeRunners.incrementAndGet();
+  public synchronized void runnerStarted() {
+    activeRunners++;
   }
 
-  public void runnerFinished() {
-    if (activeRunners.decrementAndGet() == 0) {
+  public synchronized void runnerFinished() {
+    if (--activeRunners == 0) {
       finishTestSuites();
     }
   }
