@@ -121,7 +121,10 @@ function start_server {
         jfr_arg="-XX:StartFlightRecording=settings=profile,filename=$jfr_file,dumponexit=true"
         echo "JFR enabled -> $jfr_file"
     fi
-    run_java_args="$javaagent_arg $jfr_arg -Xms$server_heap -Xmx$server_heap"
+    # GC log per variant, so test_endpoint can count young GCs inside each measured window.
+    gc_log="/tmp/perf_gc_${variant_label}.log"
+    rm -f "$gc_log"
+    run_java_args="$javaagent_arg $jfr_arg -Xms$server_heap -Xmx$server_heap -Xlog:gc:file=$gc_log"
 
     if [ "$server_type" = "jar" ]; then
       echo "starting server: java $run_java_args -jar $server_package"
@@ -198,16 +201,24 @@ function stop_server {
 }
 
 # Warmup once, then run wrk $test_repeats times (no server restart between repeats) against a
-# single endpoint. Echos out the raw wrk output files, one per repeat, space-separated.
+# single endpoint. Echos out the raw wrk output files, one per repeat, space-separated; each has a
+# <file>.gc sidecar with the young GCs counted inside that measured window.
+# PERF_WRK_SCRIPT, if set, is passed to wrk as a Lua script (e.g. wrk-upstream-headers.lua).
 function test_endpoint {
     url=$1
+    local script_args=()
+    [ -n "${PERF_WRK_SCRIPT:-}" ] && script_args=(-s "$PERF_WRK_SCRIPT")
     # warmup
-    wrk -c $test_num_connections -t$test_num_threads -d ${test_warmup_seconds}s $url >/dev/null
+    wrk -c $test_num_connections -t$test_num_threads -d ${test_warmup_seconds}s "${script_args[@]}" $url >/dev/null
 
     local results=()
     for ((rep = 1; rep <= test_repeats; rep++)); do
         wrk_results=/tmp/wrk_results.$(date +%s%N)
-        wrk -c $test_num_connections -t$test_num_threads -d ${test_time_seconds}s $url > "$wrk_results"
+        local gc_before gc_after
+        gc_before=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
+        wrk --latency -c $test_num_connections -t$test_num_threads -d ${test_time_seconds}s "${script_args[@]}" $url > "$wrk_results"
+        gc_after=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
+        echo $(( ${gc_after:-0} - ${gc_before:-0} )) > "$wrk_results.gc"
         # Sanity gate: with the HTTP-200 readiness check above, wrk should never see socket connect
         # errors. If it does, the app was not healthy under load and the row would be garbage (the
         # failure mode behind the bogus 26x sweep) -- abort loudly instead of recording it.
@@ -264,11 +275,18 @@ function mean_with_unit {
 }
 
 
+# PERF_SINK_STATS_URL, if set, is an Agent stub's /_stats (lines of "<path> <requests> <bytes>").
+# Every agent variant must deliver traces to it during its run; a variant that delivered none was
+# measuring a broken writer path, so the sweep aborts rather than recording it.
+function sink_trace_requests {
+    curl -s -m 3 "$PERF_SINK_STATS_URL" | awk '$1 ~ /\/traces$/ { n += $2 } END { print n + 0 }'
+}
+
 trap 'stop_server; exit' SIGINT
 trap 'kill $server_pid; exit' SIGTERM
 header='Client Version'
 for label in "${test_order[@]}"; do
-    header="$header,$label Latency,$label Throughput,$label Throughput Stdev"
+    header="$header,$label Latency,$label p99,$label Throughput,$label Throughput Stdev,$label YGC/1k"
 done
 header="$header,Agent CPU Burn,Server CPU Burn,Agent RSS Delta,Server Max RSS,Server Start RSS,Server Load Increase RSS"
 echo $header > $test_csv_file
@@ -307,6 +325,7 @@ for agent_jar in $agent_jars; do
         agent_start_cpu=$(ps -o 'pid,time' | awk "\$1 == $agent_pid { print \$2 }" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
         agent_start_rss=$(ps -o 'pid,rss' | awk "\$1 == $agent_pid { print \$2 }")
     fi
+    [ -n "${PERF_SINK_STATS_URL:-}" ] && sink_before=$(sink_trace_requests)
     server_start_cpu=$(ps -o time= -p "$server_pid" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
     server_start_rss=$(ps -o rss= -p "$server_pid")
 
@@ -322,20 +341,28 @@ for agent_jar in $agent_jars; do
         let server_total_rss_count=$server_total_rss_count+1
 
         latencies=()
+        p99s=()
         throughputs=()
+        ygcs=()
         for f in "${test_output_files[@]}"; do
             cat "$f"
-            latencies+=("$(awk '$1 == "Latency" { print $2 }' "$f")")
+            # --latency adds a "Latency Distribution" header line; the mean is on the plain "Latency" line.
+            latencies+=("$(awk '$1 == "Latency" && $2 != "Distribution" { print $2 }' "$f")")
+            p99s+=("$(awk '$1 == "99%" { print $2 }' "$f")")
             throughputs+=("$(awk '$1 == "Requests/sec:" { print $2 }' "$f")")
-            rm "$f"
+            requests=$(awk '/requests in/ { print $1 }' "$f")
+            ygcs+=("$(echo "scale=2; 1000 * $(cat "$f.gc") / ${requests:-1}" | bc)")
+            rm -f "$f" "$f.gc"
         done
         avg_latency=$(mean_with_unit "${latencies[@]}")
+        avg_p99=$(mean_with_unit "${p99s[@]}")
+        avg_ygc=$(mean_plain "${ygcs[@]}")
         avg_throughput=$(mean_plain "${throughputs[@]}")
         stdev_throughput=$(stdev_plain "${throughputs[@]}")
         if [ "${#throughputs[@]}" -gt 1 ]; then
             echo "  $label: ${#throughputs[@]} repeats, throughput mean=$avg_throughput stdev=$stdev_throughput (${throughputs[*]})"
         fi
-        result_row="$result_row,$avg_latency,$avg_throughput,$stdev_throughput"
+        result_row="$result_row,$avg_latency,$avg_p99,$avg_throughput,$stdev_throughput,$avg_ygc"
     done
 
     if [ "$agent_pid" = "" ]; then
@@ -352,6 +379,17 @@ for agent_jar in $agent_jars; do
     let server_cpu=$server_stop_cpu-$server_start_cpu
 
     server_load_increase_rss=$(echo "scale=2; ( $server_total_rss / $server_total_rss_count ) - $server_start_rss" | bc)
+
+    # start_server reuses agent_jar (empty for NoAgent), so the baseline is told apart by its label.
+    if [ -n "${PERF_SINK_STATS_URL:-}" ] && [ "$variant_label" != "noagent" ]; then
+        sink_after=$(sink_trace_requests)
+        if [ "${sink_after:-0}" -le "${sink_before:-0}" ]; then
+            echo "ERROR: the Agent stub received no traces from $variant_label during its run -- aborting" >&2
+            stop_server
+            exit 1
+        fi
+        echo "Agent stub received $((sink_after - sink_before)) trace payloads from this variant"
+    fi
 
     stop_server
 
