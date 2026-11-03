@@ -308,6 +308,9 @@ abstract class AkkaHttpRouteOtelSemanticsTest extends WithHttpServer<AkkaHttpTes
     where:
     path                            | route
     '/success'                      | '/success'
+    '/items/a%20b'                  | '/items/{param}'
+    '/items/a%2Fb'                  | '/items/{param}'
+    '/items/a%25b'                  | '/items/{param}'
     '/query?some=value'             | '/query'
     '/injected-id/ping/1'           | '/injected-id/ping/{param}'
     '/injected-id/ping/2'           | '/injected-id/ping/{param}'
@@ -371,6 +374,14 @@ abstract class AkkaHttpRouteOtelSemanticsTest extends WithHttpServer<AkkaHttpTes
 }
 
 class AkkaHttpRouteOtelSemanticsForkedTest extends AkkaHttpRouteOtelSemanticsTest {
+}
+
+class AkkaHttpRouteOtelSemanticsRawResourceForkedTest extends AkkaHttpRouteOtelSemanticsTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE, "true")
+  }
 }
 
 class AkkaHttpRouteOtelSemanticsContextSwapForkedTest extends AkkaHttpRouteOtelSemanticsTest {

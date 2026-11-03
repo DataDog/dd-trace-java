@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.pekkohttp;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
@@ -17,6 +18,7 @@ import scala.Product;
  * Builds templates from matched literals and extracted parameters, retaining no parameter values.
  */
 public final class PekkoHttpRouteHelper {
+  private static final boolean RAW_RESOURCE = Config.get().isHttpServerRawResource();
   private static final ThreadLocal<Frame> CURRENT = new ThreadLocal<>();
 
   private PekkoHttpRouteHelper() {}
@@ -80,7 +82,8 @@ public final class PekkoHttpRouteHelper {
     }
     Route previous = null;
     Object requestPath = frame.span.getTag(KnownTags.URL_PATH_NAME);
-    if (requestPath == null || !requestPath.toString().equals(URIUtils.decode(path))) {
+    if (requestPath == null
+        || !requestPath.toString().equals(RAW_RESOURCE ? path : URIUtils.decode(path))) {
       previous = frame.state.route;
       // A rejected route can retry an earlier unmatched path in another alternative.
       while (previous != null && !previous.remaining.equals(path)) {

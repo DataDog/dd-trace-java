@@ -241,6 +241,8 @@ object AkkaHttpTestWebServer {
             complete(HttpResponse(status = ERROR.getStatus, entity = ERROR.getBody))
           } ~ path(EXCEPTION.relativePath) {
             throw new Exception(EXCEPTION.getBody)
+          } ~ path("items" / Segment) { _ =>
+            complete("item")
           } ~ pathPrefix("route-async" / IntNumber) { id =>
             onSuccess(Future { id }) { _ =>
               path("detail" / IntNumber) { detail =>
