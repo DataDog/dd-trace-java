@@ -23,13 +23,7 @@ class SpringWebfluxHttpClientDoAfterTerminateTest extends SpringWebfluxHttpClien
       }
       .block()
 
-    if (hasParent) {
-      blockUntilChildSpansFinished(size(callback ? 2 : 1))
-    }
-
-    check()
-
-    consumeResponse(response, method)
+    finishRequest(response, method, hasParent, callback)
   }
 
   @Override

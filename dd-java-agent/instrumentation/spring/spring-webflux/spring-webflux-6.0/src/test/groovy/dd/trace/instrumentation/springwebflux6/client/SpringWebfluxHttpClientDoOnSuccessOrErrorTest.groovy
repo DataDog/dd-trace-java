@@ -29,13 +29,7 @@ abstract class SpringWebfluxHttpClientDoOnSuccessOrErrorTest extends SpringWebfl
     }
     .block()
 
-    if (hasParent) {
-      blockUntilChildSpansFinished(size(callback ? 2 : 1))
-    }
-
-    check()
-
-    response.statusCode().value()
+    finishRequest(response, hasParent, callback)
   }
 
   @Override

@@ -44,6 +44,10 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
     }
     .block()
 
+    finishRequest(response, hasParent, callback)
+  }
+
+  protected int finishRequest(ClientResponse response, boolean hasParent, Closure callback) {
     if (hasParent) {
       blockUntilChildSpansFinished(size(callback ? 2 : 1))
     }

@@ -40,13 +40,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
       }
       .block()
 
-    if (hasParent) {
-      blockUntilChildSpansFinished(size(callback ? 2 : 1))
-    }
-
-    check()
-
-    consumeResponse(response, method)
+    finishRequest(response, method, hasParent, callback)
   }
 
   protected static int consumeResponse(ClientResponse response, String method) {
@@ -71,6 +65,16 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
     def field = target.class.getDeclaredField(name)
     field.accessible = true
     return field.get(target)
+  }
+
+  protected int finishRequest(ClientResponse response, String method, boolean hasParent, Closure callback) {
+    if (hasParent) {
+      blockUntilChildSpansFinished(size(callback ? 2 : 1))
+    }
+
+    check()
+
+    consumeResponse(response, method)
   }
 
   @Override
