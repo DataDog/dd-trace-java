@@ -14,6 +14,7 @@ import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.symbol.AvroFilter;
+import com.datadog.debugger.symbol.JythonFilter;
 import com.datadog.debugger.symbol.ProtoFilter;
 import com.datadog.debugger.symbol.ScopeFilter;
 import com.datadog.debugger.symbol.SymDBEnablement;
@@ -233,7 +234,7 @@ public class DebuggerAgent {
     }
     initClassNameFilter();
     List<ScopeFilter> scopeFilters =
-        Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter());
+        Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter(), new JythonFilter());
     SymbolAggregator symbolAggregator =
         new SymbolAggregator(
             classNameFilter,
