@@ -22,26 +22,6 @@ import org.junit.jupiter.api.Test;
 
 class FileCoverageStoreTest {
 
-  @Test
-  void unresolvedResourceDoesNotAbortCoverageReport() {
-    CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
-    SourcePathResolver delegate = mock(SourcePathResolver.class);
-    when(delegate.getResourcePaths("known.feature")).thenReturn(singletonList("known.feature"));
-    when(delegate.getResourcePaths("/repo/missing.feature")).thenReturn(emptyList());
-    CoverageStore store =
-        new FileCoverageStore.Factory(metrics, new BestEffortSourcePathResolver(delegate))
-            .create(null);
-    store.getProbes().recordNonCodeResource("known.feature");
-    store.getProbes().recordNonCodeResource("/repo/missing.feature");
-
-    assertTrue(store.report(DDTraceId.ONE, 1L, 1L));
-    assertEquals(1, store.getReport().getTestReportFileEntries().size());
-    assertEquals(
-        "known.feature",
-        store.getReport().getTestReportFileEntries().iterator().next().getSourceFileName());
-    verify(metrics).add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-  }
-
   private static final class ResolvableClassA {}
 
   private static final class DuplicateKeyClass {}
@@ -117,5 +97,25 @@ class FileCoverageStoreTest {
     TestReport report = store.getReport();
     assertNotNull(report);
     assertEquals(2, report.getTestReportFileEntries().size());
+  }
+
+  @Test
+  void unresolvedResourceDoesNotAbortCoverageReport() {
+    CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
+    SourcePathResolver delegate = mock(SourcePathResolver.class);
+    when(delegate.getResourcePaths("known.feature")).thenReturn(singletonList("known.feature"));
+    when(delegate.getResourcePaths("/repo/missing.feature")).thenReturn(emptyList());
+    CoverageStore store =
+        new FileCoverageStore.Factory(metrics, new BestEffortSourcePathResolver(delegate))
+            .create(null);
+    store.getProbes().recordNonCodeResource("known.feature");
+    store.getProbes().recordNonCodeResource("/repo/missing.feature");
+
+    assertTrue(store.report(DDTraceId.ONE, 1L, 1L));
+    assertEquals(1, store.getReport().getTestReportFileEntries().size());
+    assertEquals(
+        "known.feature",
+        store.getReport().getTestReportFileEntries().iterator().next().getSourceFileName());
+    verify(metrics).add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
   }
 }
