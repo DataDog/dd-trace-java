@@ -241,6 +241,9 @@ object AkkaHttpTestWebServer {
             complete(HttpResponse(status = ERROR.getStatus, entity = ERROR.getBody))
           } ~ path(EXCEPTION.relativePath) {
             throw new Exception(EXCEPTION.getBody)
+          } ~ pathPrefix("route-alternative") {
+            pathPrefix(IntNumber) { _ => reject } ~
+              path(IntNumber / "accepted") { id => complete(s"$id") }
           } ~ pathPrefix("injected-id") {
             path("ping" / IntNumber) { id =>
               val traceId = AgentTracer.activeSpan().getTraceId

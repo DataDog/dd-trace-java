@@ -136,6 +136,7 @@ class PekkoHttpRouteOtelSemanticsForkedTest extends WithHttpServer<PekkoHttpTest
     '/injected-id/ping/1' | '/injected-id/ping/{param}'
     '/injected-id/ping/2' | '/injected-id/ping/{param}'
     '/injected-id/fing/3' | '/injected-id/fing/{param}'
+    '/route-alternative/6/accepted' | '/route-alternative/{param}/accepted'
   }
 }
 

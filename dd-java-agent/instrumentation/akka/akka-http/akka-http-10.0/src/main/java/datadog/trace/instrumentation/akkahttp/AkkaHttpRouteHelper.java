@@ -76,15 +76,20 @@ public final class AkkaHttpRouteHelper {
       }
       return;
     }
+    Route previous = null;
     Object requestPath = frame.span.getTag(KnownTags.URL_PATH_NAME);
     if (requestPath == null || !requestPath.toString().equals(URIUtils.decode(path))) {
-      Route previous = routes.get(frame.span);
-      if (previous == null || !previous.remaining.equals(path)) {
+      previous = routes.get(frame.span);
+      // A rejected route can retry an earlier unmatched path in another alternative.
+      while (previous != null && !previous.remaining.equals(path)) {
+        previous = previous.previous;
+      }
+      if (previous == null) {
         return;
       }
       template = previous.template + template;
     }
-    routes.put(frame.span, new Route(0, rest, template));
+    routes.put(frame.span, new Route(0, rest, template, previous));
     Object method = frame.span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME);
     HTTP_RESOURCE_DECORATOR.withRoute(
         frame.span, method == null ? null : method.toString(), template, true);
@@ -137,11 +142,17 @@ public final class AkkaHttpRouteHelper {
     final int offset;
     final String remaining;
     final String template;
+    final Route previous;
 
     Route(int offset, String remaining, String template) {
+      this(offset, remaining, template, null);
+    }
+
+    Route(int offset, String remaining, String template, Route previous) {
       this.offset = offset;
       this.remaining = remaining;
       this.template = template;
+      this.previous = previous;
     }
   }
 }
