@@ -47,32 +47,49 @@ On top of `wrk` and `nc`: `git`, a JDK (provides the `jfr` CLI), and `curl`. Mav
 PetClinic's own wrapper. First run needs network access (clone + build + optional release download).
 
 ### Trace destination — what actually gets measured
-The harness auto-detects a Datadog Agent on `localhost:8126` and picks the writer accordingly. This
-is a deliberate knob — it lets one tool measure two regimes:
-- **Agent reachable** (`DDAgentWriter`) — the *full pipeline*: span work on the request threads **and**
-  the background serializer (`TraceMapperV0_4`, msgpack, cache recalibration). Run your **local
-  Datadog Agent** on `:8126` for this; the analyzer's `background/*` buckets then reflect real
-  serialization cost.
-- **Agent unreachable** (`LoggingWriter`) — traces are discarded, so you measure the **agent-down
-  regime**: foreground overhead only, no serializer. Useful on its own for understanding behavior
-  when the Agent is missing.
+By default, `run-petclinic.sh` starts a local **Agent stub** (`agent-stub/AgentStub.java`, a
+single-file Java program) on `PETCLINIC_STUB_PORT` (default 8137) and points the agent variants at
+it. The stub serves a real Agent's `/info` (so client-side stats, dropping unsampled traces and peer
+tags are discovered as with a real Agent), accepts and discards payloads immediately, and counts what
+it received. After each agent variant the harness checks the stub received traces, and **aborts** if
+it got none.
 
-Pick intentionally based on what you want to see, and keep it consistent across a sweep. The harness
-prints a `>> REGIME:` banner so the choice is never silent, and re-checks before every variant. Set
-`EXPECT_AGENT=up` (or `down`) to make it **fail fast** if reality differs — e.g. a full-pipeline sweep
-aborts immediately if the Agent isn't up, and aborts mid-sweep if it dies, instead of quietly
-degrading to `LoggingWriter`. Default is `any` (auto-detect, no assertion).
+Why not the local Datadog Agent: if it's slow, or rejecting payloads (an expired API key answers
+every payload with 403), the tracer's writer backs up and holds traces in the heap. That changes the
+GC behavior being measured, and nothing in the results shows it — it looks like a noisy or
+unrepeatable benchmark. The stub takes that variable out.
+
+`PETCLINIC_AGENT=real` uses the Agent on `TRACE_AGENT_PORT` (default 8126) instead. Then the harness
+auto-detects it and picks the writer accordingly:
+- **Agent reachable** (`DDAgentWriter`) — the *full pipeline*: span work on the request threads **and**
+  the background serializer.
+- **Agent unreachable** (`LoggingWriter`) — traces are discarded, so you measure the **agent-down
+  regime**: foreground overhead only, no serializer.
+
+The harness prints a `>> REGIME:` banner so the choice is never silent, and re-checks before every
+variant. Set `EXPECT_AGENT=up` (or `down`) to make it **fail fast** if reality differs (the stub mode
+sets `up`).
+
+### Upstream trace headers
+By default every request carries the headers a traced upstream service would send
+(`wrk-upstream-headers.lua`: W3C `traceparent`/`tracestate`, Datadog headers and propagation tags,
+`baggage`), so each request goes through extraction and continues a distributed trace, as most
+services' requests do. `PETCLINIC_UPSTREAM_HEADERS=false` sends plain requests; `PERF_WRK_SCRIPT`
+passes any other wrk Lua script.
 
 ### Usage
 ```
 # NoAgent vs the current checkout:
 ./run-petclinic.sh
 
-# A version sweep for the historic curve — each token is a jar path, `current`
-# (builds this checkout's shadow jar), or a release version (downloaded from Maven Central):
+# A version sweep for the historic curve — each token is a jar path, `current` (builds this
+# checkout's shadow jar), or a release version (downloaded from GitHub releases, else Maven Central):
 ./run-petclinic.sh 1.54.0 1.58.0 1.62.0 current
 ```
-Artifacts (throughput CSV + per-variant JFRs) are copied to `build/petclinic-results/results-<ts>/`.
+Artifacts (throughput CSV, per-variant JFRs and GC logs) are copied to
+`build/petclinic-results/results-<ts>/`. Per endpoint, the CSV reports mean latency, p99 latency,
+throughput (mean and stdev across repeats) and young GCs per 1,000 requests inside the measured
+window.
 Analyze any recording on its own with `./analyze-jfr.sh <recording.jfr>`.
 
 #### Heap regime (ample vs tight)

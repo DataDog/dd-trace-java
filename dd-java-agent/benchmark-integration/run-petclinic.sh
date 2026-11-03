@@ -13,6 +13,13 @@
 #   <version> (e.g. 1.62.0)   download that release from Maven Central
 #
 # With no variants it defaults to `current`. A NoAgent baseline is always run first.
+#
+# By default the agent variants send traces to a local Agent stub (agent-stub/AgentStub.java) on
+# PETCLINIC_STUB_PORT (8137), and the sweep aborts if a variant delivered none. A slow or rejecting
+# local Agent makes the tracer hold traces in the heap, which changes what's measured, so the stub
+# takes it out. PETCLINIC_AGENT=real uses the Agent on TRACE_AGENT_PORT instead.
+# By default every request also carries upstream trace headers (wrk-upstream-headers.lua), as a
+# service called by another traced service would see; PETCLINIC_UPSTREAM_HEADERS=false turns that off.
 # Examples:
 #   ./run-petclinic.sh                       # NoAgent vs the current branch
 #   ./run-petclinic.sh 1.54.0 1.58.0 current # a version sweep for the historic curve
@@ -91,6 +98,30 @@ for v in "${variants[@]}"; do
   resolved+=("$(resolve_variant "$v")")
 done
 
+if [ "${PETCLINIC_AGENT:-stub}" = "stub" ]; then
+  stub_port="${PETCLINIC_STUB_PORT:-8137}"
+  if nc -z localhost "$stub_port" >/dev/null 2>&1; then
+    log "ERROR: port $stub_port is in use; set PETCLINIC_STUB_PORT to a free port"
+    exit 1
+  fi
+  java "$script_dir/agent-stub/AgentStub.java" "$stub_port" "$script_dir/agent-stub/agent-info.json" \
+    > "$agents_dir/agent-stub.log" 2>&1 &
+  stub_pid=$!
+  trap 'kill "$stub_pid" 2>/dev/null || true' EXIT
+  for _ in $(seq 1 30); do
+    curl -sf -o /dev/null "http://127.0.0.1:$stub_port/info" && break
+    sleep 1
+  done
+  curl -sf -o /dev/null "http://127.0.0.1:$stub_port/info" \
+    || { log "ERROR: Agent stub did not start; see $agents_dir/agent-stub.log"; exit 1; }
+  export TRACE_AGENT_PORT="$stub_port" EXPECT_AGENT=up
+  export PERF_SINK_STATS_URL="http://127.0.0.1:$stub_port/_stats"
+  log "Agent stub on :$stub_port"
+fi
+if [ "${PETCLINIC_UPSTREAM_HEADERS:-true}" = "true" ]; then
+  export PERF_WRK_SCRIPT="${PERF_WRK_SCRIPT:-$script_dir/wrk-upstream-headers.lua}"
+fi
+
 log "fetching + building PetClinic"
 petclinic_jar="$(bash "$script_dir/fetch-petclinic.sh")"
 log "PetClinic jar: $petclinic_jar"
@@ -111,7 +142,7 @@ log "sweeping ${#resolved[@]} variant(s) x ${#heaps[@]} heap(s) [${heaps[*]}] x 
 for heap in "${heaps[@]}"; do
   heap_dir="$results_dir/heap-$heap"
   mkdir -p "$heap_dir"
-  rm -f /tmp/perf_*.jfr /tmp/perf_results.csv
+  rm -f /tmp/perf_*.jfr /tmp/perf_gc_*.log /tmp/perf_results.csv
   log "=== HEAP $heap ==="
   (
     cd "$script_dir"
@@ -119,7 +150,7 @@ for heap in "${heaps[@]}"; do
       bash ./run-perf-test.sh jar "$petclinic_jar" "${resolved[@]}"
   )
   cp -f /tmp/perf_results.csv "$heap_dir/" 2>/dev/null || true
-  cp -f /tmp/perf_*.jfr "$heap_dir/" 2>/dev/null || true
+  cp -f /tmp/perf_*.jfr /tmp/perf_gc_*.log "$heap_dir/" 2>/dev/null || true
 
   # Fold this heap's throughput into the combined grid CSV with a leading Heap column.
   if [ -f /tmp/perf_results.csv ]; then
