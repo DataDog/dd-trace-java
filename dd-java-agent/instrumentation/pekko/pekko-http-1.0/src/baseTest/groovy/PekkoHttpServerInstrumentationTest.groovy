@@ -110,7 +110,13 @@ class PekkoHttpServerInstrumentationSyncV0ForkedTest extends PekkoHttpServerInst
 class PekkoHttpServerInstrumentationSyncV1ForkedTest extends PekkoHttpServerInstrumentationSyncTest implements TestingGenericHttpNamingConventions.ServerV1 {
 }
 
-class PekkoHttpRouteOtelSemanticsForkedTest extends WithHttpServer<PekkoHttpTestWebServer> implements TestingGenericHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
+abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpTestWebServer> implements TestingGenericHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "true")
+  }
+
   @Override
   HttpServer server() {
     new PekkoHttpTestWebServer(PekkoHttpTestWebServer.BindAndHandle())
@@ -130,13 +136,55 @@ class PekkoHttpRouteOtelSemanticsForkedTest extends WithHttpServer<PekkoHttpTest
     serverSpan.resourceName.toString() == "GET $route"
 
     where:
-    path                  | route
-    '/success'            | '/success'
-    '/query?some=value'   | '/query'
-    '/injected-id/ping/1' | '/injected-id/ping/{param}'
-    '/injected-id/ping/2' | '/injected-id/ping/{param}'
-    '/injected-id/fing/3' | '/injected-id/fing/{param}'
+    path                            | route
+    '/success'                      | '/success'
+    '/query?some=value'             | '/query'
+    '/injected-id/ping/1'           | '/injected-id/ping/{param}'
+    '/injected-id/ping/2'           | '/injected-id/ping/{param}'
+    '/injected-id/fing/3'           | '/injected-id/fing/{param}'
+    '/route-async/4/detail/5'       | '/route-async/{param}/detail/{param}'
     '/route-alternative/6/accepted' | '/route-alternative/{param}/accepted'
+  }
+
+  def "concurrent requests retain their own routes across asynchronous matching and rejection"() {
+    given:
+    def counter = new AtomicInteger()
+    int requests = 40
+
+    when:
+    ThreadUtils.runConcurrently(8, requests, {
+      int id = counter.incrementAndGet()
+      boolean async = id % 2 == 0
+      String path = async ? "/route-async/$id/detail/${id + 1}" : "/route-alternative/$id/accepted"
+      def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
+      try {
+        assert response.code() == 200
+        assert response.body().string() == (async ? "$id:${id + 1}".toString() : id.toString())
+      } finally {
+        response.close()
+      }
+    })
+    TEST_WRITER.waitForTraces(requests)
+
+    then:
+    def serverSpans = TEST_WRITER.flatten().findAll { it.getTag('component')?.toString() == 'pekko-http-server' }
+    serverSpans.size() == requests
+    serverSpans.every { span ->
+      String route = span.getTag('url.path').toString().startsWith('/route-async/') ?
+        '/route-async/{param}/detail/{param}' : '/route-alternative/{param}/accepted'
+      span.getTag('http.route') == route && span.resourceName.toString() == "GET $route"
+    }
+  }
+}
+
+class PekkoHttpRouteOtelSemanticsForkedTest extends PekkoHttpRouteOtelSemanticsTest {
+}
+
+class PekkoHttpRouteOtelSemanticsContextSwapForkedTest extends PekkoHttpRouteOtelSemanticsTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }
 

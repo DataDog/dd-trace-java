@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isBridge;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -13,9 +12,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -46,22 +42,6 @@ public final class PekkoHttpPathMatcherInstrumentation extends InstrumenterModul
   }
 
   @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
-        packageName + ".PekkoHttpRouteHelper$Route");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PekkoHttpRouteHelper",
-      packageName + ".PekkoHttpRouteHelper$Frame",
-      packageName + ".PekkoHttpRouteHelper$Route"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("apply")
@@ -83,11 +63,7 @@ public final class PekkoHttpPathMatcherInstrumentation extends InstrumenterModul
         @Advice.Enter PekkoHttpRouteHelper.Frame frame,
         @Advice.Return PathMatcher.Matching<?> matching,
         @Advice.Thrown Throwable throwable) {
-      PekkoHttpRouteHelper.exit(
-          frame,
-          matching,
-          throwable,
-          InstrumentationContext.get(AgentSpan.class, PekkoHttpRouteHelper.Route.class));
+      PekkoHttpRouteHelper.exit(frame, matching, throwable);
     }
   }
 }

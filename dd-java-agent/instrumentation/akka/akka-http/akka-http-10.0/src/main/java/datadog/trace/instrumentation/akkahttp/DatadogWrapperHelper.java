@@ -33,7 +33,7 @@ public class DatadogWrapperHelper {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, parentContext);
 
-    return context;
+    return AkkaHttpRouteState.init(context);
   }
 
   static final class SwappedContextScope implements ContextScope {

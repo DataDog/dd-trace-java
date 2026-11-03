@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.akkahttp;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isBridge;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -15,9 +14,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -46,22 +42,6 @@ public final class AkkaHttpPathMatcherInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
-        packageName + ".AkkaHttpRouteHelper$Route");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AkkaHttpRouteHelper",
-      packageName + ".AkkaHttpRouteHelper$Frame",
-      packageName + ".AkkaHttpRouteHelper$Route"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("apply")
@@ -83,11 +63,7 @@ public final class AkkaHttpPathMatcherInstrumentation extends InstrumenterModule
         @Advice.Enter AkkaHttpRouteHelper.Frame frame,
         @Advice.Return PathMatcher.Matching<?> matching,
         @Advice.Thrown Throwable throwable) {
-      AkkaHttpRouteHelper.exit(
-          frame,
-          matching,
-          throwable,
-          InstrumentationContext.get(AgentSpan.class, AkkaHttpRouteHelper.Route.class));
+      AkkaHttpRouteHelper.exit(frame, matching, throwable);
     }
   }
 }

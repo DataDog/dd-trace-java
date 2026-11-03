@@ -6,9 +6,9 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import akka.http.scaladsl.model.Uri;
 import akka.http.scaladsl.server.PathMatcher;
 import datadog.trace.api.KnownTags;
-import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
+import datadog.trace.instrumentation.akkahttp.AkkaHttpRouteState.Route;
 import java.util.ArrayList;
 import java.util.List;
 import scala.Product;
@@ -25,9 +25,13 @@ public final class AkkaHttpRouteHelper {
     Frame parent = CURRENT.get();
     if (parent != null) {
       // nested matchers share the root span already checked by the outermost frame
-      Frame frame = new Frame(path, parent.span, parent);
+      Frame frame = new Frame(path, parent.span, parent.state, parent);
       CURRENT.set(frame);
       return frame;
+    }
+    AkkaHttpRouteState state = AkkaHttpRouteState.current();
+    if (state == null) {
+      return null;
     }
     AgentSpan active = activeSpan();
     if (active == null) {
@@ -37,16 +41,12 @@ public final class AkkaHttpRouteHelper {
     if (root == null || root.getTag(KnownTags.URL_PATH_NAME) == null) {
       return null;
     }
-    Frame frame = new Frame(path, root, null);
+    Frame frame = new Frame(path, root, state, null);
     CURRENT.set(frame);
     return frame;
   }
 
-  public static void exit(
-      Frame frame,
-      PathMatcher.Matching<?> matching,
-      Throwable throwable,
-      ContextStore<AgentSpan, Route> routes) {
+  public static void exit(Frame frame, PathMatcher.Matching<?> matching, Throwable throwable) {
     if (frame == null) {
       return;
     }
@@ -79,7 +79,7 @@ public final class AkkaHttpRouteHelper {
     Route previous = null;
     Object requestPath = frame.span.getTag(KnownTags.URL_PATH_NAME);
     if (requestPath == null || !requestPath.toString().equals(URIUtils.decode(path))) {
-      previous = routes.get(frame.span);
+      previous = frame.state.route;
       // A rejected route can retry an earlier unmatched path in another alternative.
       while (previous != null && !previous.remaining.equals(path)) {
         previous = previous.previous;
@@ -89,7 +89,7 @@ public final class AkkaHttpRouteHelper {
       }
       template = previous.template + template;
     }
-    routes.put(frame.span, new Route(0, rest, template, previous));
+    frame.state.route = new Route(0, rest, template, previous);
     Object method = frame.span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME);
     HTTP_RESOURCE_DECORATOR.withRoute(
         frame.span, method == null ? null : method.toString(), template, true);
@@ -98,13 +98,15 @@ public final class AkkaHttpRouteHelper {
   public static final class Frame {
     final Uri.Path uriPath;
     final AgentSpan span;
+    final AkkaHttpRouteState state;
     final Frame parent;
     List<Route> parts;
     private String path;
 
-    Frame(Uri.Path uriPath, AgentSpan span, Frame parent) {
+    Frame(Uri.Path uriPath, AgentSpan span, AkkaHttpRouteState state, Frame parent) {
       this.uriPath = uriPath;
       this.span = span;
+      this.state = state;
       this.parent = parent;
     }
 
@@ -135,24 +137,6 @@ public final class AkkaHttpRouteHelper {
         cursor = end;
       }
       return template.append(path, cursor, consumed).toString();
-    }
-  }
-
-  public static final class Route {
-    final int offset;
-    final String remaining;
-    final String template;
-    final Route previous;
-
-    Route(int offset, String remaining, String template) {
-      this(offset, remaining, template, null);
-    }
-
-    Route(int offset, String remaining, String template, Route previous) {
-      this.offset = offset;
-      this.remaining = remaining;
-      this.template = template;
-      this.previous = previous;
     }
   }
 }
