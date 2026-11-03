@@ -1,13 +1,12 @@
 # Gradle build cache
 
 Use this guide to investigate cache reuse, incorrect outputs, and CI performance.
-S3-specific sections describe the [S3 rollout](https://github.com/DataDog/dd-trace-java/pull/12604).
 Check [settings.gradle.kts](../settings.gradle.kts) and [.gitlab-ci.yml](../.gitlab-ci.yml)
 at the pipeline's commit for its configuration.
 
 ## Controls
 
-Set variables when starting a **new pipeline**; job retries keep their configuration.
+Set variables when starting a **new pipeline** (job retries keep their pipeline's configuration).
 
 | Need | Action |
 | --- | --- |
@@ -21,7 +20,7 @@ Set variables when starting a **new pipeline**; job retries keep their configura
 | Tag/release | `v1/release/<CI_PIPELINE_ID>/<architecture>/<os>/` |
 
 Non-tag pipelines share entries across jobs and pipelines. Release jobs share within
-one pipeline; preserve that isolation in overrides.
+one pipeline.
 
 Changing prefixes leaves local caches and old S3 entries intact. `clean` removes task
 outputs, not cache entries. `--refresh-dependencies` refreshes dependency resolution,
@@ -35,11 +34,11 @@ not task-output caches.
   S3 requires both `CI` and `GITLAB_CI`; ordinary local builds do not use it.
 - Dependency downloads, GitLab cache archives, and Gradle's configuration cache are separate.
 
-| Task outcome | Meaning |
-| --- | --- |
-| `FROM-CACHE` | Outputs restored. Check S3 transfer logs/statistics to distinguish remote from local hits. |
-| `UP-TO-DATE` | Existing workspace outputs reused. |
-| `SKIPPED` / `NO-SOURCE` | No execution needed; not a cache hit. |
+| Task outcome | Meaning                                                                                        |
+| --- |------------------------------------------------------------------------------------------------|
+| `FROM-CACHE` | Outputs restored from the local cache or S3. Check `S3 cache` in CI job logs for more details. |
+| `UP-TO-DATE` | Existing workspace outputs reused.                                                             |
+| `SKIPPED` / `NO-SOURCE` | No execution needed; not a cache hit.                                                          |
 
 ## Investigate a problem
 
