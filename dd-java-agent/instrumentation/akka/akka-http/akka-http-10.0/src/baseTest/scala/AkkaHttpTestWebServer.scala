@@ -241,6 +241,16 @@ object AkkaHttpTestWebServer {
             complete(HttpResponse(status = ERROR.getStatus, entity = ERROR.getBody))
           } ~ path(EXCEPTION.relativePath) {
             throw new Exception(EXCEPTION.getBody)
+          } ~ pathPrefix("directive-rejection") {
+            path(Segment) { _ =>
+              onSuccess(Future { 1 }) { _ =>
+                parameter("required") { _ => complete("accepted") }
+              }
+            } ~ complete("fallback")
+          } ~ pathPrefix("header-rejection") {
+            path(Segment) { _ =>
+              headerValueByName("authorization") { _ => complete("accepted") }
+            } ~ complete("fallback")
           } ~ path("items" / Segment) { _ =>
             complete("item")
           } ~ pathPrefix("route-async" / IntNumber) { id =>

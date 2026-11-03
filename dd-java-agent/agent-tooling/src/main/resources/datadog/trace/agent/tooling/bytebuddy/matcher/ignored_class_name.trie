@@ -165,6 +165,7 @@
 # Path matchers supply route templates when OTel HTTP semantics are enabled
 0 akka.http.scaladsl.server.PathMatcher*
 0 akka.http.scaladsl.server.ImplicitPathMatcherConstruction*
+0 akka.http.scaladsl.server.RouteResult$Rejected
 0 akka.http.scaladsl.server.directives.ParameterDirectives$class
 0 akka.http.scaladsl.server.directives.ParameterDirectives
 0 akka.http.scaladsl.server.directives.BasicDirectives$class
