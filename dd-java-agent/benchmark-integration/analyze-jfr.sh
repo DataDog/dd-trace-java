@@ -4,6 +4,11 @@
 # about: self-time (and sampled allocation) bucketed by thread role (foreground request threads vs
 # background agent threads) and by code owner (instrumentation vs tracer-core vs app/JDK).
 #
+# Attribution is by leaf frame, so it undercounts instrumentation: most advice is woven into the
+# instrumented method, and while it runs JFR reports that app/framework method. "instrumentation"
+# here is the datadog.trace.instrumentation.* helpers the advice calls, and the woven advice itself
+# lands in app. Read the instrumentation bucket as a lower bound.
+#
 # This encodes the analysis so the numbers are trustworthy to someone running it blindly -- the tool
 # emits the meaningful split, not a raw JFR to hand-parse.
 #
@@ -74,6 +79,7 @@ END {
   emit(tracer_tot, total, "background", "core");
   emit(tracer_tot, total, "other",      "instrumentation");
   emit(tracer_tot, total, "other",      "core");
+  printf "    (instrumentation = helper methods only; advice woven into app methods counts as app)\n";
 }
 function emit(tt, all, r, o,   c) {
   c = split_ct[r SUBSEP o] + 0;

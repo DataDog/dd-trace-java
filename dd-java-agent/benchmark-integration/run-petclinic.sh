@@ -35,13 +35,22 @@ mkdir -p "$agents_dir"
 
 log() { echo "[run-petclinic] $*" >&2; }
 
-# PetClinic (Spring Boot 3) requires JDK 17+, and the jfr CLI requires 11+. Default to JAVA_17_HOME
-# (override with BENCH_JAVA_HOME) and put it first on PATH so java / jfr / mvnw are all consistent.
-# All variants in a sweep run under this one JDK -- keep it fixed for comparability.
-bench_java_home="${BENCH_JAVA_HOME:-${JAVA_17_HOME:-}}"
-if [ -z "$bench_java_home" ] || [ ! -x "$bench_java_home/bin/java" ] || [ ! -x "$bench_java_home/bin/jfr" ]; then
-  echo "[run-petclinic] ERROR: need a JDK 17+ with the jfr CLI." >&2
-  echo "[run-petclinic]   set BENCH_JAVA_HOME (JAVA_17_HOME is currently '${JAVA_17_HOME:-unset}')" >&2
+# PetClinic (Spring Boot 3) requires JDK 17+, and the jfr CLI requires 11+. Use BENCH_JAVA_HOME, else
+# JAVA_17_HOME, else JAVA_HOME, else the JDK of the java on PATH, and put it first on PATH so java /
+# jfr / mvnw are all consistent. All variants in a sweep run under this one JDK -- keep it fixed for
+# comparability.
+bench_java_home="${BENCH_JAVA_HOME:-${JAVA_17_HOME:-${JAVA_HOME:-}}}"
+if [ -z "$bench_java_home" ] && command -v java >/dev/null 2>&1; then
+  bench_java_home=$(java -XshowSettings:properties -version 2>&1 | awk -F' = ' '/java.home/ { print $2 }')
+fi
+bench_java_major=""
+if [ -n "$bench_java_home" ] && [ -x "$bench_java_home/bin/java" ]; then
+  bench_java_major=$("$bench_java_home/bin/java" -XshowSettings:properties -version 2>&1 \
+    | awk -F' = ' '/java.specification.version/ { v = $2; sub(/^1\./, "", v); print v }')
+fi
+if [ -z "$bench_java_major" ] || [ "$bench_java_major" -lt 17 ] || [ ! -x "$bench_java_home/bin/jfr" ]; then
+  echo "[run-petclinic] ERROR: need a JDK 17+ with the jfr CLI (found '${bench_java_home:-none}', version '${bench_java_major:-unknown}')." >&2
+  echo "[run-petclinic]   set BENCH_JAVA_HOME, JAVA_17_HOME or JAVA_HOME to one" >&2
   exit 1
 fi
 export JAVA_HOME="$bench_java_home"

@@ -127,6 +127,9 @@ PetClinic is pinned to a specific commit in `fetch-petclinic.sh` (bump deliberat
   by estimated bytes, not by sample count, and the total is an estimate. That's sufficient for a
   macro trend.
 - Young GCs per 1,000 requests need JDK 9+ (unified GC logging); on JDK 8 that column is empty.
+- The instrumentation/core split is by leaf frame, so it **undercounts instrumentation**: most advice
+  is woven into the instrumented method, and while it runs JFR reports that method, so it counts as
+  app. The instrumentation bucket is the helpers the advice calls — read it as a lower bound.
 - Run on an otherwise-**quiet machine**, and respect the warmup (the harness warms each endpoint
   before measuring). Results depend on the machine's core count / heap regime.
 
