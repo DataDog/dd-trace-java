@@ -232,6 +232,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                 .tags(
                     defaultTags(),
                     tag("request_id", is(REQUEST_ID)),
+                    tag("_dd.appsec.serverless.tracer", is(1)),
                     tag("_dd.appsec.unsupported_event_type", is(1)),
                     error(Error.class, "Some error"))));
   }
@@ -345,6 +346,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                 .tags(
                     defaultTags(),
                     tag("request_id", is(REQUEST_ID)),
+                    tag("_dd.appsec.serverless.tracer", is(1)),
                     tag("_dd.appsec.unsupported_event_type", is(1)))));
   }
 
@@ -511,6 +513,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                 .tags(
                     defaultTags(),
                     tag("request_id", is(REQUEST_ID)),
+                    tag("_dd.appsec.serverless.tracer", is(1)),
                     tag(Tags.HTTP_METHOD, is("GET")),
                     // The tracer tags http.url without the query string; QueryObfuscator
                     // obfuscates http.query.string and re-appends it as the trace is serialised
@@ -629,6 +632,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                 .tags(
                     defaultTags(),
                     tag("request_id", is(REQUEST_ID)),
+                    tag("_dd.appsec.serverless.tracer", is(1)),
                     tag(Tags.HTTP_METHOD, is("GET")),
                     tag(Tags.COMPONENT, is("aws-lambda")),
                     error(Error.class, "Some error"))));

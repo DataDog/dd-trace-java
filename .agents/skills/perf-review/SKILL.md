@@ -245,7 +245,8 @@ result, not a failure to find something.
   **J7** `substring` → `SubSequence` zero-copy view · **J8** backtracking regex on
   external input → RE2J (ReDoS) · **J9** `Objects.hash(...)` varargs/boxing →
   `HashingUtils` · **J10** hot-path `String.format` → `Strings` · **J11** composite-key
-  maps → `Hashtable`.
+  maps → `Hashtable` · **J13** large retained `byte[]` / buffer → `ChunkedBuffer`
+  (retained past 512 KiB = humongous + constant live set, SEV-2).
 - **J2** megamorphic dispatch is **PARKED** — do *not* raise megamorphism findings in
   review yet (kept as author reference only; it needs a standing audit, not per-PR
   flagging). See `checks.md` for why.

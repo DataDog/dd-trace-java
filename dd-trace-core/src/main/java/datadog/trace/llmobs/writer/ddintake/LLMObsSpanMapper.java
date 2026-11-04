@@ -801,23 +801,18 @@ public class LLMObsSpanMapper implements RemoteMapper {
       if (traceCount() == 0) {
         return msgpackMapHeaderSize(0);
       }
-      return header.remaining() + msgpackArrayHeaderSize(spansWritten) + body.remaining();
+      return header.remaining() + msgpackArrayHeaderSize(spansWritten) + bodySize();
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
       // If traceCount is 0, we write a map with 0 elements in MsgPack format.
       if (traceCount() == 0) {
-        ByteBuffer emptyDict = msgpackMapHeader(0);
-        while (emptyDict.hasRemaining()) {
-          channel.write(emptyDict);
-        }
+        writeFully(msgpackMapHeader(0), channel);
       } else {
-        while (body.hasRemaining()) {
-          channel.write(header.slice());
-          channel.write(msgpackArrayHeader(spansWritten));
-          channel.write(body);
-        }
+        writeFully(header.slice(), channel);
+        writeFully(msgpackArrayHeader(spansWritten), channel);
+        writeBody(channel);
       }
     }
 
@@ -828,11 +823,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
         buffers = Collections.singletonList(msgpackMapHeader(0));
       } else {
         buffers =
-            Arrays.asList(
+            bodyAfter(
                 header.slice(),
                 // Third Value: is an array of spans serialized into the body
-                msgpackArrayHeader(spansWritten),
-                body);
+                msgpackArrayHeader(spansWritten));
       }
       return gzippedMsgpackRequestBodyOf(buffers);
     }

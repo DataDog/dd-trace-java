@@ -6,8 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.HashMap;
-import java.util.Map;
+import datadog.trace.api.TagMap;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -47,7 +46,7 @@ class EndpointResolverTest {
   @Test
   void disabledResolverReturnsNull() {
     EndpointResolver resolver = new EndpointResolver(false, false);
-    Map<String, Object> unsafeTags = new HashMap<>();
+    TagMap unsafeTags = TagMap.create();
 
     String result = resolver.resolveEndpoint(unsafeTags, "/users", "http://example.com/users/123");
 
@@ -59,7 +58,7 @@ class EndpointResolverTest {
   @Test
   void alwaysSimplifiedEndpointComputesFromUrlEvenWithValidRoute() {
     EndpointResolver resolver = new EndpointResolver(true, true);
-    Map<String, Object> unsafeTags = new HashMap<>();
+    TagMap unsafeTags = TagMap.create();
 
     String result = resolver.resolveEndpoint(unsafeTags, "/users", "http://example.com/users/123");
 
@@ -71,7 +70,7 @@ class EndpointResolverTest {
   @Test
   void usesEligibleRouteWithoutTagging() {
     EndpointResolver resolver = new EndpointResolver(true, false);
-    Map<String, Object> unsafeTags = new HashMap<>();
+    TagMap unsafeTags = TagMap.create();
 
     String result =
         resolver.resolveEndpoint(unsafeTags, "/api/v1/users", "http://example.com/users/123");
@@ -91,7 +90,7 @@ class EndpointResolverTest {
   void computesEndpointAndTagsWhenRouteIsIneligible(
       String ineligibleRoute, String url, String expectedEndpoint) {
     EndpointResolver resolver = new EndpointResolver(true, false);
-    Map<String, Object> unsafeTags = new HashMap<>();
+    TagMap unsafeTags = TagMap.create();
 
     String result = resolver.resolveEndpoint(unsafeTags, ineligibleRoute, url);
 
@@ -115,7 +114,7 @@ class EndpointResolverTest {
   @Test
   void realWorldScenarioServiceWithRoute() {
     EndpointResolver resolver = new EndpointResolver(true, false);
-    Map<String, Object> unsafeTags = new HashMap<>();
+    TagMap unsafeTags = TagMap.create();
 
     // framework provides accurate route
     String result =
@@ -132,7 +131,7 @@ class EndpointResolverTest {
   @Test
   void realWorldScenarioProxyWithoutRoute() {
     EndpointResolver resolver = new EndpointResolver(true, false);
-    Map<String, Object> unsafeTags = new HashMap<>();
+    TagMap unsafeTags = TagMap.create();
 
     // no route available (tracer in proxy)
     String result =
@@ -147,7 +146,7 @@ class EndpointResolverTest {
   @Test
   void realWorldScenarioBadInstrumentationWithCatchAll() {
     EndpointResolver resolver = new EndpointResolver(true, false);
-    Map<String, Object> unsafeTags = new HashMap<>();
+    TagMap unsafeTags = TagMap.create();
 
     // instrumentation provides unhelpful catch-all route
     String result =
@@ -161,7 +160,7 @@ class EndpointResolverTest {
   @Test
   void realWorldScenarioTestingWithAlwaysSimplified() {
     EndpointResolver resolver = new EndpointResolver(true, true);
-    Map<String, Object> unsafeTags = new HashMap<>();
+    TagMap unsafeTags = TagMap.create();
 
     // testing mode to compare with backend inference
     String result =
@@ -176,7 +175,7 @@ class EndpointResolverTest {
   @Test
   void edgeCaseMalformedUrlReturnsDefaultEndpoint() {
     EndpointResolver resolver = new EndpointResolver(true, false);
-    Map<String, Object> unsafeTags = new HashMap<>();
+    TagMap unsafeTags = TagMap.create();
 
     String result = resolver.resolveEndpoint(unsafeTags, null, "not-a-url");
 
@@ -189,7 +188,7 @@ class EndpointResolverTest {
   @Test
   void edgeCaseBothRouteAndUrlMissing() {
     EndpointResolver resolver = new EndpointResolver(true, false);
-    Map<String, Object> unsafeTags = new HashMap<>();
+    TagMap unsafeTags = TagMap.create();
 
     String result = resolver.resolveEndpoint(unsafeTags, null, null);
 
