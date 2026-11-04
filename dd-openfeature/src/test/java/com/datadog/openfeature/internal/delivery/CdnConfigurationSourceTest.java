@@ -28,6 +28,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
@@ -172,6 +173,28 @@ class CdnConfigurationSourceTest {
     assertEquals("java", request.header("Datadog-Meta-Lang"));
     assertNull(request.header("If-None-Match"));
     assertNull(request.header("X-DD-FEATURE-FLAGS-CAPABILITIES"));
+  }
+
+  @Test
+  void carriesEvaluatorCapabilityAsQueryParameter() {
+    final URI endpoint = URI.create("https://example.test/ufc?token=preserved");
+
+    assertEquals(endpoint, CdnConfigurationSource.endpointForCapabilities(endpoint, Set.of()));
+    assertEquals(
+        endpoint,
+        CdnConfigurationSource.endpointForCapabilities(endpoint, Set.of("unknown-v1")));
+    assertEquals(
+        URI.create(
+            "https://example.test/ufc?token=preserved&cap_dependent-flags-variant-key=v1"),
+        CdnConfigurationSource.endpointForCapabilities(
+            endpoint, Set.of("dependent-flag-variant-key-v1")));
+    assertEquals(
+        URI.create(
+            "https://example.test/ufc?token=preserved&cap_dependent-flags-variant-key=v1#section"),
+        CdnConfigurationSource.endpointForCapabilities(
+            URI.create(
+                "https://example.test/ufc?cap_dependent-flags-variant-key=old&token=preserved#section"),
+            Set.of("dependent-flag-variant-key-v1")));
   }
 
   @Test

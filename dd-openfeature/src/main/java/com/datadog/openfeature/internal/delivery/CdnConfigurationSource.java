@@ -17,6 +17,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -298,15 +299,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   private HttpRequest buildRequest() {
     final HttpRequest.Builder request =
-        HttpRequest.newBuilder(this.endpoint)
+        HttpRequest.newBuilder(endpointForCapabilities(this.endpoint, EvaluatorCapabilities.supported()))
             .timeout(this.requestTimeout)
             .header("Accept-Encoding", "gzip");
     Headers.addMetadata(request);
-    if (EvaluatorCapabilities.supported()
-        .contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
-      request.header(
-          "X-DD-FEATURE-FLAGS-CAPABILITIES", EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1);
-    }
     if (this.apiKey != null) {
       request.header("DD-API-KEY", this.apiKey);
     }
@@ -315,6 +311,39 @@ public final class CdnConfigurationSource implements ConfigurationService {
       request.header("If-None-Match", currentEtag);
     }
     return request.GET().build();
+  }
+
+  static URI endpointForCapabilities(final URI endpoint, final Set<String> capabilities) {
+    if (!capabilities.contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
+      return endpoint;
+    }
+    final String parameter = EvaluatorCapabilities.DEPENDENT_FLAGS_VARIANT_KEY_QUERY_PARAMETER;
+    final StringBuilder query = new StringBuilder();
+    if (endpoint.getRawQuery() != null) {
+      for (final String item : endpoint.getRawQuery().split("&", -1)) {
+        if (!item.equals(parameter) && !item.startsWith(parameter + "=")) {
+          if (query.length() > 0) {
+            query.append('&');
+          }
+          query.append(item);
+        }
+      }
+    }
+    if (query.length() > 0) {
+      query.append('&');
+    }
+    query
+        .append(parameter)
+        .append('=')
+        .append(EvaluatorCapabilities.DEPENDENT_FLAGS_VARIANT_KEY_QUERY_VERSION);
+
+    final String endpointText = endpoint.toString();
+    final int fragmentStart = endpointText.indexOf('#');
+    final String fragment = fragmentStart < 0 ? "" : endpointText.substring(fragmentStart);
+    final String withoutFragment = fragmentStart < 0 ? endpointText : endpointText.substring(0, fragmentStart);
+    final int queryStart = withoutFragment.indexOf('?');
+    final String path = queryStart < 0 ? withoutFragment : withoutFragment.substring(0, queryStart);
+    return URI.create(path + "?" + query + fragment);
   }
 
   private synchronized void warn(final String message, final Object... arguments) {
