@@ -32,9 +32,15 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
   void completableConcatComplete() {
     try (Probe p = new Probe()) {
       List<Integer> effects = new ArrayList<>();
-      Completable.concatArray(
-              source(p, effects, 1, null), source(p, effects, 2, null), source(p, effects, 3, null))
-          .subscribe(p::complete, p::error);
+      Completable concatenated =
+          Completable.concatArray(
+              source(p, effects, 1, null),
+              source(p, effects, 2, null),
+              source(p, effects, 3, null));
+      p.closeScope();
+      p.assertRestored();
+      concatenated.subscribe(p::complete, p::error);
+      p.assertRestored();
       assertEquals(asList(1, 2, 3), effects);
       assertEquals(asList("source-1", "source-2", "source-3", "complete"), p.labels);
       p.assertTerminal(1, null);
@@ -46,11 +52,15 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
     RuntimeException failure = new RuntimeException("concat");
     try (Probe p = new Probe()) {
       List<Integer> effects = new ArrayList<>();
-      Completable.concatArray(
+      Completable concatenated =
+          Completable.concatArray(
               source(p, effects, 1, null),
               source(p, effects, 2, failure),
-              source(p, effects, 3, null))
-          .subscribe(p::complete, p::error);
+              source(p, effects, 3, null));
+      p.closeScope();
+      p.assertRestored();
+      concatenated.subscribe(p::complete, p::error);
+      p.assertRestored();
       assertEquals(asList(1, 2), effects);
       assertEquals(asList("source-1", "source-2", "error"), p.labels);
       p.assertTerminal(0, failure);
@@ -71,9 +81,13 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
               });
       assertEquals(0, suppliers.get());
       assertTrue(effects.isEmpty());
+      p.closeScope();
+      p.assertRestored();
       deferred.subscribe(p::complete, p::error);
+      p.assertRestored();
       assertEquals(1, suppliers.get());
       deferred.subscribe(p::complete, p::error);
+      p.assertRestored();
       assertEquals(2, suppliers.get());
       assertEquals(asList(1, 2), effects);
       assertEquals(
@@ -95,7 +109,10 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
                 return failure;
               });
       assertEquals(0, suppliers.get());
+      p.closeScope();
+      p.assertRestored();
       error.subscribe(p::complete, p::error);
+      p.assertRestored();
       assertEquals(1, suppliers.get());
       assertEquals(asList("supplier", "error"), p.labels);
       p.assertTerminal(0, failure);
@@ -137,16 +154,21 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
     PublishProcessor<Integer> processor = PublishProcessor.create();
     AtomicInteger cleanup = new AtomicInteger();
     try (Probe p = new Probe()) {
-      Disposable subscription =
+      Completable source =
           processor
               .ignoreElements()
+              .doOnSubscribe(ignored -> p.record("subscribe"))
               .doOnDispose(
                   () -> {
                     cleanup.incrementAndGet();
-                    p.record("dispose");
-                  })
-              .subscribe(p::complete, p::error);
+                    // Disposing is a caller action, outside the captured callback context.
+                    p.assertRestored();
+                  });
+      p.closeScope();
+      p.assertRestored();
+      Disposable subscription = source.subscribe(p::complete, p::error);
       try {
+        p.assertRestored();
         assertFalse(subscription.isDisposed());
         assertTrue(processor.hasSubscribers());
         processor.onNext(1);
@@ -157,12 +179,11 @@ class CompletableCoverageTest extends AbstractInstrumentationTest {
         assertEquals(1, cleanup.get());
         subscription.dispose();
         assertEquals(1, cleanup.get());
-        p.closeScope();
         p.assertRestored();
         processor.onNext(2);
         processor.onComplete();
         p.assertTerminal(0, null);
-        assertEquals(asList("dispose"), p.labels);
+        assertEquals(asList("subscribe"), p.labels);
         p.assertRestored();
       } finally {
         subscription.dispose();

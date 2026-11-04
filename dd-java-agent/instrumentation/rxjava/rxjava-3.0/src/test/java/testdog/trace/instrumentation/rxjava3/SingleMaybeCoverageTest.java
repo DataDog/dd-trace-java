@@ -97,6 +97,14 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
     AtomicReference<Thread> secondThread = new AtomicReference<>();
     try (Evidence e = new Evidence()) {
       try {
+        Object[] firstOriginal =
+            first
+                .submit(() -> new Object[] {Context.current(), activeSpan()})
+                .get(5, TimeUnit.SECONDS);
+        Object[] secondOriginal =
+            second
+                .submit(() -> new Object[] {Context.current(), activeSpan()})
+                .get(5, TimeUnit.SECONDS);
         e.run(
             () ->
                 subscription.set(
@@ -126,6 +134,24 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
         assertNotSame(firstThread.get(), secondThread.get());
         e.result(Collections.singletonList("Hello"), 1, null);
         assertSame(e.original, Context.current());
+        assertSame(e.originalSpan, activeSpan());
+        // Sentinels run after each scheduler task unwinds on the same worker thread.
+        first
+            .submit(
+                () -> {
+                  assertSame(firstThread.get(), Thread.currentThread());
+                  assertSame(firstOriginal[0], Context.current());
+                  assertSame(firstOriginal[1], activeSpan());
+                })
+            .get(5, TimeUnit.SECONDS);
+        second
+            .submit(
+                () -> {
+                  assertSame(secondThread.get(), Thread.currentThread());
+                  assertSame(secondOriginal[0], Context.current());
+                  assertSame(secondOriginal[1], activeSpan());
+                })
+            .get(5, TimeUnit.SECONDS);
       } finally {
         release.countDown();
         if (subscription.get() != null) subscription.get().dispose();
