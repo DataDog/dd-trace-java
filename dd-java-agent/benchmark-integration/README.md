@@ -143,10 +143,11 @@ PetClinic is pinned to a specific commit in `fetch-petclinic.sh` (bump deliberat
   by estimated bytes, not by sample count, and the total is an estimate. That's sufficient for a
   macro trend.
 - Young GCs and KB per request need JDK 9+ (unified GC logging); on JDK 8 those columns are empty.
-- In the JFR split, a sample counts as tracer if any `datadog.*` frame is on its stack (up to 64
-  frames), so work the tracer does through JDK code (e.g. `HashMap.resize`) counts as tracer. Advice
-  woven into an app method doing work inline, without calling a `datadog.*` method, still counts as
-  app, so the tracer share is a lower bound; KB/req vs NoAgent is the total.
+- In the JFR split, a sample is owned by the first non-JDK frame from the leaf, so work the tracer
+  does through JDK code (e.g. `HashMap.resize`) counts as tracer, while app code running inside an
+  instrumented filter counts as app. Advice woven into an app method doing work inline, without
+  calling a `datadog.*` method, still counts as app, so the tracer share is a lower bound; KB/req vs
+  NoAgent is the total.
 - Run on an otherwise-**quiet machine**, and respect the warmup (the harness warms each endpoint
   before measuring). Results depend on the machine's core count / heap regime.
 

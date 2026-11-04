@@ -4,11 +4,13 @@
 # about: self-time (and sampled allocation) bucketed by thread role (foreground request threads vs
 # background agent threads) and by code owner (instrumentation vs tracer-core vs app/JDK).
 #
-# A sample counts as tracer if any datadog.* frame is on its stack (up to STACK_DEPTH frames, default
-# 64), and is owned by the datadog.* frame nearest the leaf. So work the tracer does through JDK code
-# (HashMap.resize, Arrays.copyOf, ...) counts as tracer, not app. What still lands in app is advice
-# woven into an app method doing work inline, without calling a datadog.* method; most advice calls
-# helpers, so that's small, but the tracer share is still a lower bound.
+# A sample is owned by the first non-JDK frame from the leaf (JDK = java.*, javax.*, jdk.*, sun.*,
+# com.sun.*; STACK_DEPTH frames are read, default 64). So work the tracer does through JDK code
+# (HashMap.resize, Arrays.copyOf, ...) counts as tracer, while app code running inside an
+# instrumented filter or handler -- which has datadog.* frames further down its stack -- counts as
+# app. What still lands in app is advice woven into an app method doing work inline, without calling
+# a datadog.* method; most advice calls helpers, so that's small, but the tracer share is a lower
+# bound.
 #
 # This encodes the analysis so the numbers are trustworthy to someone running it blindly -- the tool
 # emits the meaningful split, not a raw JFR to hand-parse.
@@ -80,7 +82,7 @@ END {
   emit(tracer_tot, total, "background", "core");
   emit(tracer_tot, total, "other",      "instrumentation");
   emit(tracer_tot, total, "other",      "core");
-  printf "    (tracer = a datadog.* frame anywhere on the stack; work woven inline into app methods counts as app)\n";
+  printf "    (owner = first non-JDK frame from the leaf; work woven inline into app methods counts as app)\n";
 }
 function emit(tt, all, r, o,   c) {
   c = split_ct[r SUBSEP o] + 0;
@@ -91,7 +93,7 @@ function emit(tt, all, r, o,   c) {
 
 # jfr print emits an event block per sample. We reduce each sample to
 # "thread<TAB>ownerFrame<TAB>weight": the sampledThread (CPU) or eventThread (allocation); the
-# datadog.* frame nearest the leaf if the stack has one, else the leaf; and for allocation samples
+# first non-JDK frame from the leaf, else the leaf; and for allocation samples
 # the weight in bytes (JFR throttles them, and each one stands for that many bytes; CPU samples weigh
 # 1). State resets at every event header, so a sample without a stack can't lend its thread to the
 # next one.
@@ -116,7 +118,7 @@ extract_stream() {
       frame=$1; sub(/\(.*/,"",frame);         # strip "(params)"
       if (frame == "" || frame == "...") next;
       if (leaf == "") leaf=frame;
-      if (owner == "" && frame ~ /^datadog\./) owner=frame;
+      if (owner == "" && frame !~ /^(java|javax|jdk|sun|com\.sun)\./) owner=frame;
     }
   '
 }
