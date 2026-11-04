@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import net.bytebuddy.asm.Advice;
 
@@ -21,6 +22,14 @@ public class AsyncTrampolineInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String instrumentedType() {
     return "com.mongodb.internal.async.AsyncTrampoline$ContinuationHolder";
+  }
+
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    // The advice only references JDK and bootstrap types; retain this module's 4.x driver boundary.
+    return new Reference[] {
+      new Reference.Builder("com.mongodb.internal.async.SingleResultCallback").build()
+    };
   }
 
   @Override
