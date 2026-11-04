@@ -13,6 +13,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.context.ContextScope;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
@@ -358,17 +359,18 @@ public final class ContinuableScopeManager {
     return activate(context);
   }
 
-  public Context swap(@Nonnull Context context) {
+  public ContextHandle swap(@Nonnull ContextHandle handle) {
     ScopeStack oldStack = tlsScopeStack.get();
     ContinuableScope oldScope = oldStack.top;
 
     ScopeStack newStack;
     ContinuableScope newScope;
-    if (context instanceof ScopeContext) {
+    if (handle instanceof ScopeContext) {
       // restore previously swapped context stack
-      newStack = ((ScopeContext) context).restore(profilingContextIntegration);
+      newStack = ((ScopeContext) handle).restore(profilingContextIntegration);
       newScope = newStack.top;
-    } else if (context != Context.root()) {
+    } else if (handle != Context.root()) {
+      Context context = (Context) handle;
       // start a new stack and record the new context as active
       newStack = new ScopeStack(profilingContextIntegration);
       newScope = new ContinuableScope(this, context, CONTEXT, true, createScopeState(context));

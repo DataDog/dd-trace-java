@@ -2,28 +2,29 @@ package datadog.trace.instrumentation.zio.v2_0;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 
 public class FiberContext {
-  private Context context;
+  private ContextHandle fiberContext;
   private final ContextContinuation continuation;
 
-  private Context originalContext;
+  private ContextHandle previousContext;
 
   public FiberContext() {
-    // record context to use for this coroutine
-    this.context = Context.current();
+    Context initial = Context.current();
     // stop enclosing trace from finishing early
-    this.continuation = this.context.capture();
+    this.continuation = initial.capture();
+    this.fiberContext = initial.checkpoint();
   }
 
   public void onResume() {
-    originalContext = context.swap();
+    previousContext = fiberContext.swap();
   }
 
   public void onSuspend() {
-    if (originalContext != null) {
-      context = originalContext.swap();
-      originalContext = null;
+    if (previousContext != null) {
+      fiberContext = previousContext.swap();
+      previousContext = null;
     }
   }
 

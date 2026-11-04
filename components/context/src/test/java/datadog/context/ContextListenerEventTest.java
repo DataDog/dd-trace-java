@@ -88,7 +88,7 @@ class ContextListenerEventTest extends ContextTestBase {
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
     Context context = root().with(TEST_KEY, "value");
-    Context previous = context.swap();
+    ContextHandle previous = context.swap();
     assertSame(root(), previous);
     listener.assertNewEvents("update:{root}->value");
     previous = root().swap();

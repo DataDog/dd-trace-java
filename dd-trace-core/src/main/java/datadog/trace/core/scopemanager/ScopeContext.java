@@ -1,12 +1,14 @@
 package datadog.trace.core.scopemanager;
 
 import datadog.context.Context;
+import datadog.context.ContextHandle;
 import datadog.context.ContextKey;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** Wraps a {@link ScopeStack} as a {@link Context} so it can be swapped back later. */
-final class ScopeContext implements Context {
+/** Wraps a {@link ScopeStack} as a {@link ContextHandle} so it can be swapped back later. */
+final class ScopeContext implements ContextHandle {
   private final Thread originalThread = Thread.currentThread();
   private final ScopeStack scopeStack;
   private final ContinuableScope parent;
@@ -35,12 +37,7 @@ final class ScopeContext implements Context {
 
   @Nullable
   @Override
-  public <T> T get(ContextKey<T> key) {
+  public <T> T get(@Nonnull ContextKey<T> key) {
     return context.get(key);
-  }
-
-  @Override
-  public <T> Context with(ContextKey<T> key, @Nullable T value) {
-    return context.with(key, value);
   }
 }
