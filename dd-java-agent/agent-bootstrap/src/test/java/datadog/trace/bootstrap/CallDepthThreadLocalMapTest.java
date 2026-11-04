@@ -4,9 +4,10 @@ import static datadog.trace.bootstrap.CallDepthThreadLocalMap.incrementCallDepth
 import static datadog.trace.bootstrap.CallDepthThreadLocalMap.reset;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import datadog.trace.test.util.DDJavaSpecification;
 import org.junit.jupiter.api.Test;
 
-class CallDepthThreadLocalMapTest {
+class CallDepthThreadLocalMapTest extends DDJavaSpecification {
 
   @Test
   void testCallDepthThreadLocalMap() {
