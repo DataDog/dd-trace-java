@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api.http;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.KnownTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanData;
 import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 
 /** Extracts the OpenTelemetry URL tags from a captured HTTP server URL. */
@@ -12,7 +12,7 @@ public final class OtelServerUrl implements TagExtractor<HttpServerUrl> {
   private OtelServerUrl() {}
 
   @Override
-  public void extract(HttpServerUrl url, AgentSpan span) {
+  public void extract(HttpServerUrl url, SpanData span) {
     HttpServerUrl.Origin origin = url.origin();
     if (url.isValid() && origin.scheme != null) {
       span.setTag(KnownTags.URL_SCHEME_ID, origin.scheme);

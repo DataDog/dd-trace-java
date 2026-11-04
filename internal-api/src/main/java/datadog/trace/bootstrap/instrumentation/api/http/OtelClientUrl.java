@@ -2,8 +2,8 @@ package datadog.trace.bootstrap.instrumentation.api.http;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.KnownTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
+import datadog.trace.bootstrap.instrumentation.api.SpanData;
 import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import java.net.URI;
@@ -15,7 +15,7 @@ public final class OtelClientUrl implements TagExtractor<URI> {
   private OtelClientUrl() {}
 
   @Override
-  public void extract(URI uri, AgentSpan span) {
+  public void extract(URI uri, SpanData span) {
     // The Object overload avoids calling length(), which would render the lazy URL immediately.
     span.setTag(KnownTags.HTTP_URL_ID, (Object) new ClientUrl(uri));
     if (Config.get().isHttpClientTagQueryString()) {

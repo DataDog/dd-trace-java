@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api.http;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanData;
 import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 
 /** Extracts the Datadog URL tags from a captured HTTP server URL. */
@@ -18,7 +18,7 @@ public final class DatadogServerUrl implements TagExtractor<HttpServerUrl> {
   }
 
   @Override
-  public void extract(HttpServerUrl url, AgentSpan span) {
+  public void extract(HttpServerUrl url, SpanData span) {
     CharSequence legacyUrl = url.datadogUrl();
     if (legacyUrl != null) {
       span.setTag(KnownTags.HTTP_URL_ID, legacyUrl);
