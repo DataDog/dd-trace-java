@@ -7,8 +7,8 @@
 #   ./run-enricher.sh NoAgent master=path/a.jar candidate=path/b.jar ...
 #
 # Each variant runs in a fresh JVM; variant order rotates every rep so drift spreads evenly. GC is
-# logged per run. The default heaps start at 128m: the producer's 32 MB send buffer takes half of a
-# 64m heap, which leaves the run GC-bound with or without the agent.
+# logged per run. The default heaps start at 128m: at 64m the run is GC-bound with or without the
+# agent (likely the producer's 32 MB send buffer, half of the heap).
 # Env: HEAPS (default "512m 256m 128m"), REPS (5), MESSAGES (3000000),
 # ENRICH_COPY_HEADERS (false; true forwards input headers, as Kafka Streams does), RESULTS_DIR.
 set -euo pipefail

@@ -67,7 +67,7 @@ the last minute of records.
 
 | variable | default | effect |
 |---|---|---|
-| `HEAPS` | `256m 128m 64m` (enricher `512m 256m 128m`) | heap sweep; the enricher's producer buffer takes 32 MB, so 64m leaves it GC-bound even without the agent |
+| `HEAPS` | `256m 128m 64m` (enricher `512m 256m 128m`) | heap sweep; at 64m the enricher is GC-bound even without the agent (likely the producer's 32 MB send buffer) |
 | `REPS` | `5` | fresh-JVM runs per variant |
 | `MESSAGES` | `10000000` (enricher `3000000`) | records consumed per run |
 | `ENRICH_COPY_HEADERS` | `false` | enricher forwards input headers to output records, as Kafka Streams does |
