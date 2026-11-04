@@ -1,8 +1,0 @@
-apply plugin: 'groovy'
-
-apply from: "$rootDir/gradle/java_test_deps.gradle"
-
-dependencies {
-  testImplementation libs.bundles.spock
-  testImplementation libs.bundles.groovy
-}
