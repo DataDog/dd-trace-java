@@ -9,6 +9,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
+import javax.annotation.Nonnull;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -116,22 +117,35 @@ public class ContextManagerBenchmark {
         }
 
         @Override
-        public ContextScope attach(Context ctx) {
+        public ContextScope attach(@Nonnull Context ctx) {
           return csm.attach(ctx);
         }
 
         @Override
-        public Context swap(Context ctx) {
+        public ContextHandle swap(@Nonnull ContextHandle ctx) {
           return csm.swap(ctx);
         }
 
         @Override
-        public ContextContinuation capture(Context ctx) {
+        public ContextHandle checkpoint(@Nonnull Context ctx) {
+          return ctx;
+        }
+
+        @Override
+        public ContextContinuation capture(@Nonnull Context ctx) {
           return csm.capture(ctx);
         }
 
         @Override
-        public void addListener(ContextListener l) {}
+        public boolean isCaptureEnabled() {
+          return true;
+        }
+
+        @Override
+        public void setCaptureEnabled(boolean enabled) {}
+
+        @Override
+        public void addListener(@Nonnull ContextListener l) {}
       };
     }
     return ThreadLocalContextManager.INSTANCE;
@@ -232,8 +246,8 @@ public class ContextManagerBenchmark {
 
   /**
    * Swap in a new context then swap back the previous one. {@link
-   * ContinuableScopeManager#swap(Context)} replaces the entire scope stack, making this a heavier
-   * operation than in {@link ThreadLocalContextManager}.
+   * ContinuableScopeManager#swap(ContextHandle)} replaces the entire scope stack, making this a
+   * heavier operation than in {@link ThreadLocalContextManager}.
    *
    * <p>Note: GCProfiler will show allocation asymmetry here by design. {@link
    * ContinuableScopeManager} swap allocates a {@code ScopeStack}, a {@code ContinuableScope}, and a
@@ -243,7 +257,7 @@ public class ContextManagerBenchmark {
   @Benchmark
   public void swapContexts(ThreadState thread) {
     Context ctx = thread.nextContext(contexts);
-    Context previous = manager.swap(ctx);
+    ContextHandle previous = manager.swap(ctx);
     manager.swap(previous);
   }
 

@@ -1,11 +1,14 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import static datadog.context.Context.isCaptureEnabled;
+import static datadog.context.Context.setCaptureEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
 
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import datadog.context.Context;
+import datadog.context.ContextHandle;
 import datadog.context.ContextScope;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -38,14 +41,17 @@ public class DatadogWrapperHelper {
 
   static final class SwappedContextScope implements ContextScope {
     private final Context context;
-    private final Context previousContext;
+    private final ContextHandle previousContext;
     private final Thread ownerThread;
     private boolean closed;
 
     SwappedContextScope(final Context context) {
       this.context = context;
       this.ownerThread = Thread.currentThread();
+      boolean allowCapture = isCaptureEnabled();
       this.previousContext = context.swap();
+      // Request handling inherits the enclosing flow's capture flag.
+      setCaptureEnabled(allowCapture);
     }
 
     @Override

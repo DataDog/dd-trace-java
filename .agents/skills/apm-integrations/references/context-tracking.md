@@ -31,6 +31,12 @@ For each boundary-crossing type in the library, the instrumentation needs to ide
 - **The tracing wrapper** — a new class implementing the callback interface that reattaches the captured context before delegating (e.g. `TracingObserver` implements `Observer`).
 - **The wrapper's methods to guard** — the callback methods that must reattach context before running user code (e.g. `onNext`, `onError`, `onComplete` for RxJava observers).
 
+## Capture controls and context switches
+
+Follow the [capture controls and context switches](../../../../docs/how_instrumentations_work.md#capture-controls-and-context-switches)
+contract when choosing how to cross a boundary. For coroutine/fiber switching, capture the original
+context before checkpointing it when trace retention is needed; use the checkpoint for swaps.
+
 ## Tests for context-tracking instrumentations
 
 Context-tracking tests assert that **a span created by user code inside the wrapped callback becomes a child of the parent span active when the boundary was created**:
@@ -44,6 +50,10 @@ runUnderTrace("parent") {
 ```
 
 Do NOT assert span kinds, operation names, span tags, or span types on the *target* methods — there are no spans on those methods.
+
+Also verify that disabled capture prevents implicit propagation and that temporary suppression
+restores the previous flag. For coroutine/fiber switching, check flag preservation across suspension
+and resumption and restoration of the displaced execution unit's flag.
 
 ## Choosing between method overloads
 
