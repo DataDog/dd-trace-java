@@ -6,9 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.context.Context;
-import datadog.context.ContextKey;
-import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.KnownTags;
@@ -43,11 +40,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   private static final Logger log = LoggerFactory.getLogger(HttpClientDecorator.class);
 
-  private static final ContextKey<AgentSpan> CLIENT_SPAN_KEY =
-      ContextKey.named("dd-http-client-span");
-  private static final ContextKey<Context> CLIENT_PARENT_CONTEXT_KEY =
-      ContextKey.named("dd-http-client-parent-context");
-
   private static final String DATADOG_META_LANG_HEADER_NAME = "Datadog-Meta-Lang";
   private static final String DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME = "DD-Client-Library-Language";
 
@@ -61,30 +53,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   private static final boolean CLIENT_TAG_HEADERS = Config.get().isHttpClientTagHeaders();
 
   private static final boolean APPSEC_RASP_ENABLED = Config.get().isAppSecRaspEnabled();
-
-  /** Suppresses duplicate transport spans when OpenTelemetry semantics are enabled. */
-  public static ContextScope suppressNestedClientSpans(
-      final AgentSpan span, final Context parentContext) {
-    return OTEL_SEMANTICS
-        ? Context.current()
-            .with(CLIENT_SPAN_KEY, span)
-            .with(CLIENT_PARENT_CONTEXT_KEY, parentContext)
-            .attach()
-        : null;
-  }
-
-  /** Returns the context to restore after the owning client's response headers arrive. */
-  public static Context nestedClientParentContext(final Context context) {
-    return context.get(CLIENT_PARENT_CONTEXT_KEY);
-  }
-
-  /** Returns whether {@code span} owns the HTTP request represented by {@code context}. */
-  public static boolean isNestedClientSpanSuppressed(final Context context, final AgentSpan span) {
-    return OTEL_SEMANTICS
-        && context != null
-        && span != null
-        && context.get(CLIENT_SPAN_KEY) == span;
-  }
 
   protected abstract String method(REQUEST request);
 
@@ -141,27 +109,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       throw e;
     } catch (Throwable t) {
       log.debug("Failed to decorate span on request", t);
-    }
-  }
-
-  /** Checks the transport destination without decorating a span owned by another HTTP client. */
-  public final void onRequestSecurity(final AgentSpan span, final REQUEST request) {
-    if (request == null) {
-      return;
-    }
-    try {
-      if (APPSEC_RASP_ENABLED) {
-        final URI url = url(request);
-        if (url != null) {
-          onHttpClientRequest(span, url.toString());
-        }
-      }
-    } catch (BlockingException e) {
-      throw e;
-    } catch (Throwable t) {
-      log.debug("Failed to check HTTP transport destination", t);
-    } finally {
-      ssrfIastCheck(request);
     }
   }
 

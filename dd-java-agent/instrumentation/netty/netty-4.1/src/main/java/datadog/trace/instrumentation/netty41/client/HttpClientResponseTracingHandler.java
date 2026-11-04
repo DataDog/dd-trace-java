@@ -2,8 +2,6 @@ package datadog.trace.instrumentation.netty41.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.isNestedClientSpanSuppressed;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.nestedClientParentContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE;
@@ -31,19 +29,6 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-    if (isNestedClientSpanSuppressed(storedContext, span)) {
-      // The outer client span owns this request, so run the callback under it.
-      try (final ContextScope scope = activateSpan(span)) {
-        ctx.fireChannelRead(msg);
-      } finally {
-        if (msg instanceof HttpResponse
-            && (((HttpResponse) msg).status().code() >= 200
-                || ((HttpResponse) msg).status().code() == 101)) {
-          restoreParentContext(ctx, storedContext, parent);
-        }
-      }
-      return;
-    }
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
@@ -82,22 +67,13 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-    if (isNestedClientSpanSuppressed(storedContext, span)) {
-      // The outer client span owns this request, so run the callback under it.
-      try (final ContextScope scope = activateSpan(span)) {
-        super.exceptionCaught(ctx, cause);
-      } finally {
-        restoreParentContext(ctx, storedContext, parent);
-      }
-      return;
-    }
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
     }
 
-    if (span != null && span != parent) {
+    if (span != null) {
       // If an exception is passed to this point, it likely means it was unhandled and the
       // client span won't be finished with a proper response, so we should finish the span here.
       try (final ContextScope scope = activateSpan(span)) {
@@ -119,15 +95,6 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-    if (isNestedClientSpanSuppressed(storedContext, span)) {
-      // The outer client span owns this request, so run the callback under it.
-      try (final ContextScope scope = activateSpan(span)) {
-        super.channelInactive(ctx);
-      } finally {
-        restoreParentContext(ctx, storedContext, parent);
-      }
-      return;
-    }
 
     // Set parent context back to maintain the same functionality  as getAndSet(parent)
     if (storedContext != null) {
@@ -143,18 +110,6 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     // We want the callback in the scope of the parent, not the client span
     try (final ContextScope scope = activateSpan(parent)) {
       super.channelInactive(ctx);
-    }
-  }
-
-  private static void restoreParentContext(
-      ChannelHandlerContext ctx, Context context, AgentSpan previousParent) {
-    Context parentContext = nestedClientParentContext(context);
-    if (parentContext != null
-        && ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).compareAndSet(context, parentContext)) {
-      AgentSpan parent = AgentSpan.fromContext(parentContext);
-      ctx.channel()
-          .attr(CLIENT_PARENT_ATTRIBUTE_KEY)
-          .compareAndSet(previousParent, parent == null ? noopSpan() : parent);
     }
   }
 }

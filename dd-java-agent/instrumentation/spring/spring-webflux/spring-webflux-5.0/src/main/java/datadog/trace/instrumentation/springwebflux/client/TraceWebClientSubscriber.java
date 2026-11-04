@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator.DECORATE;
 
 import datadog.context.ContextScope;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.reactivestreams.Subscription;
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -13,7 +12,6 @@ import reactor.core.CoreSubscriber;
 import reactor.util.context.Context;
 
 public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResponse> {
-  private static final boolean OTEL_SEMANTICS = Config.get().isTraceOtelSemanticsEnabled();
 
   final CoreSubscriber<? super ClientResponse> actual;
 
@@ -41,30 +39,23 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
 
   @Override
   public void onNext(final ClientResponse response) {
-    // Without a transport span, callbacks may wait for this span to finish.
-    if (OTEL_SEMANTICS) {
-      finishSpan(response);
-    }
     try (final ContextScope scope = activateSpan(parent)) {
       actual.onNext(response);
     } finally {
-      if (!OTEL_SEMANTICS) {
-        finishSpan(response);
-      }
+      DECORATE.onResponse(span, response);
+      DECORATE.beforeFinish(span);
+      span.finish();
     }
   }
 
   @Override
   public void onError(final Throwable t) {
-    if (OTEL_SEMANTICS) {
-      finishSpan(t);
-    }
     try (final ContextScope scope = activateSpan(parent)) {
       actual.onError(t);
     } finally {
-      if (!OTEL_SEMANTICS) {
-        finishSpan(t);
-      }
+      DECORATE.onError(span, t);
+      DECORATE.beforeFinish(span);
+      span.finish();
     }
   }
 
@@ -84,17 +75,5 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
   @Override
   public Context currentContext() {
     return context;
-  }
-
-  private void finishSpan(final ClientResponse response) {
-    DECORATE.onResponse(span, response);
-    DECORATE.beforeFinish(span);
-    span.finish();
-  }
-
-  private void finishSpan(final Throwable error) {
-    DECORATE.onError(span, error);
-    DECORATE.beforeFinish(span);
-    span.finish();
   }
 }
