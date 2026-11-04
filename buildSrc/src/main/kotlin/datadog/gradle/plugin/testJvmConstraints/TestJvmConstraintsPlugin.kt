@@ -9,6 +9,7 @@ import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.*
+import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 class TestJvmConstraintsPlugin : Plugin<Project> {
@@ -66,6 +67,39 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
           testJvmSpec.javaTestLauncherOverride.isPresent,
           project.rootProject.providers.gradleProperty("checkCoverage").isPresent
         )
+      }
+    }
+
+    registerCheckTask(project)
+  }
+
+  /**
+   * Registers the [CheckTestJvmConstraints] task, run by `check`.
+   */
+  private fun registerCheckTask(project: Project) {
+    val checkTask = project.tasks.register<CheckTestJvmConstraints>(CheckTestJvmConstraints.TASK_NAME) {
+      group = LifecycleBasePlugin.VERIFICATION_GROUP
+      description = "Checks that no test task has contradictory test JVM constraints."
+      testTasks.addAll(project.provider { testTaskConstraints(project) })
+    }
+    project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
+      dependsOn(checkTask)
+    }
+  }
+
+  private fun testTaskConstraints(project: Project): List<CheckTestJvmConstraints.TestTaskConstraints> {
+    val testTasks = project.tasks.withType<Test>()
+    // Read the names first: configuring a test task may register other tasks.
+    return testTasks.names.map { name ->
+      val test = testTasks.getByName(name)
+      val constraints = test.extensions.getByType<TestJvmConstraintsExtension>()
+      project.objects.newInstance<CheckTestJvmConstraints.TestTaskConstraints>().apply {
+        taskPath.set(test.path)
+        minJavaVersion.set(constraints.minJavaVersion)
+        maxJavaVersion.set(constraints.maxJavaVersion)
+        includeJdk.set(constraints.includeJdk)
+        excludeJdk.set(constraints.excludeJdk)
+        forceJdk.set(constraints.forceJdk)
       }
     }
   }

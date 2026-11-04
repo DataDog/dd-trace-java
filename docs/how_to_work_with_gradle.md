@@ -1131,6 +1131,15 @@ tasks.named<Test>("latestDepTest") {
 | `excludeJdk`                 | JDK names to exclude                                    |
 | `allowReflectiveAccessToJdk` | Adds `--add-opens` flags for Java 16+ reflective access |
 
+**Checking for contradictory constraints:** the plugin registers a `checkTestJvmConstraints` task, run by `check`.
+It fails when no JVM can satisfy a test task's constraints: every `includeJdk` entry is outside the version
+range and not forced, or `minJavaVersion` is above `maxJavaVersion` with no `forceJdk` entry left to run.
+Such a task would be skipped on every JVM while the build still passes.
+
+```bash
+./gradlew :dd-java-agent:instrumentation:<instrumentation>:checkTestJvmConstraints
+```
+
 **Running tests with a specific JVM:**
 
 ```bash
