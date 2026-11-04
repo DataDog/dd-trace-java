@@ -19,8 +19,11 @@ Where code belongs, who owns state, and API and type shape.
 ### DES-1.3: Don't make bootstrap or telemetry modules depend on a product module
 - Flag: a new `project(":products:...")` or metrics-API dependency in a `-bootstrap` or `telemetry` build file; keep the product's metric collector in `internal-api` like `DebuggerMetricCollector`/`IastMetricCollector`.
 
-### DES-1.4: Keep codec- or manager-specific special cases in the component that owns them
-- Flag: propagation-format quirks added to the shared `ContextInterpreter` instead of the codec (e.g. Haystack reserved baggage in `HaystackHttpCodec`), or legacy-context-manager/profiler coupling spelled out in an instrumentation class instead of behind the bootstrap API.
+### DES-1.4: Keep special cases for one format, library or subsystem in the component that owns it, not in shared code
+- Flag: a shared class (`ContextInterpreter`, a shared decorator, `CoreTracer`, a common instrumentation helper) gains a branch, constant or field that serves only one propagation format, library, product or context manager. Examples: Haystack reserved baggage handled in `ContextInterpreter` instead of `HaystackHttpCodec`; legacy-context-manager or profiler coupling written out in an instrumentation instead of behind the bootstrap API.
+- Not when: the shared class already dispatches over every variant by design (for example, a `switch` over all propagation styles).
+- ❌ `if (HAYSTACK.equals(style) && isReservedKey(key)) { return; } // in ContextInterpreter`
+- ✅ the reserved-key check inside `HaystackHttpCodec`'s extractor
 
 ### DES-1.5: Don't add new uses of OkHttp/Okio utilities in tracer core code
 - Flag: new `okio.*`/`okhttp3.*` imports outside the existing transport/writer classes (e.g. `Utf8.size(...)` for a size limit); the dependency is slated for removal, so use a JDK or approximate alternative.

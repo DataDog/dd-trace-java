@@ -31,18 +31,13 @@ The [techdebt skill](../../techdebt/SKILL.md) is a separate, refactor-only revie
 - ✅ `depth < MAX_CAUSE_CHAIN_DEPTH`
 
 ### MAINT-1.4: Keep one source of truth for lists and policies that must stay in sync
-- Flag: a static resource (trie, allowlist) that duplicates runtime registrations, two matchers built independently from the same base, or a policy check (for example "is this type cacheable") re-derived at several call sites instead of going through the existing choke point.
+- Flag: the diff adds a list, resource file, matcher or check that must be kept in step with another by hand, with nothing deriving one from the other. Signals: a comment or test that talks about keeping two things "in sync" or catching "drift"; two matchers that each start from the same base expression; the same condition recomputed at several call sites.
 - Not when: the entries are different types that genuinely need separate checks, each covered by a regression test.
-
-### MAINT-1.5: Apply the fix to every site with the same pattern, or ask for a follow-up
-- Flag: a fix for a recurring misuse (an unclosed HTTP response body, `ContextStore.put(key, null)` instead of `remove(key)`) applied at one site while a grep finds the same pattern elsewhere.
-- ❌ `InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).put(self, null);`
-- ✅ `InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).remove(self);`
 
 ## 2. Dead and redundant code
 
-### MAINT-2.1: Remove guards the code already guarantees (`Java8BytecodeBridge.currentContext()` is never null)
-- Flag: a null check on `currentContext()`/`Context.current()`, a `try`/`catch` around decorator calls (decorators throw only `BlockingException`), or an early-return guard the following loop already handles. Agents copy these patterns, so flag each new one. See [decorators must not throw](../../../../docs/how_instrumentations_work.md#decorators-must-not-throw).
+### MAINT-2.1: Don't null-check the current or root `Context`; it is never null
+- Flag: `== null`/`!= null` on a value returned by `currentContext()`, `rootContext()`, `Context.current()`, `Context.root()` (or the older `getCurrentContext()`/`getRootContext()`). Check every advice class in the diff, since sibling instrumentations usually repeat it. This includes an unchanged null check on a variable whose assignment the diff changes.
 - ❌ `if (parentContext != null && parentContext != rootContext()) {`
 - ✅ `if (parentContext != rootContext()) {`
 
@@ -61,10 +56,14 @@ The [techdebt skill](../../techdebt/SKILL.md) is a separate, refactor-only revie
 - Not when: the harness turns off the implicit wiring (for example a `noAgent()` smoke test), so the explicit setting is required.
 - ❌ `@WithConfig(key = "integration.opentelemetry-annotations-1.20.enabled", value = "true")` next to `trace.otel.enabled`
 
+### MAINT-2.5: Don't add defensive code for failures the code already rules out
+- Flag: a `try`/`catch` around decorator calls (decorators throw only `BlockingException`), or an early-return guard that the following loop or check already handles. See [decorators must not throw](../../../../docs/how_instrumentations_work.md#decorators-must-not-throw).
+
 ## 3. Comments and Javadoc
 
 ### MAINT-3.1: Delete LLM reasoning, change narration and internal notes from comments
-- Flag: a comment as long as the code it describes, a comment that explains the diff rather than the code ("isValid(), not == ZERO: ..."), a `// NOTE:` aimed at the reviewer, or a long class Javadoc on a test whose name and table rows already document it. Keep only the fact a future reader needs, in one line where possible.
+- Flag: a new comment of three or more lines on a single statement, field, branch or class placement; a comment starting `NOTE:`; a comment that explains how the code differs from a previous version ("isValid(), not == ZERO: ..."); or a test class Javadoc longer than two lines. Check every new comment in the diff, including tests.
+- Not when: the comment explains a decision, contract or encoding that the code can't show (why a check is kept, what a numeric range means).
 - ❌ `// isValid(), not == ZERO: a parsed zero Root must still count as unset.`
 - ✅ `if (interpreter.traceId == null || !interpreter.traceId.isValid()) {`
 
@@ -73,18 +72,18 @@ The [techdebt skill](../../techdebt/SKILL.md) is a separate, refactor-only revie
 - ❌ `@return the captured context; {@link Context#root()} if there is none.`
 - ✅ `@return the captured context.`
 
-### MAINT-3.3: Comment non-obvious decisions and contracts, at the declaration
-- Flag: a deliberate deviation (not restoring the interrupt flag mid-shutdown), a reference-identity ownership token, a test method that shadows a JDK method, or a tag's semantics explained at one usage site instead of where it's declared.
+### MAINT-3.3: Comment code that relies on a hidden contract
+- Flag: any of these without a comment saying why: a `catch (InterruptedException ...)` that neither rethrows nor calls `Thread.currentThread().interrupt()`; an `==` comparison of arrays, buffers or other non-enum objects used to decide ownership; reflection (`getDeclaredConstructor()`, `newInstance()`) that requires something of user-supplied classes, such as a no-arg constructor; or a test-double method with the same signature as a JDK method it shadows.
 - ❌ `} catch (InterruptedException ignore) {`
 - ✅ `} catch (InterruptedException ignore) { // mid-shutdown: no caller to propagate the interrupt to`
 
-### MAINT-3.4: Keep existing comments that explain intent when rewriting or moving code
-- Flag: a rewrite or move that drops comments explaining a test's expectation or a non-obvious step (for example "single span sampling should not change the trace sampling priority").
+### MAINT-3.4: Carry comments over when migrating or rewriting code
+- Flag: a deleted `.groovy` test with a new `.java` counterpart where `//` comments, or Spock block descriptions (`expect: "..."`, `when: "..."`), in the deleted file have no equivalent in the new one; or a rewrite that deletes Javadoc naming which code uses a class. Compare the removed and added versions of each migrated test.
 
 ## 4. Naming and code shape
 
-### MAINT-4.1: Name types and variables so they match what they hold and their siblings
-- Flag: a new type named differently from its siblings (`NoopContextContinuation` beside `NoopContextScope`), locals keep an old name after the accessor is renamed (`context` holding `span.spanContext()`), names don't match their content (`baggageItems` for a count), test names imply relationships the test doesn't create (parent/child with no child span), or test locals don't say which value is expected and which is actual.
+### MAINT-4.1: Rename variables when the method or type they hold is renamed
+- Flag: the diff renames an accessor or type (`context()` to `spanContext()`), and locals, fields or parameters assigned from it keep a name based on the old one. That includes generic and role-prefixed names, such as `context` or `parentContext` holding `spanContext()`. Check every changed call site, including tests.
 - ❌ `AgentSpanContext ctx = activeSpan.spanContext();`
 - ✅ `AgentSpanContext spanContext = activeSpan.spanContext();`
 
@@ -96,40 +95,39 @@ The [techdebt skill](../../techdebt/SKILL.md) is a separate, refactor-only revie
 - ❌ `boolean limitReached = true; if (a) {...} else if (b) {...} else { limitReached = false; }`
 - ✅ `boolean limitReached = false; if (a) { limitReached = true; ... }`
 
+### MAINT-4.4: Name new types and test variables for what they are
+- Flag: a new no-op or empty implementation named unlike its siblings (`EmptyContextContinuation` beside `NoopContextScope`), a count named like a collection (`baggageItems`), test variables named parent/child when the test creates no such relationship, or test locals that don't say which value is expected and which is actual.
+
 ## 5. Tests
 
-### MAINT-5.1: Delete tests and test steps that add no coverage
-- Flag: a new test that repeats an existing test's scenario without observing anything new, or a step that doesn't model a real scenario or check what its name claims (completing an already-done task again).
-- Not when: an explicit assertion documents the expected behaviour even though an `@AfterEach` check would also catch the failure.
-
-### MAINT-5.2: Reuse shared test utilities (`ThreadUtils.ThrowingRunnable`, `PollingConditions`, `SpanMatcher.childOfIndex()`, JSONAssert)
+### MAINT-5.1: Reuse shared test utilities (`ThreadUtils.ThrowingRunnable`, `PollingConditions`, `SpanMatcher.childOfIndex()`, JSONAssert)
 - Flag: a test redeclaring a functional interface or polling loop that `utils/test-utils` provides, manual parent-span-id capture where `childOfIndex()` works, field-by-field assertions on a JSON payload, or a container class copied between modules of the same library instead of a shared test fixture.
 - Not when: the new helper asserts something different from the existing one (for example the serialized form rather than lookup behaviour).
 - ❌ `@FunctionalInterface private interface ThrowingRunnable { void run() throws Exception; }`
 - ✅ `import datadog.trace.test.util.ThreadUtils.ThrowingRunnable;`
 
-### MAINT-5.3: Factor repeated test setup into helpers, fields or one parameterized test
-- Flag: the same expected-tag map, mock set, anonymous listener or map-building code repeated across test methods, copy-pasted test methods that differ only by input, or a long inline handler lambda.
+### MAINT-5.2: Factor repeated test setup into helpers, fields or one parameterized test
+- Flag: the same setup of three or more lines (mocks, an expected-values map, an anonymous listener) repeated in three or more test methods of one class; test methods that are copies differing only in input values; or an inline lambda or anonymous class longer than about 15 lines inside a test.
 - Not when: the setup is central to each test's lifecycle and reads better spelled out.
 - ❌ `ConfigListener listener = mock(ConfigListener.class);` at the top of every test
 - ✅ `private final ConfigListener listener = mock(ConfigListener.class);`
 
-### MAINT-5.4: Scope test state and cleanup to the tests that need it
-- Flag: `@BeforeEach`/`@AfterEach` resets, locale overrides or `stop()` calls that only one test needs, or `static final` collections captured by a per-test server instead of instance fields with the same lifecycle.
+### MAINT-5.3: Scope test state and cleanup to the tests that need it
+- Flag: a new `@BeforeEach`/`@AfterEach` (or Spock `setup()`/`cleanup()`) whose effect only one test method needs. Check which tests use the state it resets, stops or overrides (for example `Locale.setDefault`, or stopping a component only one test starts). Also flag `static final` mutable collections that a per-test fixture fills and each test has to clear.
 - ❌ `@BeforeEach void forceTurkishLocale() { Locale.setDefault(TURKISH); }`
 - ✅ `// set and restore the locale inside the one test that checks it`
 
-### MAINT-5.5: Use named constants and expressions in test data, not resolved literals
+### MAINT-5.4: Use named constants and expressions in test data, not resolved literals
 - Flag: `2147483647` instead of `Integer.MAX_VALUE`, resolved ordinals instead of the constant references, `20480` instead of `20 << 10`, a bare timeout repeated across `eventually` calls, or different timeouts with no reason.
 - ❌ `eventually(() -> assertFalse(REQUESTS.isEmpty()), 5000);`
 - ✅ `eventually(() -> assertFalse(REQUESTS.isEmpty()), POLL_TIMEOUT_MS);`
 
-### MAINT-5.6: Write assertions that state what the test checks
+### MAINT-5.5: Write assertions that state what the test checks
 - Flag: incidental `assertNotNull` when the point is that the call doesn't throw, array-reference workarounds to get values out of a lambda, compound boolean assertions (`assertTrue(a == 1 || !b)`), or nested stream pipelines in assertions.
 - ❌ `ContextContinuation[] ref = {null}; assertDoesNotThrow(() -> ref[0] = context.capture());`
 - ✅ `assertDoesNotThrow(() -> { ContextContinuation c = context.capture(); c.release(); }, "capture should not throw");`
 
-### MAINT-5.7: Put tests with the code and test class that own the behaviour
+### MAINT-5.6: Put tests with the code and test class that own the behaviour
 - Flag: contract tests for a type in a new class beside its existing `<Type>Test`, cross-module `testFixtures` added only so another module's instrumentation can be tested, or unrelated coverage (protocol decoding) mixed into a simple smoke test.
 
 ## Don't flag

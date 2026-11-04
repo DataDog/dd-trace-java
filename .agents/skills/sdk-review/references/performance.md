@@ -6,7 +6,7 @@ This lens does not keep its own rubric. The tracer performance rubric is owned b
 
 **When planning:** take the `perf-review` rubric into account when designing the change.
 
-**When reviewing:** apply the `perf-review` rubric to the frozen diff, including its "assume hot" posture and its noise limits. Report a finding when the diff matches a rubric check on a hot, startup, or high-volume path. Cite the rubric check ID (or rule ID, if a rule is added below) and say which path it is on. Report in this skill's severity scale, not `perf-review`'s own format.
+**When reviewing:** apply the `perf-review` rubric to the frozen diff, including its "assume hot" posture and its noise limits. Report a finding when the diff matches a rubric check on a hot, startup, or high-volume path. Cite the rubric check ID (or rule ID, if a rule is added below) and say which path it is on. Report in this skill's severity scale, not `perf-review`'s own format. The noise limits apply to rubric checks only: report a diff that matches a `PERF-*` rule's `Flag:` line, even when the cost looks small.
 
 ## 1. Allocation and retention
 
@@ -42,7 +42,7 @@ This lens does not keep its own rubric. The tracer performance rubric is owned b
 ## 2. Concurrency and background work
 
 ### PERF-2.1: Use `Queues.mpscArrayQueue(...)` instead of `ArrayBlockingQueue` on multi-producer emission paths
-- Flag: an `ArrayBlockingQueue`/`LinkedBlockingQueue` that application threads offer to per span, log or event, and that a single background thread drains.
+- Flag: an `ArrayBlockingQueue`/`LinkedBlockingQueue` that application threads offer to per span, log or event, and that a single background thread drains. This includes an existing queue whose declaration or capacity the diff changes.
 - ✅ `datadog.common.queue.Queues.mpscArrayQueue(capacity)` (or `mpscBlockingConsumerArrayQueue` when the consumer must block).
 
 ### PERF-2.2: Don't schedule periodic tasks or threads when the feature has nothing to send
@@ -56,10 +56,7 @@ This lens does not keep its own rubric. The tracer performance rubric is owned b
 
 ## 3. Benchmarks
 
-### PERF-3.1: Commit the JMH benchmark behind a performance claim, and rerun existing benchmarks for the changed code
-- Flag: a PR that says "faster"/"less allocation" or changes a structure with an existing `src/jmh` benchmark, with no committed benchmark and no before/after results in the PR or Javadoc.
-
-### PERF-3.2: Run JMH benchmarks of shared structures with several threads by default
+### PERF-3.1: Run JMH benchmarks of shared structures with several threads by default
 - Flag: a new JMH benchmark for a cache, map, queue or context store with no `@Threads` (defaults to 1), which hides contention and allocation effects.
 - ✅ `@Threads(8)` (overridable on the command line for baseline runs)
 
