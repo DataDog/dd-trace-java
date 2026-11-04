@@ -1,6 +1,7 @@
 package com.datadog.featureflag;
 
 import static datadog.remoteconfig.Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1;
 import static datadog.remoteconfig.Product.FFE_FLAGS;
 
 import datadog.remoteconfig.ConfigurationChangesTypedListener;
@@ -47,7 +48,9 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
     }
     this.started = true;
     LOGGER.debug("Feature Flagging starting remote_config configuration source");
-    this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    this.configurationPoller.addCapabilities(
+        CAPABILITY_FFE_FLAG_CONFIGURATION_RULES
+            | CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
     listen();
     this.configurationPoller.start();
   }
@@ -111,7 +114,9 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
     }
     this.started = false;
     LOGGER.debug("Feature Flagging remote_config configuration source stopped");
-    this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    this.configurationPoller.removeCapabilities(
+        CAPABILITY_FFE_FLAG_CONFIGURATION_RULES
+            | CAPABILITY_FFE_FLAG_DEPENDENT_FLAG_VARIANT_KEY_V1);
     this.configurationPoller.removeListeners(FFE_FLAGS);
     this.configurationPoller.stop();
     this.subscribers.clear();
