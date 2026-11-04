@@ -72,13 +72,11 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
   @Override
   protected ConfigurationApi apiReturning(Endpoint endpoint, String responseBody) {
     JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            ENDPOINT_PATHS.get(endpoint),
-                            api -> sendResponseBody(api, responseBody.getBytes()))));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.prefix(
+                    ENDPOINT_PATHS.get(endpoint),
+                    api -> sendResponseBody(api, responseBody.getBytes()))));
     servers.add(server);
     return givenConfigurationApi(server, true, true);
   }
@@ -203,16 +201,14 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
     List<String> responses = Arrays.asList(page1, page2, page3);
 
     JavaTestHttpServer intakeServer =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            "/api/v2/ci/libraries/tests",
-                            api -> {
-                              int current = requestCount.incrementAndGet();
-                              sendResponseBody(api, responses.get(current - 1).getBytes());
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.prefix(
+                    "/api/v2/ci/libraries/tests",
+                    api -> {
+                      int current = requestCount.incrementAndGet();
+                      sendResponseBody(api, responses.get(current - 1).getBytes());
+                    })));
     servers.add(intakeServer);
     ConfigurationApi configurationApi = givenConfigurationApi(intakeServer, true, true);
 
@@ -254,26 +250,23 @@ class ConfigurationApiImplTest extends AbstractConfigurationApiContractTest {
     String expectedRequestBody = render(requestTemplate, requestData);
     byte[] responseBody = render(responseTemplate, responseData).getBytes();
     JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            path,
-                            api -> {
-                              JavaTestHttpServer.HandlerApi.ResponseApi response =
-                                  api.getResponse();
-                              try {
-                                JSONAssert.assertEquals(
-                                    expectedRequestBody,
-                                    new String(api.getRequest().getBody()),
-                                    JSONCompareMode.LENIENT);
-                              } catch (AssertionError error) {
-                                response.status(400).send(error.getMessage().getBytes());
-                                return;
-                              }
-                              sendResponseBody(api, responseBody);
-                            })));
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h ->
+                h.prefix(
+                    path,
+                    api -> {
+                      JavaTestHttpServer.HandlerApi.ResponseApi response = api.getResponse();
+                      try {
+                        JSONAssert.assertEquals(
+                            expectedRequestBody,
+                            new String(api.getRequest().getBody()),
+                            JSONCompareMode.LENIENT);
+                      } catch (AssertionError error) {
+                        response.status(400).send(error.getMessage().getBytes());
+                        return;
+                      }
+                      sendResponseBody(api, responseBody);
+                    })));
     servers.add(server);
     return server;
   }

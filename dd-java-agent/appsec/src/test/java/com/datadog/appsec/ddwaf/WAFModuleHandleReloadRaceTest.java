@@ -127,11 +127,10 @@ class WAFModuleHandleReloadRaceTest {
   @Test
   void usesReplacementWhenReloadRetiresTheCapturedHandle() throws Exception {
     when(request.isWafContextClosed())
-        .thenAnswer(
-            invocation -> {
-              reload();
-              return false;
-            });
+        .thenAnswer(invocation -> {
+          reload();
+          return false;
+        });
     when(request.getOrCreateWafContext(any(), anyBoolean(), anyBoolean())).thenReturn(context);
 
     evaluate();
@@ -150,24 +149,21 @@ class WAFModuleHandleReloadRaceTest {
     CountDownLatch creating = new CountDownLatch(1);
     CountDownLatch finishCreation = new CountDownLatch(1);
     when(request.getOrCreateWafContext(any(), anyBoolean(), anyBoolean()))
-        .thenAnswer(
-            invocation -> {
-              creating.countDown();
-              assertTrue(finishCreation.await(10, TimeUnit.SECONDS));
-              return context;
-            });
+        .thenAnswer(invocation -> {
+          creating.countDown();
+          assertTrue(finishCreation.await(10, TimeUnit.SECONDS));
+          return context;
+        });
     FutureTask<Void> evaluation =
-        new FutureTask<>(
-            () -> {
-              evaluate();
-              return null;
-            });
+        new FutureTask<>(() -> {
+          evaluate();
+          return null;
+        });
     FutureTask<Void> update =
-        new FutureTask<>(
-            () -> {
-              reload();
-              return null;
-            });
+        new FutureTask<>(() -> {
+          reload();
+          return null;
+        });
     Thread evaluationThread = new Thread(evaluation, "waf-context-creation-test");
     Thread updateThread = new Thread(update, "waf-handle-reload-test");
     evaluationThread.start();
@@ -212,26 +208,23 @@ class WAFModuleHandleReloadRaceTest {
     CountDownLatch captured = new CountDownLatch(1);
     CountDownLatch replaced = new CountDownLatch(1);
     when(request.isWafContextClosed())
-        .thenAnswer(
-            invocation -> {
-              captured.countDown();
-              assertTrue(replaced.await(10, TimeUnit.SECONDS));
-              return false;
-            });
+        .thenAnswer(invocation -> {
+          captured.countDown();
+          assertTrue(replaced.await(10, TimeUnit.SECONDS));
+          return false;
+        });
     when(request.getOrCreateWafContext(any(), anyBoolean(), anyBoolean())).thenReturn(context);
     StampedLock oldLock = (StampedLock) currentSnapshotField("handleLock");
     FutureTask<Void> evaluation =
-        new FutureTask<>(
-            () -> {
-              evaluate();
-              return null;
-            });
+        new FutureTask<>(() -> {
+          evaluate();
+          return null;
+        });
     FutureTask<Void> update =
-        new FutureTask<>(
-            () -> {
-              reload();
-              return null;
-            });
+        new FutureTask<>(() -> {
+          reload();
+          return null;
+        });
     Thread evaluationThread = new Thread(evaluation, "waf-stale-snapshot-test");
     Thread updateThread = new Thread(update, "waf-retired-handle-test");
     long stamp = oldLock.writeLock();
@@ -267,11 +260,10 @@ class WAFModuleHandleReloadRaceTest {
     when(request.getWafContextIfReady(anyBoolean(), anyBoolean())).thenReturn(context);
     StampedLock handleLock = (StampedLock) currentSnapshotField("handleLock");
     FutureTask<Void> evaluation =
-        new FutureTask<>(
-            () -> {
-              evaluate();
-              return null;
-            });
+        new FutureTask<>(() -> {
+          evaluate();
+          return null;
+        });
     long stamp = handleLock.writeLock();
     try {
       Thread thread = new Thread(evaluation, "waf-ready-context-test");
@@ -348,20 +340,18 @@ class WAFModuleHandleReloadRaceTest {
   void allowsReloadWhileAnExistingContextEvaluates() throws Exception {
     when(request.getOrCreateWafContext(any(), anyBoolean(), anyBoolean())).thenReturn(context);
     when(context.run(anyMap(), any(), any()))
-        .thenAnswer(
-            invocation -> {
-              FutureTask<Void> update =
-                  new FutureTask<>(
-                      () -> {
-                        reload();
-                        return null;
-                      });
-              Thread thread = new Thread(update, "waf-reload-during-evaluation-test");
-              thread.start();
-              update.get(10, TimeUnit.SECONDS);
-              assertFalse(initialHandle.isOnline());
-              return Waf.ResultWithData.OK_NULL;
-            });
+        .thenAnswer(invocation -> {
+          FutureTask<Void> update =
+              new FutureTask<>(() -> {
+                reload();
+                return null;
+              });
+          Thread thread = new Thread(update, "waf-reload-during-evaluation-test");
+          thread.start();
+          update.get(10, TimeUnit.SECONDS);
+          assertFalse(initialHandle.isOnline());
+          return Waf.ResultWithData.OK_NULL;
+        });
 
     evaluate();
 

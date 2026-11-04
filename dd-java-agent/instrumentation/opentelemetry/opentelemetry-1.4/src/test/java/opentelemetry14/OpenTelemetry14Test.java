@@ -289,18 +289,17 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
     List<Thread> threads = new ArrayList<>();
     for (int t = 0; t < threadCount; t++) {
       Thread thread =
-          new Thread(
-              () -> {
-                try {
-                  start.await();
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                for (int i = 0; i < eventsPerThread; i++) {
-                  span.addEvent("event");
-                }
-              });
+          new Thread(() -> {
+            try {
+              start.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            for (int i = 0; i < eventsPerThread; i++) {
+              span.addEvent("event");
+            }
+          });
       thread.start();
       threads.add(thread);
     }

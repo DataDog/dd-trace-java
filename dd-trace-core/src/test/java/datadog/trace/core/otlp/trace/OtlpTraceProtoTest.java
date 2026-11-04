@@ -477,15 +477,14 @@ class OtlpTraceProtoTest {
   @SuppressWarnings("unchecked")
   static Stream<Arguments> casesWithOtelSemantics() {
     return cases()
-        .flatMap(
-            args -> {
-              Object[] raw = args.get();
-              String caseName = (String) raw[0];
-              List<SpanSpec> specs = (List<SpanSpec>) raw[1];
-              return Stream.of(
-                  Arguments.of(caseName + " [otel semantics enabled]", specs, true),
-                  Arguments.of(caseName + " [otel semantics disabled]", specs, false));
-            });
+        .flatMap(args -> {
+          Object[] raw = args.get();
+          String caseName = (String) raw[0];
+          List<SpanSpec> specs = (List<SpanSpec>) raw[1];
+          return Stream.of(
+              Arguments.of(caseName + " [otel semantics enabled]", specs, true),
+              Arguments.of(caseName + " [otel semantics disabled]", specs, false));
+        });
   }
 
   // ── parameterized test ────────────────────────────────────────────────────
@@ -1270,13 +1269,12 @@ class OtlpTraceProtoTest {
         agentSpan.setHttpStatusCode(spec.httpStatusCode);
       }
 
-      spec.extraTags.forEach(
-          (key, value) -> {
-            if (value instanceof String) agentSpan.setTag(key, (String) value);
-            else if (value instanceof Long) agentSpan.setTag(key, (long) (Long) value);
-            else if (value instanceof Boolean) agentSpan.setTag(key, (boolean) (Boolean) value);
-            else if (value instanceof Double) agentSpan.setTag(key, (double) (Double) value);
-          });
+      spec.extraTags.forEach((key, value) -> {
+        if (value instanceof String) agentSpan.setTag(key, (String) value);
+        else if (value instanceof Long) agentSpan.setTag(key, (long) (Long) value);
+        else if (value instanceof Boolean) agentSpan.setTag(key, (boolean) (Boolean) value);
+        else if (value instanceof Double) agentSpan.setTag(key, (double) (Double) value);
+      });
 
       for (LinkSpec link : spec.links) {
         agentSpan.addLink(

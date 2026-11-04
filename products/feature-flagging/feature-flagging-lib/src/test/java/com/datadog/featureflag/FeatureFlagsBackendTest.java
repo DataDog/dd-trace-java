@@ -172,10 +172,9 @@ class FeatureFlagsBackendTest {
   void closeNotifiesTheShutdownListenersBeforeReleasingResources() throws Exception {
     final List<String> calls = new CopyOnWriteArrayList<>();
     this.backend.subscribeShutdown(() -> calls.add("first"));
-    this.backend.subscribeShutdown(
-        () -> {
-          throw new IllegalStateException("failing listener");
-        });
+    this.backend.subscribeShutdown(() -> {
+      throw new IllegalStateException("failing listener");
+    });
     final AutoCloseable unregistered =
         this.backend.subscribeShutdown(() -> calls.add("unregistered"));
     this.backend.subscribeShutdown(() -> calls.add("last"));
