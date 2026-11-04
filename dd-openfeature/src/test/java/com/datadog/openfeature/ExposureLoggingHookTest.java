@@ -11,7 +11,9 @@ import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.Provider.Options;
@@ -19,6 +21,8 @@ import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
 import com.datadog.openfeature.internal.evaluation.FlagEvaluator.DependencyExposure;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
+import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.Flag;
@@ -181,6 +185,132 @@ class ExposureLoggingHookTest {
   }
 
   @Test
+  void ordinaryFlagLifecycleDoesNotCreateADependencyScope() {
+    final HookContext<Object> context = hookContext();
+
+    assertNull(this.evaluator.beginDependencyExposureScope(context.getFlagKey(), context.getCtx()));
+    assertTrue(this.evaluator.endDependencyExposureScope().isEmpty());
+  }
+
+  @Test
+  void finallyAfterCleansUpAStartedScopeWhenProviderEvaluationWasSkipped() {
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(dependentConfiguration(true), true);
+    final ExposureLoggingHook<Integer> hook = new ExposureLoggingHook<>(() -> dependent);
+    final HookContext<Integer> context =
+        HookContext.<Integer>builder()
+            .flagKey("root")
+            .type(FlagValueType.INTEGER)
+            .defaultValue(0)
+            .ctx(new MutableContext("subject"))
+            .build();
+
+    hook.before(context, emptyMap());
+    hook.finallyAfter(
+        context,
+        FlagEvaluationDetails.<Integer>builder()
+            .flagKey("root")
+            .value(0)
+            .reason("ERROR")
+            .errorCode(ErrorCode.GENERAL)
+            .build(),
+        emptyMap());
+
+    assertTrue(dependent.endDependencyExposureScope().isEmpty());
+  }
+
+  @Test
+  void skippedNestedBeforeCannotReadTheOuterBatchForTheSameFlagAndContext() {
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(dependentConfiguration(true), true);
+    final ExposureLoggingHook<Integer> hook = new ExposureLoggingHook<>(() -> dependent);
+    final MutableContext context = new MutableContext("subject");
+    final HookContext<Integer> outer =
+        HookContext.<Integer>builder()
+            .flagKey("root")
+            .type(FlagValueType.INTEGER)
+            .defaultValue(0)
+            .ctx(context)
+            .build();
+    final HookContext<Integer> skippedNested =
+        HookContext.<Integer>builder()
+            .flagKey("root")
+            .type(FlagValueType.INTEGER)
+            .defaultValue(0)
+            .ctx(context)
+            .build();
+    final Map<String, Object> outerHints = new HashMap<>();
+    final Map<String, Object> skippedNestedHints = new HashMap<>();
+
+    hook.before(outer, outerHints);
+    final ProviderEvaluation<Integer> evaluation =
+        dependent.evaluate(Integer.class, "root", 0, context);
+    final FlagEvaluationDetails<Integer> outerDetails =
+        FlagEvaluationDetails.from(evaluation, "root");
+    final FlagEvaluationDetails<Integer> skippedNestedDetails =
+        FlagEvaluationDetails.<Integer>builder()
+            .flagKey("root")
+            .value(0)
+            .reason("ERROR")
+            .errorCode(ErrorCode.GENERAL)
+            .build();
+
+    assertNull(dependent.dependencyTelemetryToken(skippedNestedDetails));
+    assertNotNull(dependent.dependencyTelemetryToken(outerDetails));
+
+    final List<FlagEvalEvent> events = new java.util.ArrayList<>();
+    final FlagEvaluationWriter writer =
+        new FlagEvaluationWriter() {
+          @Override
+          public boolean hasCapacityForEnqueue() {
+            return true;
+          }
+
+          @Override
+          public void countPreQueueOverflow() {}
+
+          @Override
+          public void countContextTruncated(final String reason) {}
+
+          @Override
+          public void enqueue(final FlagEvalEvent event) {
+            events.add(event);
+          }
+        };
+    final FlagEvalLoggingHook<Integer> evaluationHook =
+        new FlagEvalLoggingHook<>(() -> writer, () -> dependent);
+    evaluationHook.finallyAfter(skippedNested, skippedNestedDetails, skippedNestedHints);
+    evaluationHook.finallyAfter(outer, outerDetails, outerHints);
+
+    assertEquals(3, events.size(), "inner root, then outer dependency and root");
+    assertEquals("root", events.get(0).flagKey);
+    assertEquals("dependency", events.get(1).flagKey);
+    assertEquals("root", events.get(2).flagKey);
+
+    hook.finallyAfter(outer, outerDetails, outerHints);
+    assertEquals(1, dependent.sentToDatadog.size());
+  }
+
+  @Test
+  void dependencyExposuresReuseOneDetachedContextSnapshot() throws Exception {
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(twoLoggedDependenciesConfiguration(), true);
+    OpenFeatureAPI.getInstance()
+        .setProviderAndWait(new Provider(new Options().initTimeout(10, SECONDS), dependent));
+    final MutableContext context = new MutableContext("user-1");
+    context.add("region", "us-east-1");
+
+    OpenFeatureAPI.getInstance().getClient().getIntegerDetails("root", 0, context);
+    context.add("region", "eu-west-1");
+
+    assertEquals(2, dependent.sentToDatadog.size());
+    assertSame(
+        dependent.sentToDatadog.get(0).subject.attributes,
+        dependent.sentToDatadog.get(1).subject.attributes);
+    assertEquals("us-east-1", dependent.sentToDatadog.get(0).subject.attributes.get("region"));
+  }
+
+  @Test
   void directProviderEvaluationDoesNotRetainOrExposeDependencyState() throws Exception {
     final ExposureTestEvaluator dependent =
         new ExposureTestEvaluator(dependentConfiguration(true), true);
@@ -226,13 +356,14 @@ class ExposureLoggingHookTest {
             .defaultValue(0)
             .ctx(outerContext)
             .build();
+    final Map<String, Object> hints = new HashMap<>();
 
-    hook.before(outerHookContext, emptyMap());
+    hook.before(outerHookContext, hints);
     final ProviderEvaluation<Integer> outerEvaluation =
         dependent.evaluate(Integer.class, "root-a", 0, outerContext);
     dependent.evaluate(Integer.class, "root-b", 0, reentrantContext);
     hook.finallyAfter(
-        outerHookContext, FlagEvaluationDetails.from(outerEvaluation, "root-a"), emptyMap());
+        outerHookContext, FlagEvaluationDetails.from(outerEvaluation, "root-a"), hints);
 
     assertEquals(1, dependent.sentToDatadog.size());
     assertEquals("dependency-a", dependent.sentToDatadog.get(0).flag.key);
@@ -259,8 +390,9 @@ class ExposureLoggingHookTest {
             .defaultValue(0)
             .ctx(new MutableContext("subject-b"))
             .build();
+    final Map<String, Object> outerHints = new HashMap<>();
 
-    hook.before(outerHookContext, emptyMap());
+    hook.before(outerHookContext, outerHints);
     final ProviderEvaluation<Integer> outerEvaluation =
         dependent.evaluate(Integer.class, "root-a", 0, outerContext);
 
@@ -275,19 +407,20 @@ class ExposureLoggingHookTest {
             .build(),
         emptyMap());
     hook.finallyAfter(
-        outerHookContext, FlagEvaluationDetails.from(outerEvaluation, "root-a"), emptyMap());
+        outerHookContext, FlagEvaluationDetails.from(outerEvaluation, "root-a"), outerHints);
 
     assertEquals(1, dependent.sentToDatadog.size());
     assertEquals("dependency-a", dependent.sentToDatadog.get(0).flag.key);
     assertEquals("subject-a", dependent.sentToDatadog.get(0).subject.id);
     assertTrue(dependent.endDependencyExposureScope().isEmpty());
 
-    // A subsequent lifecycle proves the hook's own ThreadLocal stack was removed as well.
-    hook.before(innerHookContext, emptyMap());
+    // A subsequent lifecycle proves the evaluator's token stack was removed as well.
+    final Map<String, Object> innerHints = new HashMap<>();
+    hook.before(innerHookContext, innerHints);
     final ProviderEvaluation<Integer> innerEvaluation =
         dependent.evaluate(Integer.class, "root-b", 0, innerHookContext.getCtx());
     hook.finallyAfter(
-        innerHookContext, FlagEvaluationDetails.from(innerEvaluation, "root-b"), emptyMap());
+        innerHookContext, FlagEvaluationDetails.from(innerEvaluation, "root-b"), innerHints);
     assertEquals(2, dependent.sentToDatadog.size());
     assertEquals("dependency-b", dependent.sentToDatadog.get(1).flag.key);
   }
@@ -305,13 +438,14 @@ class ExposureLoggingHookTest {
             .defaultValue(0)
             .ctx(context)
             .build();
+    final Map<String, Object> hints = new HashMap<>();
 
-    hook.before(hookContext, emptyMap());
+    hook.before(hookContext, hints);
     final ProviderEvaluation<Integer> outerEvaluation =
         dependent.evaluate(Integer.class, "root", 0, context);
     dependent.accept(dependentConfiguration(true));
     dependent.evaluate(Integer.class, "root", 0, context);
-    hook.finallyAfter(hookContext, FlagEvaluationDetails.from(outerEvaluation, "root"), emptyMap());
+    hook.finallyAfter(hookContext, FlagEvaluationDetails.from(outerEvaluation, "root"), hints);
 
     assertTrue(dependent.sentToDatadog.isEmpty());
   }
@@ -523,6 +657,49 @@ class ExposureLoggingHookTest {
     final Map<String, Flag> flags = new HashMap<>();
     addDependentFlagPair(flags, "root-a", "dependency-a", true);
     addDependentFlagPair(flags, "root-b", "dependency-b", true);
+    return new ServerConfiguration("", "", false, null, flags);
+  }
+
+  private static ServerConfiguration twoLoggedDependenciesConfiguration() {
+    final Map<String, Flag> flags = new HashMap<>();
+    final List<ConditionConfiguration> conditions = new java.util.ArrayList<>();
+    for (final String dependencyKey : java.util.Arrays.asList("first", "second")) {
+      final Map<String, Variant> variations = new HashMap<>();
+      variations.put("on", new Variant("on", "on-value"));
+      flags.put(
+          dependencyKey,
+          new Flag(
+              dependencyKey,
+              true,
+              ValueType.STRING,
+              variations,
+              singletonList(
+                  new Allocation(
+                      dependencyKey + "-allocation",
+                      null,
+                      null,
+                      null,
+                      singletonList(new Split(emptyList(), "on", emptyMap(), 8)),
+                      true))));
+      conditions.add(new ConditionConfiguration(ONE_OF, null, dependencyKey, singletonList("on")));
+    }
+    final Map<String, Variant> rootVariations = new HashMap<>();
+    rootVariations.put("selected", new Variant("selected", 1));
+    flags.put(
+        "root",
+        new Flag(
+            "root",
+            true,
+            ValueType.INTEGER,
+            rootVariations,
+            singletonList(
+                new Allocation(
+                    "root-allocation",
+                    singletonList(new Rule(conditions)),
+                    null,
+                    null,
+                    singletonList(new Split(emptyList(), "selected", emptyMap(), 9)),
+                    false))));
     return new ServerConfiguration("", "", false, null, flags);
   }
 

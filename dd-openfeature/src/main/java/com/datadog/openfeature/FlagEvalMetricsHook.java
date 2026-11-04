@@ -33,7 +33,8 @@ class FlagEvalMetricsHook implements Hook<Object> {
       final DDEvaluator evaluator = evaluatorSupplier.get();
       if (evaluator != null && ctx != null) {
         evaluator.recordDependencyMetrics(
-            evaluator.dependencyEvaluationTrace(ctx.getFlagKey(), ctx.getCtx()), metrics);
+            evaluator.dependencyEvaluationTrace(evaluator.dependencyTelemetryToken(details)),
+            metrics);
       }
     } catch (final RuntimeException | LinkageError ignored) {
       // Dependency metrics are best effort and must not suppress the root metric.

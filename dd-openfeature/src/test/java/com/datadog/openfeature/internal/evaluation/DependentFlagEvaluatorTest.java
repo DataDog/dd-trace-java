@@ -296,6 +296,25 @@ class DependentFlagEvaluatorTest {
   }
 
   @Test
+  void invalidMaximumDepthDoesNotEmitTheSelfDependentRootAsAPrerequisite() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("root", stringFlag("root", "on", dependencyRule("root", "on"), false));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, new EvaluatorParams(null, true)),
+                String.class,
+                "root",
+                "default",
+                new MutableContext("u"));
+
+    assertEquals(ErrorCode.PARSE_ERROR, evaluation.details.getErrorCode());
+    assertTrue(evaluation.dependencyEvaluations.isEmpty());
+    assertTrue(evaluation.dependencyExposures.isEmpty());
+  }
+
+  @Test
   void preservesWideDependencyExposureOrderWithoutDuplicates() {
     final int dependencyCount = 512;
     final Map<String, Flag> flags = new HashMap<>();

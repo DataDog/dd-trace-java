@@ -794,6 +794,7 @@ public final class FlagEvaluator {
     private DependencyEvaluationSession(final String rootFlagKey, final EvaluationState state) {
       this.state = state;
       active.add(rootFlagKey);
+      evaluatedFlags.add(rootFlagKey);
     }
 
     private ExposureCheckpoint checkpoint() {

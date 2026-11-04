@@ -79,7 +79,9 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       if (evaluator != null && ctx != null) {
         try {
           evaluator.publishDependencyEvaluations(
-              evaluator.dependencyEvaluationTrace(ctx.getFlagKey(), ctx.getCtx()), ctx.getCtx(), w);
+              evaluator.dependencyEvaluationTrace(evaluator.dependencyTelemetryToken(details)),
+              ctx.getCtx(),
+              w);
         } catch (final RuntimeException | LinkageError ignored) {
           // Dependency telemetry is best effort and must not suppress the root event.
         }
