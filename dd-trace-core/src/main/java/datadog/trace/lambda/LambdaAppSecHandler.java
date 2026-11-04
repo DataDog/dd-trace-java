@@ -10,9 +10,11 @@ import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -22,6 +24,7 @@ import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -32,11 +35,13 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
+import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import datadog.trace.lambda.LambdaEventParser.LambdaRequestData;
 import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -118,7 +123,8 @@ public class LambdaAppSecHandler {
       }
       LambdaURIDataAdapter uriAdapter =
           new LambdaURIDataAdapter(fullPath, eventData.headers, eventData.host);
-      AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter);
+      String clientIp = resolveClientIp(eventData);
+      AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter, clientIp);
       if (context instanceof TagContext) {
         applyHttpTags((TagContext) context, eventData, uriAdapter);
       }
@@ -385,7 +391,7 @@ public class LambdaAppSecHandler {
    *     requestStarted} callback
    */
   private static AgentSpanContext processAppSecRequestData(
-      LambdaRequestData eventData, LambdaURIDataAdapter uriAdapter) {
+      LambdaRequestData eventData, LambdaURIDataAdapter uriAdapter, String clientIp) {
     AgentTracer.TracerAPI tracer = AgentTracer.get();
     Supplier<Flow<Object>> requestStartedCallback =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
@@ -400,6 +406,9 @@ public class LambdaAppSecHandler {
     // Call requestStarted
     appSecRequestContext = requestStartedCallback.get().getResult();
     tagContext.withRequestContextDataAppSec(appSecRequestContext);
+    if (clientIp != null) {
+      tagContext.putTag(Tags.HTTP_CLIENT_IP, clientIp);
+    }
 
     if (appSecRequestContext != null) {
       TemporaryRequestContext requestContext = new TemporaryRequestContext(appSecRequestContext);
@@ -430,6 +439,17 @@ public class LambdaAppSecHandler {
           }
         } else {
           log.debug("requestHeader callback is null");
+        }
+      }
+
+      // Publish the inferred address before the socket address can trigger WAF evaluation.
+      if (clientIp != null) {
+        BiFunction<RequestContext, String, Flow<Void>> inferredAddrCallback =
+            tracer
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.requestInferredClientAddress());
+        if (inferredAddrCallback != null) {
+          inferredAddrCallback.apply(requestContext, clientIp);
         }
       }
 
@@ -502,6 +522,51 @@ public class LambdaAppSecHandler {
       }
     }
     return tagContext;
+  }
+
+  /** Resolves the client address using the same configuration and precedence as HTTP servers. */
+  private static String resolveClientIp(LambdaRequestData eventData) {
+    Config config = Config.get();
+    if (!config.isClientIpEnabled() && !config.isTraceClientIpResolverEnabled()) {
+      return null;
+    }
+    TagContext.HttpHeaders headers = new TagContext.HttpHeaders();
+    headers.xForwardedFor = findHeader(eventData.headers, "x-forwarded-for");
+    headers.xRealIp = findHeader(eventData.headers, "x-real-ip");
+    headers.trueClientIp = findHeader(eventData.headers, "true-client-ip");
+    headers.xClientIp = findHeader(eventData.headers, "x-client-ip");
+    headers.forwarded = findHeader(eventData.headers, "forwarded");
+    headers.forwardedFor = findHeader(eventData.headers, "forwarded-for");
+    headers.xClusterClientIp = findHeader(eventData.headers, "x-cluster-client-ip");
+    headers.fastlyClientIp = findHeader(eventData.headers, "fastly-client-ip");
+    headers.cfConnectingIp = findHeader(eventData.headers, "cf-connecting-ip");
+    headers.cfConnectingIpv6 = findHeader(eventData.headers, "cf-connecting-ipv6");
+    String customHeader = config.getTraceClientIpHeader();
+    if (customHeader != null) {
+      headers.customIpHeader = findHeader(eventData.headers, customHeader);
+    }
+    TagContext extracted =
+        new TagContext(
+            null,
+            null,
+            headers,
+            null,
+            PrioritySampling.UNSET,
+            null,
+            TracePropagationStyle.NONE,
+            DDTraceId.ZERO);
+    InetAddress inferred = ClientIpAddressResolver.resolve(extracted, null);
+    if (eventData.sourceIp != null) {
+      if (inferred == null) {
+        inferred = ClientIpAddressResolver.parseIpAddress(eventData.sourceIp);
+      } else if (ClientIpAddressResolver.isIpAddrPrivate(inferred)) {
+        InetAddress source = ClientIpAddressResolver.parseIpAddress(eventData.sourceIp);
+        if (source != null && !ClientIpAddressResolver.isIpAddrPrivate(source)) {
+          inferred = source;
+        }
+      }
+    }
+    return inferred == null ? null : inferred.getHostAddress();
   }
 
   /** Sets the current trigger type thread-local. Package-private for use in tests only. */
