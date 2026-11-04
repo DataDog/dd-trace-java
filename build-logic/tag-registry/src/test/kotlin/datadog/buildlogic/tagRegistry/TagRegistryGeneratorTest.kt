@@ -719,6 +719,20 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
+  fun `a constant clash preserves previous output`() {
+    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: aws.service}]}}")
+    val output = File(directory, "generated")
+    TagRegistryGenerator.generate(yaml, output)
+    val previous = contents(output)
+    directory.conventionsFile("span_types: {base: {tags: [{dd-name: aws.service}, {dd-name: aws_service}]}}")
+
+    assertThatIllegalArgumentException().isThrownBy { TagRegistryGenerator.generate(yaml, output) }
+      .withMessageContaining("both generate the constant")
+
+    assertThat(contents(output)).isEqualTo(previous)
+  }
+
+  @Test
   fun `java_names gives a tag its own constants`() {
     val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: aws.service}, {dd-name: aws_service}]}}")
     val overlay = directory.writeFile("overlay.yaml", "java_names: {aws_service: TOP_LEVEL_AWS_SERVICE}")
