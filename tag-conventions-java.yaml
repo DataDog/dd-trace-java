@@ -271,6 +271,7 @@ span_types:
       - { dd-name: query_id,    type: long,   required: recommended }
       - { dd-name: description, type: string, required: optional }
       - { dd-name: details,     type: string, required: optional }
+      - { ref: config.spark_version }  # top-level on Databricks
 
   spark.job:
     extends: spark.aggregate
@@ -363,9 +364,9 @@ span_types:
 
 mixins:
   # Databricks job and task ids, on the top-level span when Spark runs on Databricks, which has no
-  # application span: a job or a streaming batch.
+  # application span: a SQL execution, a job or a streaming batch.
   databricks:
-    applies: [ spark.job, spark.streaming_batch ]
+    applies: [ spark.sql, spark.job, spark.streaming_batch ]
     tags:
       - { dd-name: databricks_job_id,      type: string, required: optional }
       - { dd-name: databricks_job_run_id,  type: string, required: optional }
