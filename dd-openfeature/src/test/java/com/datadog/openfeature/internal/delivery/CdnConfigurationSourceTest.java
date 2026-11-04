@@ -185,15 +185,15 @@ class CdnConfigurationSourceTest {
         CdnConfigurationSource.endpointForCapabilities(endpoint, Set.of("unknown-v1")));
     assertEquals(
         URI.create(
-            "https://example.test/ufc?token=preserved&dependent-flags-variant-key=v1"),
+            "https://example.test/ufc?token=preserved&cap_dependent-flags-variant-key=v1"),
         CdnConfigurationSource.endpointForCapabilities(
             endpoint, Set.of("dependent-flag-variant-key-v1")));
     assertEquals(
         URI.create(
-            "https://example.test/ufc?token=preserved&dependent-flags-variant-key=v1#section"),
+            "https://example.test/ufc?token=preserved&cap_dependent-flags-variant-key=v1#section"),
         CdnConfigurationSource.endpointForCapabilities(
             URI.create(
-                "https://example.test/ufc?dependent-flags-variant-key=old&token=preserved#section"),
+                "https://example.test/ufc?cap_dependent-flags-variant-key=old&token=preserved#section"),
             Set.of("dependent-flag-variant-key-v1")));
   }
 
