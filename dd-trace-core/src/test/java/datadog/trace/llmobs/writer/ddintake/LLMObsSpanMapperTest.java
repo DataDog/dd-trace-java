@@ -456,15 +456,14 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
 
   @Test
   void testLLMObsSpanProcessorModifiesInputAndOutput() throws Exception {
-    LLMObs.registerProcessor(
-        span -> {
-          assertEquals(Tags.LLMOBS_LLM_SPAN_KIND, span.getKind());
-          assertEquals("true", span.getTag("redact"));
-          assertEquals("secret input", span.getInput().get(0).getContent());
-          span.setInput(Collections.singletonList(LLMObs.LLMMessage.from("user", "[REDACTED]")));
-          span.setOutput(Collections.emptyList());
-          return span;
-        });
+    LLMObs.registerProcessor(span -> {
+      assertEquals(Tags.LLMOBS_LLM_SPAN_KIND, span.getKind());
+      assertEquals("true", span.getTag("redact"));
+      assertEquals("secret input", span.getInput().get(0).getContent());
+      span.setInput(Collections.singletonList(LLMObs.LLMMessage.from("user", "[REDACTED]")));
+      span.setOutput(Collections.emptyList());
+      return span;
+    });
 
     try {
       CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
@@ -502,13 +501,12 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
 
   @Test
   void testLLMObsSpanProcessorAddsMissingInputAndOutput() throws Exception {
-    LLMObs.registerProcessor(
-        span -> {
-          span.setInput(Collections.singletonList(LLMObs.LLMMessage.from("user", "added input")));
-          span.setOutput(
-              Collections.singletonList(LLMObs.LLMMessage.from("assistant", "added output")));
-          return span;
-        });
+    LLMObs.registerProcessor(span -> {
+      span.setInput(Collections.singletonList(LLMObs.LLMMessage.from("user", "added input")));
+      span.setOutput(
+          Collections.singletonList(LLMObs.LLMMessage.from("assistant", "added output")));
+      return span;
+    });
 
     try {
       CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
@@ -532,12 +530,10 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
 
   @Test
   void testLLMObsSpanProcessorModifiesRetrievalOutputDocuments() throws Exception {
-    LLMObs.registerProcessor(
-        span -> {
-          span.setOutput(
-              Collections.singletonList(LLMObs.LLMMessage.from("", "processed document")));
-          return span;
-        });
+    LLMObs.registerProcessor(span -> {
+      span.setOutput(Collections.singletonList(LLMObs.LLMMessage.from("", "processed document")));
+      return span;
+    });
 
     try {
       CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
@@ -740,13 +736,12 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
 
   @Test
   void testLLMObsSpanProcessorExceptionDropsSpan() throws Exception {
-    LLMObs.registerProcessor(
-        span -> {
-          if ("true".equals(span.getTag("drop"))) {
-            throw new IllegalStateException("processor failure");
-          }
-          return span;
-        });
+    LLMObs.registerProcessor(span -> {
+      if ("true".equals(span.getTag("drop"))) {
+        throw new IllegalStateException("processor failure");
+      }
+      return span;
+    });
 
     try {
       CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
@@ -766,13 +761,12 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
 
   @Test
   void testLLMObsSpanProcessorErrorDropsSpan() throws Exception {
-    LLMObs.registerProcessor(
-        span -> {
-          if ("true".equals(span.getTag("drop"))) {
-            throw new AssertionError("processor failure");
-          }
-          return span;
-        });
+    LLMObs.registerProcessor(span -> {
+      if ("true".equals(span.getTag("drop"))) {
+        throw new AssertionError("processor failure");
+      }
+      return span;
+    });
 
     try {
       CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
@@ -799,11 +793,10 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
   void testChunkedBufferOverflowKeepsPayloadsValidAndRunsProcessorOnce() throws Exception {
     AtomicInteger calls = new AtomicInteger();
     LLMObsMetricCollector.get().drain();
-    LLMObs.registerProcessor(
-        span -> {
-          calls.incrementAndGet();
-          return "true".equals(span.getTag("drop")) ? null : span;
-        });
+    LLMObs.registerProcessor(span -> {
+      calls.incrementAndGet();
+      return "true".equals(span.getTag("drop")) ? null : span;
+    });
 
     try {
       CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
@@ -860,11 +853,10 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
   void testLLMObsSpanProcessorRunsOnceWhenSerializationRetries() {
     AtomicInteger calls = new AtomicInteger();
     LLMObsMetricCollector.get().drain();
-    LLMObs.registerProcessor(
-        span -> {
-          calls.incrementAndGet();
-          return "true".equals(span.getTag("drop")) ? null : span;
-        });
+    LLMObs.registerProcessor(span -> {
+      calls.incrementAndGet();
+      return "true".equals(span.getTag("drop")) ? null : span;
+    });
 
     try {
       CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
@@ -893,9 +885,8 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
       assertEquals(
           3,
           LLMObsMetricCollector.get().drain().stream()
-              .filter(
-                  metric ->
-                      LLMObsMetricCollector.USER_PROCESSOR_CALLED_METRIC.equals(metric.metricName))
+              .filter(metric ->
+                  LLMObsMetricCollector.USER_PROCESSOR_CALLED_METRIC.equals(metric.metricName))
               .count());
       tracer.close();
     } finally {

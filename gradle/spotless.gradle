@@ -49,7 +49,7 @@ spotless {
       targetExclude('src/test/resources/**', buildDirectory)
       removeUnusedImports()
       forbidWildcardImports()
-      googleJavaFormat(libs.versions.google.java.format.get())
+      googleJavaFormat()
       tableTestFormatter(libs.versions.tabletest.formatter.get())
     }
   }
@@ -73,7 +73,7 @@ spotless {
     toggleOffOn()
     // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
     target '*.gradle.kts'
-    ktlint(libs.versions.ktlint.get()).editorConfigOverride([
+    ktlint().editorConfigOverride([
       // Disable trailing comma rules to minimize diff.
       'ktlint_standard_trailing-comma-on-call-site': 'disabled',
       'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
@@ -98,7 +98,7 @@ spotless {
     scala {
       toggleOffOn()
       targetExclude(buildDirectory)
-      scalafmt(libs.versions.scalafmt.get()).configFile(configPath + '/enforcement/spotless-scalafmt.conf')
+      scalafmt().configFile(configPath + '/enforcement/spotless-scalafmt.conf')
     }
   }
 
@@ -121,7 +121,7 @@ spotless {
     kotlin {
       toggleOffOn()
       targetExclude(buildDirectory)
-      ktlint(libs.versions.ktlint.get()).editorConfigOverride([
+      ktlint().editorConfigOverride([
         // Disable trailing comma rules to minimize diff.
         'ktlint_standard_trailing-comma-on-call-site': 'disabled',
         'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'

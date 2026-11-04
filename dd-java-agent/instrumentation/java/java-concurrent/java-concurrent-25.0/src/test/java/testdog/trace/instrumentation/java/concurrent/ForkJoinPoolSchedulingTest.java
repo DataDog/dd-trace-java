@@ -133,15 +133,14 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
     try (ForkJoinPool pool = new ForkJoinPool(1)) {
       try {
         CountDownLatch started = new CountDownLatch(1);
-        pool.execute(
-            () -> {
-              started.countDown();
-              try {
-                assertTrue(release.await(10, SECONDS));
-              } catch (InterruptedException e) {
-                throw new AssertionError(e);
-              }
-            });
+        pool.execute(() -> {
+          started.countDown();
+          try {
+            assertTrue(release.await(10, SECONDS));
+          } catch (InterruptedException e) {
+            throw new AssertionError(e);
+          }
+        });
         assertTrue(started.await(10, SECONDS));
         AgentSpan parent = startSpan("test", "parent");
         ApplicationTask task = new ApplicationTask();
@@ -396,13 +395,12 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
     try (ContextScope ignored = current().with(parent).attach()) {
       virtualThread =
           Thread.ofVirtual()
-              .start(
-                  () -> {
-                    try (ContextScope ignoredScope = activateSpan((AgentSpan) expectedParent)) {
-                      readyToPark.countDown();
-                      LockSupport.parkNanos(DAYS.toNanos(1));
-                    }
-                  });
+              .start(() -> {
+                try (ContextScope ignoredScope = activateSpan((AgentSpan) expectedParent)) {
+                  readyToPark.countDown();
+                  LockSupport.parkNanos(DAYS.toNanos(1));
+                }
+              });
     }
 
     try {

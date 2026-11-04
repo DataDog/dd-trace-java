@@ -75,10 +75,9 @@ public class ResponseDecorator {
     params
         ._instructions()
         .asString()
-        .ifPresent(
-            instructions -> {
-              inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
-            });
+        .ifPresent(instructions -> {
+          inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
+        });
 
     Optional<String> textOpt = params._input().asString();
     if (textOpt.isPresent()) {
@@ -182,9 +181,8 @@ public class ResponseDecorator {
     functionTool.description().ifPresent(desc -> toolDef.put("description", desc));
     functionTool
         .parameters()
-        .ifPresent(
-            parameters ->
-                toolDef.put("schema", jsonValueMapToObject(parameters._additionalProperties())));
+        .ifPresent(parameters ->
+            toolDef.put("schema", jsonValueMapToObject(parameters._additionalProperties())));
     return toolDef;
   }
 
@@ -540,22 +538,21 @@ public class ResponseDecorator {
     response
         ._toolChoice()
         .asKnown()
-        .ifPresent(
-            toolChoice -> {
-              toolChoice
-                  .options()
-                  .flatMap(v -> v._value().asString())
-                  .ifPresent(v -> metadata.put("tool_choice", v));
-              if (!metadata.containsKey("tool_choice")) {
-                toolChoice
-                    .types()
-                    .map(v -> v.type().toString().toLowerCase())
-                    .ifPresent(v -> metadata.put("tool_choice", v));
-              }
-              if (!metadata.containsKey("tool_choice") && toolChoice.function().isPresent()) {
-                metadata.put("tool_choice", "function");
-              }
-            });
+        .ifPresent(toolChoice -> {
+          toolChoice
+              .options()
+              .flatMap(v -> v._value().asString())
+              .ifPresent(v -> metadata.put("tool_choice", v));
+          if (!metadata.containsKey("tool_choice")) {
+            toolChoice
+                .types()
+                .map(v -> v.type().toString().toLowerCase())
+                .ifPresent(v -> metadata.put("tool_choice", v));
+          }
+          if (!metadata.containsKey("tool_choice") && toolChoice.function().isPresent()) {
+            metadata.put("tool_choice", "function");
+          }
+        });
 
     response
         ._truncation()
@@ -567,29 +564,27 @@ public class ResponseDecorator {
     response
         ._text()
         .asKnown()
-        .ifPresent(
-            textConfig -> {
-              textConfig
-                  ._format()
-                  .asKnown()
-                  .ifPresent(
-                      format -> {
-                        Map<String, String> formatMap = new HashMap<>();
-                        if (format.text().isPresent()) {
-                          formatMap.put("type", "text");
-                        } else if (format.jsonSchema().isPresent()) {
-                          formatMap.put("type", "json_schema");
-                        } else if (format.jsonObject().isPresent()) {
-                          formatMap.put("type", "json_object");
-                        }
-                        textMap.put("format", formatMap);
-                      });
-              textConfig
-                  ._verbosity()
-                  .asKnown()
-                  .flatMap(verbosity -> verbosity._value().asString())
-                  .ifPresent(verbosity -> textMap.put("verbosity", verbosity));
-            });
+        .ifPresent(textConfig -> {
+          textConfig
+              ._format()
+              .asKnown()
+              .ifPresent(format -> {
+                Map<String, String> formatMap = new HashMap<>();
+                if (format.text().isPresent()) {
+                  formatMap.put("type", "text");
+                } else if (format.jsonSchema().isPresent()) {
+                  formatMap.put("type", "json_schema");
+                } else if (format.jsonObject().isPresent()) {
+                  formatMap.put("type", "json_object");
+                }
+                textMap.put("format", formatMap);
+              });
+          textConfig
+              ._verbosity()
+              .asKnown()
+              .flatMap(verbosity -> verbosity._value().asString())
+              .ifPresent(verbosity -> textMap.put("verbosity", verbosity));
+        });
     if (!textMap.isEmpty()) {
       metadata.put("text", textMap);
     }
@@ -690,16 +685,15 @@ public class ResponseDecorator {
     response
         ._instructions()
         .asKnown()
-        .ifPresent(
-            instructions -> {
-              for (ResponseInputItem item :
-                  instructions.inputItemList().orElse(Collections.emptyList())) {
-                LLMObs.LLMMessage message = extractInputItemMessage(item);
-                if (message != null) {
-                  messages.add(message);
-                }
-              }
-            });
+        .ifPresent(instructions -> {
+          for (ResponseInputItem item :
+              instructions.inputItemList().orElse(Collections.emptyList())) {
+            LLMObs.LLMMessage message = extractInputItemMessage(item);
+            if (message != null) {
+              messages.add(message);
+            }
+          }
+        });
     return messages;
   }
 

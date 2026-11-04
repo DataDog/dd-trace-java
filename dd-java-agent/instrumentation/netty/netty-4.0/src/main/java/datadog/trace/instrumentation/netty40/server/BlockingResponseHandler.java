@@ -133,13 +133,12 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
 
     ctxForDownstream
         .writeAndFlush(response)
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              }
-              ctx.channel().close();
-            });
+        .addListener(fut -> {
+          if (!fut.isSuccess()) {
+            log.warn("Write of blocking response failed", fut.cause());
+          }
+          ctx.channel().close();
+        });
   }
 
   @ChannelHandler.Sharable

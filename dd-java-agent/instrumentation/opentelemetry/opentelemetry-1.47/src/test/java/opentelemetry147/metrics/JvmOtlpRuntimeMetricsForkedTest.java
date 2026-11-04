@@ -96,11 +96,10 @@ class JvmOtlpRuntimeMetricsForkedTest {
     assertFalse(points.isEmpty(), "jvm.gc.duration should have at least one data point");
     assertTrue(
         points.stream()
-            .allMatch(
-                p ->
-                    p.attrs.containsKey("jvm.gc.name")
-                        && p.attrs.containsKey("jvm.gc.action")
-                        && !p.attrs.containsKey("jvm.gc.cause")),
+            .allMatch(p ->
+                p.attrs.containsKey("jvm.gc.name")
+                    && p.attrs.containsKey("jvm.gc.action")
+                    && !p.attrs.containsKey("jvm.gc.cause")),
         "jvm.gc.duration data points must carry jvm.gc.name and jvm.gc.action, but not jvm.gc.cause"
             + " when experimental disabled");
   }

@@ -28,11 +28,10 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
       Maybe<Connection> connection = Maybe.create(emitter -> emitter.onSuccess(new Connection()));
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -52,11 +51,10 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
       Single<Connection> connection = Single.create(emitter -> emitter.onSuccess(new Connection()));
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -76,11 +74,10 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
       Completable action = Completable.create(emitter -> emitter.onComplete());
-      action.subscribe(
-          () -> {
-            new Connection().query();
-            latch.countDown();
-          });
+      action.subscribe(() -> {
+        new Connection().query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -100,16 +97,14 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     AgentSpan parent = startSpan("test", "parent");
     try (ContextScope scope = activateSpan(parent)) {
       Observable<Connection> connection =
-          Observable.create(
-              emitter -> {
-                emitter.onNext(new Connection());
-                emitter.onComplete();
-              });
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
+          Observable.create(emitter -> {
+            emitter.onNext(new Connection());
+            emitter.onComplete();
           });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -135,11 +130,10 @@ class SubscriptionTest extends AbstractInstrumentationTest {
                 emitter.onComplete();
               },
               BackpressureStrategy.BUFFER);
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }

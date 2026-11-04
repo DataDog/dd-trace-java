@@ -1625,11 +1625,10 @@ public class Agent {
 
   private static void initProfilerContext() {
     log.debug("Scheduling profiler context initialization");
-    WithGlobalTracer.registerOrExecute(
-        tracer -> {
-          log.debug("Initializing profiler context integration");
-          tracer.getProfilingContext().onStart();
-        });
+    WithGlobalTracer.registerOrExecute(tracer -> {
+      log.debug("Initializing profiler context integration");
+      tracer.getProfilingContext().onStart();
+    });
   }
 
   private static boolean isAwsLambdaRuntime() {

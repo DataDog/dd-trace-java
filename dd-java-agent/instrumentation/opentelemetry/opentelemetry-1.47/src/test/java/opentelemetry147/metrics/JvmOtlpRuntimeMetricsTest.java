@@ -123,10 +123,9 @@ public class JvmOtlpRuntimeMetricsTest {
     assertNotNull(points, "jvm.memory.used should have data points");
     DataPointEntry heapAggregate =
         points.stream()
-            .filter(
-                p ->
-                    "heap".equals(p.attrs.get("jvm.memory.type"))
-                        && p.attrs.get("jvm.memory.pool.name") == null)
+            .filter(p ->
+                "heap".equals(p.attrs.get("jvm.memory.type"))
+                    && p.attrs.get("jvm.memory.pool.name") == null)
             .findFirst()
             .orElse(null);
     assertNotNull(heapAggregate, "jvm.memory.used should have a heap aggregate data point");
@@ -203,10 +202,9 @@ public class JvmOtlpRuntimeMetricsTest {
     assertNotNull(points, "jvm.memory.init should have data points");
     DataPointEntry heapAggregate =
         points.stream()
-            .filter(
-                p ->
-                    "heap".equals(p.attrs.get("jvm.memory.type"))
-                        && p.attrs.get("jvm.memory.pool.name") == null)
+            .filter(p ->
+                "heap".equals(p.attrs.get("jvm.memory.type"))
+                    && p.attrs.get("jvm.memory.pool.name") == null)
             .findFirst()
             .orElse(null);
     assertNotNull(heapAggregate, "jvm.memory.init should have a heap aggregate data point");
