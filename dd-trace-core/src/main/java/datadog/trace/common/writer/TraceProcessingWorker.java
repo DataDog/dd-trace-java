@@ -20,6 +20,8 @@ import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.TraceCollector;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -202,6 +204,14 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   public static class TraceSerializingHandler implements Runnable {
 
+    /**
+     * A trace that has waited in the writer's queue longer than this is dropped rather than
+     * serialized. Holding it longer would let it survive young collections and be promoted, which
+     * is the cost of a backlog; dropping is also far cheaper than formatting, so a serializer that
+     * has fallen behind catches up. Well under a young-collection interval under load.
+     */
+    static final long MAX_QUEUED_TRACE_AGE_NANOS = MILLISECONDS.toNanos(250);
+
     private final MessagePassingBlockingQueue<Object> primaryQueue;
     private final MessagePassingBlockingQueue<Object> secondaryQueue;
     private final HealthMetrics healthMetrics;
@@ -263,6 +273,10 @@ public class TraceProcessingWorker implements AutoCloseable {
         if (event instanceof List) {
           List<DDSpan> trace = (List<DDSpan>) event;
           try {
+            if (isStale(trace)) {
+              evict(trace);
+              return;
+            }
             maybeTracePostProcessing(trace);
             // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
             payloadDispatcher.addTrace(trace);
@@ -284,6 +298,28 @@ public class TraceProcessingWorker implements AutoCloseable {
         List<DDSpan> data = event instanceof List ? (List<DDSpan>) event : null;
         healthMetrics.onFailedSerialize(data, e);
       }
+    }
+
+    /**
+     * Whether the trace has waited too long to be worth serializing: its latest chunk was handed to
+     * the writer longer ago than the limit. Not the time since its spans were last touched, which
+     * would count time spent in the pending trace buffer, held there by design. A trace with no
+     * recorded write time is never judged stale.
+     */
+    private static boolean isStale(List<DDSpan> trace) {
+      if (trace.isEmpty()) {
+        return false;
+      }
+      // a real span always has a context and a collector; mocked ones in tests may not
+      DDSpanContext context = trace.get(0).spanContext();
+      TraceCollector collector = context == null ? null : context.getTraceCollector();
+      return collector != null && collector.writtenNanosAgo(MAX_QUEUED_TRACE_AGE_NANOS);
+    }
+
+    private void evict(List<DDSpan> trace) {
+      // counted like any other dropped trace, as RemoteWriter.handleDroppedTrace does
+      healthMetrics.onFailedPublish(trace.get(0).samplingPriority(), trace.size());
+      payloadDispatcher.onDroppedTrace(trace.size());
     }
 
     protected void consumeFromPrimaryQueue() throws InterruptedException {

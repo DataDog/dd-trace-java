@@ -9,8 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
@@ -855,5 +860,61 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
     }
 
     assertEquals(0, shared.used());
+  }
+
+  // -------------------------------------------------------------------------
+  // Eviction: a trace that waited in the queue too long is dropped, not serialized
+  // -------------------------------------------------------------------------
+
+  /**
+   * A trace whose collector reports it as handed to the writer longer ago than the limit, or not.
+   */
+  private static List<DDSpan> traceWaited(int spans, boolean stale) {
+    PendingTrace collector = mock(PendingTrace.class);
+    when(collector.writtenNanosAgo(anyLong())).thenReturn(stale);
+    DDSpanContext context = mock(DDSpanContext.class);
+    when(context.getTraceCollector()).thenReturn(collector);
+    DDSpan span = mock(DDSpan.class);
+    when(span.spanContext()).thenReturn(context);
+    when(span.samplingPriority()).thenReturn((int) SAMPLER_KEEP);
+    return Collections.nCopies(spans, span);
+  }
+
+  @TableTest({
+    "scenario    | stale | serialized | evicted",
+    "fresh trace | false | 1          | 0      ",
+    "stale trace | true  | 0          | 1      "
+  })
+  void testStaleTracesAreEvictedInsteadOfSerialized(boolean stale, int serialized, int evicted)
+      throws Exception {
+    PayloadDispatcherImpl dispatcher = mock(PayloadDispatcherImpl.class);
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+    SpanBudget budget = FAST_LANE.spanBudget(1000);
+    try (TraceProcessingWorker worker =
+        new TraceProcessingWorker(
+            10,
+            budget,
+            healthMetrics,
+            dispatcher,
+            () -> false,
+            FAST_LANE,
+            0,
+            TimeUnit.SECONDS,
+            null)) {
+      worker.start();
+      List<DDSpan> trace = traceWaited(7, stale);
+      assertEquals(ENQUEUED_FOR_SERIALIZATION, worker.publish(trace.get(0), SAMPLER_KEEP, trace));
+
+      // the spans are released once the trace is serialized or evicted, so this waits for either
+      long deadline = System.currentTimeMillis() + 5000;
+      while (budget.used() > 0 && System.currentTimeMillis() < deadline) {
+        Thread.sleep(5);
+      }
+
+      assertEquals(0, budget.used());
+      verify(dispatcher, times(serialized)).addTrace(any());
+      verify(dispatcher, times(evicted)).onDroppedTrace(7);
+      verify(healthMetrics, times(evicted)).onFailedPublish(anyInt(), eq(7));
+    }
   }
 }

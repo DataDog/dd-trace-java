@@ -99,6 +99,15 @@ public abstract class TraceCollector implements AgentTraceCollector {
 
   abstract void touch();
 
+  /**
+   * Whether this trace's latest chunk was handed to the writer more than {@code nanos} ago. False
+   * when the collector doesn't record write times or no chunk has been written, so an unknown age
+   * never counts as old.
+   */
+  public boolean writtenNanosAgo(long nanos) {
+    return false;
+  }
+
   abstract void registerSpan(final DDSpan span);
 
   abstract DDSpan getRootSpan();
