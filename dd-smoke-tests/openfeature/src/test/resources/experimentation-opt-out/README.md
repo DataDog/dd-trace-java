@@ -18,7 +18,7 @@ To verify both the pinned source bytes and equality of all extracted rows, save 
 file from that revision and run from this directory:
 
 ```sh
-python3 verify.py /path/to/browser-proposal.jsonl
+./verify.sh /path/to/browser-proposal.jsonl
 ```
 
 The provider Gradle test tasks declare both this directory and the canonical fixture directory
