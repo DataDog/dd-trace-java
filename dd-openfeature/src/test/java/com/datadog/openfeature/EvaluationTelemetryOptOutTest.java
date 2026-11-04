@@ -529,6 +529,29 @@ class EvaluationTelemetryOptOutTest {
   }
 
   @Test
+  void enabledProviderOptOutIncludesDependencyTelemetryWhenSubjectDoesNotOptOut() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(true),
+        dependentConfiguration());
+
+    for (final Value optOut : asList(null, new Value(false))) {
+      final String subject = optOut == null ? "absent" : "false";
+      final FlagEvaluationDetails<Integer> included =
+          this.client.getIntegerDetails("root", 0, context(subject, optOut));
+
+      assertEquals(1, included.getValue());
+    }
+
+    assertEquals(4, this.events.size(), "dependency and root events for both subjects");
+    assertEquals("dependency", this.events.get(0).flagKey);
+    assertEquals("root", this.events.get(1).flagKey);
+    assertEquals("dependency", this.events.get(2).flagKey);
+    assertEquals("root", this.events.get(3).flagKey);
+    assertEquals(4, this.metrics.get(), "dependency and root metrics for both subjects");
+    assertEquals(4, this.exposures.size());
+  }
+
+  @Test
   void dependencyTelemetryIncludesMetricsWhenProviderOptOutIsDisabled() throws Exception {
     start(
         new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),

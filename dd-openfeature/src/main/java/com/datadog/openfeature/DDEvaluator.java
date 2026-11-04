@@ -190,8 +190,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     final ConfigurationSnapshot snapshot =
         token != null
             ? token.snapshot
-            : scope instanceof ConfigurationSnapshot
-                ? (ConfigurationSnapshot) scope
+            : scope instanceof EvaluationScope
+                ? ((EvaluationScope) scope).snapshot
                 : configurationSnapshot;
     final FlagEvaluator.EvaluationResult<T> evaluation =
         core.evaluateWithTrace(snapshot.config, target, key, defaultValue, context);
@@ -409,7 +409,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     final Object scope =
         snapshot.dependencyFlags.contains(rootFlagKey)
             ? new DependencyTelemetryToken(snapshot, rootFlagKey, evaluationContext)
-            : snapshot;
+            : new EvaluationScope(snapshot, rootFlagKey, evaluationContext);
     Deque<Object> scopes = dependencyTelemetryScopes.get();
     if (scopes == null) {
       scopes = new ArrayDeque<>();
@@ -466,15 +466,23 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       return null;
     }
     final Object scope = scopes.peek();
-    if (!(scope instanceof DependencyTelemetryToken)) {
-      return scope;
+    if (scope instanceof DependencyTelemetryToken) {
+      final DependencyTelemetryToken token = (DependencyTelemetryToken) scope;
+      if (token.claimed || !token.matches(rootFlagKey, evaluationContext)) {
+        return null;
+      }
+      token.claimed = true;
+      return token;
     }
-    final DependencyTelemetryToken token = (DependencyTelemetryToken) scope;
-    if (token.claimed || !token.matches(rootFlagKey, evaluationContext)) {
+    if (!(scope instanceof EvaluationScope)) {
       return null;
     }
-    token.claimed = true;
-    return token;
+    final EvaluationScope evaluationScope = (EvaluationScope) scope;
+    if (evaluationScope.claimed || !evaluationScope.matches(rootFlagKey, evaluationContext)) {
+      return null;
+    }
+    evaluationScope.claimed = true;
+    return evaluationScope;
   }
 
   private void stageDependencyTelemetry(
@@ -586,6 +594,29 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     private boolean sealed;
 
     private DependencyTelemetryToken(
+        final ConfigurationSnapshot snapshot,
+        final String rootFlagKey,
+        final EvaluationContext evaluationContext) {
+      this.snapshot = snapshot;
+      this.rootFlagKey = rootFlagKey;
+      this.evaluationContext = evaluationContext;
+    }
+
+    private boolean matches(
+        final String evaluatedFlagKey, final EvaluationContext evaluatedContext) {
+      return rootFlagKey != null
+          && rootFlagKey.equals(evaluatedFlagKey)
+          && evaluationContext == evaluatedContext;
+    }
+  }
+
+  private static final class EvaluationScope {
+    private final ConfigurationSnapshot snapshot;
+    private final String rootFlagKey;
+    private final EvaluationContext evaluationContext;
+    private boolean claimed;
+
+    private EvaluationScope(
         final ConfigurationSnapshot snapshot,
         final String rootFlagKey,
         final EvaluationContext evaluationContext) {

@@ -339,9 +339,15 @@ class ExposureLoggingHookTest {
     dependent.accept(dependentConfiguration(true));
     final ProviderEvaluation<Integer> pinned =
         dependent.evaluate(Integer.class, "root", 0, evaluationContext);
+    final ProviderEvaluation<String> unrelated =
+        dependent.evaluate(String.class, "dependency", "default", evaluationContext);
     hook.finallyAfter(hookContext, FlagEvaluationDetails.from(pinned, "root"), emptyMap());
 
     assertEquals(2, pinned.getValue(), "evaluation uses the snapshot pinned by before");
+    assertEquals(
+        "on-value",
+        unrelated.getValue(),
+        "an unrelated evaluation after the root uses the refreshed configuration");
     assertTrue(dependent.sentToDatadog.isEmpty());
 
     final HookContext<Integer> refreshedContext =
