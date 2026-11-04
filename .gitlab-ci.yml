@@ -957,6 +957,7 @@ muzzle-dep-report:
         KUBERNETES_SERVICE_MEMORY_LIMIT: "2Gi"
   script:
     - !reference [.test_job_common, script]
+    # Check traces from executed tests; cache hits restore results without sending traces.
     - .gitlab/check_test_agent_results.sh
 
 .test_job_amd64_with_test_agent:
@@ -976,6 +977,8 @@ agent_integration_tests:
     testJvm: "8"
     CI_AGENT_HOST: local-agent
     GRADLE_TARGET: "traceAgentTest"
+    # Exercise the running Agent instead of restoring previous test results.
+    GRADLE_PARAMS: "-PskipFlakyTests -Prerun.tests.dd-trace-core"
     CACHE_TYPE: "base"
   services:
     - name: registry.ddbuild.io/images/mirror/datadog/agent:7.40.1
