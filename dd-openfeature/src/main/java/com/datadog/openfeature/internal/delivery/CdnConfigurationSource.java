@@ -317,13 +317,33 @@ public final class CdnConfigurationSource implements ConfigurationService {
     if (!capabilities.contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
       return endpoint;
     }
-    final String separator = endpoint.getRawQuery() == null ? "?" : "&";
-    return URI.create(
-        endpoint
-            + separator
-            + EvaluatorCapabilities.DEPENDENT_FLAGS_VARIANT_KEY_QUERY_PARAMETER
-            + "="
-            + EvaluatorCapabilities.DEPENDENT_FLAGS_VARIANT_KEY_QUERY_VERSION);
+    final String parameter = EvaluatorCapabilities.DEPENDENT_FLAGS_VARIANT_KEY_QUERY_PARAMETER;
+    final StringBuilder query = new StringBuilder();
+    if (endpoint.getRawQuery() != null) {
+      for (final String item : endpoint.getRawQuery().split("&", -1)) {
+        if (!item.equals(parameter) && !item.startsWith(parameter + "=")) {
+          if (query.length() > 0) {
+            query.append('&');
+          }
+          query.append(item);
+        }
+      }
+    }
+    if (query.length() > 0) {
+      query.append('&');
+    }
+    query
+        .append(parameter)
+        .append('=')
+        .append(EvaluatorCapabilities.DEPENDENT_FLAGS_VARIANT_KEY_QUERY_VERSION);
+
+    final String endpointText = endpoint.toString();
+    final int fragmentStart = endpointText.indexOf('#');
+    final String fragment = fragmentStart < 0 ? "" : endpointText.substring(fragmentStart);
+    final String withoutFragment = fragmentStart < 0 ? endpointText : endpointText.substring(0, fragmentStart);
+    final int queryStart = withoutFragment.indexOf('?');
+    final String path = queryStart < 0 ? withoutFragment : withoutFragment.substring(0, queryStart);
+    return URI.create(path + "?" + query + fragment);
   }
 
   private synchronized void warn(final String message, final Object... arguments) {
