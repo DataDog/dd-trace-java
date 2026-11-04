@@ -150,25 +150,11 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
   ) {
     taskExtension.minJavaVersion.convention(projectExtension.minJavaVersion
       .orElse(project.providers.provider { project.findProperty("${name}MinJavaVersionForTests") as? JavaVersion })
-      .orElse(project.providers.provider { project.findProperty("minJavaVersion") as? JavaVersion })
     )
-    taskExtension.maxJavaVersion.convention(projectExtension.maxJavaVersion
-      .orElse(project.providers.provider { project.findProperty("${name}MaxJavaVersionForTests") as? JavaVersion })
-      .orElse(project.providers.provider { project.findProperty("maxJavaVersion") as? JavaVersion })
-    )
+    taskExtension.maxJavaVersion.convention(projectExtension.maxJavaVersion)
+    taskExtension.forceJdk.convention(projectExtension.forceJdk)
     taskExtension.includeJdk.convention(projectExtension.includeJdk)
-    taskExtension.forceJdk.convention(projectExtension.forceJdk
-      .orElse(project.providers.provider {
-        @Suppress("UNCHECKED_CAST")
-        project.findProperty("forceJdk") as? List<String> ?: emptyList()
-      })
-    )
-    taskExtension.excludeJdk.convention(projectExtension.excludeJdk
-      .orElse(project.providers.provider {
-        @Suppress("UNCHECKED_CAST")
-        project.findProperty("excludeJdk") as? List<String> ?: emptyList()
-      })
-    )
+    taskExtension.excludeJdk.convention(projectExtension.excludeJdk)
     taskExtension.allowReflectiveAccessToJdk.convention(projectExtension.allowReflectiveAccessToJdk
       .orElse(project.providers.provider { project.findProperty("allowReflectiveAccessToJdk") as? Boolean })
     )
