@@ -243,12 +243,15 @@ class DependentFlagEvaluatorTest {
 
     final ProviderEvaluation<String> ordinary =
         evaluator.evaluate(config, String.class, "ordinary", "default", new MutableContext("u"));
-    final ProviderEvaluation<String> dependent =
-        evaluator.evaluate(config, String.class, "dependent", "default", new MutableContext("u"));
+    final FlagEvaluator.EvaluationResult<String> dependent =
+        evaluator.evaluateWithTrace(
+            config, String.class, "dependent", "default", new MutableContext("u"));
 
     assertEquals("on-value", ordinary.getValue());
-    assertEquals(ErrorCode.PARSE_ERROR, dependent.getErrorCode());
-    assertNotNull(dependent.getFlagMetadata());
+    assertEquals(ErrorCode.PARSE_ERROR, dependent.details.getErrorCode());
+    assertNotNull(dependent.details.getFlagMetadata());
+    assertEquals(singletonList("dependency:PARSE_ERROR"), evaluations(dependent));
+    assertTrue(dependent.dependencyExposures.isEmpty());
   }
 
   @Test
@@ -270,16 +273,16 @@ class DependentFlagEvaluatorTest {
                 "default",
                 new MutableContext("u"))
             .getValue());
-    assertEquals(
-        ErrorCode.PARSE_ERROR,
-        evaluator
-            .evaluate(
-                config(flags, new EvaluatorParams(null, true)),
-                String.class,
-                "dependent",
-                "default",
-                new MutableContext("u"))
-            .getErrorCode());
+    final FlagEvaluator.EvaluationResult<String> explicitNull =
+        evaluator.evaluateWithTrace(
+            config(flags, new EvaluatorParams(null, true)),
+            String.class,
+            "dependent",
+            "default",
+            new MutableContext("u"));
+    assertEquals(ErrorCode.PARSE_ERROR, explicitNull.details.getErrorCode());
+    assertEquals(singletonList("dependency:PARSE_ERROR"), evaluations(explicitNull));
+    assertTrue(explicitNull.dependencyExposures.isEmpty());
     assertEquals(
         "on-value",
         evaluator
@@ -290,6 +293,31 @@ class DependentFlagEvaluatorTest {
                 "default",
                 new MutableContext("u"))
             .getValue());
+  }
+
+  @Test
+  void preservesWideDependencyExposureOrderWithoutDuplicates() {
+    final int dependencyCount = 512;
+    final Map<String, Flag> flags = new HashMap<>();
+    final List<ConditionConfiguration> conditions = new ArrayList<>();
+    for (int i = 0; i < dependencyCount; i++) {
+      final String key = "dependency-" + i;
+      flags.put(key, stringFlag(key, "on", null, false));
+      conditions.add(new ConditionConfiguration(ONE_OF, null, key, singletonList("on")));
+    }
+    flags.put("root", stringFlag("root", "on", new Rule(conditions), false));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, null), String.class, "root", "default", new MutableContext("u"));
+
+    assertEquals("on-value", evaluation.details.getValue());
+    assertEquals(dependencyCount, evaluation.dependencyEvaluations.size());
+    assertEquals(dependencyCount, evaluation.dependencyExposures.size());
+    for (int i = 0; i < dependencyCount; i++) {
+      assertEquals("dependency-" + i, evaluation.dependencyExposures.get(i).flagKey);
+    }
   }
 
   @Test

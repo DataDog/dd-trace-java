@@ -9,6 +9,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -56,6 +57,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -544,6 +546,29 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(2, this.exposures.size());
   }
 
+  @Test
+  void dependencyTelemetryReusesOneDetachedContextSnapshotPerBatch() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        twoDependencyConfiguration(true));
+    final MutableContext context = new MutableContext("subject");
+    context.add("region", "us-east-1");
+
+    final FlagEvaluationDetails<Integer> included =
+        this.client.getIntegerDetails("root", 0, context);
+    context.add("region", "eu-west-1");
+
+    assertEquals(1, included.getValue());
+    assertEquals(3, this.events.size(), "two dependencies and the root evaluation");
+    assertEquals("first", this.events.get(0).flagKey);
+    assertEquals("second", this.events.get(1).flagKey);
+    assertSame(
+        this.events.get(0).attrs,
+        this.events.get(1).attrs,
+        "dependency events in one batch must reuse the detached snapshot");
+    assertEquals("us-east-1", this.events.get(0).attrs.get("region"));
+  }
+
   @TableTest({
     "initial | after",
     "false   | true ",
@@ -954,6 +979,49 @@ class EvaluationTelemetryOptOutTest {
     flags.put("dependency", dependency);
     flags.put("root", root);
     return new ServerConfiguration("", "", false, null, flags);
+  }
+
+  private static ServerConfiguration twoDependencyConfiguration(
+      final boolean observeFullEvaluationData) {
+    final Map<String, Flag> flags = new HashMap<>();
+    final List<ConditionConfiguration> conditions = new ArrayList<>();
+    for (final String key : asList("first", "second")) {
+      final Allocation dependencyAllocation =
+          new Allocation(
+              key + "-allocation",
+              null,
+              null,
+              null,
+              singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+              false);
+      flags.put(
+          key,
+          new Flag(
+              key,
+              true,
+              ValueType.INTEGER,
+              singletonMap("on", new Variant("on", 1)),
+              singletonList(dependencyAllocation)));
+      conditions.add(
+          new ConditionConfiguration(ConditionOperator.ONE_OF, null, key, singletonList("on")));
+    }
+    final Allocation rootAllocation =
+        new Allocation(
+            "root-allocation",
+            singletonList(new Rule(conditions)),
+            null,
+            null,
+            singletonList(new Split(emptyList(), "on", emptyMap(), 7)),
+            false);
+    flags.put(
+        "root",
+        new Flag(
+            "root",
+            true,
+            ValueType.INTEGER,
+            singletonMap("on", new Variant("on", 1)),
+            singletonList(rootAllocation)));
+    return new ServerConfiguration("", "", observeFullEvaluationData, null, flags);
   }
 
   private static ServerConfiguration targetingConfiguration(

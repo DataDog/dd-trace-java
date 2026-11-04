@@ -301,7 +301,7 @@ public final class UniversalFlagConfigParser {
       throw new IllegalArgumentException("flagEvaluation must contain only key");
     }
     final String key = asString(json.get("key"), "flagEvaluation.key");
-    if (key.isEmpty()) {
+    if (key == null || key.isEmpty()) {
       throw new IllegalArgumentException("flagEvaluation.key must not be empty");
     }
     return key;

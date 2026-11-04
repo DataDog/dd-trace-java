@@ -113,6 +113,22 @@ class UniversalFlagConfigParserTest {
   }
 
   @Test
+  void rejectsNullDependentFlagKeyAndKeepsSiblingFlag() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{"
+                + "\"bad\":{\"key\":\"bad\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\"ONE_OF\","
+                + "\"flagEvaluation\":{\"key\":null},\"value\":[\"on\"]}]}],"
+                + "\"splits\":[]}]},"
+                + "\"good\":{\"key\":\"good\",\"enabled\":true}}}");
+
+    assertFalse(config.flags.containsKey("bad"));
+    assertEquals("invalid_flag", config.invalidFlags.get("bad"));
+    assertTrue(config.flags.get("good").enabled);
+  }
+
+  @Test
   void parsesNullDocumentAsNoConfiguration() throws Exception {
     assertNull(deserialize("null"));
   }

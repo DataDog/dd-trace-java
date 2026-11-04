@@ -757,7 +757,7 @@ public final class FlagEvaluator {
 
     private DependencyEvaluationSession dependencySession(final String rootFlagKey) {
       if (session == null) {
-        session = new DependencyEvaluationSession(rootFlagKey, maxDependencyDepth(config), this);
+        session = new DependencyEvaluationSession(rootFlagKey, this);
       }
       return session;
     }
@@ -781,7 +781,6 @@ public final class FlagEvaluator {
   }
 
   private final class DependencyEvaluationSession {
-    private final int maxDependencyDepth;
     private final EvaluationState state;
     private final Map<String, MemoizedDependency> memo = new HashMap<>();
     private final Set<String> active = new HashSet<>();
@@ -789,10 +788,10 @@ public final class FlagEvaluator {
     private final Set<String> evaluatedFlags = new HashSet<>();
     private final List<DependencyEvaluation> evaluations = new ArrayList<>();
     private final List<DependencyExposure> exposures = new ArrayList<>();
+    private final Set<String> exposureKeys = new HashSet<>();
+    private Integer maxDependencyDepth;
 
-    private DependencyEvaluationSession(
-        final String rootFlagKey, final int maxDependencyDepth, final EvaluationState state) {
-      this.maxDependencyDepth = maxDependencyDepth;
+    private DependencyEvaluationSession(final String rootFlagKey, final EvaluationState state) {
       this.state = state;
       active.add(rootFlagKey);
     }
@@ -805,12 +804,13 @@ public final class FlagEvaluator {
 
     private void rollback(final ExposureCheckpoint checkpoint) {
       while (exposures.size() > checkpoint.exposureCount) {
-        exposures.remove(exposures.size() - 1);
+        exposureKeys.remove(exposures.remove(exposures.size() - 1).flagKey);
       }
       if (!frames.isEmpty()) {
         final DependencyFrame frame = frames.get(frames.size() - 1);
         while (frame.exposureTrace.size() > checkpoint.frameExposureCount) {
-          frame.exposureTrace.remove(frame.exposureTrace.size() - 1);
+          frame.exposureKeys.remove(
+              frame.exposureTrace.remove(frame.exposureTrace.size() - 1).flagKey);
         }
       }
     }
@@ -825,6 +825,13 @@ public final class FlagEvaluator {
     }
 
     private String resolveCurrent(final String flagKey) {
+      if (maxDependencyDepth == null) {
+        try {
+          maxDependencyDepth = FlagEvaluator.maxDependencyDepth(state.config);
+        } catch (final DependencyGraphException e) {
+          throw emitFailure(flagKey, e.errorCode, e.getMessage());
+        }
+      }
       final int depth = frames.isEmpty() ? 1 : frames.get(frames.size() - 1).depth + 1;
       return resolve(flagKey, depth);
     }
@@ -887,7 +894,8 @@ public final class FlagEvaluator {
               ErrorCode.GENERAL, "prerequisite flag evaluation returned no variant");
         }
         final List<DependencyExposure> exposureTrace = new ArrayList<>(frame.exposureTrace);
-        appendUnique(exposureTrace, new DependencyExposure(flagKey, details));
+        final Set<String> exposureTraceKeys = new HashSet<>(frame.exposureKeys);
+        appendUnique(exposureTrace, exposureTraceKeys, new DependencyExposure(flagKey, details));
         final MemoizedDependency result =
             new MemoizedDependency(details, frame.maxReachedDepth - depth, exposureTrace);
         memo.put(flagKey, result);
@@ -944,18 +952,20 @@ public final class FlagEvaluator {
 
     private void recordExposureTrace(final List<DependencyExposure> trace) {
       for (final DependencyExposure candidate : trace) {
-        appendUnique(exposures, candidate);
+        appendUnique(exposures, exposureKeys, candidate);
         if (!frames.isEmpty()) {
-          appendUnique(frames.get(frames.size() - 1).exposureTrace, candidate);
+          final DependencyFrame frame = frames.get(frames.size() - 1);
+          appendUnique(frame.exposureTrace, frame.exposureKeys, candidate);
         }
       }
     }
 
     private void recordExposureTraceOnParent(final List<DependencyExposure> trace) {
       for (final DependencyExposure candidate : trace) {
-        appendUnique(exposures, candidate);
+        appendUnique(exposures, exposureKeys, candidate);
         if (frames.size() > 1) {
-          appendUnique(frames.get(frames.size() - 2).exposureTrace, candidate);
+          final DependencyFrame parent = frames.get(frames.size() - 2);
+          appendUnique(parent.exposureTrace, parent.exposureKeys, candidate);
         }
       }
     }
@@ -985,19 +995,19 @@ public final class FlagEvaluator {
   }
 
   private static void appendUnique(
-      final List<DependencyExposure> target, final DependencyExposure candidate) {
-    for (final DependencyExposure existing : target) {
-      if (existing.flagKey.equals(candidate.flagKey)) {
-        return;
-      }
+      final List<DependencyExposure> target,
+      final Set<String> keys,
+      final DependencyExposure candidate) {
+    if (keys.add(candidate.flagKey)) {
+      target.add(candidate);
     }
-    target.add(candidate);
   }
 
   private static final class DependencyFrame {
     private final int depth;
     private int maxReachedDepth;
     private final List<DependencyExposure> exposureTrace = new ArrayList<>();
+    private final Set<String> exposureKeys = new HashSet<>();
 
     private DependencyFrame(final int depth) {
       this.depth = depth;

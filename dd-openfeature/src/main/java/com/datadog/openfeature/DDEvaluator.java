@@ -269,7 +269,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final FlagEvaluator.DependencyEvaluation dependency,
       final EvaluationContext context,
       final long evaluationTimestampMs,
-      final FlagEvaluationWriter writer) {
+      final FlagEvaluationWriter writer,
+      final DependencyContextSnapshot contextSnapshot) {
     final ImmutableMetadata metadata = dependency.metadata;
     final Map<String, Object> values =
         metadata == null ? Collections.<String, Object>emptyMap() : metadata.asUnmodifiableMap();
@@ -290,11 +291,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     }
     final Map<String, Object> attrs;
     if (observeFullEvaluationData) {
-      final CopyResult copy = copyPrunedContext(context);
-      if (copy.truncatedReason != null) {
-        writer.countContextTruncated(copy.truncatedReason);
-      }
-      attrs = copy.attrs;
+      attrs = contextSnapshot.capture(context, writer);
     } else {
       attrs = Collections.emptyMap();
     }
@@ -319,12 +316,30 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final DependencyEvaluationTrace trace,
       final EvaluationContext context,
       final FlagEvaluationWriter writer) {
+    final DependencyContextSnapshot contextSnapshot = new DependencyContextSnapshot();
     for (final FlagEvaluator.DependencyEvaluation dependency : trace.evaluations) {
       try {
-        publishDependencyEvaluation(dependency, context, trace.evaluationTimestampMs, writer);
+        publishDependencyEvaluation(
+            dependency, context, trace.evaluationTimestampMs, writer, contextSnapshot);
       } catch (final RuntimeException | LinkageError ignored) {
         // One telemetry record must not suppress the root or later dependency records.
       }
+    }
+  }
+
+  /** Lazily captures one detached evaluation-context snapshot for a dependency batch. */
+  private static final class DependencyContextSnapshot {
+    private CopyResult copy;
+
+    private Map<String, Object> capture(
+        final EvaluationContext context, final FlagEvaluationWriter writer) {
+      if (copy == null) {
+        copy = copyPrunedContext(context);
+        if (copy.truncatedReason != null) {
+          writer.countContextTruncated(copy.truncatedReason);
+        }
+      }
+      return copy.attrs;
     }
   }
 
