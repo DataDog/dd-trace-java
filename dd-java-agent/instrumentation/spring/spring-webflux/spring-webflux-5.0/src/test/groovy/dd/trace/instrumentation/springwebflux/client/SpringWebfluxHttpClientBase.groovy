@@ -6,6 +6,8 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.KnownTags
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
@@ -40,16 +42,19 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
       }
       .block()
 
-    finishRequest(response, method, hasParent, callback)
+    if (hasParent) {
+      blockUntilChildSpansFinished(callback ? 3 : 2)
+    }
+
+    check()
+
+    consumeResponse(response)
   }
 
-  protected static int consumeResponse(ClientResponse response, String method) {
+  protected static int consumeResponse(ClientResponse response) {
     int status = response.statusCode().value()
     Channel channel = responseChannel(response)
-    // Only skip HEAD body consumption in OpenTelemetry mode.
-    if (!Config.get().isTraceOtelSemanticsEnabled() || method != "HEAD") {
-      response.bodyToMono(Void).block()
-    }
+    response.bodyToMono(Void).block()
     // Body completion can occur inside channelRead, before channelReadComplete is fired.
     channel.eventLoop().submit({} as Runnable).sync()
     return status
@@ -65,16 +70,6 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
     def field = target.class.getDeclaredField(name)
     field.accessible = true
     return field.get(target)
-  }
-
-  protected int finishRequest(ClientResponse response, String method, boolean hasParent, Closure callback) {
-    if (hasParent) {
-      blockUntilChildSpansFinished(size(callback ? 2 : 1))
-    }
-
-    check()
-
-    consumeResponse(response, method)
   }
 
   @Override
@@ -98,9 +93,10 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
     boolean ignorePeer = false,
     Map<String, Serializable> extraTags = null) {
 
+    def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
     def leafParentId = trace.spanAssertCount.get()
     super.clientSpan(trace, parentSpan, method, renameService, tagQueryString, uri, status, error, exception, ignorePeer, extraTags)
-    if (!exception && !Config.get().isTraceOtelSemanticsEnabled()) {
+    if (!exception) {
       def expectedQuery = tagQueryString ? uri.query : null
       def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
       if (expectedQuery != null && !expectedQuery.empty) {
@@ -112,9 +108,9 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
           serviceName("localhost")
         }
         operationName NettyHttpClientDecorator.DECORATE.operationName()
-        resourceName "$method $uri.path"
+        resourceName otelSemantics ? OtelHttpSemantics.spanNameMethod(method) : "$method $uri.path"
         spanType DDSpanTypes.HTTP_CLIENT
-        errored error
+        errored otelSemantics && status != null && status >= 400 ? true : error
         measured true
         tags {
           "$Tags.COMPONENT" NettyHttpClientDecorator.DECORATE.component()
@@ -127,17 +123,26 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
           if (status) {
             "$Tags.HTTP_STATUS" status
           }
-          if (tagQueryString) {
+          if (otelSemantics) {
+            "$KnownTags.HTTP_QUERY_STRING_NAME" null
+            "$DDTags.HTTP_FRAGMENT" null
+          } else if (tagQueryString) {
             "$DDTags.HTTP_QUERY" expectedQuery
             "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
           }
           if (exception) {
             errorTags(exception.class, exception.message)
+          } else if (otelSemantics && status != null && status >= 400) {
+            "$DDTags.ERROR_TYPE" status.toString()
           }
           if ({ isDataStreamsEnabled() }) {
             "$DDTags.PATHWAY_HASH" { String }
           }
-          defaultTags()
+          if (otelSemantics) {
+            defaultTagsNoPeerService()
+          } else {
+            defaultTags()
+          }
           if (extraTags) {
             it.addTags(extraTags)
           }
@@ -148,7 +153,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
 
   @Override
   int size(int size) {
-    return Config.get().isTraceOtelSemanticsEnabled() ? size : size + 1
+    return size + 1
   }
 
   boolean testRedirects() {
