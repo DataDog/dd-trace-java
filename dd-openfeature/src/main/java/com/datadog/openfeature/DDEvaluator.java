@@ -25,7 +25,6 @@ import com.datadog.openfeature.internal.ufc.Rule;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import dev.openfeature.sdk.EvaluationContext;
-import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.ImmutableStructure;
 import dev.openfeature.sdk.ProviderEvaluation;
@@ -33,12 +32,13 @@ import dev.openfeature.sdk.Structure;
 import dev.openfeature.sdk.Value;
 import java.time.Instant;
 import java.util.AbstractMap;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,6 +46,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
+
+  static final String DEPENDENCY_TELEMETRY_SCOPE = "datadog.dependencyTelemetryScope";
 
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
@@ -96,13 +98,13 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   private final Settings settings;
   private final FlagEvaluator core;
   private final ConfigurationStore configuration = new ConfigurationStore();
-  // Dependency telemetry belongs to one OpenFeature hook lifecycle. The exposure hook opens a
-  // scope before provider evaluation and closes it in finallyAfter. Evaluation hooks inspect the
-  // staged records before that close, so dependency and root telemetry share the same opt-out and
-  // application-hook boundary. Direct provider calls have no scope and emit no telemetry. A stack
-  // keeps nested evaluations on the same thread isolated.
-  private final ThreadLocal<Deque<DependencyTelemetryToken>> dependencyTelemetryScopes =
-      new ThreadLocal<>();
+  private volatile ConfigurationSnapshot configurationSnapshot = ConfigurationSnapshot.EMPTY;
+  // Dependency telemetry is sidecar telemetry parallel to the existing OpenFeature client-hook
+  // telemetry. The exposure hook pins one configuration snapshot before provider evaluation;
+  // evaluation hooks publish the returned batch after graph completion and before the client call
+  // returns; finallyAfter closes the scope even when application after hooks fail. Direct provider
+  // calls have no scope and emit no sidecar telemetry. A stack isolates nested client evaluations.
+  private final ThreadLocal<Deque<Object>> dependencyTelemetryScopes = new ThreadLocal<>();
   private volatile FeatureFlagsRuntime runtime;
 
   DDEvaluator(final Runnable configCallback, final AgentBridge bridge, final Settings settings) {
@@ -142,7 +144,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
   @Override
   public boolean hasConfiguration() {
-    return this.configuration.get() != null;
+    return this.configurationSnapshot.config != null;
   }
 
   @Override
@@ -165,6 +167,8 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
   @Override
   public void accept(final ServerConfiguration config) {
+    final ConfigurationSnapshot snapshot = ConfigurationSnapshot.create(config);
+    this.configurationSnapshot = snapshot;
     this.configuration.set(config);
     if (config != null) {
       this.configuration.markReady();
@@ -180,9 +184,17 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
-    final DependencyTelemetryToken token = claimDependencyTelemetry(key, context);
+    final Object scope = claimEvaluationScope(key, context);
+    final DependencyTelemetryToken token =
+        scope instanceof DependencyTelemetryToken ? (DependencyTelemetryToken) scope : null;
+    final ConfigurationSnapshot snapshot =
+        token != null
+            ? token.snapshot
+            : scope instanceof ConfigurationSnapshot
+                ? (ConfigurationSnapshot) scope
+                : configurationSnapshot;
     final FlagEvaluator.EvaluationResult<T> evaluation =
-        core.evaluateWithTrace(configuration.get(), target, key, defaultValue, context);
+        core.evaluateWithTrace(snapshot.config, target, key, defaultValue, context);
     final ProviderEvaluation<T> result = evaluation.details;
     stageDependencyTelemetry(token, evaluation);
     return result;
@@ -391,108 +403,73 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     }
   }
 
-  DependencyTelemetryToken beginDependencyExposureScope(
+  Object beginDependencyExposureScope(
       final String rootFlagKey, final EvaluationContext evaluationContext) {
-    if (!hasDependencyConditions(rootFlagKey)) {
-      return null;
-    }
-    Deque<DependencyTelemetryToken> scopes = dependencyTelemetryScopes.get();
+    final ConfigurationSnapshot snapshot = configurationSnapshot;
+    final Object scope =
+        snapshot.dependencyFlags.contains(rootFlagKey)
+            ? new DependencyTelemetryToken(snapshot, rootFlagKey, evaluationContext)
+            : snapshot;
+    Deque<Object> scopes = dependencyTelemetryScopes.get();
     if (scopes == null) {
-      scopes = new LinkedList<>();
+      scopes = new ArrayDeque<>();
       dependencyTelemetryScopes.set(scopes);
     }
-    final DependencyTelemetryToken token =
-        new DependencyTelemetryToken(this, rootFlagKey, evaluationContext);
-    scopes.push(token);
-    return token;
+    scopes.push(scope);
+    return scope;
   }
 
-  private boolean hasDependencyConditions(final String rootFlagKey) {
-    final ServerConfiguration config = configuration.get();
-    final Flag flag =
-        config == null || config.flags == null || rootFlagKey == null
-            ? null
-            : config.flags.get(rootFlagKey);
-    if (flag == null || flag.allocations == null) {
-      return false;
-    }
-    for (final Allocation allocation : flag.allocations) {
-      if (allocation == null || allocation.rules == null) {
-        continue;
-      }
-      for (final Rule rule : allocation.rules) {
-        if (rule == null || rule.conditions == null) {
-          continue;
-        }
-        for (final ConditionConfiguration condition : rule.conditions) {
-          if (condition != null && condition.flagEvaluationKey != null) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  }
-
-  List<FlagEvaluator.DependencyExposure> endDependencyExposureScope(
-      final DependencyTelemetryToken token) {
-    final Deque<DependencyTelemetryToken> scopes = dependencyTelemetryScopes.get();
-    if (token == null || scopes == null || scopes.isEmpty() || scopes.peek() != token) {
+  List<FlagEvaluator.DependencyExposure> endDependencyExposureScope(final Object scope) {
+    final Deque<Object> scopes = dependencyTelemetryScopes.get();
+    if (scope == null || scopes == null || scopes.isEmpty() || scopes.peek() != scope) {
       return Collections.emptyList();
     }
-    final List<FlagEvaluator.DependencyExposure> exposures = scopes.pop().exposures;
+    scopes.pop();
     if (scopes.isEmpty()) {
       dependencyTelemetryScopes.remove();
     }
-    return exposures;
+    return scope instanceof DependencyTelemetryToken
+        ? ((DependencyTelemetryToken) scope).exposures
+        : Collections.<FlagEvaluator.DependencyExposure>emptyList();
   }
 
   List<FlagEvaluator.DependencyExposure> endDependencyExposureScope() {
-    final Deque<DependencyTelemetryToken> scopes = dependencyTelemetryScopes.get();
+    final Deque<Object> scopes = dependencyTelemetryScopes.get();
     return scopes == null || scopes.isEmpty()
         ? Collections.<FlagEvaluator.DependencyExposure>emptyList()
         : endDependencyExposureScope(scopes.peek());
   }
 
-  void endUnclaimedDependencyExposureScope() {
-    final Deque<DependencyTelemetryToken> scopes = dependencyTelemetryScopes.get();
-    if (scopes == null || scopes.isEmpty() || scopes.peek().claimed) {
-      return;
-    }
-    endDependencyExposureScope(scopes.peek());
-  }
-
-  DependencyTelemetryToken dependencyTelemetryToken(final FlagEvaluationDetails<?> details) {
-    if (details == null) {
-      return null;
-    }
-    final Deque<DependencyTelemetryToken> scopes = dependencyTelemetryScopes.get();
-    if (scopes == null || scopes.isEmpty()) {
-      return null;
-    }
-    final DependencyTelemetryToken token = scopes.peek();
-    return token.sealed
-            && token.rootMetadata != null
-            && token.rootMetadata == details.getFlagMetadata()
-        ? token
+  DependencyTelemetryToken dependencyTelemetryToken(final Object scope) {
+    return scope instanceof DependencyTelemetryToken && ((DependencyTelemetryToken) scope).sealed
+        ? (DependencyTelemetryToken) scope
         : null;
   }
 
+  Object currentDependencyTelemetryScope() {
+    final Deque<Object> scopes = dependencyTelemetryScopes.get();
+    return scopes == null || scopes.isEmpty() ? null : scopes.peek();
+  }
+
   DependencyEvaluationTrace dependencyEvaluationTrace(final DependencyTelemetryToken token) {
-    final Deque<DependencyTelemetryToken> scopes = dependencyTelemetryScopes.get();
+    final Deque<Object> scopes = dependencyTelemetryScopes.get();
     if (token == null || scopes == null || scopes.isEmpty() || scopes.peek() != token) {
       return DependencyEvaluationTrace.EMPTY;
     }
     return token.sealed ? token.evaluationTrace : DependencyEvaluationTrace.EMPTY;
   }
 
-  private DependencyTelemetryToken claimDependencyTelemetry(
+  private Object claimEvaluationScope(
       final String rootFlagKey, final EvaluationContext evaluationContext) {
-    final Deque<DependencyTelemetryToken> scopes = dependencyTelemetryScopes.get();
+    final Deque<Object> scopes = dependencyTelemetryScopes.get();
     if (scopes == null || scopes.isEmpty()) {
       return null;
     }
-    final DependencyTelemetryToken token = scopes.peek();
+    final Object scope = scopes.peek();
+    if (!(scope instanceof DependencyTelemetryToken)) {
+      return scope;
+    }
+    final DependencyTelemetryToken token = (DependencyTelemetryToken) scope;
     if (token.claimed || !token.matches(rootFlagKey, evaluationContext)) {
       return null;
     }
@@ -509,7 +486,6 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     // eligible candidates. This prevents a later direct or reentrant evaluation from filling the
     // scope before finallyAfter consumes it.
     token.sealed = true;
-    token.rootMetadata = evaluation.details.getFlagMetadata();
     if (!evaluation.dependencyEvaluations.isEmpty()) {
       token.evaluationTrace =
           new DependencyEvaluationTrace(
@@ -601,20 +577,19 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
   }
 
   static final class DependencyTelemetryToken {
-    final DDEvaluator evaluator;
+    private final ConfigurationSnapshot snapshot;
     private final String rootFlagKey;
     private final EvaluationContext evaluationContext;
     private DependencyEvaluationTrace evaluationTrace = DependencyEvaluationTrace.EMPTY;
     private List<FlagEvaluator.DependencyExposure> exposures = Collections.emptyList();
-    private ImmutableMetadata rootMetadata;
     private boolean claimed;
     private boolean sealed;
 
     private DependencyTelemetryToken(
-        final DDEvaluator evaluator,
+        final ConfigurationSnapshot snapshot,
         final String rootFlagKey,
         final EvaluationContext evaluationContext) {
-      this.evaluator = evaluator;
+      this.snapshot = snapshot;
       this.rootFlagKey = rootFlagKey;
       this.evaluationContext = evaluationContext;
     }
@@ -624,6 +599,58 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       return rootFlagKey != null
           && rootFlagKey.equals(evaluatedFlagKey)
           && evaluationContext == evaluatedContext;
+    }
+  }
+
+  private static final class ConfigurationSnapshot {
+    private static final ConfigurationSnapshot EMPTY =
+        new ConfigurationSnapshot(null, Collections.<String>emptySet());
+
+    private final ServerConfiguration config;
+    private final Set<String> dependencyFlags;
+
+    private ConfigurationSnapshot(
+        final ServerConfiguration config, final Set<String> dependencyFlags) {
+      this.config = config;
+      this.dependencyFlags = dependencyFlags;
+    }
+
+    private static ConfigurationSnapshot create(final ServerConfiguration config) {
+      if (config == null || config.flags == null || config.flags.isEmpty()) {
+        return config == null ? EMPTY : new ConfigurationSnapshot(config, Collections.emptySet());
+      }
+      final Set<String> dependencyFlags = new HashSet<>();
+      for (final Map.Entry<String, Flag> entry : config.flags.entrySet()) {
+        final Flag flag = entry.getValue();
+        if (flag == null || flag.allocations == null) {
+          continue;
+        }
+        boolean found = false;
+        for (final Allocation allocation : flag.allocations) {
+          if (allocation == null || allocation.rules == null) {
+            continue;
+          }
+          for (final Rule rule : allocation.rules) {
+            if (rule == null || rule.conditions == null) {
+              continue;
+            }
+            for (final ConditionConfiguration condition : rule.conditions) {
+              if (condition != null && condition.flagEvaluationKey != null) {
+                dependencyFlags.add(entry.getKey());
+                found = true;
+                break;
+              }
+            }
+            if (found) {
+              break;
+            }
+          }
+          if (found) {
+            break;
+          }
+        }
+      }
+      return new ConfigurationSnapshot(config, Collections.unmodifiableSet(dependencyFlags));
     }
   }
 
@@ -687,7 +714,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     final HashMap<String, Object> result = new HashMap<>();
     final Set<Object> seenContainers = Collections.newSetFromMap(new IdentityHashMap<>());
     for (final Map.Entry<String, Value> root : values.entrySet()) {
-      final Deque<FlattenEntry> deque = new LinkedList<>();
+      final Deque<FlattenEntry> deque = new ArrayDeque<>();
       deque.push(new FlattenEntry(root.getKey(), root.getValue()));
       while (!deque.isEmpty()) {
         final FlattenEntry entry = deque.pop();

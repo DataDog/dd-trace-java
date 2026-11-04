@@ -8,12 +8,14 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_F
 
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
+import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -54,6 +56,19 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
     this.evaluatorSupplier = evaluatorSupplier;
   }
 
+  @Override
+  public Optional<EvaluationContext> before(
+      final HookContext<T> ctx, final Map<String, Object> hints) {
+    final DDEvaluator evaluator = evaluatorSupplier.get();
+    if (evaluator != null && ctx != null && ctx.getHookData() != null) {
+      final Object scope = evaluator.currentDependencyTelemetryScope();
+      if (scope != null) {
+        ctx.getHookData().set(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE, scope);
+      }
+    }
+    return Optional.empty();
+  }
+
   /**
    * Capture + non-blocking enqueue only; no flattening, aggregation, or I/O. Runs at the finally
    * stage so it covers success, error, and default-value paths.
@@ -79,7 +94,11 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       if (evaluator != null && ctx != null) {
         try {
           evaluator.publishDependencyEvaluations(
-              evaluator.dependencyEvaluationTrace(evaluator.dependencyTelemetryToken(details)),
+              evaluator.dependencyEvaluationTrace(
+                  evaluator.dependencyTelemetryToken(
+                      ctx.getHookData() == null
+                          ? evaluator.currentDependencyTelemetryScope()
+                          : ctx.getHookData().get(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE))),
               ctx.getCtx(),
               w);
         } catch (final RuntimeException | LinkageError ignored) {

@@ -45,6 +45,7 @@ public class DependentFlagEvaluatorBenchmark {
 
   private FlagEvaluator evaluator;
   private ServerConfiguration configuration;
+  private ServerConfiguration sharedSubgraphConfiguration;
   private MutableContext context;
 
   @Setup
@@ -60,11 +61,43 @@ public class DependentFlagEvaluatorBenchmark {
     }
     flags.put("root", flag("root", new Rule(conditions)));
     configuration = new ServerConfiguration("", "", false, null, flags);
+    sharedSubgraphConfiguration = sharedSubgraphConfiguration(dependencyCount);
   }
 
   @Benchmark
   public FlagEvaluator.EvaluationResult<String> evaluateWideGraph() {
     return evaluator.evaluateWithTrace(configuration, String.class, "root", "default", context);
+  }
+
+  @Benchmark
+  public FlagEvaluator.EvaluationResult<String> evaluateSharedSubgraph() {
+    return evaluator.evaluateWithTrace(
+        sharedSubgraphConfiguration, String.class, "root", "default", context);
+  }
+
+  private static ServerConfiguration sharedSubgraphConfiguration(final int width) {
+    final Map<String, Flag> flags = new HashMap<>();
+    final List<ConditionConfiguration> leafConditions = new ArrayList<>();
+    for (int i = 0; i < width; i++) {
+      final String leaf = "leaf-" + i;
+      flags.put(leaf, flag(leaf, null));
+      leafConditions.add(new ConditionConfiguration(ONE_OF, null, leaf, singletonList("on")));
+    }
+    flags.put("hub", flag("hub", new Rule(leafConditions)));
+    final List<ConditionConfiguration> parentConditions = new ArrayList<>();
+    for (int i = 0; i < width; i++) {
+      final String parent = "parent-" + i;
+      flags.put(
+          parent,
+          flag(
+              parent,
+              new Rule(
+                  singletonList(
+                      new ConditionConfiguration(ONE_OF, null, "hub", singletonList("on"))))));
+      parentConditions.add(new ConditionConfiguration(ONE_OF, null, parent, singletonList("on")));
+    }
+    flags.put("root", flag("root", new Rule(parentConditions)));
+    return new ServerConfiguration("", "", false, null, flags);
   }
 
   private static Flag flag(final String key, final Rule rule) {

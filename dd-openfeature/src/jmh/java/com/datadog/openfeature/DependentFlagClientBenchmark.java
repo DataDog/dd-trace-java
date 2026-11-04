@@ -104,7 +104,7 @@ public class DependentFlagClientBenchmark {
 
   private static ServerConfiguration configuration(final int dependencyCount) {
     final Map<String, Flag> flags = new HashMap<>();
-    flags.put("ordinary", integerFlag("ordinary", null, false));
+    flags.put("ordinary", ordinaryFlagWithUnreachableRules(128));
     final List<ConditionConfiguration> conditions = new ArrayList<>();
     for (int i = 0; i < dependencyCount; i++) {
       final String key = "dependency-" + i;
@@ -113,6 +113,33 @@ public class DependentFlagClientBenchmark {
     }
     flags.put("root", integerFlag("root", new Rule(conditions), false));
     return new ServerConfiguration("", "", false, null, flags);
+  }
+
+  private static Flag ordinaryFlagWithUnreachableRules(final int ruleCount) {
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("selected", new Variant("selected", 1));
+    final List<Allocation> allocations = new ArrayList<>();
+    for (int i = 0; i < ruleCount; i++) {
+      final ConditionConfiguration condition =
+          new ConditionConfiguration(ONE_OF, "missing-" + i, singletonList("match"));
+      allocations.add(
+          new Allocation(
+              "unreachable-" + i,
+              singletonList(new Rule(singletonList(condition))),
+              null,
+              null,
+              singletonList(new Split(emptyList(), "selected", emptyMap(), 1)),
+              false));
+    }
+    allocations.add(
+        new Allocation(
+            "selected-allocation",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "selected", emptyMap(), 1)),
+            false));
+    return new Flag("ordinary", true, ValueType.INTEGER, variants, allocations);
   }
 
   private static Flag integerFlag(final String key, final Rule rule, final boolean doLog) {

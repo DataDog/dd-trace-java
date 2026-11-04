@@ -340,6 +340,40 @@ class DependentFlagEvaluatorTest {
   }
 
   @Test
+  void structurallyReusesExposureTraceForManyParentsOfASharedHub() {
+    final int width = 128;
+    final Map<String, Flag> flags = new HashMap<>();
+    final List<ConditionConfiguration> leafConditions = new ArrayList<>();
+    for (int i = 0; i < width; i++) {
+      final String leaf = "leaf-" + i;
+      flags.put(leaf, stringFlag(leaf, "on", null, true));
+      leafConditions.add(new ConditionConfiguration(ONE_OF, null, leaf, singletonList("on")));
+    }
+    flags.put("hub", stringFlag("hub", "on", new Rule(leafConditions), true));
+    final List<ConditionConfiguration> parentConditions = new ArrayList<>();
+    for (int i = 0; i < width; i++) {
+      final String parent = "parent-" + i;
+      flags.put(parent, stringFlag(parent, "on", dependencyRule("hub", "on"), true));
+      parentConditions.add(new ConditionConfiguration(ONE_OF, null, parent, singletonList("on")));
+    }
+    flags.put("root", stringFlag("root", "on", new Rule(parentConditions), false));
+
+    final FlagEvaluator.EvaluationResult<String> evaluation =
+        evaluator()
+            .evaluateWithTrace(
+                config(flags, null), String.class, "root", "default", new MutableContext("u"));
+
+    assertEquals("on-value", evaluation.details.getValue());
+    assertEquals(width * 2 + 1, evaluation.dependencyEvaluations.size());
+    assertEquals(width * 2 + 1, evaluation.dependencyExposures.size());
+    assertEquals("leaf-0", evaluation.dependencyExposures.get(0).flagKey);
+    assertEquals("leaf-127", evaluation.dependencyExposures.get(width - 1).flagKey);
+    assertEquals("hub", evaluation.dependencyExposures.get(width).flagKey);
+    assertEquals("parent-0", evaluation.dependencyExposures.get(width + 1).flagKey);
+    assertEquals("parent-127", evaluation.dependencyExposures.get(width * 2).flagKey);
+  }
+
+  @Test
   void rejectsNonStringDependencyMembershipOperandsWithParseError() throws Exception {
     final ServerConfiguration config =
         UniversalFlagConfigParser.parse(

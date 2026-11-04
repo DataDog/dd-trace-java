@@ -640,7 +640,15 @@ class EvaluationTelemetryOptOutTest {
 
     assertEquals(ErrorCode.GENERAL, details.getErrorCode());
     assertEquals(0, details.getValue());
+    assertEquals(2, this.events.size(), "dependency and failed root telemetry");
+    assertEquals("dependency", this.events.get(0).flagKey);
+    assertEquals("root", this.events.get(1).flagKey);
     assertEquals(0, this.exposures.size());
+
+    this.client.getIntegerDetails("root", 0, context("nested-subject", new Value(false)));
+    assertEquals(4, this.events.size(), "the failed lifecycle must not retain its scope");
+    assertEquals("dependency", this.events.get(2).flagKey);
+    assertEquals("root", this.events.get(3).flagKey);
   }
 
   @Test

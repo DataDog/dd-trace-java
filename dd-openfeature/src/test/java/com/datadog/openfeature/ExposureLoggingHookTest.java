@@ -8,6 +8,7 @@ import static com.datadog.openfeature.internal.ufc.ConditionOperator.ONE_OF;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,6 +33,7 @@ import com.datadog.openfeature.internal.ufc.Split;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import com.datadog.openfeature.internal.ufc.Variant;
 import dev.openfeature.sdk.Client;
+import dev.openfeature.sdk.DefaultHookData;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
@@ -188,7 +190,9 @@ class ExposureLoggingHookTest {
   void ordinaryFlagLifecycleDoesNotCreateADependencyScope() {
     final HookContext<Object> context = hookContext();
 
-    assertNull(this.evaluator.beginDependencyExposureScope(context.getFlagKey(), context.getCtx()));
+    final Object scope =
+        this.evaluator.beginDependencyExposureScope(context.getFlagKey(), context.getCtx());
+    assertNull(this.evaluator.dependencyTelemetryToken(scope));
     assertTrue(this.evaluator.endDependencyExposureScope().isEmpty());
   }
 
@@ -231,6 +235,7 @@ class ExposureLoggingHookTest {
             .type(FlagValueType.INTEGER)
             .defaultValue(0)
             .ctx(context)
+            .hookData(new DefaultHookData())
             .build();
     final HookContext<Integer> skippedNested =
         HookContext.<Integer>builder()
@@ -238,6 +243,7 @@ class ExposureLoggingHookTest {
             .type(FlagValueType.INTEGER)
             .defaultValue(0)
             .ctx(context)
+            .hookData(new DefaultHookData())
             .build();
     final Map<String, Object> outerHints = new HashMap<>();
     final Map<String, Object> skippedNestedHints = new HashMap<>();
@@ -255,8 +261,11 @@ class ExposureLoggingHookTest {
             .errorCode(ErrorCode.GENERAL)
             .build();
 
-    assertNull(dependent.dependencyTelemetryToken(skippedNestedDetails));
-    assertNotNull(dependent.dependencyTelemetryToken(outerDetails));
+    final Object outerScope = outer.getHookData().get(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE);
+    assertNull(
+        dependent.dependencyTelemetryToken(
+            skippedNested.getHookData().get(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE)));
+    assertNotNull(dependent.dependencyTelemetryToken(outerScope));
 
     final List<FlagEvalEvent> events = new java.util.ArrayList<>();
     final FlagEvaluationWriter writer =
@@ -279,6 +288,7 @@ class ExposureLoggingHookTest {
         };
     final FlagEvalLoggingHook<Integer> evaluationHook =
         new FlagEvalLoggingHook<>(() -> writer, () -> dependent);
+    evaluationHook.before(outer, outerHints);
     evaluationHook.finallyAfter(skippedNested, skippedNestedDetails, skippedNestedHints);
     evaluationHook.finallyAfter(outer, outerDetails, outerHints);
 
@@ -308,6 +318,48 @@ class ExposureLoggingHookTest {
         dependent.sentToDatadog.get(0).subject.attributes,
         dependent.sentToDatadog.get(1).subject.attributes);
     assertEquals("us-east-1", dependent.sentToDatadog.get(0).subject.attributes.get("region"));
+  }
+
+  @Test
+  void configurationRefreshCannotChangeTheGraphInsideAClientHookLifecycle() {
+    final ExposureTestEvaluator dependent =
+        new ExposureTestEvaluator(ordinaryRootConfiguration(), true);
+    final ExposureLoggingHook<Integer> hook = new ExposureLoggingHook<>(() -> dependent);
+    final MutableContext evaluationContext = new MutableContext("subject");
+    final HookContext<Integer> hookContext =
+        HookContext.<Integer>builder()
+            .flagKey("root")
+            .type(FlagValueType.INTEGER)
+            .defaultValue(0)
+            .ctx(evaluationContext)
+            .hookData(new DefaultHookData())
+            .build();
+
+    hook.before(hookContext, emptyMap());
+    dependent.accept(dependentConfiguration(true));
+    final ProviderEvaluation<Integer> pinned =
+        dependent.evaluate(Integer.class, "root", 0, evaluationContext);
+    hook.finallyAfter(hookContext, FlagEvaluationDetails.from(pinned, "root"), emptyMap());
+
+    assertEquals(2, pinned.getValue(), "evaluation uses the snapshot pinned by before");
+    assertTrue(dependent.sentToDatadog.isEmpty());
+
+    final HookContext<Integer> refreshedContext =
+        HookContext.<Integer>builder()
+            .flagKey("root")
+            .type(FlagValueType.INTEGER)
+            .defaultValue(0)
+            .ctx(evaluationContext)
+            .hookData(new DefaultHookData())
+            .build();
+    hook.before(refreshedContext, emptyMap());
+    final ProviderEvaluation<Integer> refreshed =
+        dependent.evaluate(Integer.class, "root", 0, evaluationContext);
+    hook.finallyAfter(refreshedContext, FlagEvaluationDetails.from(refreshed, "root"), emptyMap());
+
+    assertEquals(1, refreshed.getValue());
+    assertEquals(1, dependent.sentToDatadog.size());
+    assertEquals("dependency", dependent.sentToDatadog.get(0).flag.key);
   }
 
   @Test
@@ -355,6 +407,7 @@ class ExposureLoggingHookTest {
             .type(FlagValueType.INTEGER)
             .defaultValue(0)
             .ctx(outerContext)
+            .hookData(new DefaultHookData())
             .build();
     final Map<String, Object> hints = new HashMap<>();
 
@@ -382,6 +435,7 @@ class ExposureLoggingHookTest {
             .type(FlagValueType.INTEGER)
             .defaultValue(0)
             .ctx(outerContext)
+            .hookData(new DefaultHookData())
             .build();
     final HookContext<Integer> innerHookContext =
         HookContext.<Integer>builder()
@@ -389,6 +443,7 @@ class ExposureLoggingHookTest {
             .type(FlagValueType.INTEGER)
             .defaultValue(0)
             .ctx(new MutableContext("subject-b"))
+            .hookData(new DefaultHookData())
             .build();
     final Map<String, Object> outerHints = new HashMap<>();
 
@@ -651,6 +706,27 @@ class ExposureLoggingHookTest {
     final Map<String, Flag> flags = new HashMap<>();
     addDependentFlagPair(flags, "root", "dependency", dependencyDoLog);
     return new ServerConfiguration("", "", false, null, flags);
+  }
+
+  private static ServerConfiguration ordinaryRootConfiguration() {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("selected", new Variant("selected", 2));
+    final Allocation allocation =
+        new Allocation(
+            "ordinary-root",
+            null,
+            null,
+            null,
+            singletonList(new Split(emptyList(), "selected", emptyMap(), 1)),
+            false);
+    return new ServerConfiguration(
+        "",
+        "",
+        false,
+        null,
+        singletonMap(
+            "root",
+            new Flag("root", true, ValueType.INTEGER, variations, singletonList(allocation))));
   }
 
   private static ServerConfiguration reentrantDependentConfiguration() {

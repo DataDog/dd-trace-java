@@ -48,9 +48,11 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final HookContext<T> ctx, final Map<String, Object> hints) {
     try {
       final DDEvaluator evaluator = this.evaluatorSupplier.get();
-      if (evaluator != null) {
-        evaluator.beginDependencyExposureScope(
-            ctx == null ? null : ctx.getFlagKey(), ctx == null ? null : ctx.getCtx());
+      if (evaluator != null && ctx != null) {
+        final Object scope = evaluator.beginDependencyExposureScope(ctx.getFlagKey(), ctx.getCtx());
+        if (ctx.getHookData() != null) {
+          ctx.getHookData().set(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE, scope);
+        }
       }
     } catch (final RuntimeException | LinkageError e) {
       warnOnce(e);
@@ -65,19 +67,18 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final Map<String, Object> hints) {
     try {
       final DDEvaluator evaluator = this.evaluatorSupplier.get();
-      final DDEvaluator.DependencyTelemetryToken token =
-          evaluator == null ? null : evaluator.dependencyTelemetryToken(details);
+      final Object scope =
+          ctx == null || ctx.getHookData() == null
+              ? evaluator == null ? null : evaluator.currentDependencyTelemetryScope()
+              : ctx.getHookData().get(DDEvaluator.DEPENDENCY_TELEMETRY_SCOPE);
       final List<com.datadog.openfeature.internal.evaluation.FlagEvaluator.DependencyExposure>
           dependencyExposures =
-              token == null
+              evaluator == null
                   ? java.util.Collections
                       .<com.datadog.openfeature.internal.evaluation.FlagEvaluator
                               .DependencyExposure>
                           emptyList()
-                  : evaluator.endDependencyExposureScope(token);
-      if (evaluator != null && token == null) {
-        evaluator.endUnclaimedDependencyExposureScope();
-      }
+                  : evaluator.endDependencyExposureScope(scope);
       if (details == null) {
         log.trace("Feature Flagging exposure suppressed: evaluation failed or details unavailable");
         return;

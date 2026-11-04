@@ -39,8 +39,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -787,8 +789,7 @@ public final class FlagEvaluator {
     private final List<DependencyFrame> frames = new ArrayList<>();
     private final Set<String> evaluatedFlags = new HashSet<>();
     private final List<DependencyEvaluation> evaluations = new ArrayList<>();
-    private final List<DependencyExposure> exposures = new ArrayList<>();
-    private final Set<String> exposureKeys = new HashSet<>();
+    private final List<ExposureTrace> selectedExposureTraces = new ArrayList<>();
     private Integer maxDependencyDepth;
 
     private DependencyEvaluationSession(final String rootFlagKey, final EvaluationState state) {
@@ -799,19 +800,18 @@ public final class FlagEvaluator {
 
     private ExposureCheckpoint checkpoint() {
       return new ExposureCheckpoint(
-          exposures.size(),
-          frames.isEmpty() ? 0 : frames.get(frames.size() - 1).exposureTrace.size());
+          selectedExposureTraces.size(),
+          frames.isEmpty() ? 0 : frames.get(frames.size() - 1).childExposureTraces.size());
     }
 
     private void rollback(final ExposureCheckpoint checkpoint) {
-      while (exposures.size() > checkpoint.exposureCount) {
-        exposureKeys.remove(exposures.remove(exposures.size() - 1).flagKey);
+      while (selectedExposureTraces.size() > checkpoint.exposureTraceCount) {
+        selectedExposureTraces.remove(selectedExposureTraces.size() - 1);
       }
       if (!frames.isEmpty()) {
         final DependencyFrame frame = frames.get(frames.size() - 1);
-        while (frame.exposureTrace.size() > checkpoint.frameExposureCount) {
-          frame.exposureKeys.remove(
-              frame.exposureTrace.remove(frame.exposureTrace.size() - 1).flagKey);
+        while (frame.childExposureTraces.size() > checkpoint.frameExposureTraceCount) {
+          frame.childExposureTraces.remove(frame.childExposureTraces.size() - 1);
         }
       }
     }
@@ -821,7 +821,7 @@ public final class FlagEvaluator {
       return new EvaluationResult<>(
           details,
           evaluations,
-          commitExposures ? exposures : emptyList(),
+          commitExposures ? flattenExposureTraces() : emptyList(),
           state.evaluationTimestampMs);
     }
 
@@ -894,9 +894,8 @@ public final class FlagEvaluator {
           throw new DependencyGraphException(
               ErrorCode.GENERAL, "prerequisite flag evaluation returned no variant");
         }
-        final List<DependencyExposure> exposureTrace = new ArrayList<>(frame.exposureTrace);
-        final Set<String> exposureTraceKeys = new HashSet<>(frame.exposureKeys);
-        appendUnique(exposureTrace, exposureTraceKeys, new DependencyExposure(flagKey, details));
+        final ExposureTrace exposureTrace =
+            new ExposureTrace(frame.childExposureTraces, new DependencyExposure(flagKey, details));
         final MemoizedDependency result =
             new MemoizedDependency(details, frame.maxReachedDepth - depth, exposureTrace);
         memo.put(flagKey, result);
@@ -951,23 +950,48 @@ public final class FlagEvaluator {
       }
     }
 
-    private void recordExposureTrace(final List<DependencyExposure> trace) {
-      for (final DependencyExposure candidate : trace) {
-        appendUnique(exposures, exposureKeys, candidate);
-        if (!frames.isEmpty()) {
-          final DependencyFrame frame = frames.get(frames.size() - 1);
-          appendUnique(frame.exposureTrace, frame.exposureKeys, candidate);
-        }
+    private void recordExposureTrace(final ExposureTrace trace) {
+      if (frames.isEmpty()) {
+        selectedExposureTraces.add(trace);
+      } else {
+        frames.get(frames.size() - 1).childExposureTraces.add(trace);
       }
     }
 
-    private void recordExposureTraceOnParent(final List<DependencyExposure> trace) {
-      for (final DependencyExposure candidate : trace) {
-        appendUnique(exposures, exposureKeys, candidate);
-        if (frames.size() > 1) {
-          final DependencyFrame parent = frames.get(frames.size() - 2);
-          appendUnique(parent.exposureTrace, parent.exposureKeys, candidate);
-        }
+    private void recordExposureTraceOnParent(final ExposureTrace trace) {
+      if (frames.size() > 1) {
+        frames.get(frames.size() - 2).childExposureTraces.add(trace);
+      } else {
+        selectedExposureTraces.add(trace);
+      }
+    }
+
+    private List<DependencyExposure> flattenExposureTraces() {
+      if (selectedExposureTraces.isEmpty()) {
+        return emptyList();
+      }
+      final List<DependencyExposure> result = new ArrayList<>();
+      final Set<String> exposureKeys = new HashSet<>();
+      final Set<ExposureTrace> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+      for (final ExposureTrace trace : selectedExposureTraces) {
+        flattenExposureTrace(trace, visited, exposureKeys, result);
+      }
+      return result;
+    }
+
+    private void flattenExposureTrace(
+        final ExposureTrace trace,
+        final Set<ExposureTrace> visited,
+        final Set<String> exposureKeys,
+        final List<DependencyExposure> result) {
+      if (!visited.add(trace)) {
+        return;
+      }
+      for (final ExposureTrace child : trace.children) {
+        flattenExposureTrace(child, visited, exposureKeys, result);
+      }
+      if (exposureKeys.add(trace.exposure.flagKey)) {
+        result.add(trace.exposure);
       }
     }
   }
@@ -995,20 +1019,10 @@ public final class FlagEvaluator {
     }
   }
 
-  private static void appendUnique(
-      final List<DependencyExposure> target,
-      final Set<String> keys,
-      final DependencyExposure candidate) {
-    if (keys.add(candidate.flagKey)) {
-      target.add(candidate);
-    }
-  }
-
   private static final class DependencyFrame {
     private final int depth;
     private int maxReachedDepth;
-    private final List<DependencyExposure> exposureTrace = new ArrayList<>();
-    private final Set<String> exposureKeys = new HashSet<>();
+    private final List<ExposureTrace> childExposureTraces = new ArrayList<>();
 
     private DependencyFrame(final int depth) {
       this.depth = depth;
@@ -1018,24 +1032,37 @@ public final class FlagEvaluator {
 
   private static final class ExposureCheckpoint {
     private static final ExposureCheckpoint EMPTY = new ExposureCheckpoint(0, 0);
-    private final int exposureCount;
-    private final int frameExposureCount;
+    private final int exposureTraceCount;
+    private final int frameExposureTraceCount;
 
-    private ExposureCheckpoint(final int exposureCount, final int frameExposureCount) {
-      this.exposureCount = exposureCount;
-      this.frameExposureCount = frameExposureCount;
+    private ExposureCheckpoint(final int exposureTraceCount, final int frameExposureTraceCount) {
+      this.exposureTraceCount = exposureTraceCount;
+      this.frameExposureTraceCount = frameExposureTraceCount;
+    }
+  }
+
+  private static final class ExposureTrace {
+    private final List<ExposureTrace> children;
+    private final DependencyExposure exposure;
+
+    private ExposureTrace(final List<ExposureTrace> children, final DependencyExposure exposure) {
+      this.children =
+          children.isEmpty()
+              ? Collections.<ExposureTrace>emptyList()
+              : Collections.unmodifiableList(new ArrayList<>(children));
+      this.exposure = exposure;
     }
   }
 
   private static final class MemoizedDependency {
     private final ProviderEvaluation<?> details;
     private final int descendantDepth;
-    private final List<DependencyExposure> exposureTrace;
+    private final ExposureTrace exposureTrace;
 
     private MemoizedDependency(
         final ProviderEvaluation<?> details,
         final int descendantDepth,
-        final List<DependencyExposure> exposureTrace) {
+        final ExposureTrace exposureTrace) {
       this.details = details;
       this.descendantDepth = descendantDepth;
       this.exposureTrace = exposureTrace;
