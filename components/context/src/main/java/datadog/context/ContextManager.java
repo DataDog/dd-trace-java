@@ -20,19 +20,58 @@ public interface ContextManager {
   ContextScope attach(Context context);
 
   /**
-   * Swaps the given context with the one attached to current execution unit.
+   * Swaps the given context with the one attached to the current execution unit.
    *
-   * @param context the context to swap.
-   * @return the previously attached context; {@link Context#root()} if there was none.
+   * <p>Swapping to a different context resets the current execution unit's flags unless the handle
+   * is a checkpoint, in which case the saved flags are restored. Swapping to the current context
+   * leaves the current execution unit's flags unchanged.
+   *
+   * @param handle a context or a handle returned by this manager.
+   * @return a handle to the previously attached context and any saved flags.
    */
-  Context swap(Context context);
+  ContextHandle swap(ContextHandle handle);
+
+  /**
+   * Saves the given context and the current execution unit's flags for a future {@link #swap}.
+   *
+   * <p>This does not change the current context or execution-unit flags, or keep a trace open.
+   * Capture the original context first if a continuation is needed. Handles returned by swap are
+   * already checkpointed.
+   *
+   * @param context the context to checkpoint.
+   * @return a handle to the given context and any saved flags for a future swap.
+   */
+  ContextHandle checkpoint(Context context);
 
   /**
    * Captures the given (attached) context so it can be resumed in another execution unit.
    *
-   * @return continuation capturing the context.
+   * @return continuation capturing the context; no-op continuation if capture is disabled.
    */
   ContextContinuation capture(Context context);
+
+  /**
+   * Returns whether the current execution unit can capture contexts. Capture is enabled by default.
+   *
+   * <p>Explicit attach and swap operations still work when capture is disabled.
+   *
+   * @return {@code true} if capture is enabled, {@code false} otherwise.
+   */
+  boolean isCaptureEnabled();
+
+  /**
+   * Enables or disables context capture for the current execution unit.
+   *
+   * <p>Attaching a different context enables capture; closing its scope restores the flag from
+   * before the attach. Reattaching the current context leaves the flag unchanged and does not
+   * restore it on close. When suppressing capture outside an attached scope, save the previous flag
+   * and restore it in {@code finally}.
+   *
+   * <p>See {@link #swap(ContextHandle)} for capture flag behavior across swaps.
+   *
+   * @param enabled {@code true} to allow capture, {@code false} to disable it.
+   */
+  void setCaptureEnabled(boolean enabled);
 
   /**
    * Registers the given listener to receive context events.

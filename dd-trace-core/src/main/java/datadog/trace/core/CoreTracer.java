@@ -25,6 +25,7 @@ import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.environment.ThreadSupport;
@@ -2733,7 +2734,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public Context swap(Context context) {
+  public ContextHandle checkpoint(Context context) {
+    return scopeManager.checkpoint(context);
+  }
+
+  @Override
+  public ContextHandle swap(ContextHandle context) {
     return scopeManager.swap(context);
   }
 
