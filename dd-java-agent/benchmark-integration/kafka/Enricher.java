@@ -78,6 +78,7 @@ public class Enricher {
 
     long count = 0;
     long start = 0;
+    long end = 0;
     long lastRecord = System.nanoTime();
     try (KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(consumerProps);
         KafkaProducer<byte[], byte[]> producer = new KafkaProducer<>(producerProps)) {
@@ -109,8 +110,11 @@ public class Enricher {
         }
       }
       producer.flush();
+      // The last send is acknowledged here; closing the clients (e.g. the consumer leaving its
+      // group) isn't part of the work being measured.
+      end = System.nanoTime();
     }
-    long elapsedNanos = System.nanoTime() - start;
+    long elapsedNanos = end - start;
 
     if (count < messages) {
       System.err.printf("topic ran dry: enriched %d of %d records%n", count, messages);

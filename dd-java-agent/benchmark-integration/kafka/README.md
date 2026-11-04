@@ -60,8 +60,8 @@ first prefill. To change them (e.g. to compare propagation styles), stop the bro
 A run is rejected, and recorded as an empty CSV row, if the perf tool exits nonzero, if a consumer
 or enricher reads fewer than `MESSAGES` records (e.g. the topic is too small), if any enricher send
 fails, or if the producer doesn't print its final summary or sends fewer than `RECORDS` records (the
-tool logs failed sends without failing). The enricher writes to `bench-enriched`, which keeps only
-the last minute of records.
+tool logs failed sends without failing). Each enricher run writes to its own output topic
+(`bench-enriched-<run>`), deleted after the run.
 
 **Environment knobs:**
 

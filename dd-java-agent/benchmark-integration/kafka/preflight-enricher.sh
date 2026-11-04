@@ -33,7 +33,13 @@ java "-Dlog4j.configuration=file:$KAFKA_HOME/config/tools-log4j.properties" \
 first_trace_id() {
   "$KAFKA_HOME/bin/kafka-console-consumer.sh" --bootstrap-server "$BOOTSTRAP" --topic "$1" \
     --from-beginning --max-messages 1 --property print.headers=true --property print.value=false \
-    2>/dev/null | grep -oE 'x-datadog-trace-id:[0-9]+' | cut -d: -f2 || true
+    2>/dev/null > "$out_dir/headers-$1.txt" || true
+  # Datadog style if injected, else the W3C traceparent's trace id (e.g. with tracecontext-only
+  # injection configured through AGENT_EXTRA_OPTS).
+  local id
+  id="$(grep -oE 'x-datadog-trace-id:[0-9]+' "$out_dir/headers-$1.txt" | head -1 | cut -d: -f2 || true)"
+  [ -n "$id" ] || id="$(grep -oE 'traceparent:00-[0-9a-f]{32}' "$out_dir/headers-$1.txt" | head -1 | cut -d- -f2 || true)"
+  echo "$id"
 }
 in_id="$(first_trace_id "$in_topic")"
 out_id="$(first_trace_id "$out_topic")"

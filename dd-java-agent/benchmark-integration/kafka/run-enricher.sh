@@ -21,10 +21,10 @@ mkdir -p "$results/runs" "$results/gclogs"
 csv="$results/results.csv"
 echo "heap,rep,variant,msgs_per_sec,msgs,young_gcs,full_gcs" > "$csv"
 
-# The output topic only has to absorb the runs, so old segments are pruned after a minute.
-"$KAFKA_HOME/bin/kafka-topics.sh" --bootstrap-server "$BOOTSTRAP" --create --if-not-exists \
-  --topic "$ENRICH_TOPIC" --partitions 1 --replication-factor 1 \
-  --config retention.ms=60000 --config segment.bytes=67108864 >&2
+# Each run writes to its own output topic, deleted after the run (outside the measured window), so
+# output doesn't pile up on disk across runs. Topic retention alone wouldn't do it: the broker only
+# checks retention every 5 minutes by default.
+kafka_topics() { "$KAFKA_HOME/bin/kafka-topics.sh" --bootstrap-server "$BOOTSTRAP" "$@"; }
 
 variants=("$@")
 n=${#variants[@]}
@@ -39,12 +39,16 @@ for heap in ${HEAPS:-512m 256m 128m}; do
       tag="$heap-r$rep-$VARIANT_LABEL"
       gc_log="$results/gclogs/$tag.log"
       status=0
+      out_topic="$ENRICH_TOPIC-$tag-$RANDOM"
+      kafka_topics --create --topic "$out_topic" --partitions 1 --replication-factor 1 \
+        --config file.delete.delay.ms=1000 >/dev/null
       # shellcheck disable=SC2046 # variant_opts is a list of JVM options
       java "-Xms$heap" "-Xmx$heap" "-Xlog:gc:file=$gc_log" \
         "-Dlog4j.configuration=file:$KAFKA_HOME/config/tools-log4j.properties" \
         $(variant_opts "$VARIANT_JAR") -cp "$KAFKA_HOME/libs/*" "$script_dir/Enricher.java" \
-        "$BOOTSTRAP" "$CONSUME_TOPIC" "$ENRICH_TOPIC" "$messages" "bench-$tag-$RANDOM" \
+        "$BOOTSTRAP" "$CONSUME_TOPIC" "$out_topic" "$messages" "bench-$tag-$RANDOM" \
         "${ENRICH_COPY_HEADERS:-false}" > "$results/runs/$tag.out" 2>&1 || status=$?
+      kafka_topics --delete --topic "$out_topic" >/dev/null 2>&1 || true
       line="$(grep -E '^enriched [0-9]+ records' "$results/runs/$tag.out" | tail -1 || true)"
       if [ "$status" -ne 0 ] || [ -z "$line" ]; then
         log "FAIL $tag: exit $status (see $results/runs/$tag.out)"
