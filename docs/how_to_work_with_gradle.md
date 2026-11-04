@@ -754,21 +754,23 @@ Each test suite (like `test`, `integrationTest`) gets its own set of configurati
 
 In this project, the `gradle/test-suites.gradle` script provides helpers to create test suites with proper configuration inheritance:
 
-| Helper                                                 | Description                                                                           |
-|--------------------------------------------------------|---------------------------------------------------------------------------------------|
-| `addTestSuite('name')`                                 | Creates `name` test suite extending `test`, sources in `src/name/`                    |
-| `addTestSuiteForDir('name', 'dir')`                    | Creates `name` test suite extending `test`, sources in `src/dir/`                    |
-| `addTestSuiteExtendingForDir('name', 'parent', 'dir')` | Creates `name` test suite extending `parent` test suite, sources in `src/dir/`        |
-| `addForkedTestTask('name')`                            | Creates `nameForkedTest`, reusing the `name` source set output and runtime classpath |
+| Helper                                                 | Description                                                                    |
+|--------------------------------------------------------|--------------------------------------------------------------------------------|
+| `addTestSuite('name')`                                 | Creates `name` test suite extending `test`, sources in `src/name/`             |
+| `addTestSuiteForDir('name', 'dir')`                    | Creates `name` test suite extending `test`, sources in `src/dir/`              |
+| `addTestSuiteExtendingForDir('name', 'parent', 'dir')` | Creates `name` test suite extending `parent` test suite, sources in `src/dir/` |
+
+Each of these helpers also registers a forked task for the suite with `addForkedTestTask`. It runs the suite's
+`*ForkedTest` classes, each in its own JVM, reusing the suite's compiled classes and runtime classpath. The task is
+named after the suite with its `Test` suffix replaced by `ForkedTest`, and it inherits the suite's test JVM
+constraints.
 
 For example:
 
 ```Gradle
-// Creates 'latestDepTest' suite extending 'test', sources in src/latestDepTest/
+// Creates 'latestDepTest' suite extending 'test', sources in src/latestDepTest/,
+// and 'latestDepForkedTest' running its '*ForkedTest' classes
 addTestSuite('latestDepTest')
-
-// Creates 'latestDepTestForkedTest' using the compiled latestDepTest classes and dependencies
-addForkedTestTask('latestDepTest')
 ```
 
 ```mermaid
@@ -790,8 +792,10 @@ graph LR
 
 *Similar inheritance applies to `compileOnly`, `runtimeOnly`, and `annotationProcessor` configurations.*
 
-Use a separate suite only when forked tests need different sources or dependencies. When they run
-the same source set and classpath, prefer `addForkedTestTask` to avoid compiling those sources twice.
+Declare a separate forked suite only when forked tests need different sources or dependencies. If it
+takes the name of the suite's forked task, pass `false` as the last argument of the suite helper so that
+the suite doesn't register its own forked task. Passing `false` also keeps the suite's forked tests from
+running at all, which should stay exceptional and be explained in a comment.
 
 ### Creating Custom Configurations
 

@@ -19,9 +19,7 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteForDir('latest22Test', 'test')
-addTestSuiteExtendingForDir('latest22ForkedTest', 'latest22Test', 'test')
 
 dependencies {
   compileOnly group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.14.Final'
@@ -54,9 +52,4 @@ tasks.named("latestDepTest", Test) {
   }
 }
 
-tasks.named("latestDepForkedTest", Test) {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_11
-  }
-}
 

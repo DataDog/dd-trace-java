@@ -89,9 +89,11 @@ tasks.named("check") {
   dependsOn "oldPostgresTest"
 }
 
-tasks.named("latestDepJava11Test", Test) {
-  if (!providers.gradleProperty('testJvm').isPresent()) {
-    javaLauncher = getJavaLauncherFor(11)
+["latestDepJava11Test", "latestDepJava11ForkedTest"].each {
+  tasks.named(it, Test) {
+    if (!providers.gradleProperty('testJvm').isPresent()) {
+      javaLauncher = getJavaLauncherFor(11)
+    }
   }
 }
 

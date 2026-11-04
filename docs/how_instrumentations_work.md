@@ -1147,35 +1147,15 @@ Dependency tests can be run like:
 ### Additional Test Suites
 
 The file [dd-trace-java/gradle/test-suites.gradle](../gradle/test-suites.gradle)
-contains these macros for adding different test suites to individual instrumentation builds.
-Notice how `addTestSuite` and `addTestSuiteForDir` pass values to [`addTestSuiteExtendingForDir`](https://github.com/DataDog/dd-trace-java/blob/c3ea017590f10941232bbb0f694525bf124d4b49/gradle/test-suites.gradle#L3)
-which configures the tests.
-
-```groovy
-ext.addTestSuite = (String testSuiteName) -> {
-  ext.addTestSuiteForDir(testSuiteName, testSuiteName)
-}
-
-ext.addTestSuiteForDir = (String testSuiteName, String dirName) -> {
-  ext.addTestSuiteExtendingForDir(testSuiteName, 'test', dirName)
-}
-
-ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName, String dirName) -> { /* */ }
-```
-
-For example:
+contains the `addTestSuite`, `addTestSuiteForDir` and `addTestSuiteExtendingForDir` helpers for adding
+test suites to individual instrumentation builds. For example:
 
 ```groovy
 addTestSuite('latestDepTest')
 ```
 
-Also, the forked test for latestDep is not run by default without declaring something like:
-
-```groovy
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
-```
-
-(also example [`vertx-web-3.5/build.gradle`](https://github.com/DataDog/dd-trace-java/blob/c3ea017590f10941232bbb0f694525bf124d4b49/dd-java-agent/instrumentation/vertx-web-3.5/build.gradle#L18)`)`
+Each suite also gets a forked task running its `*ForkedTest` classes, like `latestDepForkedTest` here.
+See [Test Suite Configurations](how_to_work_with_gradle.md#test-suite-configurations) for details.
 
 ### Smoke Tests
 

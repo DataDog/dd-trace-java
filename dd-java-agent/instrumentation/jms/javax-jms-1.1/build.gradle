@@ -26,7 +26,7 @@ repositories {
   }
 }
 
-addTestSuite('latestDepTest')
+addTestSuite('latestDepTest', false) // latestDepForkedTest is declared below from other sources
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 tasks.named("latestDepTest", Test) {
