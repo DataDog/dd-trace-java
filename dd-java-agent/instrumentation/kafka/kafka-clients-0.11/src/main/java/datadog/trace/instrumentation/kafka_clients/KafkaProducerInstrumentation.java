@@ -146,8 +146,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
       String clusterId = metadataState != null ? metadataState.clusterId : null;
 
-      // Set cluster ID for Schema Registry instrumentation
-      if (clusterId != null) {
+      // Set cluster ID for Schema Registry instrumentation, which only reports to Data Streams
+      if (clusterId != null && traceConfig().isDataStreamsEnabled()) {
         ClusterIdHolder.set(clusterId);
       }
 
