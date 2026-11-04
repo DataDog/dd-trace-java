@@ -44,7 +44,7 @@ class CheckTestJvmConstraintsTest : GradleFixture() {
   }
 
   @Test
-  fun `fails on contradictory constraints`() {
+  fun `fails on unsatisfiable constraints`() {
     writeTestProject(
       """
       testJvmConstraints {
@@ -75,6 +75,12 @@ class CheckTestJvmConstraintsTest : GradleFixture() {
           includeJdk.add("tip")
         }
       }
+      tasks.register<Test>("forcedTipTest") {
+        extensions.configure<TestJvmConstraintsExtension> {
+          minJavaVersion = JavaVersion.VERSION_11
+          forceJdk.add("tip")
+        }
+      }
       """
     )
 
@@ -86,6 +92,7 @@ class CheckTestJvmConstraintsTest : GradleFixture() {
       .contains("  - :latestDepTest: minJavaVersion=11, maxJavaVersion=1.8")
       .contains("  - :aliasTest: minJavaVersion=11, maxJavaVersion=1.8, includeJdk=[CUSTOM]")
       .contains("  - :tipTest: maxJavaVersion=17, includeJdk=[tip]")
+      .contains("  - :forcedTipTest: minJavaVersion=11, maxJavaVersion=1.8, forceJdk=[tip]")
   }
 
   private fun writeTestProject(configuration: String) {

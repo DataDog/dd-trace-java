@@ -1122,19 +1122,16 @@ tasks.named<Test>("latestDepTest") {
 }
 ```
 
-| Property                     | Description                                             |
-|------------------------------|---------------------------------------------------------|
-| `minJavaVersion`             | Minimum JDK version allowed for tests                   |
-| `maxJavaVersion`             | Maximum JDK version allowed for tests                   |
-| `forceJdk`                   | List of JDK names to force (overrides version checks)   |
-| `includeJdk`                 | JDK names to include                                    |
-| `excludeJdk`                 | JDK names to exclude                                    |
-| `allowReflectiveAccessToJdk` | Adds `--add-opens` flags for Java 16+ reflective access |
+| Property                           | Rule                                                                                                                      |
+|------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| `minJavaVersion`, `maxJavaVersion` | Inclusive bounds. The check rejects an empty range unless a forced JDK remains allowed.                                   |
+| `forceJdk`                         | Overrides version bounds; inclusion and exclusion still apply.                                                            |
+| `includeJdk`                       | Restricts JDK names. The check fails when no entry is allowed. Set it on the test task: a project-level value is ignored. |
+| `excludeJdk`                       | Rejects listed JDK names, including forced JDKs.                                                                          |
+| `allowReflectiveAccessToJdk`       | Adds `--add-opens` flags for Java 16+ reflective access.                                                                  |
 
-**Checking for contradictory constraints:** the plugin registers a `checkTestJvmConstraints` task, run by `check`.
-It fails when no JVM can satisfy a test task's constraints: every `includeJdk` entry is outside the version
-range and not forced, or `minJavaVersion` is above `maxJavaVersion` with no `forceJdk` entry left to run.
-Such a task would be skipped on every JVM while the build still passes.
+`checkTestJvmConstraints` runs with `check` and rejects unsatisfiable constraints.
+The JDK name lists apply when tests run with `-PtestJvm`.
 
 ```bash
 ./gradlew :dd-java-agent:instrumentation:<instrumentation>:checkTestJvmConstraints

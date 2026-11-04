@@ -12,7 +12,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
 /**
- * Checks that no test task has contradictory test JVM constraints, such as a minimum Java version
+ * Checks that no test task has unsatisfiable test JVM constraints, such as a minimum Java version
  * above the maximum one. No JVM satisfies such constraints, so the task is skipped everywhere and
  * its tests never run, while the build still passes.
  */
@@ -30,7 +30,7 @@ abstract class CheckTestJvmConstraints : DefaultTask() {
   @TaskAction
   fun check() {
     val failures = testTasks.get()
-      .filter { it.isContradictory() }
+      .filter { it.isUnsatisfiable() }
       .map { "  - ${it.taskPath.get()}: ${it.describe()}" }
     if (failures.isNotEmpty()) {
       throw GradleException(
@@ -78,7 +78,7 @@ abstract class CheckTestJvmConstraints : DefaultTask() {
  * Without it, the minimum Java version is above the maximum one and no `forceJdk` entry, which
  * skips the version range, is left after `excludeJdk`.
  */
-private fun CheckTestJvmConstraints.TestTaskConstraints.isContradictory(): Boolean {
+private fun CheckTestJvmConstraints.TestTaskConstraints.isUnsatisfiable(): Boolean {
   val min = minJavaVersion.orNull
   val max = maxJavaVersion.orNull
   // `tip` is replaced by its version before matching, so a `tip` entry never matches.

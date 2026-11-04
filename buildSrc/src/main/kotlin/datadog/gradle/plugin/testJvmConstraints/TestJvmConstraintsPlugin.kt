@@ -79,7 +79,7 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
   private fun registerCheckTask(project: Project) {
     val checkTask = project.tasks.register<CheckTestJvmConstraints>(CheckTestJvmConstraints.TASK_NAME) {
       group = LifecycleBasePlugin.VERIFICATION_GROUP
-      description = "Checks that no test task has contradictory test JVM constraints."
+      description = "Checks that no test task has unsatisfiable test JVM constraints."
       testTasks.addAll(project.provider { testTaskConstraints(project) })
     }
     project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
