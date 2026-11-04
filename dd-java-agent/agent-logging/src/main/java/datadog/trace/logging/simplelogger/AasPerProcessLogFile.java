@@ -1,6 +1,7 @@
 package datadog.trace.logging.simplelogger;
 
-import datadog.environment.EnvironmentVariables;
+import static datadog.trace.config.inversion.ConfigHelper.env;
+
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -27,7 +28,7 @@ final class AasPerProcessLogFile {
   private AasPerProcessLogFile() {}
 
   static boolean isEnabled() {
-    String aas = EnvironmentVariables.get("DD_AZURE_APP_SERVICES");
+    String aas = env("DD_AZURE_APP_SERVICES");
     return "1".equals(aas) || "true".equalsIgnoreCase(aas);
   }
 
@@ -66,13 +67,11 @@ final class AasPerProcessLogFile {
   }
 
   private static long maxSizeBytes() {
-    return parseLong(EnvironmentVariables.get("DD_MAX_LOGFILE_SIZE"), DEFAULT_MAX_SIZE_BYTES);
+    return parseLong(env("DD_MAX_LOGFILE_SIZE"), DEFAULT_MAX_SIZE_BYTES);
   }
 
   private static int retentionDays() {
-    return (int)
-        parseLong(
-            EnvironmentVariables.get("DD_TRACE_LOGFILE_RETENTION_DAYS"), DEFAULT_RETENTION_DAYS);
+    return (int) parseLong(env("DD_TRACE_LOGFILE_RETENTION_DAYS"), DEFAULT_RETENTION_DAYS);
   }
 
   private static long parseLong(String value, long defaultValue) {
