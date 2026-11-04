@@ -74,24 +74,29 @@ abstract class CheckTestJvmConstraints : DefaultTask() {
 
 /**
  * Tells whether no JVM can satisfy the constraints. With `includeJdk`, no listed JVM is allowed;
- * an entry without a version counts as allowed. Without it, the minimum Java version is above the
- * maximum one and no `forceJdk` entry, which skips the version range, is left after `excludeJdk`.
+ * an entry without a version is assumed to be within the version range, when it is not empty.
+ * Without it, the minimum Java version is above the maximum one and no `forceJdk` entry, which
+ * skips the version range, is left after `excludeJdk`.
  */
 private fun CheckTestJvmConstraints.TestTaskConstraints.isContradictory(): Boolean {
   val min = minJavaVersion.orNull
   val max = maxJavaVersion.orNull
+  // `tip` is replaced by its version before matching, so a `tip` entry never matches.
   val included = includeJdk.get()
   val excluded = excludeJdk.get()
-  val forced = forceJdk.get()
+  val forced = forceJdk.get().filterNot(::isTip)
   if (included.isNotEmpty()) {
-    return included.none { name ->
-      val version = TEST_JVM_NAME.matchEntire(name)?.groupValues?.get(2) ?: return@none true
-      isTestJvmAllowed(name, { JavaVersion.toVersion(version) }, included, excluded, forced, min, max)
+    return included.filterNot(::isTip).none { name ->
+      val version = TEST_JVM_NAME.matchEntire(name)?.groupValues?.get(2)?.let(JavaVersion::toVersion)
+        ?: min ?: max ?: JavaVersion.VERSION_1_8
+      isTestJvmAllowed(name, { version }, included, excluded, forced, min, max)
     }
   }
   return min != null && max != null && min > max &&
     forced.none { name -> excluded.none { it.equals(name, ignoreCase = true) } }
 }
+
+private fun isTip(testJvm: String): Boolean = testJvm.equals("tip", ignoreCase = true)
 
 private fun CheckTestJvmConstraints.TestTaskConstraints.describe(): String = listOfNotNull(
   minJavaVersion.orNull?.let { "minJavaVersion=$it" },

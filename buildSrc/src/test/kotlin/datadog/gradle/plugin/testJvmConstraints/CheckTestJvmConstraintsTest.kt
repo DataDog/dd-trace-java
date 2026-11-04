@@ -29,6 +29,12 @@ class CheckTestJvmConstraintsTest : GradleFixture() {
           forceJdk.add("ZULU8")
         }
       }
+      tasks.register<Test>("aliasTest") {
+        extensions.configure<TestJvmConstraintsExtension> {
+          minJavaVersion = JavaVersion.VERSION_11
+          includeJdk.add("CUSTOM")
+        }
+      }
       """
     )
 
@@ -57,6 +63,18 @@ class CheckTestJvmConstraintsTest : GradleFixture() {
           minJavaVersion = JavaVersion.VERSION_11
         }
       }
+      tasks.register<Test>("aliasTest") {
+        extensions.configure<TestJvmConstraintsExtension> {
+          minJavaVersion = JavaVersion.VERSION_11
+          includeJdk.add("CUSTOM")
+        }
+      }
+      tasks.register<Test>("tipTest") {
+        extensions.configure<TestJvmConstraintsExtension> {
+          maxJavaVersion = JavaVersion.VERSION_17
+          includeJdk.add("tip")
+        }
+      }
       """
     )
 
@@ -66,6 +84,8 @@ class CheckTestJvmConstraintsTest : GradleFixture() {
     assertThat(result.output)
       .contains("  - :test: minJavaVersion=11, maxJavaVersion=17, includeJdk=[ORACLE8]")
       .contains("  - :latestDepTest: minJavaVersion=11, maxJavaVersion=1.8")
+      .contains("  - :aliasTest: minJavaVersion=11, maxJavaVersion=1.8, includeJdk=[CUSTOM]")
+      .contains("  - :tipTest: maxJavaVersion=17, includeJdk=[tip]")
   }
 
   private fun writeTestProject(configuration: String) {
