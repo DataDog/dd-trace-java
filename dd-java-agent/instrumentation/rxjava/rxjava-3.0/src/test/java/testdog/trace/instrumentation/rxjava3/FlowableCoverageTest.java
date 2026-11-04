@@ -40,10 +40,16 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
     Evidence e = new Evidence();
     try (Evidence ignored = e) {
       Flowable<String> source = Flowable.fromArray("one", "two", "three");
-      watch(source.count().toFlowable(), e, "count").test().assertResult(3L);
-      watch(source.skip(1).take(1), e, "skip").test().assertResult("two");
-      watch(source.takeLast(1), e, "last").test().assertResult("three");
-      TestSubscriber<String> bounded = watch(source, e, "bounded").test(0L);
+      Flowable<Long> count = watch(source.count().toFlowable(), e, "count");
+      Flowable<String> skip = watch(source.skip(1).take(1), e, "skip");
+      Flowable<String> last = watch(source.takeLast(1), e, "last");
+      Flowable<String> boundedSource = watch(source, e, "bounded");
+      Flowable<String> unbounded = watch(source, e, "unbounded");
+      e.release();
+      count.test().assertResult(3L);
+      skip.test().assertResult("two");
+      last.test().assertResult("three");
+      TestSubscriber<String> bounded = boundedSource.test(0L);
       try {
         bounded.assertEmpty();
         bounded.request(1);
@@ -53,7 +59,7 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
       } finally {
         bounded.cancel();
       }
-      watch(source, e, "unbounded").test().assertResult("one", "two", "three");
+      unbounded.test().assertResult("one", "two", "three");
     }
     e.check();
   }
@@ -71,11 +77,9 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
                 e.observe("supplier");
                 return failure;
               });
-      watch(source.count().toFlowable(), e, "count-error")
-          .test()
-          .assertNoValues()
-          .assertNotComplete()
-          .assertError(error -> error == failure);
+      Flowable<Long> counted = watch(source.count().toFlowable(), e, "count-error");
+      e.release();
+      counted.test().assertNoValues().assertNotComplete().assertError(error -> error == failure);
       assertEquals(1, calls.get());
     }
     e.check();
@@ -99,7 +103,9 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
                     cancellations.incrementAndGet();
                     e.observe("cancel");
                   });
-      watch(source.take(1), e, "take").test().assertResult(1);
+      Flowable<Integer> taken = watch(source.take(1), e, "take");
+      e.release();
+      taken.test().assertResult(1);
       assertEquals(Arrays.asList(1), upstream);
       assertEquals(1, cancellations.get());
     }
@@ -120,7 +126,9 @@ class FlowableCoverageTest extends AbstractInstrumentationTest {
                     return left + right;
                   })
               .toFlowable();
-      watch(reduced, e, "sum").test().assertResult(10);
+      Flowable<Integer> sum = watch(reduced, e, "sum");
+      e.release();
+      sum.test().assertResult(10);
       assertEquals(Arrays.asList("1+2", "3+3", "6+4"), calls);
     }
     e.check();

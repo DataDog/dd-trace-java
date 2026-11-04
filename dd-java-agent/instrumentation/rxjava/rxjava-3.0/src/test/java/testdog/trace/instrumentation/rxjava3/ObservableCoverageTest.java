@@ -18,6 +18,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Observer;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -31,25 +32,29 @@ class ObservableCoverageTest extends AbstractInstrumentationTest {
   @Test
   void observableArrayDelivery() {
     try (Observation h = new Observation()) {
+      String[] items = {"one", "two", "three"};
+      Observable<String> source;
+      Observable<Long> counted;
+      Observable<String> middleSource;
+      Observable<String> lastSource;
       try (ContextScope ignored = h.activate()) {
-        String[] items = {"one", "two", "three"};
-        Probe<String> all = new Probe<>(h);
-        Observable.fromArray(items).subscribe(all);
-        all.success(asList(items));
-        Probe<Long> count = new Probe<>(h);
-        Observable.fromArray(items)
-            .doOnNext(v -> h.record("count source"))
-            .count()
-            .toObservable()
-            .subscribe(count);
-        count.success(asList(3L));
-        Probe<String> middle = new Probe<>(h);
-        Observable.fromArray(items).skip(1).take(1).subscribe(middle);
-        middle.success(asList("two"));
-        Probe<String> last = new Probe<>(h);
-        Observable.fromArray(items).takeLast(1).subscribe(last);
-        last.success(asList("three"));
+        source = Observable.fromArray(items);
+        counted = source.doOnNext(v -> h.record("count source")).count().toObservable();
+        middleSource = source.skip(1).take(1);
+        lastSource = source.takeLast(1);
       }
+      Probe<String> all = new Probe<>(h);
+      source.subscribe(all);
+      all.success(asList(items));
+      Probe<Long> count = new Probe<>(h);
+      counted.subscribe(count);
+      count.success(asList(3L));
+      Probe<String> middle = new Probe<>(h);
+      middleSource.subscribe(middle);
+      middle.success(asList("two"));
+      Probe<String> last = new Probe<>(h);
+      lastSource.subscribe(last);
+      last.success(asList("three"));
     }
   }
 
@@ -59,17 +64,19 @@ class ObservableCoverageTest extends AbstractInstrumentationTest {
       AtomicInteger calls = new AtomicInteger();
       RuntimeException failure = new RuntimeException("count");
       Probe<Long> result = new Probe<>(h);
+      Observable<Long> counted;
       try (ContextScope ignored = h.activate()) {
-        Observable.<String>error(
-                () -> {
-                  h.record("error supplier");
-                  calls.incrementAndGet();
-                  return failure;
-                })
-            .count()
-            .toObservable()
-            .subscribe(result);
+        counted =
+            Observable.<String>error(
+                    () -> {
+                      h.record("error supplier");
+                      calls.incrementAndGet();
+                      return failure;
+                    })
+                .count()
+                .toObservable();
       }
+      counted.subscribe(result);
       assertEquals(1, calls.get());
       assertTrue(result.values.isEmpty());
       assertEquals(0, result.completions);
@@ -84,21 +91,23 @@ class ObservableCoverageTest extends AbstractInstrumentationTest {
       AtomicInteger disposals = new AtomicInteger();
       List<Integer> upstream = new ArrayList<>();
       Probe<Integer> result = new Probe<>(h);
+      Observable<Integer> taken;
       try (ContextScope ignored = h.activate()) {
-        Observable.just(1, 2, 3)
-            .doOnNext(
-                v -> {
-                  h.record("source next");
-                  upstream.add(v);
-                })
-            .doOnDispose(
-                () -> {
-                  h.record("dispose");
-                  disposals.incrementAndGet();
-                })
-            .take(1)
-            .subscribe(result);
+        taken =
+            Observable.just(1, 2, 3)
+                .doOnNext(
+                    v -> {
+                      h.record("source next");
+                      upstream.add(v);
+                    })
+                .doOnDispose(
+                    () -> {
+                      h.record("dispose");
+                      disposals.incrementAndGet();
+                    })
+                .take(1);
       }
+      taken.subscribe(result);
       result.success(asList(1));
       assertEquals(asList(1), upstream);
       assertEquals(1, disposals.get());
@@ -110,22 +119,24 @@ class ObservableCoverageTest extends AbstractInstrumentationTest {
     try (Observation h = new Observation()) {
       List<String> reductions = new ArrayList<>();
       Probe<Integer> result = new Probe<>(h);
+      Maybe<Integer> reduced;
       try (ContextScope ignored = h.activate()) {
-        Observable.just(1, 2, 3, 4)
-            .reduce(
-                (a, b) -> {
-                  h.record("reducer");
-                  reductions.add(a + "+" + b);
-                  return a + b;
-                })
-            .subscribe(
-                v -> {
-                  h.record("success");
-                  result.values.add(v);
-                },
-                result::onError,
-                result::onComplete);
+        reduced =
+            Observable.just(1, 2, 3, 4)
+                .reduce(
+                    (a, b) -> {
+                      h.record("reducer");
+                      reductions.add(a + "+" + b);
+                      return a + b;
+                    });
       }
+      reduced.subscribe(
+          v -> {
+            h.record("success");
+            result.values.add(v);
+          },
+          result::onError,
+          result::onComplete);
       assertEquals(asList("1+2", "3+3", "6+4"), reductions);
       assertEquals(asList(10), result.values);
       assertEquals(0, result.completions);

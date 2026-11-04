@@ -31,22 +31,23 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
   @Test
   void singleCreateSuccess() {
     try (Evidence e = new Evidence()) {
-      e.run(
-          () ->
-              Single.unsafeCreate(
-                      observer -> {
-                        e.observe("source");
-                        observer.onSubscribe(Disposable.empty());
-                        observer.onSuccess("Hello");
-                      })
-                  .toFlowable()
-                  .subscribe(e::value, e::error, e::complete));
+      e.assemble(
+              () ->
+                  Single.unsafeCreate(
+                          observer -> {
+                            e.observe("source");
+                            observer.onSubscribe(Disposable.empty());
+                            observer.onSuccess("Hello");
+                          })
+                      .toFlowable())
+          .subscribe(e::value, e::error, e::complete);
       e.result(Collections.singletonList("Hello"), 1, null);
     }
   }
@@ -55,16 +56,16 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
   void singleCreateError() {
     RuntimeException failure = new RuntimeException("single");
     try (Evidence e = new Evidence()) {
-      e.run(
-          () ->
-              Single.unsafeCreate(
-                      observer -> {
-                        e.observe("source");
-                        observer.onSubscribe(Disposable.empty());
-                        observer.onError(failure);
-                      })
-                  .toFlowable()
-                  .subscribe(e::value, e::error, e::complete));
+      e.assemble(
+              () ->
+                  Single.unsafeCreate(
+                          observer -> {
+                            e.observe("source");
+                            observer.onSubscribe(Disposable.empty());
+                            observer.onError(failure);
+                          })
+                      .toFlowable())
+          .subscribe(e::value, e::error, e::complete);
       e.result(Collections.emptyList(), 0, failure);
     }
   }
@@ -72,17 +73,17 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
   @Test
   void singleZip() {
     try (Evidence e = new Evidence()) {
-      e.run(
-          () ->
-              Single.zip(
-                      Single.just("A"),
-                      Single.just("B"),
-                      (a, b) -> {
-                        e.observe("zipper");
-                        return a + b;
-                      })
-                  .toFlowable()
-                  .subscribe(e::value, e::error, e::complete));
+      e.assemble(
+              () ->
+                  Single.zip(
+                          Single.just("A"),
+                          Single.just("B"),
+                          (a, b) -> {
+                            e.observe("zipper");
+                            return a + b;
+                          })
+                      .toFlowable())
+          .subscribe(e::value, e::error, e::complete);
       e.result(Collections.singletonList("AB"), 1, null);
     }
   }
@@ -167,14 +168,14 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
   void maybeCreateCallbackError() {
     RuntimeException failure = new RuntimeException("callback");
     try (Evidence e = new Evidence()) {
-      e.run(
-          () ->
-              Maybe.create(
+      e.assemble(
+              () ->
+                  Maybe.create(
                       emitter -> {
                         e.observe("source");
                         throw failure;
-                      })
-                  .subscribe(e::value, e::error, e::complete));
+                      }))
+          .subscribe(e::value, e::error, e::complete);
       e.result(Collections.emptyList(), 0, failure);
     }
   }
@@ -186,21 +187,22 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
     AtomicInteger cleanup = new AtomicInteger();
     try (Evidence e = new Evidence()) {
       try {
-        e.run(
-            () ->
-                subscription.set(
+        Maybe<Integer> source =
+            e.assemble(
+                () ->
                     Maybe.<Integer>create(
-                            source -> {
-                              e.observe("source");
-                              emitter.set(source);
-                              source.setCancellable(
-                                  () -> {
-                                    e.observe("cancel");
-                                    cleanup.incrementAndGet();
-                                  });
-                            })
-                        .subscribe(e::value, e::error, e::complete)));
-        e.run(() -> subscription.get().dispose());
+                        sink -> {
+                          e.observe("source");
+                          emitter.set(sink);
+                          sink.setCancellable(
+                              () -> {
+                                e.assertRestored();
+                                cleanup.incrementAndGet();
+                              });
+                        }));
+        subscription.set(source.subscribe(e::value, e::error, e::complete));
+        e.assertRestored();
+        subscription.get().dispose();
         assertTrue(emitter.get().isDisposed());
         assertTrue(subscription.get().isDisposed());
         emitter.get().onSuccess(1);
@@ -227,16 +229,18 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
     AtomicInteger subscriptions = new AtomicInteger();
     try (Evidence e = new Evidence()) {
       Maybe<Integer> cached =
-          (empty ? Maybe.<Integer>empty() : Maybe.just(1))
-              .doOnSubscribe(
-                  d -> {
-                    e.observe("source subscription");
-                    subscriptions.incrementAndGet();
-                  })
-              .cache();
-      e.run(() -> cached.subscribe(e::value, e::error, e::complete));
+          e.assemble(
+              () ->
+                  (empty ? Maybe.<Integer>empty() : Maybe.just(1))
+                      .doOnSubscribe(
+                          d -> {
+                            e.observe("source subscription");
+                            subscriptions.incrementAndGet();
+                          })
+                      .cache());
+      cached.subscribe(e::value, e::error, e::complete);
       e.result(empty ? Collections.emptyList() : Collections.singletonList(1), empty ? 1 : 0, null);
-      e.run(() -> cached.subscribe(e::value, e::error, e::complete));
+      cached.subscribe(e::value, e::error, e::complete);
       e.result(empty ? Collections.emptyList() : Arrays.asList(1, 1), empty ? 2 : 0, null);
       assertEquals(1, subscriptions.get());
     }
@@ -247,15 +251,15 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
     RuntimeException failure = new RuntimeException("finally");
     AtomicInteger cleanup = new AtomicInteger();
     try (Evidence e = new Evidence()) {
-      e.run(
-          () ->
-              Maybe.error(failure)
-                  .doFinally(
-                      () -> {
-                        e.observe("finally");
-                        cleanup.incrementAndGet();
-                      })
-                  .subscribe(e::value, e::error, e::complete));
+      e.assemble(
+              () ->
+                  Maybe.error(failure)
+                      .doFinally(
+                          () -> {
+                            e.observe("finally");
+                            cleanup.incrementAndGet();
+                          }))
+          .subscribe(e::value, e::error, e::complete);
       e.result(Collections.emptyList(), 0, failure);
       assertEquals(1, cleanup.get());
     }
@@ -268,18 +272,19 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
     AtomicReference<Disposable> subscription = new AtomicReference<>();
     try (Evidence e = new Evidence()) {
       try {
-        e.run(
-            () -> {
-              subscription.set(
-                  Maybe.timer(1, TimeUnit.SECONDS, scheduler)
-                      .doOnDispose(
-                          () -> {
-                            e.observe("dispose");
-                            cleanup.incrementAndGet();
-                          })
-                      .subscribe(e::value, e::error, e::complete));
-              subscription.get().dispose();
-            });
+        Maybe<Long> timer =
+            e.assemble(
+                () ->
+                    Maybe.timer(1, TimeUnit.SECONDS, scheduler)
+                        .doOnSubscribe(ignored -> e.observe("subscribe"))
+                        .doOnDispose(
+                            () -> {
+                              e.assertRestored();
+                              cleanup.incrementAndGet();
+                            }));
+        subscription.set(timer.subscribe(e::value, e::error, e::complete));
+        e.assertRestored();
+        subscription.get().dispose();
         assertTrue(subscription.get().isDisposed());
         scheduler.advanceTimeBy(2, TimeUnit.SECONDS);
         assertSame(e.original, Context.current());
@@ -304,6 +309,20 @@ class SingleMaybeCoverageTest extends AbstractInstrumentationTest {
     Throwable failure;
     int errors;
     int completions;
+
+    <T> T assemble(Supplier<T> factory) {
+      try (ContextScope scope = activateSpan(parent)) {
+        expected = Context.current();
+        return factory.get();
+      } finally {
+        assertRestored();
+      }
+    }
+
+    void assertRestored() {
+      assertSame(original, Context.current());
+      assertSame(originalSpan, activeSpan());
+    }
 
     void run(Runnable action) {
       try (ContextScope scope = activateSpan(parent)) {
