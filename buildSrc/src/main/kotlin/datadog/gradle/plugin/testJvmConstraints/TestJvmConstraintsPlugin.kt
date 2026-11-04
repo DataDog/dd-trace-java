@@ -139,25 +139,16 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
     )
   }
 
-  /**
-   * Configures the convention, this tells Gradle where to look for values.
-   *
-   * Currently, the extension is still configured to look at project's _extra_ properties.
-   */
-  private fun Test.configureConventions(
+  private fun configureConventions(
     taskExtension: TestJvmConstraintsExtension,
     projectExtension: TestJvmConstraintsExtension
   ) {
-    taskExtension.minJavaVersion.convention(projectExtension.minJavaVersion
-      .orElse(project.providers.provider { project.findProperty("${name}MinJavaVersionForTests") as? JavaVersion })
-    )
+    taskExtension.minJavaVersion.convention(projectExtension.minJavaVersion)
     taskExtension.maxJavaVersion.convention(projectExtension.maxJavaVersion)
     taskExtension.forceJdk.convention(projectExtension.forceJdk)
     taskExtension.includeJdk.convention(projectExtension.includeJdk)
     taskExtension.excludeJdk.convention(projectExtension.excludeJdk)
-    taskExtension.allowReflectiveAccessToJdk.convention(projectExtension.allowReflectiveAccessToJdk
-      .orElse(project.providers.provider { project.findProperty("allowReflectiveAccessToJdk") as? Boolean })
-    )
+    taskExtension.allowReflectiveAccessToJdk.convention(projectExtension.allowReflectiveAccessToJdk)
     taskExtension.nativeImageCapable.convention(projectExtension.nativeImageCapable)
   }
 }
