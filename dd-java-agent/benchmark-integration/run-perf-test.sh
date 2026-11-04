@@ -103,6 +103,25 @@ unzipped_server_path=""
 java_major=$(java -XshowSettings:properties -version 2>&1 \
     | awk -F' = ' '/java.specification.version/ { v = $2; sub(/^1\./, "", v); print v }')
 
+# Heap transitions in a -Xlog:gc log ("... 50M->10M(256M) ..."), one per GC pause.
+heap_transition_re='[0-9]+[KMG]->[0-9]+[KMG]\('
+function gc_transitions {
+    grep -cE "$heap_transition_re" "$1" 2>/dev/null || true
+}
+# KB allocated between transitions $2 (exclusive) and $3 (inclusive) of GC log $1: each GC's heap
+# before it, minus the heap after the previous GC. Off by at most one GC interval at each end, which
+# averages out over the hundreds of GCs in a measured window.
+function gc_allocated_kb {
+    awk -v lo="$2" -v hi="$3" '
+        function kb(x,   n, u) { n = x + 0; u = substr(x, length(x)); return u == "G" ? n * 1048576 : (u == "M" ? n * 1024 : n) }
+        match($0, /[0-9]+[KMG]->[0-9]+[KMG]\(/) {
+            split(substr($0, RSTART, RLENGTH - 1), heap, "->"); i++
+            if (i > lo && i <= hi) total += kb(heap[1]) - after
+            after = kb(heap[2])
+        }
+        END { printf "%.0f", total }' "$1"
+}
+
 # CPU time (whole seconds) a process has used so far.
 function cpu_seconds {
     ps -o time= -p "$1" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }'
@@ -223,12 +242,17 @@ function test_endpoint {
     local results=()
     for ((rep = 1; rep <= test_repeats; rep++)); do
         wrk_results=/tmp/wrk_results.$(date +%s%N)
-        local gc_before gc_after
-        [ -n "$gc_log" ] && gc_before=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
+        local gc_before gc_after heap_before heap_after
+        if [ -n "$gc_log" ]; then
+            gc_before=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
+            heap_before=$(gc_transitions "$gc_log")
+        fi
         wrk --latency -c $test_num_connections -t$test_num_threads -d ${test_time_seconds}s "${script_args[@]}" $url > "$wrk_results"
         if [ -n "$gc_log" ]; then
             gc_after=$(grep -c 'Pause Young' "$gc_log" 2>/dev/null || true)
-            echo $(( ${gc_after:-0} - ${gc_before:-0} )) > "$wrk_results.gc"
+            heap_after=$(gc_transitions "$gc_log")
+            # "<young GCs> <KB allocated>" inside this measured window
+            echo "$(( ${gc_after:-0} - ${gc_before:-0} )) $(gc_allocated_kb "$gc_log" "${heap_before:-0}" "${heap_after:-0}")" > "$wrk_results.gc"
         else
             : > "$wrk_results.gc"
         fi
@@ -299,7 +323,7 @@ trap 'stop_server; exit' SIGINT
 trap 'kill $server_pid; exit' SIGTERM
 header='Client Version'
 for label in "${test_order[@]}"; do
-    header="$header,$label Latency,$label p99,$label Throughput,$label Throughput Stdev,$label YGC/1k"
+    header="$header,$label Latency,$label p99,$label Throughput,$label Throughput Stdev,$label YGC/1k,$label KB/req"
 done
 header="$header,Server CPU Burn,Server Max RSS,Server Start RSS,Server Load Increase RSS"
 echo $header > $test_csv_file
@@ -354,6 +378,7 @@ for agent_jar in $agent_jars; do
         p99s=()
         throughputs=()
         ygcs=()
+        kb_per_req=()
         for f in "${test_output_files[@]}"; do
             cat "$f"
             # --latency adds a "Latency Distribution" header line; the mean is on the plain "Latency" line.
@@ -362,7 +387,9 @@ for agent_jar in $agent_jars; do
             throughputs+=("$(awk '$1 == "Requests/sec:" { print $2 }' "$f")")
             requests=$(awk '/requests in/ { print $1 }' "$f")
             if [ -s "$f.gc" ]; then
-                ygcs+=("$(echo "scale=2; 1000 * $(cat "$f.gc") / ${requests:-1}" | bc)")
+                read -r window_ygc window_kb < "$f.gc"
+                ygcs+=("$(echo "scale=2; 1000 * $window_ygc / ${requests:-1}" | bc)")
+                kb_per_req+=("$(echo "scale=2; $window_kb / ${requests:-1}" | bc)")
             fi
             rm -f "$f" "$f.gc"
         done
@@ -370,12 +397,14 @@ for agent_jar in $agent_jars; do
         avg_p99=$(mean_with_unit "${p99s[@]}")
         avg_ygc=""
         [ "${#ygcs[@]}" -gt 0 ] && avg_ygc=$(mean_plain "${ygcs[@]}")
+        avg_kb_per_req=""
+        [ "${#kb_per_req[@]}" -gt 0 ] && avg_kb_per_req=$(mean_plain "${kb_per_req[@]}")
         avg_throughput=$(mean_plain "${throughputs[@]}")
         stdev_throughput=$(stdev_plain "${throughputs[@]}")
         if [ "${#throughputs[@]}" -gt 1 ]; then
             echo "  $label: ${#throughputs[@]} repeats, throughput mean=$avg_throughput stdev=$stdev_throughput (${throughputs[*]})"
         fi
-        result_row="$result_row,$avg_latency,$avg_p99,$avg_throughput,$stdev_throughput,$avg_ygc"
+        result_row="$result_row,$avg_latency,$avg_p99,$avg_throughput,$stdev_throughput,$avg_ygc,$avg_kb_per_req"
     done
 
     server_stop_cpu=$(cpu_seconds "$server_pid")

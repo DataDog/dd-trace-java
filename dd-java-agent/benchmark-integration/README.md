@@ -88,8 +88,12 @@ passes any other wrk Lua script.
 ```
 Artifacts (throughput CSV, per-variant JFRs and GC logs) are copied to
 `build/petclinic-results/results-<ts>/`. Per endpoint, the CSV reports mean latency, p99 latency,
-throughput (mean and stdev across repeats) and young GCs per 1,000 requests inside the measured
-window.
+throughput (mean and stdev across repeats), young GCs per 1,000 requests, and KB allocated per
+request, both inside the measured window.
+
+**KB/req is the allocation number to compare.** It comes from the GC log (each GC's heap before,
+minus the heap after the previous one), so it counts everything the process allocated, on every
+thread, with no sampling. The tracer's allocation cost is a variant's KB/req minus NoAgent's.
 Analyze any recording on its own with `./analyze-jfr.sh <recording.jfr>`.
 
 #### Heap regime (ample vs tight)
@@ -126,10 +130,11 @@ PetClinic is pinned to a specific commit in `fetch-petclinic.sh` (bump deliberat
   weights each sample by the bytes it stands for, so the splits (which thread, which package) are
   by estimated bytes, not by sample count, and the total is an estimate. That's sufficient for a
   macro trend.
-- Young GCs per 1,000 requests need JDK 9+ (unified GC logging); on JDK 8 that column is empty.
-- The instrumentation/core split is by leaf frame, so it **undercounts instrumentation**: most advice
-  is woven into the instrumented method, and while it runs JFR reports that method, so it counts as
-  app. The instrumentation bucket is the helpers the advice calls — read it as a lower bound.
+- Young GCs and KB per request need JDK 9+ (unified GC logging); on JDK 8 those columns are empty.
+- In the JFR split, a sample counts as tracer if any `datadog.*` frame is on its stack (up to 64
+  frames), so work the tracer does through JDK code (e.g. `HashMap.resize`) counts as tracer. Advice
+  woven into an app method doing work inline, without calling a `datadog.*` method, still counts as
+  app, so the tracer share is a lower bound; KB/req vs NoAgent is the total.
 - Run on an otherwise-**quiet machine**, and respect the warmup (the harness warms each endpoint
   before measuring). Results depend on the machine's core count / heap regime.
 
