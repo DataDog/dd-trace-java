@@ -2,10 +2,10 @@ package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.KnownTags.SERVLET_CONTEXT_ID;
+import static datadog.trace.api.KnownTags.SERVLET_PATH_ID;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_DISPATCH;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
@@ -92,8 +92,8 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
       DECORATE.afterStart(span);
 
       // These are pulled from attributes because jetty clears them from the request too early.
-      span.setTag(SERVLET_CONTEXT, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
-      span.setTag(SERVLET_PATH, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
+      span.setTag(SERVLET_CONTEXT_ID, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
+      span.setTag(SERVLET_PATH_ID, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
 
       synchronized (request) {
         request.setAttribute(DD_DISPATCH_SPAN_ATTRIBUTE, span);

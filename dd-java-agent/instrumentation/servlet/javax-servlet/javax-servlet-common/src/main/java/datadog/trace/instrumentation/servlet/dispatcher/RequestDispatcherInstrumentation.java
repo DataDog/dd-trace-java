@@ -3,10 +3,10 @@ package datadog.trace.instrumentation.servlet.dispatcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.api.KnownTags.SERVLET_CONTEXT_ID;
+import static datadog.trace.api.KnownTags.SERVLET_PATH_ID;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet.ServletRequestSetter.SETTER;
@@ -112,8 +112,8 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
               SPAN_NAME_CACHE.computeIfAbsent(method, SERVLET_PREFIX),
               parent);
       DECORATE.afterStart(span);
-      span.setTag(SERVLET_CONTEXT, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
-      span.setTag(SERVLET_PATH, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
+      span.setTag(SERVLET_CONTEXT_ID, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
+      span.setTag(SERVLET_PATH_ID, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
 
       final String target =
           InstrumentationContext.get(RequestDispatcher.class, String.class).get(dispatcher);
