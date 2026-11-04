@@ -100,10 +100,6 @@ tasks.named("jar", Jar) {
 }
 
 // we want to test with no special reflective access (no --add-opens)
-allprojects { debuggerProject ->
-  debuggerProject.pluginManager.withPlugin('dd-trace-java.test-jvm-constraints') {
-    debuggerProject.testJvmConstraints {
-      allowReflectiveAccessToJdk = false
-    }
-  }
+testJvmConstraints {
+  allowReflectiveAccessToJdk = false
 }
