@@ -17,6 +17,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -298,15 +299,10 @@ public final class CdnConfigurationSource implements ConfigurationService {
 
   private HttpRequest buildRequest() {
     final HttpRequest.Builder request =
-        HttpRequest.newBuilder(this.endpoint)
+        HttpRequest.newBuilder(endpointForCapabilities(this.endpoint, EvaluatorCapabilities.supported()))
             .timeout(this.requestTimeout)
             .header("Accept-Encoding", "gzip");
     Headers.addMetadata(request);
-    if (EvaluatorCapabilities.supported()
-        .contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
-      request.header(
-          "X-DD-FEATURE-FLAGS-CAPABILITIES", EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1);
-    }
     if (this.apiKey != null) {
       request.header("DD-API-KEY", this.apiKey);
     }
@@ -315,6 +311,19 @@ public final class CdnConfigurationSource implements ConfigurationService {
       request.header("If-None-Match", currentEtag);
     }
     return request.GET().build();
+  }
+
+  static URI endpointForCapabilities(final URI endpoint, final Set<String> capabilities) {
+    if (!capabilities.contains(EvaluatorCapabilities.DEPENDENT_FLAG_VARIANT_KEY_V1)) {
+      return endpoint;
+    }
+    final String separator = endpoint.getRawQuery() == null ? "?" : "&";
+    return URI.create(
+        endpoint
+            + separator
+            + EvaluatorCapabilities.DEPENDENT_FLAGS_VARIANT_KEY_QUERY_PARAMETER
+            + "="
+            + EvaluatorCapabilities.DEPENDENT_FLAGS_VARIANT_KEY_QUERY_VERSION);
   }
 
   private synchronized void warn(final String message, final Object... arguments) {
