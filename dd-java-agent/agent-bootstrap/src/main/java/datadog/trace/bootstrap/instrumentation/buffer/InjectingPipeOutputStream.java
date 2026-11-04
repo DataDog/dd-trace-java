@@ -244,11 +244,22 @@ public class InjectingPipeOutputStream extends OutputStream {
     if (filter || wasDraining) {
       drain();
     }
+    matchingPos = 0;
   }
 
   @Override
   public void flush() throws IOException {
+    commit();
     downstream.flush();
+  }
+
+  /** Discards buffered content and resets matching state without writing to the downstream. */
+  public void discard() {
+    pos = 0;
+    count = 0;
+    matchingPos = 0;
+    wasDraining = false;
+    bytesWritten = 0;
   }
 
   @Override
