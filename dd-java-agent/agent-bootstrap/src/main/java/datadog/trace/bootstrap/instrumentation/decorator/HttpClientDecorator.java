@@ -151,9 +151,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     }
     try {
       if (APPSEC_RASP_ENABLED) {
-        URI destination = url(request);
-        if (destination != null) {
-          onHttpClientRequest(span, destination.toString());
+        final URI url = url(request);
+        if (url != null) {
+          onHttpClientRequest(span, url.toString());
         }
       }
     } catch (BlockingException e) {
