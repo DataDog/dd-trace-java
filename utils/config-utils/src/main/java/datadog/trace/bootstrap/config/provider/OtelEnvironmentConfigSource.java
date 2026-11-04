@@ -143,13 +143,13 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     if (metricsOtelEnabled()) {
       setupMetricsOtelEnvironment();
     } else {
-      capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
+      capture(RUNTIME_METRICS_ENABLED, selectExporter("metrics") == Exporter.NONE ? "false" : null);
     }
 
     if (logsOtelEnabled()) {
       setupLogsOtelEnvironment();
     } else {
-      mapDataCollection("logs");
+      selectExporter("logs"); // only to warn about unsupported values
     }
   }
 
@@ -169,26 +169,30 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
         getOtelProperty(
             "otel.traces.span.metrics.enabled", "dd." + OTEL_TRACES_SPAN_METRICS_ENABLED));
 
-    String exporter = getOtelProperty("otel.traces.exporter");
-    if ("otlp".equalsIgnoreCase(exporter)) { // traces defaults to non-OTLP (i.e. datadog)
-      capture(TRACE_OTEL_EXPORTER, "otlp");
-      capture(
-          OTLP_TRACES_HEADERS,
-          getOtelOtlpProperty("traces", "headers", "dd." + OTLP_TRACES_HEADERS));
-      capture(
-          OTLP_TRACES_PROTOCOL,
-          getOtelOtlpProperty("traces", "protocol", "dd." + OTLP_TRACES_PROTOCOL));
-      capture(
-          OTLP_TRACES_COMPRESSION,
-          getOtelOtlpProperty("traces", "compression", "dd." + OTLP_TRACES_COMPRESSION));
-      capture(
-          OTLP_TRACES_TIMEOUT,
-          getOtelOtlpProperty("traces", "timeout", "dd." + OTLP_TRACES_TIMEOUT));
-      capture(
-          OTLP_TRACES_ENDPOINT,
-          getOtelOtlpProperty("traces", "endpoint", "dd." + OTLP_TRACES_ENDPOINT));
-    } else {
-      capture(TRACE_ENABLED, mapDataCollection("traces"));
+    switch (selectExporter("traces")) {
+      case OTLP: // traces defaults to non-OTLP (i.e. datadog)
+        capture(TRACE_OTEL_EXPORTER, "otlp");
+        capture(
+            OTLP_TRACES_HEADERS,
+            getOtelOtlpProperty("traces", "headers", "dd." + OTLP_TRACES_HEADERS));
+        capture(
+            OTLP_TRACES_PROTOCOL,
+            getOtelOtlpProperty("traces", "protocol", "dd." + OTLP_TRACES_PROTOCOL));
+        capture(
+            OTLP_TRACES_COMPRESSION,
+            getOtelOtlpProperty("traces", "compression", "dd." + OTLP_TRACES_COMPRESSION));
+        capture(
+            OTLP_TRACES_TIMEOUT,
+            getOtelOtlpProperty("traces", "timeout", "dd." + OTLP_TRACES_TIMEOUT));
+        capture(
+            OTLP_TRACES_ENDPOINT,
+            getOtelOtlpProperty("traces", "endpoint", "dd." + OTLP_TRACES_ENDPOINT));
+        break;
+      case NONE:
+        capture(TRACE_ENABLED, "false");
+        break;
+      default:
+        break;
     }
   }
 
@@ -209,31 +213,36 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
             "otel.instrumentation.runtime-telemetry.emit-experimental-metrics",
             "dd." + METRICS_OTEL_EXPERIMENTAL_ENABLED));
 
-    String exporter = getOtelProperty("otel.metrics.exporter");
-    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // metrics defaults to OTLP
-      capture(METRICS_OTEL_EXPORTER, "otlp");
-      capture(
-          OTLP_METRICS_HEADERS,
-          getOtelOtlpProperty("metrics", "headers", "dd." + OTLP_METRICS_HEADERS));
-      capture(
-          OTLP_METRICS_PROTOCOL,
-          getOtelOtlpProperty("metrics", "protocol", "dd." + OTLP_METRICS_PROTOCOL));
-      capture(
-          OTLP_METRICS_COMPRESSION,
-          getOtelOtlpProperty("metrics", "compression", "dd." + OTLP_METRICS_COMPRESSION));
-      capture(
-          OTLP_METRICS_TIMEOUT,
-          getOtelOtlpProperty("metrics", "timeout", "dd." + OTLP_METRICS_TIMEOUT));
-      capture(
-          OTLP_METRICS_ENDPOINT,
-          getOtelOtlpProperty("metrics", "endpoint", "dd." + OTLP_METRICS_ENDPOINT));
-      capture(
-          OTLP_METRICS_TEMPORALITY_PREFERENCE,
-          getOtelProperty(
-              "otel.exporter.otlp.metrics.temporality.preference",
-              "dd." + OTLP_METRICS_TEMPORALITY_PREFERENCE));
-    } else {
-      capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
+    switch (selectExporter("metrics")) {
+      case UNSET: // metrics defaults to OTLP
+      case OTLP:
+        capture(METRICS_OTEL_EXPORTER, "otlp");
+        capture(
+            OTLP_METRICS_HEADERS,
+            getOtelOtlpProperty("metrics", "headers", "dd." + OTLP_METRICS_HEADERS));
+        capture(
+            OTLP_METRICS_PROTOCOL,
+            getOtelOtlpProperty("metrics", "protocol", "dd." + OTLP_METRICS_PROTOCOL));
+        capture(
+            OTLP_METRICS_COMPRESSION,
+            getOtelOtlpProperty("metrics", "compression", "dd." + OTLP_METRICS_COMPRESSION));
+        capture(
+            OTLP_METRICS_TIMEOUT,
+            getOtelOtlpProperty("metrics", "timeout", "dd." + OTLP_METRICS_TIMEOUT));
+        capture(
+            OTLP_METRICS_ENDPOINT,
+            getOtelOtlpProperty("metrics", "endpoint", "dd." + OTLP_METRICS_ENDPOINT));
+        capture(
+            OTLP_METRICS_TEMPORALITY_PREFERENCE,
+            getOtelProperty(
+                "otel.exporter.otlp.metrics.temporality.preference",
+                "dd." + OTLP_METRICS_TEMPORALITY_PREFERENCE));
+        break;
+      case NONE:
+        capture(RUNTIME_METRICS_ENABLED, "false");
+        break;
+      default:
+        break;
     }
   }
 
@@ -249,20 +258,26 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(
         LOGS_OTEL_BATCH_SIZE,
         getOtelProperty("otel.blrp.max.export.batch.size", "dd." + LOGS_OTEL_BATCH_SIZE));
-    String exporter = getOtelProperty("otel.logs.exporter");
-    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // logs defaults to OTLP
-      capture(LOGS_OTEL_EXPORTER, "otlp");
-      capture(OTLP_LOGS_HEADERS, getOtelOtlpProperty("logs", "headers", "dd." + OTLP_LOGS_HEADERS));
-      capture(
-          OTLP_LOGS_PROTOCOL, getOtelOtlpProperty("logs", "protocol", "dd." + OTLP_LOGS_PROTOCOL));
-      capture(
-          OTLP_LOGS_COMPRESSION,
-          getOtelOtlpProperty("logs", "compression", "dd." + OTLP_LOGS_COMPRESSION));
-      capture(OTLP_LOGS_TIMEOUT, getOtelOtlpProperty("logs", "timeout", "dd." + OTLP_LOGS_TIMEOUT));
-      capture(
-          OTLP_LOGS_ENDPOINT, getOtelOtlpProperty("logs", "endpoint", "dd." + OTLP_LOGS_ENDPOINT));
-    } else {
-      mapDataCollection("logs");
+    switch (selectExporter("logs")) {
+      case UNSET: // logs defaults to OTLP
+      case OTLP:
+        capture(LOGS_OTEL_EXPORTER, "otlp");
+        capture(
+            OTLP_LOGS_HEADERS, getOtelOtlpProperty("logs", "headers", "dd." + OTLP_LOGS_HEADERS));
+        capture(
+            OTLP_LOGS_PROTOCOL,
+            getOtelOtlpProperty("logs", "protocol", "dd." + OTLP_LOGS_PROTOCOL));
+        capture(
+            OTLP_LOGS_COMPRESSION,
+            getOtelOtlpProperty("logs", "compression", "dd." + OTLP_LOGS_COMPRESSION));
+        capture(
+            OTLP_LOGS_TIMEOUT, getOtelOtlpProperty("logs", "timeout", "dd." + OTLP_LOGS_TIMEOUT));
+        capture(
+            OTLP_LOGS_ENDPOINT,
+            getOtelOtlpProperty("logs", "endpoint", "dd." + OTLP_LOGS_ENDPOINT));
+        break;
+      default:
+        break;
     }
   }
 
@@ -535,22 +550,86 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     return null;
   }
 
-  /** Maps an OpenTelemetry exporter setting to the equivalent Datadog collection setting. */
-  private String mapDataCollection(String signal) {
-    String exporter = getOtelProperty("otel." + signal + ".exporter");
-    if (null == exporter) {
-      return null;
+  /**
+   * Selects the exporter from an OpenTelemetry exporter list, warning about each ignored entry.
+   *
+   * <p>Blank entries are skipped, so an empty list is treated as unset.
+   */
+  private Exporter selectExporter(String signal) {
+    String sysProp = "otel." + signal + ".exporter";
+    String value = getOtelProperty(sysProp);
+    if (null == value) {
+      return Exporter.UNSET;
     }
 
-    if ("none".equalsIgnoreCase(exporter)) {
-      return "false"; // "none" maps to disable data collection
+    String envVar = toEnvVar(sysProp);
+    Exporter selected = Exporter.UNSET;
+    List<String> selectedNames = new ArrayList<>(); // entries mapping to the current selection
+    boolean anyIgnored = false;
+    for (String entry : parseOtelList(value)) {
+      String name = entry.trim();
+      if (name.isEmpty()) {
+        continue;
+      }
+      Exporter exporter = parseExporter(name);
+      if (exporter == Exporter.UNSUPPORTED) {
+        log.warn("{}={} is not supported", envVar, name);
+        anyIgnored = true;
+        if (selected == Exporter.UNSET) {
+          selected = Exporter.UNSUPPORTED; // unsupported-only lists disable the export
+        }
+      } else if (exporter.compareTo(selected) > 0) {
+        // a higher precedence entry replaces the entries selected so far
+        for (String ignored : selectedNames) {
+          warnIgnored(envVar, ignored, exporter);
+        }
+        anyIgnored |= !selectedNames.isEmpty();
+        selectedNames.clear();
+        selectedNames.add(name);
+        selected = exporter;
+      } else if (exporter == selected) {
+        selectedNames.add(name);
+      } else {
+        warnIgnored(envVar, name, selected);
+        anyIgnored = true;
+      }
     }
+    if (anyIgnored) {
+      OtelEnvMetricCollectorProvider.get()
+          .setUnsupportedOtelEnvVarMetric(toEnvVarLowerCase(sysProp));
+    }
+    return selected;
+  }
 
-    log.warn("OTEL_{}_EXPORTER={} is not supported", signal, exporter.toUpperCase(Locale.ROOT));
-    OtelEnvMetricCollectorProvider.get()
-        .setUnsupportedOtelEnvVarMetric("otel_" + signal + "_exporter");
+  private static void warnIgnored(String envVar, String name, Exporter selected) {
+    log.warn(
+        "{}: ignoring {} combined with {}", envVar, name, selected.name().toLowerCase(Locale.ROOT));
+  }
 
-    return null;
+  private static Exporter parseExporter(String name) {
+    if ("otlp".equalsIgnoreCase(name)) {
+      return Exporter.OTLP;
+    }
+    if ("none".equalsIgnoreCase(name)) {
+      return Exporter.NONE;
+    }
+    return Exporter.UNSUPPORTED;
+  }
+
+  /**
+   * Exporter selection outcomes, in increasing order of precedence.
+   *
+   * <p>When a list holds several exporters, the highest declared one wins. This single-winner
+   * resolution only works because the tracer currently acts on just {@code otlp} (and {@code none},
+   * to disable export). Combining {@code none} with another exporter is not expected, so {@code
+   * otlp} winning over {@code none} is a deliberate choice rather than an OTel rule. Supporting
+   * more exporters would require revisiting how a list is resolved.
+   */
+  private enum Exporter {
+    UNSET,
+    UNSUPPORTED,
+    NONE,
+    OTLP
   }
 
   /** Merges the OpenTelemetry client and server headers to capture into a single list. */
