@@ -156,6 +156,7 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
       .orElse(project.providers.provider { project.findProperty("${name}MaxJavaVersionForTests") as? JavaVersion })
       .orElse(project.providers.provider { project.findProperty("maxJavaVersion") as? JavaVersion })
     )
+    taskExtension.includeJdk.convention(projectExtension.includeJdk)
     taskExtension.forceJdk.convention(projectExtension.forceJdk
       .orElse(project.providers.provider {
         @Suppress("UNCHECKED_CAST")
