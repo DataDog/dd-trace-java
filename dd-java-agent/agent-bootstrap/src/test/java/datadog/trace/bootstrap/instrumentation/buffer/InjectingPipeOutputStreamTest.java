@@ -12,7 +12,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import java.io.ByteArrayOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -26,7 +25,7 @@ import java.util.function.LongConsumer;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
-class InjectingPipeOutputStreamTest extends DDJavaSpecification {
+class InjectingPipeOutputStreamTest {
   static final byte[] MARKER_BYTES = "</head>".getBytes(UTF_8);
   static final byte[] CONTEXT_BYTES = "<script></script>".getBytes(UTF_8);
 

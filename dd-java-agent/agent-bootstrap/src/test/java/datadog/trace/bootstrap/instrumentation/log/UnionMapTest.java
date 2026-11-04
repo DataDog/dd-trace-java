@@ -12,15 +12,11 @@ import com.google.common.collect.testing.TestStringMapGenerator;
 import com.google.common.collect.testing.features.CollectionSize;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import junit.framework.TestResult;
 import org.junit.jupiter.api.Test;
 
 class UnionMapTest {
-
-  /** Builds the map under test from the entries provided by the Guava test suite. */
-  private interface MapFactory {
-    Map<String, String> create(Map.Entry<String, String>[] entries);
-  }
 
   @Test
   void testMapBehaviourWhenPrimaryIsEmpty() {
@@ -116,14 +112,15 @@ class UnionMapTest {
         });
   }
 
-  private static void assertMapTestsPass(String name, MapFactory mapFactory) {
+  private static void assertMapTestsPass(
+      String name, Function<Map.Entry<String, String>[], Map<String, String>> mapFactory) {
     TestResult testResult = new TestResult();
 
     MapTestSuiteBuilder.using(
             new TestStringMapGenerator() {
               @Override
               protected Map<String, String> create(Map.Entry<String, String>[] entries) {
-                return mapFactory.create(entries);
+                return mapFactory.apply(entries);
               }
             })
         .named(name)
