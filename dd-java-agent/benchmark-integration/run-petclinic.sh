@@ -148,43 +148,82 @@ results_dir="$script_dir/build/petclinic-results/results-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$results_dir"
 combined_csv="$results_dir/throughput-grid.csv"
 
-log "sweeping ${#resolved[@]} variant(s) x ${#heaps[@]} heap(s) [${heaps[*]}] x ${PETCLINIC_REPEATS:-1} repeat(s), JFR enabled, settings=$settings"
+# PETCLINIC_RUNS passes per heap (default 1). Each pass starts a fresh JVM per variant, and the
+# variant order (NoAgent included) rotates every pass, so drift over a long sweep -- thermals,
+# background load -- spreads across variants instead of always landing on the same one. Each pass's
+# artifacts go in heap-<h>/run-<n>/; the combined grid has a Run column, and with more than one pass
+# a median-per-variant summary is printed at the end.
+runs="${PETCLINIC_RUNS:-1}"
+log "sweeping ${#resolved[@]} variant(s) x ${#heaps[@]} heap(s) [${heaps[*]}] x $runs run(s) x ${PETCLINIC_REPEATS:-1} repeat(s), JFR enabled, settings=$settings"
+pass=0
 for heap in "${heaps[@]}"; do
-  heap_dir="$results_dir/heap-$heap"
-  mkdir -p "$heap_dir"
-  rm -f /tmp/perf_*.jfr /tmp/perf_gc_*.log /tmp/perf_results.csv
-  log "=== HEAP $heap ==="
-  (
-    cd "$script_dir"
-    PERF_JFR=1 PERF_HEAP="$heap" PERF_REPEATS="${PETCLINIC_REPEATS:-1}" PERF_SETTINGS="$settings" \
-      bash ./run-perf-test.sh jar "$petclinic_jar" "${resolved[@]}"
-  )
-  cp -f /tmp/perf_results.csv "$heap_dir/" 2>/dev/null || true
-  cp -f /tmp/perf_*.jfr /tmp/perf_gc_*.log "$heap_dir/" 2>/dev/null || true
+  for run in $(seq 1 "$runs"); do
+    run_dir="$results_dir/heap-$heap/run-$run"
+    mkdir -p "$run_dir"
+    rot=$((pass % ${#resolved[@]})); pass=$((pass + 1))
+    order=("${resolved[@]:$rot}" "${resolved[@]:0:$rot}")
+    rm -f /tmp/perf_*.jfr /tmp/perf_gc_*.log /tmp/perf_results.csv
+    log "=== HEAP $heap, run $run/$runs ==="
+    (
+      cd "$script_dir"
+      PERF_JFR=1 PERF_HEAP="$heap" PERF_REPEATS="${PETCLINIC_REPEATS:-1}" PERF_SETTINGS="$settings" \
+        bash ./run-perf-test.sh jar "$petclinic_jar" "${order[@]}"
+    )
+    cp -f /tmp/perf_results.csv "$run_dir/" 2>/dev/null || true
+    cp -f /tmp/perf_*.jfr /tmp/perf_gc_*.log "$run_dir/" 2>/dev/null || true
 
-  # Fold this heap's throughput into the combined grid CSV with a leading Heap column.
-  if [ -f /tmp/perf_results.csv ]; then
-    [ -f "$combined_csv" ] || echo "Heap,$(head -1 /tmp/perf_results.csv)" > "$combined_csv"
-    tail -n +2 /tmp/perf_results.csv | sed "s/^/$heap,/" >> "$combined_csv"
-  fi
+    # Fold this run into the combined grid CSV with leading Heap and Run columns.
+    if [ -f /tmp/perf_results.csv ]; then
+      [ -f "$combined_csv" ] || echo "Heap,Run,$(head -1 /tmp/perf_results.csv)" > "$combined_csv"
+      tail -n +2 /tmp/perf_results.csv | sed "s/^/$heap,$run,/" >> "$combined_csv"
+    fi
 
-  echo
-  echo "================ HEAP $heap: THROUGHPUT / LATENCY ================"
-  cat "$heap_dir/perf_results.csv" 2>/dev/null || echo "(no throughput CSV produced)"
-  echo
-  echo "================ HEAP $heap: TRACER-OVERHEAD SPLIT ================"
-  for jfr in "$heap_dir"/perf_*.jfr; do
-    [ -e "$jfr" ] || continue
     echo
-    echo "---- $(basename "$jfr") ----"
-    bash "$script_dir/analyze-jfr.sh" "$jfr" || true
+    echo "================ HEAP $heap, RUN $run: THROUGHPUT / LATENCY ================"
+    cat "$run_dir/perf_results.csv" 2>/dev/null || echo "(no throughput CSV produced)"
+    echo
+    echo "================ HEAP $heap, RUN $run: TRACER-OVERHEAD SPLIT ================"
+    for jfr in "$run_dir"/perf_*.jfr; do
+      [ -e "$jfr" ] || continue
+      echo
+      echo "---- $(basename "$jfr") ----"
+      bash "$script_dir/analyze-jfr.sh" "$jfr" || true
+    done
   done
 done
 
-if [ ${#heaps[@]} -gt 1 ]; then
+if [ ${#heaps[@]} -gt 1 ] || [ "$runs" -gt 1 ]; then
   echo
-  echo "================ COMBINED THROUGHPUT GRID (heap x version) ================"
+  echo "================ COMBINED GRID (heap x run x version) ================"
   cat "$combined_csv" 2>/dev/null || true
+fi
+if [ "$runs" -gt 1 ] && [ -f "$combined_csv" ]; then
+  echo
+  echo "================ MEDIAN OF $runs RUNS: THROUGHPUT and KB/req ================"
+  # Median per (heap, version) of every "<endpoint> Throughput" and "<endpoint> KB/req" column.
+  awk -F',' '
+    function median(list,   n, v, i, j, t) {
+      n = split(list, v, " ")
+      for (i = 2; i <= n; i++) { t = v[i] + 0; for (j = i - 1; j >= 1 && v[j] + 0 > t; j--) v[j + 1] = v[j]; v[j + 1] = t }
+      return n % 2 ? v[(n + 1) / 2] : (v[n / 2] + v[n / 2 + 1]) / 2
+    }
+    NR == 1 {
+      out = "Heap,Version"
+      for (c = 4; c <= NF; c++) if ($c ~ / Throughput$/ || $c ~ / KB\/req$/) { cols[++nc] = c; out = out "," $c }
+      print out; next
+    }
+    {
+      key = $1 "," $3
+      if (!(key in seen)) { seen[key] = 1; keys[++nk] = key }
+      for (k = 1; k <= nc; k++) vals[key, k] = vals[key, k] " " $(cols[k])
+    }
+    END {
+      for (i = 1; i <= nk; i++) {
+        out = keys[i]
+        for (k = 1; k <= nc; k++) out = out "," sprintf("%.2f", median(vals[keys[i], k]))
+        print out
+      }
+    }' "$combined_csv" | tee "$results_dir/median-grid.csv"
 fi
 
 echo

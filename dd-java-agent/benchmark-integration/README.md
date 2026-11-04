@@ -107,6 +107,18 @@ Results land in per-heap subdirs (`heap-64m/`, …) plus a combined `throughput-
 `Heap` column). **Runtime is heaps × variants** — a heap list multiplies the wall clock, so size the
 version list accordingly.
 
+#### Runs (fresh JVMs, rotated order)
+`PETCLINIC_RUNS=N` (default 1) runs the whole variant sweep N times per heap, each a fresh JVM per
+variant, with the variant order (NoAgent included) rotated every run, so drift over a long sweep
+spreads across variants instead of always landing on whichever runs first. Each run's artifacts go
+in `heap-<h>/run-<n>/`, the combined grid gets a `Run` column, and with more than one run a
+`median-grid.csv` of per-variant medians (throughput and KB/req per endpoint) is printed at the end:
+```
+PETCLINIC_RUNS=3 PETCLINIC_HEAPS="72m 256m" ./run-petclinic.sh current
+```
+Prefer runs over repeats for comparisons: repeats share one JVM, so they can't show JVM-to-JVM
+(e.g. JIT) variation, which is often the larger part of the noise.
+
 #### Repeats (noise vs. a single sample)
 Throughput on a shared dev box is noisy -- a single wrk run per endpoint can swing several percent
 run to run. Set `PETCLINIC_REPEATS=N` to warm up once per endpoint and then measure N back-to-back
