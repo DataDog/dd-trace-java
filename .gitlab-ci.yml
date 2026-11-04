@@ -62,6 +62,8 @@ variables:
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the ddoghq/images repo
   BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
+  # shortcut: tag republishing is not detected; use a content hash when CI builds the image.
+  ORG_GRADLE_PROJECT_ciBuilderImage: "${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}"
   TEST_COUNTS_S3_BUCKET: "dd-trace-java-ci-test-reports"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 27
@@ -459,7 +461,7 @@ populate_dep_cache:
       fi
   parallel:
     matrix:
-      - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
+      - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar :dd-openfeature:jar"
         CACHE_TYPE: "lib"
       - GRADLE_TARGET: ":baseTest"
         CACHE_TYPE: "base"
@@ -1360,6 +1362,7 @@ deploy_to_maven_central:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
+      - 'workspace/dd-openfeature/build/libs/*.jar'
 
 deploy_snapshot_with_ddprof_snapshot:
   extends: .gradle_build
@@ -1385,6 +1388,7 @@ deploy_snapshot_with_ddprof_snapshot:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
+      - 'workspace/dd-openfeature/build/libs/*.jar'
 
 deploy_artifacts_to_github:
   stage: publish-release-artifacts
@@ -1417,6 +1421,7 @@ deploy_artifacts_to_github:
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-openfeature/build/libs/dd-openfeature-${VERSION}.jar
   after_script:
     - dd-octo-sts revoke -t $(cat github-token.txt)
   retry:
@@ -1475,6 +1480,7 @@ verify_maven_central_deployment:
         "https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-openfeature/${VERSION}/dd-openfeature-${VERSION}.jar"
       )
       # Try once immediately (fast path on job retry), then every 5 mins for 45 mins.
       TRY=0
