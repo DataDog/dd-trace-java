@@ -553,7 +553,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   /**
    * Selects the exporter from an OpenTelemetry exporter list, warning about each ignored entry.
    *
-   * <p>Blank entries are skipped, so an empty list is treated as unset.
+   * <p>Blank and unsupported entries are skipped, so a list without any supported exporter is
+   * treated as unset.
    */
   private Exporter selectExporter(String signal) {
     String sysProp = "otel." + signal + ".exporter";
@@ -575,9 +576,6 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       if (exporter == Exporter.UNSUPPORTED) {
         log.warn("{}={} is not supported", envVar, name);
         anyIgnored = true;
-        if (selected == Exporter.UNSET) {
-          selected = Exporter.UNSUPPORTED; // unsupported-only lists disable the export
-        }
       } else if (exporter.compareTo(selected) > 0) {
         // a higher precedence entry replaces the entries selected so far
         for (String ignored : selectedNames) {
