@@ -6,6 +6,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
@@ -463,6 +464,31 @@ class OtelEnvironmentConfigSourceTest {
 
     assertEquals("production", source.get(ENV));
     assertNull(source.get(TAGS));
+  }
+
+  @Test
+  @WithConfig(key = "DD_TRACE_OTEL_ENABLED", value = "true", env = true, addPrefix = false)
+  @WithConfig(key = "OTEL_SERVICE_NAME", value = "", env = true, addPrefix = false)
+  @WithConfig(
+      key = "OTEL_RESOURCE_ATTRIBUTES",
+      value = "service.name=DEV_SERVICE",
+      env = true,
+      addPrefix = false)
+  void emptyOtelEnvironmentVariableIsIgnored() {
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    // empty OTEL_SERVICE_NAME does not override the one from OTEL_RESOURCE_ATTRIBUTES
+    assertEquals("DEV_SERVICE", source.get(SERVICE_NAME));
+  }
+
+  @Test
+  @WithConfig(key = "DD_METRICS_OTEL_ENABLED", value = "true", env = true, addPrefix = false)
+  @WithConfig(key = "OTEL_METRICS_EXPORTER", value = "", env = true, addPrefix = false)
+  void emptyOtelExporterEnvironmentVariableFallsBackToDefault() {
+    OtelEnvironmentConfigSource source = new OtelEnvironmentConfigSource();
+
+    assertEquals("otlp", source.get(METRICS_OTEL_EXPORTER));
+    assertNull(source.get(RUNTIME_METRICS_ENABLED));
   }
 
   private static void assertNoOtelSettingsMapped(OtelEnvironmentConfigSource source) {

@@ -319,13 +319,18 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
    * Gets an OpenTelemetry property.
    *
    * <p>Checks system properties, environment variables, and the optional OpenTelemetry config file.
+   * Empty values are treated as unset, as required by the OpenTelemetry specification.
    */
   private String getOtelProperty(String sysProp) {
     String value = getProperty(sysProp);
-    if (null == value && null != otelConfigFile) {
+    if (isEmpty(value) && null != otelConfigFile) {
       value = otelConfigFile.getProperty(sysProp);
     }
-    return value;
+    return isEmpty(value) ? null : value;
+  }
+
+  private static boolean isEmpty(String value) {
+    return null == value || value.isEmpty();
   }
 
   /**
