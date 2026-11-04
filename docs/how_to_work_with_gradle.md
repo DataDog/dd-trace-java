@@ -1826,7 +1826,9 @@ When Gradle builds fail or behave unexpectedly, several tools and techniques can
 
 ### Forcing Fresh CI Task Execution
 
-Set the GitLab CI variable `SKIP_BUILD_CACHE=true` when starting a pipeline.
+Set the GitLab CI variable `SKIP_BUILD_CACHE=true` when starting a pipeline, or include
+the case-sensitive `[ci: SKIP_BUILD_CACHE]` option in the commit message. Combine it with
+other CI options as needed, for example `[ci: ARM64, SKIP_BUILD_CACHE]`.
 For a fresh rerun, start a new pipeline for the same ref with this variable.
 This appends `--no-build-cache --rerun-tasks` to the shared Gradle arguments,
 bypassing local and remote task-output caches (including S3 when configured)
