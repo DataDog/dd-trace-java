@@ -58,8 +58,6 @@ public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
       parentPackageName + ".TestNGClassListener",
       parentPackageName + ".TestNGUtils",
       parentPackageName + ".TestEventsHandlerHolder",
-      parentPackageName + ".execution.RetryAnalyzer",
-      parentPackageName + ".execution.RetryAnnotationTransformer",
       packageName + ".FailFastOrderInterceptor",
     };
   }
