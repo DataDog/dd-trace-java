@@ -45,7 +45,6 @@ dependencies {
   }
 
   testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
-  testImplementation libs.bundles.mockito
 
   testImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.0.1'
   testImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.0.1'  // race condition bug in 4.0.0
