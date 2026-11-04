@@ -4,10 +4,11 @@
 # about: self-time (and sampled allocation) bucketed by thread role (foreground request threads vs
 # background agent threads) and by code owner (instrumentation vs tracer-core vs app/JDK).
 #
-# Attribution is by leaf frame, so it undercounts instrumentation: most advice is woven into the
-# instrumented method, and while it runs JFR reports that app/framework method. "instrumentation"
-# here is the datadog.trace.instrumentation.* helpers the advice calls, and the woven advice itself
-# lands in app. Read the instrumentation bucket as a lower bound.
+# A sample counts as tracer if any datadog.* frame is on its stack (up to STACK_DEPTH frames, default
+# 64), and is owned by the datadog.* frame nearest the leaf. So work the tracer does through JDK code
+# (HashMap.resize, Arrays.copyOf, ...) counts as tracer, not app. What still lands in app is advice
+# woven into an app method doing work inline, without calling a datadog.* method; most advice calls
+# helpers, so that's small, but the tracer share is still a lower bound.
 #
 # This encodes the analysis so the numbers are trustworthy to someone running it blindly -- the tool
 # emits the meaningful split, not a raw JFR to hand-parse.
@@ -33,7 +34,7 @@ if ! command -v jfr >/dev/null 2>&1; then
   exit 1
 fi
 
-# Shared awk classifier. Reads a stream of "THREAD<TAB>TOPFRAME<TAB>WEIGHT" lines and prints the
+# Shared awk classifier. Reads a stream of "THREAD<TAB>OWNERFRAME<TAB>WEIGHT" lines and prints the
 # bucketed breakdown, summing WEIGHT: 1 per CPU sample, estimated bytes per allocation sample. Foreground = servlet-container request threads; background = agent + JFR/GC threads.
 # Owner: instrumentation (datadog.trace.instrumentation.*) vs core (other datadog.*) vs app/other.
 classify_awk='
@@ -79,7 +80,7 @@ END {
   emit(tracer_tot, total, "background", "core");
   emit(tracer_tot, total, "other",      "instrumentation");
   emit(tracer_tot, total, "other",      "core");
-  printf "    (instrumentation = helper methods only; advice woven into app methods counts as app)\n";
+  printf "    (tracer = a datadog.* frame anywhere on the stack; work woven inline into app methods counts as app)\n";
 }
 function emit(tt, all, r, o,   c) {
   c = split_ct[r SUBSEP o] + 0;
@@ -88,14 +89,15 @@ function emit(tt, all, r, o,   c) {
 }
 '
 
-# jfr print emits an event block per sample; the first stackTrace frame line after the event is the
-# leaf. We reduce each sample to "thread<TAB>leafFrame<TAB>weight": the sampledThread (CPU) or
-# eventThread (allocation), and for allocation samples the weight in bytes (JFR throttles them, and
-# each one stands for that many bytes; CPU samples weigh 1). State resets at every event header, so a
-# sample without a stack can't lend its thread to the next one.
+# jfr print emits an event block per sample. We reduce each sample to
+# "thread<TAB>ownerFrame<TAB>weight": the sampledThread (CPU) or eventThread (allocation); the
+# datadog.* frame nearest the leaf if the stack has one, else the leaf; and for allocation samples
+# the weight in bytes (JFR throttles them, and each one stands for that many bytes; CPU samples weigh
+# 1). State resets at every event header, so a sample without a stack can't lend its thread to the
+# next one.
 extract_stream() {
   local event="$1"
-  jfr print --events "$event" "$jfr_file" 2>/dev/null | awk '
+  jfr print --events "$event" --stack-depth "${STACK_DEPTH:-64}" "$jfr_file" 2>/dev/null | awk '
     /^jdk\.[A-Za-z]+ \{/ { thr=""; want=0; w=1; next }
     /sampledThread = / { thr=$0; sub(/.*sampledThread = /,"",thr); sub(/ .*/,"",thr); gsub(/"/,"",thr); next }
     /eventThread = /   { if (thr=="") { thr=$0; sub(/.*eventThread = /,"",thr); sub(/ .*/,"",thr); gsub(/"/,"",thr) } next }
@@ -105,12 +107,16 @@ extract_stream() {
       if (u == "kB") w *= 1024; else if (u == "MB") w *= 1048576; else if (u == "GB") w *= 1073741824;
       next
     }
-    /stackTrace = \[/  { want=1; next }
+    /stackTrace = \[/  { want=1; leaf=""; owner=""; next }
+    want==1 && /^ *\]/ {
+      if (leaf != "") { if (owner != "") print thr "\t" owner "\t" w; else print thr "\t" leaf "\t" w }
+      want=0; next
+    }
     want==1 {
-      leaf=$1; sub(/\(.*/,"",leaf);           # strip "(params)"
-      gsub(/^[ \t]+/,"",leaf);
-      if (leaf != "" && leaf != "...") { print thr "\t" leaf "\t" w }
-      want=0;
+      frame=$1; sub(/\(.*/,"",frame);         # strip "(params)"
+      if (frame == "" || frame == "...") next;
+      if (leaf == "") leaf=frame;
+      if (owner == "" && frame ~ /^datadog\./) owner=frame;
     }
   '
 }
