@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.context.Context;
+import datadog.context.ContextHandle;
 import datadog.context.ContextScope;
 
 /**
@@ -26,6 +27,20 @@ public class Java8BytecodeBridge {
   }
 
   /**
+   * @see Context#isCaptureEnabled()
+   */
+  public static boolean isContextCaptureEnabled() {
+    return Context.isCaptureEnabled();
+  }
+
+  /**
+   * @see Context#setCaptureEnabled(boolean)
+   */
+  public static void setContextCaptureEnabled(boolean enabled) {
+    Context.setCaptureEnabled(enabled);
+  }
+
+  /**
    * @see AgentSpan#current()
    */
   public static AgentSpan currentSpan() {
@@ -33,9 +48,9 @@ public class Java8BytecodeBridge {
   }
 
   /**
-   * @see AgentSpan#fromContext(Context)
+   * @see AgentSpan#fromContext(ContextHandle)
    */
-  public static AgentSpan spanFromContext(Context context) {
+  public static AgentSpan spanFromContext(ContextHandle context) {
     return AgentSpan.fromContext(context);
   }
 

@@ -13,6 +13,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
+import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
@@ -36,6 +38,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -351,28 +354,48 @@ public final class ContinuableScopeManager {
     return activate(context);
   }
 
-  public Context swap(@Nonnull Context context) {
+  public ContextHandle checkpoint(@Nonnull Context context) {
+    ScopeStack stack = scopeStack();
+    ContinuableScope active = stack.active();
+    return active != null && active.context == context
+        ? new ScopeCheckpoint(stack, active)
+        : context;
+  }
+
+  public ContextHandle swap(@Nonnull ContextHandle handle) {
     ScopeStack oldStack = tlsScopeStack.get();
     ContinuableScope oldScope = oldStack.top;
 
-    ScopeStack newStack;
-    ContinuableScope newScope;
-    if (context instanceof ScopeContext) {
+    ScopeStack newStack = null;
+    Context context = null;
+    boolean captureEnabled = true;
+    if (handle instanceof ScopeContext) {
       // restore previously swapped context stack
-      newStack = ((ScopeContext) context).restore(profilingContextIntegration);
-      newScope = newStack.top;
-    } else if (context != Context.root()) {
-      // start a new stack and record the new context as active
-      newStack = new ScopeStack(profilingContextIntegration);
-      newScope = new ContinuableScope(this, context, CONTEXT, true, createScopeState(context));
-      newStack.top = newScope;
+      newStack = ((ScopeContext) handle).restore(profilingContextIntegration);
+    } else if (handle instanceof Context) {
+      context = (Context) handle;
     } else {
-      // start a new stack with no active context
+      ScopeCheckpoint saved = (ScopeCheckpoint) handle;
+      context = saved.scope.context;
+      captureEnabled = saved.scope.isAsyncPropagating();
+      // Start with a separate stack. Reuse the caller's stack when returning to its active scope.
+      if ((oldScope == null || oldScope.context != context)
+          && saved.thread == Thread.currentThread()
+          && saved.stack.active() == saved.scope
+          && saved.scope.alive()) {
+        newStack = saved.stack;
+      }
+    }
+    if (newStack == null) {
       newStack = new ScopeStack(profilingContextIntegration);
-      newScope = null;
+      if (context != Context.root()) {
+        newStack.top =
+            new ContinuableScope(this, context, CONTEXT, captureEnabled, createScopeState(context));
+      }
     }
 
     tlsScopeStack.set(newStack);
+    ContinuableScope newScope = newStack.top;
     if (oldScope != newScope && newScope != null) {
       newScope.beforeActivated();
       newScope.afterActivated();
@@ -399,6 +422,24 @@ public final class ContinuableScopeManager {
       traceCollector = AgentTracer.NoopAgentTraceCollector.INSTANCE;
     }
     return new ScopeContinuation(this, context, CONTEXT, traceCollector).register();
+  }
+
+  /** Saves a context and the caller's scope boundary for a later swap. */
+  private static final class ScopeCheckpoint implements ContextHandle {
+    final Thread thread = Thread.currentThread();
+    final ScopeStack stack;
+    final ContinuableScope scope;
+
+    ScopeCheckpoint(ScopeStack stack, ContinuableScope scope) {
+      this.stack = stack;
+      this.scope = scope;
+    }
+
+    @Override
+    @Nullable
+    public <T> T get(@Nonnull ContextKey<T> key) {
+      return scope.context.get(key);
+    }
   }
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {

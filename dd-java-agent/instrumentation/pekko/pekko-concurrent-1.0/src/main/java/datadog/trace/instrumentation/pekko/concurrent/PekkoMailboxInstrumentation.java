@@ -7,7 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.cu
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
-import datadog.context.Context;
+import datadog.context.ContextHandle;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
@@ -45,7 +45,7 @@ public class PekkoMailboxInstrumentation extends InstrumenterModule.ContextTrack
    */
   public static final class SuppressMailboxRunAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static Context enter() {
+    public static ContextHandle enter() {
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // remember the currently active scope so we can roll back to this point
         checkpointActiveForRollback();
@@ -56,7 +56,7 @@ public class PekkoMailboxInstrumentation extends InstrumenterModule.ContextTrack
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final Context checkpointContext) {
+    public static void exit(@Advice.Enter final ContextHandle checkpointContext) {
       if (checkpointContext == null) {
         // Clean up any leaking scopes from pekko-streams/pekko-http etc.
         rollbackActiveToCheckpoint();
