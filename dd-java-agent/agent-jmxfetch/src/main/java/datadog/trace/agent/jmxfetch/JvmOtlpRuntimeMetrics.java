@@ -30,10 +30,8 @@ import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -72,12 +70,20 @@ public final class JvmOtlpRuntimeMetrics {
   private static final Attributes NON_HEAP_ATTRS = Attributes.of(MEMORY_TYPE, "non_heap");
 
   /**
-   * Precomputed Attributes for each (daemon, Thread.State) pair, used by jvm.thread.count. There
-   * are only 12 combinations, so caching avoids per-poll allocation of identical Attribute objects.
+   * Precomputed Attributes for each (daemon, Thread.State) pair, indexed by state ordinal, used by
+   * jvm.thread.count. Only the {@link #LIVE_THREAD_STATES} entries are exported; caching avoids
+   * per-poll allocation of identical Attribute objects.
    */
   private static final Attributes[] DAEMON_THREAD_STATE_ATTRS = buildThreadStateAttrs(true);
 
   private static final Attributes[] NON_DAEMON_THREAD_STATE_ATTRS = buildThreadStateAttrs(false);
+
+  private static final int THREAD_STATE_COUNT = Thread.State.values().length;
+
+  /** The states a live thread can be in; NEW and TERMINATED threads are never counted. */
+  private static final Thread.State[] LIVE_THREAD_STATES = {
+    Thread.State.RUNNABLE, Thread.State.BLOCKED, Thread.State.WAITING, Thread.State.TIMED_WAITING
+  };
 
   private static Attributes[] buildThreadStateAttrs(boolean daemon) {
     Thread.State[] states = Thread.State.values();
@@ -318,15 +324,15 @@ public final class JvmOtlpRuntimeMetrics {
    * {@link Thread#getAllStackTraces()}.
    */
   private static void collectThreadCountsViaThreadMXBean(OtelMetricStorage storage) {
-    Map<Thread.State, long[]> daemonCounts = new EnumMap<>(Thread.State.class);
-    Map<Thread.State, long[]> nonDaemonCounts = new EnumMap<>(Thread.State.class);
+    long[] daemonCounts = new long[THREAD_STATE_COUNT];
+    long[] nonDaemonCounts = new long[THREAD_STATE_COUNT];
     long[] ids = THREAD_BEAN.getAllThreadIds();
     for (ThreadInfo info : THREAD_BEAN.getThreadInfo(ids)) {
       if (info == null) {
         continue; // thread terminated between getAllThreadIds and getThreadInfo
       }
-      Map<Thread.State, long[]> bucket = threadInfoIsDaemon(info) ? daemonCounts : nonDaemonCounts;
-      bucket.computeIfAbsent(info.getThreadState(), k -> new long[1])[0]++;
+      long[] bucket = threadInfoIsDaemon(info) ? daemonCounts : nonDaemonCounts;
+      bucket[info.getThreadState().ordinal()]++;
     }
     recordThreadStateCounts(storage, daemonCounts, DAEMON_THREAD_STATE_ATTRS);
     recordThreadStateCounts(storage, nonDaemonCounts, NON_DAEMON_THREAD_STATE_ATTRS);
@@ -338,11 +344,11 @@ public final class JvmOtlpRuntimeMetrics {
    * native images.
    */
   private static void collectThreadCountsViaThreadGroup(OtelMetricStorage storage) {
-    Map<Thread.State, long[]> daemonCounts = new EnumMap<>(Thread.State.class);
-    Map<Thread.State, long[]> nonDaemonCounts = new EnumMap<>(Thread.State.class);
+    long[] daemonCounts = new long[THREAD_STATE_COUNT];
+    long[] nonDaemonCounts = new long[THREAD_STATE_COUNT];
     for (Thread thread : enumerateAllThreads()) {
-      Map<Thread.State, long[]> bucket = thread.isDaemon() ? daemonCounts : nonDaemonCounts;
-      bucket.computeIfAbsent(thread.getState(), k -> new long[1])[0]++;
+      long[] bucket = thread.isDaemon() ? daemonCounts : nonDaemonCounts;
+      bucket[thread.getState().ordinal()]++;
     }
     recordThreadStateCounts(storage, daemonCounts, DAEMON_THREAD_STATE_ATTRS);
     recordThreadStateCounts(storage, nonDaemonCounts, NON_DAEMON_THREAD_STATE_ATTRS);
@@ -379,10 +385,15 @@ public final class JvmOtlpRuntimeMetrics {
     return trimmed;
   }
 
+  /**
+   * Records every live thread state, with 0 for empty states: the metric storage keeps exporting
+   * the last value of a series that a callback stops recording, so skipping an empty state would
+   * leave its last count exported.
+   */
   private static void recordThreadStateCounts(
-      OtelMetricStorage storage, Map<Thread.State, long[]> counts, Attributes[] attrsByState) {
-    for (Map.Entry<Thread.State, long[]> entry : counts.entrySet()) {
-      storage.recordLong(entry.getValue()[0], attrsByState[entry.getKey().ordinal()]);
+      OtelMetricStorage storage, long[] countsByState, Attributes[] attrsByState) {
+    for (Thread.State state : LIVE_THREAD_STATES) {
+      storage.recordLong(countsByState[state.ordinal()], attrsByState[state.ordinal()]);
     }
   }
 
