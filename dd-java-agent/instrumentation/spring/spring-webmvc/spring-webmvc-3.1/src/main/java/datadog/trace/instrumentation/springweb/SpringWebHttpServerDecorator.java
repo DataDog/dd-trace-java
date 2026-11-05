@@ -37,11 +37,10 @@ public class SpringWebHttpServerDecorator
   public static final String DD_HANDLER_SPAN_CONTINUE_SUFFIX = ".continue";
 
   private static final ClassValue<Pair<String, String>> HANDLER_SPAN_KEYS =
-      GenericClassValue.of(
-          type -> {
-            String spanKey = DD_HANDLER_SPAN_PREFIX_KEY + type.getName();
-            return of(spanKey, spanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX);
-          });
+      GenericClassValue.of(type -> {
+        String spanKey = DD_HANDLER_SPAN_PREFIX_KEY + type.getName();
+        return of(spanKey, spanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX);
+      });
 
   /** Returns the span attribute key on the left and the continuation attribute key on the right. */
   public static Pair<String, String> handlerSpanKeys(Class<?> handlerClass) {

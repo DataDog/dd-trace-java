@@ -56,12 +56,11 @@ class OtlpWriterTest {
     // Exercises the default-path sender construction (real OtlpHttpSender) without
     // actually sending anything — start/close only. Guards against a default config
     // that would otherwise fail at construction time.
-    assertDoesNotThrow(
-        () -> {
-          OtlpWriter writer = OtlpWriter.builder().build();
-          writer.start();
-          writer.close();
-        });
+    assertDoesNotThrow(() -> {
+      OtlpWriter writer = OtlpWriter.builder().build();
+      writer.start();
+      writer.close();
+    });
   }
 
   @Test

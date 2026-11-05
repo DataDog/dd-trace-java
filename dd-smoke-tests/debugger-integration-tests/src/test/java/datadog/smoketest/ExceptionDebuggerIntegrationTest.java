@@ -56,10 +56,9 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // collecting snapshots and sending them
     registerTraceListener(this::receiveExceptionReplayTrace);
     registerSnapshotListener(this::receiveSnapshot);
-    registerIntakeRequestListener(
-        intakeRequest -> {
-          assertEquals("snapshot", intakeRequest.getType());
-        });
+    registerIntakeRequestListener(intakeRequest -> {
+      assertEquals("snapshot", intakeRequest.getType());
+    });
     processRequests(
         () -> {
           if (snapshotIdTags.isEmpty()) {
@@ -90,16 +89,15 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     resetSnapshotsAndTraces();
     // we should not receive any more snapshots after the first one
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // no snapshot should be sent
-    registerTraceListener(
-        decodedTrace -> {
-          for (DecodedSpan span : decodedTrace.getSpans()) {
-            if (isTracedFullMethodSpan(span)) {
-              assertFalse(span.getMeta().containsKey("error.debug_info_captured"));
-              assertFalse(span.getMeta().containsKey("_dd.debug.error.0.snapshot_id"));
-              traceReceived = true;
-            }
-          }
-        });
+    registerTraceListener(decodedTrace -> {
+      for (DecodedSpan span : decodedTrace.getSpans()) {
+        if (isTracedFullMethodSpan(span)) {
+          assertFalse(span.getMeta().containsKey("error.debug_info_captured"));
+          assertFalse(span.getMeta().containsKey("_dd.debug.error.0.snapshot_id"));
+          traceReceived = true;
+        }
+      }
+    });
     processRequests(() -> traceReceived && !snapshotReceived, timeoutMessage);
   }
 

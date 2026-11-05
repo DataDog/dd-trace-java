@@ -199,12 +199,11 @@ public class DDEvaluatorTest {
     final AutoCloseable subscription = mock(AutoCloseable.class);
     final AgentBridge bridge = mock(AgentBridge.class);
     when(bridge.remoteConfiguration())
-        .thenReturn(
-            listener -> {
-              configurationListener.set(listener);
-              subscribed.countDown();
-              return subscription;
-            });
+        .thenReturn(listener -> {
+          configurationListener.set(listener);
+          subscribed.countDown();
+          return subscription;
+        });
     final Settings settings =
         TestSettings.of("feature.flags.configuration.source", "remote_config");
     final DDEvaluator evaluator = new DDEvaluator(() -> {}, bridge, settings);

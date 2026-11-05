@@ -211,18 +211,16 @@ class AppSecRequestContextWafContextRaceTest {
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
         Future<?> closer =
-            pool.submit(
-                () -> {
-                  barrier.await();
-                  ctx.closeWafContext();
-                  return null;
-                });
+            pool.submit(() -> {
+              barrier.await();
+              ctx.closeWafContext();
+              return null;
+            });
         Future<WafContext> creator =
-            pool.submit(
-                () -> {
-                  barrier.await();
-                  return ctx.getOrCreateWafContext(wafHandle, false, false);
-                });
+            pool.submit(() -> {
+              barrier.await();
+              return ctx.getOrCreateWafContext(wafHandle, false, false);
+            });
 
         closer.get();
         WafContext late = creator.get();

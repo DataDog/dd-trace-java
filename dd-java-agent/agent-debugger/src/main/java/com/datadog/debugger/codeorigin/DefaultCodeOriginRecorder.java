@@ -134,12 +134,11 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   private StackTraceElement findPlaceInStack() {
-    return StackWalkerFactory.INSTANCE.walk(
-        stream ->
-            stream
-                .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
-                .findFirst()
-                .orElse(null));
+    return StackWalkerFactory.INSTANCE.walk(stream ->
+        stream
+            .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
+            .findFirst()
+            .orElse(null));
   }
 
   public void installProbes() {
