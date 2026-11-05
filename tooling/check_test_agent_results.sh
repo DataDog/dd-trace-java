@@ -8,7 +8,7 @@ if [[ "${CI_USE_TEST_AGENT:-}" != "true" ]]; then
 fi
 
 # Inspect HTTP status codes explicitly so failures retain their response bodies.
-curl_args=(-sS --retry 5 --retry-delay 2 --retry-connrefused -w "%{http_code}")
+curl_args=(-sS --max-time 30 --retry 5 --retry-delay 2 --retry-connrefused -w "%{http_code}")
 if ! SUMMARY_RESPONSE_CODE=$(curl "${curl_args[@]}" -o summary_response.txt "http://${CI_AGENT_HOST}:8126/test/trace_check/summary?return_all=true"); then
   echo "Could not read the APM Test Agent trace check summary."
   exit 1
