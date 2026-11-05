@@ -119,6 +119,37 @@ class LambdaNativeClientTest extends DDCoreJavaSpecification {
     }
   }
 
+  @TableTest({
+    "ack                                      | ownership | record",
+    "'{\"version\":1,\"dsm_consumed\":false}' | true      | true  ",
+    "'{\"version\":1,\"dsm_consumed\":true}'  | true      | false ",
+    "'{}'                                     | false     | false ",
+    "'{\"version\":2,\"dsm_consumed\":false}' | false     | false "
+  })
+  void dsmOwnershipRequiresAVersionedAcknowledgment(String ack, boolean ownership, boolean record) {
+    try (JavaTestHttpServer server =
+        JavaTestHttpServer.httpServer(
+            s ->
+                s.handlers(
+                    h -> {
+                      h.get(
+                          LambdaNativeClient.PATH,
+                          api ->
+                              api.getResponse()
+                                  .status(200)
+                                  .send("{\"version\":1,\"native_invocation\":true}"));
+                      h.post(
+                          LambdaNativeClient.PATH, api -> api.getResponse().status(200).send(ack));
+                    }))) {
+      LambdaNativeClient client =
+          new LambdaNativeClient(server.getAddress().toString(), new OkHttpClient());
+      LambdaNativeClient.Invocation invocation = client.begin(span(), 0, "request");
+      assertTrue(invocation.isAccepted());
+      assertEquals(ownership, invocation.hasDsmOwnership());
+      assertEquals(record, invocation.shouldRecordDsm());
+    }
+  }
+
   private static Map<?, ?> body(JavaTestHttpServer server) throws Exception {
     return (Map<?, ?>)
         new Moshi.Builder()

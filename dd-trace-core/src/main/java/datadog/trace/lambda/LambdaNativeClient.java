@@ -1,5 +1,6 @@
 package datadog.trace.lambda;
 
+import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.squareup.moshi.JsonAdapter;
@@ -85,33 +86,63 @@ public final class LambdaNativeClient {
     identity.put("service", span.getServiceName());
     identity.put("resource", span.getResourceName().toString());
     identity.put("sampling_priority", span.forceSamplingDecision());
-    return new Invocation(identity, supported() && send(identity));
+    Map<?, ?> acknowledgment = supported() ? send(identity) : null;
+    Boolean consumed =
+        acknowledgment != null
+                && Double.valueOf(1).equals(acknowledgment.get("version"))
+                && acknowledgment.get("dsm_consumed") instanceof Boolean
+            ? (Boolean) acknowledgment.get("dsm_consumed")
+            : null;
+    return new Invocation(identity, acknowledgment != null, consumed);
   }
 
-  private boolean send(Map<String, Object> metadata) {
+  private Map<?, ?> send(Map<String, Object> metadata) {
     try (Response response =
         client
             .newCall(request().post(RequestBody.create(JSON, ADAPTER.toJson(metadata))).build())
             .execute()) {
-      return response.isSuccessful();
+      if (!response.isSuccessful()) {
+        return null;
+      }
+      if (response.body() != null) {
+        try {
+          Object acknowledgment = ADAPTER.fromJson(response.body().source());
+          if (acknowledgment instanceof Map) {
+            return (Map<?, ?>) acknowledgment;
+          }
+        } catch (IOException | RuntimeException ignored) {
+          // Identity can be accepted by an extension without DSM ownership support.
+        }
+      }
+      return emptyMap();
     } catch (IOException | RuntimeException failure) {
       log.debug("Native Lambda identity delivery failed", failure);
-      return false;
+      return null;
     }
   }
 
   public final class Invocation {
     private final Map<String, Object> identity;
     private final boolean accepted;
+    private final Boolean dsmConsumed;
     private boolean completed;
 
-    private Invocation(Map<String, Object> identity, boolean accepted) {
+    private Invocation(Map<String, Object> identity, boolean accepted, Boolean dsmConsumed) {
       this.identity = identity;
       this.accepted = accepted;
+      this.dsmConsumed = dsmConsumed;
     }
 
     public boolean isAccepted() {
       return accepted;
+    }
+
+    public boolean hasDsmOwnership() {
+      return accepted && dsmConsumed != null;
+    }
+
+    public boolean shouldRecordDsm() {
+      return accepted && Boolean.FALSE.equals(dsmConsumed);
     }
 
     public synchronized void complete(AgentSpan span) {
