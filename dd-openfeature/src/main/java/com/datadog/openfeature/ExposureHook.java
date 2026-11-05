@@ -12,7 +12,13 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -26,7 +32,8 @@ import org.slf4j.LoggerFactory;
  * OpenFeature hook can read it (see "Flag metadata" in the README). This class reads it for you.
  *
  * <p>Register it with {@code OpenFeatureAPI.getInstance().addHooks(new ExposureHook(callback))} or
- * on a client. The callback runs for every evaluation, including errors and repeats. Use {@link
+ * on a client. The callback runs for every evaluation, including errors and repeats. A successful
+ * dependent-flag evaluation also invokes it for each selected prerequisite exposure. Use {@link
  * Evaluation#shouldSend()} to keep the new or changed exposures.
  *
  * <p>When the provider's own hooks run and {@code
@@ -44,6 +51,7 @@ import org.slf4j.LoggerFactory;
 public final class ExposureHook implements Hook<Object> {
 
   private static final Logger log = LoggerFactory.getLogger(ExposureHook.class);
+  private static final ThreadLocal<List<ExposureHook>> ACTIVE_HOOKS = new ThreadLocal<>();
 
   private final Consumer<Evaluation> callback;
   private final AtomicBoolean warned = new AtomicBoolean();
@@ -59,15 +67,71 @@ public final class ExposureHook implements Hook<Object> {
   }
 
   @Override
+  public Optional<EvaluationContext> before(
+      final HookContext<Object> context, final Map<String, Object> hints) {
+    List<ExposureHook> hooks = ACTIVE_HOOKS.get();
+    if (hooks == null) {
+      hooks = new ArrayList<>();
+      ACTIVE_HOOKS.set(hooks);
+    }
+    hooks.add(this);
+    return Optional.empty();
+  }
+
+  @Override
   public void finallyAfter(
       final HookContext<Object> context,
       final FlagEvaluationDetails<Object> details,
       final Map<String, Object> hints) {
-    if (details == null) {
+    try {
+      if (details != null) {
+        publish(new Evaluation(context.getCtx(), details));
+      }
+    } finally {
+      unregister();
+    }
+  }
+
+  static void publishDependencies(
+      final HookContext<?> context, final List<FlagEvaluationDetails<Object>> details) {
+    if (context == null || details == null || details.isEmpty()) {
       return;
     }
+    final List<ExposureHook> registered = ACTIVE_HOOKS.get();
+    if (registered == null || registered.isEmpty()) {
+      return;
+    }
+    final Set<ExposureHook> published =
+        Collections.newSetFromMap(new IdentityHashMap<ExposureHook, Boolean>());
+    for (final ExposureHook exposureHook : registered) {
+      if (!published.add(exposureHook)) {
+        continue;
+      }
+      for (final FlagEvaluationDetails<Object> dependency : details) {
+        exposureHook.publish(new Evaluation(context.getCtx(), dependency));
+      }
+    }
+  }
+
+  private void unregister() {
+    final List<ExposureHook> hooks = ACTIVE_HOOKS.get();
+    if (hooks == null) {
+      return;
+    }
+    for (int i = hooks.size() - 1; i >= 0; i--) {
+      if (hooks.get(i) == this) {
+        hooks.remove(i);
+        break;
+      }
+    }
+    if (hooks.isEmpty()) {
+      ACTIVE_HOOKS.remove();
+    }
+  }
+
+  private void publish(final Evaluation evaluation) {
     try {
-      this.callback.accept(new Evaluation(context.getCtx(), details));
+      this.callback.accept(evaluation);
     } catch (final LinkageError | RuntimeException e) {
       if (this.warned.compareAndSet(false, true)) {
         log.warn("Exposure callback failed; later failures are logged at debug level", e);

@@ -163,7 +163,14 @@ public final class FlagEvaluator {
       result = evaluateFlag(state, target, key, defaultValue);
       commitExposures = result.getErrorCode() == null;
     } catch (final DependencyGraphException e) {
-      result = error(defaultValue, e.errorCode, e.getMessage(), observeFullEvaluationData);
+      result =
+          error(
+              defaultValue,
+              e.configurationError ? e.errorCode : ErrorCode.GENERAL,
+              e.dependencyKey == null
+                  ? e.getMessage()
+                  : "prerequisite flag " + e.dependencyKey + ": " + e.getMessage(),
+              observeFullEvaluationData);
       commitExposures = false;
     } catch (final PatternSyntaxException e) {
       result =
@@ -296,7 +303,10 @@ public final class FlagEvaluator {
       }
     }
     throw new DependencyGraphException(
-        ErrorCode.PARSE_ERROR, "maxDependencyDepth must be an integer from 0 through 255");
+        ErrorCode.PARSE_ERROR,
+        "maxDependencyDepth must be an integer from 0 through 255",
+        null,
+        true);
   }
 
   private static ImmutableMetadata consentMetadata(final boolean observeFullEvaluationData) {
@@ -830,7 +840,7 @@ public final class FlagEvaluator {
         try {
           maxDependencyDepth = FlagEvaluator.maxDependencyDepth(state.config);
         } catch (final DependencyGraphException e) {
-          throw emitFailure(flagKey, e.errorCode, e.getMessage());
+          throw emitFailure(flagKey, e.errorCode, e.getMessage(), e.configurationError);
         }
       }
       final int depth = frames.isEmpty() ? 1 : frames.get(frames.size() - 1).depth + 1;
@@ -875,7 +885,9 @@ public final class FlagEvaluator {
             missing.getErrorCode(),
             missing.getErrorCode() == ErrorCode.FLAG_NOT_FOUND
                 ? "prerequisite flag is missing"
-                : "invalid prerequisite flag configuration");
+                : "invalid prerequisite flag configuration",
+            flagKey,
+            false);
       }
 
       active.add(flagKey);
@@ -907,7 +919,7 @@ public final class FlagEvaluator {
         final ProviderEvaluation<Object> failure =
             error(null, e.errorCode, e.getMessage(), state.observeFullEvaluationData);
         emitEvaluation(flagKey, failure);
-        throw e;
+        throw e.dependencyKey == null ? e.withDependencyKey(flagKey) : e;
       } catch (final PatternSyntaxException e) {
         throw emitFailure(flagKey, ErrorCode.PARSE_ERROR, e.getMessage());
       } catch (final NumberFormatException e) {
@@ -922,8 +934,17 @@ public final class FlagEvaluator {
 
     private DependencyGraphException emitFailure(
         final String flagKey, final ErrorCode errorCode, final String message) {
+      return emitFailure(flagKey, errorCode, message, false);
+    }
+
+    private DependencyGraphException emitFailure(
+        final String flagKey,
+        final ErrorCode errorCode,
+        final String message,
+        final boolean configurationError) {
       final DependencyGraphException failure =
-          new DependencyGraphException(errorCode, message == null ? errorCode.name() : message);
+          new DependencyGraphException(
+              errorCode, message == null ? errorCode.name() : message, flagKey, configurationError);
       emitEvaluation(
           flagKey, error(null, errorCode, failure.getMessage(), state.observeFullEvaluationData));
       return failure;
@@ -1071,21 +1092,42 @@ public final class FlagEvaluator {
 
   private static final class DependencyGraphException extends RuntimeException {
     private final ErrorCode errorCode;
+    private final String dependencyKey;
+    private final boolean configurationError;
 
     private DependencyGraphException(final ErrorCode errorCode, final String message) {
+      this(errorCode, message, null, false);
+    }
+
+    private DependencyGraphException(
+        final ErrorCode errorCode,
+        final String message,
+        final String dependencyKey,
+        final boolean configurationError) {
       super(message);
       this.errorCode = errorCode;
+      this.dependencyKey = dependencyKey;
+      this.configurationError = configurationError;
+    }
+
+    private DependencyGraphException withDependencyKey(final String dependencyKey) {
+      return new DependencyGraphException(
+          this.errorCode, getMessage(), dependencyKey, this.configurationError);
     }
   }
 
   public static final class DependencyExposure {
     public final String flagKey;
+    public final Object value;
     public final String variant;
+    public final String reason;
     public final ImmutableMetadata metadata;
 
     private DependencyExposure(final String flagKey, final ProviderEvaluation<?> details) {
       this.flagKey = flagKey;
+      this.value = details.getValue();
       this.variant = details.getVariant();
+      this.reason = details.getReason();
       this.metadata = details.getFlagMetadata();
     }
   }

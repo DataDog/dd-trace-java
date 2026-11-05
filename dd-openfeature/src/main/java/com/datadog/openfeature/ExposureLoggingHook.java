@@ -90,7 +90,9 @@ class ExposureLoggingHook<T> implements Hook<T> {
       final EvaluationContext context = ctx == null ? null : ctx.getCtx();
       if (evaluator != null) {
         try {
-          evaluator.recordDependencyExposures(dependencyExposures, context);
+          final List<FlagEvaluationDetails<Object>> dependencyDetails =
+              evaluator.recordDependencyExposures(dependencyExposures, context);
+          ExposureHook.publishDependencies(ctx, dependencyDetails);
         } catch (final RuntimeException | LinkageError e) {
           // Dependency exposure delivery is best-effort and must not suppress the root exposure.
           warnOnce(e);

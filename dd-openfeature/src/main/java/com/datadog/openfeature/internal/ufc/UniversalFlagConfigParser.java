@@ -162,10 +162,10 @@ public final class UniversalFlagConfigParser {
 
   @Nullable
   private static EvaluatorParams toEvaluatorParams(@Nullable final Object value) {
-    if (value == null) {
+    if (!(value instanceof Map)) {
       return null;
     }
-    final Map<?, ?> json = asObject(value, "evaluatorParams");
+    final Map<?, ?> json = (Map<?, ?>) value;
     return new EvaluatorParams(
         json.get("maxDependencyDepth"), json.containsKey("maxDependencyDepth"));
   }
@@ -297,8 +297,8 @@ public final class UniversalFlagConfigParser {
 
   private static String toFlagEvaluationKey(@Nullable final Object value) {
     final Map<?, ?> json = asObject(value, "flagEvaluation");
-    if (json.size() != 1 || !json.containsKey("key")) {
-      throw new IllegalArgumentException("flagEvaluation must contain only key");
+    if (!json.containsKey("key")) {
+      throw new IllegalArgumentException("flagEvaluation must contain key");
     }
     final String key = asString(json.get("key"), "flagEvaluation.key");
     if (key == null || key.isEmpty()) {

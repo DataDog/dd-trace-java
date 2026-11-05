@@ -25,6 +25,7 @@ import com.datadog.openfeature.internal.ufc.Rule;
 import com.datadog.openfeature.internal.ufc.ServerConfiguration;
 import com.datadog.openfeature.internal.ufc.ValueType;
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.ImmutableStructure;
 import dev.openfeature.sdk.ProviderEvaluation;
@@ -526,15 +527,16 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
     }
   }
 
-  void recordDependencyExposures(
+  List<FlagEvaluationDetails<Object>> recordDependencyExposures(
       final List<FlagEvaluator.DependencyExposure> exposures, final EvaluationContext context) {
     final ExposureDeduplicationCache cache = exposureCache();
     if (cache == null || context == null) {
-      return;
+      return Collections.emptyList();
     }
     final String targetingKey = context.getTargetingKey();
     final boolean exposureDeliveryEnabled = isExposureDeliveryEnabled();
     Map<String, Object> contextAttributes = null;
+    List<FlagEvaluationDetails<Object>> details = null;
     for (final FlagEvaluator.DependencyExposure exposure : exposures) {
       final ImmutableMetadata metadata = exposure.metadata;
       final Map<String, Object> values =
@@ -549,6 +551,17 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       if (allocationKey == null || variantKey == null) {
         continue;
       }
+      if (details == null) {
+        details = new ArrayList<>();
+      }
+      details.add(
+          FlagEvaluationDetails.<Object>builder()
+              .flagKey(exposure.flagKey)
+              .value(exposure.value)
+              .variant(variantKey)
+              .reason(exposure.reason)
+              .flagMetadata(metadata)
+              .build());
       final Object serialValue = values.get(SPLIT_SERIAL_ID);
       final Integer serialId = serialValue instanceof Integer ? (Integer) serialValue : null;
       if (cache.recordIfChanged(exposure.flagKey, targetingKey, allocationKey, variantKey, serialId)
@@ -567,6 +580,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
                 SplitFeatureMetadata.featuresWithPrefix(metadata, EXPOSURE_FEATURE_PREFIX)));
       }
     }
+    return details == null ? Collections.emptyList() : Collections.unmodifiableList(details);
   }
 
   static final class DependencyEvaluationTrace {

@@ -107,7 +107,7 @@ class DependentFlagEvaluatorTest {
     final FlagEvaluator.EvaluationResult<String> evaluation =
         evaluator.evaluateWithTrace(config(flags, null), String.class, "root", "default", context);
 
-    assertEquals(ErrorCode.PARSE_ERROR, evaluation.details.getErrorCode());
+    assertEquals(ErrorCode.GENERAL, evaluation.details.getErrorCode());
     assertEquals(singletonList("dependency:PARSE_ERROR"), evaluations(evaluation));
     assertTrue(evaluation.dependencyExposures.isEmpty());
   }
@@ -433,21 +433,23 @@ class DependentFlagEvaluatorTest {
     final FlagEvaluator.EvaluationResult<String> missingEvaluation =
         evaluator()
             .evaluateWithTrace(
-                config(missingFlags, null),
+                config(missingFlags, null, true),
                 String.class,
                 "root",
                 "default",
                 new MutableContext("u"));
-    assertEquals(ErrorCode.FLAG_NOT_FOUND, missingEvaluation.details.getErrorCode());
+    assertEquals(ErrorCode.GENERAL, missingEvaluation.details.getErrorCode());
+    assertTrue(missingEvaluation.details.getErrorMessage().contains("missing"));
     assertEquals(singletonList("missing:FLAG_NOT_FOUND"), evaluations(missingEvaluation));
 
-    final ServerConfiguration invalidConfig = config(missingFlags, null);
+    final ServerConfiguration invalidConfig = config(missingFlags, null, true);
     invalidConfig.invalidFlags = singletonMap("missing", "invalid_flag");
     final FlagEvaluator.EvaluationResult<String> invalidEvaluation =
         evaluator()
             .evaluateWithTrace(
                 invalidConfig, String.class, "root", "default", new MutableContext("u"));
-    assertEquals(ErrorCode.PARSE_ERROR, invalidEvaluation.details.getErrorCode());
+    assertEquals(ErrorCode.GENERAL, invalidEvaluation.details.getErrorCode());
+    assertTrue(invalidEvaluation.details.getErrorMessage().contains("missing"));
     assertEquals(singletonList("missing:PARSE_ERROR"), evaluations(invalidEvaluation));
   }
 
@@ -509,7 +511,14 @@ class DependentFlagEvaluatorTest {
 
   private static ServerConfiguration config(
       final Map<String, Flag> flags, final EvaluatorParams params) {
-    return new ServerConfiguration("", "", false, null, flags, params);
+    return config(flags, params, false);
+  }
+
+  private static ServerConfiguration config(
+      final Map<String, Flag> flags,
+      final EvaluatorParams params,
+      final boolean observeFullEvaluationData) {
+    return new ServerConfiguration("", "", observeFullEvaluationData, null, flags, params);
   }
 
   private static Flag stringFlag(

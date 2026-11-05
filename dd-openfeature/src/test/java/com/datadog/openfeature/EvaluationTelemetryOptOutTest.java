@@ -526,6 +526,56 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(1, optedOut.getValue());
     assertTelemetryCounts(0);
     assertEquals(2, this.exposures.size(), "dependency and root exposures remain independent");
+    assertEquals(2, this.customerEvaluations.size());
+    assertTrue(
+        this.customerEvaluations.stream()
+            .anyMatch(evaluation -> "dependency".equals(evaluation.getDetails().getFlagKey())));
+    assertTrue(
+        this.customerEvaluations.stream()
+            .anyMatch(evaluation -> "root".equals(evaluation.getDetails().getFlagKey())));
+    assertTrue(this.customerEvaluations.stream().allMatch(ExposureHook.Evaluation::shouldSend));
+  }
+
+  @Test
+  void nestedDependentRootsPublishEachCustomerExposureOnce() throws Exception {
+    start(
+        new Provider.Options().enableEvaluationTelemetryOptOutParameter(false),
+        dependentConfiguration());
+    this.api.addHooks(
+        new Hook<Object>() {
+          @Override
+          public void after(
+              final HookContext<Object> context,
+              final FlagEvaluationDetails<Object> details,
+              final Map<String, Object> hints) {
+            if ("outer".equals(context.getCtx().getTargetingKey())) {
+              assertEquals(
+                  1,
+                  EvaluationTelemetryOptOutTest.this
+                      .client
+                      .getIntegerDetails(
+                          "root",
+                          0,
+                          EvaluationTelemetryOptOutTest.context("inner", new Value(false)))
+                      .getValue());
+            }
+          }
+        });
+
+    assertEquals(
+        1, this.client.getIntegerDetails("root", 0, context("outer", new Value(false))).getValue());
+
+    assertEquals(4, this.customerEvaluations.size());
+    assertEquals(
+        2,
+        this.customerEvaluations.stream()
+            .filter(evaluation -> "dependency".equals(evaluation.getDetails().getFlagKey()))
+            .count());
+    assertEquals(
+        2,
+        this.customerEvaluations.stream()
+            .filter(evaluation -> "root".equals(evaluation.getDetails().getFlagKey()))
+            .count());
   }
 
   @Test
@@ -727,6 +777,7 @@ class EvaluationTelemetryOptOutTest {
     assertEquals(4, this.events.size(), "dependency and root for each evaluation");
     assertEquals(4, this.metrics.get());
     assertEquals(4, this.exposures.size());
+    assertEquals(4, this.customerEvaluations.size());
   }
 
   @Test

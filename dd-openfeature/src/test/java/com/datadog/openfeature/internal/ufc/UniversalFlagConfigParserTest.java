@@ -46,6 +46,43 @@ class UniversalFlagConfigParserTest {
     assertEquals(ConditionOperator.ONE_OF, condition.operator);
   }
 
+  @Test
+  void ignoresUnknownFlagEvaluationFields() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"root\":{\"key\":\"root\",\"allocations\":[{\"key\":\"a\","
+                + "\"rules\":[{\"conditions\":[{\"operator\":\"ONE_OF\","
+                + "\"flagEvaluation\":{\"key\":\"dependency\",\"property\":\"variant\"},"
+                + "\"value\":[\"on\"]}]}],\"splits\":[]}]}}}");
+
+    assertEquals(
+        "dependency",
+        config
+            .flags
+            .get("root")
+            .allocations
+            .get(0)
+            .rules
+            .get(0)
+            .conditions
+            .get(0)
+            .flagEvaluationKey);
+  }
+
+  @TableTest({
+    "evaluator params",
+    "'0'             ",
+    "'true'          ",
+    "'\"future\"'    ",
+    "'[]'            "
+  })
+  void ignoresNonObjectEvaluatorParams(final String evaluatorParams) throws Exception {
+    final ServerConfiguration config =
+        deserialize("{\"evaluatorParams\":" + evaluatorParams + ",\"flags\":{}}");
+
+    assertNull(config.evaluatorParams);
+  }
+
   @TableTest({
     "operator   | values        ",
     "ONE_OF     | '[true, 1]'   ",

@@ -638,7 +638,7 @@ class ExposureLoggingHookTest {
     final ExposureTestEvaluator failingDependencies =
         new ExposureTestEvaluator(configuration("on", Boolean.TRUE), true) {
           @Override
-          void recordDependencyExposures(
+          List<FlagEvaluationDetails<Object>> recordDependencyExposures(
               final List<DependencyExposure> exposures, final EvaluationContext context) {
             throw new IllegalStateException("dependency queue failure");
           }
