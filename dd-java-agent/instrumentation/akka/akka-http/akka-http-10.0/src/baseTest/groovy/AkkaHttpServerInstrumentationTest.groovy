@@ -654,3 +654,43 @@ class AkkaHttpSingleRejectedRouteForkedTest extends WithHttpServer<AkkaHttpTestW
     span.resourceName.toString() == 'GET'
   }
 }
+
+class AkkaHttpRouteInferredProxyOtelSemanticsForkedTest extends WithHttpServer<AkkaHttpTestWebServer> implements TestingGenericHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('trace.inferred.proxy.services.enabled', 'true')
+  }
+
+  @Override
+  HttpServer server() {
+    new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandle())
+  }
+
+  def "application routes preserve the inferred gateway route"() {
+    when:
+    def response = client.newCall(new Request.Builder()
+      .url(address.resolve('/items/value').toString())
+      .header('x-dd-proxy', 'aws-apigateway')
+      .header('x-dd-proxy-request-time-ms', Long.toString(System.currentTimeMillis()))
+      .header('x-dd-proxy-httpmethod', 'GET')
+      .header('x-dd-proxy-path', '/public/items/value')
+      .header('x-dd-proxy-resource-path', '/public/{proxy+}')
+      .build()).execute()
+    assert response.code() == 200
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def spans = TEST_WRITER.flatten()
+    def gateway = spans.find { it.getTag('_dd.inferred_span') != null }
+    def server = spans.find { it.getTag('component')?.toString() == 'akka-http-server' }
+    gateway != null
+    server != null
+    server.parentId == gateway.spanId
+    gateway.getTag('http.route') == '/public/{proxy+}'
+    gateway.resourceName.toString() == 'GET /public/{proxy+}'
+    server.getTag('http.route') == '/items/{param}'
+    server.resourceName.toString() == 'GET /items/{param}'
+  }
+}

@@ -108,14 +108,10 @@ public final class AkkaHttpRouteState {
     if (template == null) {
       return;
     }
-    AgentSpan root = span.getLocalRootSpan();
-    if (root == null) {
-      root = span;
-    }
     Object method =
-        root.getTag(OTEL_SEMANTICS ? KnownTags.HTTP_METHOD_OTEL_NAME : Tags.HTTP_METHOD);
+        span.getTag(OTEL_SEMANTICS ? KnownTags.HTTP_METHOD_OTEL_NAME : Tags.HTTP_METHOD);
     HTTP_RESOURCE_DECORATOR.withRoute(
-        root, method == null ? null : method.toString(), template, true);
+        span, method == null ? null : method.toString(), template, true);
   }
 
   static final class Part {
