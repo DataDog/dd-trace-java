@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.context.Context;
 import datadog.trace.api.Config;
-import datadog.trace.api.KnownTags;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -34,20 +33,6 @@ public class PlayHttpServerDecorator
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
-
-  /**
-   * Copies the matched route to the transport span before application code can trigger sampling.
-   */
-  public void propagateRoute(AgentSpan playSpan, AgentSpan transportSpan) {
-    if (OTEL_SEMANTICS && transportSpan != null) {
-      Object route = playSpan.getTag(KnownTags.HTTP_ROUTE_NAME);
-      if (route instanceof CharSequence) {
-        Object method = playSpan.getTag(KnownTags.HTTP_METHOD_OTEL_NAME);
-        HTTP_RESOURCE_DECORATOR.withRoute(
-            transportSpan, method == null ? null : method.toString(), (CharSequence) route);
-      }
-    }
-  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -120,6 +105,13 @@ public class PlayHttpServerDecorator
       if (!pathOption.isEmpty()) {
         final String path = (String) pathOption.get();
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path);
+        if (OTEL_SEMANTICS) {
+          final AgentSpan serverSpan = getHttpServerSpan(span);
+          if (serverSpan != null && serverSpan != span) {
+            // Sampling may run inside the action, so set the server route now.
+            HTTP_RESOURCE_DECORATOR.withRoute(serverSpan, request.method(), path);
+          }
+        }
         dispatchRoute(span, path);
       }
     }

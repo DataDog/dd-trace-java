@@ -30,16 +30,14 @@ public class PlayAdvice {
       return null;
     }
 
-    final AgentSpan transportSpan = activeSpan();
-    if (transportSpan == null) {
+    if (activeSpan() == null) {
       final Headers headers = req.headers();
       final Context parentContext = DECORATE.extract(headers);
       final Context context = DECORATE.startSpan(headers, parentContext);
       span = spanFromContext(context);
       scope = context.attach();
     } else {
-      // An upstream framework (e.g. akka-http, netty) has already started the span.
-      // Do not extract the context.
+      // Keep the existing trace context instead of extracting the request headers again.
       span = startSpan(PLAY_ACTION.toString(), PLAY_REQUEST);
       span.setMeasured(true);
       scope = span.attachWithContext();
@@ -49,10 +47,7 @@ public class PlayAdvice {
 
     req = RequestHelper.withTag(req, "_dd_HasPlayRequestSpan", "true");
 
-    // Moved from OnMethodExit
-    // Call onRequest on return after tags are populated.
     DECORATE.onRequest(span, req, req, rootContext());
-    DECORATE.propagateRoute(span, transportSpan);
 
     return scope;
   }
@@ -86,10 +81,9 @@ public class PlayAdvice {
     playControllerScope.close();
     // span finished in RequestCompleteCallback
 
-    final AgentSpan rootSpan = activeSpan();
-    // set the resource name on the upstream akka/netty span if there is one
-    if (rootSpan != null) {
-      DECORATE.onRequest(rootSpan, req, req, rootContext());
+    final AgentSpan parentSpan = activeSpan();
+    if (parentSpan != null) {
+      DECORATE.onRequest(parentSpan, req, req, rootContext());
     }
   }
 
