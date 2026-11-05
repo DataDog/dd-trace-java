@@ -20,6 +20,7 @@ import static org.mockito.Mockito.when;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType;
+import datadog.trace.test.util.DDJavaSpecification;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -30,7 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.tabletest.junit.TableTest;
 
-class BlockingActionHelperTest {
+class BlockingActionHelperTest extends DDJavaSpecification {
 
   private static final String SECURITY_RESPONSE_ID_PLACEHOLDER = "[security_response_id]";
 

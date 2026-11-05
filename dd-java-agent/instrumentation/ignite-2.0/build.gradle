@@ -17,12 +17,6 @@ muzzle {
   }
 }
 
-testJvmConstraints {
-  // See https://ignite.apache.org/docs/latest/quick-start/java#running-ignite-with-java-11-or-later
-  // FIXME: Because of this condition, tests only run in Java 8, and latestDepTest never run, as they require Java 11+.
-  maxJavaVersion = JavaVersion.VERSION_1_8
-}
-
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 // ignite 2.16.0 latest version compatible with Java 8
@@ -48,11 +42,44 @@ for (taskName in ['compileLatestDepTestGroovy', 'compileLatestDepForkedTestGroov
   }
 }
 
-for (taskName in ['latestDepTest', 'latestDepForkedTest']) {
-  tasks.named(taskName, Test) {
+// See https://ignite.apache.org/docs/latest/quick-start/java#running-ignite-with-java-11-or-later
+final igniteJava11Opens = [
+  'java.base/jdk.internal.access',
+  'java.base/jdk.internal.misc',
+  'java.base/sun.nio.ch',
+  'java.base/sun.util.calendar',
+  'java.management/com.sun.jmx.mbeanserver',
+  'jdk.internal.jvmstat/sun.jvmstat.monitor',
+  'java.base/sun.reflect.generics.reflectiveObjects',
+  'jdk.management/com.sun.management.internal',
+  'java.base/java.io',
+  'java.base/java.nio',
+  'java.base/java.net',
+  'java.base/java.util',
+  'java.base/java.util.concurrent',
+  'java.base/java.util.concurrent.locks',
+  'java.base/java.util.concurrent.atomic',
+  'java.base/java.lang',
+  'java.base/java.lang.invoke',
+  'java.base/java.math',
+  'java.sql/java.sql',
+  'java.base/java.lang.reflect',
+  'java.base/java.time',
+  'java.base/java.text',
+  'java.management/sun.management'
+]
+
+tasks.withType(Test).configureEach {
+  if (it.name.startsWith('latestDep')) {
     testJvmConstraints {
       // ignite 2.17.0+ requires Java 11+
       minJavaVersion = JavaVersion.VERSION_11
+    }
+    jvmArgs(igniteJava11Opens.collect { "--add-opens=${it}=ALL-UNNAMED" })
+  } else {
+    testJvmConstraints {
+      // ignite 2.16.0 latest version compatible with Java 8
+      maxJavaVersion = JavaVersion.VERSION_1_8
     }
   }
 }
