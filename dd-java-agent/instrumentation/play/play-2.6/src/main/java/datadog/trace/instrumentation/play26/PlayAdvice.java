@@ -31,7 +31,8 @@ public class PlayAdvice {
       return null;
     }
 
-    if (activeSpan() == null) {
+    final AgentSpan transportSpan = activeSpan();
+    if (transportSpan == null) {
       final Headers headers = req.headers();
       parentContext = DECORATE.extract(headers);
       final Context context = DECORATE.startSpan(headers, parentContext);
@@ -53,6 +54,7 @@ public class PlayAdvice {
     // Moved from OnMethodExit
     // Call onRequest on return after tags are populated.
     DECORATE.onRequest(span, req, req, parentContext);
+    DECORATE.propagateRoute(span, transportSpan);
 
     return scope;
   }

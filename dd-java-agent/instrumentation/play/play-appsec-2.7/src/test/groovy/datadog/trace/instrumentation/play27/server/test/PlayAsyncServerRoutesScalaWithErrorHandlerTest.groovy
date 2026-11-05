@@ -12,6 +12,7 @@ import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
 import datadog.trace.instrumentation.play26.server.TestHttpErrorHandler
+import okhttp3.Request
 import play.api.BuiltInComponents
 import play.libs.concurrent.ClassLoaderExecution
 import play.routing.Router
@@ -131,4 +132,39 @@ class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends AbstractPlayServer2
 }
 
 class PlayAsyncServerRoutesOtelSemanticsForkedTest extends PlayAsyncServerRoutesScalaWithErrorHandlerTest implements TestingOtelHttpSemantics {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('trace.inferred.proxy.services.enabled', 'true')
+  }
+
+  def "application routes preserve the inferred gateway route"() {
+    when:
+    def response = client.newCall(new Request.Builder()
+      .url(address.resolve('/path/123/param').toString())
+      .header('x-dd-proxy', 'aws-apigateway')
+      .header('x-dd-proxy-request-time-ms', Long.toString(System.currentTimeMillis()))
+      .header('x-dd-proxy-httpmethod', 'GET')
+      .header('x-dd-proxy-path', '/public/path/123/param')
+      .header('x-dd-proxy-resource-path', '/public/{proxy+}')
+      .build()).execute()
+    assert response.code() == 200
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def spans = TEST_WRITER.flatten()
+    def gateway = spans.find { it.getTag('_dd.inferred_span') != null }
+    def transport = spans.find { it.getTag('component')?.toString() == 'akka-http-server' }
+    def play = spans.find { it.getTag('component')?.toString() == 'play-action' }
+    gateway != null
+    transport != null
+    play != null
+    transport.parentId == gateway.spanId
+    gateway.getTag('http.route') == '/public/{proxy+}'
+    gateway.resourceName.toString() == 'GET /public/{proxy+}'
+    transport.getTag('http.route') == '/path/$path<[^/]+>/param'
+    transport.resourceName.toString() == 'GET /path/$path<[^/]+>/param'
+    play.getTag('http.route') == '/path/$path<[^/]+>/param'
+  }
 }

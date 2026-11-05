@@ -105,13 +105,6 @@ public class PlayHttpServerDecorator
       if (!pathOption.isEmpty()) {
         final String path = (String) pathOption.get();
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path);
-        if (OTEL_SEMANTICS) {
-          final AgentSpan rootSpan = span.getLocalRootSpan();
-          if (rootSpan != null && rootSpan != span) {
-            // Set the transport span's route before application code can trigger sampling.
-            HTTP_RESOURCE_DECORATOR.withRoute(rootSpan, request.method(), path);
-          }
-        }
         dispatchRoute(span, path);
       }
     }
