@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -87,14 +86,14 @@ class TagMapReadThroughTest {
 
     TagMap overEmpty = TagMap.createFromParent(emptyFrozen);
     // an empty frozen parent contributes nothing and never will -> dropped, no read-through cost
-    assertNull(overEmpty.parent, "empty parent should be dropped");
+    assertFalse(overEmpty.knownStore.hasParent(), "empty parent should be dropped");
     assertTrue(overEmpty.isDefinitelyEmpty());
     overEmpty.set("x", "x-val"); // still a normal mutable map
     assertEquals("x-val", overEmpty.getString("x"));
 
     // a non-empty parent is still attached
     TagMap overNonEmpty = TagMap.createFromParent(frozenParent());
-    assertNotNull(overNonEmpty.parent, "non-empty parent must be attached");
+    assertTrue(overNonEmpty.knownStore.hasParent(), "non-empty parent must be attached");
     assertEquals("parent-a", overNonEmpty.getString("a"));
   }
 
