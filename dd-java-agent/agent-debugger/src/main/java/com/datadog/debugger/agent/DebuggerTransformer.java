@@ -233,21 +233,20 @@ public class DebuggerTransformer implements ClassFileTransformer {
       }
       try {
         try (Stream<String> lines = Files.lines(excludePath)) {
-          lines.forEach(
-              line -> {
-                if (line.startsWith("#")) {
-                  return;
-                }
-                if (line.endsWith("*")) {
-                  prefixes.insert(line.substring(0, line.length() - 1));
-                  return;
-                }
-                if (line.contains("::")) {
-                  methods.add(line);
-                  return;
-                }
-                classes.add(line);
-              });
+          lines.forEach(line -> {
+            if (line.startsWith("#")) {
+              return;
+            }
+            if (line.endsWith("*")) {
+              prefixes.insert(line.substring(0, line.length() - 1));
+              return;
+            }
+            if (line.contains("::")) {
+              methods.add(line);
+              return;
+            }
+            classes.add(line);
+          });
         }
       } catch (IOException ex) {
         LOGGER.warn("Error reading exclude file '{}' for Instrument-The-World: ", fileName, ex);
@@ -798,11 +797,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private InstrumentationResult applyInstrumentation(
       MethodInfo methodInfo, List<ProbeDefinition> definitions) {
     Map<ProbeId, List<DiagnosticMessage>> diagnostics = new HashMap<>();
-    definitions.forEach(
-        probeDefinition -> {
-          probeDefinition.buildLocation(methodInfo);
-          diagnostics.put(probeDefinition.getProbeId(), new ArrayList<>());
-        });
+    definitions.forEach(probeDefinition -> {
+      probeDefinition.buildLocation(methodInfo);
+      diagnostics.put(probeDefinition.getProbeId(), new ArrayList<>());
+    });
     InstrumentationResult.Status status = preCheckInstrumentation(diagnostics, methodInfo);
     if (status != InstrumentationResult.Status.ERROR) {
       try {
@@ -878,12 +876,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
     processCapturedContextMethodProbes(
         classFileLines, capturedContextProbes, probeMetadata, toInstrument);
     // ordering: metric < log < span decoration < span
-    toInstrument.sort(
-        (info1, info2) -> {
-          int idx1 = PROBE_ORDER.indexOf(info1.definition.getClass());
-          int idx2 = PROBE_ORDER.indexOf(info2.definition.getClass());
-          return Integer.compare(idx1, idx2);
-        });
+    toInstrument.sort((info1, info2) -> {
+      int idx1 = PROBE_ORDER.indexOf(info1.definition.getClass());
+      int idx2 = PROBE_ORDER.indexOf(info2.definition.getClass());
+      return Integer.compare(idx1, idx2);
+    });
     return toInstrument;
   }
 

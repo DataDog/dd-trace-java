@@ -97,16 +97,15 @@ class SessionStateTest {
           .finish();
       when(span.getStartTime()).thenReturn(startMillis);
       Thread worker =
-          new Thread(
-              () -> {
-                sessionState.setTimeInQueueSpan(0, span);
-                started.countDown();
-                try {
-                  stopped.await();
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                }
-              });
+          new Thread(() -> {
+            sessionState.setTimeInQueueSpan(0, span);
+            started.countDown();
+            try {
+              stopped.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          });
       worker.start();
       workers.add(worker);
     }

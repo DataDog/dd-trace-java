@@ -233,11 +233,10 @@ class InjectingPipeWriterTest {
     InjectingPipeWriter piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS);
     String testContent = "test content";
 
-    assertDoesNotThrow(
-        () -> {
-          piped.write(testContent.toCharArray());
-          piped.close();
-        });
+    assertDoesNotThrow(() -> {
+      piped.write(testContent.toCharArray());
+      piped.close();
+    });
     assertEquals(testContent, downstream.toString());
   }
 
@@ -282,10 +281,9 @@ class InjectingPipeWriterTest {
     InjectingPipeWriter piped =
         new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, null, null, null);
 
-    assertDoesNotThrow(
-        () -> {
-          piped.write("<html><head></head><body></body></html>".toCharArray());
-          piped.close();
-        });
+    assertDoesNotThrow(() -> {
+      piped.write("<html><head></head><body></body></html>".toCharArray());
+      piped.close();
+    });
   }
 }

@@ -521,10 +521,9 @@ class FlagEvalLoggingHookTest {
   @Test
   void writerLookupLinkageErrorIsNoOp() {
     final FlagEvalLoggingHook<Object> hook =
-        new FlagEvalLoggingHook<>(
-            () -> {
-              throw new NoSuchMethodError("old bootstrap");
-            });
+        new FlagEvalLoggingHook<>(() -> {
+          throw new NoSuchMethodError("old bootstrap");
+        });
     final FlagEvaluationDetails<Object> det =
         details("flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
 

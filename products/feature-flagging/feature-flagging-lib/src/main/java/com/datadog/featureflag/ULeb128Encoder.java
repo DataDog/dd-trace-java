@@ -85,13 +85,12 @@ final class ULeb128Encoder {
   // ThreadLocal avoids a provider lookup + allocation per call on that hot path. digest() resets
   // the instance after each hash; we also reset() defensively before use.
   private static final ThreadLocal<MessageDigest> SHA_256 =
-      ThreadLocal.withInitial(
-          () -> {
-            try {
-              return MessageDigest.getInstance("SHA-256");
-            } catch (final NoSuchAlgorithmException e) {
-              // SHA-256 is mandated by the JLS on every JVM; unreachable in practice.
-              throw new IllegalStateException("SHA-256 algorithm not available", e);
-            }
-          });
+      ThreadLocal.withInitial(() -> {
+        try {
+          return MessageDigest.getInstance("SHA-256");
+        } catch (final NoSuchAlgorithmException e) {
+          // SHA-256 is mandated by the JLS on every JVM; unreachable in practice.
+          throw new IllegalStateException("SHA-256 algorithm not available", e);
+        }
+      });
 }

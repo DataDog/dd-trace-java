@@ -244,10 +244,9 @@ class CdnConfigurationSourceTest {
     this.server.enqueue(200, CONFIG, "ETag", "\"v1\"").enqueue(200, CONFIG, "ETag", "\"v2\"");
     final CdnConfigurationSource source = source();
     final RuntimeException failure = new IllegalStateException("listener failure");
-    source.setListenerForTest(
-        configuration -> {
-          throw failure;
-        });
+    source.setListenerForTest(configuration -> {
+      throw failure;
+    });
 
     assertThrows(IllegalStateException.class, source::pollOnce);
     source.setListenerForTest(this.dispatched::add);
@@ -399,10 +398,9 @@ class CdnConfigurationSourceTest {
     final ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
     final CdnConfigurationSource source = source(this.server.uri("/ufc"), null, executor);
 
-    source.start(
-        configuration -> {
-          throw new IllegalStateException("listener failure");
-        });
+    source.start(configuration -> {
+      throw new IllegalStateException("listener failure");
+    });
 
     verify(executor)
         .scheduleWithFixedDelay(any(Runnable.class), any(Long.class), any(Long.class), any());
@@ -440,11 +438,10 @@ class CdnConfigurationSourceTest {
             });
     final boolean[] result = {true, true};
     final Thread poller =
-        new Thread(
-            () -> {
-              result[0] = source.pollOnce();
-              result[1] = Thread.currentThread().isInterrupted();
-            });
+        new Thread(() -> {
+          result[0] = source.pollOnce();
+          result[1] = Thread.currentThread().isInterrupted();
+        });
     poller.setDaemon(true);
     poller.start();
     try {
@@ -510,11 +507,10 @@ class CdnConfigurationSourceTest {
               null,
               () -> 1.0);
       final FutureTask<Boolean> initialization =
-          new FutureTask<>(
-              () -> {
-                source.start(this.dispatched::add);
-                return Thread.currentThread().isInterrupted();
-              });
+          new FutureTask<>(() -> {
+            source.start(this.dispatched::add);
+            return Thread.currentThread().isInterrupted();
+          });
       final Thread caller = new Thread(initialization, "provider-initialization");
       caller.setDaemon(true);
       caller.start();
