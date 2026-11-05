@@ -1074,8 +1074,8 @@ class ConfigTest {
 
   @TableTest({
     "scenario                                    | exporter | metricsEnabled | metricsExporter | override | expected",
-    "metrics defaults to otlp                    | otlp     | true           |                 |          | true    ",
-    "otlp traces and metrics                     | otlp     | true           | otlp            |          | true    ",
+    "metrics defaults to otlp                    | otlp     | true           |                 |          | false   ",
+    "otlp traces and metrics                     | otlp     | true           | otlp            |          | false   ",
     "metrics exporter explicitly disabled        | otlp     | true           | none            |          | false   ",
     "metrics feature flag off overrides exporter | otlp     | false          | otlp            |          | false   ",
     "no trace export, default metrics exporter   | none     | true           |                 |          | false   ",
@@ -1083,7 +1083,7 @@ class ConfigTest {
     "explicit override wins (enabled)            | none     | false          | none            | true     | true    ",
     "explicit override wins (disabled)           | otlp     | true           | otlp            | false    | false   "
   })
-  void tracesSpanMetricsTriStateDefault(
+  void tracesSpanMetricsRequireExplicitOptIn(
       String exporter,
       String metricsEnabled,
       String metricsExporter,
@@ -1101,8 +1101,6 @@ class ConfigTest {
 
     Config config = newConfig();
 
-    // Unset: emit iff OTLP trace export and OTLP metrics export are both on. An explicit
-    // dd.otel.traces.span.metrics.enabled always wins.
     assertEquals(expected, config.isOtelTracesSpanMetricsEnabled());
   }
 
@@ -1402,8 +1400,7 @@ class ConfigTest {
     assertEquals(5002, config.getOtlpTracesTimeout());
 
     assertTrue(config.isTraceOtelSemanticsEnabled());
-    // tri-state default: OTLP trace export + OTel metrics both on
-    assertTrue(config.isOtelTracesSpanMetricsEnabled());
+    assertFalse(config.isOtelTracesSpanMetricsEnabled());
   }
 
   @Test
