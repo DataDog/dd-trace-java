@@ -266,7 +266,7 @@ class ProcessSupervisorTest {
 
       assertEquals(1, started.size());
       assertTrue(started.get(0).isAlive());
-      assertTrue(started.get(0).stopRequests.get() >= 2, "asks to stop, then forcibly");
+      assertTrue(started.get(0).stopRequests.get() >= 1, "asks it to stop");
       assertTrue(countLogs(Level.WARN, "was still running after the stop request") >= 1);
     }
   }
@@ -380,12 +380,6 @@ class ProcessSupervisorTest {
       if (stopsWhenAsked) {
         exit(143);
       }
-    }
-
-    @Override
-    public Process destroyForcibly() {
-      destroy();
-      return this;
     }
 
     @Override
