@@ -44,7 +44,7 @@ public class ExternalAgentLauncher implements Closeable {
 
         traceProcessSupervisor =
             new ProcessSupervisor(
-                "trace-agent", traceProcessBuilder, healthCheck(config.getAgentNamedPipe(), true));
+                "trace-agent", traceProcessBuilder, answersOnPipe(config.getAgentNamedPipe()));
       } else {
         log.warn("Trace agent path not set. Will not start trace agent process");
       }
@@ -57,9 +57,7 @@ public class ExternalAgentLauncher implements Closeable {
 
         dogStatsDProcessSupervisor =
             new ProcessSupervisor(
-                "dogstatsd",
-                dogStatsDProcessBuilder,
-                healthCheck(config.getDogStatsDNamedPipe(), false));
+                "dogstatsd", dogStatsDProcessBuilder, pipePresent(config.getDogStatsDNamedPipe()));
       } else {
         log.warn("DogStatsD path not set. Will not start DogStatsD process");
       }
@@ -77,10 +75,16 @@ public class ExternalAgentLauncher implements Closeable {
     }
   }
 
-  /**
-   * @param checkResponse whether the agent answers requests on its pipe. DogStatsD never replies,
-   *     so for it the pipe being present is the whole check.
-   */
+  /** Healthy while the agent's pipe is present and the agent answers a request on it. */
+  private static ProcessSupervisor.HealthCheck answersOnPipe(String pipeName) {
+    return healthCheck(pipeName, true);
+  }
+
+  /** Healthy while the agent's pipe is present. DogStatsD never replies on its pipe. */
+  private static ProcessSupervisor.HealthCheck pipePresent(String pipeName) {
+    return healthCheck(pipeName, false);
+  }
+
   private static ProcessSupervisor.HealthCheck healthCheck(String pipeName, boolean checkResponse) {
     return null != pipeName && !pipeName.trim().isEmpty()
         ? new NamedPipeHealthCheck(pipeName, checkResponse)
