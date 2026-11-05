@@ -13,7 +13,7 @@ muzzle {
   }
 }
 
-// No latestDepForkedTest: at some point S3 moved the bucket name to the hostname resulting in host not found somebucket.localhost on all S3 tests
+// TODO APMLP-2196: no latestDepForkedTest until the tests handle S3 moving the bucket name to the hostname (somebucket.localhost)
 addTestSuiteForDir('latestDepTest', 'test', false)
 
 addTestSuite('dsmTest')
