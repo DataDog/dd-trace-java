@@ -1478,6 +1478,11 @@ class OtlpTraceProtoTest {
 
     // ── kind (field 6): SpanKind enum ─────────────────────────────────────────
     assertEquals(expectedKind(spec.spanKind), parsedKind, "kind mismatch [" + caseName + "]");
+    // under OTel semantics the kind field alone carries span.kind; otherwise it's also a tag
+    assertEquals(
+        !otelSemanticsEnabled && spec.spanKind != null,
+        attrKeys.contains("span.kind"),
+        "span.kind attribute mismatch [" + caseName + "]; got " + attrKeys);
 
     // ── start_time_unix_nano (field 7) ────────────────────────────────────────
     assertEquals(

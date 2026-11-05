@@ -62,6 +62,8 @@ variables:
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the ddoghq/images repo
   BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
+  # shortcut: tag republishing is not detected; use a content hash when CI builds the image.
+  ORG_GRADLE_PROJECT_ciBuilderImage: "${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}"
   TEST_COUNTS_S3_BUCKET: "dd-trace-java-ci-test-reports"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 27
@@ -459,7 +461,7 @@ populate_dep_cache:
       fi
   parallel:
     matrix:
-      - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
+      - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar :dd-openfeature:jar"
         CACHE_TYPE: "lib"
       - GRADLE_TARGET: ":baseTest"
         CACHE_TYPE: "base"
@@ -563,6 +565,7 @@ test_published_artifacts:
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - ./gradlew publishToMavenLocal $GRADLE_ARGS
+    - unset GPG_PRIVATE_KEY GPG_PASSWORD
     - cd test-published-dependencies
     - printf '\norg.gradle.console=colored\n' >> gradle.properties
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms1G -Xmx1G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
@@ -947,6 +950,11 @@ muzzle-dep-report:
         DD_POOL_TRACE_CHECK_FAILURES: "true"
         DD_DISABLE_ERROR_RESPONSES: "true"
         ENABLED_CHECKS: "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service"
+        # Without these the service inherits the runner default, which is sized for the docker daemon.
+        # Set all three together: a memory request above the memory limit is rejected.
+        KUBERNETES_SERVICE_CPU_REQUEST: "500m"
+        KUBERNETES_SERVICE_MEMORY_REQUEST: "2Gi"
+        KUBERNETES_SERVICE_MEMORY_LIMIT: "2Gi"
   script:
     - !reference [.test_job_common, script]
     - .gitlab/check_test_agent_results.sh
@@ -1359,6 +1367,7 @@ deploy_to_maven_central:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
+      - 'workspace/dd-openfeature/build/libs/*.jar'
 
 deploy_snapshot_with_ddprof_snapshot:
   extends: .gradle_build
@@ -1384,6 +1393,7 @@ deploy_snapshot_with_ddprof_snapshot:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
+      - 'workspace/dd-openfeature/build/libs/*.jar'
 
 deploy_artifacts_to_github:
   stage: publish-release-artifacts
@@ -1416,6 +1426,7 @@ deploy_artifacts_to_github:
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-openfeature/build/libs/dd-openfeature-${VERSION}.jar
   after_script:
     - dd-octo-sts revoke -t $(cat github-token.txt)
   retry:
@@ -1474,6 +1485,7 @@ verify_maven_central_deployment:
         "https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-openfeature/${VERSION}/dd-openfeature-${VERSION}.jar"
       )
       # Try once immediately (fast path on job retry), then every 5 mins for 45 mins.
       TRY=0

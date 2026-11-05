@@ -24,6 +24,13 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
   private final ConfigurationPoller configurationPoller;
   private final List<Consumer<byte[]>> subscribers = new CopyOnWriteArrayList<>();
   private volatile byte[] current;
+
+  /**
+   * Whether the current document was received before any subscriber, so the poller acknowledged it
+   * without validation. Guarded by the subscribers lock.
+   */
+  private boolean unvalidated;
+
   private boolean started;
 
   public RemoteConfigServiceImpl(final ConfigurationPoller configurationPoller) {
@@ -41,9 +48,13 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
     this.started = true;
     LOGGER.debug("Feature Flagging starting remote_config configuration source");
     this.configurationPoller.addCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
+    listen();
+    this.configurationPoller.start();
+  }
+
+  private void listen() {
     // Listen as serialized event to prevent depending on the deserializer from agent
     this.configurationPoller.addListener(FFE_FLAGS, content -> content, this);
-    this.configurationPoller.start();
   }
 
   /**
@@ -54,18 +65,46 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
    */
   public AutoCloseable subscribe(final Consumer<byte[]> subscriber) {
     start();
+    boolean requestAgain = false;
     // Keep registration and replay atomic with notification snapshots.
     synchronized (this.subscribers) {
       this.subscribers.add(subscriber);
       final byte[] document = this.current;
       if (document != null) {
-        subscriber.accept(document);
+        try {
+          subscriber.accept(document);
+        } catch (final RuntimeException e) {
+          // A rejection of a document received with subscribers is already reported.
+          requestAgain = this.unvalidated;
+          LOGGER.debug("Feature Flags configuration subscriber rejected the current document", e);
+        }
+        this.unvalidated = false;
       }
+    }
+    if (requestAgain) {
+      requestAgain();
     }
     return () -> this.subscribers.remove(subscriber);
   }
 
-  /** Unregisters the Feature Flags product and drops the subscribers. */
+  /**
+   * Makes the poller deliver the current document again, so it reports the rejection of a document
+   * acknowledged before any subscriber validated it. Registering the product again drops its cached
+   * documents. Runs outside the subscribers lock, as the poller notifies under its own lock.
+   */
+  private synchronized void requestAgain() {
+    if (!this.started) {
+      return;
+    }
+    LOGGER.debug("Requesting the rejected Feature Flags configuration again to report it");
+    this.configurationPoller.removeListeners(FFE_FLAGS);
+    listen();
+  }
+
+  /**
+   * Unregisters the Feature Flags product, releases the poller started by {@link #start()} and
+   * drops the subscribers.
+   */
   public synchronized void close() {
     if (!this.started) {
       return;
@@ -74,10 +113,20 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
     LOGGER.debug("Feature Flagging remote_config configuration source stopped");
     this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     this.configurationPoller.removeListeners(FFE_FLAGS);
+    this.configurationPoller.stop();
     this.subscribers.clear();
     this.current = null;
   }
 
+  /**
+   * Forwards a configuration document to every subscriber.
+   *
+   * @param configKey the Remote Configuration key.
+   * @param content the raw document, or {@code null} when the configuration is removed.
+   * @param pollingRateHinter the polling rate hinter.
+   * @throws RuntimeException the first subscriber failure, once every subscriber is notified, so
+   *     the poller reports the document as not applied.
+   */
   @Override
   public void accept(
       final String configKey,
@@ -86,14 +135,20 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
     final Iterator<Consumer<byte[]>> snapshot;
     synchronized (this.subscribers) {
       this.current = content;
+      this.unvalidated = content != null && this.subscribers.isEmpty();
       snapshot = this.subscribers.iterator();
     }
+    RuntimeException failure = null;
     while (snapshot.hasNext()) {
       final Consumer<byte[]> subscriber = snapshot.next();
       try {
         subscriber.accept(content);
       } catch (final RuntimeException e) {
-        LOGGER.debug("Feature Flags configuration subscriber failed", e);
+        if (failure == null) {
+          failure = e;
+        } else {
+          failure.addSuppressed(e);
+        }
       }
     }
     // Logged last: a diagnostic must not get in the way of the delivery.
@@ -104,6 +159,9 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
           "Feature Flagging remote_config configuration received: key={}, bytes={}",
           configKey,
           content.length);
+    }
+    if (failure != null) {
+      throw failure;
     }
   }
 }

@@ -89,6 +89,32 @@ class SettingsTest {
     assertFalse(settings.isSpanEnrichmentEnabled());
     assertTrue(settings.isEvaluationCountsEnabled());
     assertTrue(settings.isExposuresDatadogLoggingEnabled());
+    assertEquals("disabled", settings.experimentationOptOutMode());
+  }
+
+  @TableTest({
+    "scenario             | agent     | property    | environment | expected   ",
+    "default              |           |             |             | disabled   ",
+    "blank defaults       | ' '       | ''          | ' '         | disabled   ",
+    "blank property       |           | ' '         | immediate   | immediate  ",
+    "blank agent          | ' '       | disabled    | immediate   | disabled   ",
+    "environment enables  |           |             | immediate   | immediate  ",
+    "property wins        |           | disabled    | immediate   | disabled   ",
+    "agent wins           | immediate | disabled    | disabled    | immediate  ",
+    "invalid is preserved |           | unsupported | immediate   | unsupported"
+  })
+  void resolvesExperimentationOptOutSource(
+      final String agent, final String property, final String environment, final String expected) {
+    final String key = Settings.EXPERIMENTATION_OPT_OUT_MODE;
+    final Map<String, String> bridge = new HashMap<>();
+    final Map<String, String> properties = new HashMap<>();
+    final Map<String, String> variables = new HashMap<>();
+    putIfNotNull(bridge, key, agent);
+    putIfNotNull(properties, "dd." + key, property);
+    putIfNotNull(variables, "DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE", environment);
+    final Settings settings =
+        new Settings(new SettingAgentBridge(bridge), properties::get, variables::get);
+    assertEquals(expected, settings.experimentationOptOutMode());
   }
 
   @TableTest({

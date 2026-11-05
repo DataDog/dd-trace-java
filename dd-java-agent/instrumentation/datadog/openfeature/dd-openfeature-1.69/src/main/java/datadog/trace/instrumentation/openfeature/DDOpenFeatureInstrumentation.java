@@ -41,6 +41,7 @@ public class DDOpenFeatureInstrumentation extends InstrumenterModule
       packageName + ".AgentConfigurationSource",
       packageName + ".AgentEventProxy",
       packageName + ".AgentHealthMetrics",
+      packageName + ".AgentShutdownSource",
       packageName + ".AgentSpanEnricher",
       packageName + ".DisabledAgentBridge",
       packageName + ".JavaAgentBridge",

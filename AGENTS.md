@@ -64,6 +64,7 @@ docs/                     Developer documentation (see below)
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
 - **Test frameworks**: Always use JUnit 5 for unit tests. Only use Groovy / Spock tests for instrumentation and smoke tests.
+- **Groovy migrations**: Tests inheriting `DDSpecification` must inherit `DDJavaSpecification` after migration, directly or through their migrated base class, preserving shared setup and cleanup.
 - **Parameterized tests**: Prefer `@TableTest` for multi-column literal data, with named scenarios and aligned columns. Prefer a simple `@TypeConverter` over switching to `@MethodSource` when it can turn table values into the required arguments. Use `@MethodSource` for cases requiring complex object construction, builders, or mocks. See [the JUnit testing guide](docs/how_to_test_with_junit.md#parameterized-tests).
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
@@ -74,6 +75,7 @@ docs/                     Developer documentation (see below)
 - Description: follow the section guidance in [the PR template](.github/pull_request_template.md).
   Write for a human reviewer first: short, plain and skimmable. Explain the intent and rationale of the change,
   not its content: the diff already shows the code, so don't walk through it file by file or list the classes and methods touched.
+- Size: keep PRs small (under 1000 added lines), split larger changes into stacked PRs.
 - Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
 - Use `tag: no release notes` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable

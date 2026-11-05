@@ -1,4 +1,6 @@
+import datadog.trace.api.InstrumenterConfig
 import datadog.trace.core.DDSpan
+import datadog.trace.test.util.Flaky
 import datadog.trace.instrumentation.kotlin.coroutines.AbstractKotlinCoroutineInstrumentationTest
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +33,12 @@ class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrume
     true  | true
   }
 
+  @Flaky(
+  value = "Recurring Kotlin coroutine CI failures with the legacy context manager",
+  condition = {
+    InstrumenterConfig.get().isLegacyContextManagerEnabled()
+  }
+  )
   def "withContext keeps a root started inside its caller open after early finish"() {
     when:
     getCoreKotlinCoroutineTestsInstance(Dispatchers.Default).withContextKeepsEarlyFinishedRootOpen()

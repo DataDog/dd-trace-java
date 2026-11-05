@@ -16,7 +16,7 @@ public abstract class OtlpTraceCollector {
   private static final TagMap CONFIG_GLOBAL_TAGS =
       TagMap.fromMapImmutable(Config.get().getGlobalTags());
 
-  /** The global tags of the payload being collected; null until its first trace. */
+  /** The global tags of the resource being collected; null until the payload's first span. */
   protected TagMap payloadGlobalTags;
 
   /** Adds spans from the given trace to the collector. */
@@ -27,15 +27,6 @@ public abstract class OtlpTraceCollector {
 
   /** Returns the number of bytes buffered since the last collection. */
   public abstract int sizeInBytes();
-
-  /**
-   * Whether the given trace can join the payload being collected. A payload carries the global tags
-   * once, on its resource, so a trace with different global tags (after a remote config tag change)
-   * needs a payload of its own.
-   */
-  public final boolean sharesResource(List<? extends CoreSpan<?>> spans) {
-    return payloadGlobalTags == null || globalTagsOf(spans) == payloadGlobalTags;
-  }
 
   protected final boolean shouldExport(CoreSpan<?> span) {
     return span.samplingPriority() > 0 // trace-level sampling priority

@@ -26,10 +26,6 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
 
   @Override
   public void addTrace(List<? extends CoreSpan<?>> trace) {
-    // a payload carries one resource: start a new one when the trace's global tags differ
-    if (!collector.sharesResource(trace)) {
-      flush();
-    }
     collector.addTrace(trace);
     // flush proactively to keep payload size bounded
     if (collector.sizeInBytes() >= FLUSH_THRESHOLD_BYTES) {
