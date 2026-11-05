@@ -102,6 +102,7 @@ final class LambdaHttpEvents {
         service(mapping, apiId, url ? "lambda_url" : "lambda_api_gateway", domain),
         method + " " + (url ? path : parameterize(path)),
         micros(rc.get(rest ? "requestTimeEpoch" : "timeEpoch"), 1_000));
+    trigger.mapping(mapping, apiId, url ? "lambda_url" : "lambda_api_gateway");
     trigger.type = url ? "http" : "web";
     trigger.httpType = type;
     trigger.carrier = carrier;
@@ -151,6 +152,7 @@ final class LambdaHttpEvents {
         route,
         micros(rc.get("requestTimeEpoch"), 1_000));
     trigger.carrier = headers(event.get("headers"));
+    trigger.mapping(mapping, string(rc, "apiId"), "lambda_api_gateway");
     trigger.httpType = LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET;
     trigger.meta.put("endpoint", route);
     trigger.meta.put("resource_names", route);

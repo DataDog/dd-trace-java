@@ -31,6 +31,7 @@ final class LambdaRecordEvents {
                 service(mapping, bucket, "lambda_s3", bucket),
                 bucket,
                 timestamp(string(record, "eventTime")));
+    trigger.mapping(mapping, bucket, "lambda_s3");
     trigger.meta.put("event_name", string(record, "eventName"));
     trigger.meta.put("bucketname", bucket);
     trigger.meta.put("bucket_arn", arn);
@@ -53,6 +54,7 @@ final class LambdaRecordEvents {
                 service(mapping, table, "lambda_dynamodb", table),
                 string(record, "eventName") + " " + table,
                 micros(get(record, "dynamodb", "ApproximateCreationDateTime"), 1_000_000));
+    trigger.mapping(mapping, table, "lambda_dynamodb");
     recordTags(trigger, record, arn);
     trigger.meta.put("table_name", table);
     tag(trigger.meta, "size_bytes", get(record, "dynamodb", "SizeBytes"));
@@ -73,6 +75,7 @@ final class LambdaRecordEvents {
                 service(mapping, stream, "lambda_kinesis", stream),
                 stream,
                 micros(get(record, "kinesis", "approximateArrivalTimestamp"), 1_000_000));
+    trigger.mapping(mapping, stream, "lambda_kinesis");
     recordTags(trigger, record, arn);
     trigger.meta.put("stream_name", stream);
     trigger.meta.put("shard_id", part(string(record, "eventID"), ":", 0));

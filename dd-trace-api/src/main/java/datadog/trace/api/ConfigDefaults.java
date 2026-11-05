@@ -101,6 +101,7 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 
+  static final boolean DEFAULT_TRACE_AWS_SERVICE_REPRESENTATION_ENABLED = true;
   static final boolean DEFAULT_UNIVERSAL_INSTRUMENTATION = true;
 
   static final boolean DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED = false;

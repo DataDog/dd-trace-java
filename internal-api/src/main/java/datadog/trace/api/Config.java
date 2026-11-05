@@ -176,6 +176,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOG
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AWS_SERVICE_REPRESENTATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_TAG_KEYS;
@@ -696,6 +697,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_AWS_SERVICE_REPRESENTATION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
@@ -1366,6 +1368,7 @@ public class Config {
 
   private final boolean lambdaSnapStartClockResyncEnabled;
   private final boolean universalInstrumentationEnabled;
+  private final boolean awsServiceRepresentationEnabled;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
   private final boolean logs128bitTraceIdEnabled;
@@ -1599,6 +1602,10 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    awsServiceRepresentationEnabled =
+        configProvider.getBoolean(
+            TRACE_AWS_SERVICE_REPRESENTATION_ENABLED,
+            DEFAULT_TRACE_AWS_SERVICE_REPRESENTATION_ENABLED);
     universalInstrumentationEnabled =
         parseUniversalInstrumentation(configProvider.getString(UNIVERSAL_INSTRUMENTATION));
     lambdaSnapStartClockResyncEnabled =
@@ -5292,6 +5299,10 @@ public class Config {
   }
 
   /** Whether Lambda invocation tracing is delegated to the extension. */
+  public boolean isAwsServiceRepresentationEnabled() {
+    return awsServiceRepresentationEnabled;
+  }
+
   public boolean isUniversalInstrumentationEnabled() {
     return universalInstrumentationEnabled;
   }
@@ -6696,7 +6707,9 @@ public class Config {
   @Override
   public String toString() {
     return "Config{"
-        + "universalInstrumentationEnabled="
+        + "awsServiceRepresentationEnabled="
+        + awsServiceRepresentationEnabled
+        + ", universalInstrumentationEnabled="
         + universalInstrumentationEnabled
         + ", instrumenterConfig="
         + instrumenterConfig

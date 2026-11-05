@@ -266,6 +266,14 @@ class ConfigTest {
     assertFalse(Config.get(properties).isUniversalInstrumentationEnabled());
   }
 
+  @Test
+  void awsServiceRepresentationDefaultsOnAndCanBeDisabled() {
+    Properties properties = new Properties();
+    assertTrue(Config.get(properties).isAwsServiceRepresentationEnabled());
+    properties.setProperty("trace.aws.service.representation.enabled", "false");
+    assertFalse(Config.get(properties).isAwsServiceRepresentationEnabled());
+  }
+
   private static final String PREFIX = "dd.";
   private static final String DD_API_KEY_ENV = "DD_API_KEY";
   private static final String DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME";

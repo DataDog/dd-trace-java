@@ -150,6 +150,8 @@ public final class TracerConfig {
   public static final String TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED =
       "trace.lambda.snapstart.clock.resync.enabled";
 
+  public static final String TRACE_AWS_SERVICE_REPRESENTATION_ENABLED =
+      "trace.aws.service.representation.enabled";
   public static final String UNIVERSAL_INSTRUMENTATION = "universal.instrumentation";
 
   public static final String TRACE_SPAN_ATTRIBUTE_SCHEMA = "trace.span.attribute.schema";
