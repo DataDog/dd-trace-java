@@ -6,9 +6,9 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagStore;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
