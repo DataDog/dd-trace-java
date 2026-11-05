@@ -22,8 +22,8 @@ import org.slf4j.LoggerFactory;
  * An OpenFeature hook that hands each completed flag evaluation to a callback, with the Datadog
  * exposure decision, so an application can record exposures in its own data store.
  *
- * <p>This hook is optional. The provider puts the same data in the flag metadata, so any
- * OpenFeature hook can read it (see "Flag metadata" in the README). This class reads it for you.
+ * <p>Other hooks can read the allocation key and the features from the flag metadata (see "Flag
+ * metadata" in the README), but the exposure decision is available only from this hook.
  *
  * <p>Register it with {@code OpenFeatureAPI.getInstance().addHooks(new ExposureHook(callback))} or
  * on a client. The callback runs for every evaluation, including errors and repeats. Use {@link
@@ -103,6 +103,44 @@ public final class ExposureHook implements Hook<Object> {
      */
     public FlagEvaluationDetails<Object> getDetails() {
       return this.details;
+    }
+
+    /**
+     * Gets the evaluated flag key.
+     *
+     * @return the flag key.
+     */
+    public String getFlagKey() {
+      return this.details.getFlagKey();
+    }
+
+    /**
+     * Gets the selected variant.
+     *
+     * @return the variant key, or {@code null} when the evaluation did not select one.
+     */
+    public String getVariant() {
+      return this.details.getVariant();
+    }
+
+    /**
+     * Gets the key of the selected allocation.
+     *
+     * @return the allocation key, or {@code null} when the provider did not select one, for example
+     *     when it failed or returned the default value.
+     */
+    public String getAllocationKey() {
+      final Object allocationKey = metadata().get(ALLOCATION_KEY);
+      return allocationKey instanceof String ? (String) allocationKey : null;
+    }
+
+    /**
+     * Gets the targeting key of the evaluation context.
+     *
+     * @return the targeting key, or {@code null} when the context has none.
+     */
+    public String getTargetingKey() {
+      return this.context == null ? null : this.context.getTargetingKey();
     }
 
     /**

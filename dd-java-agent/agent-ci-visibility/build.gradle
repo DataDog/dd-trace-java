@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
+  // Git tests generate and read pack files using the image's Git executable.
+  id 'dd-trace-java.ci-builder-inputs'
   id 'com.gradleup.shadow'
   id 'org.jetbrains.kotlin.jvm'
   id 'dd-trace-java.version-file'
