@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.core.CoreTracer;
+import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -126,6 +127,7 @@ public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
       if (error != null) {
         invocation.addThrowable(error);
       } else {
+        recordResponseStatus(result);
         LambdaAppSecHandler.processResponseData(invocation, result);
       }
     } finally {
@@ -134,6 +136,22 @@ public final class LambdaInvocation implements AgentTracer.LambdaInvocation {
       } finally {
         invocation.setResourceName(functionName, ResourceNamePriorities.TAG_INTERCEPTOR);
       }
+    }
+  }
+
+  private void recordResponseStatus(Object response) {
+    Object status = LambdaEventData.payload(response).get("statusCode");
+    if (!(status instanceof Number)) {
+      return;
+    }
+    try {
+      long code = new BigDecimal(status.toString()).longValueExact();
+      invocation.setTag(Tags.HTTP_STATUS, Long.toString(code));
+      if (code >= 500 && code <= 599) {
+        invocation.setError(true);
+      }
+    } catch (NumberFormatException | ArithmeticException ignored) {
+      // Match the extension's integer statusCode contract.
     }
   }
 
