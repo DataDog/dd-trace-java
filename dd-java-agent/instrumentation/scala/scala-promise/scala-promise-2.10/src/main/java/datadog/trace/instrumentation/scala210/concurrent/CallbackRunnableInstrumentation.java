@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.scala210.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.SCALA_PROMISE_CALLBACK;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -37,6 +39,10 @@ public final class CallbackRunnableInstrumentation
   public static final class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T> void onConstruct(@Advice.This CallbackRunnable<T> task) {
+      Object callback = task.onComplete();
+      if (callback != null && exclude(SCALA_PROMISE_CALLBACK, callback)) {
+        return;
+      }
       capture(InstrumentationContext.get(CallbackRunnable.class, State.class), task);
     }
   }
@@ -58,6 +64,10 @@ public final class CallbackRunnableInstrumentation
     @Advice.OnMethodEnter
     public static <T> void beforeExecute(
         @Advice.This CallbackRunnable<T> task, @Advice.Argument(value = 0) Try<T> resolved) {
+      Object callback = task.onComplete();
+      if (callback != null && exclude(SCALA_PROMISE_CALLBACK, callback)) {
+        return;
+      }
       // About to enter an ExecutionContext so capture the Scope if necessary
       ContextStore<CallbackRunnable, State> contextStore =
           InstrumentationContext.get(CallbackRunnable.class, State.class);
