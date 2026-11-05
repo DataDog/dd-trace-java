@@ -1,5 +1,5 @@
 import datadog.gradle.plugin.testing.GeneratedGroovyClosureSpec
-import datadog.gradle.plugin.testing.configureTestAgentChecks
+import datadog.gradle.plugin.testing.configureTestAgentPostChecks
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -39,7 +39,7 @@ val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests"
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
-  configureTestAgentChecks(rootProject.layout.projectDirectory.file(".gitlab/check_test_agent_results.sh").asFile)
+  configureTestAgentPostChecks()
 
   // Disable all tests if skipTests property was specified
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
