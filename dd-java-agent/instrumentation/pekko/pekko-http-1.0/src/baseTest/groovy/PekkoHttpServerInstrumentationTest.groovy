@@ -187,7 +187,7 @@ abstract class PekkoHttpRouteOtelSemanticsTest extends WithHttpServer<PekkoHttpT
     serverSpan.resourceName.toString() == 'GET'
 
     where:
-    path << ['/directive-rejection/value', '/header-rejection/value']
+    path << ['/directive-rejection/value', '/header-rejection/value', '/zero-consumption-rejection/value']
   }
 
   def "concurrent requests retain their own routes across asynchronous matching and rejection"() {
@@ -289,5 +289,82 @@ class PekkoHttpServerInstrumentationAsyncHttp2Test extends PekkoHttpServerInstru
   @Override
   HttpServer server() {
     return new PekkoHttpTestWebServer(PekkoHttpTestWebServer.BindAndHandleAsyncHttp2())
+  }
+}
+
+
+abstract class PekkoHttpRouteConfigurationTest extends WithHttpServer<PekkoHttpTestWebServer> implements TestingGenericHttpNamingConventions.ServerV0 {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "true")
+  }
+
+  @Override
+  HttpServer server() {
+    new PekkoHttpTestWebServer(PekkoHttpTestWebServer.BindAndHandle())
+  }
+
+  boolean routeEnabled() {
+    false
+  }
+  boolean otelEnabled() {
+    false
+  }
+
+  def "route opt in respects naming semantics"() {
+    when:
+    def response = client.newCall(new Request.Builder().url(address.resolve('/items/value').toString()).build()).execute()
+    assert response.code() == 200
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def span = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
+    span.getTag('http.route') == (routeEnabled() ? '/items/{param}' : null)
+    span.resourceName.toString() == (otelEnabled() ? 'GET' : 'GET /items/value')
+  }
+
+  def "rejected route leaves the original resource"() {
+    when:
+    def response = client.newCall(new Request.Builder().url(address.resolve(path).toString()).build()).execute()
+    assert response.code() == 200
+    assert response.body().string() == 'fallback'
+    response.close()
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def span = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'pekko-http-server' }
+    span.getTag('http.route') == null
+    span.resourceName.toString() == (otelEnabled() ? 'GET' : "GET $path")
+
+    where:
+    path << ['/header-rejection/value', '/zero-consumption-rejection/value']
+  }
+}
+
+class PekkoHttpRouteEnabledForkedTest extends PekkoHttpRouteConfigurationTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('integration.pekko-http-route.enabled', 'true')
+  }
+
+  @Override
+  boolean routeEnabled() {
+    true
+  }
+}
+
+class PekkoHttpRouteDisabledOtelSemanticsForkedTest extends PekkoHttpRouteConfigurationTest implements TestingOtelHttpSemantics {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('integration.pekko-http-route.enabled', 'false')
+  }
+
+  @Override
+  boolean otelEnabled() {
+    true
   }
 }

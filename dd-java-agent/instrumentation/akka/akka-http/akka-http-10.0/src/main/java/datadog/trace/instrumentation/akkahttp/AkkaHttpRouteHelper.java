@@ -14,11 +14,10 @@ import java.util.ArrayList;
 import java.util.List;
 import scala.Product;
 
-/**
- * Builds templates from matched literals and extracted parameters, retaining no parameter values.
- */
+/** Builds route templates from matched literals and parameter placeholders. */
 public final class AkkaHttpRouteHelper {
-  private static final boolean RAW_RESOURCE = Config.get().isHttpServerRawResource();
+  private static final boolean OTEL_SEMANTICS_ENABLED = Config.get().isTraceOtelSemanticsEnabled();
+  // Matcher calls nest synchronously; request state carries routes across asynchronous directives.
   private static final ThreadLocal<Frame> CURRENT = new ThreadLocal<>();
 
   private AkkaHttpRouteHelper() {}
@@ -32,7 +31,7 @@ public final class AkkaHttpRouteHelper {
       return frame;
     }
     AkkaHttpRouteState state = AkkaHttpRouteState.current();
-    if (state == null) {
+    if (state == null || state.requestPath == null) {
       return null;
     }
     AgentSpan active = activeSpan();
@@ -40,7 +39,7 @@ public final class AkkaHttpRouteHelper {
       return null;
     }
     AgentSpan root = active.getLocalRootSpan();
-    if (root == null || root.getTag(KnownTags.URL_PATH_NAME) == null) {
+    if (root == null) {
       return null;
     }
     Frame frame = new Frame(path, root, state, null);
@@ -55,7 +54,9 @@ public final class AkkaHttpRouteHelper {
     boolean isMatch = throwable == null && matching instanceof PathMatcher.Matched;
     if (frame.parent == null) {
       CURRENT.remove();
-      frame.state.routeMatched = isMatch;
+      if (!isMatch) {
+        frame.state.routeMatched = false;
+      }
     } else {
       CURRENT.set(frame.parent);
     }
@@ -67,6 +68,7 @@ public final class AkkaHttpRouteHelper {
     String path = frame.path();
     int consumed = path.length() - rest.length();
     if (consumed <= 0) {
+      // An empty matcher must not revive a candidate rejected by an earlier alternative.
       return;
     }
     String template = frame.template(consumed, matched.extractions());
@@ -81,9 +83,7 @@ public final class AkkaHttpRouteHelper {
       return;
     }
     Route previous = null;
-    Object requestPath = frame.span.getTag(KnownTags.URL_PATH_NAME);
-    if (requestPath == null
-        || !requestPath.toString().equals(RAW_RESOURCE ? path : URIUtils.decode(path))) {
+    if (!frame.state.requestPath.equals(path)) {
       previous = frame.state.route;
       // A rejected route can retry an earlier unmatched path in another alternative.
       while (previous != null && !previous.remaining.equals(path)) {
@@ -95,9 +95,15 @@ public final class AkkaHttpRouteHelper {
       template = previous.template + template;
     }
     frame.state.route = new Route(0, rest, template, previous);
-    Object method = frame.span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME);
-    HTTP_RESOURCE_DECORATOR.withRoute(
-        frame.span, method == null ? null : method.toString(), template, true);
+    frame.state.routeMatched = true;
+    if (OTEL_SEMANTICS_ENABLED) {
+      Object method = frame.span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME);
+      HTTP_RESOURCE_DECORATOR.withRoute(
+          frame.span, method == null ? null : method.toString(), template, true);
+    } else {
+      // withRoute also applies legacy route-based naming; this opt-in only adds the tag.
+      frame.span.setTag(KnownTags.HTTP_ROUTE_ID, URIUtils.decode(template));
+    }
   }
 
   public static final class Frame {

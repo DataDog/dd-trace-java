@@ -172,6 +172,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.env.FixedCapturedEnvironment.useFixedEnv;
 import static datadog.trace.bootstrap.config.provider.ConfigProvider.withPropertiesOverride;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
@@ -722,6 +723,32 @@ class ConfigTest {
     assertEquals("OtlpWriter", calculated.get(WRITER_TYPE).value);
     assertEquals("v0", calculated.get(TRACE_SPAN_ATTRIBUTE_SCHEMA).value);
     assertEquals(false, calculated.get(TRACE_PEER_SERVICE_DEFAULTS_ENABLED).value);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void otelSemanticsUsesTheInstanceConfiguration(boolean enabled) {
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, Boolean.toString(!enabled));
+    // Keep the singleton snapshot while allowing the instance properties to supply the value.
+    System.clearProperty(PREFIX + TRACE_OTEL_SEMANTICS_ENABLED);
+    Properties properties = new Properties();
+    properties.setProperty(TRACE_OTEL_SEMANTICS_ENABLED, Boolean.toString(enabled));
+    properties.setProperty(TRACE_OTEL_EXPORTER, "agent");
+    properties.setProperty(WRITER_TYPE, "LoggingWriter");
+    properties.setProperty(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v1");
+    properties.setProperty(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "true");
+
+    Config config = Config.get(properties);
+
+    assertEquals(!enabled, InstrumenterConfig.get().isTraceOtelSemanticsEnabled());
+    assertEquals(enabled, config.isTraceOtelSemanticsEnabled());
+    assertEquals(enabled, config.isTraceOtlpExporterEnabled());
+    assertEquals(enabled ? "OtlpWriter" : "LoggingWriter", config.getWriterType());
+    assertEquals(enabled ? 0 : 1, config.getSpanAttributeSchemaVersion());
+    assertEquals(!enabled, config.isPeerServiceDefaultsEnabled());
+    assertEquals(
+        enabled ? toBitSet(400, 599) : DEFAULT_HTTP_CLIENT_ERROR_STATUSES,
+        config.getHttpClientErrorStatuses());
   }
 
   @Test

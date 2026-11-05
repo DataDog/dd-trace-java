@@ -15,7 +15,7 @@ import akka.http.scaladsl.server.PathMatcher;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -25,12 +25,14 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class AkkaHttpPathMatcherInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public AkkaHttpPathMatcherInstrumentation() {
-    super("akka-http", "akka-http-server");
+    // Keep this opt-in independent of an explicit parent HTTP integration enablement.
+    super("akka-http-route");
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isTraceOtelSemanticsEnabled();
+  protected boolean defaultEnabled() {
+    // OTel enables route capture by default; the dedicated integration switch can override it.
+    return super.defaultEnabled() && InstrumenterConfig.get().isTraceOtelSemanticsEnabled();
   }
 
   @Override

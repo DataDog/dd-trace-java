@@ -2,6 +2,7 @@ package datadog.trace.api;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_MAP_PER_STORE;
@@ -30,6 +31,20 @@ import org.tabletest.junit.TableTest;
 class InstrumenterConfigTest {
 
   private StrictnessPolicy strictness;
+
+  @TableTest({
+    "Scenario | Configured | Expected",
+    "default  |            | false   ",
+    "enabled  | true       | true    ",
+    "disabled | false      | false   "
+  })
+  void traceOtelSemantics(String configured, boolean expected) {
+    if (configured != null) {
+      injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, configured);
+    }
+    assertEquals(expected, InstrumenterConfig.get().isTraceOtelSemanticsEnabled());
+    assertEquals(expected, Config.get().isTraceOtelSemanticsEnabled());
+  }
 
   @BeforeEach
   void setup() {
