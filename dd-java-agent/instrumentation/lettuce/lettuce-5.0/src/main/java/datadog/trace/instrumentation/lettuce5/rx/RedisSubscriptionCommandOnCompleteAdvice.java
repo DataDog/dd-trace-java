@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.lettuce5.rx;
 
-import static datadog.trace.api.KnownTags.DB_COMMAND_CANCELLED_ID;
-import static datadog.trace.api.KnownTags.DB_COMMAND_RESULTS_COUNT_ID;
+import static datadog.trace.api.KnownTags.DB_COMMAND_CANCELLED;
+import static datadog.trace.api.KnownTags.DB_COMMAND_RESULTS_COUNT;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.expectsResponse;
 
@@ -30,11 +30,11 @@ public class RedisSubscriptionCommandOnCompleteAdvice {
       RedisSubscriptionState state = store.get(subscription);
       if (state != null) {
         if (state.count > 1) {
-          span.setTag(DB_COMMAND_RESULTS_COUNT_ID, state.count);
+          span.setTag(DB_COMMAND_RESULTS_COUNT, state.count);
         }
       }
       if (state != null && state.cancelled) {
-        span.setTag(DB_COMMAND_CANCELLED_ID, true);
+        span.setTag(DB_COMMAND_CANCELLED, true);
       }
       if (expectsResponse(command)) {
         DECORATE.beforeFinish(span);

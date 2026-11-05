@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.rediscala;
 
-import static datadog.trace.api.KnownTags.DB_REDIS_DBINDEX_ID;
+import static datadog.trace.api.KnownTags.DB_REDIS_DBINDEX;
 
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -64,7 +64,7 @@ public class RediscalaClientDecorator
   public void onConnection(final AgentSpan span, final RedisConnectionInfo connection) {
     if (connection != null) {
       setPeerPort(span, connection.port);
-      span.setTag(DB_REDIS_DBINDEX_ID, connection.dbIndex);
+      span.setTag(DB_REDIS_DBINDEX, connection.dbIndex);
     }
     super.onConnection(span, connection);
   }

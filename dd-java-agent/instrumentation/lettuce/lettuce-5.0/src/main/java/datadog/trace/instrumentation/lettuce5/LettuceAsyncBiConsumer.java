@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.lettuce5;
 
-import static datadog.trace.api.KnownTags.DB_COMMAND_CANCELLED_ID;
+import static datadog.trace.api.KnownTags.DB_COMMAND_CANCELLED;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -28,7 +28,7 @@ public class LettuceAsyncBiConsumer<T extends Object, U extends Throwable>
   @Override
   public void accept(final T t, final Throwable throwable) {
     if (throwable instanceof CancellationException) {
-      span.setTag(DB_COMMAND_CANCELLED_ID, true);
+      span.setTag(DB_COMMAND_CANCELLED, true);
     } else {
       DECORATE.onError(span, throwable);
     }
