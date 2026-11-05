@@ -7,11 +7,10 @@ capability probes, identity announcements or completion acknowledgments in the n
 
 ## Configuration
 
-At this proposed default-switch stage, `DD_UNIVERSAL_INSTRUMENTATION` defaults to `false`.
-Explicit `true` retains the legacy extension bridge as a temporary rollback. Native mode never
-falls back to lifecycle requests. An unset or invalid value uses the stage default; invalid
-nonempty values log a diagnostic. The setting accepts Go-compatible Boolean forms.
-This default-switch draft remains blocked on the compatibility work below; it is not a rollout.
+Lambda tracing is always native at this final removal stage. `DD_UNIVERSAL_INSTRUMENTATION`
+is deprecated. Explicit `true` logs a diagnostic and cannot restore the removed legacy path.
+Rollback requires a prior supported tracer release. This removal draft is blocked on the
+native-default release, deployment certification and an agreed rollback support window.
 
 Java propagation, sampling, AppSec and service settings apply. Optional settings:
 

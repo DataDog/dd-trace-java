@@ -86,11 +86,16 @@ class LambdaNativeInvocationTest extends DDCoreJavaSpecification {
 
   @Test
   @WithConfig(key = "universal.instrumentation", value = "true")
-  void legacyGateDoesNotCreateNativeInvocations() {
-    CoreTracer tracer = tracerBuilder().build();
+  void obsoleteGateCannotDisableNativeInvocations() {
+    ListWriter writer = new ListWriter();
+    CoreTracer tracer = tracerBuilder().writer(writer).build();
     try {
-      assertTrue(tracer.isUniversalInstrumentationEnabled());
-      assertNull(tracer.startLambdaInvocation("{}", "request-1", "function", "1", null));
+      AgentTracer.LambdaInvocation invocation =
+          tracer.startLambdaInvocation("{}", "request-1", "function", "1", null);
+      assertEquals("aws.lambda", invocation.span().getOperationName().toString());
+      invocation.onExit(null, null);
+      invocation.finish();
+      assertEquals(1, writer.size());
     } finally {
       tracer.close();
     }

@@ -385,10 +385,6 @@ public class AgentTracer {
 
     CallbackProvider getUniversalCallbackProvider();
 
-    default boolean isUniversalInstrumentationEnabled() {
-      return false;
-    }
-
     default LambdaInvocation startLambdaInvocation(
         Object event,
         String requestId,
@@ -397,12 +393,6 @@ public class AgentTracer {
         String invokedArn) {
       return null;
     }
-
-    AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId);
-
-    void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
-
-    void notifyAppSecEnd(AgentSpan span, Object result);
 
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
@@ -667,18 +657,6 @@ public class AgentTracer {
     public EndpointTracker onRootSpanStarted(AgentSpan root) {
       return EndpointTracker.NO_OP;
     }
-
-    @Override
-    public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
-      return null;
-    }
-
-    @Override
-    public void notifyExtensionEnd(
-        AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
-
-    @Override
-    public void notifyAppSecEnd(AgentSpan span, Object result) {}
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {

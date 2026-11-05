@@ -5338,6 +5338,10 @@ public class Config {
     return dsmKafkaGroup;
   }
 
+  /**
+   * @deprecated Lambda tracing is always native; this compatibility getter returns false.
+   */
+  @Deprecated
   public boolean isUniversalInstrumentationEnabled() {
     return universalInstrumentationEnabled;
   }
@@ -5353,7 +5357,9 @@ public class Config {
       case "true":
       case "TRUE":
       case "True":
-        return true;
+        log.warn(
+            "DD_UNIVERSAL_INSTRUMENTATION=true is deprecated; Lambda tracing is always native");
+        return false;
       case "0":
       case "f":
       case "F":

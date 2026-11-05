@@ -7,12 +7,10 @@ import static datadog.trace.lambda.LambdaEventParser.findHeader;
 import static datadog.trace.lambda.LambdaEventParser.parseEvent;
 import static datadog.trace.lambda.LambdaEventParser.parseResponse;
 
-import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
-import datadog.trace.api.TagMap;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -40,7 +38,6 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -55,7 +52,6 @@ import org.slf4j.LoggerFactory;
 public class LambdaAppSecHandler {
 
   private static final Logger log = LoggerFactory.getLogger(LambdaAppSecHandler.class);
-  private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, TimeUnit.MINUTES);
 
   /**
    * Marks an invocation AppSec did not process because the trigger is not HTTP, or if the event is
@@ -286,52 +282,6 @@ public class LambdaAppSecHandler {
     } catch (Exception e) {
       log.debug("Failed to process AppSec response data", e);
     }
-  }
-
-  /**
-   * Merges the AppSec request context data and the HTTP tags into the context returned by the
-   * Lambda Extension, which is the one that survives and seeds the invocation span.
-   *
-   * @param extensionContext context from the extension, may be null when no extension is in the
-   *     path
-   * @param appSecContext context returned by {@link #processRequestStart(Object)}, may be null
-   * @return the surviving context: the extension one when both are present
-   */
-  public static AgentSpanContext mergeContexts(
-      AgentSpanContext extensionContext, AgentSpanContext appSecContext) {
-    if (appSecContext == null) {
-      return extensionContext;
-    }
-    if (extensionContext == null) {
-      return appSecContext;
-    }
-
-    if (appSecContext instanceof TagContext) {
-      TagContext extracted = (TagContext) appSecContext;
-      Object appSecData = extracted.getRequestContextDataAppSec();
-
-      if (extensionContext instanceof TagContext) {
-        TagContext merged = (TagContext) extensionContext;
-        if (appSecData != null) {
-          merged.withRequestContextDataAppSec(appSecData);
-        }
-        // The extension context is the one that survives, so the HTTP tags applied to the AppSec
-        // context have to be carried over: CoreTracer copies them onto the span at creation.
-        // The AppSec-derived values win on a key collision. No collision is reachable today: the
-        // extension context only carries tags for headers mapped through
-        // DD_TRACE_REQUEST_HEADER_TAGS
-        // (ContextInterpreter.handleTags), and those would have to be mapped onto an http.* key.
-        for (TagMap.EntryReader tag : extracted.getTags()) {
-          merged.putTag(tag.tag(), tag.stringValue());
-        }
-        return merged;
-      }
-
-      rlLog.warn(
-          "Cannot merge AppSec data: extension context is not a TagContext: {}",
-          extensionContext.getClass());
-    }
-    return extensionContext;
   }
 
   /**

@@ -10,6 +10,6 @@ class LambdaHandlerInstrumentationV0Test extends LambdaHandlerInstrumentationTes
 
   @Override
   String operation() {
-    return "dd-tracer-serverless-span";
+    return "aws.lambda";
   }
 }
