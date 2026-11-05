@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
 import static datadog.context.ContextKey.named;
-import static datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics.spanNameMethod;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE;
 import static java.util.Collections.singletonList;
 
@@ -26,6 +25,7 @@ public final class AkkaHttpRouteState {
 
   String requestPath;
   Route route;
+  CharSequence originalResourceName;
 
   /** Whether the latest route candidate has matched without subsequently being rejected. */
   boolean routeMatched;
@@ -60,6 +60,8 @@ public final class AkkaHttpRouteState {
     state.requestPath = null;
     boolean rejected = state.route != null && !state.routeMatched;
     state.route = null;
+    CharSequence originalResourceName = state.originalResourceName;
+    state.originalResourceName = null;
     if (!rejected) {
       return;
     }
@@ -68,11 +70,9 @@ public final class AkkaHttpRouteState {
       root = span;
     }
     root.setTag(KnownTags.HTTP_ROUTE_ID, (String) null);
-    if (OTEL_SEMANTICS_ENABLED) {
-      Object method = root.getTag(KnownTags.HTTP_METHOD_OTEL_NAME);
-      // Restore the method-only resource that OTel semantics give unrouted requests.
-      root.setResourceName(
-          spanNameMethod(method == null ? null : method.toString()), HTTP_FRAMEWORK_ROUTE);
+    if (originalResourceName != null) {
+      // Undo tentative route naming without overriding higher-priority application names.
+      root.setResourceName(originalResourceName, HTTP_FRAMEWORK_ROUTE);
     }
   }
 

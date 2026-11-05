@@ -532,6 +532,10 @@ abstract class AkkaHttpRouteConfigurationTest extends WithHttpServer<AkkaHttpTes
     false
   }
 
+  boolean routeBasedNaming() {
+    true
+  }
+
   def "route opt in respects naming semantics"() {
     when:
     def response = client.newCall(new Request.Builder().url(address.resolve('/items/value').toString()).build()).execute()
@@ -542,7 +546,7 @@ abstract class AkkaHttpRouteConfigurationTest extends WithHttpServer<AkkaHttpTes
     then:
     def span = TEST_WRITER.flatten().find { it.getTag('component')?.toString() == 'akka-http-server' }
     span.getTag('http.route') == (routeEnabled() ? '/items/{param}' : null)
-    span.resourceName.toString() == (otelEnabled() ? 'GET' : 'GET /items/value')
+    span.resourceName.toString() == (otelEnabled() ? 'GET' : (routeBasedNaming() ? 'GET /items/{param}' : 'GET /items/value'))
   }
 
   def "rejected route leaves the original resource"() {
@@ -586,5 +590,18 @@ class AkkaHttpRouteDisabledOtelSemanticsForkedTest extends AkkaHttpRouteConfigur
   @Override
   boolean otelEnabled() {
     true
+  }
+}
+
+class AkkaHttpRouteNamingDisabledForkedTest extends AkkaHttpRouteEnabledForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('http.server.route-based-naming', 'false')
+  }
+
+  @Override
+  boolean routeBasedNaming() {
+    false
   }
 }

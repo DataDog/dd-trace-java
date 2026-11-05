@@ -187,6 +187,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LAMBDA_SNAPSTART_CL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST;
@@ -1038,6 +1039,7 @@ public class Config {
   private final OtlpConfig.Temporality otlpMetricsTemporalityPreference;
 
   private final boolean otelTracesSpanMetricsEnabled;
+  private final boolean traceOtelSemanticsEnabled;
 
   private final String traceOtelExporter;
   private final String otlpTracesEndpoint;
@@ -1551,8 +1553,11 @@ public class Config {
 
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
+    traceOtelSemanticsEnabled =
+        configProvider.getBoolean(
+            TRACE_OTEL_SEMANTICS_ENABLED, DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED);
     String configuredTraceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
-    if (isTraceOtelSemanticsEnabled()) {
+    if (traceOtelSemanticsEnabled) {
       if (configuredTraceOtelExporter != null
           && !"otlp".equalsIgnoreCase(configuredTraceOtelExporter)) {
         logOverriddenSettingWarning(TRACE_OTEL_EXPORTER, TRACE_OTEL_SEMANTICS_ENABLED, "otlp");
@@ -1566,7 +1571,7 @@ public class Config {
     String configuredWriterType =
         configProvider.getString(
             WRITER_TYPE, otlpTracesExporter ? OTLP_WRITER_TYPE : DEFAULT_AGENT_WRITER_TYPE);
-    if (isTraceOtelSemanticsEnabled()) {
+    if (traceOtelSemanticsEnabled) {
       if (!OTLP_WRITER_TYPE.equals(configuredWriterType)) {
         logOverriddenSettingWarning(WRITER_TYPE, TRACE_OTEL_SEMANTICS_ENABLED, OTLP_WRITER_TYPE);
       }
@@ -1788,7 +1793,7 @@ public class Config {
         isInjectDatadogAttributeEnabled(DEFAULT_INJECT_DATADOG_ATTRIBUTE, "sqs");
 
     int configuredSpanAttributeSchemaVersion = schemaVersionFromConfig();
-    if (isTraceOtelSemanticsEnabled()) {
+    if (traceOtelSemanticsEnabled) {
       if (configuredSpanAttributeSchemaVersion != SpanNaming.SCHEMA_MIN_VERSION) {
         logOtelSemanticsOverride(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v" + SpanNaming.SCHEMA_MIN_VERSION);
       }
@@ -1804,7 +1809,7 @@ public class Config {
     // in v1+ defaults are always calculated regardless this feature flag
     boolean configuredPeerServiceDefaultsEnabled =
         configProvider.getBoolean(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
-    if (isTraceOtelSemanticsEnabled()) {
+    if (traceOtelSemanticsEnabled) {
       if (configuredPeerServiceDefaultsEnabled) {
         logOtelSemanticsOverride(TRACE_PEER_SERVICE_DEFAULTS_ENABLED, false);
       }
@@ -1844,7 +1849,7 @@ public class Config {
     httpClientErrorStatuses =
         configProvider.getIntegerRange(
             TRACE_HTTP_CLIENT_ERROR_STATUSES,
-            isTraceOtelSemanticsEnabled()
+            traceOtelSemanticsEnabled
                 ? DEFAULT_OTEL_HTTP_CLIENT_ERROR_STATUSES
                 : DEFAULT_HTTP_CLIENT_ERROR_STATUSES,
             HTTP_CLIENT_ERROR_STATUSES);
@@ -5948,7 +5953,7 @@ public class Config {
   }
 
   public boolean isTraceOtelSemanticsEnabled() {
-    return instrumenterConfig.isTraceOtelSemanticsEnabled();
+    return traceOtelSemanticsEnabled;
   }
 
   public boolean isTraceOtelEnabled() {
@@ -7178,6 +7183,8 @@ public class Config {
         + otlpMetricsTemporalityPreference
         + ", otelTracesSpanMetricsEnabled="
         + otelTracesSpanMetricsEnabled
+        + ", traceOtelSemanticsEnabled="
+        + traceOtelSemanticsEnabled
         + ", traceStatsInterval="
         + traceStatsInterval
         + ", traceOtelExporter="

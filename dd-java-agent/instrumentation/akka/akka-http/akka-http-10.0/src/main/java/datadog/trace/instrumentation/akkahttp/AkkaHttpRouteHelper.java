@@ -8,7 +8,7 @@ import akka.http.scaladsl.server.PathMatcher;
 import datadog.trace.api.Config;
 import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.URIUtils;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.instrumentation.akkahttp.AkkaHttpRouteState.Route;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +17,8 @@ import scala.Product;
 /** Builds route templates from matched literals and parameter placeholders. */
 public final class AkkaHttpRouteHelper {
   private static final boolean OTEL_SEMANTICS_ENABLED = Config.get().isTraceOtelSemanticsEnabled();
+  private static final boolean ROUTE_BASED_NAMING_ENABLED =
+      OTEL_SEMANTICS_ENABLED || Config.get().isHttpServerRouteBasedNaming();
   // Matcher calls nest synchronously; request state carries routes across asynchronous directives.
   private static final ThreadLocal<Frame> CURRENT = new ThreadLocal<>();
 
@@ -94,16 +96,16 @@ public final class AkkaHttpRouteHelper {
       }
       template = previous.template + template;
     }
+    if (frame.state.route == null && ROUTE_BASED_NAMING_ENABLED) {
+      frame.state.originalResourceName = frame.span.getResourceName();
+    }
     frame.state.route = new Route(0, rest, template, previous);
     frame.state.routeMatched = true;
-    if (OTEL_SEMANTICS_ENABLED) {
-      Object method = frame.span.getTag(KnownTags.HTTP_METHOD_OTEL_NAME);
-      HTTP_RESOURCE_DECORATOR.withRoute(
-          frame.span, method == null ? null : method.toString(), template, true);
-    } else {
-      // withRoute also applies legacy route-based naming; this opt-in only adds the tag.
-      frame.span.setTag(KnownTags.HTTP_ROUTE_ID, URIUtils.decode(template));
-    }
+    Object method =
+        frame.span.getTag(
+            OTEL_SEMANTICS_ENABLED ? KnownTags.HTTP_METHOD_OTEL_NAME : Tags.HTTP_METHOD);
+    HTTP_RESOURCE_DECORATOR.withRoute(
+        frame.span, method == null ? null : method.toString(), template, true);
   }
 
   public static final class Frame {
